@@ -31,7 +31,7 @@ export interface TraitObject {
     readonly storage: ObjectStorage;
     /** The objects' natural key, absent for generated identifiers. */
     readonly key: schema.Schema<string> | undefined;
-    /** Whether each object represents a principal, which acts on its own row. */
+    /** Whether each object represents a principal, which acts on its row. */
     readonly isPrincipal: boolean;
     /** Whether the objects live only in the universe, where no code is contained. */
     readonly isUniverseOnly: boolean;
@@ -47,7 +47,7 @@ export type TraitTable = Pick<TableOptions<never>, "dependents" | "aggregates" |
 export interface TraitPolicy {
     /** The attributes of the trait's columns that policy conditions read. */
     readonly attributes?: Readonly<Record<string, "string" | "number" | "boolean">>;
-    /** The relations the trait's columns hold. */
+    /** The relations the trait's columns store. */
     readonly relations?: Readonly<Record<string, RelationInput>>;
     /** The permissions the trait derives. */
     readonly permissions?: Readonly<Record<string, AccessExpression>>;

@@ -22,7 +22,6 @@ export {
     type MethodsOf,
     type ForeignType,
     type MethodDescription,
-    type ObjectShape,
     type DefinedType,
     type ObjectIndex,
     type ObjectScope,

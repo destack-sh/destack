@@ -1,5 +1,5 @@
 import { testCallKey } from "../test/context.ts";
-import { reconciliation, TEST_DIALECTS, TestDatabase } from "@destack/db/test";
+import { reconciliation, TestDatabase } from "@destack/db/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { AccessContext, Caller, none, principal, relation } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
@@ -7,10 +7,12 @@ import { type DatabaseConnection, defineDatabase, eq, Snapshot } from "@destack/
 import { RequestId, Replica, Scope } from "@destack/sync";
 import { CallError } from "../error/call.ts";
 import { present, schema } from "@destack/schema";
-import { call, defineObject, field } from "../index.ts";
+import { defineObject, defineShape, field, Follow } from "../index.ts";
 import { serversOf, testEvents } from "../test/index.ts";
-import { ObjectSink, ObjectStore } from "./index.ts";
+import { ObjectStore } from "./index.ts";
 import { Clock } from "@destack/environment";
+import { tablesOf } from "../stack/db.ts";
+import objectPackage from "../package.ts";
 
 /** The space whose store replicates the people it joined. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000041");
@@ -45,7 +47,7 @@ const greeted = person.implement({
     },
 });
 
-/** Labels the space keeps itself, so its store serves methods of its own. */
+/** Labels the space stores itself, so its store serves their methods. */
 const label = defineObject({
     name: "label",
     plural: "labels",
@@ -81,18 +83,38 @@ async function delegated(
     );
 }
 
+/** The people the space reads, followed at the universe. */
+const PEOPLE = Follow.of(
+    defineShape({
+        name: "people",
+        parameters: schema.object({}),
+        objects: [person],
+        queries: () => [person.query({})],
+    }),
+    { keys: [{ key: { scope: Scope.universe.id } }] },
+);
+
 /** Serve ada at the universe, and a space store replicating her without serving people. */
-async function serveHome(dialect: (typeof TEST_DIALECTS)[number]) {
+async function serveHome() {
     // store ada at home, joined by the space
-    const home = await TestDatabase.create(dialect, [...person.tables, ...call.tables], {
-        isMigrated: true,
-    });
+    const home = await TestDatabase.create(
+        tablesOf({
+            packages: [objectPackage, { objects: { person }, tables: [] }],
+            follows: [],
+            tables: [],
+        }).tables,
+        {
+            isMigrated: true,
+        },
+    );
     const replicating = await TestDatabase.create(
-        dialect,
         defineDatabase({
             name: "space",
-            tables: [label.table, ...call.tables],
-            replicated: person.tables,
+            ...tablesOf({
+                packages: [objectPackage, { objects: { label }, tables: [] }],
+                follows: [PEOPLE],
+                tables: [],
+            }),
         }),
         { isMigrated: true },
     );
@@ -100,7 +122,7 @@ async function serveHome(dialect: (typeof TEST_DIALECTS)[number]) {
         await Promise.all([home.close(), replicating.close()]);
     });
     for (const database of [home.database, replicating.database]) {
-        // keep ada's scope and her joining the space, at home and in the space's access replica
+        // store ada's scope and her joining the space, at home and in the space's access replica
         const access = new AccessFixture(database);
         await access.replicateScope(person.reference(Scope.universe.id, adaId));
         await access.replicateRelationship(
@@ -129,7 +151,7 @@ async function serveHome(dialect: (typeof TEST_DIALECTS)[number]) {
         chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
         clock: Clock.system,
         principal: space,
-        servers: serversOf([label]),
+        servers: serversOf([label], { follows: [PEOPLE] }),
         policies: [person],
         database: replicating.database,
         uplink: {
@@ -150,7 +172,9 @@ async function serveHome(dialect: (typeof TEST_DIALECTS)[number]) {
     const controller = new AbortController();
     const key = present(
         (await follower.list(Snapshot.live(store.database))).find(
-            (entry) => entry === `${ObjectSink.queriesName(spaceId)} ${Scope.universe.id}`,
+            (entry) =>
+                entry ===
+                `${PEOPLE.shape.replicaName({ scope: Scope.universe.id })} ${Scope.universe.id}`,
         ),
         "the universe's replica key",
     );
@@ -192,45 +216,42 @@ async function outcome(promise: Promise<unknown>): Promise<unknown> {
     }
 }
 
-test.each(TEST_DIALECTS)(
-    "answer a query nothing here handles at its rows' home, and send a write there within the caller's grant, on %s",
-    async (dialect) => {
-        const { store, name, database } = await serveHome(dialect);
-        const rename = (value: string) => ({
-            id: RequestId.create(Date.now()),
-            calls: [person.call("update", { id: adaId, name: value })],
-        });
+test("answer a query nothing here handles at its rows' home, and send a write there within the caller's grant", async () => {
+    const { store, name, database } = await serveHome();
+    const rename = (value: string) => ({
+        id: RequestId.create(Date.now()),
+        calls: [person.call("update", { id: adaId, name: value })],
+    });
 
-        // greet ada at home, as the space and as its installation reading for it
-        const greeting = person.call("greeting", { id: adaId });
-        const asSpace = await store.query(AccessContext.of(Caller.of(space), Date.now()), greeting);
-        const asInstallation = await store.query(await delegated(database, ["read"]), greeting);
+    // greet ada at home, as the space and as its installation reading for it
+    const greeting = person.call("greeting", { id: adaId });
+    const asSpace = await store.query(AccessContext.of(Caller.of(space), Date.now()), greeting);
+    const asInstallation = await store.query(await delegated(database, ["read"]), greeting);
 
-        // rename her under a grant giving reading alone, then under one giving writing
-        const refused = await outcome(
-            store.mutate(await delegated(database, ["read"]), rename("Ada Lovelace")),
-        );
-        const unchanged = await name();
-        const [renamed] = await store.mutate(
-            await delegated(database, ["read", "write"]),
-            rename("Ada L."),
-        );
+    // rename her under a grant giving reading alone, then under one giving writing
+    const refused = await outcome(
+        store.mutate(await delegated(database, ["read"]), rename("Ada Lovelace")),
+    );
+    const unchanged = await name();
+    const [renamed] = await store.mutate(
+        await delegated(database, ["read", "write"]),
+        rename("Ada L."),
+    );
 
-        // greet at home, refuse the write the grant does not give, and answer the given one's row
-        expect({
-            asSpace,
-            asInstallation,
-            refused,
-            unchanged,
-            renamed: schema.looseObject({ name: schema.string() }).parse(renamed).name,
-            home: await name(),
-        }).toEqual({
-            asSpace: { greeting: "hello Ada" },
-            asInstallation: { greeting: "hello Ada" },
-            refused: `FORBIDDEN: grant grant-01996ab0-0000-7000-8000-000000000043 does not give person.write in ${Scope.universe.id}`,
-            unchanged: "Ada",
-            renamed: "Ada L.",
-            home: "Ada L.",
-        });
-    },
-);
+    // greet at home, refuse the write the grant does not give, and answer the given one's row
+    expect({
+        asSpace,
+        asInstallation,
+        refused,
+        unchanged,
+        renamed: schema.looseObject({ name: schema.string() }).parse(renamed).name,
+        home: await name(),
+    }).toEqual({
+        asSpace: { greeting: "hello Ada" },
+        asInstallation: { greeting: "hello Ada" },
+        refused: `FORBIDDEN: grant grant-01996ab0-0000-7000-8000-000000000043 does not give person.write in ${Scope.universe.id}`,
+        unchanged: "Ada",
+        renamed: "Ada L.",
+        home: "Ada L.",
+    });
+});

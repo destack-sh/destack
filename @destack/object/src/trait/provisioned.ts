@@ -100,7 +100,7 @@ function resourceFields(kind: ResourceKind) {
         machine: field.reference(principal.machine).optional(),
         /** What deletion does to stored content: destroy it, retain it a while, or retain it. */
         retention: field.json(ResourceRetention).default("forever"),
-        /** The application installation owning it, absent for stack resources and after release. */
+        /** The owner application installation, absent for stack resources and after release. */
         owner: field.subject(principal.installation).optional(),
     };
 }

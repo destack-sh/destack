@@ -4,7 +4,7 @@ import { CallError } from "../error/call.ts";
 import type { MethodContext } from "./context.ts";
 import { Step } from "./step.ts";
 import { defineMethod, Method } from "./method.ts";
-import { RevisionShape } from "./procedure.ts";
+import { RevisionFields } from "./procedure.ts";
 import type { Execution } from "./execution.ts";
 import { RecordMethod } from "./record.ts";
 
@@ -23,14 +23,14 @@ export const NestedMethod = {
             mutates: true,
             target: "object",
             result: "object",
-            procedure: (_name, shapes) => ({
+            procedure: (_name, schemas) => ({
                 route: { method: "POST", path: "/{id}/move" },
-                input: shapes.target.extend({
-                    ...shapes.replay,
-                    ...RevisionShape,
-                    ...shapes.destination,
+                input: schemas.target.extend({
+                    ...schemas.replay,
+                    ...RevisionFields,
+                    ...schemas.destination,
                 }),
-                output: shapes.row,
+                output: schemas.row,
             }),
             handler: (context) => {
                 // write the new parent columns over the record
@@ -101,21 +101,21 @@ export const NestedMethod = {
         }
     },
 
-    /** Refuse moving a node of a tree into its own subtree. */
+    /** Refuse moving a node of a tree into its subtree. */
     async requireOutside(context: MethodContext, parentId: string): Promise<void> {
-        // walk only trees of the object's own type
+        // walk only trees of the object's type
         if (!context.object.tree) {
             return;
         }
 
-        // climb from the new parent through the call's view, which has the call's own moves
+        // climb from the new parent through the call's view, which has the call's moves
         const moved = context.id;
         const reader = context.read(context.object.table);
         const visited = new Set<string>();
         for (let node: string | null = parentId; node !== null && !visited.has(node);) {
             if (node === moved) {
                 throw new CallError("CONFLICT", {
-                    message: `${context.object.name} cannot move into its own subtree`,
+                    message: `${context.object.name} cannot move into its subtree`,
                 });
             }
             visited.add(node);

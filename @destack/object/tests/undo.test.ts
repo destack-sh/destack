@@ -2,20 +2,23 @@ import { users } from "./fixture/user.ts";
 import { Package } from "@destack/package";
 import { expect, onTestFinished, test } from "@destack/test";
 import { defineDatabase, eq, type DatabaseConnection } from "@destack/db";
-import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
+import { TestDatabase } from "@destack/db/test";
 import { definePackage } from "@destack/object";
 import { RequestId } from "@destack/sync";
 import { testCallKey } from "@destack/object/test";
-import { callTables, testEvents } from "../src/test/index.ts";
+import { testEvents } from "../src/test/index.ts";
 import { ObjectClient } from "../src/client/index.ts";
 import { defineObject, field, type Step } from "../src/index.ts";
 import { implementPackage, ObjectStore } from "../src/server/index.ts";
-import { found, nth } from "@destack/schema";
-import { Device, serveNotes, serveObjects, spaceId } from "./fixture/device.ts";
+import { found } from "@destack/schema";
+import { Device, serveNotes, spaceId } from "./fixture/device.ts";
 import { note, notebook } from "./fixture/note.ts";
 import { openSpace, space, unmoved, spacePrincipal } from "./fixture/space.ts";
 import { principal } from "@destack/access";
 import { Clock } from "@destack/environment";
+import { tablesOf } from "../src/index.ts";
+import objectPackage from "../src/package.ts";
+import { TestObjectStore } from "../src/test/index.ts";
 
 /** Folders with pages. */
 const folder = defineObject(
@@ -238,119 +241,120 @@ test("invert each trait's methods into the calls that undo them, and leave the r
     ]);
 });
 
-test.each(TEST_DIALECTS)(
-    "undo and redo a party's mutations, restoring only what no one changed since, across a restart, on %s",
-    async (dialect) => {
-        const { connect, endpoint } = await serveNotes(dialect);
-        const alice = connect(users.alice);
-        const device = await Device.open(users.alice, endpoint(users.alice));
-        device.online();
-        // create a note, retitle it and write its text, both confirmed
-        const created = device.client.mutate(note).create({ title: "Draft" });
-        const { id } = await created.predicted;
-        await created.confirmed;
-        await device.client.mutate(note).update({ id, title: "Plan", text: "first" }).confirmed;
-        const read = async (client: ObjectClient) => {
-            const [row] = await client.database
-                .select({
-                    title: note.table.title,
-                    text: note.table.text,
-                    deletedAt: note.table.deletedAt,
-                })
-                .from(note.table)
-                .where(eq(note.table.id, id));
+test("undo and redo a party's mutations, restoring only what no one changed since, across a restart", async () => {
+    const { connect, endpoint } = await serveNotes();
+    const alice = connect(users.alice);
+    const device = await Device.open(users.alice, endpoint(users.alice));
+    device.online();
+    // create a note, retitle it and write its text, both confirmed
+    const created = device.client.mutate(note).create({ title: "Draft" });
+    const { id } = await created.predicted;
+    await created.confirmed;
+    await device.client.mutate(note).update({ id, title: "Plan", text: "first" }).confirmed;
+    const read = async (client: ObjectClient) => {
+        const [row] = await client.database
+            .select({
+                title: note.table.title,
+                text: note.table.text,
+                deletedAt: note.table.deletedAt,
+            })
+            .from(note.table)
+            .where(eq(note.table.id, id));
 
-            return row;
-        };
+        return row;
+    };
 
-        // undo the update, restoring only the untouched title
-        await alice.note.update({
-            spaceId,
-            id,
-            requestId: RequestId.create(Date.now()),
-            text: "second",
-        });
-        await expect.poll(() => read(device.client)).toMatchObject({ text: "second" });
-        await device.client.undo().confirmed;
-        expect(await read(device.client)).toEqual({
-            title: "Draft",
-            text: "second",
-            deletedAt: null,
-        });
+    // undo the update, restoring only the untouched title
+    await alice.note.update({
+        spaceId,
+        id,
+        requestId: RequestId.create(Date.now()),
+        text: "second",
+    });
+    await expect.poll(() => read(device.client)).toMatchObject({ text: "second" });
+    await device.client.undo().confirmed;
+    expect(await read(device.client)).toEqual({
+        title: "Draft",
+        text: "second",
+        deletedAt: null,
+    });
 
-        // undo the creation into the trash and redo it
-        const trashed = async () =>
-            (await alice.note.list({ spaceId, deleted: "only" })).items.map((item) => item.id);
-        await device.client.undo().confirmed;
-        expect([await read(device.client), await trashed()]).toEqual([undefined, [id]]);
-        await device.client.redo().confirmed;
-        await expect.poll(() => read(device.client)).toMatchObject({ deletedAt: null });
-        expect(await trashed()).toEqual([]);
+    // undo the creation into the trash and redo it
+    const trashed = async () =>
+        (await alice.note.list({ spaceId, deleted: "only" })).items.map((item) => item.id);
+    await device.client.undo().confirmed;
+    expect([await read(device.client), await trashed()]).toEqual([undefined, [id]]);
+    await device.client.redo().confirmed;
+    await expect.poll(() => read(device.client)).toMatchObject({ deletedAt: null });
+    expect(await trashed()).toEqual([]);
 
-        // retain the party's stack across a restart, and redo the update from it
-        await device.offline();
-        const restarted = await ObjectClient.open({
-            clock: Clock.system,
-            database: await device.storage.connect(ObjectClient.tables({ notebook, note })),
-            objects: { notebook, note },
-            scope: spaceId,
-            caller: principal.user.reference("universe", users.alice),
-            endpoint: endpoint(users.alice),
-            reconnect: unmoved,
-            origin: device.client.origin,
-            isMigrated: true,
-        });
-        const stopping = new AbortController();
-        const running = restarted.run(stopping.signal, (error) => device.errors.push(error));
-        await restarted.redo().confirmed;
-        expect(await read(restarted)).toEqual({
-            title: "Plan",
-            text: "second",
-            deletedAt: null,
-        });
+    // retain the party's stack across a restart, and redo the update from it
+    await device.offline();
+    const restarted = await ObjectClient.open({
+        clock: Clock.system,
+        database: await device.storage.connect(ObjectClient.tables({ notebook, note })),
+        objects: { notebook, note },
+        scope: spaceId,
+        caller: principal.user.reference("universe", users.alice),
+        endpoint: endpoint(users.alice),
+        reconnect: unmoved,
+        origin: device.client.origin,
+        isMigrated: true,
+    });
+    const stopping = new AbortController();
+    const running = restarted.run(stopping.signal, (error) => device.errors.push(error));
+    await restarted.redo().confirmed;
+    expect(await read(restarted)).toEqual({
+        title: "Plan",
+        text: "second",
+        deletedAt: null,
+    });
 
-        // leave nothing to redo, and undo both done entries by two quick undos, one entry each
-        expect(await restarted.redo().predicted).toBe(false);
-        const quick = [restarted.undo(), restarted.undo()];
-        expect(await Promise.all(quick.map((undone) => undone.predicted))).toEqual([true, true]);
-        await Promise.all(quick.map((undone) => undone.confirmed));
-        expect(await restarted.undo().predicted).toBe(false);
-        stopping.abort();
-        await running;
-        await restarted.close();
-        expect(device.errors).toEqual([]);
-    },
-);
+    // leave nothing to redo, and undo both done entries by two quick undos, one entry each
+    expect(await restarted.redo().predicted).toBe(false);
+    const quick = [restarted.undo(), restarted.undo()];
+    expect(await Promise.all(quick.map((undone) => undone.predicted))).toEqual([true, true]);
+    await Promise.all(quick.map((undone) => undone.confirmed));
+    expect(await restarted.undo().predicted).toBe(false);
+    stopping.abort();
+    await running;
+    await restarted.close();
+    expect(device.errors).toEqual([]);
+});
 
 test("undo an update of an exact integer, restoring its value on the device and the server", async () => {
     // serve the tallies of a space
     const storage = await TestDatabase.create(
-        "sqlite",
-        defineDatabase({ name: "main", tables: [...tally.tables, ...callTables] }),
+        defineDatabase({
+            name: "main",
+            ...tablesOf({
+                packages: [objectPackage, { objects: { tally }, tables: [] }],
+                follows: [],
+                tables: [],
+            }),
+        }),
         { isMigrated: true },
     );
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
     const tallies = definePackage({ objects: { tally } });
-    const served = serveObjects(
-        nth(
-            new ObjectStore({
-                servers: [implementPackage(tallies, {})],
-                chain: async () => undefined,
-                clock: Clock.system,
-                origin: { package: Package.of(tallies) },
-                principal: spacePrincipal(spaceId),
-                callKey: testCallKey,
-                events: await testEvents(storage.database),
-                database: storage.database,
-            }).packages,
-            0,
-        ),
-        spaceId,
+    const served = TestObjectStore.serve(
+        new ObjectStore({
+            servers: [implementPackage(tallies, {})],
+            chain: async () => undefined,
+            clock: Clock.system,
+            origin: { package: Package.of(tallies) },
+            principal: spacePrincipal(spaceId),
+            callKey: testCallKey,
+            events: await testEvents(storage.database),
+            database: storage.database,
+        }),
     );
+    onTestFinished(() => served[Symbol.asyncDispose]());
 
     // store the space's tallies on a device that pushes and follows
-    const local = await TestDatabase.create("sqlite", ObjectClient.tables({ tally }), {
+    const local = await TestDatabase.create(ObjectClient.tables({ tally }), {
+        dialect: "sqlite",
         storage: "file",
     });
     onTestFinished(() => local.close());
@@ -360,7 +364,7 @@ test("undo an update of an exact integer, restoring its value on the device and 
         objects: { tally },
         scope: spaceId,
         caller: principal.user.reference("universe", users.alice),
-        endpoint: served.endpoint(users.alice),
+        endpoint: served.endpoint(tallies, users.alice),
         reconnect: unmoved,
     });
     client.queryType(tally).findMany().subscribe();
@@ -397,32 +401,36 @@ test("undo an update of an exact integer, restoring its value on the device and 
 test("undo an update of a bytes field, restoring its bytes on the device and the server", async () => {
     // serve the stamps of a space
     const storage = await TestDatabase.create(
-        "sqlite",
-        defineDatabase({ name: "main", tables: [...stamp.tables, ...callTables] }),
+        defineDatabase({
+            name: "main",
+            ...tablesOf({
+                packages: [objectPackage, { objects: { stamp }, tables: [] }],
+                follows: [],
+                tables: [],
+            }),
+        }),
         { isMigrated: true },
     );
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
     const stamps = definePackage({ objects: { stamp } });
-    const served = serveObjects(
-        nth(
-            new ObjectStore({
-                servers: [implementPackage(stamps, {})],
-                chain: async () => undefined,
-                clock: Clock.system,
-                origin: { package: Package.of(stamps) },
-                principal: spacePrincipal(spaceId),
-                callKey: testCallKey,
-                events: await testEvents(storage.database),
-                database: storage.database,
-            }).packages,
-            0,
-        ),
-        spaceId,
+    const served = TestObjectStore.serve(
+        new ObjectStore({
+            servers: [implementPackage(stamps, {})],
+            chain: async () => undefined,
+            clock: Clock.system,
+            origin: { package: Package.of(stamps) },
+            principal: spacePrincipal(spaceId),
+            callKey: testCallKey,
+            events: await testEvents(storage.database),
+            database: storage.database,
+        }),
     );
+    onTestFinished(() => served[Symbol.asyncDispose]());
 
     // store the space's stamps on a device that pushes and follows
-    const local = await TestDatabase.create("sqlite", ObjectClient.tables({ stamp }), {
+    const local = await TestDatabase.create(ObjectClient.tables({ stamp }), {
+        dialect: "sqlite",
         storage: "file",
     });
     onTestFinished(() => local.close());
@@ -432,7 +440,7 @@ test("undo an update of a bytes field, restoring its bytes on the device and the
         objects: { stamp },
         scope: spaceId,
         caller: principal.user.reference("universe", users.alice),
-        endpoint: served.endpoint(users.alice),
+        endpoint: served.endpoint(stamps, users.alice),
         reconnect: unmoved,
     });
     client.queryType(stamp).findMany().subscribe();

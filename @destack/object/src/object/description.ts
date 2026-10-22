@@ -57,7 +57,7 @@ const ExportPath = schema.object({
 /** The path of a value a package exports. */
 type ExportPath = schema.Infer<typeof ExportPath>;
 
-/** The exports descriptions refer to by path: object's own and its dependency access's. */
+/** The exports descriptions refer to by path: object's exports and its dependency access's. */
 export class ExportIndex {
     /** The path of each exported code value: an export, an object's entry or a type's method. */
     readonly #paths = new Map<unknown, ExportPath>();
@@ -68,7 +68,7 @@ export class ExportIndex {
 
     /** Index the exports of module namespaces. */
     constructor(modules: Readonly<Record<string, Readonly<Record<string, unknown>>>>) {
-        // record each export, each entry of an exported plain object and each method of an exported type, the first path kept
+        // record each export, entry of an exported plain object and method of an exported type, first path first
         for (const [name, module] of Object.entries(modules)) {
             for (const [key, value] of Object.entries(module)) {
                 this.#record(value, { package: name, path: [key] });
@@ -80,18 +80,20 @@ export class ExportIndex {
                               ([named, entry]) => [["methods", named], entry] as const,
                           )
                         : isRecord(value)
-                          ? Object.entries(value).map(([inner, entry]) => [[inner], entry] as const)
+                          ? Object.entries(value).map(
+                                ([nested, entry]) => [[nested], entry] as const,
+                            )
                           : [];
-                for (const [inner, entry] of entries) {
-                    this.#record(entry, { package: name, path: [key, ...inner] });
+                for (const [nested, entry] of entries) {
+                    this.#record(entry, { package: name, path: [key, ...nested] });
                 }
             }
         }
     }
 
-    /** Index object's own exports, read from the modules its root exports, and access's. */
+    /** Index object's exports, read from the modules its root exports, and access's. */
     static loaded(): ExportIndex {
-        // index each module once, at the first call, beside the root whose own evaluation may be running
+        // index each module once, at the first call, beside the root whose evaluation may be running
         ExportIndex.#loaded ??= new ExportIndex({
             "@destack/object": {
                 ...objectIndexExports,
@@ -181,7 +183,7 @@ export type KnownDeclaration = ObjectType | Policy;
 
 /** An object type as data: its package and its definition as written, its special values tagged. */
 const objectDescription = schema.object({
-    /** The type's name, which names its declaration. */
+    /** The type's name, the name of its declaration. */
     name: schema.string().min(1),
     /** The declaring package. */
     package: Package,
@@ -193,7 +195,7 @@ const objectDescription = schema.object({
 export const ObjectDescription = Object.assign(objectDescription, {
     /** Encode an object type as data. */
     of(type: ObjectType): ObjectDescription {
-        // require a valid type, then tag the definition's special values, keeping its name beside it
+        // require a valid type, then tag the definition's special values, with its name beside it
         type.requireValid();
         const { source } = type;
         const { name: _name, ...definition } = Position.root(type.name).encodeObject(source);
@@ -201,7 +203,7 @@ export const ObjectDescription = Object.assign(objectDescription, {
         return { name: type.name, package: identity(type.package), definition };
     },
 
-    /** Key a description's type by its policy: its own, or the principal kind it represents. */
+    /** Key a description's type by its policy: the type's, or the principal kind it represents. */
     key(description: ObjectDescription): string {
         const { represents } = description.definition;
         const reference =
@@ -249,7 +251,7 @@ export type ObjectDescription = schema.Infer<typeof objectDescription>;
 export class ObjectTypePool {
     /** The object types, by reference key. */
     readonly objects = new Map<string, ObjectType>();
-    /** The policies, the object types' own included, by reference key. */
+    /** The policies, those of the object types included, by reference key. */
     readonly policies = new Map<string, Policy>();
     /** The exports descriptions refer to by path. */
     readonly exports = ExportIndex.loaded();
@@ -283,7 +285,7 @@ export class ObjectTypePool {
     /** Declare object types from descriptions and add them, each once its references are known. */
     declare(descriptions: readonly ObjectDescription[]): ObjectType[] {
         // declare each type once the object types of the same descriptions it refers to now are
-        //  declared, as their tables are the ones its own refer to; policies match by key alone
+        //  declared, as their tables are the ones its tables refer to; policies match by key alone
         const pending = new Map(descriptions.map((each) => [ObjectDescription.key(each), each]));
         const declared = new Map<string, ObjectType>();
         while (pending.size > 0) {
@@ -503,7 +505,7 @@ class Position {
         isLazy: boolean,
         exports: ExportIndex,
     ) {
-        // keep the path, keys, laziness and exports
+        // store the path, keys, laziness and exports
         this.path = path;
         this.keys = keys;
         this.isLazy = isLazy;
@@ -578,7 +580,7 @@ class Position {
         } else if (value instanceof ResourceDeclaration) {
             return { $bucket: DescribedBucket.of(value) };
         }
-        // write exported code as its export path, keeping its identity
+        // write exported code as its export path, preserving its identity
         else if (exported !== undefined) {
             return { $export: exported };
         }
@@ -649,10 +651,10 @@ class Position {
     }
 }
 
-/** A JSON Schema as a description holds it. */
+/** A JSON Schema as a description stores it. */
 const DescribedSchema = schema.jsonObject();
 
-/** A resource kind as a description holds it: its package, name and schemas. */
+/** A resource kind as a description stores it: its package, name and schemas. */
 const DescribedKind = Object.assign(
     schema.object({
         /** The declaring package. */
@@ -677,7 +679,7 @@ const DescribedKind = Object.assign(
             };
         },
 
-        /** Rebuild a resource kind a description holds. */
+        /** Rebuild a resource kind a description stores. */
         decode(value: JsonValue | undefined): ResourceKind {
             const { package: owner, name, spec, state } = DescribedKind.parse(value);
 
@@ -691,7 +693,7 @@ const DescribedKind = Object.assign(
     },
 );
 
-/** A bucket as a description holds it: its package, name and specification. */
+/** A bucket as a description stores it: its package, name and specification. */
 const DescribedBucket = Object.assign(
     schema.object({
         /** The declaring package. */
@@ -711,7 +713,7 @@ const DescribedBucket = Object.assign(
             return { package: identity(bucket.package), name: bucket.name, spec: bucket.spec };
         },
 
-        /** Rebuild a bucket a description holds. */
+        /** Rebuild a bucket a description stores. */
         decode(value: JsonValue | undefined): FileBucket {
             const { package: owner, ...bucket } = DescribedBucket.parse(value);
 
@@ -733,7 +735,7 @@ const DescribedDefinition = schema.looseObject({
     plural: schema.string(),
     /** How stacks declare the type, absent on a type stacks do not declare. */
     declarable: schema.unknown().exactOptional(),
-    /** The type its records nest in, whose declarations contain the type's own. */
+    /** The type its records nest in, whose declarations contain the type's declaration. */
     nested: schema.unknown().exactOptional(),
     /** The resource kind the type provisions, absent on a type provisioning none. */
     provisioned: schema
@@ -746,7 +748,7 @@ function readDefinition(decoded: unknown): ObjectDefinition;
 /**
  * Read a decoded definition as the definition it encodes, which decoding rebuilds exactly.
  *
- * NOTE #Architecture: the definition boundary in reverse, as defineObject states its type.
+ * NOTE #Architecture: the definition cast in reverse, as defineObject states its type.
  */
 function readDefinition(decoded: unknown): unknown {
     schema.looseObject({ name: schema.string(), plural: schema.string() }).parse(decoded);

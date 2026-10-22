@@ -21,7 +21,7 @@ const create = defineProcedure({
     audit: false,
 });
 
-/** A note type routing its own create beside the shared push. */
+/** A note type routing a separate create beside the shared push. */
 const note: ObjectDeclaration = {
     package: { name: "@destack/object" },
     name: "note",
@@ -112,7 +112,7 @@ test("refuse routing an object type under the name of shared procedures, and rou
 });
 
 test("bundle what a capability needs: its sandbox abilities, permissions and features", () => {
-    // declare an optional Gmail import reaching Gmail's API on paid plans
+    // declare an optional Gmail import calling Gmail's API on paid plans
     const importing = {
         reason: "Import contacts from Gmail",
         optional: true,
@@ -123,7 +123,7 @@ test("bundle what a capability needs: its sandbox abilities, permissions and fea
     };
     const scanning = { reason: "Scan receipts", sandbox: { camera: { reason: "scans" } } };
 
-    // keep the bundle, and refuse a sandbox entry carrying a reason of its own
+    // accept the bundle, and refuse a sandbox entry with a separate reason
     expect([
         definePackage({ capabilities: { "gmail-import": importing } }).capabilities,
         Capability.safeParse(scanning).error?.issues.map((issue) => [

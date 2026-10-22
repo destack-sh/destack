@@ -10,10 +10,11 @@ import { testCallKey, testKeys } from "@destack/object/test";
 import { testEvents } from "../src/test/index.ts";
 import type { ServerContext } from "@destack/object/workload";
 import { implementPackage, ObjectStore } from "../src/server/index.ts";
-import { serveObjects, spaceId } from "./fixture/device.ts";
+import { spaceId } from "./fixture/device.ts";
 import { notebook, note, notesDatabase, notesPackage } from "./fixture/note.ts";
 import { openSpace } from "./fixture/space.ts";
 import { Clock } from "@destack/environment";
+import { TestObjectStore } from "../src/test/index.ts";
 
 /** Build a call's space and a new request. */
 function request() {
@@ -31,12 +32,12 @@ function refused(method: string): readonly [string, string] {
 /** Serve the notes of a space as an installation storing them, with a client acting as alice. */
 async function serveInstalledNotes() {
     // store the space's notes
-    const storage = await TestDatabase.create("sqlite", notesDatabase, { isMigrated: true });
+    const storage = await TestDatabase.create(notesDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
     const database = storage.database;
     await openSpace(database, spaceId);
 
-    // serve them as the notes installation, which reaches nothing beyond its own database here
+    // serve them as the notes installation, which sees nothing beyond its database here
     const server: ServerContext = {
         installation: "installation-01996ab0-0000-7000-8000-000000000003",
         name: "notes",
@@ -73,9 +74,13 @@ async function serveInstalledNotes() {
         events: await testEvents(database),
         origin: { package: note.package },
     });
-    const served = serveObjects(store.package(notesPackage), spaceId);
+    const served = TestObjectStore.serve(store);
+    onTestFinished(() => served[Symbol.asyncDispose]());
 
-    return { database, alice: createClient(notesPackage, served.endpoint(users.alice)) };
+    return {
+        database,
+        alice: createClient(notesPackage, served.endpoint(notesPackage, users.alice)),
+    };
 }
 
 test("refuse an installation's writes in a space whose storage is capped, allowing reads and deletes, until the cap lifts", async () => {

@@ -41,7 +41,7 @@ export class EphemeralStorage implements AsyncDisposable {
     /** How long an untracked owner's rows stay, in milliseconds. */
     readonly #linger: number;
     /** The memory database this store opened and closes, absent if its caller has one. */
-    #owned: { readonly close: () => Promise<void> } | undefined;
+    #memory: { readonly close: () => Promise<void> } | undefined;
 
     /** Store ephemeral object types in memory, replicated over a channel. */
     constructor(
@@ -97,14 +97,14 @@ export class EphemeralStorage implements AsyncDisposable {
             return undefined;
         }
 
-        // migrate their tables in a database of their own
+        // migrate their tables in a separate database
         const tables = ephemeral.map((object) => object.table);
         const database = await open(tables);
         await database.migrate(tables);
 
         // replicate them over the channel, closing the memory with the store
         const storage = new EphemeralStorage(database, ephemeral, channel, options);
-        storage.#owned = database;
+        storage.#memory = database;
 
         return storage;
     }
@@ -190,7 +190,7 @@ export class EphemeralStorage implements AsyncDisposable {
     /** Stop replicating and close the memory database this store opened. */
     async [Symbol.asyncDispose](): Promise<void> {
         this.close();
-        await this.#owned?.close();
+        await this.#memory?.close();
     }
 
     /** End an untracked owner's rows after the linger on the feed's clock. */

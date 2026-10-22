@@ -193,7 +193,7 @@ export interface ClientInspection {
     readonly scope: string;
     /** The rows its replica has, by object type name. */
     readonly rows: Readonly<Record<string, number>>;
-    /** The most object rows the replica holds, absent for no limit. */
+    /** The most object rows the replica stores, absent for no limit. */
     readonly storage?: { readonly rows: number };
     /** Every party's subscriptions, open and closed. */
     readonly subscriptions: readonly {
@@ -230,7 +230,7 @@ export type ObjectQueries<Objects extends Readonly<Record<string, ObjectType>>> 
 export interface UnionOptions<Read = Row> {
     /** How the merged rows sort, by fields every member's rows share. */
     readonly orderBy: OrderBy<Read>;
-    /** The most rows the union holds. */
+    /** The most rows the union has. */
     readonly limit: number;
     /** How long the closed union stays followed. */
     readonly ttl?: Duration;
@@ -289,19 +289,19 @@ export interface ObjectClientOptions<Objects extends Readonly<Record<string, Obj
     readonly caller: Subject;
     /** The device the database lives on, whose partition stores local objects scoped to devices. */
     readonly device?: Subject;
-    /** Where and how to reach the package serving the objects. */
+    /** Where and how to call the package serving the objects. */
     readonly endpoint: ClientOptions;
     /** The client's clock for log compaction, query time to live and access decisions. */
     readonly clock: Clock;
-    /** Where and how to reach the machine serving a moved scope now. */
+    /** Where and how to call the machine serving a moved scope now. */
     readonly reconnect: (machine: Identifier<"machine">) => ClientOptions;
-    /** Where and how to reach the home of an enclosing scope whose rows the client changes. */
+    /** Where and how to call the home of an enclosing scope whose rows the client changes. */
     readonly homes?: (scope: string) => ClientOptions;
     /** The party sharing the database, a new one by default. */
     readonly origin?: string;
     /** How often merged changes arrive, such as for a background tab. */
     readonly refresh?: { readonly every: Duration };
-    /** The most object rows the local replica holds, absent for no limit. */
+    /** The most object rows the local replica stores, absent for no limit. */
     readonly storage?: { readonly rows: number };
     /** How long the local log retains changes, a minute by default. */
     readonly log?: { readonly retention: Duration };
@@ -340,11 +340,11 @@ export class ObjectClient<
     readonly ephemeral: sync.Replica | undefined;
     /** The replica of the scope's external objects, absent when the client has none. */
     readonly external: sync.Replica | undefined;
-    /** The replica of the access rows the caller's own checks read along the scope chain. */
+    /** The replica of the access rows the caller's checks read along the scope chain. */
     readonly access: sync.Replica;
     /** The authorizer deciding the caller's checks over the replicas. */
     readonly #authorizer: Authorizer;
-    /** The identifier of this client instance, the writer owning its ephemeral objects. */
+    /** The identifier of this client instance, the writer of its ephemeral objects. */
     readonly writerId: string;
     /** What the replica shows over the server's rows: queued mutations and the branch. */
     readonly prediction: sync.Prediction;
@@ -360,10 +360,10 @@ export class ObjectClient<
     #store: Client<StoreProcedures>;
     /** Connect to the store procedures of the machine serving a moved scope now. */
     readonly #reconnect: (machine: Identifier<"machine">) => Client<StoreProcedures>;
-    /** Reach the store procedures of a scope's home, the client's store for its scope. */
+    /** Call the store procedures of a scope's home, the client's store for its scope. */
     readonly #home: (scope: string) => Client<StoreProcedures>;
-    /** Whether the client reaches the homes of scopes other than its own. */
-    readonly #isReachingHomes: boolean;
+    /** Whether the client calls the homes of scopes other than its scope. */
+    readonly #hasHomes: boolean;
     /** Aborts the streams following the machine that served a moved scope before. */
     #moves = new AbortController();
     /** The local feed of watched queries. */
@@ -372,7 +372,7 @@ export class ObjectClient<
     readonly #listeners = new Map<string, Set<(event: JsonValue) => void>>();
     /** How often merged changes arrive, absent for one page per change. */
     readonly #refresh: { readonly every: Duration } | undefined;
-    /** The most object rows the local replica holds, absent for no limit. */
+    /** The most object rows the local replica stores, absent for no limit. */
     readonly #storage: { readonly rows: number } | undefined;
     /** How long the local log retains changes, in milliseconds. */
     readonly #logMilliseconds: number;
@@ -382,7 +382,7 @@ export class ObjectClient<
     readonly clock: Clock;
     /** Aborts outcome waits and lookups on close. */
     readonly #closing = new AbortController();
-    /** The object rows the replica held at a log sequence, absent before the first count. */
+    /** The object rows the replica had at a log sequence, absent before the first count. */
     #counted: { readonly sequence: number; readonly rows: number } | undefined;
     /** The open followed queries. */
     readonly #subscriptions = new Set<Subscription>();
@@ -411,7 +411,7 @@ export class ObjectClient<
 
     /** Replicate one scope's objects in a local database with existing tables. */
     private constructor(options: ObjectClientOptions<Objects> & { readonly origin: string }) {
-        // hold the options, refusing a push larger than the server takes
+        // store the options, refusing a push larger than the server takes
         this.database = options.database;
         this.#presenter = new TextPresenter();
         this.#pushMutations = ObjectClient.#pushMutationsOf(options.push);
@@ -434,10 +434,10 @@ export class ObjectClient<
         this.caller = options.caller;
         this.#owners = [options.caller, ...(options.device === undefined ? [] : [options.device])];
 
-        // reach the store serving the replicated objects
+        // connect to the store serving the replicated objects
         this.#store = ObjectClient.store(options.endpoint);
         this.#reconnect = (machine) => ObjectClient.store(options.reconnect(machine));
-        this.#isReachingHomes = options.homes !== undefined;
+        this.#hasHomes = options.homes !== undefined;
         this.#home = ObjectClient.homes(this.scope, () => this.#store, options.homes);
 
         // replicate durable objects with their predictions, and ephemeral and external objects apart
@@ -600,18 +600,18 @@ export class ObjectClient<
         };
     }
 
-    /** Reach the store procedures of a scope's home: the client's own, else each home once. */
+    /** Call the store procedures of a scope's home: the client's store, else each home once. */
     static homes(
         scope: string,
-        own: () => Client<StoreProcedures>,
+        local: () => Client<StoreProcedures>,
         homes: ((scope: string) => ClientOptions) | undefined,
     ): (home: string) => Client<StoreProcedures> {
         const known = new Map<string, Client<StoreProcedures>>();
 
         return (home) => {
-            // reach the client's scope at its replica, refusing another scope without homes
+            // call the client's scope at its replica, refusing another scope without homes
             if (home === scope) {
-                return own();
+                return local();
             } else if (homes === undefined) {
                 throw new CallError("BAD_REQUEST", {
                     message: `the client of ${scope} cannot reach the home of ${home}`,
@@ -651,12 +651,12 @@ export class ObjectClient<
     static async migrate(
         database: DatabaseConnection,
         objects: Readonly<Record<string, ObjectType>>,
-        own: readonly Table[] = [],
+        extra: readonly Table[] = [],
     ): Promise<void> {
         const { replicated, local } = ObjectClient.#divide(objects);
         await database.migrate(replicated, {
             isReplica: true,
-            states: [declareState([...local, ...own], database.dialect)],
+            states: [declareState([...local, ...extra], database.dialect)],
         });
     }
 
@@ -734,7 +734,7 @@ export class ObjectClient<
             return { predicted: done, confirmed };
         }
 
-        // predict only the call, on the main line for a branch's own methods
+        // predict only the call, on the main line for a branch's methods
         let result: unknown;
         const pending = this.#mutation(async (mutation) => {
             result = await mutation.invoke(object, name, input);
@@ -1251,7 +1251,7 @@ export class ObjectClient<
         return new RelationalQueryBuilder(this.#subscriber, object);
     }
 
-    /** Hold a query's items live over the local replica with predictions until closed. */
+    /** Follow a query's items live over the local replica with predictions until closed. */
     #live(
         object: ObjectType,
         query: Omit<ObjectQuery, "object"> = {},
@@ -1274,7 +1274,7 @@ export class ObjectClient<
         };
     }
 
-    /** Hold an aggregate query's groups live over the local replica until closed. */
+    /** Follow an aggregate query's groups live over the local replica until closed. */
     #measured(
         object: ObjectType,
         query: Omit<ObjectQuery, "object">,
@@ -1455,7 +1455,7 @@ export class ObjectClient<
         mutations: readonly sync.Mutation[],
         signal: AbortSignal,
     ): Promise<Pick<PushResult, "outcomes" | "watermark">> {
-        // push the client's own scope's mutations to its replica
+        // push the mutations of the client's scope to its replica
         if (home === this.scope) {
             return this.#call((replica) =>
                 replica.push({ scope: this.scope, mutations: [...mutations] }, { signal }),
@@ -1657,13 +1657,13 @@ export class ObjectClient<
         if (this.#counted !== undefined) {
             try {
                 let { sequence, rows } = this.#counted;
-                for (let reached = sequence; ; reached = sequence) {
-                    const page = await this.database.log.read({ tables, after: reached });
+                for (let after = sequence; ; after = sequence) {
+                    const page = await this.database.log.read({ tables, after });
                     for (const change of page.changes) {
                         rows += ROW_DELTAS[change.operation];
                     }
                     sequence = Math.max(sequence, page.sequence);
-                    if (page.sequence <= reached) {
+                    if (page.sequence <= after) {
                         break;
                     }
                 }
@@ -1733,7 +1733,7 @@ export class ObjectClient<
         );
     }
 
-    /** Hold a live union of several queries in one order and limit, with each entry's member. */
+    /** Follow a live union of several queries in one order and limit, with each entry's member. */
     union<const Members extends Readonly<Record<string, RelationalQuery<readonly object[]>>>>(
         members: Members,
         options: UnionOptions<MemberItem<Members>>,
@@ -1854,7 +1854,7 @@ export class ObjectClient<
             return query;
         }
 
-        // read the scopes holding the type's rows, which the source chose to send
+        // read the scopes with the type's rows, which the source chose to send
         const held = object.table[TABLE].column("scope").definition.schema;
         const read = await this.replica.chain(this.database);
 
@@ -1885,11 +1885,11 @@ export class ObjectClient<
         return dataflow;
     }
 
-    /** Split a query by storage: its own storage's query, and key lookups of the other's rows. */
+    /** Split a query by storage: its storage's query, and key lookups of the other's rows. */
     #split(object: ObjectType, options: Omit<ObjectQuery, "object">): StorageQuery {
         // require conditions relating one storage
-        const { with: included, extras, columns: _columns, ...own } = options;
-        this.#requireOneStorage(object, own.where ?? {}, extras ?? {});
+        const { with: included, extras, columns: _columns, ...query } = options;
+        this.#requireOneStorage(object, query.where ?? {}, extras ?? {});
         const lookups: Lookup[] = [];
 
         // take same-storage extras, and follow the rows other-storage extras measure by key
@@ -1933,7 +1933,7 @@ export class ObjectClient<
             object,
             query: ObjectQuery.parse({
                 object: object.name,
-                ...own,
+                ...query,
                 ...(Object.keys(sameStorage).length === 0 ? {} : { extras: sameStorage }),
                 ...(Object.keys(nested).length === 0 ? {} : { with: nested }),
             }),
@@ -2366,14 +2366,14 @@ export class ObjectClient<
         return object.call(name, { ...input, ...generated, ...scoped });
     }
 
-    /** Read the scope a call acts in: its own, its target's, else the client's. */
+    /** Read the scope a call acts in: the call's, its target's, else the client's. */
     async #actingScope(
         database: DatabaseConnection,
         object: ObjectType,
         name: string,
         input: JsonObject,
     ): Promise<string> {
-        // take the call's own scope
+        // take the call's scope
         const field = object.route.field;
         const named = field === undefined ? undefined : input[field];
         if (typeof named === "string") {
@@ -2402,8 +2402,8 @@ export class ObjectClient<
             });
         }
 
-        // require a home the client reaches
-        if (home !== this.scope && !this.#isReachingHomes) {
+        // require a home the client can call
+        if (home !== this.scope && !this.#hasHomes) {
             throw new CallError("BAD_REQUEST", {
                 message: `the client of ${this.scope} cannot reach the home of ${home}`,
             });
@@ -2513,15 +2513,15 @@ export class ObjectClient<
     /** Read the distinct keys of a lookup's parent rows, in their JSON form, sorted. */
     static #keysOf(rows: readonly Item[], lookup: Lookup): Exclude<Scalar, null>[] {
         // follow the include path
-        let reached: readonly Item[] = rows;
+        let items: readonly Item[] = rows;
         for (const name of lookup.path) {
-            reached = reached.flatMap((item) => present(item.with[name], `the ${name} include`));
+            items = items.flatMap((item) => present(item.with[name], `the ${name} include`));
         }
 
         // collect the distinct keys of the parent rows, in their JSON form
         const column = lookup.target.object.table[TABLE].column(lookup.column).definition;
         const keys = new Set<Exclude<Scalar, null>>();
-        for (const item of reached) {
+        for (const item of items) {
             const value = item.row[lookup.parent];
             if (value === null || value === undefined) {
                 continue;
@@ -2618,7 +2618,7 @@ const subscription = defineTable("subscription", {
     name: text("name").notNull(),
     /** The query. */
     query: json("query", schema.json()).notNull(),
-    /** The subscription this lookup belongs to, absent for a party's own query. */
+    /** The subscription this lookup belongs to, absent for a party's query. */
     root: text("root"),
     /** The time the query closed, in UTC epoch milliseconds, absent while open. */
     releasedAt: integer("released_at"),
@@ -2689,7 +2689,7 @@ interface Subscription {
     readonly ids: () => string[];
 }
 
-/** A lookup's subscription to the keys its rows held last. */
+/** A lookup's subscription to the keys its rows had last. */
 interface LookupSubscription {
     /** The canonical keys subscribed. */
     readonly keys: string;

@@ -2,7 +2,7 @@ import { Package } from "@destack/package";
 import { AccessFixture } from "@destack/access/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { schema } from "@destack/schema";
-import { accessTables, Authorizer, Policy, principal, relation, Caller } from "@destack/access";
+import { Authorizer, Policy, principal, relation, Caller } from "@destack/access";
 import { defineTable, text } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { Health } from "./health.ts";
@@ -13,6 +13,7 @@ import { Server } from "./http.ts";
 import type { RequestContext } from "./context.ts";
 import { fixturePackage, hosting } from "../test/fixture.ts";
 import { Clock } from "@destack/environment";
+import { tablesOf } from "../index.ts";
 
 /** The authentication renaming a vault requires. */
 const RECENT = { assurance: 2, maxAge: 10 * 60 * 1000 };
@@ -49,9 +50,12 @@ test("challenge a hand-written procedure's caller for its elevated permission, t
     );
 
     // open a database for alice's vault
-    const storage = await TestDatabase.create("sqlite", [vaults, ...accessTables], {
-        isMigrated: true,
-    });
+    const storage = await TestDatabase.create(
+        tablesOf({ packages: [], follows: [], tables: [vaults] }).tables,
+        {
+            isMigrated: true,
+        },
+    );
     onTestFinished(() => storage.close());
     await new AccessFixture(storage.database).replicateScope({
         packageId: hosting.package.id,

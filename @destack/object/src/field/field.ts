@@ -53,7 +53,7 @@ export const FIELD_TYPES = [
 /** The meaning of a field beyond its stored value. */
 export type FieldType = (typeof FIELD_TYPES)[number];
 
-/** The field type of each builder: an aggregate's value type, else the builder's own. */
+/** The field type of each builder: an aggregate's value type, else the builder's type. */
 const BUILDER_TYPES: Readonly<Record<FieldSource["builder"], FieldType>> = {
     string: "string",
     integer: "integer",
@@ -184,7 +184,7 @@ export interface FieldConfiguration {
     readonly required: boolean;
     /** Whether creation supplies a value the caller omits. */
     readonly default: boolean;
-    /** Whether reading the value requires its own permission. */
+    /** Whether reading the value requires a separate permission. */
     readonly guarded: boolean;
     /** Whether callers write the value: always, only at creation, or never. */
     readonly written: boolean | "create";
@@ -204,7 +204,7 @@ interface FieldFlags<Configuration extends FieldConfiguration = FieldConfigurati
     readonly required: Configuration["required"];
     /** Whether creation supplies a value the caller omits. */
     readonly isDefault: Configuration["default"];
-    /** Whether reading the value requires its own permission. */
+    /** Whether reading the value requires a separate permission. */
     readonly guarded: Configuration["guarded"];
     /** Whether callers write the value. */
     readonly written: Configuration["written"];
@@ -274,7 +274,7 @@ type FlagConfiguration<Configuration extends FieldConfiguration, Flags extends F
 export type ReferenceKind = "none" | "identifier" | "object";
 
 /** The column suffixes of an object reference beside its identifier. */
-const REFERENCE_PARTS = ["PackageId", "Type", "Scope"] as const;
+const REFERENCE_COLUMNS = ["PackageId", "Type", "Scope"] as const;
 
 /** The fields keyed by column, each reference expanded into its columns. */
 export type FieldsByColumn<Fields> = {
@@ -290,24 +290,24 @@ export type FieldsByColumn<Fields> = {
             : Fields[Key]
         : Fields[Key];
 } & {
-    readonly [Part in ReferencePartOf<Fields> as `${Part["key"]}${Part["part"]}`]: Field<
+    readonly [Entry in ReferenceColumnOf<Fields> as `${Entry["key"]}${Entry["suffix"]}`]: Field<
         Override<
-            Part["configuration"],
+            Entry["configuration"],
             {
-                readonly value: Part["part"] extends "PackageId" ? PackageId : string;
+                readonly value: Entry["suffix"] extends "PackageId" ? PackageId : string;
                 readonly reference: "none";
             }
         >
     >;
 };
 
-/** Each object reference field's columns beside its identifier, as key, part and signature. */
-type ReferencePartOf<Fields> = {
+/** Each object reference field's columns beside its identifier, as key, suffix and signature. */
+type ReferenceColumnOf<Fields> = {
     [Key in keyof Fields & string]: Fields[Key] extends Field<infer Configuration>
         ? Configuration["reference"] extends "object"
             ? {
                   readonly key: Key;
-                  readonly part: (typeof REFERENCE_PARTS)[number];
+                  readonly suffix: (typeof REFERENCE_COLUMNS)[number];
                   readonly configuration: Configuration;
               }
             : never
@@ -349,7 +349,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
     readonly required: Configuration["required"];
     /** Whether creation supplies a value the caller omits. */
     readonly isDefault: Configuration["default"];
-    /** Whether reading the value requires its own permission. */
+    /** Whether reading the value requires a separate permission. */
     readonly guarded: Configuration["guarded"];
     /** Whether callers write the value. */
     readonly written: Configuration["written"];
@@ -460,7 +460,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
             column = column.default(this.initial.value);
         }
 
-        // require a value, except where replicas hold a guarded value concealed
+        // require a value, except where replicas store a guarded value concealed
         if (this.required && !this.guarded) {
             column = column.notNull();
         }
@@ -538,7 +538,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
         });
     }
 
-    /** Build the field a builder call makes on its own, before any modifier. */
+    /** Build the field a builder call makes alone, before any modifier. */
     static #replay(source: FieldSource): Field {
         // refuse a builder call making no field
         const built: unknown = Reflect.apply(field[source.builder], field, source.arguments);
@@ -556,7 +556,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
 
     /** Describe the field as builder calls: its builder's, then each effective modifier's. */
     describe(): readonly [FieldSource, ...BuilderCall[]] {
-        // compare with the field the builder call makes on its own
+        // compare with the field the builder call makes alone
         const plain = Field.#replay(this.source);
         const { initial, access } = this;
         const isDefaulted =
@@ -624,9 +624,9 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
             const columns = Field.columnsOf(property);
 
             return {
-                [columns.packageId]: this.#part(packages),
-                [columns.type]: this.#part(types),
-                [columns.scope]: this.#part(schema.string().min(1)),
+                [columns.packageId]: this.#column(packages),
+                [columns.type]: this.#column(types),
+                [columns.scope]: this.#column(schema.string().min(1)),
                 [columns.id]: this.relate(property),
             };
         }
@@ -714,7 +714,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
     }
 
     /** Derive a column of an object reference beside its identifier, with its flags. */
-    #part(validator: schema.Schema<string>): Field {
+    #column(validator: schema.Schema<string>): Field {
         return new Field({
             source: { builder: "string", arguments: [validator] },
             build: (name) => Field.validated(name, validator),

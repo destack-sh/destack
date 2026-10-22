@@ -3,14 +3,13 @@ import { Scope, type ObjectTypeReference } from "@destack/sync";
 import { Key, LogPosition, Snapshot, TABLE, type Table } from "@destack/db";
 import { Digest, schema } from "@destack/schema";
 import * as sync from "@destack/sync";
-import { type ObjectQuery, QUERIES_PUBLICATION } from "../replica/replica.ts";
 import type { Controller, Delta } from "@destack/db";
 import { until } from "@destack/environment";
 import type { ObjectStore, Subscriber } from "./store.ts";
 
 /** The replicas a store follows: what its subscriber asks for, followed and dropped by key. */
 export class ObjectSink {
-    /** The store whose database keeps the replicas. */
+    /** The store whose database stores the replicas. */
     readonly store: ObjectStore;
     /** The latest position each followed replica waits for upstream to confirm, by replica key. */
     readonly #pending = new Map<string, LogPosition>();
@@ -29,7 +28,7 @@ export class ObjectSink {
         return `${subscription.name} ${subscription.scope}`;
     }
 
-    /** Build the controller following requested replicas and dropping unrequested held replicas. */
+    /** Build the controller following requested replicas and dropping unrequested stored ones. */
     controller(subscriber: Subscriber): Controller {
         // follow each listed replica under its key and lease
         return {
@@ -55,6 +54,21 @@ export class ObjectSink {
         await (this.#listing ?? this.#listInOrder(subscriber, Snapshot.live(this.store.database)));
 
         return [...this.#listed.values()].filter((entry) => entry.action === "follow");
+    }
+
+    /** List the replicas the store waits for: declared up its chain, decided for itself. */
+    async gates(): Promise<Extract<ReplicaIntent, { readonly action: "follow" }>[]> {
+        // take the scopes from the store's scope up to the universe
+        const view = Snapshot.live(this.store.database);
+        const ancestry = new Set(await this.ancestry(this.store.scope, view));
+
+        // leave replicas of other homes, decided for another principal, or acquired by a use
+        return (await this.followed()).filter(
+            ({ subscription, isAcquired }) =>
+                ancestry.has(subscription.scope) &&
+                subscription.subject === undefined &&
+                !isAcquired,
+        );
     }
 
     /** Ask the publishers of the followed replicas including a scope to confirm a watermark. */
@@ -93,7 +107,7 @@ export class ObjectSink {
         );
     }
 
-    /** List the replicas after the listing before, keeping this one as the latest. */
+    /** List the replicas after the listing before, recording this one as the latest. */
     #listInOrder(
         subscriber: Subscriber,
         view: Snapshot,
@@ -125,7 +139,7 @@ export class ObjectSink {
 
     /** List the tables whose changes list the replicas again. */
     #replicaWatches(subscriber: Subscriber): Table[] {
-        // watch the replicated scope types, the held replicas and their keys
+        // watch the replicated scope types, the stored replicas and their keys
         const scopes = this.store.replicated
             .filter((object) => object.policy.definition.scope === true)
             .map((object) => object.table);
@@ -148,7 +162,7 @@ export class ObjectSink {
         view: Snapshot,
         delta?: Delta,
     ): Promise<Map<string, ReplicaIntent & { digest: string }>> {
-        // drop the held replicas no request asks for and follow the requested ones
+        // drop the stored replicas no request asks for and follow the requested ones
         const entries = await subscriber.subscriptions(view, delta);
         const named = new Set(entries.map((entry) => ObjectSink.#key(entry.subscription)));
         const held = await sync.Replica.subscriptions(view);
@@ -156,12 +170,12 @@ export class ObjectSink {
             ...held
                 .filter((replica) => !named.has(ObjectSink.#key(replica)))
                 .map((replica) => ({ action: "drop" as const, subscription: replica })),
-            ...entries.map(({ subscription, publisher, isReadinessGate }) => ({
+            ...entries.map(({ subscription, publisher, isAcquired }) => ({
                 action: "follow" as const,
                 subscription,
                 replica: this.store.source.buildReplica(subscription),
                 publisher,
-                isReadinessGate: isReadinessGate ?? this.store.source.isReadinessGate(subscription),
+                isAcquired,
             })),
         ];
 
@@ -191,12 +205,12 @@ export class ObjectSink {
                 return undefined;
             }
 
-            // follow a requested replica from the position it reached until its request changes
+            // follow a requested replica from the position it arrived at until its request changes
             const revised = AbortSignal.any([signal, replica.revised.signal]);
             if (replica.action === "follow") {
                 await this.#followReplica(replica, revised);
             }
-            // drop a held replica no request asks for and wait for a request asking for it again
+            // drop a stored replica no request asks for and wait for a request asking for it again
             else {
                 await sync.Replica.drop(this.store.database, {
                     ...replica.subscription,
@@ -244,6 +258,16 @@ export class ObjectSink {
         }
     }
 
+    /** Read a store's scope and the scopes above it, up to the universe. */
+    async ancestry(target: string, view: Snapshot): Promise<readonly string[]> {
+        // read the chain above a placed scope, the universe alone above an unplaced one
+        const kind = target === Scope.universe.id ? undefined : await this.store.chain(view);
+
+        return kind === undefined
+            ? [...new Set([target, Scope.universe.id])]
+            : this.#ancestry(view, target, kind);
+    }
+
     /** List the replicas a store's decisions read, each with the scope whose home publishes it. */
     async chains(
         target: string,
@@ -260,18 +284,18 @@ export class ObjectSink {
             return [];
         }
 
-        // replicate the scope's own chain, and the universe rows it reads
+        // replicate the scope chain, and the universe rows it reads
         const served = this.store.objects.filter((object) => object.storage === "durable");
         const known = [...this.store.objects, ...this.store.replicated];
         const isLiving = served.some((object) =>
             object.scopes.some((scope) => !known.some((type) => type.same(scope))),
         );
-        const isOwn = isLiving || kind.kind === "home";
-        const own = await this.#ownChain(view, target, kind, isOwn);
+        const isScoped = isLiving || kind.kind === "home";
+        const scoped = await this.#scopeChain(view, target, kind, isScoped);
 
-        // leave the own chain's scopes to it, else let the via replicas cover the store's own scope
+        // leave the scope chain's scopes to it, else let the via replicas cover the store's scope
         const chained = new Set(
-            isOwn ? [target, ...own.map((subscription) => subscription.scope)] : [],
+            isScoped ? [target, ...scoped.map((subscription) => subscription.scope)] : [],
         );
 
         // read the replicated scopes outside the chain that served objects live in or relate to
@@ -298,36 +322,29 @@ export class ObjectSink {
             }),
         );
 
-        // replicate the store's own outside scopes' chains from the universe
+        // replicate the chains of the store's outside scopes from the universe
         const via = await this.#viaChain(view, target, outside.flat());
 
         return [
-            ...own.map((subscription) => ({ subscription, home: target })),
-            ...this.#universeQueries(target).map((subscription) => ({
-                subscription,
-                home: Scope.universe.id,
-            })),
+            ...scoped.map((subscription) => ({ subscription, home: target })),
             ...via.map((subscription) => ({ subscription, home: Scope.universe.id })),
         ];
     }
 
-    /** List a scope's own chain replicas: each scope's access rows and each type it hands down. */
-    async #ownChain(
+    /** List a scope chain's replicas: each scope's access rows and each type it hands down. */
+    async #scopeChain(
         view: Snapshot,
         target: string,
         options: ChainOptions,
-        isOwn: boolean,
+        isScoped: boolean,
     ): Promise<sync.Subscription[]> {
-        // read the parent and the ancestors its row lists, up to the universe
-        const [row] = await Scope.read(view, [options.parent]);
-        const ancestors = [
-            ...new Set([options.parent, ...(row?.ancestors ?? []), Scope.universe.id]),
-        ];
+        // read the scope and its ancestors, up to the universe
+        const chain = await this.#ancestry(view, target, options);
+        const ancestors = chain.slice(1);
 
-        // replicate the universe's grants alone for a store outside its own chain
-        const chain = [target, ...ancestors];
+        // replicate the universe's grants alone for a store outside its scope chain
         let replicated: string[] = [Scope.universe.id];
-        if (isOwn) {
+        if (isScoped) {
             // replicate a home's chain above it, and a follower's from itself
             replicated = options.kind === "home" ? ancestors : chain;
         }
@@ -341,12 +358,20 @@ export class ObjectSink {
                 parameters: {
                     scopes: chain,
                     local: scope === target ? [...this.store.authorizer.local] : [],
-                    types: isOwn ? this.#inheritedTypes(scope) : [],
+                    types: isScoped ? this.#inheritedTypes(scope) : [],
                     via: [],
                     between: [],
                 },
             }),
         );
+    }
+
+    /** Read a placed scope, its parent and the parent's ancestors, up to the universe. */
+    async #ancestry(view: Snapshot, target: string, options: ChainOptions): Promise<string[]> {
+        // read the parent's row
+        const [row] = await Scope.read(view, [options.parent]);
+
+        return [...new Set([target, options.parent, ...(row?.ancestors ?? []), Scope.universe.id])];
     }
 
     /** List the one replica of the chains above a follower's outside scopes, in the universe. */
@@ -376,7 +401,7 @@ export class ObjectSink {
         ].toSorted();
         const outside = { via: [...replicated].toSorted(), between };
 
-        // replicate the outside chains at the universe with the rows they keep, in one replica
+        // replicate the outside chains at the universe with the rows they store, in one replica
         return [
             this.store.source.chainPublication.subscription({
                 name: ObjectSink.viaName(target),
@@ -394,7 +419,7 @@ export class ObjectSink {
         return authorizer.replicated.filter((type) => authorizer.handsDown(type, scope));
     }
 
-    /** List the replicated types outside scopes keep for the store: inherited and scoped ones. */
+    /** List the replicated types outside scopes store for the store: inherited and scoped ones. */
     #outsideTypes(): ObjectTypeReference[] {
         const { authorizer } = this.store;
 
@@ -416,12 +441,7 @@ export class ObjectSink {
         return `${CHAIN_PUBLICATION}:${target}:via`;
     }
 
-    /** Build the name of a target's query replica of the universe's rows. */
-    static queriesName(target: string): string {
-        return `${QUERIES_PUBLICATION}:${target}`;
-    }
-
-    /** List the keys of some scope rows a follow on a subject's behalf holds here. */
+    /** List the keys of some scope rows a follow on a subject's behalf stores here. */
     async #brought(
         table: Table,
         rows: readonly { readonly id: string; readonly scope: string }[],
@@ -436,7 +456,7 @@ export class ObjectSink {
             .findMany({ where: { subjectId: { isNotNull: true } } });
         const names = new Set(following.map((entry) => `${entry.name} ${entry.scope}`));
 
-        // read which of the rows they hold
+        // read which of the rows they store
         const held = await view.read(sync.replicaKey).findMany({
             where: {
                 table: table[TABLE].sqlName,
@@ -449,64 +469,6 @@ export class ObjectSink {
                 .filter((entry) => names.has(`${entry.name} ${entry.scope}`))
                 .map((entry) => entry.key),
         );
-    }
-
-    /** List the query of the universe rows a scope reads, one replica of every type. */
-    #universeQueries(target: string): sync.Subscription[] {
-        // leave inherited rows to the chains, and rows a follow has to it
-        const replicated = this.store.replicated.filter(
-            (object) =>
-                object.inherited === undefined &&
-                !this.store.followed.some((type) => type.same(object)),
-        );
-
-        // leave unlisted types and partition types to a partitioned store's chain
-        const isPartitioned = this.store.partition !== undefined;
-        const listable = replicated.filter(
-            (object) =>
-                object.listing !== undefined &&
-                (!isPartitioned || object.definition.partition !== true),
-        );
-
-        // query the types inside scope types outside the replicas, then those inside queried types
-        const queried = listable.filter(
-            (object) =>
-                object.scopes.length === 0 ||
-                object.scopes.some((scope) => !replicated.some((type) => type.same(scope))),
-        );
-        for (let isGrowing = true; isGrowing;) {
-            const inside = listable.filter(
-                (object) =>
-                    !queried.includes(object) &&
-                    object.scopes.some((scope) => queried.some((type) => type.same(scope))),
-            );
-            queried.push(...inside);
-            isGrowing = inside.length > 0;
-        }
-
-        // query every type's rows in one replica decided for the scope
-        if (queried.length === 0) {
-            return [];
-        }
-
-        // read universe types in the universe's scope and the others in every scope, trash included
-        const queries = queried.map((object): [string, ObjectQuery] => [
-            object.name,
-            {
-                object: object.name,
-                ...(object.scope === Scope.universe.id ? {} : { scopes: "every" }),
-                ...(object.lifecycle.recoverable === undefined ? {} : { deleted: "include" }),
-            },
-        ]);
-
-        return [
-            this.store.source.queriesPublication.subscription({
-                name: ObjectSink.queriesName(target),
-                scope: Scope.universe.id,
-                target,
-                parameters: { queries: Object.fromEntries(queries) },
-            }),
-        ];
     }
 
     /** Revise each listed replica whose action changed or left, and list the new ones. */
@@ -542,13 +504,13 @@ type ReplicaIntent =
           readonly replica: sync.Replica;
           /** The publisher streaming the replica's pages. */
           readonly publisher: sync.Publisher;
-          /** Whether the store serves only once the replica is current. */
-          readonly isReadinessGate: boolean;
+          /** Whether a use acquired the replica's key, not the store's declaration. */
+          readonly isAcquired: boolean;
       }
     | {
-          /** The held replica drops for want of a request. */
+          /** The stored replica drops for want of a request. */
           readonly action: "drop";
-          /** The subscription the held replica recorded. */
+          /** The subscription the stored replica recorded. */
           readonly subscription: sync.Subscription;
       };
 

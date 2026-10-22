@@ -8,7 +8,7 @@ import { type ClaimHome, ObjectStore, RemoteStore } from "../../src/server/index
 import { claimMethods, claimTable, defineObject } from "../../src/index.ts";
 import type { Clock } from "@destack/environment";
 
-/** The universe's claimed names, which only its own principal changes in these tests. */
+/** The universe's claimed names, which only its principal changes in these tests. */
 export const claim = defineObject(
     {
         name: "claim",
@@ -26,9 +26,9 @@ export const claim = defineObject(
     () => claimMethods,
 );
 
-/** Serve the universe's claims over its database, called as the universe's own principal. */
+/** Serve the universe's claims over its database, called as the universe's principal. */
 export async function serveClaims(database: DatabaseConnection, clock: Clock): Promise<ClaimHome> {
-    // own the universe as its principal
+    // bind the universe as its owner
     const owner = universe.reference(Scope.universe.id, Scope.universe.id);
     await new AccessFixture(database).bindOwner(Scope.universe, owner);
 

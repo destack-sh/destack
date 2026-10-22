@@ -1,11 +1,11 @@
 import type { CallableName } from "../src/index.ts";
 import { ObjectReference, Subject, RequestId } from "@destack/sync";
 import { testCallKey } from "@destack/object/test";
-import { reconciliation, TEST_DIALECTS, TestDatabase } from "@destack/db/test";
+import { reconciliation, TestDatabase } from "@destack/db/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { CallError } from "@destack/object";
-import { type Dialect, eq } from "@destack/db";
+import { eq } from "@destack/db";
 import { nth, present, schema, toJsonSchema, type Identifier } from "@destack/schema";
 import { AuditTarget, defineObject, field, method, settlement, suspendable } from "../src/index.ts";
 
@@ -135,140 +135,187 @@ test("route a creation other than create below its collection by name", () => {
     ).toEqual(["POST /notes", "POST /notes/import"]);
 });
 
-test.each(TEST_DIALECTS)(
-    "route every served object, create once per request identifier and take chosen identifiers on %s",
-    async (dialect) => {
-        const { store, database, execute, events, observed } = await serveTasks(dialect);
+test("route every served object, create once per request identifier and take chosen identifiers", async () => {
+    const { store, database, execute, events, observed } = await serveTasks();
 
-        // route the replica procedures and each served object
-        expect(Object.keys(store.router())).toEqual([
-            "store",
-            "task",
-            "comment",
-            "taskVersion",
-            "folder",
-        ]);
+    // route the replica procedures and each served object
+    expect(Object.keys(store.router())).toEqual([
+        "store",
+        "task",
+        "comment",
+        "taskVersion",
+        "folder",
+    ]);
 
-        // create once per request identifier, replaying the original result
-        const creation = { requestId: RequestId.create(Date.now()), title: "Write the plan" };
-        const created = await execute("create", creation);
-        expect(observed().watermarks.at(-1)).toEqual(await store.watermark());
-        expect(await execute("create", creation)).toEqual(created);
+    // create once per request identifier, replaying the original result
+    const creation = { requestId: RequestId.create(Date.now()), title: "Write the plan" };
+    const created = await execute("create", creation);
+    expect(observed().watermarks.at(-1)).toEqual(await store.watermark());
+    expect(await execute("create", creation)).toEqual(created);
 
-        // take a chosen identifier and refuse a taken one
-        const chosen = schema.identifier("task").parse(`task-${v7()}`);
-        const drafted = { requestId: RequestId.create(Date.now()), id: chosen, title: "Draft" };
-        expect((await execute("create", drafted)).id).toBe(chosen);
-        await expect(
-            execute("create", {
-                requestId: RequestId.create(Date.now()),
-                id: chosen,
-                title: "Again",
-            }),
-        ).rejects.toMatchObject({ code: "CONFLICT", message: "task identifier is taken" });
-        const ahead = schema
-            .identifier("task")
-            .parse(`task-${v7({ msecs: Date.now() + 3_600_000 })}`);
-        const later = { requestId: RequestId.create(Date.now()), id: ahead, title: "Later" };
-        expect((await execute("create", later)).id).toBe(ahead);
-        await database.delete(task.table).where(eq(task.table.id, chosen));
-        await database.delete(task.table).where(eq(task.table.id, ahead));
-        expect((await execute("list", {})).items.map((item) => item.title)).toEqual([
-            "Write the plan",
-        ]);
-
-        // audit each creation once
-        expect(await events()).toEqual([
-            "task.create",
-            "task.create",
-            "task.create CONFLICT",
-            "task.create",
-        ]);
-    },
-);
-
-test.each(TEST_DIALECTS)(
-    "hide an object from strangers, update it at the observed revision, with sensitive fields out of rows on %s",
-    async (dialect) => {
-        const { database, execute, events, act } = await serveTasks(dialect);
-        const created = await execute("create", {
+    // take a chosen identifier and refuse a taken one
+    const chosen = schema.identifier("task").parse(`task-${v7()}`);
+    const drafted = { requestId: RequestId.create(Date.now()), id: chosen, title: "Draft" };
+    expect((await execute("create", drafted)).id).toBe(chosen);
+    await expect(
+        execute("create", {
             requestId: RequestId.create(Date.now()),
-            title: "Write the plan",
-        });
+            id: chosen,
+            title: "Again",
+        }),
+    ).rejects.toMatchObject({ code: "CONFLICT", message: "task identifier is taken" });
+    const ahead = schema.identifier("task").parse(`task-${v7({ msecs: Date.now() + 3_600_000 })}`);
+    const later = { requestId: RequestId.create(Date.now()), id: ahead, title: "Later" };
+    expect((await execute("create", later)).id).toBe(ahead);
+    await database.delete(task.table).where(eq(task.table.id, chosen));
+    await database.delete(task.table).where(eq(task.table.id, ahead));
+    expect((await execute("list", {})).items.map((item) => item.title)).toEqual(["Write the plan"]);
 
-        // hide the task from another user, and refuse them changes without revealing it
-        act(users.grace);
-        expect((await execute("list", {})).items).toEqual([]);
-        await expect(execute("get", { id: created.id })).rejects.toMatchObject({
-            code: "NOT_FOUND",
-            message: `no task ${created.id}`,
-        });
-        await expect(
-            execute("update", {
-                id: created.id,
-                requestId: RequestId.create(Date.now()),
-                revision: created.revision,
-                title: "Taken",
-            }),
-        ).rejects.toMatchObject({ code: "NOT_FOUND", message: `no task ${created.id}` });
-        act(users.frank);
+    // audit each creation once
+    expect(await events()).toEqual([
+        "task.create",
+        "task.create",
+        "task.create CONFLICT",
+        "task.create",
+    ]);
+});
 
-        // update at the observed revision and reject a stale one
-        const updated = await execute("update", {
+test("hide an object from strangers, update it at the observed revision, with sensitive fields out of rows", async () => {
+    const { database, execute, events, act } = await serveTasks();
+    const created = await execute("create", {
+        requestId: RequestId.create(Date.now()),
+        title: "Write the plan",
+    });
+
+    // hide the task from another user, and refuse them changes without revealing it
+    act(users.grace);
+    expect((await execute("list", {})).items).toEqual([]);
+    await expect(execute("get", { id: created.id })).rejects.toMatchObject({
+        code: "NOT_FOUND",
+        message: `no task ${created.id}`,
+    });
+    await expect(
+        execute("update", {
             id: created.id,
             requestId: RequestId.create(Date.now()),
             revision: created.revision,
-            title: "Ship the plan",
-            estimate: 3,
-        });
-        expect(updated.estimate).toBe(3);
-        expect([updated.title, updated.revision]).toEqual(["Ship the plan", 2]);
-        await expect(
-            execute("update", {
-                id: created.id,
-                requestId: RequestId.create(Date.now()),
-                revision: created.revision,
-                title: "Stale",
-            }),
-        ).rejects.toMatchObject({ code: "CONFLICT", message: "task revision has changed" });
+            title: "Taken",
+        }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND", message: `no task ${created.id}` });
+    act(users.frank);
 
-        // store a sensitive field in the database, out of every row a caller reads and its schema
-        await database
-            .update(task.table)
-            .set({ token: "secret" })
-            .where(eq(task.table.id, created.id));
-        const read = await execute("get", { id: created.id });
-        expect(["token" in read, Object.hasOwn(task.schema.row.shape, "token")]).toEqual([
-            false,
-            false,
-        ]);
-
-        // audit each change once
-        expect(await events()).toEqual(["task.create", "task.update", "task.update CONFLICT"]);
-    },
-);
-
-test.each(TEST_DIALECTS)(
-    "share an object, accept invitations and narrow agents to their grants on %s",
-    async (dialect) => {
-        const { clock, execute, events, act, delegate } = await serveTasks(dialect);
-        const created = await execute("create", {
+    // update at the observed revision and reject a stale one
+    const updated = await execute("update", {
+        id: created.id,
+        requestId: RequestId.create(Date.now()),
+        revision: created.revision,
+        title: "Ship the plan",
+        estimate: 3,
+    });
+    expect(updated.estimate).toBe(3);
+    expect([updated.title, updated.revision]).toEqual(["Ship the plan", 2]);
+    await expect(
+        execute("update", {
+            id: created.id,
             requestId: RequestId.create(Date.now()),
-            title: "Ship the plan",
-        });
+            revision: created.revision,
+            title: "Stale",
+        }),
+    ).rejects.toMatchObject({ code: "CONFLICT", message: "task revision has changed" });
 
-        // share the task with another user as a viewer, list it, and revoke it again
-        const viewer = principal.user.reference("universe", users.grace);
-        const shared = await execute("grant", {
+    // store a sensitive field in the database, out of every row a caller reads and its schema
+    await database.update(task.table).set({ token: "secret" }).where(eq(task.table.id, created.id));
+    const read = await execute("get", { id: created.id });
+    expect(["token" in read, Object.hasOwn(task.schema.row.shape, "token")]).toEqual([
+        false,
+        false,
+    ]);
+
+    // audit each change once
+    expect(await events()).toEqual(["task.create", "task.update", "task.update CONFLICT"]);
+});
+
+test("share an object, accept invitations and narrow agents to their grants", async () => {
+    const { clock, execute, events, act, delegate } = await serveTasks();
+    const created = await execute("create", {
+        requestId: RequestId.create(Date.now()),
+        title: "Ship the plan",
+    });
+
+    // share the task with another user as a viewer, list it, and revoke it again
+    const viewer = principal.user.reference("universe", users.grace);
+    const shared = await execute("grant", {
+        id: created.id,
+        requestId: RequestId.create(Date.now()),
+        relation: "viewer",
+        subject: viewer,
+    });
+    expect(await execute("relationships", { id: created.id })).toEqual({
+        items: [
+            {
+                id: shared.id,
+                object: {
+                    packageId: task.policy.definition.packageId,
+                    type: "task",
+                    scope: spaceId,
+                    id: created.id,
+                },
+                relation: "viewer",
+                subject: viewer,
+                createdAt: clock.now(),
+                expiresAt: null,
+            },
+        ],
+        cursor: null,
+    });
+    act(users.grace);
+    expect((await execute("get", { id: created.id })).title).toBe("Ship the plan");
+    await expect(
+        execute("grant", {
             id: created.id,
             requestId: RequestId.create(Date.now()),
             relation: "viewer",
-            subject: viewer,
-        });
-        expect(await execute("relationships", { id: created.id })).toEqual({
-            items: [
-                {
-                    id: shared.id,
+            subject: { ...viewer, id: users.ivan },
+        }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN", message: "permission denied: write" });
+    act(users.frank);
+    await execute("revoke", {
+        id: created.id,
+        requestId: RequestId.create(Date.now()),
+        relationshipId: shared.id,
+    });
+    act(users.grace);
+    await expect(execute("get", { id: created.id })).rejects.toMatchObject({
+        code: "NOT_FOUND",
+        message: `no task ${created.id}`,
+    });
+    act(users.frank);
+
+    // let a user without access ask for it, and apply it once the owner accepts
+    act(users.heidi);
+    const asked = await execute("invite", {
+        id: created.id,
+        requestId: RequestId.create(Date.now()),
+        relationship: { relation: "viewer", subject: { ...viewer, id: users.heidi } },
+        purpose: "follow the plan",
+    });
+    await expect(execute("get", { id: created.id })).rejects.toMatchObject({
+        code: "NOT_FOUND",
+        message: `no task ${created.id}`,
+    });
+    await expect(
+        execute("accept", {
+            id: created.id,
+            requestId: RequestId.create(Date.now()),
+            invitationId: asked.id,
+        }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN", message: "permission denied: write" });
+    act(users.frank);
+    expect(await execute("invitations", { id: created.id })).toEqual({
+        items: [
+            {
+                id: asked.id,
+                relationship: {
                     object: {
                         packageId: task.policy.definition.packageId,
                         type: "task",
@@ -276,314 +323,243 @@ test.each(TEST_DIALECTS)(
                         id: created.id,
                     },
                     relation: "viewer",
-                    subject: viewer,
-                    createdAt: clock.now(),
                     expiresAt: null,
+                    subject: { ...viewer, id: users.heidi },
                 },
-            ],
-            cursor: null,
-        });
-        act(users.grace);
-        expect((await execute("get", { id: created.id })).title).toBe("Ship the plan");
-        await expect(
-            execute("grant", {
-                id: created.id,
-                requestId: RequestId.create(Date.now()),
-                relation: "viewer",
-                subject: { ...viewer, id: users.ivan },
-            }),
-        ).rejects.toMatchObject({ code: "FORBIDDEN", message: "permission denied: write" });
-        act(users.frank);
-        await execute("revoke", {
+                inviter: { ...viewer, id: users.heidi },
+                purpose: "follow the plan",
+                status: "pending",
+                createdAt: clock.now(),
+                expiresAt: clock.now() + INVITATION_LIFETIME_MILLISECONDS,
+            },
+        ],
+        cursor: null,
+    });
+    await execute("accept", {
+        id: created.id,
+        requestId: RequestId.create(Date.now()),
+        invitationId: asked.id,
+    });
+    act(users.heidi);
+    expect((await execute("get", { id: created.id })).title).toBe("Ship the plan");
+    act(users.frank);
+
+    // challenge an agent whose grant gives too little, and allow what it gives
+    const agent = principal.installation.reference(spaceId, "assistant");
+    await delegate(agent, [{ ...task.permission("write"), scope: spaceId }]);
+    await expect(execute("get", { id: created.id })).rejects.toMatchObject({
+        code: "INSUFFICIENT_GRANT",
+        message: `grant ${grantId} does not give read on task ${created.id}`,
+        data: { grant: grantId, object: task.reference(spaceId, created.id) },
+    });
+    await delegate(agent, [{ ...task.permission("read"), scope: spaceId }]);
+    expect((await execute("get", { id: created.id })).title).toBe("Ship the plan");
+    await expect(
+        execute("update", {
             id: created.id,
             requestId: RequestId.create(Date.now()),
-            relationshipId: shared.id,
-        });
-        act(users.grace);
-        await expect(execute("get", { id: created.id })).rejects.toMatchObject({
-            code: "NOT_FOUND",
-            message: `no task ${created.id}`,
-        });
-        act(users.frank);
+            revision: 1,
+            title: "Taken",
+        }),
+    ).rejects.toMatchObject({
+        code: "INSUFFICIENT_GRANT",
+        message: `grant ${grantId} does not give write on task ${created.id}`,
+    });
+    await delegate(undefined, []);
 
-        // let a user without access ask for it, and apply it once the owner accepts
-        act(users.heidi);
-        const asked = await execute("invite", {
+    // audit each change once
+    expect(await events()).toEqual([
+        "task.create",
+        "task.grant",
+        "task.revoke",
+        "task.invite",
+        "task.accept",
+    ]);
+});
+
+test("hide guarded fields from readers without their permission, and run each transition once", async () => {
+    const { execute, events, act } = await serveTasks();
+    const created = await execute("create", {
+        requestId: RequestId.create(Date.now()),
+        title: "Write the plan",
+    });
+    await execute("update", {
+        id: created.id,
+        requestId: RequestId.create(Date.now()),
+        revision: created.revision,
+        title: "Ship the plan",
+        estimate: 3,
+    });
+    const viewer = principal.user.reference("universe", users.heidi);
+    await execute("grant", {
+        id: created.id,
+        requestId: RequestId.create(Date.now()),
+        relation: "viewer",
+        subject: viewer,
+    });
+
+    // hide the guarded estimate and refuse setting it
+    act(users.heidi);
+    const viewed = await execute("get", { id: created.id });
+    expect([viewed.title, "estimate" in viewed]).toEqual(["Ship the plan", false]);
+    expect((await execute("list", {})).items.map((item) => "estimate" in item)).toEqual([false]);
+    act(users.frank);
+    await execute("grant", {
+        id: created.id,
+        requestId: RequestId.create(Date.now()),
+        relation: "editor",
+        subject: { ...viewer, id: users.judy },
+    });
+    act(users.judy);
+    const edited = await execute("update", {
+        id: created.id,
+        requestId: RequestId.create(Date.now()),
+        revision: 2,
+        title: "Ship the plan",
+    });
+    expect([edited.revision, "estimate" in edited]).toEqual([3, false]);
+    await expect(
+        execute("update", {
             id: created.id,
             requestId: RequestId.create(Date.now()),
-            relationship: { relation: "viewer", subject: { ...viewer, id: users.heidi } },
-            purpose: "follow the plan",
-        });
-        await expect(execute("get", { id: created.id })).rejects.toMatchObject({
-            code: "NOT_FOUND",
-            message: `no task ${created.id}`,
-        });
-        await expect(
-            execute("accept", {
-                id: created.id,
-                requestId: RequestId.create(Date.now()),
-                invitationId: asked.id,
-            }),
-        ).rejects.toMatchObject({ code: "FORBIDDEN", message: "permission denied: write" });
-        act(users.frank);
-        expect(await execute("invitations", { id: created.id })).toEqual({
-            items: [
-                {
-                    id: asked.id,
-                    relationship: {
-                        object: {
-                            packageId: task.policy.definition.packageId,
-                            type: "task",
-                            scope: spaceId,
-                            id: created.id,
-                        },
-                        relation: "viewer",
-                        expiresAt: null,
-                        subject: { ...viewer, id: users.heidi },
-                    },
-                    inviter: { ...viewer, id: users.heidi },
-                    purpose: "follow the plan",
-                    status: "pending",
-                    createdAt: clock.now(),
-                    expiresAt: clock.now() + INVITATION_LIFETIME_MILLISECONDS,
-                },
-            ],
-            cursor: null,
-        });
-        await execute("accept", {
-            id: created.id,
-            requestId: RequestId.create(Date.now()),
-            invitationId: asked.id,
-        });
-        act(users.heidi);
-        expect((await execute("get", { id: created.id })).title).toBe("Ship the plan");
-        act(users.frank);
-
-        // challenge an agent whose grant gives too little, and allow what it gives
-        const agent = principal.installation.reference(spaceId, "assistant");
-        await delegate(agent, [{ ...task.permission("write"), scope: spaceId }]);
-        await expect(execute("get", { id: created.id })).rejects.toMatchObject({
-            code: "INSUFFICIENT_GRANT",
-            message: `grant ${grantId} does not give read on task ${created.id}`,
-            data: { grant: grantId, object: task.reference(spaceId, created.id) },
-        });
-        await delegate(agent, [{ ...task.permission("read"), scope: spaceId }]);
-        expect((await execute("get", { id: created.id })).title).toBe("Ship the plan");
-        await expect(
-            execute("update", {
-                id: created.id,
-                requestId: RequestId.create(Date.now()),
-                revision: 1,
-                title: "Taken",
-            }),
-        ).rejects.toMatchObject({
-            code: "INSUFFICIENT_GRANT",
-            message: `grant ${grantId} does not give write on task ${created.id}`,
-        });
-        await delegate(undefined, []);
-
-        // audit each change once
-        expect(await events()).toEqual([
-            "task.create",
-            "task.grant",
-            "task.revoke",
-            "task.invite",
-            "task.accept",
-        ]);
-    },
-);
-
-test.each(TEST_DIALECTS)(
-    "hide guarded fields from readers without their permission, and run each transition once on %s",
-    async (dialect) => {
-        const { execute, events, act } = await serveTasks(dialect);
-        const created = await execute("create", {
-            requestId: RequestId.create(Date.now()),
-            title: "Write the plan",
-        });
-        await execute("update", {
-            id: created.id,
-            requestId: RequestId.create(Date.now()),
-            revision: created.revision,
+            revision: 3,
             title: "Ship the plan",
-            estimate: 3,
-        });
-        const viewer = principal.user.reference("universe", users.heidi);
-        await execute("grant", {
-            id: created.id,
-            requestId: RequestId.create(Date.now()),
-            relation: "viewer",
-            subject: viewer,
-        });
+            estimate: 8,
+        }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN", message: "field estimate is not writable" });
+    act(users.frank);
 
-        // hide the guarded estimate and refuse setting it
-        act(users.heidi);
-        const viewed = await execute("get", { id: created.id });
-        expect([viewed.title, "estimate" in viewed]).toEqual(["Ship the plan", false]);
-        expect((await execute("list", {})).items.map((item) => "estimate" in item)).toEqual([
-            false,
-        ]);
-        act(users.frank);
-        await execute("grant", {
-            id: created.id,
-            requestId: RequestId.create(Date.now()),
-            relation: "editor",
-            subject: { ...viewer, id: users.judy },
-        });
-        act(users.judy);
-        const edited = await execute("update", {
-            id: created.id,
-            requestId: RequestId.create(Date.now()),
-            revision: 2,
-            title: "Ship the plan",
-        });
-        expect([edited.revision, "estimate" in edited]).toEqual([3, false]);
-        await expect(
-            execute("update", {
-                id: created.id,
-                requestId: RequestId.create(Date.now()),
-                revision: 3,
-                title: "Ship the plan",
-                estimate: 8,
-            }),
-        ).rejects.toMatchObject({ code: "FORBIDDEN", message: "field estimate is not writable" });
-        act(users.frank);
+    // complete the task once and refuse a second and a guarded completion
+    const completed = await execute("complete", {
+        id: created.id,
+        requestId: RequestId.create(Date.now()),
+    });
+    expect(completed.status).toBe("done");
+    await expect(
+        execute("complete", { id: created.id, requestId: RequestId.create(Date.now()) }),
+    ).rejects.toMatchObject({
+        code: "CONFLICT",
+        message: "task cannot complete while status is done",
+    });
+    await execute("reopen", { id: created.id, requestId: RequestId.create(Date.now()) });
 
-        // complete the task once and refuse a second and a guarded completion
-        const completed = await execute("complete", {
-            id: created.id,
-            requestId: RequestId.create(Date.now()),
-        });
-        expect(completed.status).toBe("done");
-        await expect(
-            execute("complete", { id: created.id, requestId: RequestId.create(Date.now()) }),
-        ).rejects.toMatchObject({
-            code: "CONFLICT",
-            message: "task cannot complete while status is done",
-        });
-        await execute("reopen", { id: created.id, requestId: RequestId.create(Date.now()) });
+    // audit each change once
+    expect(await events()).toEqual([
+        "task.create",
+        "task.update",
+        "task.grant",
+        "task.grant",
+        "task.update",
+        "task.complete",
+        "task.complete CONFLICT",
+        "task.reopen",
+    ]);
+});
 
-        // audit each change once
-        expect(await events()).toEqual([
-            "task.create",
-            "task.update",
-            "task.grant",
-            "task.grant",
-            "task.update",
-            "task.complete",
-            "task.complete CONFLICT",
-            "task.reopen",
-        ]);
-    },
-);
+test("refuse changing objects a stack manages, then trash, restore and purge them, the expired ones as the system", async () => {
+    const { store, database, execute, events, purges } = await serveTasks();
+    const created = await execute("create", {
+        requestId: RequestId.create(Date.now()),
+        title: "Ship the plan",
+    });
 
-test.each(TEST_DIALECTS)(
-    "refuse changing objects a stack manages, then trash, restore and purge them, the expired ones as the system, on %s",
-    async (dialect) => {
-        const { store, database, execute, events, purges } = await serveTasks(dialect);
-        const created = await execute("create", {
-            requestId: RequestId.create(Date.now()),
-            title: "Ship the plan",
-        });
-
-        // refuse standard changes to a managed task
-        const archived = await execute("archive", {
-            id: created.id,
-            requestId: RequestId.create(Date.now()),
-        });
-        expect(archived.archived).toBe(true);
-        await database
-            .update(task.table)
-            .set({
-                managerInstallationId: schema
-                    .identifier("installation")
-                    .parse("installation-01996ab0-0000-7000-8000-000000000002"),
-                managerPackageId: schema
-                    .identifier("package")
-                    .parse("package-01996ab0-0000-7000-8000-000000000003"),
-                managerName: "plan",
-            })
-            .where(eq(task.table.id, created.id));
-        await expect(
-            execute("delete", {
-                id: created.id,
-                requestId: RequestId.create(Date.now()),
-                revision: archived.revision,
-            }),
-        ).rejects.toMatchObject({
-            code: "MANAGED",
-            message: "task is managed by its stack; detach it before changing it",
-        });
-
-        // delete once detached: hidden from lists, listed in the trash, restorable and purged at last
-        await database
-            .update(task.table)
-            .set({ detachedAt: Date.now() })
-            .where(eq(task.table.id, created.id));
-        await execute("delete", {
+    // refuse standard changes to a managed task
+    const archived = await execute("archive", {
+        id: created.id,
+        requestId: RequestId.create(Date.now()),
+    });
+    expect(archived.archived).toBe(true);
+    await database
+        .update(task.table)
+        .set({
+            managerInstallationId: schema
+                .identifier("installation")
+                .parse("installation-01996ab0-0000-7000-8000-000000000002"),
+            managerPackageId: schema
+                .identifier("package")
+                .parse("package-01996ab0-0000-7000-8000-000000000003"),
+            managerName: "plan",
+        })
+        .where(eq(task.table.id, created.id));
+    await expect(
+        execute("delete", {
             id: created.id,
             requestId: RequestId.create(Date.now()),
             revision: archived.revision,
-        });
-        const titles = async (deleted: "exclude" | "only") =>
-            (await execute("list", { deleted })).items.map((item) => item.title);
-        expect([await titles("exclude"), await titles("only")]).toEqual([[], ["Ship the plan"]]);
-        await execute("restore", { id: created.id, requestId: RequestId.create(Date.now()) });
-        expect(await titles("exclude")).toEqual(["Ship the plan"]);
-        const restored = await execute("get", {
-            id: created.id,
-        });
-        await execute("delete", {
-            id: created.id,
-            requestId: RequestId.create(Date.now()),
-            revision: restored.revision,
-        });
-        await execute("purge", { id: created.id, requestId: RequestId.create(Date.now()) });
-        await expect(execute("get", { id: created.id })).rejects.toMatchObject({
-            code: "NOT_FOUND",
-            message: `no task ${created.id}`,
-        });
+        }),
+    ).rejects.toMatchObject({
+        code: "MANAGED",
+        message: "task is managed by its stack; detach it before changing it",
+    });
 
-        // purge the trash once the recovery window passes
-        const stale = await execute("create", {
-            requestId: RequestId.create(Date.now()),
-            title: "Old",
-        });
-        await execute("delete", {
-            id: stale.id,
-            requestId: RequestId.create(Date.now()),
-            revision: stale.revision,
-        });
-        expect(await RecoverableController.purge(store, Date.now() + 60_000)).toBe(1);
+    // delete once detached: hidden from lists, listed in the trash, restorable and purged at last
+    await database
+        .update(task.table)
+        .set({ detachedAt: Date.now() })
+        .where(eq(task.table.id, created.id));
+    await execute("delete", {
+        id: created.id,
+        requestId: RequestId.create(Date.now()),
+        revision: archived.revision,
+    });
+    const titles = async (deleted: "exclude" | "only") =>
+        (await execute("list", { deleted })).items.map((item) => item.title);
+    expect([await titles("exclude"), await titles("only")]).toEqual([[], ["Ship the plan"]]);
+    await execute("restore", { id: created.id, requestId: RequestId.create(Date.now()) });
+    expect(await titles("exclude")).toEqual(["Ship the plan"]);
+    const restored = await execute("get", {
+        id: created.id,
+    });
+    await execute("delete", {
+        id: created.id,
+        requestId: RequestId.create(Date.now()),
+        revision: restored.revision,
+    });
+    await execute("purge", { id: created.id, requestId: RequestId.create(Date.now()) });
+    await expect(execute("get", { id: created.id })).rejects.toMatchObject({
+        code: "NOT_FOUND",
+        message: `no task ${created.id}`,
+    });
 
-        // purge more trash than one batch takes, across several transactions
-        const trashed = Array.from({ length: 100 }, () => ({
-            ...stale,
-            id: schema.identifier("task").parse(`task-${v7()}`),
-            deletedAt: Date.now(),
-        }));
-        await database.insert(task.table).values(trashed);
-        expect(await RecoverableController.purge(store, Date.now() + 60_000)).toBe(100);
+    // purge the trash once the recovery window passes
+    const stale = await execute("create", {
+        requestId: RequestId.create(Date.now()),
+        title: "Old",
+    });
+    await execute("delete", {
+        id: stale.id,
+        requestId: RequestId.create(Date.now()),
+        revision: stale.revision,
+    });
+    expect(await RecoverableController.purge(store, Date.now() + 60_000)).toBe(1);
 
-        // audit each purge as the system's, and each caller's change once
-        expect(await purges()).toEqual(Array.from({ length: 101 }, () => "task.purge"));
-        expect(await events()).toEqual([
-            "task.create",
-            "task.archive",
-            "task.delete MANAGED",
-            "task.delete",
-            "task.restore",
-            "task.delete",
-            "task.purge",
-            "task.create",
-            "task.delete",
-        ]);
-    },
-);
+    // purge more trash than one batch takes, across several transactions
+    const trashed = Array.from({ length: 100 }, () => ({
+        ...stale,
+        id: schema.identifier("task").parse(`task-${v7()}`),
+        deletedAt: Date.now(),
+    }));
+    await database.insert(task.table).values(trashed);
+    expect(await RecoverableController.purge(store, Date.now() + 60_000)).toBe(100);
+
+    // audit each purge as the system's, and each caller's change once
+    expect(await purges()).toEqual(Array.from({ length: 101 }, () => "task.purge"));
+    expect(await events()).toEqual([
+        "task.create",
+        "task.archive",
+        "task.delete MANAGED",
+        "task.delete",
+        "task.restore",
+        "task.delete",
+        "task.purge",
+        "task.create",
+        "task.delete",
+    ]);
+});
 
 test("page an object's invitations a full hundred at a time", async () => {
     // create 101 pending invitations to view a task, in creation order
-    const { database, execute } = await serveTasks("sqlite");
+    const { database, execute } = await serveTasks();
     const created = await execute("create", {
         requestId: RequestId.create(Date.now()),
         title: "Ship the plan",
@@ -643,13 +619,9 @@ test("page an object's invitations a full hundred at a time", async () => {
 });
 
 test("prepare external work after the access check, settle it after commit, compensate on failure and skip it on replay", async () => {
-    const storage = await TestDatabase.create(
-        present(TEST_DIALECTS.at(-1), "the last test dialect"),
-        objectDatabase,
-        {
-            isMigrated: true,
-        },
-    );
+    const storage = await TestDatabase.create(objectDatabase, {
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
 
@@ -758,7 +730,7 @@ test("prepare external work after the access check, settle it after commit, comp
     expect(await execute("export", exported)).toEqual(archived);
     expect(external).toEqual(["reserve Plan", `confirm ${reservation}`]);
 
-    // release the work prepared for earlier calls and the failed preparation's own once a later call's preparation fails
+    // release the earlier calls' prepared work and the failed preparation's work once one fails
     const other = await execute("create", {
         requestId: RequestId.create(Date.now()),
         title: "Other",
@@ -801,8 +773,8 @@ test("prepare external work after the access check, settle it after commit, comp
     expect(external).toEqual([]);
 });
 
-test("run a prepare and a settle phase's calls as the store in requests of their own, committed apart from the mutation", async () => {
-    const storage = await TestDatabase.create("sqlite", objectDatabase, { isMigrated: true });
+test("run a prepare and a settle phase's calls as the store in separate requests, committed apart from the mutation", async () => {
+    const storage = await TestDatabase.create(objectDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
 
@@ -866,13 +838,9 @@ test("run a prepare and a settle phase's calls as the store in requests of their
 });
 
 test("authorize a creation before its external work, and settle committed work through the settlement controller once settling fails", async () => {
-    const storage = await TestDatabase.create(
-        present(TEST_DIALECTS.at(-1), "the last test dialect"),
-        objectDatabase,
-        {
-            isMigrated: true,
-        },
-    );
+    const storage = await TestDatabase.create(objectDatabase, {
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
 
@@ -963,12 +931,8 @@ test("authorize a creation before its external work, and settle committed work t
     ]);
 });
 
-test("name a system creation's prepared work by the fresh identifier it creates the record under", async () => {
-    const storage = await TestDatabase.create(
-        present(TEST_DIALECTS.at(-1), "the last test dialect"),
-        objectDatabase,
-        { isMigrated: true },
-    );
+test("key a system creation's prepared work by the fresh identifier it creates the record under", async () => {
+    const storage = await TestDatabase.create(objectDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
 
@@ -1020,13 +984,9 @@ test("name a system creation's prepared work by the fresh identifier it creates 
 });
 
 test("cancel a call that outlasts its settlement grace by its key, and refuse to commit it", async () => {
-    const storage = await TestDatabase.create(
-        present(TEST_DIALECTS.at(-1), "the last test dialect"),
-        objectDatabase,
-        {
-            isMigrated: true,
-        },
-    );
+    const storage = await TestDatabase.create(objectDatabase, {
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
 
@@ -1108,45 +1068,42 @@ test("cancel a call that outlasts its settlement grace by its key, and refuse to
     ]).toEqual([["copy keyed", "cancel by key"], [], []]);
 });
 
-test.each(TEST_DIALECTS)(
-    "run a scoped mutation over its scope as a holder of the scope's permission, and refuse a caller without it on %s",
-    async (dialect) => {
-        // create two tasks as their owner and archive one
-        const { store, execute } = await serveTasks(dialect);
-        const first = await execute("create", {
-            requestId: RequestId.create(Date.now()),
-            title: "First",
-        });
-        await execute("create", { requestId: RequestId.create(Date.now()), title: "Second" });
-        await execute("archive", { requestId: RequestId.create(Date.now()), id: first.id });
+test("run a scoped mutation over its scope as a holder of the scope's permission, and refuse a caller without it", async () => {
+    // create two tasks as their owner and archive one
+    const { store, execute } = await serveTasks();
+    const first = await execute("create", {
+        requestId: RequestId.create(Date.now()),
+        title: "First",
+    });
+    await execute("create", { requestId: RequestId.create(Date.now()), title: "Second" });
+    await execute("archive", { requestId: RequestId.create(Date.now()), id: first.id });
 
-        // refuse the owner of the tasks, who does not own the space
-        const refused = await execute("archiveAll", {
-            requestId: RequestId.create(Date.now()),
-        }).catch((error: unknown) => error);
+    // refuse the owner of the tasks, who is no owner of the space
+    const refused = await execute("archiveAll", {
+        requestId: RequestId.create(Date.now()),
+    }).catch((error: unknown) => error);
 
-        // archive the rest as the space, which owns it
-        const [archived] = await store.mutate(
-            AccessContext.of(Caller.of(spacePrincipal(spaceId)), Date.now()),
-            {
-                id: RequestId.create(Date.now()),
-                calls: [task.call("archiveAll", task.in(spaceId))],
-            },
-        );
-        const left = await execute("list", { where: { archived: false } });
-        expect([refused, archived, left.items]).toEqual([
-            new CallError("FORBIDDEN", { defined: true, message: "permission denied: tidy" }),
-            { archived: 1 },
-            [],
-        ]);
-    },
-);
+    // archive the rest as the space, the owner of it
+    const [archived] = await store.mutate(
+        AccessContext.of(Caller.of(spacePrincipal(spaceId)), Date.now()),
+        {
+            id: RequestId.create(Date.now()),
+            calls: [task.call("archiveAll", task.in(spaceId))],
+        },
+    );
+    const left = await execute("list", { where: { archived: false } });
+    expect([refused, archived, left.items]).toEqual([
+        new CallError("FORBIDDEN", { defined: true, message: "permission denied: tidy" }),
+        { archived: 1 },
+        [],
+    ]);
+});
 
 test("create the same identifiers and draw the same numbers from the same request on every server, apart for each draw", async () => {
     // create two tasks under one request and draw under another, on each of two servers
     const [creation, drawing] = [RequestId.create(Date.now()), RequestId.create(Date.now())];
     const run = async () => {
-        const { store } = await serveTasks("sqlite");
+        const { store } = await serveTasks();
         const caller = AccessContext.of(
             Caller.of(principal.user.reference("universe", users.frank)),
             Date.now(),
@@ -1238,9 +1195,9 @@ test("add suspending and handing over through their traits", () => {
 });
 
 /** Serve tasks, comments, versions and folders in a space to a scenario's caller. */
-async function serveTasks(dialect: Dialect) {
+async function serveTasks() {
     // store the space's objects in a migrated database
-    const database = await openTaskDatabase(dialect);
+    const database = await openTaskDatabase();
 
     // handle archiving
     const handled = handleArchive();
@@ -1283,7 +1240,7 @@ async function serveTasks(dialect: Dialect) {
         events: () => auditedActions(database, "caller"),
         /** Read the system's audited actions. */
         purges: () => auditedActions(database, "component"),
-        /** Read the watermarks the current caller's requests reached. */
+        /** Read the watermarks the current caller's requests arrived at. */
         observed: () => context.observed,
         /** Execute a task method as the current caller. */
         execute: <Name extends CallableName<typeof handled>>(
@@ -1314,14 +1271,10 @@ async function serveTasks(dialect: Dialect) {
     };
 }
 
-test("carry a key of the call's place in its request, the same for every retry of the request", async () => {
-    const storage = await TestDatabase.create(
-        present(TEST_DIALECTS.at(-1), "the last test dialect"),
-        objectDatabase,
-        {
-            isMigrated: true,
-        },
-    );
+test("send a key of the call's place in its request, the same for every retry of the request", async () => {
+    const storage = await TestDatabase.create(objectDatabase, {
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
 
@@ -1391,14 +1344,10 @@ test("carry a key of the call's place in its request, the same for every retry o
     expect(keys).toEqual([`${requestId}/0`, `${requestId}/0`]);
 });
 
-test("settle each call's prepared work once under its own key in its request", async () => {
-    const storage = await TestDatabase.create(
-        present(TEST_DIALECTS.at(-1), "the last test dialect"),
-        objectDatabase,
-        {
-            isMigrated: true,
-        },
-    );
+test("settle each call's prepared work once under a separate key in its request", async () => {
+    const storage = await TestDatabase.create(objectDatabase, {
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
 
@@ -1434,7 +1383,7 @@ test("settle each call's prepared work once under its own key in its request", a
         })
         .then(([written]) => written);
 
-    // create two copies of one title in one mutation, confirming each under its own key leaving no settlement
+    // create two copies of one title in one mutation, each confirmed under a new key, no settlement
     const copy = { spaceId, parentId: created.id, title: "Draft" };
     const requestId = RequestId.create(Date.now());
     await store.mutate(context.access(), {
@@ -1450,9 +1399,9 @@ test("settle each call's prepared work once under its own key in its request", a
 /** Wait for nothing, until a test pauses a call in its place. */
 async function idle(): Promise<void> {}
 
-/** Open a migrated database holding the scenario's space until the test finishes. */
-async function openTaskDatabase(dialect: Dialect) {
-    const storage = await TestDatabase.create(dialect, objectDatabase, { isMigrated: true });
+/** Open a migrated database with the scenario's space until the test finishes. */
+async function openTaskDatabase() {
+    const storage = await TestDatabase.create(objectDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
 
@@ -1492,7 +1441,7 @@ function handleArchive() {
     });
 }
 
-test("refuse a handler naming a key that is no phase, such as a misspelled handle", () => {
+test("refuse a handler with a key that is no phase, such as a misspelled handle", () => {
     // pass phases the compiler cannot see, as an untyped caller would
     const phases = { expand: async () => [], handler: async () => ({}) };
 

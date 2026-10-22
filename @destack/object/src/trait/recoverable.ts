@@ -6,9 +6,9 @@ import { method } from "../method/record.ts";
 import {
     Empty,
     type Procedure,
-    type ReplayShape,
+    type ReplayFields,
     type RowSchema,
-    type TargetShape,
+    type TargetFields,
 } from "../method/procedure.ts";
 import type { ObjectType } from "../object/object.ts";
 import type { Trait } from "./trait.ts";
@@ -132,6 +132,9 @@ export const recoverable: Trait<RecoverableDefinition> = {
 
 /** The procedures recoverable deletion derives besides deleting. */
 export type RecoverableProcedures<Object extends ObjectType> = {
-    restore: Procedure<schema.Object<TargetShape<Object> & ReplayShape<Object>>, RowSchema<Object>>;
-    purge: Procedure<schema.Object<TargetShape<Object> & ReplayShape<Object>>, schema.Object<{}>>;
+    restore: Procedure<
+        schema.Object<TargetFields<Object> & ReplayFields<Object>>,
+        RowSchema<Object>
+    >;
+    purge: Procedure<schema.Object<TargetFields<Object> & ReplayFields<Object>>, schema.Object<{}>>;
 };

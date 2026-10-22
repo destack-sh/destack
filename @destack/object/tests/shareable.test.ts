@@ -15,13 +15,13 @@ const board = defineObject(
     (method) => ({ update: method.update("write") }),
 );
 
-/** Hold a permission through each of some relations. */
+/** Grant a permission through each of some relations. */
 function holders(...relations: string[]): ReturnType<typeof relation>[] {
     return relations.map((name) => relation(name));
 }
 
 test("derive each role's permissions on an object, inherited from its parent or else from an enclosing scope shared through the roles", () => {
-    // declare folders as scopes shared through the roles, containing boards, which contain cards with a verb of their own
+    // declare folders as scopes shared through the roles, containing boards, which contain cards with a separate verb
     const folder = defineObject({
         name: "folder",
         plural: "folders",
@@ -45,17 +45,17 @@ test("derive each role's permissions on an object, inherited from its parent or 
             plural: "cards",
             scope: space,
             nested: { in: board, receive: "write" },
-            fields: { pinned: field.boolean().default(false) },
+            fields: { starred: field.boolean().default(false) },
             shareable: {},
-            permissions: { pin: permission("write") },
+            permissions: { star: permission("write") },
         },
         (method) => ({
-            pin: method.update("pin", { fields: ["pinned"] }),
+            star: method.update("star", { fields: ["starred"] }),
             update: false,
         }),
     );
 
-    // derive each permission from the roles at or above it, the inherited same permission and the type's own
+    // derive each permission from the roles at or above it, the same inherited permission and the type's
     const derived = (inherit: (name: string) => ReturnType<typeof through>[]) => ({
         member: union(...holders("owner", "editor", "commenter", "viewer"), ...inherit("member")),
         read: union(...holders("owner", "editor", "commenter", "viewer"), ...inherit("read")),
@@ -71,7 +71,7 @@ test("derive each role's permissions on an object, inherited from its parent or 
         Object.keys(folder.policy.definition.relations).toSorted(),
         Object.keys(card.fields),
     ]).toEqual([
-        { ...derived((name) => [through("parent", name)]), pin: permission("write") },
+        { ...derived((name) => [through("parent", name)]), star: permission("write") },
         derived((name) => [through("folder", name)]),
         {
             subjects: [{ packageId: folder.policy.package.id, type: "folder" }],
@@ -82,6 +82,6 @@ test("derive each role's permissions on an object, inherited from its parent or 
             read: union(...holders("owner", "editor", "commenter", "viewer"), relation("auditor")),
         },
         ["auditor", "commenter", "editor", "owner", "viewer"],
-        ["ownerPackageId", "ownerType", "ownerScope", "ownerId", "pinned"],
+        ["ownerPackageId", "ownerType", "ownerScope", "ownerId", "starred"],
     ]);
 });

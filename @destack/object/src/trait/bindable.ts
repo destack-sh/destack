@@ -44,7 +44,7 @@ export const bindable: Trait<true | Gated> & {
     columns: () => ({}),
     constraints: () => [],
     policy: (_options, _object, permissions) => ({
-        // derive the bind permission unless the type declares its own, as gated types do
+        // derive the bind permission unless the type declares it, as gated types do
         ...derivePermissions(permissions, [BIND]),
         relations: {
             [CONSUMER]: {
@@ -85,7 +85,7 @@ export const bindable: Trait<true | Gated> & {
                     },
                 });
 
-                // bind exactly them with the target added or removed, as the store's own work binds
+                // bind exactly them with the target added or removed, as the store's work binds
                 const id = context.id;
                 const others = rows.map((row) => row.objectId).filter((each) => each !== id);
                 const ids = action === "bind" ? [...others, id] : others;

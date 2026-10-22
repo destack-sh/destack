@@ -3,7 +3,7 @@ import { CallError } from "../error/call.ts";
 import { Step } from "../method/step.ts";
 import type { TextField } from "../field/field.ts";
 import { defineMethod, Method } from "../method/method.ts";
-import type { Procedure, ReplayShape, TargetShape } from "../method/procedure.ts";
+import type { Procedure, ReplayFields, TargetFields } from "../method/procedure.ts";
 import type { ObjectType, TextFieldName } from "../object/object.ts";
 import { Element, SequenceEdit } from "../sequence/index.ts";
 import { permission } from "@destack/access";
@@ -46,8 +46,8 @@ export type TextMethodMap<Fields> = {
 export type TextProcedures<Object extends ObjectType> = {
     edit: Procedure<
         schema.Object<
-            TargetShape<Object> &
-                ReplayShape<Object> & {
+            TargetFields<Object> &
+                ReplayFields<Object> & {
                     field: schema.Schema<TextFieldName<Object["fields"]>>;
                     edits: schema.Schema<SequenceEdit[]>;
                 }
@@ -56,7 +56,7 @@ export type TextProcedures<Object extends ObjectType> = {
     >;
     contains: Procedure<
         schema.Object<
-            TargetShape<Object> & {
+            TargetFields<Object> & {
                 field: schema.Schema<TextFieldName<Object["fields"]>>;
                 elements: schema.Schema<Element[]>;
             }
@@ -166,10 +166,10 @@ export const text: Trait<TextDefinition> & {
             mutates: true,
             target: "object",
             result: "value",
-            procedure: (_name, shapes) => ({
+            procedure: (_name, schemas) => ({
                 route: { method: "POST", path: "/{id}/edit" },
-                input: shapes.target.extend({
-                    ...shapes.replay,
+                input: schemas.target.extend({
+                    ...schemas.replay,
                     field: schema.enum(fields),
                     edits: schema.array(SequenceEdit).min(1),
                 }),
@@ -233,9 +233,9 @@ export const text: Trait<TextDefinition> & {
             mutates: false,
             target: "object",
             result: "value",
-            procedure: (_name, shapes) => ({
+            procedure: (_name, schemas) => ({
                 route: { method: "POST", path: "/{id}/contains" },
-                input: shapes.target.extend({
+                input: schemas.target.extend({
                     field: schema.enum(fields),
                     elements: schema.array(Element).min(1),
                 }),

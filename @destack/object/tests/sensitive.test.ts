@@ -5,7 +5,7 @@ import { TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { testCallKey } from "@destack/object/test";
-import { callTables, testEvents, serversOf } from "../src/test/index.ts";
+import { testEvents, serversOf } from "../src/test/index.ts";
 import { startTelemetry } from "@destack/telemetry/bun";
 import { OtlpExporter } from "@destack/telemetry/otlp";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
@@ -15,6 +15,8 @@ import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { auditedCalls } from "./fixture/audit.ts";
 import { Clock } from "@destack/environment";
+import { tablesOf } from "../src/index.ts";
+import objectPackage from "../src/package.ts";
 
 /** An API key a caller hands a method, which nothing derived from the call stores. */
 const ApiKey = schema.sensitive(schema.string().regex(/^sk-/u));
@@ -42,11 +44,17 @@ const holder = defineObject(
     }),
 );
 
-test("hold a sensitive input out of the rows, the journal, the audit events, the telemetry and the error of a refused call, and a sensitive column in its row alone", async () => {
+test("leave a sensitive input out of the rows, the journal, the audit events, the telemetry and the error of a refused call, and a sensitive column in its row alone", async () => {
     // serve the holders, recording audit events and exporting telemetry to a list
     const storage = await TestDatabase.create(
-        "sqlite",
-        defineDatabase({ name: "main", tables: [...holder.tables, space.table, ...callTables] }),
+        defineDatabase({
+            name: "main",
+            ...tablesOf({
+                packages: [objectPackage, { objects: { holder }, tables: [] }],
+                follows: [],
+                tables: [space.table],
+            }),
+        }),
         { isMigrated: true },
     );
     onTestFinished(() => storage.close());
@@ -160,7 +168,7 @@ test("hold a sensitive input out of the rows, the journal, the audit events, the
             outcome:
                 execution.outcome.kind === "success" ? "success" : execution.outcome.error.code,
         })),
-        isTokenKept: traces.rows.includes(token),
+        isTokenTraced: traces.rows.includes(token),
     }).toEqual({
         leaking: [],
         refusal: ["BAD_REQUEST", "invalid input: key: invalid string: must match pattern /^sk-/u"],
@@ -191,6 +199,6 @@ test("hold a sensitive input out of the rows, the journal, the audit events, the
                 outcome: "BAD_REQUEST",
             },
         ],
-        isTokenKept: true,
+        isTokenTraced: true,
     });
 });

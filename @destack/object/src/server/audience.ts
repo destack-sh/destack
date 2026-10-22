@@ -35,7 +35,7 @@ import { ObjectTypeIndex } from "../query/listing.ts";
 import type { Authorization } from "./authorization.ts";
 import type { ObjectStore } from "./store.ts";
 
-/** The columns holding a row's parent. */
+/** The columns that store a row's parent. */
 const PARENT_COLUMNS = ["parentPackageId", "parentType", "parentId"] as const;
 
 /** The caller's access to one stream of a scope's objects. */
@@ -56,7 +56,7 @@ export class ObjectAudience implements Audience {
     #authorization: Authorization;
     /** The key of the caller's access inputs. */
     #key: string | undefined;
-    /** The earliest time the caller's access changes on its own. */
+    /** The earliest time the caller's access changes by itself. */
     #until: number | undefined;
     /** Where the followed objects live. */
     readonly #storage: ObjectStorage;
@@ -169,9 +169,9 @@ export class ObjectAudience implements Audience {
                 throw new SyncError("NOT_FOUND", `unknown scope: ${id}`);
             }
 
-            // watch the scope's own row where this database maps its type, and the access rows of its chain
+            // watch the scope's row where this database maps its type, and the access rows of its chain
             const mapping = store.authorizer.mapping(scope);
-            const own: Watch[] =
+            const local: Watch[] =
                 mapping === undefined
                     ? []
                     : [Watch.of(mapping.table, [scope.scope], { [mapping.id]: id })];
@@ -179,18 +179,18 @@ export class ObjectAudience implements Audience {
 
             return {
                 scope: id,
-                watches: [...own, ...store.authorizer.watch(chain)],
+                watches: [...local, ...store.authorizer.watch(chain)],
                 require: () => store.source.requireReplicateVia(id, reader),
             };
         });
     }
 
-    /** The scope's own object, absent for a scope the database does not know. */
+    /** The scope's object, absent for a scope the database does not know. */
     get scope(): ObjectReference | undefined {
         return this.#authorization.access.scopes[0];
     }
 
-    /** Match the rows of a table the caller may list, under a query's own permission too. */
+    /** Match the rows of a table the caller may list, under a query's permission too. */
     where(table: Table, permission?: string): SQL | "memory" {
         // leave the journal and the replicas' records to their queries
         const listed = this.#listed(table, permission);
@@ -201,7 +201,7 @@ export class ObjectAudience implements Audience {
         else if (listed === "none") {
             return sql`false`;
         }
-        // decide in memory the rows at their home in other scopes than the followed one, each in its own chain
+        // decide in memory the rows at their home in other scopes than the followed one, each in its chain
         else if (
             listed.object.storage === "durable" &&
             listed.object.inherited === undefined &&
@@ -211,8 +211,8 @@ export class ObjectAudience implements Audience {
             return "memory";
         }
 
-        // match the listed rows the caller holds the query's own permission on
-        return this.#authorization.where(listed.object, listed.listing, listed.own);
+        // match the listed rows the caller has the query's permission on
+        return this.#authorization.where(listed.object, listed.listing, listed.required);
     }
 
     /** The name of the caller's access inputs and resolved access, apart from time. */
@@ -232,7 +232,7 @@ export class ObjectAudience implements Audience {
         return this.#key;
     }
 
-    /** Decide which rows the caller may list, under a query's own permission too. */
+    /** Decide which rows the caller may list, under a query's permission too. */
     async visible(
         table: Table,
         rows: readonly Row[],
@@ -248,11 +248,11 @@ export class ObjectAudience implements Audience {
         else if (listed === "none") {
             return new Set();
         }
-        // filter the listed rows the caller holds the query's own permission on
+        // filter the listed rows the caller has the query's permission on
         const filtered = await this.#authorization.filter(listed.object, listed.listing, rows, {
             scope: this.#scope,
             reader: this.#reader(position),
-            ...(listed.own === undefined ? {} : { required: listed.own }),
+            ...(listed.required === undefined ? {} : { required: listed.required }),
         });
         this.#until = earliest([this.#until, filtered.until]);
 
@@ -308,7 +308,7 @@ export class ObjectAudience implements Audience {
         return concealed.hidden;
     }
 
-    /** Read the earliest time the caller's access changes on its own. */
+    /** Read the earliest time the caller's access changes by itself. */
     async until(): Promise<number | undefined> {
         return this.#until;
     }
@@ -318,7 +318,7 @@ export class ObjectAudience implements Audience {
         await this.#authorize();
     }
 
-    /** Report whether a change may decide the visibility of rows beyond its own. */
+    /** Report whether a change may decide the visibility of rows beyond the changed row. */
     async decides(change: Change): Promise<boolean> {
         // require the follower to replicate its via scopes again after a change their decisions read
         const via = this.#via.filter((relay) => Watch.matches(relay.watches, change));
@@ -328,7 +328,7 @@ export class ObjectAudience implements Audience {
             return false;
         }
 
-        // leave roles the caller has no binding of, and another identity's relationship to its own row
+        // leave roles the caller has no binding of, and another identity's relationship to its row
         if (
             ((change.table === accessRole || change.table === accessRolePermission) &&
                 !this.#hasRole(change)) ||
@@ -424,7 +424,7 @@ export class ObjectAudience implements Audience {
         return this.#authorization.chain;
     }
 
-    /** Read the listing permission of a table's rows, and a query's own permission on them. */
+    /** Read the listing permission of a table's rows, and a query's permission on them. */
     #listed(
         table: Table,
         permission?: string,
@@ -432,7 +432,7 @@ export class ObjectAudience implements Audience {
         | {
               readonly object: ObjectType;
               readonly listing: Permission;
-              readonly own: Permission | undefined;
+              readonly required: Permission | undefined;
           }
         | "query"
         | "none" {
@@ -452,10 +452,10 @@ export class ObjectAudience implements Audience {
             return "none";
         }
 
-        // read the listing permission and the query's own
-        const own = permission === undefined ? undefined : object.permission(permission);
+        // read the listing permission and the query's permission
+        const required = permission === undefined ? undefined : object.permission(permission);
 
-        return { object, listing: object.listing, own };
+        return { object, listing: object.listing, required };
     }
 
     /** Share one grant reader among the scope's subscribers at a position. */
@@ -468,7 +468,7 @@ export class ObjectAudience implements Audience {
 interface Relay {
     /** The scope. */
     readonly scope: string;
-    /** The scope's own row and the access rows of its chain, whose changes decide again. */
+    /** The scope's row and the access rows of its chain, whose changes decide again. */
     readonly watches: readonly Watch[];
     /** Require the follower to replicate the scope. */
     readonly require: () => Promise<void>;

@@ -38,7 +38,7 @@ export class ClaimController implements Controller {
         objects: readonly ObjectType[],
         clock: Clock,
     ) {
-        // hold the indexed types and watch their tables
+        // store the indexed types and watch their tables
         this.#claims = claims;
         this.#database = database;
         this.#clock = clock;

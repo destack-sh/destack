@@ -1,7 +1,7 @@
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { testCallKey } from "@destack/object/test";
 import { reconciliation, TestDatabase } from "@destack/db/test";
-import { callTables, testEvents, serversOf } from "../src/test/index.ts";
+import { testEvents, serversOf } from "../src/test/index.ts";
 
 import {
     AccessContext,
@@ -28,6 +28,8 @@ import { DRAINING, ObjectStore } from "../src/server/index.ts";
 import { claim, serveClaims } from "./fixture/claim.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { Clock } from "@destack/environment";
+import { tablesOf } from "../src/index.ts";
+import objectPackage from "../src/package.ts";
 
 /** The space with the boxes and links. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000051");
@@ -74,7 +76,15 @@ const ids = {
 /** The database with the space, its boxes and links, their access and the journal. */
 const boxDatabase = defineDatabase({
     name: "main",
-    tables: [...new Set([...callTables, ...space.tables, ...box.tables, ...link.tables])],
+    tables: [
+        ...new Set(
+            tablesOf({
+                packages: [objectPackage, { objects: { space, box, link }, tables: [] }],
+                follows: [],
+                tables: [],
+            }).tables,
+        ),
+    ],
 });
 
 /** The installation consuming boxes. */
@@ -92,7 +102,7 @@ const declared = {
     approval: "backward-incompatible" as const,
 };
 
-/** Boxes a provider holds in memory, each at the size it applied. */
+/** Boxes a provider stores in memory, each at the size it applied. */
 class Boxes {
     /** The applied size of each provisioned box. */
     readonly sizes = new Map<string, number>();
@@ -160,7 +170,7 @@ function digests(states: readonly { size: number }[]): Promise<string[]> {
 /** Serve the boxes and links of an open space with their providers. */
 async function serve(boxes: Boxes) {
     // open the database with the space
-    const storage = await TestDatabase.create("sqlite", boxDatabase, { isMigrated: true });
+    const storage = await TestDatabase.create(boxDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
     const database = storage.database;
     await openSpace(database, spaceId);
@@ -170,8 +180,15 @@ async function serve(boxes: Boxes) {
 
     // store the claims of the resource names in the universe
     const universe = await TestDatabase.create(
-        "sqlite",
-        [...new Set([...callTables, ...claim.tables])],
+        [
+            ...new Set(
+                tablesOf({
+                    packages: [objectPackage, { objects: { claim }, tables: [] }],
+                    follows: [],
+                    tables: [],
+                }).tables,
+            ),
+        ],
         {
             isMigrated: true,
         },
@@ -527,7 +544,7 @@ test("refuse provisioning through a provider that provisions nothing, and finish
     ]);
 });
 
-test("name a resource after another kind's resource in its space, refusing a second of its own kind", async () => {
+test("set a resource's name after another kind's resource in its space, refusing a second of its kind", async () => {
     const { store } = await serve(new Boxes());
     const { scope, approval: _approval, ...written } = declared;
     const create = (kind: typeof box | typeof link) =>

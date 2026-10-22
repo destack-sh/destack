@@ -14,10 +14,10 @@ import { AccessName, Subject } from "@destack/sync";
 import { Digest, Instant, schema } from "@destack/schema";
 import { type Method } from "../method/method.ts";
 import {
-    PageShape,
+    PageFields,
     type Procedure,
-    type ReplayShape,
-    type TargetShape,
+    type ReplayFields,
+    type TargetFields,
     ListPage,
 } from "../method/procedure.ts";
 import { field } from "../field/field.ts";
@@ -31,13 +31,13 @@ import {
 import type { Gated, Erasure, Trait } from "./trait.ts";
 
 import { ShareableMethod } from "../method/shareable.ts";
-/** The roles, lowest first: viewing, commenting, editing and owning. */
+/** The roles, lowest first: viewer, commenter, editor and owner. */
 const ROLES = ["viewer", "commenter", "editor", "owner"] as const;
 
 /** The permissions the roles grant. */
 const ROLE_PERMISSIONS = ["member", "read", "comment", "write", "manage"] as const;
 
-/** The lowest role granting each permission: membership is holding any role. */
+/** The lowest role granting each permission: membership is having any role. */
 const PERMISSIONS: { readonly [Name in RolePermission]: (typeof ROLES)[number] } = {
     member: "viewer",
     read: "viewer",
@@ -47,7 +47,7 @@ const PERMISSIONS: { readonly [Name in RolePermission]: (typeof ROLES)[number] }
 };
 
 /** The fields relating a subject to an object, apart from its relation or role. */
-export const SubjectShape = {
+export const SubjectFields = {
     /** The subject, subject set or wildcard. */
     subject: Subject,
     /** Optional expiry in UTC epoch milliseconds. */
@@ -57,18 +57,18 @@ export const SubjectShape = {
 };
 
 /** The fields relating a subject to an object through one relation or role, as sent. */
-export const GrantShape = {
+export const GrantFields = {
     /** The declared relation to grant. */
     relation: AccessName.exactOptional(),
     /** The role to bind. */
     role: schema.string().min(1).exactOptional(),
-    ...SubjectShape,
+    ...SubjectFields,
 };
 
 /** A relationship sharing methods grant: through exactly one declared relation or role. */
 export const GrantInput = schema.union([
-    schema.object({ ...SubjectShape, relation: AccessName }),
-    schema.object({ ...SubjectShape, role: schema.string().min(1) }),
+    schema.object({ ...SubjectFields, relation: AccessName }),
+    schema.object({ ...SubjectFields, role: schema.string().min(1) }),
 ]);
 
 /** Read a grant through exactly one declared relation or role, refusing both or neither. */
@@ -82,9 +82,9 @@ export function readGrant(input: unknown): schema.Infer<typeof GrantInput> {
 }
 
 /** The fields inviting a subject to a relationship: the caller, a principal, or a contact. */
-export const InviteShape = {
+export const InviteFields = {
     /** The relationship to invite to. */
-    relationship: schema.object(GrantShape),
+    relationship: schema.object(GrantFields),
     /** Why the caller asks for or offers the relationship. */
     purpose: schema.string().min(1).max(1000).exactOptional(),
     /** When the invitation lapses in UTC epoch milliseconds, a week from now by default. */
@@ -92,16 +92,16 @@ export const InviteShape = {
 };
 
 /** A relationship sharing methods invite: through exactly one declared relation or role. */
-export const InviteInput = schema.object({ ...InviteShape, relationship: GrantInput });
+export const InviteInput = schema.object({ ...InviteFields, relationship: GrantInput });
 
 /** The field selecting one relationship. */
-export const RelationshipShape = {
+export const RelationshipFields = {
     /** The relationship's identifier. */
     relationshipId: schema.string().min(1),
 };
 
 /** The fields selecting what an explanation covers. */
-export const ExplainShape = {
+export const ExplainFields = {
     /** The permission to explain, by default reading. */
     permission: AccessName.exactOptional(),
     /** The subject with the access to explain, by default the caller. */
@@ -109,7 +109,7 @@ export const ExplainShape = {
 };
 
 /** The field selecting one invitation. */
-export const InvitationShape = {
+export const InvitationFields = {
     /** The invitation's identifier. */
     invitationId: schema.string().min(1),
 };
@@ -141,7 +141,7 @@ export interface RolesDefinition {
     readonly isPublic?: true;
 }
 
-/** How callers share objects: through roles, or own relations by permission, and who sees. */
+/** How callers share objects: through roles, or separate relations by permission, and who sees. */
 export type ShareableDefinition<Permission extends string = string> = (
     | Gated<Permission>
     | RolesDefinition
@@ -158,7 +158,7 @@ export interface SharingGate {
     readonly read: string;
 }
 
-/** The sharing permission: the definition's own, `manage` through roles, or undefined. */
+/** The sharing permission: the definition's, `manage` through roles, or undefined. */
 export type SharingGateOf<Sharing> = [Sharing] extends [Gated<infer Permission>]
     ? Permission
     : [Sharing] extends [RolesDefinition]
@@ -188,7 +188,7 @@ export const Roles = {
         return sharing === undefined || "by" in sharing ? undefined : sharing;
     },
 
-    /** Read a definition's sharing permission: its own, or `manage` through the roles. */
+    /** Read a definition's sharing permission: its declared one, or `manage` through the roles. */
     gate(definition: Pick<ObjectDefinition, "shareable">): string | undefined {
         // share nothing without sharing
         const sharing = definition.shareable;
@@ -264,7 +264,7 @@ export const Roles = {
         definition: ObjectDefinition,
         declared: Readonly<Record<string, AccessExpression>>,
     ): Readonly<Record<string, AccessExpression>> {
-        // grant each permission through the roles at or above its own, highest first
+        // grant each permission through the roles at or above its role, highest first
         const names = ROLE_PERMISSIONS;
         const holders = (name: RolePermission) =>
             ROLES.slice(ROLES.indexOf(PERMISSIONS[name]))
@@ -343,35 +343,35 @@ export const shareable: Trait<SharingGate> = {
 /** The procedures sharing derives. */
 export type ShareableProcedures<Object extends ObjectType> = {
     explain: Procedure<
-        schema.Object<TargetShape<Object> & typeof ExplainShape>,
+        schema.Object<TargetFields<Object> & typeof ExplainFields>,
         typeof Explanation
     >;
     relationships: Procedure<
-        schema.Object<TargetShape<Object> & typeof PageShape>,
+        schema.Object<TargetFields<Object> & typeof PageFields>,
         ReturnType<typeof ListPage.schema<typeof Relationship.schema>>
     >;
     grant: Procedure<
-        schema.Object<TargetShape<Object> & ReplayShape<Object> & typeof GrantShape>,
+        schema.Object<TargetFields<Object> & ReplayFields<Object> & typeof GrantFields>,
         typeof Relationship.schema
     >;
     revoke: Procedure<
-        schema.Object<TargetShape<Object> & ReplayShape<Object> & typeof RelationshipShape>,
+        schema.Object<TargetFields<Object> & ReplayFields<Object> & typeof RelationshipFields>,
         schema.Object<{}>
     >;
     invitations: Procedure<
-        schema.Object<TargetShape<Object> & typeof PageShape>,
+        schema.Object<TargetFields<Object> & typeof PageFields>,
         ReturnType<typeof ListPage.schema<typeof Invitation.schema>>
     >;
     invite: Procedure<
-        schema.Object<TargetShape<Object> & ReplayShape<Object> & typeof InviteShape>,
+        schema.Object<TargetFields<Object> & ReplayFields<Object> & typeof InviteFields>,
         typeof Invitation.schema
     >;
     accept: Procedure<
-        schema.Object<TargetShape<Object> & ReplayShape<Object> & typeof InvitationShape>,
+        schema.Object<TargetFields<Object> & ReplayFields<Object> & typeof InvitationFields>,
         typeof Relationship.schema
     >;
     withdraw: Procedure<
-        schema.Object<TargetShape<Object> & ReplayShape<Object> & typeof InvitationShape>,
+        schema.Object<TargetFields<Object> & ReplayFields<Object> & typeof InvitationFields>,
         schema.Object<{}>
     >;
 };

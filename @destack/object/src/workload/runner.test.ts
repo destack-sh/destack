@@ -69,14 +69,14 @@ const refusingEphemeral: EphemeralHost = {
     },
 };
 
-/** The runner's own package. */
+/** The runner's package. */
 const NOTES = Package.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000a1",
     name: "@acme/notes",
     version: "2026.9.0",
 });
 
-/** The handle of the runner's own package. */
+/** The handle of the runner's package. */
 const notes = PackageHandle.of(NOTES, {});
 
 /** Another package the runner's workload also serves. */
@@ -110,7 +110,7 @@ const start: WorkloadStart = {
     sampling: 1,
 };
 
-test("start the workload with its installation's settings, serve a forwarded caller below the mount of each package the workload serves, and export telemetry naming only its release to the host with the runner's secret", async () => {
+test("start the workload with its installation's settings, serve a forwarded caller below the mount of each package the workload serves, and export telemetry with only its release to the host with the runner's secret", async () => {
     // capture the telemetry the runner exports to its host
     const exported: {
         url: string;
@@ -432,7 +432,7 @@ test("accept a hibernated socket, hand its messages and close to the workload, a
     ]);
 });
 
-test("hand a routed request to the workload's own package at the route path, under the URL it asked for, and refuse a workload serving another package alone", async () => {
+test("hand a routed request to the workload's package at the route path, under the URL it asked for, and refuse a workload serving another package alone", async () => {
     // start a workload whose package answers the path and the URL a request asked for, then route a request to it
     const routed = async (served: PackageHandle) => {
         await using runner = await WorkloadRunner.start(
@@ -488,7 +488,7 @@ test("hand a routed request to the workload's own package at the route path, und
         return [response.status, await response.text()];
     };
 
-    // route to a workload serving its own package and to one serving only another package
+    // route to a workload serving its package and to one serving only another package
     expect([await routed(notes), await routed(events)]).toEqual([
         [200, `${ROUTE_PATH} https://notes.acme.com/blog?page=2`],
         [

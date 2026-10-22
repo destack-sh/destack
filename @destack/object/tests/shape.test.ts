@@ -43,8 +43,8 @@ const icons = page.follow(iconed, {
 });
 
 test("subscribe to a fixed key and to one key per row the follower has, each toward its scope's publisher, and relist once a row changes the keys", async () => {
-    // compose the pages with the follows over the space's database, naming each scope's publisher
-    const storage = await TestDatabase.create("sqlite", pageDatabase, { isMigrated: true });
+    // compose the pages with the follows over the space's database, with each scope's publisher
+    const storage = await TestDatabase.create(pageDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
     const publishers = new Map<string, Publisher>();
@@ -93,7 +93,7 @@ test("subscribe to a fixed key and to one key per row the follower has, each tow
     await create("Ideas", "💡");
     const second = await listed();
 
-    // name each replica by its shape, scope and parameters, with the shape's queries as parameters
+    // label each replica by its shape, scope and parameters, with the shape's queries as parameters
     const plan = {
         name: `titled:${Scope.universe.id}:Plan`,
         publication: "queries",
@@ -110,7 +110,7 @@ test("subscribe to a fixed key and to one key per row the follower has, each tow
         parameters: { queries: { "0:page": { object: "page", where: { icon: glyph } } } },
         isScopePublisher: true,
     });
-    // follow the store's own chain beside the follows, every link from the space's own publisher, with the grants at the universe
+    // follow the store's scope chain beside the follows, every link from the space's publisher, with the grants at the universe
     const chain = (scope: string) => ({
         name: `chain:${spaceId}`,
         publication: "chain",
@@ -125,14 +125,14 @@ test("subscribe to a fixed key and to one key per row the follower has, each tow
         },
         isScopePublisher: scope === spaceId,
     });
-    const own = [chain(spaceId), chain(Scope.universe.id)];
+    const chained = [chain(spaceId), chain(Scope.universe.id)];
     expect({
         first,
         second,
         isWatched: (subscriber.watches ?? []).includes(page.table),
     }).toEqual({
-        first: [...own, plan, icon("📌")],
-        second: [...own, plan, icon("📌"), icon("💡")],
+        first: [...chained, plan, icon("📌")],
+        second: [...chained, plan, icon("📌"), icon("💡")],
         isWatched: true,
     });
 });

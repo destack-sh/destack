@@ -25,7 +25,7 @@ import { definePackage, PACKAGE_DECLARATION, PackageHandle } from "@destack/obje
 import { describePackage } from "@destack/object/inspect";
 import { RequestId } from "@destack/sync";
 import { testCallKey, testServerContext } from "@destack/object/test";
-import { callTables, testEvents } from "../src/test/index.ts";
+import { testEvents } from "../src/test/index.ts";
 import { implementPackage, ObjectStore } from "../src/server/index.ts";
 
 /** A declaration of a build, as a sandbox receives it. */
@@ -34,6 +34,8 @@ import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { spaceId } from "./fixture/device.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { Clock } from "@destack/environment";
+import { tablesOf } from "../src/index.ts";
+import objectPackage from "../src/package.ts";
 
 /** Cards their owner remarks on. */
 const card = defineObject(
@@ -103,10 +105,13 @@ function travel(value: unknown): unknown {
 async function serveCards(cards: PackageHandle, owner: Package = card.package) {
     // store the space's cards in memory
     const storage = await TestDatabase.create(
-        "sqlite",
         defineDatabase({
             name: "main",
-            tables: [...callTables, ...card.tables, ...note.tables, ...space.tables],
+            ...tablesOf({
+                packages: [objectPackage, { objects: { card, note, space }, tables: [] }],
+                follows: [],
+                tables: [],
+            }),
         }),
         { isMigrated: true },
     );
@@ -116,7 +121,7 @@ async function serveCards(cards: PackageHandle, owner: Package = card.package) {
         .values({ id: spaceId, scope: "universe", createdAt: 1, updatedAt: 1 });
     await openSpace(storage.database, spaceId);
 
-    // name each session by its order, and record the exchange through JSON
+    // label each session by its order, and record the exchange through JSON
     const exchange: Message[] = [];
     const sessions: string[] = [];
     const session = (token: string) => {
@@ -127,7 +132,7 @@ async function serveCards(cards: PackageHandle, owner: Package = card.package) {
         return `session ${sessions.indexOf(token) + 1}`;
     };
 
-    // run the hooks in a sandbox reached through the store's sandbox hooks
+    // run the hooks in a sandbox called through the store's sandbox hooks
     const context = await testServerContext(owner, spaceId);
     const hooks: { sandbox?: HookSandbox } = {};
     const server = new HookServer({
@@ -140,7 +145,7 @@ async function serveCards(cards: PackageHandle, owner: Package = card.package) {
                 mutation,
                 request: asked,
             });
-            exchange.push([session(mutation), "answer", summary(answer)]);
+            exchange.push([session(mutation), "answer", describe(answer)]);
 
             return answer;
         },
@@ -157,7 +162,7 @@ async function serveCards(cards: PackageHandle, owner: Package = card.package) {
                 { method: call.method, input: call.input, target: call.target?.["name"] ?? null },
             ]);
             const answer = HandlerAnswer.parse(travel(await server.answer(sent)));
-            exchange.push([session(sent.mutation), "answer", summary(answer)]);
+            exchange.push([session(sent.mutation), "answer", describe(answer)]);
 
             return answer;
         },
@@ -216,7 +221,7 @@ const sticker = defineObject(
     { package: bundled },
 );
 
-/** The bundled dependency's package declaration, at its own symbol, which no sandbox serves. */
+/** The bundled dependency's package declaration, at its symbol, which no sandbox serves. */
 const dependency: Declared = {
     symbol: graph.Moniker.of({ packageId: bundled.id, module: "src/index.ts", name: "default" }),
     kind: PACKAGE_DECLARATION,
@@ -225,7 +230,7 @@ const dependency: Declared = {
 
 /** Move the card type of a declaration into another package, its scope left in the platform's. */
 function moved(entry: Declared, installed: Package): Declared {
-    // rewrite the declaration's own package and every reference to the card type
+    // rewrite the declaration's package and every reference to the card type
     const reference = schema.looseObject({
         packageId: schema.literal(card.package.id),
         type: schema.literal("card"),
@@ -235,12 +240,12 @@ function moved(entry: Declared, installed: Package): Declared {
         JSON.stringify(entry.description),
         (_key, value: unknown): unknown => {
             const referenced = reference.safeParse(value);
-            const owned = owner.safeParse(value);
+            const parsed = owner.safeParse(value);
 
             return referenced.success
                 ? { ...referenced.data, packageId: installed.id }
-                : owned.success
-                  ? { ...owned.data, id: installed.id, name: installed.name }
+                : parsed.success
+                  ? { ...parsed.data, id: installed.id, name: installed.name }
                   : value;
         },
     );
@@ -255,7 +260,7 @@ function moved(entry: Declared, installed: Package): Declared {
 }
 
 /** Summarize an answer: a result's card name, else the failure's code. */
-function summary(answer: HandlerAnswer): JsonValue {
+function describe(answer: HandlerAnswer): JsonValue {
     if ("error" in answer) {
         return { error: answer.error.code };
     }
@@ -319,7 +324,7 @@ test("run a card's hooks in its sandbox, their reads, nested calls and wrapped b
         card.call("get", { spaceId, id: created.id }),
     );
 
-    // send each hook with its call, answer its next, read and nested call in its own session, and answer the hook
+    // send each hook with its call, answer its next, read and nested call in a new session, then the hook
     expect({
         created: created.name,
         remarked: remarked.name,
@@ -421,7 +426,7 @@ test("run a sandboxed hook again in a fresh session once a concurrent commit cha
         card.call("get", { spaceId, id: created.id }),
     );
 
-    // read the concurrent name in the second attempt's own session, seeing only its change
+    // read the concurrent name in the second attempt's session, seeing only its change
     expect({
         attempts,
         stored: stored.name,
@@ -434,7 +439,7 @@ test("run a sandboxed hook again in a fresh session once a concurrent commit cha
 });
 
 test("read every card of the package in a hook, and read as the caller through a query", async () => {
-    // name a remark after the cards the hook lists and reads, and the caller's query
+    // title a remark after the cards the hook lists and reads, and the caller's query
     const other: { id?: string } = {};
     const { store } = await serveCards(
         definePackage({
@@ -516,7 +521,7 @@ const stamping = definePackage({
     },
 });
 
-test("call an internal method of the hook's own package in its session", async () => {
+test("call an internal method of the hook's package in its session", async () => {
     // remark by stamping the card through its internal method
     const { store } = await serveCards(stamping);
     const created = await run(store, card.call("create", { spaceId, name: "Plan" }));
@@ -592,13 +597,13 @@ test("decide permissions, take positions, read the start position and act as the
     });
 });
 
-test("serve the installation's own package from its sandbox, never a bundled dependency's", async () => {
+test("serve the installation's package from its sandbox, never a bundled dependency's", async () => {
     const { store } = await serveCards(definePackage({ objects: { card } }));
 
     expect(store.packages.map((served) => served.package.id)).toEqual([card.package.id]);
 });
 
-test("reach internal methods from the store's own code and its package's sandboxes alone", () => {
+test("call internal methods from the store's code and its package's sandboxes alone", () => {
     // ask each code for the internal stamp and the public get
     const codes: readonly CallSite[] = [
         CallSite.store,
@@ -606,11 +611,11 @@ test("reach internal methods from the store's own code and its package's sandbox
         { kind: "sandbox", packageId: card.package.id },
         { kind: "sandbox", packageId: OTHER_PACKAGE },
     ];
-    const reached = codes.map((code) =>
-        ["stamp", "get"].map((name) => CallSite.reaches(code, card, card.method(name))),
+    const covered = codes.map((code) =>
+        ["stamp", "get"].map((name) => CallSite.covers(code, card, card.method(name))),
     );
 
-    expect(reached).toEqual([
+    expect(covered).toEqual([
         [true, true],
         [false, true],
         [true, true],
@@ -619,7 +624,7 @@ test("reach internal methods from the store's own code and its package's sandbox
 });
 
 test("read the rows of a type the installation serves without hooks", async () => {
-    // remark by naming the card after the caller's notes
+    // remark by titling the card after the caller's notes
     const { store } = await serveCards(
         definePackage({
             objects: {
@@ -658,12 +663,15 @@ test("read the rows of a type the installation serves without hooks", async () =
 });
 
 test("refuse serving the cards of two installations of one package from one store", async () => {
-    // install the cards twice in the space, each in a sandbox of its own
+    // install the cards twice in the space, each in a separate sandbox
     const storage = await TestDatabase.create(
-        "sqlite",
         defineDatabase({
             name: "main",
-            tables: [...callTables, ...card.tables, ...note.tables, ...space.tables],
+            ...tablesOf({
+                packages: [objectPackage, { objects: { card, note, space }, tables: [] }],
+                follows: [],
+                tables: [],
+            }),
         }),
         { isMigrated: true },
     );
@@ -704,13 +712,16 @@ test("refuse serving the cards of two installations of one package from one stor
     );
 });
 
-test("serve the cards of the platform and of an installed package from one store, each under its own package", async () => {
-    // declare an installed package's own card type beside the platform's
+test("serve the cards of the platform and of an installed package from one store, each under its package", async () => {
+    // declare an installed package's card type beside the platform's
     const storage = await TestDatabase.create(
-        "sqlite",
         defineDatabase({
             name: "main",
-            tables: [...callTables, ...card.tables, ...note.tables, ...space.tables],
+            ...tablesOf({
+                packages: [objectPackage, { objects: { card, note, space }, tables: [] }],
+                follows: [],
+                tables: [],
+            }),
         }),
         { isMigrated: true },
     );
@@ -737,7 +748,7 @@ test("serve the cards of the platform and of an installed package from one store
         sandboxes: [sandbox],
     });
 
-    // serve both types, each package routing its own under the card route
+    // serve both types, each package routing its type under the card route
     expect(store.objects.map((type) => type.typeReference)).toEqual([
         { packageId: card.package.id, type: "card" },
         { packageId: OTHER_PACKAGE, type: "card" },
@@ -751,10 +762,13 @@ test("serve the cards of the platform and of an installed package from one store
 test("describe the platform's and an installed package's types from one store, declaring each from the descriptions alone", async () => {
     // serve the platform's photos and an installed package's cards from one store
     const storage = await TestDatabase.create(
-        "sqlite",
         defineDatabase({
             name: "main",
-            tables: [...callTables, ...photo.tables, ...card.tables, ...space.tables],
+            ...tablesOf({
+                packages: [objectPackage, { objects: { photo, card, space }, tables: [] }],
+                follows: [],
+                tables: [],
+            }),
         }),
         { isMigrated: true },
     );
@@ -816,14 +830,14 @@ test("list the phases a package attaches as hooks, leaving a trait's methods to 
     );
     const implemented = machine.implement({ methods: { observe: { authorize: async () => {} } } });
 
-    // list only the package's own phases
+    // list only the package's phases
     expect({ declared: machine.hooks, implemented: implemented.hooks }).toEqual({
         declared: { create: ["handle"] },
         implemented: { create: ["handle"], observe: ["authorize"] },
     });
 });
 
-test("throw a hook's failure across its boundary as the failure it was, caused at the stack it was thrown at", async () => {
+test("throw a hook's failure out of its sandbox as the failure it was, caused at the stack it was thrown at", async () => {
     // fail a hook, and read its answer as JSON on the other side
     const thrown = new TypeError("the card has no title");
     const answer = HandlerAnswer.parse(

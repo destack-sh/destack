@@ -12,9 +12,9 @@ export interface ExternalStorage {
 
 /** Find the files storing external objects. */
 export const ExternalStorage = {
-    /** Find the one storage holding every given external type, refusing split or missing types. */
+    /** Find the one storage with every given external type, refusing split or missing types. */
     of(storages: readonly ExternalStorage[], names: readonly string[]): ExternalStorage {
-        // find the stores holding every given type
+        // find the stores with every given type
         const found = storages.filter((storage) =>
             names.every((name) =>
                 storage.objects.some((object) => object.name === name || object.key === name),

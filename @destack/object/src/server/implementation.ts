@@ -18,17 +18,17 @@ export type AdapterFetch = (
     store: ObjectStore,
 ) => Promise<Response>;
 
-/** A package handle with object types, as its implementation covers it. */
-export type ServedPackage = PackageHandle & {
+/** A package handle whose objects are object types, as a store serves them. */
+export type ObjectPackage = PackageHandle & {
     /** The object types the package declares, by name. */
     readonly objects: Readonly<Record<string, ObjectType>>;
 };
 
 /** The code behind what a package's handle declares, mirroring the handle key for key. */
-export type ImplementationInput<Handle extends ServedPackage = ServedPackage> = {
+export type ImplementationInput<Handle extends ObjectPackage = ObjectPackage> = {
     /** The handle's object types with handlers; the others serve their declared defaults. */
     readonly objects?: readonly ObjectType[];
-    /** The controllers beside the objects' own, each built over the package's store. */
+    /** The controllers beside the objects' controllers, each built over the package's store. */
     readonly controllers?: readonly ((store: ObjectStore) => Controller)[];
     /** The providers reconciling the package's provisioned resources. */
     readonly providers?: ResourceControllerOptions["providers"];
@@ -36,9 +36,9 @@ export type ImplementationInput<Handle extends ServedPackage = ServedPackage> = 
     readonly follows?: readonly Follow[];
     /** The files with the package's external objects. */
     readonly external?: ExternalStorage;
-    /** The package's own access decisions beside its objects'. */
+    /** The package's access decisions beside its objects'. */
     readonly access?: PackageHandler["access"];
-    /** The headers every response of the package carries. */
+    /** The headers every response of the package includes. */
     readonly responseHeaders?: PackageHandler["responseHeaders"];
 } & (string extends keyof Handle["adapters"]
     ? {
@@ -55,8 +55,8 @@ export type ImplementationInput<Handle extends ServedPackage = ServedPackage> = 
 /** A package's implementation: the package, its code, and the installation it serves as. */
 export interface PackageImplementation {
     /** The implemented package. */
-    readonly package: ServedPackage;
-    /** The installation it serves as, the store's own when absent. */
+    readonly package: ObjectPackage;
+    /** The installation it serves as, the store's when absent. */
     readonly installation: ServerContext | undefined;
     /** Read the package's code for an installation, the platform's without one. */
     readonly definition: (context: ServerContext | undefined) => ImplementationInput;
@@ -65,7 +65,7 @@ export interface PackageImplementation {
 }
 
 /** Implement a package from its code, or per installation from its context. */
-export function implementPackage<const Handle extends ServedPackage>(
+export function implementPackage<const Handle extends ObjectPackage>(
     handle: Handle,
     definition:
         | ImplementationInput<Handle>

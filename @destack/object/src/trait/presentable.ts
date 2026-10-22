@@ -137,7 +137,7 @@ export const Presentation = Object.assign(PresentationSchema, {
 
 /** Objects shown by title, subtitle, icon, accent and cover in pickers, mentions and titles. */
 export const Presentable = {
-    /** Add a presented definition's icon, accent and cover fields, refusing its own replicas. */
+    /** Add a presented definition's icon, accent and cover fields, refusing a declared namesake. */
     expand<Definition extends ObjectDefinition>(
         definition: Definition,
     ): Erasure<Definition, "fields"> {

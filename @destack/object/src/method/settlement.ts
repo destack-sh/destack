@@ -63,7 +63,7 @@ export class SettlementContext {
     /** The store settling the call, which the work's follow-ups run as its principal through. */
     readonly store: ObjectStore;
 
-    /** Hold the recorded call. */
+    /** Store the recorded call. */
     constructor(fields: {
         readonly object: ObjectType;
         readonly name: string;
@@ -74,7 +74,7 @@ export class SettlementContext {
         readonly now: number;
         readonly store: ObjectStore;
     }) {
-        // hold the recorded fields
+        // store the recorded fields
         this.object = fields.object;
         this.name = fields.name;
         this.scope = fields.scope;
@@ -95,12 +95,12 @@ export class SettlementContext {
         return AccessContext.of(Caller.of(this.store.principal), this.now);
     }
 
-    /** Read through a method as a caller, in its own transaction. */
+    /** Read through a method as a caller, in a separate transaction. */
     query<Result>(caller: AccessContext, call: Call<Result>): Promise<Result> {
         return this.store.query(caller, call);
     }
 
-    /** Run calls as a caller in one request of their own, committed apart from the settlement. */
+    /** Run calls as a caller in a separate request, committed apart from the settlement. */
     mutate<const Calls extends readonly Call[]>(
         caller: AccessContext,
         calls: Calls,

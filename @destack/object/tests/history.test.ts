@@ -2,7 +2,7 @@ import { ObjectReference } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { principal, relation, through, union } from "@destack/access";
 import { defineDatabase, type LogPosition } from "@destack/db";
-import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
+import { TestDatabase } from "@destack/db/test";
 import { schema, type Identifier } from "@destack/schema";
 
 import {
@@ -18,10 +18,12 @@ import { user } from "./schema.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { testCallKey } from "@destack/object/test";
-import { callTables, testEvents, serversOf } from "../src/test/index.ts";
+import { testEvents, serversOf } from "../src/test/index.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
 import { Clock } from "@destack/environment";
 import { VirtualClock } from "@destack/environment/simulation";
+import { tablesOf } from "../src/index.ts";
+import objectPackage from "../src/package.ts";
 
 /** The space containing the pages. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000007");
@@ -56,119 +58,114 @@ const page = defineObject(
     }),
 );
 
-test.for(TEST_DIALECTS)(
-    "group each caller's changes into activities, and read and revert a page as it was, on %s",
-    async (dialect) => {
-        const { storage, call, as, at } = await servePages(dialect);
+test("group each caller's changes into activities, and read and revert a page as it was", async () => {
+    const { storage, call, as, at } = await servePages();
 
-        // write a page as alice, twice within one session
-        const created = await call(page, "create", { title: "Plan", body: "draft" });
-        const host = {
-            parent: { packageId: page.policy.definition.packageId, type: "page", id: created.id },
-        };
-        const beforeGrant = await storage.database.log.position();
-        at(1 * MINUTE);
-        await call(page, "grant", {
-            id: created.id,
-            relation: "editor",
-            subject: principal.user.reference("universe", users.bob),
-        });
-        await call(page, "update", { id: created.id, body: "outline" });
+    // write a page as alice, twice within one session
+    const created = await call(page, "create", { title: "Plan", body: "draft" });
+    const host = {
+        parent: { packageId: page.policy.definition.packageId, type: "page", id: created.id },
+    };
+    const beforeGrant = await storage.database.log.position();
+    at(1 * MINUTE);
+    await call(page, "grant", {
+        id: created.id,
+        relation: "editor",
+        subject: principal.user.reference("universe", users.bob),
+    });
+    await call(page, "update", { id: created.id, body: "outline" });
 
-        // write it as bob and as alice again once her session ended
-        as(users.bob);
-        at(2 * MINUTE);
-        await call(page, "update", { id: created.id, title: "Roadmap" });
-        as(users.alice);
-        at(30 * MINUTE);
-        await call(page, "update", { id: created.id, body: "final" });
+    // write it as bob and as alice again once her session ended
+    as(users.bob);
+    at(2 * MINUTE);
+    await call(page, "update", { id: created.id, title: "Roadmap" });
+    as(users.alice);
+    at(30 * MINUTE);
+    await call(page, "update", { id: created.id, body: "final" });
 
-        // list one activity per session, with the fields each changed
-        const activities = await call(activity, "list", {});
-        const sessions = activities.items.toSorted(
-            (left, right) => left.startedAt - right.startedAt,
-        );
-        expect(
-            sessions.map((session) => ({
-                caller: ObjectReference.at("caller", session),
-                startedAt: session.startedAt,
-                endedAt: session.endedAt,
-                fields: session.fields,
-                changes: session.changes,
-            })),
-        ).toEqual([
-            {
-                caller: principal.user.reference("universe", users.alice),
-                startedAt: 0,
-                endedAt: 1 * MINUTE,
-                fields: ["ownerId", "title", "body"],
-                changes: 3,
-            },
-            {
-                caller: principal.user.reference("universe", users.bob),
-                startedAt: 2 * MINUTE,
-                endedAt: 2 * MINUTE,
-                fields: ["title"],
-                changes: 1,
-            },
-            {
-                caller: principal.user.reference("universe", users.alice),
-                startedAt: 30 * MINUTE,
-                endedAt: 30 * MINUTE,
-                fields: ["body"],
-                changes: 1,
-            },
-        ]);
+    // list one activity per session, with the fields each changed
+    const activities = await call(activity, "list", {});
+    const sessions = activities.items.toSorted((left, right) => left.startedAt - right.startedAt);
+    expect(
+        sessions.map((session) => ({
+            caller: ObjectReference.at("caller", session),
+            startedAt: session.startedAt,
+            endedAt: session.endedAt,
+            fields: session.fields,
+            changes: session.changes,
+        })),
+    ).toEqual([
+        {
+            caller: principal.user.reference("universe", users.alice),
+            startedAt: 0,
+            endedAt: 1 * MINUTE,
+            fields: ["ownerId", "title", "body"],
+            changes: 3,
+        },
+        {
+            caller: principal.user.reference("universe", users.bob),
+            startedAt: 2 * MINUTE,
+            endedAt: 2 * MINUTE,
+            fields: ["title"],
+            changes: 1,
+        },
+        {
+            caller: principal.user.reference("universe", users.alice),
+            startedAt: 30 * MINUTE,
+            endedAt: 30 * MINUTE,
+            fields: ["body"],
+            changes: 1,
+        },
+    ]);
 
-        // read the page before each later session, and find nothing before it existed
-        const read = async (position: LogPosition) => {
-            const row = await call(page, "get", { id: created.id, at: position });
+    // read the page before each later session, and find nothing before it existed
+    const read = async (position: LogPosition) => {
+        const row = await call(page, "get", { id: created.id, at: position });
 
-            return [row.title, row.body];
-        };
-        const [first, second, third] = sessions;
-        if (first === undefined || second === undefined || third === undefined) {
-            throw new TypeError("the page's history has fewer than three sessions");
-        }
-        expect([await read(second.from), await read(third.from)]).toEqual([
-            ["Plan", "outline"],
-            ["Roadmap", "outline"],
-        ]);
-        expect(await refusal(read(first.from))).toEqual(["NOT_FOUND", `no page ${created.id}`]);
+        return [row.title, row.body];
+    };
+    const [first, second, third] = sessions;
+    if (first === undefined || second === undefined || third === undefined) {
+        throw new TypeError("the page's history has fewer than three sessions");
+    }
+    expect([await read(second.from), await read(third.from)]).toEqual([
+        ["Plan", "outline"],
+        ["Roadmap", "outline"],
+    ]);
+    expect(await refusal(read(first.from))).toEqual(["NOT_FOUND", `no page ${created.id}`]);
 
-        // list the pages at a position as each caller could read them then and now
-        const listed = async (position: LogPosition) =>
-            (await call(page, "list", { at: position })).items.map((item) => item.title);
-        const aliceListed = await listed(beforeGrant);
-        as(users.bob);
-        const bobListed = await listed(beforeGrant);
-        expect([aliceListed, bobListed]).toEqual([["Plan"], []]);
+    // list the pages at a position as each caller could read them then and now
+    const listed = async (position: LogPosition) =>
+        (await call(page, "list", { at: position })).items.map((item) => item.title);
+    const aliceListed = await listed(beforeGrant);
+    as(users.bob);
+    const bobListed = await listed(beforeGrant);
+    expect([aliceListed, bobListed]).toEqual([["Plan"], []]);
 
-        // find nothing for bob before he was granted the page, nor for carol ever
-        expect(await refusal(read(beforeGrant))).toEqual(["NOT_FOUND", `no page ${created.id}`]);
-        expect(await read(third.from)).toEqual(["Roadmap", "outline"]);
-        as(users.carol);
-        expect(await refusal(read(third.from))).toEqual(["NOT_FOUND", `no page ${created.id}`]);
+    // find nothing for bob before he was granted the page, nor for carol ever
+    expect(await refusal(read(beforeGrant))).toEqual(["NOT_FOUND", `no page ${created.id}`]);
+    expect(await read(third.from)).toEqual(["Roadmap", "outline"]);
+    as(users.carol);
+    expect(await refusal(read(third.from))).toEqual(["NOT_FOUND", `no page ${created.id}`]);
 
-        // name a checkpoint and read the page at it
-        as(users.alice);
-        const named = await call(checkpoint, "create", { ...host, title: "Final" });
-        expect([ObjectReference.at("createdBy", named), await read(named.position)]).toEqual([
-            principal.user.reference("universe", users.alice),
-            ["Roadmap", "final"],
-        ]);
+    // create a named checkpoint and read the page at it
+    as(users.alice);
+    const named = await call(checkpoint, "create", { ...host, title: "Final" });
+    expect([ObjectReference.at("createdBy", named), await read(named.position)]).toEqual([
+        principal.user.reference("universe", users.alice),
+        ["Roadmap", "final"],
+    ]);
 
-        // revert to before bob's session
-        const reverted = await call(page, "revert", { id: created.id, at: second.from });
-        expect([reverted.title, reverted.body]).toEqual(["Plan", "outline"]);
-        const latest = await call(activity, "list", {});
-        expect(
-            latest.items
-                .filter((item) => item.endedAt === 30 * MINUTE)
-                .map(({ changes, fields }) => ({ changes, fields })),
-        ).toEqual([{ changes: 2, fields: ["body", "title"] }]);
-    },
-);
+    // revert to before bob's session
+    const reverted = await call(page, "revert", { id: created.id, at: second.from });
+    expect([reverted.title, reverted.body]).toEqual(["Plan", "outline"]);
+    const latest = await call(activity, "list", {});
+    expect(
+        latest.items
+            .filter((item) => item.endedAt === 30 * MINUTE)
+            .map(({ changes, fields }) => ({ changes, fields })),
+    ).toEqual([{ changes: 2, fields: ["body", "title"] }]);
+});
 
 test("refuse serving history that reads through an object recording none", async () => {
     // read pages through an untracked folder
@@ -192,8 +189,10 @@ test("refuse serving history that reads through an object recording none", async
 
     // refuse the sheet's history, which the folder's lost changes decided
     const storage = await TestDatabase.create(
-        "sqlite",
-        defineDatabase({ name: "main", tables: [...callTables] }),
+        defineDatabase({
+            name: "main",
+            ...tablesOf({ packages: [objectPackage], follows: [], tables: [] }),
+        }),
         { isMigrated: true },
     );
     onTestFinished(() => storage.close());
@@ -216,14 +215,23 @@ test("refuse serving history that reads through an object recording none", async
 });
 
 /** Serve pages over a new database to one user at a set time. */
-async function servePages(dialect: (typeof TEST_DIALECTS)[number]) {
+async function servePages() {
     // store the pages, their activities and checkpoints, and requests in one database
     const objects = [activity, checkpoint, page];
     const storage = await TestDatabase.create(
-        dialect,
         defineDatabase({
             name: "main",
-            tables: [...callTables, ...objects.flatMap((object) => object.tables)],
+            ...tablesOf({
+                packages: [
+                    objectPackage,
+                    {
+                        objects: Object.fromEntries(objects.map((object) => [object.name, object])),
+                        tables: [],
+                    },
+                ],
+                follows: [],
+                tables: [],
+            }),
         }),
         { isMigrated: true },
     );

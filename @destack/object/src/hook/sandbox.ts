@@ -2,7 +2,7 @@ import { PackageManifest } from "@destack/package/manifest";
 import { AccessContext, Caller, Decision, principal } from "@destack/access";
 import { BranchEntry } from "../branch/entry.ts";
 import { DatabaseError, type Row, TABLE } from "@destack/db";
-import type { EventKeyShape } from "@destack/event";
+import type { EventKeyFields } from "@destack/event";
 import { schema, type JsonValue } from "@destack/schema";
 import { CallError } from "../error/call.ts";
 import type { ServerContext } from "../workload/workload.ts";
@@ -195,7 +195,7 @@ export class HookSandbox {
 
     /** Answer a hook's read of events as JSON. */
     static async #events(
-        view: EventView<EventKeyShape, JsonValue>,
+        view: EventView<EventKeyFields, JsonValue>,
         read: EventRequest,
     ): Promise<JsonValue> {
         // read a page, with its cursor where one follows
@@ -298,7 +298,7 @@ export class HookSandbox {
             const call = CallRecord.of(session.context);
             const answer = await this.#send({ mutation, call, hook });
 
-            // fail with the race a request lost, else with the hook's own failure
+            // fail with the race a request lost, else with the hook's failure
             if ("error" in answer && session.lost !== undefined) {
                 throw session.lost;
             }

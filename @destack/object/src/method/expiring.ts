@@ -10,9 +10,9 @@ export const expiry: Method = defineMethod<{ kind: "delete"; permission: "expire
         mutates: true,
         target: "object",
         result: "value",
-        procedure: (_name, shapes) => ({
+        procedure: (_name, schemas) => ({
             route: { method: "DELETE", path: "/{id}" },
-            input: shapes.target.extend(shapes.replay),
+            input: schemas.target.extend(schemas.replay),
             output: Empty,
         }),
         handler: async (context) => {

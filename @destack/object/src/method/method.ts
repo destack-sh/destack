@@ -75,13 +75,13 @@ export interface MethodConfiguration {
     readonly variants?: object;
     /** The table of the method's object type. */
     readonly table?: Table;
-    /** Whether the method stays off public routes, run only by the principals' own code. */
+    /** Whether the method stays off public routes, run only by the principals' code. */
     readonly internal?: boolean;
     /** Whether a bulk update takes items, each an object's identifier and revision. */
     readonly items?: boolean;
 }
 
-/** One type a method declares: its own, or the default when it declares none. */
+/** One type a method declares: its type, or the default when it declares none. */
 export type OptionOf<
     Configuration extends MethodConfiguration,
     Key extends keyof MethodConfiguration,
@@ -180,7 +180,7 @@ export interface Method<Configuration extends MethodConfiguration = MethodConfig
     readonly convert?: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
     /** The result of a custom method. */
     readonly output?: OptionOf<Configuration, "output", never>;
-    /** The external work the method prepares before its transaction, held until it settles. */
+    /** The external work the method prepares before its transaction, stored until it settles. */
     readonly prepared?: OptionOf<Configuration, "prepared", never>;
     /** The state change a transition makes. */
     readonly transition?: {
@@ -221,7 +221,7 @@ export interface Method<Configuration extends MethodConfiguration = MethodConfig
     readonly source?: MethodSource;
     /** Settle the prepared work once the transaction committed or failed, at least once. */
     readonly settle?: (context: SettlementContext, settled: Settled) => Promise<void>;
-    /** Whether the method stays off public routes, run only by the principals' own code. */
+    /** Whether the method stays off public routes, run only by the principals' code. */
     readonly isInternal?: OptionOf<Configuration, "internal", boolean>;
     /** Whether a bulk update takes items, each an object's identifier and revision. */
     readonly isItemized?: OptionOf<Configuration, "items", boolean>;
@@ -233,7 +233,7 @@ export interface Method<Configuration extends MethodConfiguration = MethodConfig
     readonly hooks?: PhasedHandler;
 }
 
-/** A method as its builder declares it, which an object's own handler or phases can wrap. */
+/** A method as its builder declares it, which an object's handler or phases can wrap. */
 export interface MethodDeclaration<
     Configuration extends MethodConfiguration = MethodConfiguration,
 > extends Method<Configuration> {
@@ -315,7 +315,7 @@ export const Method = {
         return Method.declaration(declared);
     },
 
-    /** Let a method take an object's own handler or phases. */
+    /** Let a method take an object's handler or phases. */
     declaration<Configuration extends MethodConfiguration>(
         method: Method<Configuration>,
     ): MethodDeclaration<Configuration> {
@@ -433,7 +433,7 @@ export const Method = {
         return settled;
     },
 
-    /** Wrap a method in an object's own handler or phases. */
+    /** Wrap a method in an object's handler or phases. */
     handled<Configuration extends MethodConfiguration>(
         declared: Method<Configuration>,
         handler: HandleFunction<Configuration> | PhasedHandler<Configuration>,
@@ -456,7 +456,7 @@ export const Method = {
         // run each phase on the call as the method types it
         const handling = Method.guarded(declared, typed);
 
-        // authorize by the method's own authorization first, then by the handler's
+        // authorize by the method's authorization first, then by the handler's
         const wrapped = handling.handle;
         const outer = handling.authorize;
         const authorize =
@@ -530,15 +530,15 @@ export const Method = {
     },
 
     /** Layer wrapping phases over wrapped ones: handle wraps, authorize runs the wrapped first. */
-    layered(inner: PhasedHandler, outer: PhasedHandler): PhasedHandler {
+    layered(base: PhasedHandler, layer: PhasedHandler): PhasedHandler {
         // wrap the wrapped handle and authorize, and let the wrapping phases replace the others
-        const handle = outer.handle;
-        const authorize = outer.authorize;
-        const wrapped = inner.handle;
+        const handle = layer.handle;
+        const authorize = layer.authorize;
+        const wrapped = base.handle;
 
         return {
-            ...inner,
-            ...outer,
+            ...base,
+            ...layer,
             ...(handle === undefined || wrapped === undefined
                 ? {}
                 : {
@@ -547,11 +547,11 @@ export const Method = {
                           next: (context?: MethodContext) => Promise<unknown>,
                       ) => handle(context, (changed = context) => wrapped(changed, next)),
                   }),
-            ...(authorize === undefined || inner.authorize === undefined
+            ...(authorize === undefined || base.authorize === undefined
                 ? {}
                 : {
                       authorize: async (context: MethodContext) => {
-                          await inner.authorize?.(context);
+                          await base.authorize?.(context);
                           await authorize(context);
                       },
                   }),

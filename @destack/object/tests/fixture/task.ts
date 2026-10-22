@@ -1,4 +1,3 @@
-import { callTables } from "../../src/test/index.ts";
 import { schema } from "@destack/schema";
 import { relation, through, union, principal } from "@destack/access";
 import { defineDatabase } from "@destack/db";
@@ -6,6 +5,8 @@ import { definePackage } from "@destack/object";
 import { defineObject, field } from "../../src/index.ts";
 import { user } from "../schema.ts";
 import { space } from "./space.ts";
+import { tablesOf } from "../../src/index.ts";
+import objectPackage from "../../src/package.ts";
 
 /** A body of work in a space, planned by its members and followed by its viewers. */
 export const project = defineObject(
@@ -104,5 +105,9 @@ export const tasksPackage = definePackage({ objects: { project, task, comment } 
 /** The database of one space's projects, tasks and comments. */
 export const tasksDatabase = defineDatabase({
     name: "main",
-    tables: [...project.tables, ...task.tables, ...comment.tables, ...callTables],
+    ...tablesOf({
+        packages: [objectPackage, { objects: { project, task, comment }, tables: [] }],
+        follows: [],
+        tables: [],
+    }),
 });

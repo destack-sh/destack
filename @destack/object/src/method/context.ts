@@ -26,7 +26,7 @@ import {
     type Transaction,
     Table,
 } from "@destack/db";
-import type { EventKeyShape, EventKind } from "@destack/event";
+import type { EventKeyFields, EventKind } from "@destack/event";
 import type { BranchEntry } from "../branch/entry.ts";
 import {
     found,
@@ -133,7 +133,7 @@ export class MethodContext<
     /** The fields the call was made of, which replicates change. */
     readonly #fields: MethodContextOptions<Configuration, Prepared, Id, Target>;
 
-    /** Hold one call's fields. */
+    /** Store one call's fields. */
     constructor(fields: MethodContextOptions<Configuration, Prepared, Id, Target>) {
         // refuse a mutation by a caller proving no identity
         if (fields.method.mutates && Caller.isAnonymous(fields.caller)) {
@@ -349,7 +349,7 @@ export class MethodContext<
             : Execution.snapshot(location).read(table);
     }
 
-    /** Read the whole rows of a type of the call's own package, sensitive columns included. */
+    /** Read the whole rows of a type of the call's package, sensitive columns included. */
     reveal<Read extends Table>(type: {
         readonly table: Read;
         readonly name: string;
@@ -358,7 +358,7 @@ export class MethodContext<
         // refuse another package's type, by the packages declaring them
         if (type.package.id !== this.object.package.id) {
             throw new CallError("FORBIDDEN", {
-                message: `${this.object.package.name} reveals ${type.name} only in its own package`,
+                message: `${this.object.package.name} reveals ${type.name} only in its declaring package`,
             });
         }
 
@@ -374,14 +374,14 @@ export class MethodContext<
         throw new TypeError(`${this.object.name}.${this.name} reveals rows in its store`);
     }
 
-    /** Read the events of an own package's event kind, refusing any other kind. */
-    events<Shape extends EventKeyShape, Data extends JsonValue>(
-        kind: EventKind<Shape, Data>,
-    ): EventView<Shape, Data> {
+    /** Read the events of an event kind of the call's package, refusing any other kind. */
+    events<Fields extends EventKeyFields, Data extends JsonValue>(
+        kind: EventKind<Fields, Data>,
+    ): EventView<Fields, Data> {
         // refuse another package's kind
         if (kind.package.id !== this.object.package.id) {
             throw new CallError("FORBIDDEN", {
-                message: `${this.object.package.name} reads ${kind.name} events only in its own package`,
+                message: `${this.object.package.name} reads ${kind.name} events only in its declaring package`,
             });
         }
 
@@ -493,7 +493,7 @@ export class MethodContext<
         return BranchWrite.capture(changes);
     }
 
-    /** Run a rehearsed call in its own savepoint, skipping a refusal the store makes for good. */
+    /** Run a rehearsed call in a new savepoint, skipping a refusal the store makes for good. */
     static async #attempt(transaction: Transaction, run: () => Promise<unknown>): Promise<void> {
         try {
             await transaction.savepoint(run);
@@ -910,7 +910,7 @@ type IdOf<Configuration extends MethodConfiguration> =
 /** The table of a method's object type. */
 type TableOf<Configuration extends MethodConfiguration> = OptionOf<Configuration, "table", Table>;
 
-/** A method's input: its own fields, the written columns, and a creation's parent and variant. */
+/** A method's input: its fields, the written columns, and a creation's parent and variant. */
 type InputValueOf<Configuration extends MethodConfiguration> = InputOf<
     OptionOf<Configuration, "input", never>
 > &

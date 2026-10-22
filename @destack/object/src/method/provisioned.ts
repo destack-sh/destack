@@ -15,7 +15,7 @@ export const adopt = provisionedMethod
         permission: "declare",
         isInternal: true,
         input: schema.object({
-            /** The installation owning the resource, absent to release it. */
+            /** The owner installation of the resource, absent to release it. */
             owner: ObjectReference.nullable(),
         }),
     })

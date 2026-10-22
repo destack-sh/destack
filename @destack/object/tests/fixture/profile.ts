@@ -1,10 +1,11 @@
-import { callTables } from "../../src/test/index.ts";
 import { schema } from "@destack/schema";
 import { principal, relation, universe } from "@destack/access";
 import { defineDatabase } from "@destack/db";
 import { definePackage } from "@destack/object";
 import { defineObject, field } from "../../src/index.ts";
 import { space } from "./space.ts";
+import { tablesOf } from "../../src/index.ts";
+import objectPackage from "../../src/package.ts";
 
 /** A public profile with an optional handle unique across every space. */
 export const profile = defineObject(
@@ -32,5 +33,9 @@ export const profilesPackage = definePackage({ objects: { profile } });
 /** The database of one space's profiles. */
 export const profilesDatabase = defineDatabase({
     name: "main",
-    tables: [...profile.tables, ...callTables],
+    ...tablesOf({
+        packages: [objectPackage, { objects: { profile }, tables: [] }],
+        follows: [],
+        tables: [],
+    }),
 });

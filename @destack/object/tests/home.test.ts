@@ -1,6 +1,6 @@
 import { testCallKey } from "@destack/object/test";
 import { reconciliation, TestDatabase } from "@destack/db/test";
-import { callTables, FeedPublisher, testEvents, serversOf } from "../src/test/index.ts";
+import { FeedPublisher, testEvents, serversOf } from "../src/test/index.ts";
 import { expect, onTestFinished, test, refusal } from "@destack/test";
 import { accessTables, none, principal } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
@@ -9,15 +9,17 @@ import { present, schema } from "@destack/schema";
 import { definePackage } from "@destack/object";
 import type { ClientOptions } from "@destack/object/client";
 import { RequestId, Feed, Replica, Scope } from "@destack/sync";
-import { defineObject, field } from "../src/index.ts";
+import { defineObject, defineShape, field, Follow } from "../src/index.ts";
 import { ObjectClient } from "../src/client/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
-import { serveObjects } from "./fixture/device.ts";
+import { TestObjectStore } from "../src/test/index.ts";
 import { spacePrincipal, unmoved } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { Clock } from "@destack/environment";
+import { tablesOf } from "../src/stack/db.ts";
+import objectPackage from "../src/package.ts";
 
-/** How long a commit may take to reach a replica: 5 s, far above the milliseconds it takes. */
+/** How long a commit may take to arrive at a replica: 5 s, far above the milliseconds it takes. */
 const REPLICA_MILLISECONDS = 5000;
 
 /** The person whose preferences live at their home. */
@@ -45,7 +47,7 @@ const person = defineObject({
     permissions: { read: none(), write: none() },
 });
 
-/** Rooms within a person, whose replicas hold the person's preferences. */
+/** Rooms within a person, whose replicas store the person's preferences. */
 const room = defineObject({
     name: "room",
     plural: "rooms",
@@ -82,21 +84,22 @@ const refuseQueries = () => Promise.reject(new Error("the replica answers no que
 
 /** Serve alice's preferences at their home and a replica at her room's machine. */
 async function serveHomes() {
-    // store alice's person and room at home, owned by her
+    // store alice's person and room at home, with her as owner
     const homeStorage = await TestDatabase.create(
-        "sqlite",
         defineDatabase({
             name: "main",
-            tables: [...callTables, ...person.tables, ...room.tables, ...preference.tables],
+            ...tablesOf({
+                packages: [objectPackage, { objects: { person, room, preference }, tables: [] }],
+                follows: [],
+                tables: [],
+            }),
         }),
         { isMigrated: true },
     );
     const replicateStorage = await TestDatabase.create(
-        "sqlite",
         defineDatabase({
             name: "main",
-            tables: [...callTables, ...accessTables],
-            replicated: [person.table, room.table, preference.table],
+            ...tablesOf({ packages: [objectPackage], follows: [HOME_FOLLOW], tables: [] }),
         }),
         { isMigrated: true },
     );
@@ -105,7 +108,7 @@ async function serveHomes() {
     });
     const alice = principal.user.reference(Scope.universe.id, users.alice);
     const fixture = new AccessFixture(homeStorage.database);
-    await fixture.replicateScope(person.reference(Scope.universe.id, personId), "own");
+    await fixture.replicateScope(person.reference(Scope.universe.id, personId), "self");
     await fixture.replicateScope(room.reference(personId, roomId));
     await fixture.bindOwner(person.reference(Scope.universe.id, personId), alice);
     await homeStorage.database
@@ -128,7 +131,7 @@ async function serveHomes() {
         origin: { package: preference.package },
     });
 
-    // replicate the room's own chain from home into the room's machine and serve the replica
+    // replicate the room's scope chain from home into the room's machine and serve the replica
     const feed = new Feed(
         homeStorage.database,
         [...accessTables, person.table, room.table, preference.table],
@@ -140,7 +143,9 @@ async function serveHomes() {
         chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
         clock: Clock.system,
         principal: spacePrincipal(roomId),
-        servers: serversOf([preference]),
+        servers: serversOf([preference], {
+            follows: [HOME_FOLLOW],
+        }),
         policies: [person, room],
         database: replicateStorage.database,
         uplink: {
@@ -157,7 +162,7 @@ async function serveHomes() {
     });
     await followChain(replica, replicateStorage.database, homeStorage.database);
 
-    // reach each server as alice, recording the requests each receives
+    // call each server as alice, recording the requests each receives
     const writes: string[] = [];
     const recorded = (
         name: string,
@@ -172,16 +177,20 @@ async function serveHomes() {
                 return server.fetch(request);
             },
         }) satisfies ClientOptions;
-    const homeServer = serveObjects(home.implement(preferences, [preference], []), personId);
-    const replicateServer = serveObjects(replica.implement(preferences, [preference], []), roomId);
+    const homeServed = TestObjectStore.serve(home);
+    const replicaServed = TestObjectStore.serve(replica);
+    onTestFinished(async () => {
+        await replicaServed[Symbol.asyncDispose]();
+        await homeServed[Symbol.asyncDispose]();
+    });
 
     return {
         home,
         replica,
         homeDatabase: homeStorage.database,
         writes,
-        homeEndpoint: recorded("home", homeServer.server),
-        replicateEndpoint: recorded("replica", replicateServer.server),
+        homeEndpoint: recorded("home", homeServed.server(preferences)),
+        replicateEndpoint: recorded("replica", replicaServed.server(preferences)),
     };
 }
 
@@ -221,10 +230,11 @@ async function followChain(
     }
 }
 
-/** Open alice's client of her room, reaching her person's home for its rows. */
+/** Open alice's client of her room, calling her person's home for its rows. */
 async function openRoom(served: Awaited<ReturnType<typeof serveHomes>>) {
     // replicate the room's preferences on the device
-    const storage = await TestDatabase.create("sqlite", ObjectClient.tables({ preference }), {
+    const storage = await TestDatabase.create(ObjectClient.tables({ preference }), {
+        dialect: "sqlite",
         isMigrated: true,
     });
     const client = await ObjectClient.open({
@@ -302,8 +312,23 @@ async function homeTheme(database: TestDatabase["database"], id: string): Promis
     return present(row, "the theme at home").value;
 }
 
-/** A preference's value as a client's replica holds it. */
+/** A preference's value as a client's replica stores it. */
 const Valued = schema.looseObject({ value: schema.string() });
+
+/** The people, their rooms and their preferences, which a room's machine reads. */
+const HOME = defineShape({
+    name: "home",
+    parameters: schema.object({}),
+    objects: [person, room, preference],
+    queries: () => [
+        person.query({}),
+        room.query({ scopes: "every" }),
+        preference.query({ scopes: "every" }),
+    ],
+});
+
+/** The follow of the people, their rooms and their preferences at the universe. */
+const HOME_FOLLOW = Follow.of(HOME, { keys: [{ key: { scope: Scope.universe.id } }] });
 
 test("send a write of an enclosing scope's row to its home, predicted on the room's replica and rebased once the home's commit streams back through it", async () => {
     // wait for alice's theme in her room's replica
@@ -345,21 +370,21 @@ test("wait through a replica for a home commit outside its rows, the home confir
     const head = await served.homeDatabase.log.position();
 
     // wait through the room's store for the home's head, far within the feed's heartbeat
-    const isReached = await served.replica.wait(
+    const isCaughtUp = await served.replica.wait(
         { scope: personId, ...head },
         AbortSignal.timeout(CONFIRM_MILLISECONDS),
     );
 
-    // reach the position by the home's confirmation
-    expect(isReached).toBe(true);
+    // arrive at the position by the home's confirmation
+    expect(isCaughtUp).toBe(true);
 });
 
-test("wait on a store's own log for a watermark it wrote, in a scope another database homes", async () => {
-    // take the head of the room's store, whose room row a replica of the home keeps
+test("wait on a store's log for a watermark it wrote, in a scope another database homes", async () => {
+    // take the head of the room's store, whose room row a replica of the home stores
     const served = await serveHomes();
     const head = await served.replica.database.log.position();
 
-    // reach it on the store's own log, far within the feed's heartbeat
+    // arrive at it on the store's log, far within the feed's heartbeat
     expect(
         await served.replica.wait(
             { scope: roomId, ...head },

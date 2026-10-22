@@ -104,6 +104,11 @@ export class Server implements AsyncDisposable {
         }
     }
 
+    /** Settle once the server serves, its readiness met. */
+    serving(): Promise<void> {
+        return this.#serving.promise;
+    }
+
     /** Settle once no controller key is due now or reconciling, or at a deadline. */
     idle(deadline?: number): Promise<void> {
         return this.#loop === undefined ? Promise.resolve() : this.#loop.idle(deadline);
@@ -135,7 +140,7 @@ export class Server implements AsyncDisposable {
         return server;
     }
 
-    /** Stop the controllers at once, keeping the server's requests served until it drains. */
+    /** Stop the controllers at once, while the server serves its requests until it drains. */
     async stopControllers(): Promise<void> {
         this.#reconciling.abort();
         await this.#running?.catch(() => undefined);
@@ -197,7 +202,7 @@ export class Server implements AsyncDisposable {
             return this.#headers(new Response(null, { status: 503 }));
         }
 
-        // carry cancellation across the response
+        // pass cancellation across the response
         const controller = new AbortController();
         const signal = AbortSignal.any([request.signal, controller.signal]);
         this.#requests.set(controller, request);

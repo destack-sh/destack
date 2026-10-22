@@ -13,9 +13,11 @@ import { Scope } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import { defineObject } from "../src/index.ts";
 import { implementPackage, ObjectStore } from "../src/server/index.ts";
-import { callTables, testEvents } from "../src/test/index.ts";
+import { testEvents } from "../src/test/index.ts";
 import { spaceId } from "./fixture/device.ts";
 import { openSpace, space } from "./fixture/space.ts";
+import { tablesOf } from "../src/index.ts";
+import objectPackage from "../src/package.ts";
 
 /** The installation serving the probes in the space. */
 const INSTALLATION = "installation-01996ab0-0000-7000-8000-000000000051";
@@ -64,8 +66,14 @@ const probes = definePackage({ objects: { probe } });
 test("act for the space as its installation within the space's grant, refusing without one, and read its capabilities", async () => {
     // serve the probes in a public space as its installation
     const storage = await TestDatabase.create(
-        "sqlite",
-        defineDatabase({ name: "main", tables: [...callTables, ...space.tables, ...probe.tables] }),
+        defineDatabase({
+            name: "main",
+            ...tablesOf({
+                packages: [objectPackage, { objects: { space, probe }, tables: [] }],
+                follows: [],
+                tables: [],
+            }),
+        }),
         { isMigrated: true },
     );
     onTestFinished(() => storage.close());

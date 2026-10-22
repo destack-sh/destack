@@ -90,7 +90,7 @@ export const FeatureReference = schema.object({
 /** A finance feature, by its package and name. */
 export type FeatureReference = schema.Infer<typeof FeatureReference>;
 
-/** Something a package's installations can do beyond its own request, and what it needs. */
+/** Something a package's installations can do beyond its request, and what it needs. */
 export const Capability = schema
     .object({
         /** Why the package needs it, shown when someone allows it. */
@@ -136,7 +136,7 @@ const packageDescription = schema.object({
     views: schema.array(DeclarationName),
     /** The permissions its installations always request, by delegator. */
     permissions: PermissionRequest,
-    /** What its installations can do beyond its own request, by name. */
+    /** What its installations can do beyond its request, by name. */
     capabilities: schema.record(DeclarationName, Capability),
 });
 

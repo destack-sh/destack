@@ -3,7 +3,7 @@ import {
     Event,
     EventCursor,
     type EventFilter,
-    type EventKeyShape,
+    type EventKeyFields,
     type EventKind,
     type EventOrder,
     type EventPage,
@@ -122,7 +122,7 @@ export const EventLog = {
         return event === undefined ? undefined : kind.row(event);
     },
 
-    /** List the scopes a read of a scope's events covers: its own, and the caller's replicas. */
+    /** List the scopes a read of a scope's events covers: the scope, and the caller's replicas. */
     async scopes(
         context: MethodContext,
         database: DatabaseConnection,
@@ -153,25 +153,28 @@ export const EventLog = {
 
 /** An event of an events object type, keyed and shaped as its kind stores it. */
 export type EventOf<Type extends { readonly eventKind: () => EventKind }> =
-    ReturnType<Type["eventKind"]> extends EventKind<infer Shape, infer Data>
-        ? Event<Shape, Data>
+    ReturnType<Type["eventKind"]> extends EventKind<infer Fields, infer Data>
+        ? Event<Fields, Data>
         : never;
 
-/** A package's reads of its own event kind: pages in time order, single events and series. */
-export class EventView<Shape extends EventKeyShape, Data extends JsonValue> {
+/** A package's reads of its event kind: pages in time order, single events and series. */
+export class EventView<Fields extends EventKeyFields, Data extends JsonValue> {
     /** The event kind read. */
-    readonly kind: EventKind<Shape, Data>;
+    readonly kind: EventKind<Fields, Data>;
     /** The store's event log, or a hook's session with its store. */
     readonly #source: EventStore | Session;
 
     /** Read a kind's events through the store's event log or a hook's session. */
-    constructor(kind: EventKind<Shape, Data>, source: EventStore | Session) {
+    constructor(kind: EventKind<Fields, Data>, source: EventStore | Session) {
         this.kind = kind;
         this.#source = source;
     }
 
     /** Read a page of some scopes' events in time order. */
-    async query(filter: EventFilter, page: EventPageRequest = {}): Promise<EventPage<Shape, Data>> {
+    async query(
+        filter: EventFilter,
+        page: EventPageRequest = {},
+    ): Promise<EventPage<Fields, Data>> {
         // read through the event log, else through the session
         const source = this.#source;
         if (source instanceof EventStore) {
@@ -196,7 +199,7 @@ export class EventView<Shape extends EventKeyShape, Data extends JsonValue> {
     /** Read one event of some scopes by its identity, absent if none. */
     async get(
         key: Pick<EventFilter, "scopes"> & { readonly id: string },
-    ): Promise<Event<Shape, Data> | undefined> {
+    ): Promise<Event<Fields, Data> | undefined> {
         // read through the event log, else through the session
         const source = this.#source;
         if (source instanceof EventStore) {
@@ -211,12 +214,12 @@ export class EventView<Shape extends EventKeyShape, Data extends JsonValue> {
         return answered === null ? undefined : this.#open(Event.parse(answered));
     }
 
-    /** Read the events some scopes appended after a log sequence, and the sequence reached. */
+    /** Read the events some scopes appended after a log sequence, and the last sequence read. */
     async changes(
         filter: EventFilter,
         after: number,
         limit?: number,
-    ): Promise<{ readonly events: readonly Event<Shape, Data>[]; readonly sequence: number }> {
+    ): Promise<{ readonly events: readonly Event<Fields, Data>[]; readonly sequence: number }> {
         // read through the event log, else through the session
         const source = this.#source;
         if (source instanceof EventStore) {
@@ -240,7 +243,7 @@ export class EventView<Shape extends EventKeyShape, Data extends JsonValue> {
         filter: EventFilter,
         after: number,
         through: number,
-    ): Promise<readonly Event<Shape, Data>[]> {
+    ): Promise<readonly Event<Fields, Data>[]> {
         // read through the event log, else through the session
         const source = this.#source;
         if (source instanceof EventStore) {
@@ -261,7 +264,7 @@ export class EventView<Shape extends EventKeyShape, Data extends JsonValue> {
     }
 
     /** Fold some scopes' events into a series per group of key values. */
-    async series(filter: EventFilter, request: SeriesRequest<Shape>): Promise<Series[]> {
+    async series(filter: EventFilter, request: SeriesRequest<Fields>): Promise<Series[]> {
         // fold through the event log, else through the session
         const source = this.#source;
         if (source instanceof EventStore) {
@@ -291,7 +294,7 @@ export class EventView<Shape extends EventKeyShape, Data extends JsonValue> {
     }
 
     /** Open an answered event with the kind's keys and data. */
-    #open(event: Event): Event<Shape, Data> {
+    #open(event: Event): Event<Fields, Data> {
         return {
             ...event,
             keys: this.kind.parseKeys(event.keys),
@@ -314,7 +317,7 @@ export interface EventPageRequest {
 const EVENT_CHANGES = schema.object({
     /** The events in commit order. */
     events: schema.array(Event),
-    /** The log sequence the read reached. */
+    /** The log sequence the read arrived at. */
     sequence: schema.number().int().min(0),
 });
 

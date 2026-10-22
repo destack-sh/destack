@@ -86,7 +86,7 @@ test.for([3, 17, 91])(
         const seed = { value };
         const sites = ["a", "b", "c"];
 
-        // hold the server's sequence and each party's pending edits
+        // store the server's sequence and each party's pending edits
         let server = new Sequence();
         const parties = sites.map((site): Party => ({
             site,
@@ -177,7 +177,7 @@ test("find elements by visible offset and offsets by element, across tombstones"
     ]).toEqual(["helloworld", { run: "a.1", offset: 6 }, 5, 5, undefined]);
 });
 
-test("resolve annotations over edits by their boundaries: bold grows at its end, a link does not, neither grows at its start", () => {
+test("resolve annotations over edits by their edges: bold grows at its end, a link does not, neither grows at its start", () => {
     // write "hello world" with a bold "hello" and a linked "world"
     const text = new Sequence().apply({ insert: "hello world", run: "a.1" });
     const bold: Annotation = {
@@ -212,7 +212,7 @@ test("resolve annotations over edits by their boundaries: bold grows at its end,
     ]);
 });
 
-test("cover overlapping annotations in one stretch each, with boundaries on deleted elements in place", () => {
+test("cover overlapping annotations in one stretch each, with edges on deleted elements in place", () => {
     // annotate overlapping ranges and delete the comment's first element
     const text = new Sequence().apply({ insert: "the quick brown fox", run: "a.1" });
     const comment: Annotation = {

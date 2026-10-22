@@ -1,8 +1,8 @@
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
+import { TestDatabase } from "@destack/db/test";
 import { type DatabaseConnection, eq } from "@destack/db";
 import { testCallKey } from "@destack/object/test";
-import { callTables, testEvents, serversOf } from "../src/test/index.ts";
+import { testEvents, serversOf } from "../src/test/index.ts";
 import { schema, type JsonObject } from "@destack/schema";
 import { v7 } from "uuid";
 import { defineObject, field, ObjectPolicy } from "../src/index.ts";
@@ -24,6 +24,8 @@ import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { request } from "./fixture/request.ts";
 import { Clock } from "@destack/environment";
+import { tablesOf } from "../src/index.ts";
+import objectPackage from "../src/package.ts";
 
 /** The space the declared objects live in. */
 const spaceId = schema.identifier("space").parse(`space-${v7()}`);
@@ -63,159 +65,154 @@ const manager = Manager.schema.omit({ name: true }).parse({
     packageId: "package-01996ab0-0000-7000-8000-000000000002",
 });
 
-test.each(TEST_DIALECTS)(
-    "read a declaration's release through its step's database while applying, on %s",
-    async (dialect) => {
-        const storage = await TestDatabase.create(dialect, objectDatabase, { isMigrated: true });
-        onTestFinished(() => storage.close());
-        const database = storage.database;
-        await openSpace(database, spaceId);
-        await database
-            .insert(space.table)
-            .values({ id: spaceId, scope: Scope.universe.id, createdAt: 0, updatedAt: 0 });
+test("read a declaration's release through its step's database while applying", async () => {
+    const storage = await TestDatabase.create(objectDatabase, { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const database = storage.database;
+    await openSpace(database, spaceId);
+    await database
+        .insert(space.table)
+        .values({ id: spaceId, scope: Scope.universe.id, createdAt: 0, updatedAt: 0 });
 
-        // resolve each note through a release that reads the notes, then refuses
-        const objects = [
-            note.implement({
-                declaration: {
-                    resolve: async (_name, declared, context) => {
-                        await context.release(manager.packageId);
+    // resolve each note through a release that reads the notes, then refuses
+    const objects = [
+        note.implement({
+            declaration: {
+                resolve: async (_name, declared, context) => {
+                    await context.release(manager.packageId);
 
-                        return declared;
-                    },
-                    values: (_name, declared) => ({ title: declared.title }),
+                    return declared;
                 },
-            }),
-        ];
-        const applied = Stack.apply({
+                values: (_name, declared) => ({ title: declared.title }),
+            },
+        }),
+    ];
+    const applied = Stack.apply({
+        now: Date.now(),
+        database,
+        objects,
+        manager,
+        as: spacePrincipal(spaceId),
+        scope: spaceId,
+        document: { notes: { one: { title: "first" } } },
+        store: await serve(database),
+        release: async (step) => {
+            await step.read(note.table).findMany();
+            throw new TypeError("no release in this test");
+        },
+    });
+
+    // refuse with the release's failure instead of waiting behind the step's transaction
+    await expect(applied).rejects.toThrow(new TypeError("no release in this test"));
+});
+
+test("apply declared objects in dependency order, wait, leave detached and retire in reverse", async () => {
+    const storage = await TestDatabase.create(objectDatabase, { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const database = storage.database;
+    const objects = [
+        // list labels before notes
+        label.implement({
+            declaration: {
+                after: [note],
+                resolve: async (_name, declared, context) => {
+                    if (declared.note === "later") {
+                        context.wait("note later is not declared yet");
+                    }
+
+                    return {
+                        noteId: schema
+                            .identifier("note")
+                            .parse(await context.require(note, declared.note)),
+                        text: declared.text,
+                    };
+                },
+                values: (_name, resolved) => resolved,
+            },
+        }),
+        note.implement({
+            declaration: {
+                values: (_name, declared) => ({ title: declared.title }),
+            },
+        }),
+    ];
+    await openSpace(database, spaceId);
+    await database
+        .insert(space.table)
+        .values({ id: spaceId, scope: Scope.universe.id, createdAt: 0, updatedAt: 0 });
+    const store = await serve(database);
+    const apply = (document: JsonObject) =>
+        Stack.apply({
             now: Date.now(),
             database,
             objects,
             manager,
             as: spacePrincipal(spaceId),
             scope: spaceId,
-            document: { notes: { one: { title: "first" } } },
-            store: await serve(database),
-            release: async (step) => {
-                await step.read(note.table).findMany();
-                throw new TypeError("no release in this test");
+            document,
+            store,
+        });
+    const titles = async () =>
+        (await database.select().from(note.table).orderBy(note.table.managerName)).map((row) => [
+            row.managerName,
+            row.title,
+        ]);
+
+    // create notes before the labels referencing them
+    expect(
+        await apply({
+            notes: { one: { title: "first" }, two: { title: "second" } },
+            labels: { urgent: { note: "one", text: "urgent" } },
+        }),
+    ).toEqual({
+        steps: [
+            { action: "create", target: "note/one", risk: "safe", detail: "declare" },
+            { action: "create", target: "note/two", risk: "safe", detail: "declare" },
+            { action: "create", target: "label/urgent", risk: "safe", detail: "declare" },
+        ],
+    });
+
+    // reject collections no object reads and references to undeclared objects
+    await expect(apply({ tags: {} })).rejects.toMatchObject({
+        code: "UNSUPPORTED_DECLARATION",
+        message: "this server cannot apply tags",
+    });
+    await expect(
+        apply({ notes: {}, labels: { stray: { note: "missing", text: "stray" } } }),
+    ).rejects.toMatchObject({ code: "INVALID_DECLARATION", message: "unknown note: missing" });
+
+    // stop at a waiting declaration and retain the earlier writes
+    expect(
+        await apply({
+            notes: { one: { title: "renamed" }, two: { title: "second" } },
+            labels: { soon: { note: "later", text: "soon" } },
+        }),
+    ).toEqual({
+        steps: [
+            {
+                action: "update",
+                target: "note/one",
+                risk: "safe",
+                detail: "change declared fields",
+                fields: { title: { before: "first", after: "renamed" } },
             },
-        });
+        ],
+        deferred: "note later is not declared yet",
+    });
 
-        // refuse with the release's failure instead of waiting behind the step's own transaction
-        await expect(applied).rejects.toThrow(new TypeError("no release in this test"));
-    },
-);
-
-test.each(TEST_DIALECTS)(
-    "apply declared objects in dependency order, wait, leave detached and retire in reverse on %s",
-    async (dialect) => {
-        const storage = await TestDatabase.create(dialect, objectDatabase, { isMigrated: true });
-        onTestFinished(() => storage.close());
-        const database = storage.database;
-        const objects = [
-            // list labels before notes
-            label.implement({
-                declaration: {
-                    after: [note],
-                    resolve: async (_name, declared, context) => {
-                        if (declared.note === "later") {
-                            context.wait("note later is not declared yet");
-                        }
-
-                        return {
-                            noteId: schema
-                                .identifier("note")
-                                .parse(await context.require(note, declared.note)),
-                            text: declared.text,
-                        };
-                    },
-                    values: (_name, resolved) => resolved,
-                },
-            }),
-            note.implement({
-                declaration: {
-                    values: (_name, declared) => ({ title: declared.title }),
-                },
-            }),
-        ];
-        await openSpace(database, spaceId);
-        await database
-            .insert(space.table)
-            .values({ id: spaceId, scope: Scope.universe.id, createdAt: 0, updatedAt: 0 });
-        const store = await serve(database);
-        const apply = (document: JsonObject) =>
-            Stack.apply({
-                now: Date.now(),
-                database,
-                objects,
-                manager,
-                as: spacePrincipal(spaceId),
-                scope: spaceId,
-                document,
-                store,
-            });
-        const titles = async () =>
-            (await database.select().from(note.table).orderBy(note.table.managerName)).map(
-                (row) => [row.managerName, row.title],
-            );
-
-        // create notes before the labels referencing them
-        expect(
-            await apply({
-                notes: { one: { title: "first" }, two: { title: "second" } },
-                labels: { urgent: { note: "one", text: "urgent" } },
-            }),
-        ).toEqual({
-            steps: [
-                { action: "create", target: "note/one", risk: "safe", detail: "declare" },
-                { action: "create", target: "note/two", risk: "safe", detail: "declare" },
-                { action: "create", target: "label/urgent", risk: "safe", detail: "declare" },
-            ],
-        });
-
-        // reject collections no object reads and references to undeclared objects
-        await expect(apply({ tags: {} })).rejects.toMatchObject({
-            code: "UNSUPPORTED_DECLARATION",
-            message: "this server cannot apply tags",
-        });
-        await expect(
-            apply({ notes: {}, labels: { stray: { note: "missing", text: "stray" } } }),
-        ).rejects.toMatchObject({ code: "INVALID_DECLARATION", message: "unknown note: missing" });
-
-        // stop at a waiting declaration and retain the earlier writes
-        expect(
-            await apply({
-                notes: { one: { title: "renamed" }, two: { title: "second" } },
-                labels: { soon: { note: "later", text: "soon" } },
-            }),
-        ).toEqual({
-            steps: [
-                {
-                    action: "update",
-                    target: "note/one",
-                    risk: "safe",
-                    detail: "change declared fields",
-                    fields: { title: { before: "first", after: "renamed" } },
-                },
-            ],
-            deferred: "note later is not declared yet",
-        });
-
-        // detach one note and retire labels before notes, leaving it
-        await database
-            .update(note.table)
-            .set({ detachedAt: 1 })
-            .where(eq(note.table.managerName, "two"));
-        expect(await apply({})).toEqual({
-            steps: [
-                { action: "delete", target: "label/urgent", risk: "destructive", detail: "retire" },
-                { action: "delete", target: "note/one", risk: "destructive", detail: "retire" },
-            ],
-        });
-        expect(await titles()).toEqual([["two", "second"]]);
-    },
-);
+    // detach one note and retire labels before notes, leaving it
+    await database
+        .update(note.table)
+        .set({ detachedAt: 1 })
+        .where(eq(note.table.managerName, "two"));
+    expect(await apply({})).toEqual({
+        steps: [
+            { action: "delete", target: "label/urgent", risk: "destructive", detail: "retire" },
+            { action: "delete", target: "note/one", risk: "destructive", detail: "retire" },
+        ],
+    });
+    expect(await titles()).toEqual([["two", "second"]]);
+});
 
 /** Vaults of a space, a resource kind only an installed package provisions. */
 const vault = defineObject({
@@ -233,67 +230,64 @@ function kindOf(value: unknown): string {
         .parse(value).declaration.kind;
 }
 
-test.each(TEST_DIALECTS)(
-    "leave a resource entry no served type collects to the installed type provisioning its kind, refusing it without one, on %s",
-    async (dialect) => {
-        const storage = await TestDatabase.create(dialect, objectDatabase, { isMigrated: true });
-        onTestFinished(() => storage.close());
-        const database = storage.database;
-        await openSpace(database, spaceId);
-        await database
-            .insert(space.table)
-            .values({ id: spaceId, scope: Scope.universe.id, createdAt: 0, updatedAt: 0 });
+test("leave a resource entry no served type collects to the installed type provisioning its kind, refusing it without one", async () => {
+    const storage = await TestDatabase.create(objectDatabase, { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const database = storage.database;
+    await openSpace(database, spaceId);
+    await database
+        .insert(space.table)
+        .values({ id: spaceId, scope: Scope.universe.id, createdAt: 0, updatedAt: 0 });
 
-        // collect the note resources as notes, leaving other kinds' entries uncollected
-        const objects = [
-            note.implement({
-                declaration: {
-                    keys: ["resources"],
-                    collect: (document) =>
-                        Object.fromEntries(
-                            Object.entries(
-                                schema
-                                    .record(schema.string(), schema.unknown())
-                                    .parse(document["resources"]),
-                            ).filter(([, value]) => kindOf(value) === "note"),
-                        ),
-                    values: (name) => ({ title: name }),
-                },
-            }),
-        ];
-        const apply = async (installing?: () => Promise<readonly ObjectDescription[]>) =>
-            Stack.apply({
-                now: Date.now(),
-                database,
-                objects,
-                manager,
-                as: spacePrincipal(spaceId),
-                scope: spaceId,
-                document: {
-                    resources: {
-                        draft: { declaration: { kind: "note" } },
-                        secrets: { declaration: { kind: "vault" } },
-                    },
-                },
-                store: await serve(database),
-                ...(installing === undefined ? {} : { installing }),
-            });
-
-        // refuse the vault entry without installed types, then plan it under the installed vault type
-        const refused = await refusal(apply());
-        const planned = await apply(async () => [ObjectDescription.of(vault)]);
-        expect([refused, planned]).toEqual([
-            ["UNSUPPORTED_DECLARATION", "this server cannot apply resources secrets"],
-            {
-                steps: [
-                    { action: "create", target: "note/draft", risk: "safe", detail: "declare" },
-                    { action: "create", target: "vault/secrets", risk: "safe", detail: "declare" },
-                ],
-                deferred: "resources secrets wait for the store to serve their types",
+    // collect the note resources as notes, leaving other kinds' entries uncollected
+    const objects = [
+        note.implement({
+            declaration: {
+                keys: ["resources"],
+                collect: (document) =>
+                    Object.fromEntries(
+                        Object.entries(
+                            schema
+                                .record(schema.string(), schema.unknown())
+                                .parse(document["resources"]),
+                        ).filter(([, value]) => kindOf(value) === "note"),
+                    ),
+                values: (name) => ({ title: name }),
             },
-        ]);
-    },
-);
+        }),
+    ];
+    const apply = async (installing?: () => Promise<readonly ObjectDescription[]>) =>
+        Stack.apply({
+            now: Date.now(),
+            database,
+            objects,
+            manager,
+            as: spacePrincipal(spaceId),
+            scope: spaceId,
+            document: {
+                resources: {
+                    draft: { declaration: { kind: "note" } },
+                    secrets: { declaration: { kind: "vault" } },
+                },
+            },
+            store: await serve(database),
+            ...(installing === undefined ? {} : { installing }),
+        });
+
+    // refuse the vault entry without installed types, then plan it under the installed vault type
+    const refused = await refusal(apply());
+    const planned = await apply(async () => [ObjectDescription.of(vault)]);
+    expect([refused, planned]).toEqual([
+        ["UNSUPPORTED_DECLARATION", "this server cannot apply resources secrets"],
+        {
+            steps: [
+                { action: "create", target: "note/draft", risk: "safe", detail: "declare" },
+                { action: "create", target: "vault/secrets", risk: "safe", detail: "declare" },
+            ],
+            deferred: "resources secrets wait for the store to serve their types",
+        },
+    ]);
+});
 
 test("refuse aggregates that measure rows some readers of their holder may not list", () => {
     // maintain a count of books on shelves everyone related reads
@@ -327,7 +321,7 @@ test("refuse aggregates that measure rows some readers of their holder may not l
 });
 
 test("refuse a containment grant on a type living in the universe alone, and allow it on a scope type there", () => {
-    // declare the scope type, deciding by its own row's containment, and refuse the record
+    // declare the scope type, deciding by its row's containment, and refuse the record
     expect(ledger(true).name).toBe("ledger");
     expect(() => ObjectDescription.of(ledger(false))).toThrow(
         new TypeError(
@@ -345,7 +339,10 @@ test("refuse declarations that depend on themselves, also next to one depending 
     ];
 
     // report the cycle instead of overflowing the stack
-    const storage = await TestDatabase.create("sqlite", [], { isMigrated: true });
+    const storage = await TestDatabase.create(
+        tablesOf({ packages: [], follows: [], tables: [] }).tables,
+        { isMigrated: true },
+    );
     onTestFinished(() => storage.close());
     await expect(
         Stack.apply({
@@ -364,115 +361,116 @@ test("refuse declarations that depend on themselves, also next to one depending 
     });
 });
 
-test.each(TEST_DIALECTS)(
-    "adopt a direct record into a declaration whose next apply rewrites it, refusing managed records and a second record per declaration on %s",
-    async (dialect) => {
-        const storage = await TestDatabase.create(dialect, [...card.tables, ...callTables], {
+test("adopt a direct record into a declaration whose next apply rewrites it, refusing managed records and a second record per declaration", async () => {
+    const storage = await TestDatabase.create(
+        tablesOf({
+            packages: [objectPackage, { objects: { card }, tables: [] }],
+            follows: [],
+            tables: [],
+        }).tables,
+        {
             isMigrated: true,
-        });
-        onTestFinished(() => storage.close());
-        const { database } = storage;
-        await openSpace(database, spaceId);
-        const store = new ObjectStore({
-            chain: async () => undefined,
-            clock: Clock.system,
-            principal: spacePrincipal(spaceId),
-            servers: serversOf([card]),
-            database,
-            callKey: testCallKey,
-            events: await testEvents(database),
-            origin: { package: card.package },
-        });
+        },
+    );
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    await openSpace(database, spaceId);
+    const store = new ObjectStore({
+        chain: async () => undefined,
+        clock: Clock.system,
+        principal: spacePrincipal(spaceId),
+        servers: serversOf([card]),
+        database,
+        callKey: testCallKey,
+        events: await testEvents(database),
+        origin: { package: card.package },
+    });
 
-        // write two cards directly as alice, and hand them over as her
-        const context = userContext(users.alice, spaceId);
-        const create = (title: string) =>
-            store
-                .mutate(context.access(), {
-                    id: RequestId.create(Date.now()),
-                    calls: [card.call("create", { spaceId, title })],
-                })
-                .then(([written]) => written);
-        const welcome = { ...manager, name: "welcome" };
-        const hand = (name: "adopt" | "detach", id: string, declaration = welcome) =>
-            request(
-                store,
-                card,
-                name,
-                spaceId,
-                {
-                    id,
-                    requestId: RequestId.create(Date.now()),
-                    ...(name === "adopt" ? { manager: declaration } : {}),
-                },
-                context,
-            );
-        const [first, second] = [await create("Draft"), await create("Notes")];
-
-        // adopt the first card, and rewrite it with the declared values on the next apply
-        const adopted = await hand("adopt", first.id);
-        const applied = await Stack.apply({
-            now: Date.now(),
-            database,
-            objects: [
-                card.implement({
-                    declaration: { values: (_name, declared) => ({ title: declared.title }) },
-                }),
-            ],
-            manager,
-            as: spacePrincipal(spaceId),
-            scope: spaceId,
-            document: { cards: { welcome: { title: "Welcome" } } },
+    // write two cards directly as alice, and hand them over as her
+    const context = userContext(users.alice, spaceId);
+    const create = (title: string) =>
+        store
+            .mutate(context.access(), {
+                id: RequestId.create(Date.now()),
+                calls: [card.call("create", { spaceId, title })],
+            })
+            .then(([written]) => written);
+    const welcome = { ...manager, name: "welcome" };
+    const hand = (name: "adopt" | "detach", id: string, declaration = welcome) =>
+        request(
             store,
-        });
-        const [rewritten] = await database
-            .select()
-            .from(card.table)
-            .where(eq(card.table.id, first.id));
-        expect({
-            adopted: [adopted.managerName, adopted.detachedAt, adopted.title],
-            applied,
-            rewritten: [rewritten?.managerName, rewritten?.title],
-        }).toEqual({
-            adopted: ["welcome", null, "Draft"],
-            applied: {
-                steps: [
-                    {
-                        action: "update",
-                        target: "card/welcome",
-                        risk: "safe",
-                        detail: "change declared fields",
-                        fields: { title: { before: "Draft", after: "Welcome" } },
-                    },
-                ],
+            card,
+            name,
+            spaceId,
+            {
+                id,
+                requestId: RequestId.create(Date.now()),
+                ...(name === "adopt" ? { manager: declaration } : {}),
             },
-            rewritten: ["welcome", "Welcome"],
-        });
+            context,
+        );
+    const [first, second] = [await create("Draft"), await create("Notes")];
 
-        // refuse adopting a managed card, and a second card into the declaration
-        expect([
-            await refusal(hand("adopt", first.id, { ...manager, name: "other" })),
-            await refusal(hand("adopt", second.id)),
-        ]).toEqual([
-            ["CONFLICT", "card is managed by a declaration"],
-            ["CONFLICT", "declaration welcome declares another card"],
-        ]);
+    // adopt the first card, and rewrite it with the declared values on the next apply
+    const adopted = await hand("adopt", first.id);
+    const applied = await Stack.apply({
+        now: Date.now(),
+        database,
+        objects: [
+            card.implement({
+                declaration: { values: (_name, declared) => ({ title: declared.title }) },
+            }),
+        ],
+        manager,
+        as: spacePrincipal(spaceId),
+        scope: spaceId,
+        document: { cards: { welcome: { title: "Welcome" } } },
+        store,
+    });
+    const [rewritten] = await database.select().from(card.table).where(eq(card.table.id, first.id));
+    expect({
+        adopted: [adopted.managerName, adopted.detachedAt, adopted.title],
+        applied,
+        rewritten: [rewritten?.managerName, rewritten?.title],
+    }).toEqual({
+        adopted: ["welcome", null, "Draft"],
+        applied: {
+            steps: [
+                {
+                    action: "update",
+                    target: "card/welcome",
+                    risk: "safe",
+                    detail: "change declared fields",
+                    fields: { title: { before: "Draft", after: "Welcome" } },
+                },
+            ],
+        },
+        rewritten: ["welcome", "Welcome"],
+    });
 
-        // detach the first card, refuse it to another declaration, and adopt it back into its own
-        const detached = await hand("detach", first.id);
-        const elsewhere = await refusal(hand("adopt", first.id, { ...manager, name: "other" }));
-        const readopted = await hand("adopt", first.id);
-        expect({
-            detached: [detached.managerName, detached.detachedAt === null],
-            elsewhere,
-            readopted: [readopted.managerName, readopted.detachedAt, readopted.title],
-        }).toEqual({
-            detached: ["welcome", false],
-            elsewhere: ["CONFLICT", "card is detached from another declaration"],
-            readopted: ["welcome", null, "Welcome"],
-        });
-    },
-);
+    // refuse adopting a managed card, and a second card into the declaration
+    expect([
+        await refusal(hand("adopt", first.id, { ...manager, name: "other" })),
+        await refusal(hand("adopt", second.id)),
+    ]).toEqual([
+        ["CONFLICT", "card is managed by a declaration"],
+        ["CONFLICT", "declaration welcome declares another card"],
+    ]);
+
+    // detach the first card, refuse it to another declaration, and adopt it back into its first one
+    const detached = await hand("detach", first.id);
+    const elsewhere = await refusal(hand("adopt", first.id, { ...manager, name: "other" }));
+    const readopted = await hand("adopt", first.id);
+    expect({
+        detached: [detached.managerName, detached.detachedAt === null],
+        elsewhere,
+        readopted: [readopted.managerName, readopted.detachedAt, readopted.title],
+    }).toEqual({
+        detached: ["welcome", false],
+        elsewhere: ["CONFLICT", "card is detached from another declaration"],
+        readopted: ["welcome", null, "Welcome"],
+    });
+});
 
 /** Declare a universe ledger, a scope or a record, readable by contained spaces. */
 function ledger(isScope: boolean) {
@@ -508,7 +506,7 @@ test("refuse two methods answering one route, which a router would send to one o
     ).toThrow(new TypeError("object memo methods update and retitle both answer PATCH /{id}"));
 });
 
-test("manage a declarable type over its own or a foreign table, and leave an undeclared type unmanaged", () => {
+test("manage a declarable type over a local or a foreign table, and leave an undeclared type unmanaged", () => {
     // declare roles over access's role table, as a stack declares its roles
     const declaredRole = defineObject({
         name: "role",

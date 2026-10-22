@@ -176,7 +176,7 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
 
     /** Require a request's release within those of the procedure's package the server serves. */
     static #requireRelease(request: Request, defining: Package, served: PackageHandle): Version {
-        // read the caller's release, and the oldest one a served package's own procedures take
+        // read the caller's release, and the oldest one a served package's procedures take
         const header = request.headers.get(VERSION_HEADER);
         const caller = header === null ? undefined : Version.safeParse(header).data;
         const { name, version } = defining;

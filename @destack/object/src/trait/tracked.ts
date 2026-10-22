@@ -6,7 +6,7 @@ import { defineMethod, type Method } from "../method/method.ts";
 import type { MethodContext } from "../method/context.ts";
 import { Step } from "../method/step.ts";
 import type { ObjectOf, ObjectType } from "../object/object.ts";
-import type { Procedure, ReplayShape, RowSchema, TargetShape } from "../method/procedure.ts";
+import type { Procedure, ReplayFields, RowSchema, TargetFields } from "../method/procedure.ts";
 import type { Gated, Trait } from "./trait.ts";
 import { Execution, type StoreExecution } from "../method/execution.ts";
 
@@ -28,7 +28,7 @@ export type TrackedMethodMap<History> = History extends TrackedDefinition
 /** The procedures history derives. */
 export type TrackedProcedures<Object extends ObjectType> = {
     revert: Procedure<
-        schema.Object<TargetShape<Object> & ReplayShape<Object> & PositionField>,
+        schema.Object<TargetFields<Object> & ReplayFields<Object> & PositionField>,
         RowSchema<Object>
     >;
 };
@@ -72,10 +72,10 @@ export const tracked: Trait<TrackedDefinition> & {
             isPredicted: false,
             target: "object",
             result: "object",
-            procedure: (_name, shapes) => ({
+            procedure: (_name, schemas) => ({
                 route: { method: "POST", path: "/{id}/revert" },
-                input: shapes.target.extend({ ...shapes.replay, at: LogPosition }),
-                output: shapes.row,
+                input: schemas.target.extend({ ...schemas.replay, at: LogPosition }),
+                output: schemas.row,
             }),
             handler: async (context, execution) => {
                 // write back the changed fields the history records, sensitive ones being unlogged

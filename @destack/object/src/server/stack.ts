@@ -90,17 +90,17 @@ export interface DeclarationHandler<
     readonly immutable?: readonly (keyof Insert<Object["table"]> & string)[];
     /** Map a resolved declaration to the columns it determines, itself by default. */
     values?(name: string, resolved: Resolved, stack: Stack): Partial<Insert<Object["table"]>>;
-    /** Report changes stored outside the record's own columns. */
+    /** Report changes stored outside the record's columns. */
     changed?(
         transaction: Transaction,
         row: Select<Object["table"]>,
         resolved: Resolved,
     ): Promise<boolean>;
-    /** Write records a created or updated record owns. */
+    /** Write the records of a created or updated record. */
     written?(stack: Stack, row: Select<Object["table"]>, resolved: Resolved): Promise<void>;
     /** Create or change a declared record through its table's owner, instead of the stack. */
     upsert?(stack: Stack, manager: Manager, resolved: Resolved): Promise<void>;
-    /** Retire records through their own deletion, archive them, or retain them as they are. */
+    /** Retire records by deleting them, archive them, or retain them as they are. */
     readonly retire?:
         | "archived"
         | {
@@ -184,7 +184,7 @@ export class Stack {
     /** The scope enclosing the stack's scope, read on first use. */
     #enclosing: Promise<string> | undefined;
 
-    /** Hold a stack's inputs, its ordered object types and the transaction writing them. */
+    /** Store a stack's inputs, its ordered object types and the transaction writing them. */
     private constructor(
         options: ApplyOptions,
         declared: Declared,
@@ -192,7 +192,7 @@ export class Stack {
         now: number,
         transaction: Transaction,
     ) {
-        // hold the stack
+        // store the stack
         this.scope = options.scope;
         this.manager = options.manager;
         this.as = options.as;
@@ -200,7 +200,7 @@ export class Stack {
         this.now = now;
         this.authorizer = authorizer;
 
-        // hold the transaction and what applies it
+        // store the transaction and what applies it
         this.transaction = transaction;
         this.#options = options;
         this.#ordered = declared.ordered;
@@ -419,13 +419,13 @@ export class Stack {
 
     /** Resolve a declaration into its type's create input: its key field and its references. */
     async resolveInput(object: ObjectType, name: string, declared: unknown): Promise<unknown> {
-        // keep a declaration of a type with its own schema as it is
+        // return a declaration of a type with a declared schema as it is
         const options = object.definition.declarable;
         if (options === undefined || !("from" in options)) {
             return declared;
         }
 
-        // take the written fields but the references, and fill the key field with the declaration's own name
+        // take the written fields but the references, and fill the key field with the declaration's name
         const written = DECLARED.parse(declared);
         const references = Object.entries(object.declaredReferences);
         const referenced = new Set(references.map(([field]) => ObjectType.declaredField(field)));
@@ -778,7 +778,7 @@ export class Stack {
 
     /** Read the columns the stack supplies a type declared from its create input. */
     async #supplied(object: ObjectType, name: string): Promise<Partial<Insert<Table>>> {
-        // supply nothing to a type declaring its own schema
+        // supply nothing to a type with a declared schema
         const options = object.definition.declarable;
         if (options === undefined || "schema" in options) {
             return {};
@@ -793,9 +793,9 @@ export class Stack {
 
         // take the scope enclosing the stack's scope as the owner, unless a reference resolves it
         const { ownerColumn } = object;
-        const isOwned =
+        const hasOwner =
             ownerColumn !== undefined && object.declaredReferences[ownerColumn] === undefined;
-        const owner = isOwned ? { [ownerColumn]: await this.enclosing() } : {};
+        const owner = hasOwner ? { [ownerColumn]: await this.enclosing() } : {};
 
         return { ...parentId, ...owner };
     }
@@ -1219,14 +1219,14 @@ export class StackPlan {
     /** The open transaction with the planned writes. */
     readonly #transaction: Transaction;
 
-    /** Hold a plan with the transaction holding its writes. */
+    /** Store a plan with the transaction of its writes. */
     constructor(options: ApplyOptions, transaction: Transaction, plan: Plan) {
         this.plan = plan;
         this.#options = options;
         this.#transaction = transaction;
     }
 
-    /** Reserve the names the written objects claim, held by the commit, absent without claims. */
+    /** Reserve the names the written objects claim until the commit, absent without claims. */
     async reserve(): Promise<Reservation | undefined> {
         // reserve before the commit, and write the reservation in it
         const { claims, objects, now } = this.#options;

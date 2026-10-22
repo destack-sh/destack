@@ -315,7 +315,7 @@ class WorkloadStart {
         return [...this.#packages.values()].map((served) => served.handle);
     }
 
-    /** Stop every server's controllers at once, keeping its requests served until it drains. */
+    /** Stop every server's controllers at once, while it serves its requests until it drains. */
     async stopControllers(): Promise<void> {
         await Promise.all(
             [...this.#packages.values()].map(({ server }) => server.stopControllers()),

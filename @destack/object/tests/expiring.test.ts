@@ -1,7 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { testCallKey } from "@destack/object/test";
-import { reconciliation, TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { callTables, testEvents, serversOf } from "../src/test/index.ts";
+import { reconciliation, TestDatabase } from "@destack/db/test";
+import { testEvents, serversOf } from "../src/test/index.ts";
 import { contained, none, principal, relation } from "@destack/access";
 
 import { eq, defineDatabase } from "@destack/db";
@@ -9,12 +9,14 @@ import { schema } from "@destack/schema";
 import { Scope, RequestId } from "@destack/sync";
 import { v7 } from "uuid";
 
-import { defineObject, field } from "../src/index.ts";
+import { defineObject, defineShape, field, Follow } from "../src/index.ts";
 import { ExpiringController, ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { auditedActions } from "./fixture/audit.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { Clock } from "@destack/environment";
+import { tablesOf } from "../src/stack/db.ts";
+import objectPackage from "../src/package.ts";
 
 /** The space containing the alerts. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002");
@@ -47,83 +49,15 @@ const alert = defineObject(
 /** The database with the alerts, their access and the journal. */
 const alertDatabase = defineDatabase({
     name: "main",
-    tables: [...callTables, ...alert.tables],
+    ...tablesOf({
+        packages: [objectPackage, { objects: { alert }, tables: [] }],
+        follows: [],
+        tables: [],
+    }),
 });
 
-test.each(TEST_DIALECTS)(
-    "remove objects for good once a rule's window passes, as the system, and look again when the next one passes on %s",
-    async (dialect) => {
-        const storage = await TestDatabase.create(dialect, alertDatabase, { isMigrated: true });
-        onTestFinished(() => storage.close());
-        const database = storage.database;
-        await openSpace(database, spaceId);
-        const store = new ObjectStore({
-            chain: async () => undefined,
-            clock: Clock.system,
-            principal: spacePrincipal(spaceId),
-            servers: serversOf([alert]),
-            database,
-            callKey: testCallKey,
-            events: await testEvents(database),
-            origin: {
-                package: alert.package,
-            },
-        });
-        const context = userContext(users.frank, spaceId);
-        const create = async (
-            title: string,
-            times: { createdAt: number; readAt: number | null },
-        ) => {
-            const created = await store
-                .mutate(context.access(), {
-                    id: RequestId.create(Date.now()),
-                    calls: [alert.call("create", { spaceId, title })],
-                })
-                .then(([written]) => written);
-            await database.update(alert.table).set(times).where(eq(alert.table.id, created.id));
-
-            return created.id;
-        };
-
-        // read long ago, unread long ago, and read yesterday
-        const now = Date.now();
-        await create("Read long ago", { createdAt: now - 40 * DAY, readAt: now - 31 * DAY });
-        await create("Unread long ago", { createdAt: now - 181 * DAY, readAt: null });
-        const recent = await create("Read yesterday", {
-            createdAt: now - 200 * DAY,
-            readAt: now - DAY,
-        });
-
-        // remove the two expired alerts and schedule the third
-        const controller = new ExpiringController(store);
-        expect(Object.keys(alert.procedures).toSorted()).toEqual([
-            "create",
-            "delete",
-            "get",
-            "list",
-            "update",
-        ]);
-        const delay = await controller.reconcile(
-            "expiry",
-            reconciliation(new AbortController().signal),
-        );
-        const left = await database.select({ id: alert.table.id }).from(alert.table);
-        expect([
-            left.map((row) => row.id),
-            await auditedActions(database, "component"),
-            delay !== undefined && delay > 28 * DAY && delay <= 29 * DAY,
-        ]).toEqual([[recent], ["alert.expire", "alert.expire"], true]);
-    },
-);
-
-test("leave the expired rows a database replicates to the deletes their home sends", async () => {
-    // store the alerts as replicas, one long expired
-    const replicated = defineDatabase({
-        name: "main",
-        tables: [...callTables, ...alert.tables.filter((table) => table !== alert.table)],
-        replicated: [alert.table],
-    });
-    const storage = await TestDatabase.create("sqlite", replicated, { isMigrated: true });
+test("remove objects for good once a rule's window passes, as the system, and look again when the next one passes", async () => {
+    const storage = await TestDatabase.create(alertDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
     const database = storage.database;
     await openSpace(database, spaceId);
@@ -132,6 +66,80 @@ test("leave the expired rows a database replicates to the deletes their home sen
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
         servers: serversOf([alert]),
+        database,
+        callKey: testCallKey,
+        events: await testEvents(database),
+        origin: {
+            package: alert.package,
+        },
+    });
+    const context = userContext(users.frank, spaceId);
+    const create = async (title: string, times: { createdAt: number; readAt: number | null }) => {
+        const created = await store
+            .mutate(context.access(), {
+                id: RequestId.create(Date.now()),
+                calls: [alert.call("create", { spaceId, title })],
+            })
+            .then(([written]) => written);
+        await database.update(alert.table).set(times).where(eq(alert.table.id, created.id));
+
+        return created.id;
+    };
+
+    // read long ago, unread long ago, and read yesterday
+    const now = Date.now();
+    await create("Read long ago", { createdAt: now - 40 * DAY, readAt: now - 31 * DAY });
+    await create("Unread long ago", { createdAt: now - 181 * DAY, readAt: null });
+    const recent = await create("Read yesterday", {
+        createdAt: now - 200 * DAY,
+        readAt: now - DAY,
+    });
+
+    // remove the two expired alerts and schedule the third
+    const controller = new ExpiringController(store);
+    expect(Object.keys(alert.procedures).toSorted()).toEqual([
+        "create",
+        "delete",
+        "get",
+        "list",
+        "update",
+    ]);
+    const delay = await controller.reconcile(
+        "expiry",
+        reconciliation(new AbortController().signal),
+    );
+    const left = await database.select({ id: alert.table.id }).from(alert.table);
+    expect([
+        left.map((row) => row.id),
+        await auditedActions(database, "component"),
+        delay !== undefined && delay > 28 * DAY && delay <= 29 * DAY,
+    ]).toEqual([[recent], ["alert.expire", "alert.expire"], true]);
+});
+
+test("leave the expired rows a database replicates to the deletes their home sends", async () => {
+    // store the alerts as replicas a follow brings, one long expired
+    const follow = Follow.of(
+        defineShape({
+            name: "alerts",
+            parameters: schema.object({}),
+            objects: [alert],
+            queries: () => [alert.query()],
+        }),
+        { onDemand: { ttl: { minutes: 10 } } },
+    );
+    const replicated = defineDatabase({
+        name: "main",
+        ...tablesOf({ packages: [objectPackage], follows: [follow], tables: [] }),
+    });
+    const storage = await TestDatabase.create(replicated, { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const database = storage.database;
+    await openSpace(database, spaceId);
+    const store = new ObjectStore({
+        chain: async () => undefined,
+        clock: Clock.system,
+        principal: spacePrincipal(spaceId),
+        servers: serversOf([alert], { follows: [follow] }),
         database,
         callKey: testCallKey,
         events: await testEvents(database),
@@ -159,7 +167,7 @@ test("leave the expired rows a database replicates to the deletes their home sen
 });
 
 test("let the code serving an expiring type remove its objects, and leave a universe-only type to declare who does", () => {
-    // declare one expiring type in spaces and one in the universe alone, neither naming expire
+    // declare one expiring type in spaces and one in the universe alone, neither declaring expire
     const universal = defineObject({
         name: "token",
         plural: "tokens",

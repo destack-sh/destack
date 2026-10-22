@@ -1,9 +1,10 @@
-import { callTables } from "../../src/test/index.ts";
 import { schema } from "@destack/schema";
 import { defineDatabase } from "@destack/db";
 import { definePackage } from "@destack/object";
 import { defineObject, field } from "../../src/index.ts";
 import { space } from "./space.ts";
+import { tablesOf } from "../../src/index.ts";
+import objectPackage from "../../src/package.ts";
 
 /** A collection of notes, shared with everyone who works on them. */
 export const notebook = defineObject(
@@ -39,7 +40,7 @@ export const note = defineObject({
     fields: {
         title: field.string(schema.string().max(500)).default(""),
         text: field.string(schema.string().max(100_000)).default(""),
-        pinned: field.boolean().default(false),
+        starred: field.boolean().default(false),
     },
     recoverable: { within: { days: 30 }, by: "manage" },
     aggregates: { noteCount: { function: "count", where: { deletedAt: null } } },
@@ -52,5 +53,9 @@ export const notesPackage = definePackage({ objects: { notebook, note } });
 /** The database of one space's notebooks and notes. */
 export const notesDatabase = defineDatabase({
     name: "main",
-    tables: [...notebook.tables, ...note.tables, ...callTables],
+    ...tablesOf({
+        packages: [objectPackage, notesPackage],
+        follows: [],
+        tables: [],
+    }),
 });

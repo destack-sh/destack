@@ -7,14 +7,14 @@ import {
     type ImplementationInput,
 } from "../server/implementation.ts";
 
-/** Serve object types through one server per package, the first one taking the other parts. */
+/** Serve object types through one server per package, the first one taking the other options. */
 export function serversOf(
     objects: readonly ObjectType[],
     definition: Omit<ImplementationInput, "objects"> = {},
 ): PackageImplementation[] {
-    // refuse parts no package's server would carry
+    // refuse options no package's server would take
     if (objects.length === 0 && Object.keys(definition).length > 0) {
-        throw new TypeError("a server's parts need a package of object types");
+        throw new TypeError("a server needs a package of object types");
     }
 
     // group the types by their package, in order of first appearance

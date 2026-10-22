@@ -77,7 +77,7 @@ export interface DurableObjectRunnerStorage extends DurableObjectStorage {
 export interface DurableObjectRunnerState {
     /** The object's storage. */
     readonly storage: DurableObjectRunnerStorage;
-    /** Hold the object's other events until a closure settles. */
+    /** Block the object's other events until a closure settles. */
     readonly blockConcurrencyWhile: <Value>(closure: () => Promise<Value>) => Promise<Value>;
 }
 

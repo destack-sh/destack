@@ -1,16 +1,18 @@
 import { principal, relation } from "@destack/access";
 import { defineDatabase } from "@destack/db";
-import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
+import { TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { testCallKey } from "@destack/object/test";
-import { callTables, testEvents, serversOf } from "../src/test/index.ts";
+import { testEvents, serversOf } from "../src/test/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { chunk, CHUNK_CHARACTERS, defineObject, field, Sequence } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { Clock } from "@destack/environment";
+import { tablesOf } from "../src/index.ts";
+import objectPackage from "../src/package.ts";
 
 /** The space with the documents. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000d3");
@@ -41,90 +43,90 @@ function request(): string {
     return RequestId.create(Date.now());
 }
 
-test.for(TEST_DIALECTS)(
-    "list the %s objects holding every word of a search in their searchable fields and text, across chunks",
-    async (dialect) => {
-        const storage = await TestDatabase.create(
-            dialect,
-            defineDatabase({ name: "documents", tables: [...document.tables, ...callTables] }),
-            { isMigrated: true },
-        );
-        onTestFinished(() => storage.close());
-        await openSpace(storage.database, spaceId);
-        const store = new ObjectStore({
-            chain: async () => undefined,
-            clock: Clock.system,
-            principal: spacePrincipal(spaceId),
-            servers: serversOf([document]),
-            database: storage.database,
-            callKey: testCallKey,
-            events: await testEvents(storage.database),
-            origin: { package: document.package },
-        });
-        const context = userContext(users.frank, spaceId);
+test("list the objects with every word of a search in their searchable fields and text, across chunks", async () => {
+    const storage = await TestDatabase.create(
+        defineDatabase({
+            name: "documents",
+            ...tablesOf({
+                packages: [objectPackage, { objects: { document }, tables: [] }],
+                follows: [],
+                tables: [],
+            }),
+        }),
+        { isMigrated: true },
+    );
+    onTestFinished(() => storage.close());
+    await openSpace(storage.database, spaceId);
+    const store = new ObjectStore({
+        chain: async () => undefined,
+        clock: Clock.system,
+        principal: spacePrincipal(spaceId),
+        servers: serversOf([document]),
+        database: storage.database,
+        callKey: testCallKey,
+        events: await testEvents(storage.database),
+        origin: { package: document.package },
+    });
+    const context = userContext(users.frank, spaceId);
 
-        // write a long body whose first and last words land in different chunks, and a short one
-        const [physics, notes] = await store.mutate(context.access(), {
-            id: request(),
-            calls: [
-                document.call("create", { spaceId, title: "Physics" }),
-                document.call("create", { spaceId, title: "Quantum notes" }),
-            ],
-        });
-        const filler = "wave ".repeat(CHUNK_CHARACTERS / 5);
-        const long = `quantum ${filler}entanglement`;
-        await store.mutate(context.access(), {
-            id: request(),
-            calls: [
-                document.call("edit", {
-                    spaceId,
-                    id: physics.id,
-                    field: "body",
-                    edits: new Sequence().change({ from: 0, to: 0, insert: long }, "user.1"),
-                }),
-                document.call("edit", {
-                    spaceId,
-                    id: notes.id,
-                    field: "body",
-                    edits: new Sequence().change(
-                        { from: 0, to: 0, insert: "nothing new" },
-                        "user.2",
-                    ),
-                }),
-            ],
-        });
+    // write a long body whose first and last words land in different chunks, and a short one
+    const [physics, notes] = await store.mutate(context.access(), {
+        id: request(),
+        calls: [
+            document.call("create", { spaceId, title: "Physics" }),
+            document.call("create", { spaceId, title: "Quantum notes" }),
+        ],
+    });
+    const filler = "wave ".repeat(CHUNK_CHARACTERS / 5);
+    const long = `quantum ${filler}entanglement`;
+    await store.mutate(context.access(), {
+        id: request(),
+        calls: [
+            document.call("edit", {
+                spaceId,
+                id: physics.id,
+                field: "body",
+                edits: new Sequence().change({ from: 0, to: 0, insert: long }, "user.1"),
+            }),
+            document.call("edit", {
+                spaceId,
+                id: notes.id,
+                field: "body",
+                edits: new Sequence().change({ from: 0, to: 0, insert: "nothing new" }, "user.2"),
+            }),
+        ],
+    });
 
-        // search titles, bodies across chunks, both together, and words no document has
-        const chunks = await storage.database.select().from(chunk);
-        const titles = async (search: string) =>
-            (
-                await store.query(
-                    context.access(),
-                    document.call("list", {
-                        spaceId,
-                        where: { SEARCH: search },
-                        orderBy: { title: "asc" },
-                    }),
-                )
-            ).items.map((item: { readonly title: string }) => item.title);
-        expect({
-            chunked: chunks.filter((row) => row.parentId === physics.id).length > 1,
-            endsAtWords: chunks
-                .filter((row) => row.parentId === physics.id)
-                .toSorted((left, right) => (left.position < right.position ? -1 : 1))
-                .slice(0, -1)
-                .every((row) => row.text.endsWith(" ")),
-            quantum: await titles("quantum"),
-            acrossChunks: await titles("quantum entang"),
-            titleAndBody: await titles("notes nothing"),
-            none: await titles("quantum zebra"),
-        }).toEqual({
-            chunked: true,
-            endsAtWords: true,
-            quantum: ["Physics", "Quantum notes"],
-            acrossChunks: ["Physics"],
-            titleAndBody: ["Quantum notes"],
-            none: [],
-        });
-    },
-);
+    // search titles, bodies across chunks, both together, and words no document has
+    const chunks = await storage.database.select().from(chunk);
+    const titles = async (search: string) =>
+        (
+            await store.query(
+                context.access(),
+                document.call("list", {
+                    spaceId,
+                    where: { SEARCH: search },
+                    orderBy: { title: "asc" },
+                }),
+            )
+        ).items.map((item: { readonly title: string }) => item.title);
+    expect({
+        chunked: chunks.filter((row) => row.parentId === physics.id).length > 1,
+        endsAtWords: chunks
+            .filter((row) => row.parentId === physics.id)
+            .toSorted((left, right) => (left.position < right.position ? -1 : 1))
+            .slice(0, -1)
+            .every((row) => row.text.endsWith(" ")),
+        quantum: await titles("quantum"),
+        acrossChunks: await titles("quantum entang"),
+        titleAndBody: await titles("notes nothing"),
+        none: await titles("quantum zebra"),
+    }).toEqual({
+        chunked: true,
+        endsAtWords: true,
+        quantum: ["Physics", "Quantum notes"],
+        acrossChunks: ["Physics"],
+        titleAndBody: ["Quantum notes"],
+        none: [],
+    });
+});

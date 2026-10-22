@@ -1,9 +1,10 @@
-import { callTables } from "../../src/test/index.ts";
 import { schema } from "@destack/schema";
 import { defineDatabase } from "@destack/db";
 import { definePackage } from "@destack/object";
 import { defineObject, field } from "../../src/index.ts";
 import { space } from "./space.ts";
+import { tablesOf } from "../../src/index.ts";
+import objectPackage from "../../src/package.ts";
 
 /** A page in a tree of pages, shared with its subpages and publishable through links. */
 export const page = defineObject({
@@ -31,5 +32,9 @@ export const pagesPackage = definePackage({ objects: { page } });
 /** The database of one space's pages. */
 export const pageDatabase = defineDatabase({
     name: "main",
-    tables: [...page.tables, ...callTables],
+    ...tablesOf({
+        packages: [objectPackage, { objects: { page }, tables: [] }],
+        follows: [],
+        tables: [],
+    }),
 });

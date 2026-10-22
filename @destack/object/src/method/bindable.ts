@@ -34,9 +34,9 @@ export const bind: Method<{
     isInternal: true,
     target: "scope",
     result: "value",
-    procedure: (_name, shapes) => ({
+    procedure: (_name, schemas) => ({
         route: { method: "POST", path: "/bind" },
-        input: shapes.scope.extend(BindInput.shape),
+        input: schemas.scope.extend(BindInput.shape),
         output: schema.object({}),
     }),
     handler: async (context: MethodContext, execution: Execution) => {

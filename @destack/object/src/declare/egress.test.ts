@@ -8,7 +8,7 @@ test("read back the installation an address writes, and no installation from oth
     const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000e2");
     const address = Egress.address(name, spaceId);
 
-    // read nothing from a binding's name, only a space, three parts, swapped parts, or the punycode prefix
+    // read nothing from a binding's name: a space, three labels, swapped ones, or the punycode prefix
     const others = [
         "notes",
         spaceId,

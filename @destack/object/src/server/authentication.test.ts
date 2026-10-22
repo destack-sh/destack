@@ -31,6 +31,7 @@ import { Server } from "./http.ts";
 import { RequestContext } from "./context.ts";
 import { authenticateUser, fixturePackage, hosting } from "../test/fixture.ts";
 import { Clock } from "@destack/environment";
+import { tablesOf } from "../index.ts";
 
 test.each(["universe", "host-local", "account-personal", "space-personal"])(
     "enforce the configured %s authorization scope",
@@ -91,7 +92,7 @@ test.each(["universe", "host-local", "account-personal", "space-personal"])(
 );
 
 test("verify a credential the package verifies before the host, which answers every other request", async () => {
-    // serve the caller's name, the package verifying its own key and refusing a revoked one
+    // serve the caller's name, the package verifying its key and refusing a revoked one
     const definition = {
         me: defineProcedure({
             package: Package.of(fixturePackage),
@@ -202,7 +203,7 @@ test("authorize a caller bound to a space in the scopes inside it, refusing the 
     const module = { package: { id: packageId, name: "@example/folders", version: "2026.9.0" } };
     const space = new Policy(module.package, { name: "space", permissions: {}, scope: true });
     const folder = new Policy(module.package, { name: "folder", permissions: {}, scope: true });
-    const storage = await TestDatabase.create("sqlite", accessTables, { isMigrated: true });
+    const storage = await TestDatabase.create(accessTables, { isMigrated: true });
     onTestFinished(() => storage.close());
     const { database } = storage;
     const fixture = new AccessFixture(database);
@@ -344,9 +345,12 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
             },
         ],
     );
-    const storage = await TestDatabase.create("sqlite", [noteTable, ...accessTables], {
-        isMigrated: true,
-    });
+    const storage = await TestDatabase.create(
+        tablesOf({ packages: [], follows: [], tables: [noteTable] }).tables,
+        {
+            isMigrated: true,
+        },
+    );
     onTestFinished(() => storage.close());
     const database = storage.database;
     await new AccessFixture(database).replicateScope({

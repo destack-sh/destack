@@ -39,7 +39,7 @@ export const RemoteStore = {
     of(replica: ReplicaClient, scope: string): RemoteStore {
         return {
             mutate: async (mutation) => {
-                // push the mutation on its own, and throw its failure
+                // push the mutation alone, and throw its failure
                 const { outcomes } = await replica.push({ scope, mutations: [mutation] });
                 const { outcome } = present(outcomes[0], "the pushed mutation's outcome");
                 if (!("value" in outcome)) {
@@ -89,7 +89,7 @@ export interface Reservation {
 
 /** A write's claim request: its identifier and its time. */
 interface ClaimRequest {
-    /** The write's request, which holds its reservations. */
+    /** The write's request, which has its reservations. */
     readonly id: string;
     /** The write's time, in UTC epoch milliseconds. */
     readonly now: number;
@@ -118,7 +118,7 @@ export const Reservation = {
         types: readonly ObjectType[],
         request: { readonly now: number },
     ): Promise<void> {
-        // replace in the store's own database, else at the claim type's home
+        // replace in the store's database, else at the claim type's home
         const refused: Claim[] = [];
         if (claims.home === undefined) {
             for (const claimant of claimants) {
@@ -131,7 +131,7 @@ export const Reservation = {
             refused.push(...results.flatMap((result) => ClaimRefusal.parse(result).refused));
         }
 
-        // refuse names other objects own
+        // refuse names other objects claim
         Reservation.refuse(types, refused);
     },
 
@@ -149,7 +149,7 @@ export const Reservation = {
               );
     },
 
-    /** Refuse a write whose names other objects own, reporting the index of the first. */
+    /** Refuse a write whose names other objects claim, reporting the index of the first. */
     refuse(types: readonly ObjectType[], taken: readonly Claim[]): void {
         const [first] = taken;
         if (first !== undefined) {

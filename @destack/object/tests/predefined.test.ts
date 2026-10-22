@@ -6,9 +6,11 @@ import { schema } from "@destack/schema";
 import { testCallKey } from "@destack/object/test";
 import { defineObject, field, ObjectPolicy, role } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
-import { callTables, testEvents, serversOf } from "../src/test/index.ts";
+import { testEvents, serversOf } from "../src/test/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { Clock } from "@destack/environment";
+import { tablesOf } from "../src/index.ts";
+import objectPackage from "../src/package.ts";
 
 /** The space the tiers live in. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
@@ -49,9 +51,16 @@ const tier = defineObject(
 
 test("store a type's predefined rows in its table, and refuse every call writing them", async () => {
     // serve the tiers to their space
-    const storage = await TestDatabase.create("sqlite", [...callTables, ...tier.tables], {
-        isMigrated: true,
-    });
+    const storage = await TestDatabase.create(
+        tablesOf({
+            packages: [objectPackage, { objects: { tier }, tables: [] }],
+            follows: [],
+            tables: [],
+        }).tables,
+        {
+            isMigrated: true,
+        },
+    );
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
     const store = new ObjectStore({
@@ -89,7 +98,7 @@ test("store a type's predefined rows in its table, and refuse every call writing
 });
 
 test("store the owner role as the role type's predefined row, refusing other rows over its table", () => {
-    // read the roles' predefined rows, and declare roles with rows of their own
+    // read the roles' predefined rows, and declare roles with separate rows
     expect(role.predefined.map((row) => row["id"])).toEqual([Role.OWNER]);
     const mapping = ObjectPolicy.readMapping(accessRole);
     expect(() => defineObject({ name: "role", plural: "roles", mapping, predefined: [] })).toThrow(

@@ -64,7 +64,7 @@ const callRecord = schema.object({
     scope: schema.string().min(1),
     /** The scope and the scopes containing it, nearest first. */
     chain: schema.array(schema.string().min(1)),
-    /** The method's own input fields. */
+    /** The method's input fields. */
     input: JsonObject,
     /** The target's or created object's identifier. */
     id: schema.string().min(1).exactOptional(),
@@ -126,7 +126,7 @@ export const HandlerRequest = schema.object({
     mutation: schema.string().min(1),
     /** The call the hook runs for. */
     call: CallRecord,
-    /** The phase the hook runs, with the phase's own arguments. */
+    /** The phase the hook runs, with the phase's arguments. */
     hook: schema.discriminatedUnion("phase", [
         schema.object({ phase: schema.literal("authorize") }),
         schema.object({ phase: schema.literal("creation"), object: ObjectReference }),
@@ -191,7 +191,7 @@ const EventFilterRecord = schema.object({
     where: Condition.schema.exactOptional(),
 });
 
-/** A read of a package's own event type, as a hook sends it to its store. */
+/** A read of an event type of the package, as a hook sends it to its store. */
 export const EventRequest = schema.discriminatedUnion("verb", [
     schema.object({
         /** Read a page of events in time order. */
@@ -249,14 +249,14 @@ export const EventRequest = schema.discriminatedUnion("verb", [
             measure: schema.string().min(1).exactOptional(),
             /** The fold. */
             fold: schema.enum(SERIES_FOLDS),
-            /** The keys whose values each get a series of their own. */
+            /** The keys whose values each get a separate series. */
             group: schema.array(schema.string().min(1)).exactOptional(),
             /** The width of each step, in milliseconds. */
             step: schema.number().exactOptional(),
         }),
     }),
 ]);
-/** A read of a package's own event type, as a hook sends it to its store. */
+/** A read of an event type of the package, as a hook sends it to its store. */
 export type EventRequest = schema.Infer<typeof EventRequest>;
 
 /** A folded series as JSON: its group's values and its steps. */
@@ -307,7 +307,7 @@ export const SessionRequest = schema.object({
         schema.object({
             /** Run a call in the mutation. */
             kind: schema.literal("call"),
-            /** Who the call runs as: the hook's own caller, or its installation. */
+            /** Who the call runs as: the hook's caller, or its installation. */
             as: schema.enum(["caller", "installation"]),
             /** The call. */
             call: sync.Call,

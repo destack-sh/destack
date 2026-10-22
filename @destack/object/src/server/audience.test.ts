@@ -13,7 +13,6 @@ import {
     through,
     union,
 } from "@destack/access";
-import { call } from "../index.ts";
 import { testEvents, serversOf } from "../test/index.ts";
 import { AccessFixture } from "@destack/access/test";
 import { eq, type Table } from "@destack/db";
@@ -26,6 +25,8 @@ import { ObjectAudience } from "./audience.ts";
 import { ObjectStore } from "./index.ts";
 import { Clock } from "@destack/environment";
 import { VirtualClock } from "@destack/environment/simulation";
+import objectPackage from "../package.ts";
+import { tablesOf } from "../index.ts";
 
 /** The spaces the notebooks live in. */
 const space = defineObject({
@@ -66,18 +67,21 @@ const spaceId = schema.identifier("space").parse(`space-${v7()}`);
 /** The caller following the space. */
 const ada = principal.user.reference(Scope.universe.id, "ada");
 
-test("decide again after changes of the caller's own access, and leave other identities' and other roles' changes alone", async () => {
+test("decide again after changes of the caller's access, and leave other identities' and other roles' changes alone", async () => {
     // create two notebooks with a note each, a role ada has on the first and a role she lacks
     const storage = await TestDatabase.create(
-        "sqlite",
-        [...space.tables, ...notebook.tables, ...note.tables, ...call.tables],
+        tablesOf({
+            packages: [objectPackage, { objects: { space, notebook, note }, tables: [] }],
+            follows: [],
+            tables: [],
+        }).tables,
         { isMigrated: true },
     );
     onTestFinished(() => storage.close());
     const database = storage.database;
     await new AccessFixture(database).replicateScope(
         space.reference(Scope.universe.id, spaceId),
-        "own",
+        "self",
     );
     const at = { scope: spaceId, createdAt: 1, updatedAt: 1 };
     await database.insert(space.table).values({ ...at, id: spaceId, scope: Scope.universe.id });
@@ -229,15 +233,18 @@ const album = defineObject({
 test("decide again once a relationship an arrow follows changes, and leave another identity's relationship alone", async () => {
     // store a space with a shelf and an album, following it as ada
     const storage = await TestDatabase.create(
-        "sqlite",
-        [...space.tables, ...shelf.tables, ...album.tables, ...call.tables],
+        tablesOf({
+            packages: [objectPackage, { objects: { space, shelf, album }, tables: [] }],
+            follows: [],
+            tables: [],
+        }).tables,
         { isMigrated: true },
     );
     onTestFinished(() => storage.close());
     const { database } = storage;
     await new AccessFixture(database).replicateScope(
         space.reference(Scope.universe.id, spaceId),
-        "own",
+        "self",
     );
     const at = { scope: spaceId, createdAt: 1, updatedAt: 1 };
     await database.insert(space.table).values({ ...at, id: spaceId, scope: Scope.universe.id });
@@ -285,8 +292,8 @@ test("decide again once a relationship an arrow follows changes, and leave anoth
     // decide again once the album goes on the shelf, and leave bob's ownership alone
     expect({
         shelved: await relate("shelf", shelf.reference(spaceId, shelfId)),
-        owned: await relate("owner", principal.user.reference(Scope.universe.id, "bob")),
-    }).toEqual({ shelved: [true], owned: [false] });
+        owner: await relate("owner", principal.user.reference(Scope.universe.id, "bob")),
+    }).toEqual({ shelved: [true], owner: [false] });
 });
 
 /** Build a fresh identifier of a type. */
@@ -297,15 +304,18 @@ function newId<Prefix extends string>(prefix: Prefix): Identifier<Prefix> {
 test("drop a notebook from a live replica once the relationship sharing it expires, deciding alike with an identical audience", async () => {
     // share a notebook with ada for a moment
     const storage = await TestDatabase.create(
-        "sqlite",
-        [...space.tables, ...notebook.tables, ...note.tables, ...call.tables],
+        tablesOf({
+            packages: [objectPackage, { objects: { space, notebook, note }, tables: [] }],
+            follows: [],
+            tables: [],
+        }).tables,
         { isMigrated: true },
     );
     onTestFinished(() => storage.close());
     const database = storage.database;
     await new AccessFixture(database).replicateScope(
         space.reference(Scope.universe.id, spaceId),
-        "own",
+        "self",
     );
     const at = { scope: spaceId, createdAt: 1, updatedAt: 1 };
     await database.insert(space.table).values({ ...at, id: spaceId, scope: Scope.universe.id });
@@ -352,7 +362,7 @@ test("drop a notebook from a live replica once the relationship sharing it expir
     );
     const isShared = following.key === identical.key;
 
-    // send the notebook, then delete it once the clock reaches the expiry
+    // send the notebook, then delete it once the clock passes the expiry
     const inserted = await take(pages, (page) =>
         page.changes.some((change) => change.operation === "insert"),
     );
@@ -376,7 +386,7 @@ test("drop a notebook from a live replica once the relationship sharing it expir
     });
 });
 
-test("pass the keys an account hands down to its space for listing, and only those the caller uses under the query's own permission", async () => {
+test("pass the keys an account hands down to its space for listing, and only those the caller uses under the query's permission", async () => {
     // hand down two keys of an account to its space, one ada uses and one bob uses
     const account = defineObject({
         name: "account",
@@ -404,8 +414,11 @@ test("pass the keys an account hands down to its space for listing, and only tho
         permissions: { read: none(), use: relation("consumer") },
     });
     const storage = await TestDatabase.create(
-        "sqlite",
-        [...account.tables, ...room.tables, ...key.tables, ...call.tables],
+        tablesOf({
+            packages: [objectPackage, { objects: { account, room, key }, tables: [] }],
+            follows: [],
+            tables: [],
+        }).tables,
         { isMigrated: true },
     );
     onTestFinished(() => storage.close());
@@ -414,7 +427,7 @@ test("pass the keys an account hands down to its space for listing, and only tho
     const roomId = newId("room");
     const access = new AccessFixture(database);
     await access.replicateScope(account.reference(Scope.universe.id, accountId));
-    await access.replicateScope(room.reference(accountId, roomId), "own");
+    await access.replicateScope(room.reference(accountId, roomId), "self");
     const bob = principal.user.reference(Scope.universe.id, "bob");
     const keys = [
         { id: newId("key"), name: "Ada's", consumer: ada },
@@ -481,7 +494,7 @@ test("pass the keys an account hands down to its space for listing, and only tho
     });
 });
 
-/** Take pages until one satisfies a condition, holding the stream open. */
+/** Take pages until one satisfies a condition, with the stream open. */
 async function take(pages: AsyncGenerator<Page>, isLast: (page: Page) => boolean): Promise<Page[]> {
     // read the pages one by one, leaving the stream open for a later take
     const taken: Page[] = [];

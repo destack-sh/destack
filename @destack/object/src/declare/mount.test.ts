@@ -1,7 +1,7 @@
 import { expect, test } from "@destack/test";
 import { DeviceMount, PackageMount } from "./mount.ts";
 
-test("mount each package under its own path and route requests below it", async () => {
+test("mount each package under a separate path and route requests below it", async () => {
     // build a mount and route requests inside and outside it
     const path = PackageMount.path("package-01");
     const url = PackageMount.url("http://127.0.0.1:4100/", "package-01");
@@ -31,7 +31,7 @@ test("mount each package under its own path and route requests below it", async 
     });
 });
 
-test("mount a native device's local objects under its own path and split paths below it", () => {
+test("mount a native device's local objects under a path of their own and split paths below it", () => {
     const path = DeviceMount.path("device-01");
 
     expect({

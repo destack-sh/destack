@@ -26,7 +26,7 @@ import { DesiredState } from "../trait/desired.ts";
 /** The condition of a resource waiting for draining consumers to stop before recreation. */
 export const DRAINING = "draining";
 
-/** The parsed desired states a controller holds: the platform's, its predecessor's and apps'. */
+/** The parsed desired states a controller stores: the platform's, its predecessor's and apps'. */
 const DESIRED_STATES_KEPT = 16;
 
 /** What a process reconciling the resources it serves supplies: its providers and its machine. */
@@ -126,7 +126,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
         row: ResourceRow,
         digests: readonly Digest[],
     ): Promise<KindState<ResourceKind>[]> {
-        // read and parse the states not held
+        // read and parse the states not stored
         const missing = digests.filter((digest) => !this.#states.has(digest));
         if (missing.length > 0) {
             const parsed = this.#kind.states(
@@ -137,7 +137,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
             }
         }
 
-        // hold the latest read states
+        // store the latest read states
         const states = digests.map((digest) => present(this.#states.get(digest), digest));
         for (const [digest, state] of zip(digests, states)) {
             this.#states.delete(digest);
@@ -365,7 +365,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
         const planDigest = await Plan.digest(plan);
         const waiting = { steps: plan.steps.map((step) => ResourceController.#planStep(step)) };
 
-        // wait for an approval of this exact plan when its risk reaches the approval threshold
+        // wait for an approval of this exact plan when its risk is at the approval threshold
         if (Plan.isAtLeast(plan, approval) && row.approvedPlan !== planDigest) {
             const message = `approve plan ${planDigest} with ${plan.steps.length} steps`;
             await ResourceController.#observe(
@@ -433,7 +433,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
             const recreated =
                 error instanceof PlanError && row.drainingStates.length > 0
                     ? await planDigests(row.states).catch((failure: unknown) => {
-                          // block when the active consumers conflict on their own too
+                          // block when the active consumers conflict by themselves too
                           if (failure instanceof PlanError) {
                               return undefined;
                           }
@@ -533,7 +533,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
         reconciliation: ObjectReconciliation<ResourceType<"space">>,
         options: ResourceControllerOptions,
     ): Promise<number | undefined> {
-        // retain the record and content of retained resources until owned again or their window ends
+        // retain the record and content of retained resources until claimed again or expired
         const retention = row.retention;
         const ends =
             typeof retention === "object"

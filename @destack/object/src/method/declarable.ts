@@ -5,7 +5,7 @@ import { canonicalize, schema } from "@destack/schema";
 import { CallError } from "../error/call.ts";
 import { defineMethod, Method } from "./method.ts";
 import type { MethodContext } from "./context.ts";
-import { RevisionShape } from "./procedure.ts";
+import { RevisionFields } from "./procedure.ts";
 
 import { declarable } from "../trait/declarable.ts";
 import type { ObjectType } from "../object/object.ts";
@@ -31,10 +31,10 @@ export function detach<const Permission extends string>(
         mutates: true,
         target: "object",
         result: "object",
-        procedure: (_name, shapes) => ({
+        procedure: (_name, schemas) => ({
             route: { method: "POST", path: "/{id}/detach" },
-            input: shapes.target.extend({ ...shapes.replay, ...RevisionShape }),
-            output: shapes.row,
+            input: schemas.target.extend({ ...schemas.replay, ...RevisionFields }),
+            output: schemas.row,
         }),
         handler: (context) => context.update({ detachedAt: context.now }),
         async execute(context, execution) {
@@ -81,14 +81,14 @@ export function adopt<const Permission extends string>(
         mutates: true,
         target: "object",
         result: "object",
-        procedure: (_name, shapes) => ({
+        procedure: (_name, schemas) => ({
             route: { method: "POST", path: "/{id}/adopt" },
-            input: shapes.target.extend({
-                ...shapes.replay,
-                ...RevisionShape,
+            input: schemas.target.extend({
+                ...schemas.replay,
+                ...RevisionFields,
                 ...AdoptInput.shape,
             }),
-            output: shapes.row,
+            output: schemas.row,
         }),
         handler: (context) => {
             const { manager } = AdoptInput.parse(context.input);
@@ -131,10 +131,10 @@ export const apply: Method<{
     isInternal: true,
     target: "scope",
     result: "value",
-    procedure: (_name, shapes) => ({
+    procedure: (_name, schemas) => ({
         route: { method: "POST", path: "/apply" },
-        input: shapes.scope.extend({ ...shapes.created, ...ApplyInput.shape }),
-        output: shapes.row.or(schema.object({})),
+        input: schemas.scope.extend({ ...schemas.created, ...ApplyInput.shape }),
+        output: schemas.row.or(schema.object({})),
     }),
     handler: async (context: MethodContext, execution: Execution) => {
         // read the record the manager declared

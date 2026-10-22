@@ -10,7 +10,7 @@ import { unmoved } from "./fixture/space.ts";
 import { Clock } from "@destack/environment";
 
 test("push again after transient failures, waiting twice as long after each", async () => {
-    const { endpoint, server } = await serveNotes("sqlite");
+    const { endpoint, server } = await serveNotes();
     const alice = endpoint(users.alice);
 
     // fail the first two pushes as a broken network does, recording each start
@@ -28,7 +28,9 @@ test("push again after transient failures, waiting twice as long after each", as
     };
 
     // push with retries after 20 ms and 40 ms
-    const storage = await TestDatabase.create("sqlite", ObjectClient.tables({ notebook, note }));
+    const storage = await TestDatabase.create(ObjectClient.tables({ notebook, note }), {
+        dialect: "sqlite",
+    });
     onTestFinished(() => storage.close());
     const client = await ObjectClient.open({
         clock: Clock.system,

@@ -1,8 +1,6 @@
 import { type Identifier, present, schema } from "@destack/schema";
-import { type Authentication, Caller, principal } from "@destack/access";
-import type { PackageId } from "@destack/package";
+import { principal } from "@destack/access";
 import type { RequestContext } from "@destack/object/server";
-import type { Subject } from "@destack/sync";
 import { subjectContext, type SubjectContextOptions } from "@destack/object/test";
 
 /** The people object's tests sign in as, each by a fixed user identifier. */
@@ -40,34 +38,4 @@ export function userContext(
     options: SubjectContextOptions = {},
 ): RequestContext {
     return subjectContext(principal.user.reference("universe", user), scope, options);
-}
-
-/** Authenticate a request as its bearer token's user in the vouched groups, else as no one. */
-export function bearerUser(
-    audience: PackageId,
-    scope: string,
-    groups: ReadonlyMap<string, readonly Subject[]> = new Map(),
-): (request: Request) => Promise<Authentication | undefined> {
-    return async (request) => {
-        // read the user in the bearer token
-        const bearer = request.headers.get("authorization");
-        if (bearer === null) {
-            return undefined;
-        }
-        const user = schema.identifier("user").parse(bearer.slice("Bearer ".length));
-        const subject = principal.user.reference("universe", user);
-        const now = Date.now();
-
-        return {
-            caller: { ...Caller.of(subject), groups: groups.get(user) ?? [] },
-            credential: {
-                kind: "session",
-                id: subject.id,
-                audience,
-                scope,
-                verifiedAt: now,
-                expiresAt: now + 60_000,
-            },
-        };
-    };
 }

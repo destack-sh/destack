@@ -1,3 +1,4 @@
+import type { Table } from "@destack/db";
 import { DeclarationName, ModuleMetadata, PACKAGE, Package, PackageError } from "@destack/package";
 import type { Declaration, ResourceRequirement } from "@destack/package/declare";
 import { mapValues, Version } from "@destack/schema";
@@ -24,7 +25,7 @@ export interface ObjectDeclaration {
     readonly typeReference: { readonly packageId: string; readonly type: string };
     /** The phases its code attaches to its methods, by method name. */
     readonly hooks: Readonly<Record<string, readonly string[]>>;
-    /** The declaration's own procedures. */
+    /** The declaration's procedures. */
     readonly procedures: ProcedureRouter;
     /** The procedures every declaration of its kind shares. */
     readonly shared: ProcedureRouter;
@@ -34,6 +35,8 @@ export interface ObjectDeclaration {
 export interface PackageInput {
     /** The object types the package serves, by route name. */
     readonly objects?: Readonly<Record<string, ObjectDeclaration>>;
+    /** The tables the package stores below its objects, such as protocol records. */
+    readonly tables?: readonly Table[];
     /** The views the package offers, by name. */
     readonly views?: Readonly<Record<string, Declaration>>;
     /** The adapters of protocols others define, by name. */
@@ -58,6 +61,8 @@ export interface PackageHandle<Input extends PackageInput = PackageInput> extend
     readonly router: PackageRouter<Input>;
     /** The object types the package serves, by route name. */
     readonly objects: Declared<Input["objects"]>;
+    /** The tables the package stores below its objects, such as protocol records. */
+    readonly tables: readonly Table[];
     /** The views the package offers, by name. */
     readonly views: Declared<Input["views"]>;
     /** The adapters of protocols others define, by name. */
@@ -106,7 +111,7 @@ export const PackageHandle = {
         // read what the package declares, each kind it leaves out empty
         const { objects = {}, views = {}, adapters = {}, resources = {}, secrets = {} } = input;
 
-        // key each named declaration by its own name, once across the handle
+        // key each named declaration by its name, once across the handle
         const names = new Set<string>();
         const named = [views, adapters, resources, secrets].flatMap((map) => Object.entries(map));
         for (const [key, declaration] of named) {
@@ -144,7 +149,7 @@ export const PackageHandle = {
             );
         }
 
-        // route the objects' procedures on first use, keeping a package's import free of the work
+        // route the objects' procedures on first use, which spares a package's import the work
         let router: PackageRouter<Input> | undefined;
 
         return Object.freeze({
@@ -160,6 +165,7 @@ export const PackageHandle = {
                 return router;
             },
             objects: mapValues<typeof objects, Declared<Input["objects"]>>(objects, (each) => each),
+            tables: [...(input.tables ?? [])],
             views: mapValues<typeof views, Declared<Input["views"]>>(views, (each) => each),
             adapters: mapValues<typeof adapters, Declared<Input["adapters"]>>(
                 adapters,

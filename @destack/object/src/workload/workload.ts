@@ -107,7 +107,7 @@ export interface ServerContext {
     };
     /** Send a request to any other origin, such as a Git remote, through the host. */
     readonly fetch: (request: Request) => Promise<Response>;
-    /** The URL callers reach the installation at, its packages mounted below. */
+    /** The URL callers call the installation at, its packages mounted below. */
     readonly url: string;
     /** Run the installation's controllers once this settles, at once when absent. */
     readonly activation?: Promise<void>;

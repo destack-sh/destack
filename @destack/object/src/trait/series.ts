@@ -22,7 +22,7 @@ export const SeriesQuery = schema.object({
     fold: schema.enum(SERIES_FOLDS),
     /** The key folded, needed by every fold but count and quantiles. */
     measure: schema.string().min(1).exactOptional(),
-    /** The keys whose values each get a series of their own. */
+    /** The keys whose values each get a separate series. */
     group: schema.array(schema.string().min(1)).max(MAX_GROUP_KEYS),
     /** The step width in milliseconds, one step over the range when absent. */
     step: schema.number().int().min(MIN_STEP_MILLISECONDS).exactOptional(),

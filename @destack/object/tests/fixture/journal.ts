@@ -3,11 +3,12 @@ import { defineTable, text } from "@destack/db";
 import { type Duration, schema } from "@destack/schema";
 import type { JsonCondition } from "@destack/db";
 import { testCallKey } from "@destack/object/test";
-import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
+import { TestDatabase } from "@destack/db/test";
 import type { DatabaseConnection } from "@destack/db";
 import { CallEvent, defineAuditAction } from "../../src/index.ts";
 import { AuditRecorder, Journal } from "../../src/server/index.ts";
-import { call, storeTables } from "../../src/index.ts";
+import { call, tablesOf } from "../../src/index.ts";
+import objectPackage from "../../src/package.ts";
 import { MemoryBucket } from "@destack/bucket/test";
 import { DatabasePersonalKeyring, EventStore } from "@destack/event";
 import { LocalKeyring } from "@destack/identity";
@@ -26,7 +27,7 @@ export const accountRecord = defineTable("account_record", {
     scope: text("scope").notNull(),
 });
 
-/** The machine the fixture's own calls run as, made by its integration component. */
+/** The machine the fixture's calls run as, made by its integration component. */
 export const INTEGRATION = {
     caller: { subject: principal.machine.reference(Scope.universe.id, "machine-integration") },
     component: "integration",
@@ -48,8 +49,12 @@ export const documentRename = defineAuditAction(
     },
 );
 
-/** The tables the audit scenarios use. */
-const TABLES = [document, accountRecord, ...storeTables, ...call.tables];
+/** The tables the audit scenarios use: the object package's, the documents and the accounts. */
+const TABLES = tablesOf({
+    packages: [objectPackage],
+    follows: [],
+    tables: [document, accountRecord],
+}).tables;
 
 /** The bucket and keyring the call events of every connection share. */
 interface CallFiles {
@@ -96,7 +101,7 @@ export class AuditStorage {
             ...(lifetime === undefined ? {} : { lifetime }),
         });
 
-        // record the fixture's own calls into the journal
+        // record the fixture's calls into the journal
         this.recorder = new AuditRecorder(
             {
                 ...INTEGRATION,
@@ -109,11 +114,7 @@ export class AuditStorage {
 
     /** Create migrated storage, journaling calls for a lifetime. */
     static async open(lifetime?: Duration): Promise<AuditStorage> {
-        const dialect = TEST_DIALECTS.at(-1);
-        if (dialect === undefined) {
-            throw new TypeError("no test dialect");
-        }
-        const test = await TestDatabase.create(dialect, TABLES, { isMigrated: true });
+        const test = await TestDatabase.create(TABLES, { isMigrated: true });
         const files = {
             bucket: new MemoryBucket(Clock.system),
             keyring: await LocalKeyring.read(LocalKeyring.generate()),

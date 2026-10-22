@@ -26,7 +26,7 @@ export type ClientOptions<Context extends ClientContext = Record<never, never>> 
 
 /** What a client calls: a router of procedures, such as a package handle's. */
 export interface ClientTarget<Definition extends ProcedureRouter> {
-    /** The procedures, each naming the package whose release its calls speak. */
+    /** The procedures, each with the package whose release its calls speak. */
     readonly router: Definition;
 }
 
@@ -128,7 +128,7 @@ function startingPause(response: {
 
 /** Read a server's answered failure. */
 function answeredError(body: unknown) {
-    // leave a malformed answer to the link's own failure
+    // leave a malformed answer to the link's failure
     if (!isORPCErrorJson(body)) {
         return undefined;
     }

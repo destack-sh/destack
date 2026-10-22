@@ -4,10 +4,10 @@ import { identifier, integer, text, type Column, type Row } from "@destack/db";
 import { type Method } from "../method/method.ts";
 import {
     type Procedure,
-    type ReplayShape,
-    type RevisionField,
+    type ReplayFields,
     type RowSchema,
-    type TargetShape,
+    type TargetFields,
+    type RevisionFields,
 } from "../method/procedure.ts";
 import type { ObjectType } from "../object/object.ts";
 import { type Gated, derivePermissions, type Trait } from "./trait.ts";
@@ -43,7 +43,7 @@ export interface ManagedColumnMap {
 /** What a declared reference refers to: one type's records, any object, or a subject. */
 export type DeclaredReference = ObjectType | "object" | "subject";
 
-/** The options of declarable records: their own declaration schema, or their create input. */
+/** The options of declarable records: a declaration schema, or their create input. */
 export type DeclarableDefinition<Declared = unknown> =
     | {
           /** The schema of one declaration in a stack. */
@@ -144,14 +144,14 @@ export type DeclarableProcedures<Object extends ObjectType> = {
 /** The procedures the adoptable trait derives. */
 export type AdoptableProcedures<Object extends ObjectType> = {
     detach: Procedure<
-        schema.Object<TargetShape<Object> & ReplayShape<Object> & RevisionField>,
+        schema.Object<TargetFields<Object> & ReplayFields<Object> & typeof RevisionFields>,
         RowSchema<Object>
     >;
     adopt: Procedure<
         schema.Object<
-            TargetShape<Object> &
-                ReplayShape<Object> &
-                RevisionField & { readonly manager: typeof Manager.schema }
+            TargetFields<Object> &
+                ReplayFields<Object> &
+                typeof RevisionFields & { readonly manager: typeof Manager.schema }
         >,
         RowSchema<Object>
     >;

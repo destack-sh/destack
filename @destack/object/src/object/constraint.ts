@@ -45,9 +45,9 @@ export type ObjectConstraint<Property extends string = string, Foreign extends s
           readonly kind: "foreignKey";
           /** The referencing columns, in order. */
           readonly on: readonly Property[];
-          /** The referenced object type, or the objects' own, and its columns in matching order. */
+          /** The referenced object type, or the objects' type, and its columns in order. */
           readonly references: {
-              /** The referenced object type, or "self" for the objects' own. */
+              /** The referenced object type, or "self" for the objects' type. */
               readonly object: (() => ObjectType) | "self";
               /** The referenced columns, in matching order. */
               readonly on: readonly Foreign[];

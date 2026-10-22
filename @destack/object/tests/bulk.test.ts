@@ -4,20 +4,22 @@ import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
 
 import { asc, defineDatabase, type DatabaseConnection } from "@destack/db";
-import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
+import { TestDatabase } from "@destack/db/test";
 import { definePackage } from "@destack/object";
 import { schema, nth, type Identifier } from "@destack/schema";
 import { RequestId, ObjectReference } from "@destack/sync";
 import { testCallKey } from "@destack/object/test";
-import { callTables, testEvents, serversOf } from "../src/test/index.ts";
+import { testEvents, serversOf } from "../src/test/index.ts";
 import { ObjectClient } from "../src/client/index.ts";
 import { defineObject, field } from "../src/index.ts";
 import { ObjectStore, implementPackage } from "../src/server/index.ts";
-import { serveObjects } from "./fixture/device.ts";
 import { openSpace, space, spacePrincipal, unmoved } from "./fixture/space.ts";
 import { userContext, users, userName } from "./fixture/user.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
 import { Clock } from "@destack/environment";
+import { tablesOf } from "../src/index.ts";
+import objectPackage from "../src/package.ts";
+import { TestObjectStore } from "../src/test/index.ts";
 
 /** The space containing the labels. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000005");
@@ -46,12 +48,19 @@ const label = defineObject(
 );
 
 /** The database with the labels, their access and the journal. */
-const labelDatabase = defineDatabase({ name: "main", tables: [...callTables, ...label.tables] });
+const labelDatabase = defineDatabase({
+    name: "main",
+    ...tablesOf({
+        packages: [objectPackage, { objects: { label }, tables: [] }],
+        follows: [],
+        tables: [],
+    }),
+});
 
 /** Serve the labels of the space to the user of each call. */
-async function serveLabels(dialect: (typeof TEST_DIALECTS)[number]) {
+async function serveLabels() {
     // open the space and its store
-    const storage = await TestDatabase.create(dialect, labelDatabase, { isMigrated: true });
+    const storage = await TestDatabase.create(labelDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
     const store = new ObjectStore({
@@ -93,147 +102,136 @@ function rows(database: DatabaseConnection) {
     return database.select().from(label.table).orderBy(asc(label.table.name));
 }
 
-test.each(TEST_DIALECTS)(
-    "create one object per item in one call, returning their identifiers in item order, on %s",
-    async (dialect) => {
-        const { storage, call } = await serveLabels(dialect);
+test("create one object per item in one call, returning their identifiers in item order", async () => {
+    const { storage, call } = await serveLabels();
 
-        // create three labels, one under a chosen identifier
-        const chosen = label.generateId();
-        const created = await call(users.frank, "createMany", {
-            items: [
-                { name: "urgent", color: "red" },
-                { id: chosen, name: "later", color: "blue" },
-                { name: "done", color: "green" },
-            ],
-        });
+    // create three labels, one under a chosen identifier
+    const chosen = label.generateId();
+    const created = await call(users.frank, "createMany", {
+        items: [
+            { name: "urgent", color: "red" },
+            { id: chosen, name: "later", color: "blue" },
+            { name: "done", color: "green" },
+        ],
+    });
 
-        // write each as its own creation would: owned by the caller at the first revision
-        const written = (await rows(storage.database)).map((row) => [
-            row.id,
-            row.name,
-            row.color,
-            row.ownerId,
-            row.revision,
-            ObjectReference.at("createdBy", row),
-        ]);
-        const urgent = nth(created.ids, 0);
-        const done = nth(created.ids, 2);
-        const author = principal.user.reference("universe", users.frank);
-        expect(created.ids[1]).toBe(chosen);
-        expect(written).toEqual([
-            [done, "done", "green", users.frank, 1, author],
-            [chosen, "later", "blue", users.frank, 1, author],
-            [urgent, "urgent", "red", users.frank, 1, author],
-        ]);
-    },
-);
+    // write each as a separate creation would: with the caller as owner at the first revision
+    const written = (await rows(storage.database)).map((row) => [
+        row.id,
+        row.name,
+        row.color,
+        row.ownerId,
+        row.revision,
+        ObjectReference.at("createdBy", row),
+    ]);
+    const urgent = nth(created.ids, 0);
+    const done = nth(created.ids, 2);
+    const author = principal.user.reference("universe", users.frank);
+    expect(created.ids[1]).toBe(chosen);
+    expect(written).toEqual([
+        [done, "done", "green", users.frank, 1, author],
+        [chosen, "later", "blue", users.frank, 1, author],
+        [urgent, "urgent", "red", users.frank, 1, author],
+    ]);
+});
 
-test.each(TEST_DIALECTS)(
-    "refuse the whole batch for a taken unique name or an invalid item, naming the item, on %s",
-    async (dialect) => {
-        const { call, read } = await serveLabels(dialect);
-        await call(users.frank, "create", { name: "urgent", color: "red" });
+test("refuse the whole batch for a taken unique name or an invalid item, reporting the item", async () => {
+    const { call, read } = await serveLabels();
+    await call(users.frank, "create", { name: "urgent", color: "red" });
 
-        // refuse a name another label has, one the batch takes twice, and an empty name
-        const refusals = [
-            await refusal(
-                call(users.frank, "createMany", {
-                    items: [
-                        { name: "later", color: "blue" },
-                        { name: "urgent", color: "red" },
-                    ],
-                }),
-            ),
-            await refusal(
-                call(users.frank, "createMany", {
-                    items: [
-                        { name: "later", color: "blue" },
-                        { name: "done", color: "green" },
-                        { name: "later", color: "red" },
-                    ],
-                }),
-            ),
-            await refusal(
-                call(users.frank, "createMany", {
-                    items: [
-                        { name: "later", color: "blue" },
-                        { name: "", color: "green" },
-                    ],
-                }),
-            ),
-        ];
-
-        // leave only the first label
-        expect([refusals, await read()]).toEqual([
-            [
-                ["CONFLICT", "items.1: another label has the same scope and name"],
-                ["CONFLICT", "items.2: another label has the same scope and name"],
-                [
-                    "BAD_REQUEST",
-                    "invalid input: items.1.name: too small: expected string to have >=1 characters",
+    // refuse a name another label has, one the batch takes twice, and an empty name
+    const refusals = [
+        await refusal(
+            call(users.frank, "createMany", {
+                items: [
+                    { name: "later", color: "blue" },
+                    { name: "urgent", color: "red" },
                 ],
-            ],
-            ["frank urgent red live"],
-        ]);
-    },
-);
+            }),
+        ),
+        await refusal(
+            call(users.frank, "createMany", {
+                items: [
+                    { name: "later", color: "blue" },
+                    { name: "done", color: "green" },
+                    { name: "later", color: "red" },
+                ],
+            }),
+        ),
+        await refusal(
+            call(users.frank, "createMany", {
+                items: [
+                    { name: "later", color: "blue" },
+                    { name: "", color: "green" },
+                ],
+            }),
+        ),
+    ];
 
-test.each(TEST_DIALECTS)(
-    "delete the matching objects the caller may delete into the trash, passing trashed ones, on %s",
-    async (dialect) => {
-        const { call, read } = await serveLabels(dialect);
-
-        // create two red and one blue label of frank, and a red one of grace
-        await call(users.frank, "createMany", {
-            items: [
-                { name: "urgent", color: "red" },
-                { name: "late", color: "red" },
-                { name: "later", color: "blue" },
-            ],
-        });
-        await call(users.grace, "create", { name: "alarm", color: "red" });
-
-        // trash frank's red labels once, finding none the second time
-        const deleted = [
-            await call(users.frank, "deleteMany", { where: { color: "red" } }),
-            await call(users.frank, "deleteMany", { where: { color: "red" } }),
-        ];
-        expect([deleted, await read()]).toEqual([
-            [{ count: 2 }, { count: 0 }],
+    // leave only the first label
+    expect([refusals, await read()]).toEqual([
+        [
+            ["CONFLICT", "items.1: another label has the same scope and name"],
+            ["CONFLICT", "items.2: another label has the same scope and name"],
             [
-                "grace alarm red live",
-                "frank late red trashed",
-                "frank later blue live",
-                "frank urgent red trashed",
+                "BAD_REQUEST",
+                "invalid input: items.1.name: too small: expected string to have >=1 characters",
             ],
-        ]);
-    },
-);
+        ],
+        ["frank urgent red live"],
+    ]);
+});
+
+test("delete the matching objects the caller may delete into the trash, passing trashed ones", async () => {
+    const { call, read } = await serveLabels();
+
+    // create two red and one blue label of frank, and a red one of grace
+    await call(users.frank, "createMany", {
+        items: [
+            { name: "urgent", color: "red" },
+            { name: "late", color: "red" },
+            { name: "later", color: "blue" },
+        ],
+    });
+    await call(users.grace, "create", { name: "alarm", color: "red" });
+
+    // trash frank's red labels once, finding none the second time
+    const deleted = [
+        await call(users.frank, "deleteMany", { where: { color: "red" } }),
+        await call(users.frank, "deleteMany", { where: { color: "red" } }),
+    ];
+    expect([deleted, await read()]).toEqual([
+        [{ count: 2 }, { count: 0 }],
+        [
+            "grace alarm red live",
+            "frank late red trashed",
+            "frank later blue live",
+            "frank urgent red trashed",
+        ],
+    ]);
+});
 
 test("undo a bulk creation by deleting each created object on the device and the server", async () => {
     // serve the labels of a space
-    const { storage } = await serveLabels("sqlite");
+    const { storage } = await serveLabels();
     const labels = definePackage({ objects: { label } });
-    const served = serveObjects(
-        nth(
-            new ObjectStore({
-                servers: [implementPackage(labels, {})],
-                chain: async () => undefined,
-                clock: Clock.system,
-                origin: { package: Package.of(labels) },
-                principal: spacePrincipal(spaceId),
-                callKey: testCallKey,
-                events: await testEvents(storage.database),
-                database: storage.database,
-            }).packages,
-            0,
-        ),
-        spaceId,
+    const served = TestObjectStore.serve(
+        new ObjectStore({
+            servers: [implementPackage(labels, {})],
+            chain: async () => undefined,
+            clock: Clock.system,
+            origin: { package: Package.of(labels) },
+            principal: spacePrincipal(spaceId),
+            callKey: testCallKey,
+            events: await testEvents(storage.database),
+            database: storage.database,
+        }),
     );
+    onTestFinished(() => served[Symbol.asyncDispose]());
 
     // store the space's labels on a device that pushes and follows
-    const local = await TestDatabase.create("sqlite", ObjectClient.tables({ label }), {
+    const local = await TestDatabase.create(ObjectClient.tables({ label }), {
+        dialect: "sqlite",
         storage: "file",
     });
     onTestFinished(() => local.close());
@@ -243,7 +241,7 @@ test("undo a bulk creation by deleting each created object on the device and the
         objects: { label },
         scope: spaceId,
         caller: principal.user.reference("universe", users.alice),
-        endpoint: served.endpoint(users.alice),
+        endpoint: served.endpoint(labels, users.alice),
         reconnect: unmoved,
     });
     client.queryType(label).findMany().subscribe();
@@ -297,30 +295,27 @@ test("undo a bulk creation by deleting each created object on the device and the
     await client.close();
 });
 
-test.each(TEST_DIALECTS)(
-    "run a sent createMany once though it arrives twice, replaying its request, on %s",
-    async (dialect) => {
-        // deliver the same sent mutation twice as frank
-        const { store, read } = await serveLabels(dialect);
-        const sent = {
-            id: RequestId.create(Date.now()),
-            calls: [
-                label.call("createMany", {
-                    spaceId,
-                    items: [
-                        { name: "red", color: "red" },
-                        { name: "blue", color: "blue" },
-                    ],
-                }),
-            ],
-        };
-        const user = principal.user.reference("universe", users.frank);
-        await store.receive(sent, user);
-        await store.receive(sent, user);
+test("run a sent createMany once though it arrives twice, replaying its request", async () => {
+    // deliver the same sent mutation twice as frank
+    const { store, read } = await serveLabels();
+    const sent = {
+        id: RequestId.create(Date.now()),
+        calls: [
+            label.call("createMany", {
+                spaceId,
+                items: [
+                    { name: "red", color: "red" },
+                    { name: "blue", color: "blue" },
+                ],
+            }),
+        ],
+    };
+    const user = principal.user.reference("universe", users.frank);
+    await store.receive(sent, user);
+    await store.receive(sent, user);
 
-        expect(await read()).toEqual(["frank blue blue live", "frank red red live"]);
-    },
-);
+    expect(await read()).toEqual(["frank blue blue live", "frank red red live"]);
+});
 
 /** Build labels of one color for a bulk creation of a size. */
 function items(size: number) {
@@ -330,98 +325,92 @@ function items(size: number) {
     }));
 }
 
-test.each(TEST_DIALECTS)(
-    "create and trash a thousand objects on %s in as many statements as one object",
-    async (dialect) => {
-        const { storage, call } = await serveLabels(dialect);
-        const state = storage.database.driver.state;
+test("create and trash a thousand objects in as many statements as one object", async () => {
+    const { storage, call } = await serveLabels();
+    const state = storage.database.driver.state;
 
-        // create two labels first, warming the shared access reads
-        await call(users.frank, "createMany", { items: items(2) });
+    // create two labels first, warming the shared access reads
+    await call(users.frank, "createMany", { items: items(2) });
 
-        // count the statements of creating one and a thousand labels, then of trashing the thousand
-        const counted = async (run: () => Promise<unknown>) => {
-            const before = state.statements;
-            await run();
+    // count the statements of creating one and a thousand labels, then of trashing the thousand
+    const counted = async (run: () => Promise<unknown>) => {
+        const before = state.statements;
+        await run();
 
-            return state.statements - before;
-        };
-        const statements = {
-            createOne: await counted(() => call(users.frank, "createMany", { items: items(1) })),
-            createThousand: await counted(() =>
-                call(users.frank, "createMany", { items: items(1000) }),
-            ),
-            trashThousand: await counted(() =>
-                call(users.frank, "deleteMany", { where: { color: "color-1000" } }),
-            ),
-        };
+        return state.statements - before;
+    };
+    const statements = {
+        createOne: await counted(() => call(users.frank, "createMany", { items: items(1) })),
+        createThousand: await counted(() =>
+            call(users.frank, "createMany", { items: items(1000) }),
+        ),
+        trashThousand: await counted(() =>
+            call(users.frank, "deleteMany", { where: { color: "color-1000" } }),
+        ),
+    };
 
-        // spend a few statements per batch of rows, PostgreSQL assigning its transaction identity
-        const extra = dialect === "postgresql" ? 1 : 0;
-        expect(statements).toEqual({
-            createOne: 10 + extra,
-            createThousand: 10 + extra,
-            trashThousand: 12 + extra,
-        });
-    },
-);
+    // spend a few statements per batch of rows, PostgreSQL assigning its transaction identity
+    const extra = TestDatabase.target() === "postgresql" ? 1 : 0;
+    expect(statements).toEqual({
+        createOne: 10 + extra,
+        createThousand: 10 + extra,
+        trashThousand: 12 + extra,
+    });
+});
 
-test.each(TEST_DIALECTS)(
-    "update listed objects at their revisions in one call, and refuse the whole batch for one stale revision or one the caller may not change, on %s",
-    async (dialect) => {
-        const { storage, call, read } = await serveLabels(dialect);
-        const { ids } = await call(users.frank, "createMany", {
-            items: [
-                { name: "urgent", color: "red" },
-                { name: "later", color: "blue" },
-            ],
-        });
-        const urgent = nth(ids, 0);
-        const later = nth(ids, 1);
-        const { ids: alarms } = await call(users.grace, "createMany", {
-            items: [{ name: "alarm", color: "red" }],
-        });
+test("update listed objects at their revisions in one call, and refuse the whole batch for one stale revision or one the caller may not change", async () => {
+    const { storage, call, read } = await serveLabels();
+    const { ids } = await call(users.frank, "createMany", {
+        items: [
+            { name: "urgent", color: "red" },
+            { name: "later", color: "blue" },
+        ],
+    });
+    const urgent = nth(ids, 0);
+    const later = nth(ids, 1);
+    const { ids: alarms } = await call(users.grace, "createMany", {
+        items: [{ name: "alarm", color: "red" }],
+    });
 
-        // recolor both labels at their first revision, then refuse one stale revision and another's label
-        const updated = await call(users.frank, "recolor", {
-            items: [
-                { id: urgent, revision: 1, color: "green" },
-                { id: later, revision: 1, color: "green" },
-            ],
-        });
-        const refusals = [
-            await refusal(
-                call(users.frank, "recolor", {
-                    items: [
-                        { id: urgent, revision: 2, color: "white" },
-                        { id: later, revision: 1, color: "white" },
-                    ],
-                }),
-            ),
-            await refusal(
-                call(users.frank, "recolor", {
-                    items: [
-                        { id: urgent, revision: 2, color: "white" },
-                        { id: nth(alarms, 0), revision: 1, color: "white" },
-                    ],
-                }),
-            ),
-        ];
+    // recolor both labels at their first revision, then refuse one stale revision and another's label
+    const updated = await call(users.frank, "recolor", {
+        items: [
+            { id: urgent, revision: 1, color: "green" },
+            { id: later, revision: 1, color: "green" },
+        ],
+    });
+    const refusals = [
+        await refusal(
+            call(users.frank, "recolor", {
+                items: [
+                    { id: urgent, revision: 2, color: "white" },
+                    { id: later, revision: 1, color: "white" },
+                ],
+            }),
+        ),
+        await refusal(
+            call(users.frank, "recolor", {
+                items: [
+                    { id: urgent, revision: 2, color: "white" },
+                    { id: nth(alarms, 0), revision: 1, color: "white" },
+                ],
+            }),
+        ),
+    ];
 
-        // take the first update alone, each label at its next revision
-        const revisions = (await rows(storage.database)).map((row) => [row.name, row.revision]);
-        expect({ updated, refusals, labels: await read(), revisions }).toEqual({
-            updated: { count: 2 },
-            refusals: [
-                ["CONFLICT", "label revision has changed"],
-                ["NOT_FOUND", "label not found"],
-            ],
-            labels: ["grace alarm red live", "frank later green live", "frank urgent green live"],
-            revisions: [
-                ["alarm", 1],
-                ["later", 2],
-                ["urgent", 2],
-            ],
-        });
-    },
-);
+    // take the first update alone, each label at its next revision
+    const revisions = (await rows(storage.database)).map((row) => [row.name, row.revision]);
+    expect({ updated, refusals, labels: await read(), revisions }).toEqual({
+        updated: { count: 2 },
+        refusals: [
+            ["CONFLICT", "label revision has changed"],
+            ["NOT_FOUND", "label not found"],
+        ],
+        labels: ["grace alarm red live", "frank later green live", "frank urgent green live"],
+        revisions: [
+            ["alarm", 1],
+            ["later", 2],
+            ["urgent", 2],
+        ],
+    });
+});

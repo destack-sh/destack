@@ -3,7 +3,7 @@ import { principal, relation } from "@destack/access";
 import { TestDatabase } from "@destack/db/test";
 import { present, schema } from "@destack/schema";
 import { testCallKey } from "@destack/object/test";
-import { callTables, testEvents, serversOf } from "../src/test/index.ts";
+import { testEvents, serversOf } from "../src/test/index.ts";
 import { v7 } from "uuid";
 import { ObjectStore } from "../src/server/index.ts";
 import { defineObject, field } from "../src/index.ts";
@@ -11,6 +11,8 @@ import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { auditedCalls } from "./fixture/audit.ts";
 import { Clock } from "@destack/environment";
+import { tablesOf } from "../src/index.ts";
+import objectPackage from "../src/package.ts";
 
 /** The space with the lockers. */
 const SPACE_ID = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
@@ -34,10 +36,17 @@ const locker = defineObject(
     }),
 );
 
-test("name the version a read disclosed in its recorded call, apart from its value", async () => {
-    const storage = await TestDatabase.create("sqlite", [...locker.tables, ...callTables], {
-        isMigrated: true,
-    });
+test("record the version a read disclosed in its recorded call, apart from its value", async () => {
+    const storage = await TestDatabase.create(
+        tablesOf({
+            packages: [objectPackage, { objects: { locker }, tables: [] }],
+            follows: [],
+            tables: [],
+        }).tables,
+        {
+            isMigrated: true,
+        },
+    );
     onTestFinished(() => storage.close());
     const database = storage.database;
     await openSpace(database, SPACE_ID);

@@ -19,7 +19,7 @@ import { Failure } from "@destack/error";
 const DEFINING_PACKAGE = Package.of(import.meta.destack.package);
 
 /** The view a read sees: a log position, a branch over the main line, or both. */
-export const ViewShape = {
+export const ViewFields = {
     /** The log position the read sees, the latest when absent. */
     at: LogPosition.exactOptional(),
     /** The branch whose rows the read sees over the main line, absent for the main line. */
@@ -27,7 +27,7 @@ export const ViewShape = {
 };
 
 /** The fields of a relation query as servers follow it, without client-selected columns. */
-const RelationShape = {
+const RelationFields = {
     /** Values computed from each row's fields and relations, read like fields. */
     extras: schema.record(schema.string().min(1), Expression.schema).exactOptional(),
     /** The condition the rows meet, over their logged fields. */
@@ -45,11 +45,11 @@ const RelationShape = {
 };
 
 /** The query of a relation's rows. */
-const RelationQuery: schema.Schema<FindOptions> = schema.lazy(() => schema.object(RelationShape));
+const RelationQuery: schema.Schema<FindOptions> = schema.lazy(() => schema.object(RelationFields));
 
 /** The fields of a query of one object type's rows: its trashed rows, or aggregates of them. */
-export const QueryShape = {
-    ...RelationShape,
+export const QueryFields = {
+    ...RelationFields,
     /** Which trashed rows of a recoverable type to select, none by default. */
     deleted: schema.enum(["exclude", "include", "only"]).exactOptional(),
     /** Aggregates of the rows, replicated instead of the rows. */
@@ -65,7 +65,7 @@ const GroupSchema = schema.object({
 });
 
 /** What a list returns beside its rows. */
-export const ListShape = {
+export const ListFields = {
     /** Each row's extras, by row identifier. */
     extras: schema.record(schema.string(), schema.record(schema.string(), Scalar)).exactOptional(),
     /** What each row includes, in its JSON form, by include name and row identifier. */
@@ -93,7 +93,7 @@ export interface ObjectQuery extends FindOptions {
     readonly deleted?: "exclude" | "include" | "only";
     /** Aggregates of the rows, replicated instead of the rows. */
     readonly aggregate?: Aggregate;
-    /** The permission the caller also holds on each row, by its name on the type. */
+    /** The permission the caller also has on each row, by its name on the type. */
     readonly permission?: string;
 }
 
@@ -101,7 +101,7 @@ export interface ObjectQuery extends FindOptions {
 export const ObjectQuery: schema.Schema<ObjectQuery> = schema.object({
     object: schema.string().min(1),
     scopes: schema.literal("every").exactOptional(),
-    ...QueryShape,
+    ...QueryFields,
     permission: schema.string().min(1).exactOptional(),
 });
 
@@ -114,7 +114,7 @@ export const EPHEMERAL_PUBLICATION = "ephemeral";
 /** The publication of a scope's external objects a caller follows. */
 export const EXTERNAL_PUBLICATION = "external";
 
-/** The publication of the access rows a caller's own checks read in a scope's chain. */
+/** The publication of the access rows a caller's checks read in a scope's chain. */
 export const ACCESS_PUBLICATION = "access";
 
 /** The parameters of the durable objects publication: named queries, else every listed type. */

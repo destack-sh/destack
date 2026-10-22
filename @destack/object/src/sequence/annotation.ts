@@ -8,9 +8,9 @@ export interface Annotation<Value = unknown> {
     readonly kind: string;
     /** The annotation's value, such as a link's target. */
     readonly value: Value;
-    /** The boundary the range starts at. */
+    /** The edge the range starts at. */
     readonly start: Anchor;
-    /** The boundary the range ends at. */
+    /** The edge the range ends at. */
     readonly end: Anchor;
 }
 

@@ -10,10 +10,12 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { v7 } from "uuid";
 import { defineObject, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
-import { callTables, testEvents, serversOf } from "../src/test/index.ts";
+import { testEvents, serversOf } from "../src/test/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { Clock } from "@destack/environment";
+import { tablesOf } from "../src/index.ts";
+import objectPackage from "../src/package.ts";
 
 /** The package of the types reading the holders from outside their package. */
 const OUTSIDE = Package.parse({
@@ -22,7 +24,7 @@ const OUTSIDE = Package.parse({
     version: "2026.10.0",
 });
 
-/** A holder whose token its own package's code reads, which another package's read withholds. */
+/** A holder whose token its package's code reads, which another package's read withholds. */
 const holder = defineObject(
     {
         name: "holder",
@@ -33,7 +35,7 @@ const holder = defineObject(
     },
     (method) => ({
         create: method.create("read", { fields: ["label", "token"] }),
-        /** Read a holder's token as the holders' own package. */
+        /** Read a holder's token as the holders' package. */
         token: method
             .query({
                 permission: "read",
@@ -85,13 +87,16 @@ const peeker = defineObject(
     { package: OUTSIDE },
 );
 
-test("reveal a type's sensitive field to its own package's handler, and withhold it from another package's read", async () => {
+test("reveal a type's sensitive field to its package's handler, and withhold it from another package's read", async () => {
     // serve the holders and the outside peekers in one space
     const storage = await TestDatabase.create(
-        "sqlite",
         defineDatabase({
             name: "main",
-            tables: [...holder.tables, ...peeker.tables, space.table, ...callTables],
+            ...tablesOf({
+                packages: [objectPackage, { objects: { holder, peeker }, tables: [] }],
+                follows: [],
+                tables: [space.table],
+            }),
         }),
         { isMigrated: true },
     );
@@ -117,17 +122,17 @@ test("reveal a type's sensitive field to its own package's handler, and withhold
     });
     const id = schema.looseObject({ id: schema.string() }).parse(created).id;
 
-    // read its token as its own package, and its rows from the outside package
-    const own = await store.query(caller, holder.call("token", { spaceId, id }));
+    // read its token as its package, and its rows from the outside package
+    const inside = await store.query(caller, holder.call("token", { spaceId, id }));
     const outside = await store.query(caller, peeker.call("peek", { spaceId }));
 
-    // answer the token to the holders' own code, and leave it out of the outside read and reveal
-    expect({ own, outside }).toEqual({
-        own: { token: "token-0123" },
+    // answer the token to the holders' code, and leave it out of the outside read and reveal
+    expect({ inside, outside }).toEqual({
+        inside: { token: "token-0123" },
         outside: {
             hasToken: [false],
             revealed: new CallError("FORBIDDEN", {
-                message: `@example/outside reveals holder only in its own package`,
+                message: `@example/outside reveals holder only in its declaring package`,
             }).message,
         },
     });

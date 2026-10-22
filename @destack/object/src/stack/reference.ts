@@ -4,8 +4,8 @@ import type { ObjectType } from "../object/object.ts";
 import { schema } from "@destack/schema";
 import { AccessName } from "@destack/sync";
 
-/** The scopes of declared subjects: the stack's own, or the one enclosing it. */
-export const STACK_SCOPES = ["own", "enclosing"] as const;
+/** The scopes of declared subjects: the stack's scope itself, or the one enclosing it. */
+export const STACK_SCOPES = ["self", "enclosing"] as const;
 /** The scope of a declared subject. */
 export type StackScope = (typeof STACK_SCOPES)[number];
 
@@ -44,9 +44,9 @@ export const StackSubject = schema.union([
     schema.object({
         /** The principal or record, its type read from the identifier's prefix. */
         id: schema.anyIdentifier(),
-        /** The scope of a record, the stack's own when absent, none for a global principal. */
+        /** A record's scope: the stack's scope itself if absent, none for a global principal. */
         scope: schema.enum(STACK_SCOPES).exactOptional(),
-        /** The relation its members hold, for a subject set. */
+        /** The relation of its members, for a subject set. */
         relation: AccessName.exactOptional(),
     }),
     schema.object({
@@ -54,13 +54,13 @@ export const StackSubject = schema.union([
         kind: AccessName,
         /** The declared record's name. */
         name: DeclarationName,
-        /** The relation its members hold, for a subject set. */
+        /** The relation of its members, for a subject set. */
         relation: AccessName.exactOptional(),
     }),
     schema.object({
         /** The stack's scope or the one enclosing it. */
         scope: schema.enum(STACK_SCOPES),
-        /** The relation its members hold. */
+        /** The relation of its members. */
         relation: AccessName,
     }),
     schema.object({

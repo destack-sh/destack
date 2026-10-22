@@ -100,7 +100,7 @@ test("record a running call, then its outcome once, accepting repeats and refusi
     }
 });
 
-test("record a read as one access call naming what only its value tells", async () => {
+test("record a read as one access call with what only its value tells", async () => {
     const storage = await AuditStorage.open();
     try {
         // read a document with its name from the value
@@ -200,7 +200,7 @@ test("replay derived requests of one key at different times as one request, and 
     }
 });
 
-/** Read the calls the journal holds for replay, running or ended. */
+/** Read the calls the journal stores for replay, running or ended. */
 async function journaled(storage: AuditStorage): Promise<JournalEntry[]> {
     const rows = await storage.database.select({ call: journal.call }).from(journal);
 

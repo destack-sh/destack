@@ -7,9 +7,11 @@ import { RequestId } from "@destack/sync";
 import { subjectContext, testCallKey } from "@destack/object/test";
 import { defineObject, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
-import { callTables, testEvents, serversOf } from "../src/test/index.ts";
+import { testEvents, serversOf } from "../src/test/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { Clock } from "@destack/environment";
+import { tablesOf } from "../src/index.ts";
+import objectPackage from "../src/package.ts";
 
 /** The space the articles live in. */
 const SPACE_ID = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000051");
@@ -20,7 +22,7 @@ const review = {
     transitions: { approve: { from: ["pending"], to: "approved", permission: "review" } },
 } as const;
 
-test("change state fields only through their transitions, modifiers holding the machine", () => {
+test("change state fields only through their transitions, with modifiers enforcing the machine", () => {
     const article = defineObject({
         name: "article",
         plural: "articles",
@@ -37,7 +39,7 @@ test("change state fields only through their transitions, modifiers holding the 
 });
 
 test("record a transition's declared fields with its state, refusing a call without them", async () => {
-    // serve articles whose rejection records its reason, owned by the space's owner
+    // serve articles whose rejection records its reason, with the space's owner as owner
     const article = defineObject(
         {
             name: "article",
@@ -63,8 +65,14 @@ test("record a transition's declared fields with its state, refusing a call with
         (method) => ({ create: method.create("write") }),
     );
     const storage = await TestDatabase.create(
-        "sqlite",
-        defineDatabase({ name: "main", tables: [...article.tables, space.table, ...callTables] }),
+        defineDatabase({
+            name: "main",
+            ...tablesOf({
+                packages: [objectPackage, { objects: { article }, tables: [] }],
+                follows: [],
+                tables: [space.table],
+            }),
+        }),
         { isMigrated: true },
     );
     onTestFinished(() => storage.close());
@@ -85,7 +93,7 @@ test("record a transition's declared fields with its state, refusing a call with
     const mutate = (call: Call) =>
         store.mutate(caller, { id: RequestId.create(Date.now()), calls: [call] });
 
-    // reject an article with its reason, and refuse a rejection naming none
+    // reject an article with its reason, and refuse a rejection without one
     const [created] = await mutate(article.call("create", { spaceId: SPACE_ID, title: "Draft" }));
     const { id } = schema.looseObject({ id: schema.string() }).parse(created);
     const rejection = article.call("reject", { spaceId: SPACE_ID, id, reason: "off topic" });

@@ -14,8 +14,8 @@ import { nth, canonicalize, schema } from "@destack/schema";
 import { type Audience, Dataflow, Replica, View, type Watch } from "@destack/sync";
 import type * as sync from "@destack/sync";
 import { Page } from "../method/page.ts";
-import { PageShape } from "../method/procedure.ts";
-import { QueryShape, ViewShape } from "../replica/replica.ts";
+import { PageFields } from "../method/procedure.ts";
+import { QueryFields, ViewFields } from "../replica/replica.ts";
 import { EventLog } from "./event.ts";
 import { nestItem } from "./item.ts";
 import type { MethodContext } from "../method/context.ts";
@@ -23,7 +23,7 @@ import type { ObjectType } from "../object/object.ts";
 import { Execution } from "../method/execution.ts";
 
 /** The query, page and view of a list's input, beside its scope fields. */
-const LIST_INPUT = schema.looseObject({ ...QueryShape, ...PageShape, ...ViewShape });
+const LIST_INPUT = schema.looseObject({ ...QueryFields, ...PageFields, ...ViewFields });
 /** The query, page and view of a list's input. */
 export type ListInput = schema.Infer<typeof LIST_INPUT>;
 
@@ -198,7 +198,7 @@ export class Listing implements Audience {
         };
     }
 
-    /** Match the rows the caller may list, under a query's own permission too. */
+    /** Match the rows the caller may list, under a query's permission too. */
     where(table: Table, permission?: string): SQL | "memory" {
         // list every row of a prediction
         const { object, permission: listing } = this.#objects.listed(table);
@@ -211,7 +211,7 @@ export class Listing implements Audience {
         return execution.authorization.where(object, listing, required);
     }
 
-    /** Decide which rows of a table the caller may list, under a query's own permission too. */
+    /** Decide which rows of a table the caller may list, under a query's permission too. */
     async visible(
         table: Table,
         rows: readonly Row[],
@@ -229,9 +229,9 @@ export class Listing implements Audience {
             scope: this.#context.scope,
             ...(permission === undefined ? {} : { required: object.permission(permission) }),
         });
-        const kept = new Set<Row>(allowed);
+        const visible = new Set<Row>(allowed);
 
-        return new Set(rows.flatMap((row, position) => (kept.has(row) ? [position] : [])));
+        return new Set(rows.flatMap((row, position) => (visible.has(row) ? [position] : [])));
     }
 
     /** List an object type's guarded fields. */

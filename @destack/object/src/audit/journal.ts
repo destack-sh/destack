@@ -80,7 +80,7 @@ export class Journal {
 
     /** Journal a database's calls, fingerprinting sensitive inputs under the deployment's key. */
     constructor(database: DatabaseConnection, key: CallKey, options: JournalOptions) {
-        // hold the database, the key, the event log and the lifetime
+        // store the database, the key, the event log and the lifetime
         this.database = database;
         this.#key = key;
         this.events = options.events;
@@ -119,9 +119,9 @@ export class Journal {
             throw new ObjectError("INVALID_CALL", `call exceeds ${MAX_EXECUTION_BYTES} bytes`);
         }
 
-        // record in the caller's transaction, or in one of the journal's own
+        // record in the caller's transaction, or in a separate one of the journal
         if (transaction === undefined) {
-            await this.database.transaction((own) => this.#record(entry, options, own));
+            await this.database.transaction((opened) => this.#record(entry, options, opened));
         } else {
             await this.#record(entry, options, transaction);
         }
@@ -182,7 +182,7 @@ export class Journal {
                 : undefined,
         ]);
 
-        // accept a repeat of a finished call, refusing other contents, then the event's own refusal
+        // accept a repeat of a finished call, refusing other contents, then the event's refusal
         if (written.length === 0) {
             await Journal.#requireRepeat(transaction, entry);
         }

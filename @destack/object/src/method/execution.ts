@@ -99,7 +99,7 @@ export const Execution = {
         }
     },
 
-    /** Replace a method's behaviour by object's own code, which reads where a call executes. */
+    /** Replace a method's behaviour by object's code, which reads where a call executes. */
     handle<Configuration extends MethodConfiguration>(
         method: MethodDeclaration<Configuration>,
         handler: (

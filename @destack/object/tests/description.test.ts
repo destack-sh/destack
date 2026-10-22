@@ -333,7 +333,7 @@ test("describe every test type as data, and declare the same types, routes and t
     ]);
 });
 
-test("declare described types against each other, never against the pool's own types of the same names", () => {
+test("declare described types against each other, never against the pool's types of the same names", () => {
     // describe a host attaching marks, the host first, into a pool that already knows both
     const declared = ObjectTypePool.of([space, mark, host]).declare([
         ObjectDescription.of(host),
@@ -381,7 +381,7 @@ test("describe a type over another package's table by the table's name, and decl
     const description = ObjectDescription.of(chunked);
     const declared = ObjectTypePool.of([sample, space]).declare([description]);
 
-    // name the table in the description, and declare the type over the very table
+    // set the table in the description, and declare the type over the very table
     expect({
         table: schema
             .looseObject({ mapping: schema.looseObject({ table: schema.unknown() }) })
@@ -421,13 +421,13 @@ test("describe code another package exports by its export path, and declare the 
 });
 
 test("describe an exported type's handled method by its path through the type, resolving to that very method", () => {
-    // describe object's own invitations, whose create method runs object's code
+    // describe object's invitations, whose create method runs object's code
     const written = schema
         .looseObject({ methods: schema.record(schema.string(), schema.unknown()) })
         .parse(ObjectDescription.of(invitation).definition).methods["create"];
     const path = { package: "@destack/object", path: ["invitation", "methods", "create"] };
 
-    // write the method as its path, which resolves to the type's own method
+    // write the method as its path, which resolves to the type's method
     expect({
         written,
         isSame: ExportIndex.loaded().resolve(path) === invitation.methods.create,

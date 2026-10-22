@@ -27,7 +27,7 @@ export class HookServer implements HookHandler {
     /** The server context of the installation the sandbox runs as. */
     readonly #server: ServerContext;
 
-    /** Run the hooks of the types packages route, reaching the store through a session. */
+    /** Run the hooks of the types packages route, calling the store through a session. */
     constructor(options: {
         /** The packages whose routed types' hooks the server runs. */
         readonly packages: readonly { readonly objects: Readonly<Record<string, unknown>> }[];
@@ -198,7 +198,7 @@ export class HookServer implements HookHandler {
         );
     }
 
-    /** Reach the store in a mutation's session: its reads, decisions and positions. */
+    /** Open the store in a mutation's session: its reads, decisions and positions. */
     #open(mutation: string): Session {
         return {
             read: (table) =>
@@ -238,9 +238,9 @@ export class HookServer implements HookHandler {
         };
     }
 
-    /** Read whom a hook's call runs as: the hook's own caller, or its installation. */
+    /** Read whom a hook's call runs as: the hook's caller, or its installation. */
     #as(record: CallRecord, caller: AccessContext): "caller" | "installation" {
-        // run as the hook's own caller
+        // run as the hook's caller
         const server = this.#server;
         if (Caller.key(caller) === Caller.key(record.caller)) {
             return "caller";

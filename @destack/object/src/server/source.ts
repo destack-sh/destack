@@ -63,7 +63,6 @@ export class ObjectSource {
         name: QUERIES_PUBLICATION,
         parameters: QueriesParameters,
         audience: "caller",
-        isReadinessGate: true,
         replica: ({ name, scope, parameters }) => {
             // follow every durable table for a follower without queries
             const named = parameters.queries;
@@ -107,12 +106,11 @@ export class ObjectSource {
         },
     });
 
-    /** The publication of a scope's ephemeral objects a client follows, writing its own rows. */
+    /** The publication of a scope's ephemeral objects a client follows, writing its rows. */
     readonly ephemeralPublication = sync.definePublication({
         name: EPHEMERAL_PUBLICATION,
         parameters: EphemeralParameters,
         audience: "caller",
-        isReadinessGate: true,
         replica: ({ name, scope }) =>
             new sync.Replica({
                 name,
@@ -126,7 +124,6 @@ export class ObjectSource {
         name: EXTERNAL_PUBLICATION,
         parameters: QueriesParameters,
         audience: "caller",
-        isReadinessGate: true,
         replica: ({ name, scope }) =>
             new sync.Replica({
                 name,
@@ -142,17 +139,15 @@ export class ObjectSource {
         name: CHAIN_PUBLICATION,
         parameters: ChainParameters,
         audience: "contained",
-        isReadinessGate: true,
         replica: ({ name, scope, target, parameters }) =>
             this.store.authorizer.replicateChain({ name, scope, target }, parameters),
     });
 
-    /** The publication of the access rows of the caller's own checks in a scope's chain. */
+    /** The publication of the access rows of the caller's checks in a scope's chain. */
     readonly accessPublication = sync.definePublication({
         name: ACCESS_PUBLICATION,
         parameters: schema.object({}),
         audience: "caller",
-        isReadinessGate: true,
         replica: ({ name, scope }) => new sync.Replica({ name, scope, tables: decisionTables }),
     });
 
@@ -357,13 +352,13 @@ export class ObjectSource {
         await authorization.require(policy.permission(FOLLOW), subject);
     }
 
-    /** Require `replicate` on a caller's own object, or else on a scope. */
+    /** Require `replicate` on a caller's object, or else on a scope. */
     async #requireReplicate(
         target: string,
         resident: readonly Subject[],
         context: RequestContext,
     ): Promise<void> {
-        // list the permissions on the caller's own objects, at the rows standing for them here
+        // list the permissions on the caller's objects, at the rows standing for them here
         const authorization = await this.store.authorize(
             Transaction.reading(this.store.database),
             target,
@@ -450,7 +445,7 @@ export class ObjectSource {
             return undefined;
         }
 
-        // read the principal's row, and stand for the principal inside the scope holding it
+        // read the principal's row, and stand for the principal inside the scope of the row
         const [row] = await Snapshot.live(database).select(object.table, ["id"], [[target]]);
         if (row === undefined) {
             return undefined;
@@ -471,7 +466,7 @@ export class ObjectSource {
         };
     }
 
-    /** Keep a follow's queries of the types this store serves, as others have no rows here. */
+    /** Filter a follow's queries to the types this store serves, as others have no rows here. */
     #served(named: QueriesParameters["queries"]): QueriesParameters["queries"] {
         return named === undefined
             ? undefined
@@ -551,7 +546,7 @@ export class ObjectSource {
         options: sync.FeedOptions,
         signal: AbortSignal,
     ): AsyncGenerator<sync.Page> {
-        // read the replicas held now, following them until the stream ends or drains
+        // read the replicas stored now, following them until the stream ends or drains
         const { database } = this.store;
         let held = await sync.Replica.tables(database, scope, caller);
         let reflected = options.previous && ObjectSource.#withReplicas(options.previous, held);
@@ -590,7 +585,7 @@ export class ObjectSource {
             rekept.abort();
             await changed;
 
-            // follow again over the replicas held now
+            // follow again over the replicas stored now
             reflected = compiled;
             held = await sync.Replica.tables(database, scope, caller);
         }
@@ -676,7 +671,7 @@ export class ObjectSource {
         });
     }
 
-    /** Follow the access rows the caller's own checks read in a scope's chain. */
+    /** Follow the access rows the caller's checks read in a scope's chain. */
     async *#access(
         subscription: sync.Subscription,
         follower: ReplicaFollower,
@@ -834,11 +829,6 @@ export class ObjectSource {
         return this.publication(request).replica(request);
     }
 
-    /** Report whether a request's replica gates this store's readiness, as its publication says. */
-    isReadinessGate(request: Pick<sync.Subscription, "publication">): boolean {
-        return this.publication(request).isReadinessGate;
-    }
-
     /** Find the served publication a request asks for, refusing any other. */
     publication(request: Pick<sync.Subscription, "publication">): sync.Publication {
         const publication = this.publications.get(request.publication);
@@ -853,8 +843,8 @@ export class ObjectSource {
     async confirm(subscription: sync.Subscription, watermark: sync.Watermark): Promise<void> {
         const history = await this.store.history(watermark);
 
-        // confirm a watermark of the store's own log on the subscription's streams
-        if (history.kind === "own") {
+        // confirm a watermark of the store's log on the subscription's streams
+        if (history.kind === "local") {
             const key = ObjectSource.streamKey(subscription);
             for (const served of this.#streams) {
                 if (served.key === key) {
@@ -922,7 +912,7 @@ export class ObjectSource {
             await replica.requireAcyclic(this.store.database, origin);
         }
 
-        // stream the replica, keeping the stream for its follower's confirmations
+        // stream the replica, with the stream for its follower's confirmations
         yield* this.store.feed.subscribe(replica.queries, after, signal, {
             opened: (stream) => this.#track(stream, subscription, undefined),
             closed: (stream) => this.#untrack(stream),
@@ -978,7 +968,7 @@ export class ObjectSource {
                 ? await this.#viaScopes(request.scope, via, chain?.between ?? [])
                 : await this.#containing(request, follower);
 
-        // require a chain's scopes to be the follower's own
+        // require a chain's scopes to be the follower's scopes
         const claimed = chain?.scopes ?? [];
         const foreign = claimed.find((scope) => !scopes.has(scope));
         if (foreign !== undefined) {
@@ -1046,7 +1036,7 @@ export class ObjectSource {
 
     /** Require a reader to have `replicate` on the scope it replicates a chain via. */
     async requireReplicateVia(via: string, reader: AccessContext): Promise<void> {
-        // require a scope type holding replicas of its chain
+        // require a scope type with replicas of its chain
         const { database } = this.store;
         const scope = await Scope.object(Snapshot.live(database), via);
         const policy = this.store.authorizer.policy(scope);

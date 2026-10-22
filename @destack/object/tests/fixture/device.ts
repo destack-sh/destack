@@ -1,22 +1,15 @@
-import { bearerUser } from "./user.ts";
-import { implementPackage, ObjectStore } from "../../src/server/index.ts";
 import { onTestFinished } from "@destack/test";
-import { isNull, type Dialect } from "@destack/db";
+import { isNull } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { ObjectClient } from "../../src/client/index.ts";
-import { Package } from "@destack/package";
-import { ResourceContext } from "@destack/resource/context";
-import { schema, nth, type Identifier } from "@destack/schema";
-import { createClient, type ClientOptions } from "@destack/object/client";
-import { Health } from "@destack/object/server";
-import { Server, type PackageHandler } from "@destack/object/server";
+import { schema, type Identifier } from "@destack/schema";
+import { type ClientOptions } from "@destack/object/client";
 import { v7 } from "uuid";
-import { note, notebook, notesDatabase, notesPackage } from "./note.ts";
+import { note, notebook, notesPackage } from "./note.ts";
 import { principal } from "@destack/access";
-import type { Subject } from "@destack/sync";
-import { openSpace, spacePrincipal, unmoved } from "./space.ts";
-import { testCallKey } from "@destack/object/test";
-import { testEvents } from "../../src/test/index.ts";
+import { Scope, type Subject } from "@destack/sync";
+import { space, unmoved } from "./space.ts";
+import { TestObjectStore } from "../../src/test/index.ts";
 import { Clock } from "@destack/environment";
 
 /** The space with the notes. */
@@ -25,69 +18,26 @@ export const spaceId = schema.identifier("space").parse(`space-${v7()}`);
 /** The object types a device replicates, by key. */
 const DEVICE_OBJECTS = { notebook, note };
 
-/** Serve a space's notes to bearer-identified users, returning a client per user. */
+/** Serve the space's notes to bearer-identified users, in the vouched groups. */
 export async function serveNotes(
-    dialect: Dialect,
     clock: Clock = Clock.system,
     groups: ReadonlyMap<string, readonly Subject[]> = new Map(),
 ) {
-    // store the space's notes in memory
-    const storage = await TestDatabase.create(dialect, notesDatabase, { isMigrated: true });
-    onTestFinished(() => storage.close());
-    const database = storage.database;
-    await openSpace(database, spaceId);
-
-    // serve the notes over HTTP to bearer-identified users
-    const served = serveObjects(
-        nth(
-            new ObjectStore({
-                servers: [implementPackage(notesPackage, {})],
-                chain: async () => undefined,
-                origin: { package: Package.of(notesPackage) },
-                principal: spacePrincipal(spaceId),
-                callKey: testCallKey,
-                events: await testEvents(database),
-                database,
-                clock,
-            }).packages,
-            0,
-        ),
-        spaceId,
+    // store and serve the space's notes, public to anyone
+    const objects = await TestObjectStore.open({
+        packages: [notesPackage],
+        scope: space.reference(Scope.universe.id, spaceId),
+        clock,
         groups,
-    );
-
-    const connect = (user: Identifier<"user">) => createClient(notesPackage, served.endpoint(user));
-
-    return { connect, endpoint: served.endpoint, server: served.server, database };
-}
-
-/** Serve objects over HTTP to bearer-identified users in a space, with each user's endpoint. */
-export function serveObjects(
-    implementation: PackageHandler,
-    scope: string,
-    groups: ReadonlyMap<string, readonly Subject[]> = new Map(),
-) {
-    // authenticate each request as the user its bearer credential identifies
-    const server = Server.start({
-        clock: Clock.system,
-        ...implementation,
-        scope,
-        resources: new ResourceContext(),
-        health: new Health(implementation.package.name),
-        drainTimeout: 1000,
-        authorizeMachine: async () => {},
-        authenticate: bearerUser(notesPackage.id, scope, groups),
     });
-    onTestFinished(() => server.close());
+    onTestFinished(() => objects[Symbol.asyncDispose]());
 
-    // reach the server as a user
-    const endpoint = (user: Identifier<"user">): ClientOptions => ({
-        url: "https://objects.test",
-        headers: { authorization: `Bearer ${user}` },
-        fetch: (request: Request) => server.fetch(request),
-    });
-
-    return { server, endpoint };
+    return {
+        connect: (user: Identifier<"user">) => objects.client(notesPackage, user),
+        endpoint: (user: Identifier<"user">) => objects.endpoint(notesPackage, user),
+        server: objects.server(notesPackage),
+        database: objects.database,
+    };
 }
 
 /** A user's device with notebooks and notes in a local database file. */
@@ -103,7 +53,7 @@ export class Device {
     /** The running push and follow loops. */
     #loops: Promise<void>[] = [];
 
-    /** Hold a device's storage and objects. */
+    /** Store a device's storage and objects. */
     private constructor(storage: TestDatabase, client: ObjectClient<typeof DEVICE_OBJECTS>) {
         this.storage = storage;
         this.client = client;
@@ -122,7 +72,7 @@ export class Device {
     ) {
         // create the local database and replicate the space's notebooks and notes in it
         const tables = ObjectClient.tables({ notebook, note });
-        const storage = await TestDatabase.create("sqlite", tables, { storage: "file" });
+        const storage = await TestDatabase.create(tables, { dialect: "sqlite", storage: "file" });
         const client = await ObjectClient.open({
             database: storage.database,
             objects: DEVICE_OBJECTS,

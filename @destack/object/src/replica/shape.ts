@@ -24,7 +24,7 @@ export class Shape<Parameters extends object = object> {
     /** The shape as its package declares it. */
     readonly #definition: ShapeDefinition<Parameters>;
 
-    /** Hold a shape as its package declares it. */
+    /** Create a shape as its package declares it. */
     constructor(definition: ShapeDefinition<Parameters>) {
         this.#definition = definition;
     }
@@ -49,7 +49,7 @@ export class Shape<Parameters extends object = object> {
         return this.#definition.queries(parameters);
     }
 
-    /** Name the replica of a key: the one writer of replica names. */
+    /** Build the replica name of a key: the one writer of replica names. */
     replicaName(key: ShapeKey<Parameters>): string {
         // join the scope and the parameters' values in their names' order
         const { scope, ...parameters } = key;
@@ -75,7 +75,7 @@ export class Shape<Parameters extends object = object> {
 
     /** Subscribe to a key for a follower, on behalf of a principal if given. */
     subscription(key: ShapeKey<Parameters>, target: string, subject?: Subject): Subscription {
-        // name each query of the key's parameters by its type and position
+        // label each query of the key's parameters by its type and position
         const { scope, ...rest } = key;
         const named = this.#named(this.parameters.parse(rest), "");
 
@@ -96,7 +96,7 @@ export class Shape<Parameters extends object = object> {
         target: string,
         subject?: Subject,
     ): Subscription {
-        // name each key's queries by its parameter values, its type and its position
+        // label each key's queries by its parameter values, its type and its position
         const named = Object.fromEntries(
             keys.flatMap((parameters) =>
                 Object.entries(this.#named(parameters, `${Shape.#values(parameters).join(":")}:`)),
@@ -157,15 +157,12 @@ interface ShapeDefinition<Parameters extends object> {
 export interface FollowKey<Parameters extends object = object> {
     /** The shape's key. */
     readonly key: ShapeKey<Parameters>;
-    /** The principal the replica is decided for, the store's own when absent. */
+    /** The principal the replica is decided for, the store's principal when absent. */
     readonly subject?: Subject;
 }
 
-/** A shape a package's code reads replicated: at fixed keys, one key per own row, or on demand. */
-export type Follow<Parameters extends object = object, From extends ObjectType = ObjectType> = {
-    /** Whether the store waits for these replicas before serving, true by default. */
-    readonly isReadinessGate?: boolean;
-} & (
+/** A shape a store reads replicated: at fixed keys, per local row, on demand, or down its chain. */
+export type Follow<Parameters extends object = object, From extends ObjectType = ObjectType> =
     | {
           /** The followed shape. */
           readonly shape: Shape<Parameters>;
@@ -175,7 +172,7 @@ export type Follow<Parameters extends object = object, From extends ObjectType =
     | {
           /** The followed shape. */
           readonly shape: Shape<Parameters>;
-          /** The object type of the follower's own rows its keys come from. */
+          /** The object type of the follower's rows its keys come from. */
           readonly from: From;
           /** The condition on those rows, every row when absent. */
           readonly where?: Condition<RowImage<From["table"]>>;
@@ -192,9 +189,12 @@ export type Follow<Parameters extends object = object, From extends ObjectType =
           /** How long a key the store acquires stays followed after its last acquisition. */
           readonly onDemand: { readonly ttl: Duration };
       }
-);
+    | {
+          /** The types the scopes above the store hand down to it, down its chain. */
+          readonly chain: readonly ObjectType[];
+      };
 
-/** A follow of a shape at one key per row of the follower's own, of one object type. */
+/** A follow of a shape at one key per row of the follower, of one object type. */
 export type RowFollow<Parameters extends object, From extends ObjectType> = Extract<
     Follow<Parameters, From>,
     { readonly from: unknown }
@@ -202,11 +202,21 @@ export type RowFollow<Parameters extends object, From extends ObjectType> = Extr
 
 /** Follows of shapes. */
 export const Follow = {
+    /** Follow the handed-down rows of some inherited types down the store's chain. */
+    chain(types: readonly ObjectType[]): Follow {
+        return { chain: types };
+    },
+
+    /** List the object types a follow replicates: its shape's, or its chain's. */
+    types(follow: Follow): readonly ObjectType[] {
+        return "chain" in follow ? follow.chain : follow.shape.objects;
+    },
+
     /** Follow a shape at fixed keys or on demand. */
     of<
         Parameters extends object,
         const At extends DistributiveOmit<
-            Exclude<Follow<Parameters>, { readonly from: unknown }>,
+            Exclude<Follow<Parameters>, { readonly from: unknown } | { readonly chain: unknown }>,
             "shape"
         >,
     >(shape: Shape<Parameters>, at: At): NoInfer<At & { readonly shape: Shape<Parameters> }> {

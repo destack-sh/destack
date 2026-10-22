@@ -5,12 +5,12 @@ import { type ColumnBuilder, identifier, index, TABLE, text } from "@destack/db"
 import type { PackageId } from "@destack/package";
 import { type Method } from "../method/method.ts";
 import {
-    type DestinationShape,
+    type DestinationFields,
     type Procedure,
-    type ReplayShape,
-    type RevisionField,
+    type ReplayFields,
     type RowSchema,
-    type TargetShape,
+    type TargetFields,
+    type RevisionFields,
 } from "../method/procedure.ts";
 import type { ObjectType } from "../object/object.ts";
 import { idColumn } from "../field/field.ts";
@@ -100,7 +100,7 @@ export const nested: Trait<NestedDefinition> = {
                   };
         }
 
-        // reference the owning object, or the table itself for trees
+        // reference the owner object, or the table itself for trees
         const owner = options.in === "self" ? undefined : options.in;
         const keyed = owner?.keyed ?? (owner === undefined ? object.key : undefined);
         const column = (
@@ -195,7 +195,10 @@ export const nested: Trait<NestedDefinition> = {
 export type NestedProcedures<Object extends ObjectType> = {
     move: Procedure<
         schema.Object<
-            TargetShape<Object> & ReplayShape<Object> & RevisionField & DestinationShape<Object>
+            TargetFields<Object> &
+                ReplayFields<Object> &
+                typeof RevisionFields &
+                DestinationFields<Object>
         >,
         RowSchema<Object>
     >;

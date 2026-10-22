@@ -1,11 +1,8 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { TestDatabase } from "@destack/db/test";
 import { Package } from "@destack/package";
-import { ResourceContext } from "@destack/resource/context";
-import { schema, nth } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { defineAdapter, definePackage } from "@destack/object";
-import { Health } from "@destack/object/server";
-import { Server } from "@destack/object/server";
 import { testCallKey } from "@destack/object/test";
 import { testEvents } from "../src/test/index.ts";
 import { v7 } from "uuid";
@@ -13,13 +10,13 @@ import {
     type AdapterFetch,
     implementPackage,
     ObjectStore,
-    type ServedPackage,
+    type ObjectPackage,
 } from "../src/server/index.ts";
 import { page, pageDatabase } from "./fixture/page.ts";
 import { openSpace, spacePrincipal } from "./fixture/space.ts";
-import { bearerUser, users } from "./fixture/user.ts";
-import { Caller } from "@destack/access";
+import { users } from "./fixture/user.ts";
 import { Clock } from "@destack/environment";
+import { TestObjectStore } from "../src/test/index.ts";
 
 /** The space with the pages. */
 const spaceId = schema.identifier("space").parse(`space-${v7()}`);
@@ -30,8 +27,8 @@ const pages = definePackage({
     adapters: { feed: defineAdapter("feed", { path: "/feed" }) },
 });
 
-/** The pages with a feed adapter answering the space's own installation alone. */
-const ownPages = definePackage({
+/** The pages with a feed adapter answering the space's installation alone. */
+const customPages = definePackage({
     objects: { page },
     adapters: { feed: defineAdapter("feed", { path: "/feed", callers: "self" }) },
 });
@@ -44,14 +41,14 @@ const feed: AdapterFetch = async (request) => {
 };
 
 /** The pages as any served package, whose adapters any answers may claim to answer. */
-const served: ServedPackage = pages;
+const served: ObjectPackage = pages;
 
 /** Serve the pages over a space's database, answering the given adapters. */
 async function servePages(
     adapters: Readonly<Record<string, AdapterFetch>>,
-    handle: ServedPackage = served,
+    handle: ObjectPackage = served,
 ) {
-    const storage = await TestDatabase.create("sqlite", pageDatabase, { isMigrated: true });
+    const storage = await TestDatabase.create(pageDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
     const events = await testEvents(storage.database);
@@ -72,17 +69,9 @@ async function servePages(
 test("answer each request at or below an adapter's path by its fetch, below the adapter's path", async () => {
     // serve the pages with their feed
     const composed = await servePages({ feed });
-    const server = Server.start({
-        clock: Clock.system,
-        ...nth(composed().packages, 0),
-        scope: spaceId,
-        resources: new ResourceContext(),
-        health: new Health("pages"),
-        drainTimeout: 1000,
-        authorizeMachine: async () => {},
-        authenticate: bearerUser(pages.id, spaceId),
-    });
-    onTestFinished(() => server.close());
+    const serving = TestObjectStore.serve(composed());
+    onTestFinished(() => serving[Symbol.asyncDispose]());
+    const server = serving.server(pages);
 
     // send requests below the feed, at it, and beside it
     const answer = async (path: string) => {
@@ -109,30 +98,12 @@ test("refuse a package's unanswered adapter and an answer of no declared adapter
     expect(stray).toThrow(new TypeError(`package ${pages.name} does not declare adapter atom`));
 });
 
-test("answer an adapter declaring its installation's own calls as that principal alone", async () => {
-    // serve the feed to the space itself, authenticating a bearer of self as the space
-    const composed = await servePages({ feed }, ownPages);
-    const asUser = bearerUser(ownPages.id, spaceId);
-    const server = Server.start({
-        clock: Clock.system,
-        ...nth(composed().packages, 0),
-        scope: spaceId,
-        resources: new ResourceContext(),
-        health: new Health("pages"),
-        drainTimeout: 1000,
-        authorizeMachine: async () => {},
-        authenticate: async (request) => {
-            // sign in a bearer of self as the space, and any other as its user
-            const isSelf = request.headers.get("authorization") === "Bearer self";
-            const headers = { authorization: `Bearer ${users.alice}` };
-            const signed = await asUser(isSelf ? new Request(request.url, { headers }) : request);
-
-            return isSelf && signed !== undefined
-                ? { ...signed, caller: Caller.of(spacePrincipal(spaceId)) }
-                : signed;
-        },
-    });
-    onTestFinished(() => server.close());
+test("answer an adapter declaring its installation's calls as that principal alone", async () => {
+    // serve the feed to the space itself, its bearer the space's identifier
+    const composed = await servePages({ feed }, customPages);
+    const serving = TestObjectStore.serve(composed());
+    onTestFinished(() => serving[Symbol.asyncDispose]());
+    const server = serving.server(customPages);
 
     // call the feed as the space, as a user, and as no one
     const status = async (bearer: string | undefined) => {
@@ -142,7 +113,7 @@ test("answer an adapter declaring its installation's own calls as that principal
 
         return response.status;
     };
-    expect([await status("self"), await status(users.alice), await status(undefined)]).toEqual([
+    expect([await status(spaceId), await status(users.alice), await status(undefined)]).toEqual([
         200, 403, 401,
     ]);
 });

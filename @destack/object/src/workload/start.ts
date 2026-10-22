@@ -6,7 +6,7 @@ import { schema } from "@destack/schema";
 /** The path below which an installation's origin receives webhook requests. */
 export const WEBHOOK_PATH = "/.destack/webhook";
 
-/** The path below which a host passes route requests to the workload's own package. */
+/** The path below which a host passes route requests to the workload's package. */
 export const ROUTE_PATH = "/.destack/route";
 
 /** The header that gives the partition of an installation a call goes to. */
@@ -40,7 +40,7 @@ export const WorkloadStart = schema.object({
     secret: schema.string().min(1),
     /** The host's egress, below which the workload calls addresses as its installation. */
     egress: schema.url(),
-    /** The URL callers reach the installation at, its packages mounted below. */
+    /** The URL callers call the installation at, its packages mounted below. */
     url: schema.url(),
     /** The share of traces sampled beside every failed or slow one, from 0 to 1. */
     sampling: schema.number().min(0).max(1),

@@ -10,7 +10,7 @@ import type * as sync from "@destack/sync";
 import { defineMethod, Method, type MethodKind } from "./method.ts";
 import {
     Empty,
-    PageShape,
+    PageFields,
     type MethodProcedure,
     type ObjectSchema,
     type Route,
@@ -20,13 +20,13 @@ import { type ObjectType } from "../object/object.ts";
 import type { SharingGate } from "../trait/shareable.ts";
 
 import {
-    GrantShape,
+    GrantFields,
     readGrant,
-    InviteShape,
+    InviteFields,
     InviteInput,
-    RelationshipShape,
-    ExplainShape,
-    InvitationShape,
+    RelationshipFields,
+    ExplainFields,
+    InvitationFields,
 } from "../trait/shareable.ts";
 import { Execution, type StoreExecution } from "./execution.ts";
 
@@ -49,7 +49,7 @@ export const ShareableMethod = {
                 "relationships",
                 { permission: read, mutates: false },
                 { method: "GET", path: "/{id}/relationships" },
-                (shapes) => shapes.target.extend(PageShape),
+                (schemas) => schemas.target.extend(PageFields),
                 ListPage.schema(Relationship.schema),
                 async (call, { authorization }) => {
                     // page the object's relationships by identifier
@@ -71,7 +71,7 @@ export const ShareableMethod = {
                 "grant",
                 { permission: grant, mutates: true },
                 { method: "POST", path: "/{id}/relationships" },
-                (shapes) => shapes.target.extend({ ...shapes.replay, ...GrantShape }),
+                (schemas) => schemas.target.extend({ ...schemas.replay, ...GrantFields }),
                 Relationship.schema,
                 async (call, { authorization }) => {
                     // grant only on an object outside the trash
@@ -103,14 +103,14 @@ export const ShareableMethod = {
                 "revoke",
                 { permission: grant, mutates: true },
                 { method: "DELETE", path: "/{id}/relationships/{relationshipId}" },
-                (shapes) => shapes.target.extend({ ...shapes.replay, ...RelationshipShape }),
+                (schemas) => schemas.target.extend({ ...schemas.replay, ...RelationshipFields }),
                 Empty,
                 async (call, { authorization }) => {
                     // revoke on any object that exists, in the trash too
                     await ShareableMethod.requirePresent(call, "stored");
                     await Relationship.revoke(
                         call.reference(),
-                        schema.object(RelationshipShape).parse(call.input).relationshipId,
+                        schema.object(RelationshipFields).parse(call.input).relationshipId,
                         authorization,
                     );
 
@@ -121,7 +121,7 @@ export const ShareableMethod = {
                 "invitations",
                 { permission: grant, mutates: false },
                 { method: "GET", path: "/{id}/invitations" },
-                (shapes) => shapes.target.extend(PageShape),
+                (schemas) => schemas.target.extend(PageFields),
                 ListPage.schema(Invitation.schema),
                 async (call, { authorization }) => {
                     // page the object's invitations by identifier
@@ -142,7 +142,7 @@ export const ShareableMethod = {
                 "invite",
                 { permission: grant, mutates: true },
                 { method: "POST", path: "/{id}/invitations" },
-                (shapes) => shapes.target.extend({ ...shapes.replay, ...InviteShape }),
+                (schemas) => schemas.target.extend({ ...schemas.replay, ...InviteFields }),
                 Invitation.schema,
                 async (call, { authorization }) => {
                     // invite to the relationship on an object outside the trash
@@ -162,7 +162,7 @@ export const ShareableMethod = {
                 "accept",
                 { permission: read, mutates: true },
                 { method: "POST", path: "/{id}/invitations/{invitationId}/accept" },
-                (shapes) => shapes.target.extend({ ...shapes.replay, ...InvitationShape }),
+                (schemas) => schemas.target.extend({ ...schemas.replay, ...InvitationFields }),
                 Relationship.schema,
                 async (call, { authorization }) => {
                     // accept only on an object outside the trash
@@ -170,7 +170,7 @@ export const ShareableMethod = {
 
                     return Invitation.accept(
                         call.reference(),
-                        schema.object(InvitationShape).parse(call.input).invitationId,
+                        schema.object(InvitationFields).parse(call.input).invitationId,
                         authorization,
                     );
                 },
@@ -182,9 +182,9 @@ export const ShareableMethod = {
                 target: "id",
                 result: "value",
                 isPredicted: false,
-                procedure: (_name, shapes) => ({
+                procedure: (_name, schemas) => ({
                     route: { method: "GET", path: "/{id}/access" },
-                    input: shapes.target.extend(ExplainShape),
+                    input: schemas.target.extend(ExplainFields),
                     output: Explanation,
                 }),
                 handler: (context, execution) =>
@@ -194,14 +194,14 @@ export const ShareableMethod = {
                 "withdraw",
                 { permission: grant, mutates: true },
                 { method: "DELETE", path: "/{id}/invitations/{invitationId}" },
-                (shapes) => shapes.target.extend({ ...shapes.replay, ...InvitationShape }),
+                (schemas) => schemas.target.extend({ ...schemas.replay, ...InvitationFields }),
                 Empty,
                 async (call, { authorization }) => {
                     // withdraw on any object that exists, in the trash too
                     await ShareableMethod.requirePresent(call, "stored");
                     await Invitation.withdraw(
                         call.reference(),
-                        schema.object(InvitationShape).parse(call.input).invitationId,
+                        schema.object(InvitationFields).parse(call.input).invitationId,
                         authorization,
                     );
 
@@ -228,7 +228,7 @@ export const ShareableMethod = {
             target: access.mutates ? "id" : "object",
             result: "value",
             isPredicted: false,
-            procedure: (_name, shapes) => ({ route, input: input(shapes), output }),
+            procedure: (_name, schemas) => ({ route, input: input(schemas), output }),
             handler: (context, execution) => handler(context, Execution.store(execution, context)),
             ...(inverse === undefined ? {} : { inverse }),
         });
@@ -241,7 +241,7 @@ export const ShareableMethod = {
     ): Promise<Explanation> {
         // resolve access in the governing scope
         const { authorizer, snapshot } = authorization;
-        const { permission: asked, subject } = schema.object(ExplainShape).parse(context.input);
+        const { permission: asked, subject } = schema.object(ExplainFields).parse(context.input);
         const object = context.object;
         const target = context.reference();
         const scope = authorizer.governingScope(target);
@@ -269,7 +269,7 @@ export const ShareableMethod = {
 
             return authorizer.explain(snapshot, explained(), target, resolved);
         }
-        // explain the caller's own access to an object it may read
+        // explain the caller's access to an object it may read
         else {
             const reading = await authorizer.check(
                 snapshot,

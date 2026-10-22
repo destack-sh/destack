@@ -61,7 +61,7 @@ export class BranchType {
         return target;
     }
 
-    /** Resolve a call a branch holds: a durable object's mutating method, in the branch's scope. */
+    /** Resolve a call a branch stores: a durable object's mutating method, in the branch scope. */
     resolve(
         objects: readonly ObjectType[],
         entry: sync.Call,

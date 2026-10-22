@@ -158,7 +158,7 @@ export class AuditRecorder {
                 return;
             }
 
-            // map how the procedure ended to an outcome, recording a concealed denial's own code
+            // map how the procedure ended to an outcome, recording a concealed denial's code
             const outcome = AuditRecorder.#outcomeOf(event);
 
             // record the call
@@ -308,7 +308,7 @@ export class AuditRecorder {
         return value;
     }
 
-    /** Run a read and record it as one access call, with the details its result holds. */
+    /** Run a read and record it as one access call, with the details its result has. */
     async read<
         Target extends schema.Schema<AuditTarget>,
         Details extends schema.Schema<JsonValue>,
@@ -498,7 +498,7 @@ export class AuditRecorder {
         else if (event.outcome === "cancelled") {
             return CANCELLED;
         }
-        // a failure or a denial, with its own code
+        // a failure or a denial, with its code
         else {
             return AuditRecorder.outcome(event.error);
         }

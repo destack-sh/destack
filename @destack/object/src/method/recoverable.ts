@@ -53,7 +53,7 @@ export const RecoverableMethod = {
                 },
             });
         }
-        // purge a retained record by the type's own handler, which destroys its content
+        // purge a retained record by the type's handler, which destroys its content
         else if (options.retain === "record") {
             return defineMethod<RestorationConfiguration & { table: RetainedTable }>({
                 ...restorationShape(kind, permission),
@@ -62,10 +62,10 @@ export const RecoverableMethod = {
                 ...(options.prepared === undefined ? {} : { prepared: options.prepared }),
                 handler: (context) => RecoverableMethod.purgeRetained(context),
                 async execute(this: Method, context: MethodContext, execution: Execution) {
-                    // require a purge handler of the type's own
+                    // require the type to implement the purge
                     if (this.hooks?.handle === undefined) {
                         throw new TypeError(
-                            `object ${context.object.name} retains purged records, so a purge handler of its own destroys their content`,
+                            `object ${context.object.name} retains purged records, so its purge must implement destroying their content`,
                         );
                     }
 
@@ -183,10 +183,10 @@ function restorationShape(kind: "restore" | "purge", permission: string) {
         permission,
         mutates: true,
         target: "object",
-        procedure: (_name: string, shapes: ObjectSchema): MethodProcedure => ({
+        procedure: (_name: string, schemas: ObjectSchema): MethodProcedure => ({
             route: { method: "POST", path: `/{id}/${kind}` },
-            input: shapes.target.extend(shapes.replay),
-            output: kind === "restore" ? shapes.row : Empty,
+            input: schemas.target.extend(schemas.replay),
+            output: kind === "restore" ? schemas.row : Empty,
         }),
     } as const;
 }

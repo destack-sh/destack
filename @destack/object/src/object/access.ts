@@ -84,7 +84,7 @@ export const ObjectPolicy = {
             Object.assign(placed, rest);
         }
 
-        // map the self relation to the principal each object stands for under its own identifier, in the universe for a global principal
+        // map the self relation to the principal each object stands for under its identifier, in the universe for a global principal
         const self = type.definition.relations?.["self"];
         if (Object.hasOwn(type.policy.definition.relations, "self")) {
             const isGlobal =
@@ -187,9 +187,9 @@ export const ObjectPolicy = {
         const asked = { packageId: object.packageId, type: object.type, name: permission };
         const asking = await authorization.in(scope);
 
-        // decide the caller's own access under its delegates and grant
-        const own = context.caller.subject;
-        if (own !== undefined && Subject.same(own, subject)) {
+        // decide the caller's access under its delegates and grant
+        const caller = context.caller.subject;
+        if (caller !== undefined && Subject.same(caller, subject)) {
             return {
                 isAllowed: (await authorizer.check(snapshot, asked, object, asking)).isAllowed,
             };
@@ -220,7 +220,7 @@ export const ObjectPolicy = {
         return Scope.object(Execution.snapshot(execution), context.scope);
     },
 
-    /** Read how access maps one of its own tables, typed by that table. */
+    /** Read how access maps one of its tables, typed by that table. */
     readMapping<Mapped extends Table>(
         table: Mapped,
     ): Omit<TableMapping, "table" | "policy"> & { readonly table: Mapped } {

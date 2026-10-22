@@ -10,27 +10,29 @@ import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { none, through, union, universe } from "@destack/access";
 
 import { defineDatabase, Snapshot } from "@destack/db";
-import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
+import { TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
 import { RequestId, Scope } from "@destack/sync";
 import { subjectContext, testCallKey } from "@destack/object/test";
-import { callTables, testEvents, serversOf } from "../src/test/index.ts";
+import { testEvents, serversOf } from "../src/test/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { claim } from "./fixture/claim.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
 import { Clock } from "@destack/environment";
+import { tablesOf } from "../src/index.ts";
+import objectPackage from "../src/package.ts";
 
 /** The space with the assets. */
 const homeId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000021");
 
-/** The space owning the assets, whose own principal has its owner role. */
+/** The owner space of the assets, whose principal has its owner role. */
 const holderId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000022");
 
-/** A space owning nothing in the home. */
+/** A space that is the owner of nothing in the home. */
 const rivalId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000023");
 
-/** Assets stored in one space and owned by another, managed by the roles of the owning space. */
+/** Assets stored in one space with another as owner, managed by the roles of the owner space. */
 const declared = defineObject(
     {
         name: "asset",
@@ -38,7 +40,7 @@ const declared = defineObject(
         scope: space,
         owner: "holder",
         fields: {
-            /** The space owning the asset. */
+            /** The owner space of the asset. */
             holder: field.reference(space).relate("holder"),
             /** The asset's name, unique within its owner. */
             name: field.string(),
@@ -72,11 +74,15 @@ const asset = declared.implement({
 /** The database with the assets, their access, the replicated spaces and the journal. */
 const assetDatabase = defineDatabase({
     name: "main",
-    tables: [...callTables, claimTable, space.table, ...asset.tables],
+    ...tablesOf({
+        packages: [objectPackage, { objects: { asset }, tables: [] }],
+        follows: [],
+        tables: [claimTable, space.table],
+    }),
 });
 
-test("map an owned object's relation in the universe and record its names under its owner", async () => {
-    const storage = await TestDatabase.create("sqlite", assetDatabase, { isMigrated: true });
+test("map the relation of an object with an owner in the universe and record its names under its owner", async () => {
+    const storage = await TestDatabase.create(assetDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
 
     // claim the asset's name under its owner, keyed within the universe
@@ -94,7 +100,7 @@ test("map an owned object's relation in the universe and record its names under 
 });
 
 test("map a reference to an object of another scope type across scopes, and one beside the referring object in its scope", () => {
-    // declare teams and vaults inside spaces, and items in vaults owned by a team and tagged beside them
+    // declare teams and vaults in spaces, and items in vaults with a team owner, tagged beside them
     const team = defineObject({
         name: "team",
         plural: "teams",
@@ -130,7 +136,7 @@ test("map a reference to an object of another scope type across scopes, and one 
         permissions: { read: union(through("team", "read"), through("tag", "read")) },
     });
 
-    // follow the team in any scope, and the tag in the item's own scope
+    // follow the team in any scope, and the tag in the item's scope
     expect(item.mapping.relations).toEqual({
         team: { column: "teamId", scope: "*" },
         tag: { column: "tagId" },
@@ -148,64 +154,61 @@ test("refuse an owner that no reference relates", () => {
                 fields: { name: field.string() },
             }),
         ),
-    ).toThrow("object orphan is owned through holder, but no reference relates it");
+    ).toThrow("object orphan takes its owner from holder, but no reference relates it");
 });
 
-test.each(TEST_DIALECTS)(
-    "let the roles of an owner create owned objects and run scoped methods for that owner alone, on %s",
-    async (dialect) => {
-        // store assets in a public home owned by a private holder, beside a rival space
-        const storage = await TestDatabase.create(dialect, assetDatabase, { isMigrated: true });
-        onTestFinished(() => storage.close());
-        for (const id of [homeId, holderId, rivalId]) {
-            await openSpace(storage.database, id, id === holderId ? "private" : "public");
-            await storage.database
-                .insert(space.table)
-                .values({ id, scope: Scope.universe.id, createdAt: 0, updatedAt: 0 });
-        }
-        const store = new ObjectStore({
-            chain: async () => undefined,
-            clock: Clock.system,
-            principal: spacePrincipal(homeId),
-            servers: serversOf([asset]),
-            database: storage.database,
-            callKey: testCallKey,
-            events: await testEvents(storage.database),
-            origin: { package: asset.package },
-            claims: { object: claim },
-        });
-        const call = <Name extends CallableName<typeof asset>>(
-            by: string,
-            name: Name,
-            input: NoInfer<RequestInput<typeof asset, Name>>,
-        ) =>
-            refusal(
-                request(
-                    store,
-                    asset,
-                    name,
-                    homeId,
-                    { requestId: RequestId.create(Date.now()), ...input },
-                    subjectContext(spacePrincipal(by), homeId),
-                ),
-            );
+test("let the roles of an owner create objects of that owner and run scoped methods for that owner alone", async () => {
+    // store assets in a public home with a private holder as owner, beside a rival space
+    const storage = await TestDatabase.create(assetDatabase, { isMigrated: true });
+    onTestFinished(() => storage.close());
+    for (const id of [homeId, holderId, rivalId]) {
+        await openSpace(storage.database, id, id === holderId ? "private" : "public");
+        await storage.database
+            .insert(space.table)
+            .values({ id, scope: Scope.universe.id, createdAt: 0, updatedAt: 0 });
+    }
+    const store = new ObjectStore({
+        chain: async () => undefined,
+        clock: Clock.system,
+        principal: spacePrincipal(homeId),
+        servers: serversOf([asset]),
+        database: storage.database,
+        callKey: testCallKey,
+        events: await testEvents(storage.database),
+        origin: { package: asset.package },
+        claims: { object: claim },
+    });
+    const call = <Name extends CallableName<typeof asset>>(
+        by: string,
+        name: Name,
+        input: NoInfer<RequestInput<typeof asset, Name>>,
+    ) =>
+        refusal(
+            request(
+                store,
+                asset,
+                name,
+                homeId,
+                { requestId: RequestId.create(Date.now()), ...input },
+                subjectContext(spacePrincipal(by), homeId),
+            ),
+        );
 
-        // create and count as the holder, hide its assets from the rival, and refuse the rival's count openly
-        expect([
-            await call(holderId, "create", { holderId, name: "lamp" }),
-            await call(holderId, "count", { holderId }),
-            await call(rivalId, "create", { holderId, name: "desk" }),
-            await call(rivalId, "count", { holderId }),
-        ]).toEqual([
-            "done",
-            "done",
-            ["NOT_FOUND", "asset not found"],
-            ["FORBIDDEN", "permission denied: manage"],
-        ]);
-    },
-);
+    // create and count as the holder, hide its assets from the rival, and refuse the rival's count openly
+    expect([
+        await call(holderId, "create", { holderId, name: "lamp" }),
+        await call(holderId, "count", { holderId }),
+        await call(rivalId, "create", { holderId, name: "desk" }),
+        await call(rivalId, "count", { holderId }),
+    ]).toEqual([
+        "done",
+        "done",
+        ["NOT_FOUND", "asset not found"],
+        ["FORBIDDEN", "permission denied: manage"],
+    ]);
+});
 
-/** Stickers stored in a space and owned by none, decided only by the space's roles. */
+/** Stickers stored in a space without an owner, decided only by the space's roles. */
 const sticker = defineObject(
     {
         name: "sticker",
@@ -223,12 +226,16 @@ const sticker = defineObject(
 /** The database with the assets beside the stickers. */
 const stickerDatabase = defineDatabase({
     name: "main",
-    tables: [...callTables, claimTable, space.table, ...asset.tables, ...sticker.tables],
+    ...tablesOf({
+        packages: [objectPackage, { objects: { asset, sticker }, tables: [] }],
+        follows: [],
+        tables: [claimTable, space.table],
+    }),
 });
 
-test("allow an owner to its owned objects in a private home it cannot see, and refuse the home's other objects", async () => {
-    // store assets and stickers in a private home, owned by the holder, beside a rival space
-    const storage = await TestDatabase.create("sqlite", stickerDatabase, { isMigrated: true });
+test("allow an owner its objects in a private home it cannot see, and refuse the home's other objects", async () => {
+    // store assets and stickers in a private home, with the holder as owner, beside a rival space
+    const storage = await TestDatabase.create(stickerDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
     for (const id of [homeId, holderId, rivalId]) {
         await openSpace(storage.database, id, "private");

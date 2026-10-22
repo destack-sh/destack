@@ -1,19 +1,19 @@
 import { schema } from "@destack/schema";
 import { Element } from "./element.ts";
 
-/** A boundary of an annotation: the side of an element it binds to. */
+/** An edge of an annotation: the side of an element it binds to. */
 export type Anchor = {
-    /** The element the boundary binds to. */
+    /** The element the edge binds to. */
     readonly element: Element;
-    /** The side of the element the boundary sits on. */
+    /** The side of the element the edge sits on. */
     readonly side: "before" | "after";
 };
 
-/** A boundary of an annotation: the side of an element it binds to. */
+/** An edge of an annotation: the side of an element it binds to. */
 export const Anchor: schema.Schema<Anchor> = schema.object({
-    /** The element the boundary binds to. */
+    /** The element the edge binds to. */
     element: Element,
-    /** The side of the element the boundary sits on. */
+    /** The side of the element the edge sits on. */
     side: schema.enum(["before", "after"]),
 });
 
@@ -21,9 +21,9 @@ export const Anchor: schema.Schema<Anchor> = schema.object({
 export type Selection = {
     /** The text field. */
     readonly field: string;
-    /** The boundary the selection started at. */
+    /** The edge the selection started at. */
     readonly anchor: Anchor;
-    /** The boundary the selection ends at, the cursor. */
+    /** The edge the selection ends at, the cursor. */
     readonly head: Anchor;
 };
 
@@ -31,8 +31,8 @@ export type Selection = {
 export const Selection: schema.Schema<Selection> = schema.object({
     /** The text field. */
     field: schema.string().min(1),
-    /** The boundary the selection started at. */
+    /** The edge the selection started at. */
     anchor: Anchor,
-    /** The boundary the selection ends at, the cursor. */
+    /** The edge the selection ends at, the cursor. */
     head: Anchor,
 });

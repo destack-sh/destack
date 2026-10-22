@@ -75,7 +75,7 @@ import { PACKAGE_DECLARATION, PackageDescription } from "../declare/description.
 import { PackageHandle } from "../declare/package.ts";
 import { type ProcedureRouter } from "../procedure/index.ts";
 import * as sync from "@destack/sync";
-import { type Follow, type FollowKey, type RowFollow } from "../replica/shape.ts";
+import { Follow, type FollowKey, type RowFollow } from "../replica/shape.ts";
 import { followKey } from "../replica/key.ts";
 import {
     QueriesParameters,
@@ -117,7 +117,7 @@ import type { HookSandbox } from "../hook/sandbox.ts";
 import type {
     AdapterFetch,
     PackageImplementation,
-    ServedPackage,
+    ObjectPackage,
     ImplementationInput,
 } from "./implementation.ts";
 import { Clock } from "@destack/environment";
@@ -158,10 +158,10 @@ const BOOKMARK_TIMEOUT_MILLISECONDS = 5000;
 export interface SubscriberEntry {
     /** The subscription following the replica. */
     readonly subscription: sync.Subscription;
-    /** Whether the store waits for the replica before serving, else as its shape says. */
-    readonly isReadinessGate?: boolean;
     /** The publisher streaming the replica's pages, one step closer to its rows' home. */
     readonly publisher: sync.Publisher;
+    /** Whether a use acquired the replica's key, as on-demand follows do, not a declaration. */
+    readonly isAcquired: boolean;
 }
 
 /** How a store follows its replicas: the tables relisting them, and the uplink taking changes. */
@@ -172,20 +172,20 @@ export interface SubscriberOptions {
     readonly uplink?: sync.Uplink;
 }
 
-/** The subscriptions a database follows for its replicas, each from its own publisher. */
+/** The subscriptions a database follows for its replicas, each from its publisher. */
 export interface Subscriber extends SubscriberOptions {
     /** List the subscriptions of the store's chains and follows, reading through a view. */
     readonly subscriptions: (view: Snapshot, delta?: Delta) => Promise<readonly SubscriberEntry[]>;
 }
 
-/** Where a watermark's history is in a store: the own log, a lost one, its replicas, or none. */
+/** Where a watermark's history is in a store: the local log, a lost one, its replicas, or none. */
 export type WatermarkHistory =
     | {
-          /** The store's own log in its current epoch. */
-          readonly kind: "own";
+          /** The store's log in its current epoch. */
+          readonly kind: "local";
       }
     | {
-          /** An earlier epoch of the own log, or another log of a scope homed here. */
+          /** An earlier epoch of the store's log, or another log of a scope homed here. */
           readonly kind: "stale";
       }
     | {
@@ -234,7 +234,7 @@ type MutationRun = {
     readonly scope: string;
     /** The caller the mutation runs as. */
     readonly caller: AccessContext;
-    /** The code making the calls for a principal's own code, such as a controller's name. */
+    /** The code making the calls for a principal's code, such as a controller's name. */
     readonly component?: string;
     /** The expanded calls, in order. */
     readonly calls: readonly Expansion[];
@@ -262,7 +262,7 @@ export interface AuthorizeOptions {
 
 /** How a store authorizes a caller for work it serves, beyond its authorization. */
 export interface AuthorizeHereOptions extends Omit<AuthorizeOptions, "within"> {
-    /** The authorized calls by type and method, whose owned types need no visible scope. */
+    /** The authorized calls by type and method, whose types with an owner need no visible scope. */
     readonly calls?: readonly { readonly object: ObjectType; readonly name: string }[];
 }
 
@@ -272,11 +272,11 @@ export interface MutateOptions {
     readonly transaction?: Transaction;
     /** The client instance writing ephemeral objects. */
     readonly writerId?: string;
-    /** The code making the calls for a principal's own code, such as a controller's name. */
+    /** The code making the calls for a principal's code, such as a controller's name. */
     readonly component?: string;
     /** The scope of the calls without one. */
     readonly scope?: string;
-    /** Where the calls are made, the caller's site when absent, such as the store's own steps. */
+    /** Where the calls are made, the caller's site when absent, such as the store's steps. */
     readonly site?: CallSite;
 }
 
@@ -304,7 +304,7 @@ type CallOptions = {
     readonly expansion?: readonly BranchEntry[];
     /** The request the call belongs to. */
     readonly request?: CallRequest;
-    /** The code making the call for a principal's own code, such as a controller's name. */
+    /** The code making the call for a principal's code, such as a controller's name. */
     readonly component?: string;
     /** The authorizations the run resolved for its calls, by scope and caller. */
     readonly authorizations: Map<string, Authorization>;
@@ -312,7 +312,7 @@ type CallOptions = {
 
 /** The options of an object store: its package servers over one database, and its call log. */
 export type ObjectStoreOptions = Omit<
-    StoreParts,
+    StoreComposition,
     | "objects"
     | "replicas"
     | "installed"
@@ -324,7 +324,7 @@ export type ObjectStoreOptions = Omit<
     | "publisher"
 > &
     CallLog & {
-        /** The package servers, the first one running the store's own controllers. */
+        /** The package servers, the first one running the store's controllers. */
         readonly servers: readonly PackageImplementation[];
         /** The sandboxes of the installations whose packages run here without a workload. */
         readonly sandboxes?: readonly HookSandbox[];
@@ -336,7 +336,7 @@ export type ObjectStoreOptions = Omit<
         readonly publisher?: (scope: string) => sync.Publisher;
     } & (
         | {
-              /** The principal the store's own work runs as. */
+              /** The principal the store's work runs as. */
               readonly principal: Subject;
               /** No installation: the store runs as the given principal. */
               readonly server?: never;
@@ -350,17 +350,17 @@ export type ObjectStoreOptions = Omit<
     );
 
 /** What a store runs with once composed from its servers. */
-type ComposedOptions = StoreParts & CallLog;
+type ComposedOptions = StoreComposition & CallLog;
 
 /** A package a store serves: its handle, definition, types and serving installation. */
 interface StorePackage {
     /** The package. */
-    readonly package: ServedPackage;
+    readonly package: ObjectPackage;
     /** The package's code. */
     readonly definition: ImplementationInput;
     /** The package's types, its handled ones in place of their declared defaults. */
     readonly objects: readonly ObjectType[];
-    /** The installation serving the package, absent for the platform's own store. */
+    /** The installation serving the package, absent for the platform's store. */
     readonly server: ServerContext | undefined;
 }
 
@@ -380,7 +380,7 @@ export type CallLog =
       };
 
 /** An object store's objects over one database and its adjacent stores, as composed. */
-interface StoreParts {
+interface StoreComposition {
     /** The object types served. */
     readonly objects: readonly ObjectType[];
     /** The types whose queries run over rows replicated here, never followed nor changed here. */
@@ -389,9 +389,9 @@ interface StoreParts {
     readonly policies?: readonly (Policy | ObjectType | TableMapping)[];
     /** The database with the objects. */
     readonly database: DatabaseConnection;
-    /** The principal of the store's own work: controllers, settlements and in-process changes. */
+    /** The principal of the store's work: controllers, settlements and in-process changes. */
     readonly principal: Subject;
-    /** The one partition the store serves, its own scope's when absent, never one inside it. */
+    /** The one partition the store serves, its scope's when absent, never one inside it. */
     readonly partition?: string;
     /** The package recording the calls. */
     readonly origin: Omit<AuditOrigin, "scope">;
@@ -405,7 +405,7 @@ interface StoreParts {
     readonly external?: readonly ExternalStorage[];
     /** The subscriptions the database follows to maintain its replicas. */
     readonly subscriber?: SubscriberOptions;
-    /** Read how the store holds its scope's chain, home or follower, absent while it has none. */
+    /** Read how the store has its scope's chain, home or follower, absent while it has none. */
     readonly chain: (view: Snapshot) => Promise<ChainOptions | undefined>;
     /** The shapes the served code reads replicated, with the keys it follows them at. */
     readonly follows?: readonly Follow[];
@@ -438,9 +438,9 @@ export class ObjectStore {
     readonly replicas: readonly ObjectType[];
     /** The database with the objects. */
     readonly database: DatabaseConnection;
-    /** The principal of the store's own work: controllers, settlements and in-process changes. */
+    /** The principal of the store's work: controllers, settlements and in-process changes. */
     readonly principal: Subject;
-    /** The one partition the store serves, its own scope's when absent, never one inside it. */
+    /** The one partition the store serves, its scope's when absent, never one inside it. */
     readonly partition: string | undefined;
     /** The evaluator of the served objects' policies. */
     readonly authorizer: Authorizer;
@@ -458,7 +458,7 @@ export class ObjectStore {
     readonly external: readonly ExternalStorage[];
     /** The subscriptions the database follows to maintain its replicas. */
     readonly subscriber: Subscriber | undefined;
-    /** Read how the store holds its scope's chain, home or follower, absent while it has none. */
+    /** Read how the store has its scope's chain, home or follower, absent while it has none. */
     readonly chain: (view: Snapshot) => Promise<ChainOptions | undefined>;
     /** The durable types the store serves or decides, whose rows stand for their principals. */
     readonly decided: readonly ObjectType[];
@@ -509,19 +509,21 @@ export class ObjectStore {
 
     /** Serve object types over one database. */
     constructor(given: ObjectStoreOptions) {
-        // compose the servers' packages, keeping the principal and partition the follows place replicas below
-        const { parts, served } = ObjectStore.#compose(given, () => this);
-        this.principal = parts.principal;
-        this.partition = parts.partition;
+        // compose the servers' packages, with the principal and partition the follows place replicas below
+        const { composed, served } = ObjectStore.#compose(given, () => this);
+        this.principal = composed.principal;
+        this.partition = composed.partition;
 
         // add the referenced and followed types and the follows
-        const options = this.#following(ObjectStore.#referencing(parts));
-        this.followed = [...new Set((parts.follows ?? []).flatMap((each) => each.shape.objects))];
+        const options = this.#following(ObjectStore.#referencing(composed));
+        this.followed = [
+            ...new Set((composed.follows ?? []).flatMap((each) => Follow.types(each))),
+        ];
 
         // require each object type once apart from the shared procedures, and the stores its storage needs
         this.#declared = options.objects;
         this.objects = ObjectType.served(this.#declared);
-        this.replicas = parts.replicas ?? [];
+        this.replicas = composed.replicas ?? [];
         // validate each served type once, as describing it at build would
         for (const type of options.objects) {
             type.requireValid();
@@ -529,7 +531,7 @@ export class ObjectStore {
         ObjectStore.#requireRoutes(options.objects);
         ObjectStore.#requireStores(this.objects, options);
 
-        // hold the optional stores and machines
+        // store the optional stores and machines
         this.claims = options.claims;
         this.subscriber = options.subscriber;
         this.chain = options.chain;
@@ -552,7 +554,7 @@ export class ObjectStore {
         this.authorizer = ObjectStore.#authorizer([...this.objects, ...unpoliced], options);
         TrackedHistory.require(this.objects, this.authorizer);
 
-        // hold the journal, the audit and the request context
+        // store the journal, the audit and the request context
         this.#journal = ObjectStore.#journalOf(this.#declared, options);
         this.origin = { ...options.origin, package: Package.of(options.origin.package) };
         this.audit = (scope, caller, recording) =>
@@ -573,7 +575,7 @@ export class ObjectStore {
         this.feed = followed.feed;
         this.known = ObjectStore.known(options.objects, options.policies ?? []);
 
-        // implement each served package, the first one also running the store's own controllers
+        // implement each served package, the first one also running the store's controllers
         const servedIds = new Set(served.map((entry) => entry.package.id));
         this.packages = served.map((entry, index) =>
             this.#packageHandler(entry, index === 0, servedIds),
@@ -631,7 +633,7 @@ export class ObjectStore {
             return { ...rest, follows };
         }
 
-        // place the replicas below the store's own scope or partition, toward each scope's home
+        // place the replicas below the store's scope or partition, toward each scope's home
         const types = [...given.objects, ...(given.policies ?? [])].filter(
             (each) => each instanceof ObjectType,
         );
@@ -644,15 +646,15 @@ export class ObjectStore {
             ...given,
             policies: ObjectStore.#policies(
                 given,
-                follows.flatMap((each) => each.shape.objects),
+                follows.flatMap((each) => Follow.types(each)),
             ),
             subscriber: {
                 ...(subscriber?.uplink === undefined ? {} : { uplink: subscriber.uplink }),
                 watches: [
                     ...(subscriber?.watches ?? []),
                     ...ObjectStore.#chainedTables(given, types),
-                    // relist when followed rows change, which the host's chain fact reads
-                    ...follows.flatMap((each) => each.shape.objects.map((type) => type.table)),
+                    // relist when followed rows change, which the host's chain reads
+                    ...follows.flatMap((each) => Follow.types(each).map((type) => type.table)),
                     ...follows.flatMap((each) => ("from" in each ? [each.from.table] : [])),
                     // relist when the store acquires or evicts an on-demand key
                     ...(follows.some((each) => "onDemand" in each) ? [followKey] : []),
@@ -669,6 +671,7 @@ export class ObjectStore {
                         ({ subscription, home }) => ({
                             subscription,
                             publisher: publisherOf(home),
+                            isAcquired: false,
                         }),
                     );
 
@@ -881,11 +884,11 @@ export class ObjectStore {
     /** The space the store serves, absent for a machine's or the universe's store. */
     get space(): string | undefined {
         // a space's store serves the space, a sandboxed installation's store its installation's space
-        const { principal: own } = this;
-        if (principal.space.is(own)) {
-            return own.id;
-        } else if (principal.installation.is(own)) {
-            return own.scope;
+        const { principal: self } = this;
+        if (principal.space.is(self)) {
+            return self.id;
+        } else if (principal.installation.is(self)) {
+            return self.scope;
         }
 
         return undefined;
@@ -950,7 +953,7 @@ export class ObjectStore {
                 !object.scopes.some((scope) => scope.policy.is(options.principal)),
         );
         if (local !== undefined) {
-            throw new TypeError(`local object ${local.name} lives only in its scope's own store`);
+            throw new TypeError(`local object ${local.name} lives only in its scope's store`);
         }
 
         // require claims for indexed objects
@@ -1111,7 +1114,7 @@ export class ObjectStore {
         }
     }
 
-    /** Wait until each readiness replica is confirmed within the lag, checked on record changes. */
+    /** Wait until the chain's replicas are confirmed within the lag, checked on record changes. */
     async #ready(signal: AbortSignal): Promise<boolean> {
         // check the listed gates now and after each replica record commit
         const { database } = this;
@@ -1123,8 +1126,8 @@ export class ObjectStore {
                 return false;
             }
 
-            // require each listed gating replica confirmed by its home within the lag
-            const gates = (await this.sink.followed()).filter((entry) => entry.isReadinessGate);
+            // require each gating replica confirmed by its home within the lag
+            const gates = await this.sink.gates();
             const since = this.clock.now() - this.authorizer.lag;
             const confirmed = await Promise.all(
                 gates.map(({ subscription }) => sync.Replica.confirmedAt(database, subscription)),
@@ -1144,7 +1147,7 @@ export class ObjectStore {
 
     /** Route the served objects' methods, or some of them, and the store procedures. */
     router(types: readonly ObjectType[] = this.#declared): ObjectRouter {
-        // route each object under its key, which its package's handle holds unique
+        // route each object under its key, which its package's handle makes unique
         const routers: Record<string, Router<ProcedureRouter, RequestContext>> = {};
         for (const object of types) {
             routers[object.key] = this.#route(object);
@@ -1179,7 +1182,7 @@ export class ObjectStore {
                 await this.enter(context, input.scope);
                 await this.#waitForHomes(context, input.scope, input.homes);
 
-                // confirm the caller's own streams of the scope at the watermark
+                // confirm the caller's streams of the scope at the watermark
                 const watermark = await this.watermark();
                 this.source.confirmCaller(input.scope, context.authentication, watermark);
 
@@ -1221,7 +1224,7 @@ export class ObjectStore {
                 );
             }),
             confirm: store.confirm.handler(async ({ input, context }) => {
-                // confirm the caller's own subscription, as allowed to follow it
+                // confirm the caller's subscription, as allowed to follow it
                 await this.source.confirmRequest(input.subscription, input.watermark, context);
 
                 return {};
@@ -1850,7 +1853,7 @@ export class ObjectStore {
         await this.enter(context, scope);
         const caller = context.access(scope);
 
-        // run each mutation in its own transaction
+        // run each mutation in a separate transaction
         const outcomes: PushResult["outcomes"][number][] = [];
         for (const pushed of mutations) {
             const mutation = {
@@ -1887,7 +1890,7 @@ export class ObjectStore {
             }
         }
 
-        // confirm the caller's own streams of the scope past its writes
+        // confirm the caller's streams of the scope past its writes
         const watermark = await this.watermark();
         this.source.confirmCaller(scope, context.authentication, watermark);
 
@@ -2111,7 +2114,7 @@ export class ObjectStore {
         return (await this.#readHomeAll(sent)).receive(sent, signer);
     }
 
-    /** List the controllers the served objects need: the store's own, then each type's. */
+    /** List the controllers the served objects need: the store's, then each type's. */
     controllers(): readonly Controller[] {
         return [...this.#storeControllers(), ...this.#objectControllers(() => true)];
     }
@@ -2125,7 +2128,7 @@ export class ObjectStore {
         );
     }
 
-    /** List the store's own controllers, from compaction to its branch. */
+    /** List the store's controllers, from compaction to its branch. */
     #storeControllers(): Controller[] {
         // compact the log, and pick the controllers the objects need
         const isRecoverable = this.objects.some(
@@ -2272,15 +2275,15 @@ export class ObjectStore {
         authorization.requireMethods(calls);
     }
 
-    /** Enter a scope: require the pinned scope or one inside it, and wait for observed writes. */
+    /** Enter a scope: require the request's scope or one inside it, and wait for seen writes. */
     async enter(context: RequestContext, scope: string): Promise<void> {
-        // require the pinned scope or a scope inside it
-        const pinned = context.scope;
-        if (pinned !== undefined && pinned !== scope) {
+        // require the request's scope or a scope inside it
+        const requested = context.scope;
+        if (requested !== undefined && requested !== scope) {
             const [row] = await Scope.read(Snapshot.live(this.database), [scope]);
-            if (row?.ancestors.includes(pinned) !== true) {
+            if (row?.ancestors.includes(requested) !== true) {
                 throw new CallError("NOT_FOUND", {
-                    message: `scope ${scope} is outside the pinned scope`,
+                    message: `scope ${scope} is outside the request's scope`,
                 });
             }
         }
@@ -2329,7 +2332,7 @@ export class ObjectStore {
         return new Set([scope, ...chain.map((link) => link.object.id)]);
     }
 
-    /** Wait until the scope's log or its replicas hold each watermark, in a bounded wait each. */
+    /** Wait until the scope's log or its replicas have each watermark, in a bounded wait each. */
     async #waitForAll(context: RequestContext, watermarks: readonly Watermark[]): Promise<void> {
         for (const watermark of watermarks) {
             const signal = AbortSignal.any([
@@ -2355,15 +2358,15 @@ export class ObjectStore {
         return { scope: this.scope, ...(await this.database.log.position()) };
     }
 
-    /** Decide where a watermark's history is here: own log, an older one, replicas, or none. */
+    /** Decide where a watermark's history is here: local log, an older one, replicas, or none. */
     async history(watermark: Watermark): Promise<WatermarkHistory> {
-        // take the own log's current epoch for a scope the store serves, refusing an earlier one
+        // take the local log's current epoch for a scope the store serves, refusing an earlier one
         const { database } = this;
         const head = await database.log.position();
         const isHome = await this.authorizer.isHome(Snapshot.live(database), watermark.scope);
         const isServed = isHome || watermark.scope === this.scope;
         if (isServed && watermark.log === head.log) {
-            return { kind: watermark.epoch === head.epoch ? "own" : "stale" };
+            return { kind: watermark.epoch === head.epoch ? "local" : "stale" };
         }
         // refuse another log for a scope homed here, which a move's lineage would continue
         else if (isHome) {
@@ -2385,12 +2388,12 @@ export class ObjectStore {
             : { kind: "replicated", including, followed };
     }
 
-    /** Wait until the store's own log or its replicas of another scope's log have a watermark. */
+    /** Wait until the store's log or its replicas of another scope's log have a watermark. */
     async wait(watermark: Watermark, signal: AbortSignal): Promise<boolean> {
         const history = await this.history(watermark);
 
-        // wait on the store's own log for a watermark it wrote in its current epoch
-        if (history.kind === "own") {
+        // wait on the store's log for a watermark it wrote in its current epoch
+        if (history.kind === "local") {
             return await this.database.log.wait(watermark.sequence, signal);
         }
         // refuse a watermark of a history this store no longer has
@@ -2447,7 +2450,7 @@ export class ObjectStore {
         requestId: string,
         writerId: string | undefined,
     ): Promise<unknown[]> {
-        // require the writer owning the rows
+        // require the writer of the rows
         if (writerId === undefined) {
             throw new CallError("BAD_REQUEST", {
                 message: "only a writer can write ephemeral objects",
@@ -2554,7 +2557,7 @@ export class ObjectStore {
         return mutates ? this.objects : [...this.objects, ...this.replicas];
     }
 
-    /** Read a procedure call's scope: a method's own, else the decided target's or context's. */
+    /** Read a procedure call's scope: a method's, else the decided target's or context's. */
     #procedureScope(
         context: ProcedureContext<RequestContext>,
         routed: readonly ObjectType[],
@@ -2823,7 +2826,7 @@ export class ObjectStore {
         requestId: string,
         builds: readonly ((() => Promise<MethodContext>) | undefined)[],
     ): Promise<Prepared[]> {
-        // prepare in order, holding the reserved settlements
+        // prepare in order, with the reserved settlements
         const prepared: Prepared[] = [];
         const settlements: (string | undefined)[] = [];
         try {
@@ -2918,7 +2921,7 @@ export class ObjectStore {
         }
     }
 
-    /** Execute, redact and audit one call in its own span. */
+    /** Execute, redact and audit one call in a separate span. */
     #execute(
         transaction: Transaction,
         authorization: Authorization,
@@ -3030,7 +3033,7 @@ export class ObjectStore {
         return presented;
     }
 
-    /** Run a phase's calls outside its mutation, each a request of its own under a derived key. */
+    /** Run a phase's calls outside its mutation, each a separate request under a derived key. */
     #alone(parent: MethodContext): Run {
         // key each run by the phase's external work and its place among the phase's runs
         const key = present(
@@ -3337,18 +3340,18 @@ export class ObjectStore {
         return "receive" in publisher;
     }
 
-    /** Compose a store's parts from its servers and sandboxes, and list the packages it serves. */
+    /** Compose a store's servers and sandboxes, and list the packages it serves. */
     static #compose(
         given: ObjectStoreOptions,
         store: () => ObjectStore,
-    ): { readonly parts: ComposedOptions; readonly served: readonly StorePackage[] } {
+    ): { readonly composed: ComposedOptions; readonly served: readonly StorePackage[] } {
         // require the machine running any provisioned resources, and one uplink
         const { servers, sandboxes = [], uplink, machine, publisher, server, ...rest } = given;
         const { policies = [], branch } = rest;
-        const own = servers.map((each) =>
+        const implementations = servers.map((each) =>
             ObjectStore.#packageOf(each, each.installation ?? server),
         );
-        const providers = own.flatMap((each) => each.definition.providers ?? []);
+        const providers = implementations.flatMap((each) => each.definition.providers ?? []);
         if (providers.length > 0 && machine === undefined) {
             throw new TypeError("provisioned resources need their machine");
         } else if (server !== undefined && uplink !== undefined) {
@@ -3356,17 +3359,17 @@ export class ObjectStore {
         }
 
         // serve the sandboxed installations' packages, declared against what the servers make known
-        const objects = own.flatMap((each) => each.objects);
-        const followed = own
+        const objects = implementations.flatMap((each) => each.objects);
+        const followed = implementations
             .flatMap((each) => each.definition.follows ?? [])
-            .flatMap((each) => each.shape.objects);
+            .flatMap((each) => Follow.types(each));
         const known = ObjectStore.known(objects, [
             ...policies,
             ...ObjectType.referenced(objects),
             ...followed,
         ]);
         const served = [
-            ...own,
+            ...implementations,
             ...sandboxes.flatMap((sandbox) => ObjectStore.#sandboxPackages(sandbox, known)),
         ];
 
@@ -3405,7 +3408,7 @@ export class ObjectStore {
             server !== undefined && isPartition
                 ? ObjectStore.#partitionPublisher(server, store, publisher)
                 : publisher;
-        const parts: ComposedOptions = {
+        const composed: ComposedOptions = {
             ...rest,
             installed,
             ...(replicas.length === 0 ? {} : { replicas }),
@@ -3430,7 +3433,7 @@ export class ObjectStore {
                     : { uplink: server.publisher },
         };
 
-        return { parts, served };
+        return { composed, served };
     }
 
     /** Read a server's package for an installation, its handled types over their defaults. */
@@ -3441,9 +3444,9 @@ export class ObjectStore {
         // refuse a handled type of the package that its handle neither declares nor its providers provision
         const definition = server.definition(context);
         const handled = definition.objects ?? [];
-        const own = Object.values(server.package.objects);
+        const served = Object.values(server.package.objects);
         const provisioned = (definition.providers ?? []).map((provider) => provider.object);
-        const others = handled.filter((type) => !own.some((each) => each.same(type)));
+        const others = handled.filter((type) => !served.some((each) => each.same(type)));
         const stray = others.find(
             (type) =>
                 type.package.id === server.package.id &&
@@ -3455,7 +3458,7 @@ export class ObjectStore {
 
         // serve the declared types, external ones only with their files, beside other packages' handled types
         const filed = definition.external?.objects ?? [];
-        const declared = own
+        const declared = served
             .filter((type) => type.storage !== "external" || filed.some((each) => each.same(type)))
             .map((type) => handled.find((each) => each.same(type)) ?? type);
 
@@ -3467,11 +3470,11 @@ export class ObjectStore {
         };
     }
 
-    /** Route each package's own types to it, refusing two packages implementing one. */
+    /** Route each package's declared types to it, refusing two packages implementing one. */
     static #routes(
         served: readonly StorePackage[],
     ): ReadonlyMap<string, { readonly type: ObjectType; readonly entry: StorePackage }> {
-        // implement each package's own types, once
+        // implement each package's declared types, once
         const routes = new Map<
             string,
             { readonly type: ObjectType; readonly entry: StorePackage }
@@ -3516,7 +3519,7 @@ export class ObjectStore {
                 .map((type) => [ObjectTypeReference.key(type.typeReference), type]),
         );
         const owner = PackageManifest.package(server.build.manifest);
-        const own = declarations.filter(
+        const local = declarations.filter(
             (entry) => graph.Moniker.packageId(entry.symbol) === owner.id,
         );
 
@@ -3546,7 +3549,7 @@ export class ObjectStore {
             );
 
         // serve the package's objects, refusing adapters a sandbox has no code to answer
-        return own
+        return local
             .filter((entry) => entry.kind === PACKAGE_DECLARATION)
             .map((entry) => PackageDescription.parse(entry.description))
             .flatMap((described): StorePackage[] => {
@@ -3571,7 +3574,7 @@ export class ObjectStore {
             });
     }
 
-    /** Reach a partition at its installation's root, and other scopes as given. */
+    /** Publish a partition at its installation's root, and other scopes as given. */
     static #partitionPublisher(
         server: ServerContext,
         store: () => ObjectStore,
@@ -3602,9 +3605,9 @@ export class ObjectStore {
         isFirst: boolean,
         servedIds: ReadonlySet<PackageId>,
     ): PackageHandler & { readonly objects: ObjectStore } {
-        // run the package's types' controllers, the first package also the store's own and unserved types'
+        // run the package's types' controllers, the first package also the store's and unserved types'
         const { controllers = [], adapters = {}, access, responseHeaders } = entry.definition;
-        const own = [
+        const listed = [
             ...(isFirst ? this.#storeControllers() : []),
             ...this.#objectControllers(
                 (packageId) =>
@@ -3612,7 +3615,7 @@ export class ObjectStore {
             ),
         ];
         const built = controllers.map((controller) => controller(this));
-        const implemented = this.implement(entry.package, entry.objects, [...own, ...built]);
+        const implemented = this.implement(entry.package, entry.objects, [...listed, ...built]);
 
         // answer the package's adapters below its mount
         const fetch = ObjectStore.#adapterFetch(entry.package, adapters, this);
@@ -3663,7 +3666,7 @@ export class ObjectStore {
                 return undefined;
             }
 
-            // allow the installation itself or identified callers of the declared types, leaving an adapter declaring none its own protocol
+            // allow the installation itself or identified callers of the declared types, leaving an adapter declaring none its protocol
             const { callers } = adapter;
             const caller =
                 callers === undefined
@@ -3733,25 +3736,36 @@ export class ObjectStore {
                 .map((follow) => ObjectStore.#onDemandSubscriptions(store, follow, options)),
         );
 
-        // read each other follow's keys, fixed or from the store's own rows
-        const keyed = await Promise.all(
-            follows.map(async (follow) => ({
-                follow,
-                keys:
-                    "keys" in follow
-                        ? follow.keys
-                        : "from" in follow
-                          ? await store.#readKeys(follow, options.view, options.delta)
-                          : [],
-            })),
-        );
+        // read each shape follow's keys, leaving the chain to the sink and on-demand keys to their uses
+        const keyed = (
+            await Promise.all(
+                follows.map(async (follow) => {
+                    // leave a chain or an on-demand follow, which has no keys
+                    if ("chain" in follow || "onDemand" in follow) {
+                        return [];
+                    }
+                    // take a follow's fixed keys
+                    else if ("keys" in follow) {
+                        return [{ follow, keys: follow.keys }];
+                    }
+                    // read a follow's keys from the store's rows
+                    else {
+                        return [
+                            {
+                                follow,
+                                keys: await store.#readKeys(follow, options.view, options.delta),
+                            },
+                        ];
+                    }
+                }),
+            )
+        ).flat();
 
         // subscribe to each key of each shape
         const subscribed = await Promise.all(
             keyed.map(async ({ follow, keys }) => {
                 // subscribe to each key toward its scope's home, decided for its principal
                 const { shape } = follow;
-                const isReadinessGate = follow.isReadinessGate ?? true;
                 const derived = keys.map(({ key, subject }) => ({
                     subscription: shape.subscription(key, options.target, subject),
                     home: key.scope,
@@ -3760,7 +3774,7 @@ export class ObjectStore {
                 return derived.map(({ subscription, home }) => ({
                     subscription,
                     publisher: options.publisher(home),
-                    isReadinessGate,
+                    isAcquired: false,
                 }));
             }),
         );
@@ -3804,7 +3818,7 @@ export class ObjectStore {
             groups.set(group, entry);
         }
 
-        // subscribe to each group toward its scope's home, never gating the store's readiness
+        // subscribe to each group toward its scope's home
         return [...groups.values()].map(({ scope, subject, keys }) => ({
             subscription: follow.shape.onDemandSubscription(
                 scope,
@@ -3813,24 +3827,24 @@ export class ObjectStore {
                 ObjectStore.#onDemandSubject(store, subject),
             ),
             publisher: options.publisher(scope),
-            isReadinessGate: false,
+            isAcquired: true,
         }));
     }
 
-    /** Read a followed key's subject, none for the store's own principal. */
+    /** Read a followed key's subject, none for the store's principal. */
     static #onDemandSubject(store: ObjectStore, subject: string): Subject | undefined {
         const parsed = Subject.parse(JSON.parse(subject));
 
         return Subject.key(parsed) === Subject.key(store.principal) ? undefined : parsed;
     }
 
-    /** Read a follow's keys over the store's own rows, again only for rows a change touched. */
+    /** Read a follow's keys over the store's rows, again only for rows a change touched. */
     async #readKeys(
         follow: RowFollow<object, ObjectType>,
         view: Snapshot,
         delta: Delta | undefined,
     ): Promise<FollowKey[]> {
-        // read the rows of the store's own database the keys come from
+        // read the rows of the store's database the keys come from
         const table = follow.from.table;
         const rows = await view.read(table).findMany({ where: follow.where ?? {} });
 

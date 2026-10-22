@@ -40,7 +40,7 @@ export class RequestContext {
     readonly bookmark: Bookmark;
     /** The clock calls run at. */
     readonly clock: Clock;
-    /** The watermarks this request's writes reached. */
+    /** The watermarks this request's writes arrived at. */
     readonly observed = new Bookmark();
     /** The caller's authorization under the package's policies. */
     readonly authorization: Authorization | undefined;
@@ -150,7 +150,7 @@ export class RequestContext {
             return AccessContext.of(caller, this.clock.now(), { linkSecrets });
         }
 
-        // decide a credential's caller before it lapses, current in the pinned scope, else the scope
+        // decide a credential's caller before it lapses, current in the request's scope or the scope
         const now = Credential.clamp(credential, this.clock.now());
         Credential.requireCurrent(credential, this.audience, now, this.scope ?? scope);
 

@@ -7,10 +7,12 @@ import type { Call } from "@destack/sync";
 import { testCallKey } from "@destack/object/test";
 import { defineObject, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
-import { callTables, testEvents, serversOf } from "../src/test/index.ts";
+import { testEvents, serversOf } from "../src/test/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { Clock } from "@destack/environment";
+import { tablesOf } from "../src/index.ts";
+import objectPackage from "../src/package.ts";
 
 /** The public space the labels live in. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000061");
@@ -33,9 +35,16 @@ const label = defineObject(
 
 test("derive create and update from the write permission, leaving removed methods and immutable fields out", async () => {
     // serve the labels in a space alice reads
-    const storage = await TestDatabase.create("sqlite", [...callTables, ...label.tables], {
-        isMigrated: true,
-    });
+    const storage = await TestDatabase.create(
+        tablesOf({
+            packages: [objectPackage, { objects: { label }, tables: [] }],
+            follows: [],
+            tables: [],
+        }).tables,
+        {
+            isMigrated: true,
+        },
+    );
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
     const store = new ObjectStore({

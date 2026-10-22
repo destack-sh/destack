@@ -9,7 +9,7 @@ export class Sequence {
     /** The runs in sequence order. */
     readonly runs: readonly Run[];
 
-    /** Hold runs in sequence order. */
+    /** Store runs in sequence order. */
     constructor(runs: readonly Run[] = []) {
         this.runs = runs;
     }
@@ -141,7 +141,7 @@ export class Sequence {
             }
         }
 
-        // place each boundary
+        // place each edge
         const place = (anchor: Anchor) => {
             const at = order.get(`${anchor.element.run}:${anchor.element.offset}`);
             if (at === undefined) {
@@ -330,7 +330,7 @@ export class Sequence {
 
     /** Split a piece before a count of its elements. */
     static split(piece: Run, cut: number): readonly [Run, Run | undefined] {
-        // take the piece whole when the cut reaches either end
+        // take the piece whole when the cut is at either end
         const length = Sequence.length(piece);
         if (cut <= 0 || cut >= length) {
             return [piece, undefined];

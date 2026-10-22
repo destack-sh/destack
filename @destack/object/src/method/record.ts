@@ -42,22 +42,21 @@ import {
 } from "./method.ts";
 import {
     Empty,
-    PageShape,
+    PageFields,
     type MethodProcedure,
     type ObjectSchema,
-    RevisionShape,
+    RevisionFields,
     type CustomSchema,
-    type FieldShape,
-    type ColumnShape,
-    type WrittenShape,
+    type InputFields,
+    type ColumnFields,
+    type WrittenFields,
     type IdSchema,
-    type ParentShape,
+    type ParentFields,
     type Procedure,
-    type ReplayShape,
-    type RevisionField,
+    type ReplayFields,
     type RowSchema,
-    type ScopeShape,
-    type TargetShape,
+    type ScopeFields,
+    type TargetFields,
     type VariantSchema,
     ListPage,
 } from "./procedure.ts";
@@ -65,7 +64,7 @@ import { type InputObject, InputSchema } from "./input.ts";
 import { Casing } from "../object/name.ts";
 import { EventLog } from "../query/event.ts";
 import { Listing } from "../query/listing.ts";
-import { ListShape, QueryShape, ViewShape } from "../replica/replica.ts";
+import { ListFields, QueryFields, ViewFields } from "../replica/replica.ts";
 import type { ObjectType, WrittenField } from "../object/object.ts";
 
 import { versioned } from "../trait/versioned.ts";
@@ -222,26 +221,26 @@ function bulkUpdate<
         ...(options.convert === undefined ? {} : { convert: options.convert }),
         target: "scope",
         result: "value",
-        procedure: (name, shapes) => ({
+        procedure: (name, schemas) => ({
             route: { method: "PATCH", path: name === "updateMany" ? "" : `/${Casing.kebab(name)}` },
-            input: shapes.scope.extend(
+            input: schemas.scope.extend(
                 match === undefined
                     ? {
-                          ...shapes.replay,
+                          ...schemas.replay,
                           items: schema
                               .array(
                                   schema.object({
                                       id: schema.string(),
                                       revision: schema.number().int().positive(),
-                                      ...shapes.written(options.fields, true),
+                                      ...schemas.written(options.fields, true),
                                   }),
                               )
                               .max(BATCH_LIMIT),
                       }
                     : {
-                          ...shapes.replay,
-                          where: schema.object(shapes.written(match, true)),
-                          ...shapes.written(options.fields, true),
+                          ...schemas.replay,
+                          where: schema.object(schemas.written(match, true)),
+                          ...schemas.written(options.fields, true),
                       },
             ),
             output: BatchPayload,
@@ -271,7 +270,7 @@ export interface CustomDefinition<
 > {
     /** The permission the caller needs on the target. */
     readonly permission: Permission;
-    /** Whether the method stays off public routes, run only by the principals' own code. */
+    /** Whether the method stays off public routes, run only by the principals' code. */
     readonly isInternal?: Internal;
     /** The caller-supplied fields. */
     readonly input?: Input;
@@ -297,64 +296,66 @@ export interface CustomDefinition<
 
 /** The procedure each record method derives. */
 export type RecordProcedures<Object extends ObjectType, Declared extends Method> = {
-    get: Procedure<schema.Object<TargetShape<Object> & typeof ViewShape>, RowSchema<Object>>;
+    get: Procedure<schema.Object<TargetFields<Object> & typeof ViewFields>, RowSchema<Object>>;
     list: Procedure<
-        schema.Object<ScopeShape<Object> & typeof QueryShape & typeof PageShape & typeof ViewShape>,
         schema.Object<
-            ReturnType<typeof ListPage.schema<RowSchema<Object>>>["shape"] & typeof ListShape
+            ScopeFields<Object> & typeof QueryFields & typeof PageFields & typeof ViewFields
+        >,
+        schema.Object<
+            ReturnType<typeof ListPage.schema<RowSchema<Object>>>["shape"] & typeof ListFields
         >
     >;
     create: Procedure<
         IsSum<Declared["variants"]> extends true
-            ? VariantSchema<Object, Declared, CreateShape<Object, Declared>>
-            : schema.Object<CreateShape<Object, Declared>>,
+            ? VariantSchema<Object, Declared, CreateFields<Object, Declared>>
+            : schema.Object<CreateFields<Object, Declared>>,
         RowSchema<Object>
     >;
     createMany: Procedure<
         schema.Object<
-            ScopeShape<Object> & ReplayShape<Object> & { items: ItemsSchema<Object, Declared> }
+            ScopeFields<Object> & ReplayFields<Object> & { items: ItemsSchema<Object, Declared> }
         >,
         schema.Object<{ ids: schema.Schema<string[]> }>
     >;
     update: Procedure<
         schema.Object<
-            TargetShape<Object> &
-                ReplayShape<Object> &
-                RevisionField &
-                WrittenShape<Object, Declared, true> &
-                FieldShape<Declared>
+            TargetFields<Object> &
+                ReplayFields<Object> &
+                typeof RevisionFields &
+                WrittenFields<Object, Declared, true> &
+                InputFields<Declared>
         >,
         RowSchema<Object>
     >;
     updateMany: Procedure<
         schema.Object<
-            ScopeShape<Object> &
-                ReplayShape<Object> &
+            ScopeFields<Object> &
+                ReplayFields<Object> &
                 (NonNullable<Declared["isItemized"]> extends true
                     ? { items: UpdatedItemsSchema<Object, Declared> }
                     : {
-                          where: schema.Object<MatchShape<Object, Declared>>;
-                      } & WrittenShape<Object, Declared, true>)
+                          where: schema.Object<MatchFields<Object, Declared>>;
+                      } & WrittenFields<Object, Declared, true>)
         >,
         schema.Object<{ count: schema.Schema<number> }>
     >;
     delete: Procedure<
-        schema.Object<TargetShape<Object> & ReplayShape<Object> & RevisionField>,
+        schema.Object<TargetFields<Object> & ReplayFields<Object> & typeof RevisionFields>,
         schema.Object<{}>
     >;
     deleteMany: Procedure<
         schema.Object<
-            ScopeShape<Object> &
-                ReplayShape<Object> & { where: schema.Object<MatchShape<Object, Declared>> }
+            ScopeFields<Object> &
+                ReplayFields<Object> & { where: schema.Object<MatchFields<Object, Declared>> }
         >,
         schema.Object<{ count: schema.Schema<number> }>
     >;
     custom: Procedure<
         CustomSchema<
             (NonNullable<Declared["target"]> extends "scope"
-                ? ScopeShape<Object>
-                : TargetShape<Object>) &
-                (Declared["mutates"] extends false ? {} : ReplayShape<Object>),
+                ? ScopeFields<Object>
+                : TargetFields<Object>) &
+                (Declared["mutates"] extends false ? {} : ReplayFields<Object>),
             Declared["input"]
         >,
         [NonNullable<Declared["output"]>] extends [never]
@@ -364,19 +365,19 @@ export type RecordProcedures<Object extends ObjectType, Declared extends Method>
 };
 
 /** The fields of every creation: scope, chosen identifier, parent, replay, fields and input. */
-type CreateShape<Object extends ObjectType, Declared extends Method> = ScopeShape<Object> &
-    CreationShape<Object> &
-    ParentShape<Object> &
-    ReplayShape<Object> &
-    WrittenShape<Object, Declared, false> &
-    FieldShape<Declared>;
+type CreateFields<Object extends ObjectType, Declared extends Method> = ScopeFields<Object> &
+    CreationFields<Object> &
+    ParentFields<Object> &
+    ReplayFields<Object> &
+    WrittenFields<Object, Declared, false> &
+    InputFields<Declared>;
 
 /** The items of a bulk creation, each a creation's chosen identifier, parent and fields. */
 type ItemsSchema<
     Object extends ObjectType,
     Declared extends Method,
     Item extends schema.Schema = schema.Object<
-        CreationShape<Object> & ParentShape<Object> & WrittenShape<Object, Declared, false>
+        CreationFields<Object> & ParentFields<Object> & WrittenFields<Object, Declared, false>
     >,
 > = schema.Schema<schema.Output<Item>[], schema.Input<Item>[]>;
 
@@ -388,7 +389,7 @@ type UpdatedItemsSchema<
         {
             id: schema.Schema<string, string>;
             revision: schema.Schema<number, number>;
-        } & WrittenShape<Object, Declared, true>
+        } & WrittenFields<Object, Declared, true>
     >,
 > = schema.Schema<schema.Output<Item>[], schema.Input<Item>[]>;
 
@@ -400,7 +401,7 @@ export type IsSum<Sum> = [NonNullable<Sum>] extends [never]
       : true;
 
 /** The written values a call matches objects by, in their JSON form. */
-type MatchShape<Object extends ObjectType, Declared extends Method> = ColumnShape<
+type MatchFields<Object extends ObjectType, Declared extends Method> = ColumnFields<
     Object,
     string extends NonNullable<Declared["match"]>[number]
         ? WrittenField<Object["fields"]>
@@ -409,13 +410,13 @@ type MatchShape<Object extends ObjectType, Declared extends Method> = ColumnShap
 >;
 
 /** The identifier a caller may choose for a created object, and an event's identity and time. */
-type CreationShape<Object extends ObjectType> = Object["storage"] extends "events"
+type CreationFields<Object extends ObjectType> = Object["storage"] extends "events"
     ? { id: IdSchema<Object>; time: schema.Schema<number, number> }
     : { id: schema.ExactOptional<IdSchema<Object>> };
 
 /** The record methods' definitions and handlers: creation, update, deletion and their checks. */
 export const RecordMethod = {
-    /** Read a method's own input fields. */
+    /** Read a method's input fields. */
     fields(input: InputObject | undefined): InputObject["shape"] {
         return input?.shape ?? {};
     },
@@ -423,27 +424,27 @@ export const RecordMethod = {
     /** Derive a creation's procedure at the collection, or by name below it for another. */
     createProcedure(
         name: string,
-        shapes: ObjectSchema,
+        schemas: ObjectSchema,
         options: Pick<
             CreateOptions<string, InputObject, schema.Schema, boolean>,
             "fields" | "isInternal" | "input" | "variants" | "filled"
         >,
     ): MethodProcedure {
         // take the shared fields, the caller leaving out those the handler fills
-        const written = shapes.written(options.fields, false);
+        const written = schemas.written(options.fields, false);
         const filled = Object.fromEntries(
             (options.filled ?? []).map((column) => [
                 column,
                 present(written[column], `the written field ${column}`).exactOptional(),
             ]),
         );
-        const shared = shapes.scope.extend({
-            ...shapes.created,
-            ...shapes.parent,
-            ...shapes.replay,
+        const shared = schemas.scope.extend({
+            ...schemas.created,
+            ...schemas.parent,
+            ...schemas.replay,
             ...written,
             ...filled,
-            ...(options.isInternal === true ? shapes.callers : {}),
+            ...(options.isInternal === true ? schemas.callers : {}),
             ...RecordMethod.fields(options.input),
         });
 
@@ -452,15 +453,15 @@ export const RecordMethod = {
             input:
                 options.variants === undefined
                     ? shared
-                    : RecordMethod.variantInput(name, shapes, shared, options.variants),
-            output: shapes.row,
+                    : RecordMethod.variantInput(name, schemas, shared, options.variants),
+            output: schemas.row,
         };
     },
 
     /** Join each variant's columns to a creation's shared fields under its discriminating value. */
     variantInput(
         name: string,
-        shapes: ObjectSchema,
+        schemas: ObjectSchema,
         shared: InputObject,
         variants: Variants,
     ): InputSchema {
@@ -475,7 +476,7 @@ export const RecordMethod = {
         // take each variant's columns, required and non-null
         const [field, byValue] = sum;
         const objects = Object.entries(byValue).map(([value, written]) =>
-            shared.extend({ [field]: schema.literal(value), ...shapes.required(written) }),
+            shared.extend({ [field]: schema.literal(value), ...schemas.required(written) }),
         );
 
         return InputSchema.union(field, objects);
@@ -576,7 +577,7 @@ export const RecordMethod = {
         return { id, row };
     },
 
-    /** Create one object per item as its own creation does, returning their identifiers. */
+    /** Create one object per item as a separate creation does, returning their identifiers. */
     async createItems(context: MethodContext, execution: Execution): Promise<{ ids: string[] }> {
         // append an events type's items to the event log in a store
         const { object } = context;
@@ -627,7 +628,7 @@ export const RecordMethod = {
         return { ids };
     },
 
-    /** Insert every item's row in one write, naming the item a duplicate or creation refuses. */
+    /** Insert every item's row in one write, reporting the item a duplicate or creation refuses. */
     async createTogether(context: MethodContext, execution: StoreExecution): Promise<string[]> {
         // build each item's row under an unused identifier
         const created = await RecordMethod.eachItem(context, async (item) => {
@@ -658,7 +659,7 @@ export const RecordMethod = {
                 }
             });
         } catch (error) {
-            // name the first item duplicating a stored row or an earlier item, as the caller may see it
+            // report the first item duplicating a stored row or an earlier item, as the caller sees it
             const index =
                 error instanceof DatabaseError && error.code === "DUPLICATE"
                     ? await RecordMethod.duplicateIndex(context, execution, created, error)
@@ -738,7 +739,7 @@ export const RecordMethod = {
         for (const [index, { id, ...written }] of BatchItem.array()
             .parse(context.input["items"])
             .entries()) {
-            // run the item as its own creation's call
+            // run the item as a separate creation's call
             const item = context.with({
                 input: written,
                 ...(id === undefined ? {} : { id: schema.string().parse(id) }),
@@ -938,7 +939,7 @@ export const RecordMethod = {
             RecordMethod.requireUnmanaged(target);
         }
 
-        // delete each match on a device as its own deletion
+        // delete each match on a device as a separate deletion
         if (execution.kind === "client") {
             for (const target of targets) {
                 await RecordMethod.deleteObject(target);
@@ -1331,12 +1332,12 @@ export const RecordMethod = {
     ):
         | ((context: MethodContext, object: ObjectReference) => Creation | Promise<Creation>)
         | undefined {
-        const isOwnedScope =
+        const hasOwnerRelation =
             context.object.roles !== undefined && context.object.policy.definition.scope === true;
 
         return (
             context.method.creation ??
-            (isOwnedScope ? RecordMethod.relateCreator("owner") : undefined)
+            (hasOwnerRelation ? RecordMethod.relateCreator("owner") : undefined)
         );
     },
 
@@ -1376,10 +1377,10 @@ export class MethodBuilder<
             mutates: false,
             target: "object",
             result: "object",
-            procedure: (_name, shapes) => ({
+            procedure: (_name, schemas) => ({
                 route: { method: "GET", path: "/{id}" },
-                input: shapes.target.extend(ViewShape),
-                output: shapes.row,
+                input: schemas.target.extend(ViewFields),
+                output: schemas.row,
             }),
             handler: async (context) => context.target,
         });
@@ -1400,10 +1401,10 @@ export class MethodBuilder<
             mutates: false,
             target: "scope",
             result: "page",
-            procedure: (_name, shapes) => ({
+            procedure: (_name, schemas) => ({
                 route: { method: "POST", path: "/query" },
-                input: shapes.scope.extend({ ...QueryShape, ...PageShape, ...ViewShape }),
-                output: ListPage.schema(shapes.row).extend(ListShape),
+                input: schemas.scope.extend({ ...QueryFields, ...PageFields, ...ViewFields }),
+                output: ListPage.schema(schemas.row).extend(ListFields),
             }),
             handler: (context, execution) => new Listing(context, execution).list(),
         });
@@ -1446,7 +1447,7 @@ export class MethodBuilder<
             ...declared,
             target: "scope",
             result: "object",
-            procedure: (name, shapes) => RecordMethod.createProcedure(name, shapes, options),
+            procedure: (name, schemas) => RecordMethod.createProcedure(name, schemas, options),
             ...(creator === undefined ? {} : { creation: RecordMethod.relateCreator(creator) }),
             handler: (context, execution) => RecordMethod.createObject(context, execution),
             authorize: (context, execution) => RecordMethod.authorizeCreate(context, execution),
@@ -1518,17 +1519,17 @@ export class MethodBuilder<
             ...declared,
             target: "scope",
             result: "value",
-            procedure: (name, shapes) => ({
+            procedure: (name, schemas) => ({
                 route: { method: "POST", path: `/${Casing.kebab(name)}` },
-                input: shapes.scope.extend({
-                    ...shapes.replay,
+                input: schemas.scope.extend({
+                    ...schemas.replay,
                     items: schema
                         .array(
                             schema.object({
-                                ...shapes.created,
-                                ...shapes.parent,
-                                ...shapes.written(options.fields, false),
-                                ...(options.isInternal === true ? shapes.callers : {}),
+                                ...schemas.created,
+                                ...schemas.parent,
+                                ...schemas.written(options.fields, false),
+                                ...(options.isInternal === true ? schemas.callers : {}),
                             }),
                         )
                         .max(BATCH_LIMIT),
@@ -1567,15 +1568,15 @@ export class MethodBuilder<
             ...options,
             target: "object",
             result: "object",
-            procedure: (_name, shapes) => ({
+            procedure: (_name, schemas) => ({
                 route: { method: "PATCH", path: "/{id}" },
-                input: shapes.target.extend({
-                    ...shapes.replay,
-                    ...RevisionShape,
-                    ...shapes.written(options.fields, true),
+                input: schemas.target.extend({
+                    ...schemas.replay,
+                    ...RevisionFields,
+                    ...schemas.written(options.fields, true),
                     ...RecordMethod.fields(options.input),
                 }),
-                output: shapes.row,
+                output: schemas.row,
             }),
             handler: (context) => context.update(Table.decode(context.object.table, context.input)),
             inverse: (step) => RecordMethod.restoreUpdated(step),
@@ -1659,9 +1660,9 @@ export class MethodBuilder<
             ...options,
             target: "object",
             result: "value",
-            procedure: (_name, shapes) => ({
+            procedure: (_name, schemas) => ({
                 route: { method: "DELETE", path: "/{id}" },
-                input: shapes.target.extend({ ...shapes.replay, ...RevisionShape }),
+                input: schemas.target.extend({ ...schemas.replay, ...RevisionFields }),
                 output: Empty,
             }),
             handler: (context) => RecordMethod.deleteObject(context),
@@ -1704,14 +1705,14 @@ export class MethodBuilder<
             mutates: true,
             target: "scope",
             result: "value",
-            procedure: (name, shapes) => ({
+            procedure: (name, schemas) => ({
                 route: {
                     method: "DELETE",
                     path: name === "deleteMany" ? "" : `/${Casing.kebab(name)}`,
                 },
-                input: shapes.scope.extend({
-                    ...shapes.replay,
-                    where: schema.object(shapes.written(options.match, true)),
+                input: schemas.scope.extend({
+                    ...schemas.replay,
+                    where: schema.object(schemas.written(options.match, true)),
                 }),
                 output: BatchPayload,
             }),
@@ -1813,9 +1814,9 @@ export class MethodBuilder<
             isPredicted: false,
             ...(definition.target === undefined ? {} : { target: definition.target }),
             result: definition.output === undefined ? "object" : "value",
-            procedure: (name, shapes) => {
+            procedure: (name, schemas) => {
                 // select the target, else the scope
-                const selection = isScoped ? shapes.scope : shapes.target;
+                const selection = isScoped ? schemas.scope : schemas.target;
 
                 return {
                     route: {
@@ -1823,9 +1824,9 @@ export class MethodBuilder<
                         path: isScoped ? `/${Casing.kebab(name)}` : `/{id}/${Casing.kebab(name)}`,
                     },
                     input: InputSchema.map(definition.input ?? schema.object({}), (input) =>
-                        selection.extend({ ...(mutates ? shapes.replay : {}), ...input.shape }),
+                        selection.extend({ ...(mutates ? schemas.replay : {}), ...input.shape }),
                     ),
-                    output: definition.output ?? shapes.row,
+                    output: definition.output ?? schemas.row,
                 };
             },
         };

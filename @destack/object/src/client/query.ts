@@ -15,21 +15,21 @@ export interface SubscribeOptions {
     readonly ttl?: Duration | "forever";
 }
 
-/** A query's items a client holds live, with the query its open form compiled to. */
+/** A query's items a client follows live, with the query its open form compiled to. */
 export interface LiveItems extends LiveQuery {
     /** The compiled query, whose includes decide how the items nest. */
     readonly query: sync.Query;
 }
 
-/** Hold queries in their open form live over a client's replica. */
+/** Follow queries in their open form live over a client's replica. */
 export interface Subscriber {
-    /** Hold a query's items live. */
+    /** Follow a query's items live. */
     readonly rows: (
         object: ObjectType,
         query: Omit<ObjectQuery, "object">,
         options: SubscribeOptions,
     ) => LiveItems;
-    /** Hold an aggregate query's groups live. */
+    /** Follow an aggregate query's groups live. */
     readonly results: (
         object: ObjectType,
         query: Omit<ObjectQuery, "object">,
@@ -39,7 +39,7 @@ export interface Subscriber {
 
 /** The relational queries of one object type. */
 export class RelationalQueryBuilder<Object extends ObjectType, Objects extends ObjectType> {
-    /** Hold queries live over the client's replica. */
+    /** Follow queries live over the client's replica. */
     readonly #subscriber: Subscriber;
     /** The queried object type. */
     readonly #object: Object;
@@ -120,7 +120,7 @@ export class RelationalQuery<Value> implements PromiseLike<Value> {
     readonly object: ObjectType;
     /** The query in its open form. */
     readonly options: Omit<ObjectQuery, "object">;
-    /** Hold the query live over the client's replica, its reads shaped into the query's value. */
+    /** Follow the query live over the client's replica, its reads shaped into the query's value. */
     readonly #follow: (options: SubscribeOptions) => LiveQuery<Value>;
 
     /** Describe a query of one object type, followed live with its value shaped from its reads. */
@@ -183,7 +183,7 @@ export class RelationalQuery<Value> implements PromiseLike<Value> {
         return Object.fromEntries([...fields, ...relations]);
     }
 
-    /** Hold the query live over the client's replica until closed. */
+    /** Follow the query live over the client's replica until closed. */
     subscribe(options: SubscribeOptions = {}): LiveQuery<Value> {
         return this.#follow(options);
     }

@@ -10,17 +10,19 @@ import { testCallKey } from "@destack/object/test";
 import { ObjectClient } from "../src/client/index.ts";
 import { defineObject, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
-import { callTables, testEvents, serversOf } from "../src/test/index.ts";
+import { testEvents, serversOf } from "../src/test/index.ts";
 import { serveNotes, spaceId } from "./fixture/device.ts";
 import { note, notebook } from "./fixture/note.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { Clock } from "@destack/environment";
+import { tablesOf } from "../src/index.ts";
+import objectPackage from "../src/package.ts";
 
-/** A labelled pin of a space, whose label stays editable while the space moves. */
-const pin = defineObject(
+/** A labelled marker of a space, whose label stays editable while the space moves. */
+const marker = defineObject(
     {
-        name: "pin",
-        plural: "pins",
+        name: "marker",
+        plural: "markers",
         scope: space,
         fields: { label: field.string() },
         shareable: {},
@@ -34,15 +36,17 @@ const pin = defineObject(
 
 test("send a client's writes on to the machine serving a moved scope", async () => {
     // serve the space on its source and on the machine it moves to, and fence the source
-    const source = await serveNotes("sqlite");
-    const target = await serveNotes("sqlite");
+    const source = await serveNotes();
+    const target = await serveNotes();
     const moved = Identifier.create("machine");
     await Transaction.run(source.database, (transaction) =>
         Scope.fence(transaction, spaceId, moved, Date.now()),
     );
 
     // push through the source, reconnecting to the machine its refusal refers to
-    const storage = await TestDatabase.create("sqlite", ObjectClient.tables({ notebook, note }));
+    const storage = await TestDatabase.create(ObjectClient.tables({ notebook, note }), {
+        dialect: "sqlite",
+    });
     onTestFinished(() => storage.close());
     const machines: string[] = [];
     const client = await ObjectClient.open({
@@ -77,10 +81,17 @@ test("send a client's writes on to the machine serving a moved scope", async () 
 });
 
 test("allow the calls of moving permissions in a fenced scope and refuse every other call", async () => {
-    // store a pin in a space, then fence the space toward another machine
-    const storage = await TestDatabase.create("sqlite", [...pin.tables, ...callTables], {
-        isMigrated: true,
-    });
+    // store a marker in a space, then fence the space toward another machine
+    const storage = await TestDatabase.create(
+        tablesOf({
+            packages: [objectPackage, { objects: { marker }, tables: [] }],
+            follows: [],
+            tables: [],
+        }).tables,
+        {
+            isMigrated: true,
+        },
+    );
     onTestFinished(() => storage.close());
     const { database } = storage;
     await openSpace(database, spaceId);
@@ -88,29 +99,31 @@ test("allow the calls of moving permissions in a fenced scope and refuse every o
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        servers: serversOf([pin]),
+        servers: serversOf([marker]),
         database,
         callKey: testCallKey,
         events: await testEvents(database),
-        origin: { package: pin.package },
+        origin: { package: marker.package },
     });
-    const mutate = (call: ReturnType<typeof pin.call>) =>
+    const mutate = (call: ReturnType<typeof marker.call>) =>
         store.mutate(AccessContext.of(Caller.of(spacePrincipal(spaceId)), Date.now()), {
             id: RequestId.create(Date.now()),
             calls: [call],
         });
-    const [created] = await mutate(pin.call("create", { spaceId, label: "draft" }));
+    const [created] = await mutate(marker.call("create", { spaceId, label: "draft" }));
     const { id } = schema.looseObject({ id: schema.string() }).parse(created);
     const moved = Identifier.create("machine");
     await Transaction.run(database, (transaction) =>
         Scope.fence(transaction, spaceId, moved, Date.now()),
     );
 
-    // relabel the pin through its moving permission and refuse a new pin with the new machine
-    await mutate(pin.call("update", { spaceId, id, label: "final" }));
+    // relabel the marker through its moving permission and refuse a new marker with the new machine
+    await mutate(marker.call("update", { spaceId, id, label: "final" }));
     expect([
-        await refusal(mutate(pin.call("create", { spaceId, label: "late" }))),
-        (await database.select({ label: pin.table.label }).from(pin.table)).map((row) => row.label),
+        await refusal(mutate(marker.call("create", { spaceId, label: "late" }))),
+        (await database.select({ label: marker.table.label }).from(marker.table)).map(
+            (row) => row.label,
+        ),
     ]).toEqual([["MISDIRECTED_REQUEST", `${spaceId} moves to ${moved}`], ["final"]]);
 });
 

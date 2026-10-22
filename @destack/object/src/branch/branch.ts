@@ -191,7 +191,7 @@ export class Branch {
         objects: readonly ObjectType[],
         state: BranchState,
     ): Promise<boolean> {
-        // read the reached tables, and require the same log epoch
+        // read the touched tables, and require the same log epoch
         const tables = [...this.types.tables(objects).values()].filter((table) =>
             state.tables.includes(table[TABLE].sqlName),
         );
@@ -240,12 +240,12 @@ export class Branch {
         over: readonly BranchWrite[],
     ): Promise<{ readonly rows: BranchWrite[]; readonly tables: string[] }> {
         // resolve each call in the branch's scope, leaving out calls doing external work
-        const reached = new Set(over.map((row) => row.table));
+        const touched = new Set(over.map((row) => row.table));
         const replayed = calls.flatMap((entry) => {
             // resolve the call and note the table it touches
             const resolved = this.types.resolve(context.objects, entry, context.scope);
             const method = resolved.object.method(resolved.name);
-            reached.add(resolved.object.table[TABLE].sqlName);
+            touched.add(resolved.object.table[TABLE].sqlName);
 
             // record the call as its author's unless it does external work
             return method.prepare === undefined
@@ -265,7 +265,7 @@ export class Branch {
 
         return {
             rows,
-            tables: [...new Set([...reached, ...rows.map((row) => row.table)])].toSorted(),
+            tables: [...new Set([...touched, ...rows.map((row) => row.table)])].toSorted(),
         };
     }
 

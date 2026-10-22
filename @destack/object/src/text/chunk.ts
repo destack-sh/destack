@@ -77,7 +77,7 @@ export const Chunk = {
             throw new TypeError("objects with text must live in one kind of scope per database");
         }
 
-        // declare chunks read through their owner, stored in the chunk table text owns
+        // declare chunks read through their owner, stored in text's chunk table
         const methods = { list: method.list("read") };
         const definition: ObjectDefinition = {
             name: "chunk",
@@ -495,16 +495,16 @@ const ChunkLayout = {
         rows: readonly Chunk[],
         edited: readonly Run[],
     ): Promise<ChunkChange> {
-        // cut at the boundaries of the chunks after the first
-        const parts = ChunkLayout.cut(
+        // cut at the starts of the chunks after the first
+        const segments = ChunkLayout.cut(
             edited,
             rows.slice(1).map((row) => ChunkLayout.start(row)),
         );
         const chunks: ChunkChange = { changed: [], reranged: [], created: [] };
-        for (const [index, part] of parts.entries()) {
+        for (const [index, segment] of segments.entries()) {
             // take a changed chunk's first group, noting one whose ranges the server reindexes
             const current = rows[index];
-            const [first, ...rest] = ChunkLayout.fill(part);
+            const [first, ...rest] = ChunkLayout.fill(segment);
             if (current !== undefined && canonicalize(first) !== canonicalize(current.runs)) {
                 const row = { ...current, runs: first, text: new Sequence(first).text() };
                 chunks.changed.push(row);
@@ -661,32 +661,32 @@ const ChunkLayout = {
         return rows.toSorted((left, right) => (left.position < right.position ? -1 : 1));
     },
 
-    /** Split runs into sections starting at each boundary element. */
-    cut(runs: readonly Run[], boundaries: readonly Element[]): Run[][] {
-        // walk the pieces toward the next boundary
-        let part: Run[] = [];
-        const parts = [part];
-        let reached = 0;
+    /** Split runs into sections starting at each cut element. */
+    cut(runs: readonly Run[], cuts: readonly Element[]): Run[][] {
+        // walk the pieces toward the next cut
+        let segment: Run[] = [];
+        const segments = [segment];
+        let next = 0;
         for (let piece of runs) {
-            // start a section at each boundary in the piece
+            // start a section at each cut in the piece
             for (
-                let boundary = boundaries[reached];
-                boundary !== undefined && ChunkLayout.contains(piece, boundary);
-                boundary = boundaries[reached]
+                let cut = cuts[next];
+                cut !== undefined && ChunkLayout.contains(piece, cut);
+                cut = cuts[next]
             ) {
-                const [head, tail] = Sequence.split(piece, boundary.offset - piece.start);
+                const [head, tail] = Sequence.split(piece, cut.offset - piece.start);
                 if (tail !== undefined) {
-                    part.push(head);
+                    segment.push(head);
                     piece = tail;
                 }
-                part = [];
-                parts.push(part);
-                reached += 1;
+                segment = [];
+                segments.push(segment);
+                next += 1;
             }
-            part.push(piece);
+            segment.push(piece);
         }
 
-        return parts;
+        return segments;
     },
 
     /** Split a section's runs into even groups of at most a chunk's characters. */
@@ -741,7 +741,7 @@ const ChunkLayout = {
         );
     },
 
-    /** Read the element a chunk starts at, the boundary of its section. */
+    /** Read the element a chunk starts at, the start of its section. */
     start(row: Chunk): Element {
         const first = present(row.runs[0], `the first run of chunk ${row.id}`);
 

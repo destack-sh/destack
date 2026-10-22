@@ -35,7 +35,7 @@ export function describePackage(handle: PackageHandle): PackageDescription {
     });
 }
 
-/** Describe the object types a package routes, with hooks for its own types only. */
+/** Describe the object types a package routes, with hooks for its declared types only. */
 export function describeObjects(
     packageId: string,
     objects: Readonly<Record<string, ObjectDeclaration>>,

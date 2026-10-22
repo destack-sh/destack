@@ -54,7 +54,7 @@ export interface RunnerOptions {
     readonly socketHost?: SocketHost;
     /** Where the runtime stores the instance's ephemeral objects. */
     readonly ephemeral: EphemeralHost;
-    /** The connectors the runtime supplies by provider code, ahead of the declarations' own. */
+    /** The connectors the runtime supplies by provider code, ahead of the declared connectors. */
     readonly connectors?: Readonly<Record<string, Connector>>;
     /** The clock. */
     readonly clock: Clock;
@@ -68,7 +68,7 @@ export class WorkloadRunner implements AsyncDisposable {
     readonly instance: WorkloadInstance;
     /** The workload's served packages, by package id. */
     readonly #packages: ReadonlyMap<string, PackageHandle>;
-    /** The running package, which routed requests reach. */
+    /** The running package, which routed requests go to. */
     readonly #packageId: PackageId;
     /** The bound resources' clients, disposed once the instance drains. */
     readonly #connections: AsyncDisposableStack;
@@ -245,7 +245,7 @@ export class WorkloadRunner implements AsyncDisposable {
         else if (pathname === HOOK_PATH && request.method === "POST") {
             return this.#hook(request);
         }
-        // hand a routed request to the workload's own package
+        // hand a routed request to the workload's package
         else if (pathname === ROUTE_PATH) {
             return this.#route(request);
         }
@@ -264,9 +264,9 @@ export class WorkloadRunner implements AsyncDisposable {
         this.instance.shutdown();
     }
 
-    /** Hand a routed request to the workload's own package at the route path. */
+    /** Hand a routed request to the workload's package at the route path. */
     #route(request: Request): Promise<Response> {
-        // require the workload to serve its own package
+        // require the workload to serve its package
         const served = this.#packages.get(this.#packageId);
         if (served === undefined) {
             return Promise.resolve(
@@ -293,7 +293,7 @@ export class WorkloadRunner implements AsyncDisposable {
                 await handler.message(socket, new Uint8Array(await request.arrayBuffer()));
             }
 
-            // answer once the sends the event caused reached the host
+            // answer once the sends the event caused arrived at the host
             await this.#hibernation.settled(description.id);
 
             return new Response(null, { status: 204 });

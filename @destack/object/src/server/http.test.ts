@@ -375,7 +375,7 @@ test("end a stream that follows its context signal once the server drains, stopp
 });
 
 test("end a request's context signal once its response is answered", async () => {
-    // keep the context of a call that answers at once
+    // record the context of a call that answers at once
     let seen: RequestContext | undefined;
     const procedures = {
         get: defineProcedure({
@@ -404,7 +404,7 @@ test("end a request's context signal once its response is answered", async () =>
     });
     onTestFinished(() => server.close());
 
-    // call it in process, where the request's own signal never ends
+    // call it in process, where the request's signal never ends
     const client = createClient(
         { router: procedures },
         {
@@ -580,8 +580,8 @@ test("return observed watermarks and require them on the client's later requests
     }
 });
 
-test("require the watermarks a caller's credential carries beside its bookmark's", async () => {
-    // authenticate callers whose credentials carry the position their grant was written at
+test("require the watermarks a caller's credential has beside its bookmark's", async () => {
+    // authenticate callers whose credentials include the position their grant was written at
     const granted = { scope: "universe", log: "log-1", epoch: "epoch-1", sequence: 3 };
     const procedures = {
         read: defineProcedure({
@@ -612,7 +612,7 @@ test("require the watermarks a caller's credential carries beside its bookmark's
         }),
     });
     try {
-        // read the watermarks a request requires, with and without a bookmark of its own
+        // read the watermarks a request requires, with and without a separate bookmark
         const read = (header?: string) =>
             createClient(
                 { router: procedures },
@@ -625,10 +625,10 @@ test("require the watermarks a caller's credential carries beside its bookmark's
                     fetch: (request) => server.fetch(request),
                 },
             ).read();
-        const own = { scope: "space-1", log: "log-1", epoch: "epoch-1", sequence: 7 };
-        expect([await read(), await read(JSON.stringify([own]))]).toEqual([
+        const local = { scope: "space-1", log: "log-1", epoch: "epoch-1", sequence: 7 };
+        expect([await read(), await read(JSON.stringify([local]))]).toEqual([
             [granted],
-            [own, granted],
+            [local, granted],
         ]);
     } finally {
         await server.close();
@@ -734,7 +734,7 @@ async function collectGarbage(): Promise<void> {
     }
 }
 
-test("report a handler's invalid output as an internal failure and a caller's invalid input as its own", async () => {
+test("report a handler's invalid output as an internal failure and a caller's invalid input as the caller's", async () => {
     // serve a procedure whose handler breaks its output schema
     const routes = {
         echo: defineProcedure({

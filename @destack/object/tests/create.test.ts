@@ -3,7 +3,7 @@ import { AccessContext, Caller, none, principal, relation } from "@destack/acces
 import { AccessFixture } from "@destack/access/test";
 
 import { Transaction } from "@destack/db";
-import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
+import { TestDatabase } from "@destack/db/test";
 import { Identifier, schema } from "@destack/schema";
 
 import { RequestId, ObjectReference, Scope } from "@destack/sync";
@@ -11,9 +11,11 @@ import { type MethodInput, defineObject, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { testCallKey } from "@destack/object/test";
-import { callTables, testEvents, serversOf } from "../src/test/index.ts";
+import { testEvents, serversOf } from "../src/test/index.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { Clock } from "@destack/environment";
+import { tablesOf } from "../src/index.ts";
+import objectPackage from "../src/package.ts";
 
 /** The public space containing the handles. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
@@ -24,7 +26,7 @@ const privateId = schema.identifier("space").parse("space-01996ab0-0000-7000-800
 /** The authentication creating a handle asks for: several factors within ten minutes. */
 const RECENT = { assurance: 2, maxAge: 10 * 60 * 1000 };
 
-/** Names unique within a space, created by their own user after strong authentication. */
+/** Names unique within a space, created by their user after strong authentication. */
 const handle = defineObject(
     {
         name: "handle",
@@ -43,112 +45,114 @@ const handle = defineObject(
     (method) => ({ create: method.create("create") }),
 );
 
-test.each(TEST_DIALECTS)(
-    "report a create's conflicts only to callers the create permission allows, inside spaces they read, on %s",
-    async (dialect) => {
-        const storage = await TestDatabase.create(dialect, [...handle.tables, ...callTables], {
+test("report a create's conflicts only to callers the create permission allows, inside spaces they read", async () => {
+    const storage = await TestDatabase.create(
+        tablesOf({
+            packages: [objectPackage, { objects: { handle }, tables: [] }],
+            follows: [],
+            tables: [],
+        }).tables,
+        {
             isMigrated: true,
+        },
+    );
+    onTestFinished(() => storage.close());
+    await openSpace(storage.database, spaceId);
+    await openSpace(storage.database, privateId, "private");
+
+    // serve the handles to the user each call refers to
+    let level = 2;
+    const store = new ObjectStore({
+        chain: async () => undefined,
+        clock: Clock.system,
+        principal: spacePrincipal(spaceId),
+        servers: serversOf([handle]),
+        database: storage.database,
+        callKey: testCallKey,
+        events: await testEvents(storage.database),
+        origin: {
+            package: handle.package,
+        },
+    });
+    const create = (
+        user: Identifier<"user">,
+        input: { readonly holderId: string; readonly name: string; readonly id?: string },
+        scope = spaceId,
+    ) => {
+        const context = userContext(user, scope, {
+            assurance: { level, authenticatedAt: Date.now() },
         });
-        onTestFinished(() => storage.close());
-        await openSpace(storage.database, spaceId);
-        await openSpace(storage.database, privateId, "private");
 
-        // serve the handles to the user each call refers to
-        let level = 2;
-        const store = new ObjectStore({
-            chain: async () => undefined,
-            clock: Clock.system,
-            principal: spacePrincipal(spaceId),
-            servers: serversOf([handle]),
-            database: storage.database,
-            callKey: testCallKey,
-            events: await testEvents(storage.database),
-            origin: {
-                package: handle.package,
-            },
-        });
-        const create = (
-            user: Identifier<"user">,
-            input: { readonly holderId: string; readonly name: string; readonly id?: string },
-            scope = spaceId,
-        ) => {
-            const context = userContext(user, scope, {
-                assurance: { level, authenticatedAt: Date.now() },
-            });
+        return store
+            .mutate(context.access(), {
+                id: RequestId.create(Date.now()),
+                calls: [handle.call("create", { spaceId: scope, ...input })],
+            })
+            .then(([written]) => written);
+    };
 
-            return store
-                .mutate(context.access(), {
-                    id: RequestId.create(Date.now()),
-                    calls: [handle.call("create", { spaceId: scope, ...input })],
-                })
-                .then(([written]) => written);
-        };
+    // take a name and an identifier as alice
+    const taken = await create(users.alice, { holderId: users.alice, name: "notes" });
 
-        // take a name and an identifier as alice
-        const taken = await create(users.alice, { holderId: users.alice, name: "notes" });
+    // tell bob of the taken name and identifier only for a handle he may create
+    expect(await refusal(create(users.bob, { holderId: users.bob, name: "notes" }))).toEqual([
+        "CONFLICT",
+        "another handle has the same scope and name",
+    ]);
+    await expect(
+        create(users.bob, { holderId: users.bob, name: "tasks", id: taken.id }),
+    ).rejects.toMatchObject({ code: "CONFLICT", message: "handle identifier is taken" });
 
-        // tell bob of the taken name and identifier only for a handle he may create
-        expect(await refusal(create(users.bob, { holderId: users.bob, name: "notes" }))).toEqual([
-            "CONFLICT",
-            "another handle has the same scope and name",
-        ]);
-        await expect(
-            create(users.bob, { holderId: users.bob, name: "tasks", id: taken.id }),
-        ).rejects.toMatchObject({ code: "CONFLICT", message: "handle identifier is taken" });
+    // find nothing for a handle bob may not create, taken or free
+    const refusals: unknown[] = [];
+    for (const input of [
+        { holderId: users.alice, name: "notes" },
+        { holderId: users.alice, name: "tasks", id: taken.id },
+        { holderId: users.alice, name: "tasks" },
+    ]) {
+        refusals.push(await refusal(create(users.bob, input)));
+    }
+    expect(refusals).toEqual([
+        ["NOT_FOUND", "handle not found"],
+        ["NOT_FOUND", "handle not found"],
+        ["NOT_FOUND", "handle not found"],
+    ]);
 
-        // find nothing for a handle bob may not create, taken or free
-        const refusals: unknown[] = [];
-        for (const input of [
-            { holderId: users.alice, name: "notes" },
-            { holderId: users.alice, name: "tasks", id: taken.id },
-            { holderId: users.alice, name: "tasks" },
-        ]) {
-            refusals.push(await refusal(create(users.bob, input)));
-        }
-        expect(refusals).toEqual([
-            ["NOT_FOUND", "handle not found"],
-            ["NOT_FOUND", "handle not found"],
-            ["NOT_FOUND", "handle not found"],
-        ]);
-
-        // challenge bob before a conflict, and find nothing for alice's handle
-        level = 1;
-        await expect(
-            create(users.bob, { holderId: users.bob, name: "notes" }),
-        ).rejects.toMatchObject({
-            code: "INSUFFICIENT_AUTHENTICATION",
-            stepUp: RECENT,
-        });
-        await expect(
-            create(users.bob, { holderId: users.alice, name: "notes" }),
-        ).rejects.toMatchObject({
+    // challenge bob before a conflict, and find nothing for alice's handle
+    level = 1;
+    await expect(create(users.bob, { holderId: users.bob, name: "notes" })).rejects.toMatchObject({
+        code: "INSUFFICIENT_AUTHENTICATION",
+        stepUp: RECENT,
+    });
+    await expect(create(users.bob, { holderId: users.alice, name: "notes" })).rejects.toMatchObject(
+        {
             code: "NOT_FOUND",
             message: "handle not found",
-        });
-        level = 2;
+        },
+    );
+    level = 2;
 
-        // create a handle in a space the caller cannot read, as its permission allows
-        const allowed = await create(
-            users.alice,
-            { holderId: users.alice, name: "notes" },
-            privateId,
-        );
-        expect({ holderId: allowed.holderId, name: allowed.name }).toEqual({
-            holderId: users.alice,
-            name: "notes",
-        });
-    },
-);
+    // create a handle in a space the caller cannot read, as its permission allows
+    const allowed = await create(users.alice, { holderId: users.alice, name: "notes" }, privateId);
+    expect({ holderId: allowed.holderId, name: allowed.name }).toEqual({
+        holderId: users.alice,
+        name: "notes",
+    });
+});
 
-/** Teams any caller creates and owns, updated only by owners. */
+/** Teams any caller creates as owner, updated only by owners. */
 const team = defineObject(
     {
         name: "team",
         plural: "teams",
         scope: space,
         fields: { name: field.string(schema.string().min(1)) },
-        relations: { owner: { subjects: [principal.user], grantedBy: "own" } },
-        permissions: { read: relation("owner"), update: relation("owner"), own: relation("owner") },
+        relations: { owner: { subjects: [principal.user], grantedBy: "manage" } },
+        permissions: {
+            read: relation("owner"),
+            update: relation("owner"),
+            manage: relation("owner"),
+        },
     },
     (method) => ({
         create: method.create("update", { fields: ["name"], creator: "owner" }),
@@ -156,9 +160,16 @@ const team = defineObject(
 );
 
 test("create an object the caller has the permission on only as the creator its creation relates", async () => {
-    const storage = await TestDatabase.create("sqlite", [...callTables, ...team.tables], {
-        isMigrated: true,
-    });
+    const storage = await TestDatabase.create(
+        tablesOf({
+            packages: [objectPackage, { objects: { team }, tables: [] }],
+            follows: [],
+            tables: [],
+        }).tables,
+        {
+            isMigrated: true,
+        },
+    );
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
     const store = new ObjectStore({
@@ -186,10 +197,17 @@ test("create an object the caller has the permission on only as the creator its 
     expect(read.name).toBe("Core");
 });
 
-test("run only the one method a one-method grant reaches, refusing every other method of the type", async () => {
-    const storage = await TestDatabase.create("sqlite", [...callTables, ...team.tables], {
-        isMigrated: true,
-    });
+test("run only the one method a one-method grant includes, refusing every other method of the type", async () => {
+    const storage = await TestDatabase.create(
+        tablesOf({
+            packages: [objectPackage, { objects: { team }, tables: [] }],
+            follows: [],
+            tables: [],
+        }).tables,
+        {
+            isMigrated: true,
+        },
+    );
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
     const store = new ObjectStore({
@@ -233,7 +251,7 @@ test("run only the one method a one-method grant reaches, refusing every other m
     ]);
 });
 
-/** Ways to reach a team: an email address, or a phone number with its region. */
+/** Ways to contact a team: an email address, or a phone number with its region. */
 const contact = defineObject(
     {
         name: "contact",
@@ -246,8 +264,12 @@ const contact = defineObject(
             number: field.string(schema.e164()).optional(),
             region: field.string(schema.string().length(2)).optional(),
         },
-        relations: { owner: { subjects: [principal.user], grantedBy: "own" } },
-        permissions: { read: relation("owner"), update: relation("owner"), own: relation("owner") },
+        relations: { owner: { subjects: [principal.user], grantedBy: "manage" } },
+        permissions: {
+            read: relation("owner"),
+            update: relation("owner"),
+            manage: relation("owner"),
+        },
         constraints: {
             kind: {
                 kind: "check",
@@ -279,10 +301,17 @@ const contact = defineObject(
     }),
 );
 
-test("create each variant of a sum type from its own fields beside the shared ones, refusing another variant's field", async () => {
-    const storage = await TestDatabase.create("sqlite", [...callTables, ...contact.tables], {
-        isMigrated: true,
-    });
+test("create each variant of a sum type from its fields beside the shared ones, refusing another variant's field", async () => {
+    const storage = await TestDatabase.create(
+        tablesOf({
+            packages: [objectPackage, { objects: { contact }, tables: [] }],
+            follows: [],
+            tables: [],
+        }).tables,
+        {
+            isMigrated: true,
+        },
+    );
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
     const store = new ObjectStore({
@@ -364,9 +393,16 @@ const ticket = defineObject(
 
 test("create an object without a field its creation fills, taking the field the caller gives", async () => {
     // serve tickets whose creation fills the queue a caller leaves out
-    const storage = await TestDatabase.create("sqlite", [...callTables, ...ticket.tables], {
-        isMigrated: true,
-    });
+    const storage = await TestDatabase.create(
+        tablesOf({
+            packages: [objectPackage, { objects: { ticket }, tables: [] }],
+            follows: [],
+            tables: [],
+        }).tables,
+        {
+            isMigrated: true,
+        },
+    );
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
     const store = new ObjectStore({
@@ -424,9 +460,16 @@ const channel = defineObject(
 );
 
 test("create an object under a natural key the creator chooses, refusing a taken one", async () => {
-    const storage = await TestDatabase.create("sqlite", [...callTables, ...channel.tables], {
-        isMigrated: true,
-    });
+    const storage = await TestDatabase.create(
+        tablesOf({
+            packages: [objectPackage, { objects: { channel }, tables: [] }],
+            follows: [],
+            tables: [],
+        }).tables,
+        {
+            isMigrated: true,
+        },
+    );
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
     const store = new ObjectStore({
@@ -469,59 +512,63 @@ const topic = defineObject(
     (method) => ({ create: method.create("create") }),
 );
 
-test.each(TEST_DIALECTS)(
-    "create an object once for a request two transactions run, the one reading before the other committed running again, on %s",
-    async (dialect) => {
-        const storage = await TestDatabase.create(dialect, [...callTables, ...topic.tables], {
+test("create an object once for a request two transactions run, the one reading before the other committed running again", async () => {
+    const storage = await TestDatabase.create(
+        tablesOf({
+            packages: [objectPackage, { objects: { topic }, tables: [] }],
+            follows: [],
+            tables: [],
+        }).tables,
+        {
             isMigrated: true,
-        });
-        onTestFinished(() => storage.close());
-        await openSpace(storage.database, spaceId);
-        const store = new ObjectStore({
-            chain: async () => undefined,
-            clock: Clock.system,
-            principal: spacePrincipal(spaceId),
-            servers: serversOf([topic]),
-            database: storage.database,
-            callKey: testCallKey,
-            events: await testEvents(storage.database),
-            origin: { package: topic.package },
-        });
+        },
+    );
+    onTestFinished(() => storage.close());
+    await openSpace(storage.database, spaceId);
+    const store = new ObjectStore({
+        chain: async () => undefined,
+        clock: Clock.system,
+        principal: spacePrincipal(spaceId),
+        servers: serversOf([topic]),
+        database: storage.database,
+        callKey: testCallKey,
+        events: await testEvents(storage.database),
+        origin: { package: topic.package },
+    });
 
-        // create the topic unless the transaction reads it, both transactions under one request
-        const caller = userContext(users.alice, spaceId).access();
-        const id = RequestId.create(Date.now());
-        const create = topic.call("create", { spaceId, holderId: users.alice, name: "ideas" });
-        const step = (attempted: () => Promise<void>) =>
-            Transaction.run(storage.database, async (transaction) => {
-                const [found] = await transaction
-                    .view()
-                    .read(topic.table)
-                    .findMany({ where: { name: "ideas" } });
-                await attempted();
-                if (found === undefined) {
-                    await store.mutate(caller, { id, calls: [create] }, { transaction });
-                }
-            });
-
-        // read in the later transaction, commit the first, then create in the later one
-        const committed = Promise.withResolvers<void>();
-        let attempts = 0;
-        const later = step(async () => {
-            attempts += 1;
-            if (attempts === 1) {
-                await committed.promise;
+    // create the topic unless the transaction reads it, both transactions under one request
+    const caller = userContext(users.alice, spaceId).access();
+    const id = RequestId.create(Date.now());
+    const create = topic.call("create", { spaceId, holderId: users.alice, name: "ideas" });
+    const step = (attempted: () => Promise<void>) =>
+        Transaction.run(storage.database, async (transaction) => {
+            const [found] = await transaction
+                .view()
+                .read(topic.table)
+                .findMany({ where: { name: "ideas" } });
+            await attempted();
+            if (found === undefined) {
+                await store.mutate(caller, { id, calls: [create] }, { transaction });
             }
         });
-        await step(async () => {});
-        committed.resolve();
-        await later;
 
-        // expect the one topic, the later transaction running again as it lost the race
-        const rows = await storage.database.select({ name: topic.table.name }).from(topic.table);
-        expect({ rows, attempts }).toEqual({ rows: [{ name: "ideas" }], attempts: 2 });
-    },
-);
+    // read in the later transaction, commit the first, then create in the later one
+    const committed = Promise.withResolvers<void>();
+    let attempts = 0;
+    const later = step(async () => {
+        attempts += 1;
+        if (attempts === 1) {
+            await committed.promise;
+        }
+    });
+    await step(async () => {});
+    committed.resolve();
+    await later;
+
+    // expect the one topic, the later transaction running again as it lost the race
+    const rows = await storage.database.select({ name: topic.table.name }).from(topic.table);
+    expect({ rows, attempts }).toEqual({ rows: [{ name: "ideas" }], attempts: 2 });
+});
 
 /** Watches of a space's objects, by their watcher, which code adds for others too. */
 const watch = defineObject(
@@ -539,10 +586,17 @@ const watch = defineObject(
 );
 
 test("fill a subject field from the caller, and write all its columns in an internal creation", async () => {
-    // serve the watches to the space's own work
-    const storage = await TestDatabase.create("sqlite", [...callTables, ...watch.tables], {
-        isMigrated: true,
-    });
+    // serve the watches to the space's work
+    const storage = await TestDatabase.create(
+        tablesOf({
+            packages: [objectPackage, { objects: { watch }, tables: [] }],
+            follows: [],
+            tables: [],
+        }).tables,
+        {
+            isMigrated: true,
+        },
+    );
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
     const store = new ObjectStore({
@@ -555,11 +609,11 @@ test("fill a subject field from the caller, and write all its columns in an inte
         events: await testEvents(storage.database),
         origin: { package: watch.package },
     });
-    const own = AccessContext.of(Caller.of(spacePrincipal(spaceId)), Date.now());
+    const caller = AccessContext.of(Caller.of(spacePrincipal(spaceId)), Date.now());
     const ada = principal.user.reference(Scope.universe.id, users.alice);
 
     // watch a topic as the space, and add a watch of another topic for ada
-    const [watched, added] = await store.mutate(own, {
+    const [watched, added] = await store.mutate(caller, {
         id: RequestId.create(Date.now()),
         calls: [
             watch.call("create", { spaceId, topic: "Launch" }),
@@ -571,7 +625,7 @@ test("fill a subject field from the caller, and write all its columns in an inte
         ],
     });
 
-    // the creation names the caller, and the internal one names ada with every column
+    // the creation records the caller, and the internal one records ada with every column
     expect([ObjectReference.at("watcher", watched), ObjectReference.at("watcher", added)]).toEqual([
         spacePrincipal(spaceId),
         ada,

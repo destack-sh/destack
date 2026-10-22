@@ -1,24 +1,24 @@
-import { bearerUser, users, userContext } from "./fixture/user.ts";
+import { users, userContext } from "./fixture/user.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { principal, relation, union } from "@destack/access";
-import { type DatabaseConnection, type Dialect, defineDatabase, Snapshot } from "@destack/db";
-import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
+import { type DatabaseConnection, defineDatabase, Snapshot } from "@destack/db";
+import { TestDatabase } from "@destack/db/test";
 import { Package } from "@destack/package";
-import { ResourceContext } from "@destack/resource/context";
 import { createClient, type ClientOptions } from "@destack/object/client";
 import { definePackage } from "@destack/object";
-import { Health } from "@destack/object/server";
 import { RequestId } from "@destack/sync";
-import { Server } from "@destack/object/server";
 import { LiveText, ObjectClient } from "../src/client/index.ts";
 import { chunk, CHUNK_CHARACTERS, Chunk, defineObject, field, Sequence } from "../src/index.ts";
 import { ObjectStore, implementPackage } from "../src/server/index.ts";
 import { user } from "./schema.ts";
 import { openSpace, space, unmoved, spacePrincipal } from "./fixture/space.ts";
 import { testCallKey } from "@destack/object/test";
-import { callTables, testEvents, serversOf } from "../src/test/index.ts";
+import { testEvents, serversOf } from "../src/test/index.ts";
 import { nth, type Identifier } from "@destack/schema";
 import { Clock } from "@destack/environment";
+import { tablesOf } from "../src/index.ts";
+import objectPackage from "../src/package.ts";
+import { TestObjectStore } from "../src/test/index.ts";
 
 /** The space with the documents. */
 const spaceId = "space-01996ab0-0000-7000-8000-000000000014";
@@ -53,41 +53,36 @@ const documentsPackage = definePackage({ objects: { document } });
 /** The database of one space's documents. */
 const documentsDatabase = defineDatabase({
     name: "main",
-    tables: [...document.tables, ...callTables],
+    ...tablesOf({
+        packages: [objectPackage, { objects: { document }, tables: [] }],
+        follows: [],
+        tables: [],
+    }),
 });
 
 /** Serve a space's documents to bearer-identified users. */
-async function serveDocuments(dialect: Dialect) {
+async function serveDocuments() {
     // store the space's documents
-    const storage = await TestDatabase.create(dialect, documentsDatabase, { isMigrated: true });
+    const storage = await TestDatabase.create(documentsDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
     const database = storage.database;
     await openSpace(database, spaceId);
 
     // authenticate each request as the user its bearer credential identifies
-    const server = Server.start({
-        clock: Clock.system,
-        ...nth(
-            new ObjectStore({
-                servers: [implementPackage(documentsPackage, {})],
-                chain: async () => undefined,
-                clock: Clock.system,
-                origin: { package: Package.of(documentsPackage) },
-                principal: spacePrincipal(spaceId),
-                callKey: testCallKey,
-                events: await testEvents(database),
-                database,
-            }).packages,
-            0,
-        ),
-        scope: spaceId,
-        resources: new ResourceContext(),
-        health: new Health("documents"),
-        drainTimeout: 1000,
-        authorizeMachine: async () => {},
-        authenticate: bearerUser(documentsPackage.id, spaceId),
-    });
-    onTestFinished(() => server.close());
+    const served = TestObjectStore.serve(
+        new ObjectStore({
+            servers: [implementPackage(documentsPackage, {})],
+            chain: async () => undefined,
+            clock: Clock.system,
+            origin: { package: Package.of(documentsPackage) },
+            principal: spacePrincipal(spaceId),
+            callKey: testCallKey,
+            events: await testEvents(database),
+            database,
+        }),
+    );
+    onTestFinished(() => served[Symbol.asyncDispose]());
+    const server = served.server(documentsPackage);
     const endpoint = (name: Identifier<"user">): ClientOptions => ({
         url: "https://documents.test",
         headers: { authorization: `Bearer ${name}` },
@@ -102,7 +97,7 @@ async function serveDocuments(dialect: Dialect) {
 async function openClient(name: Identifier<"user">, endpoint: ClientOptions) {
     // create the local database and follow the documents
     const tables = ObjectClient.tables({ document });
-    const storage = await TestDatabase.create("sqlite", tables, { storage: "file" });
+    const storage = await TestDatabase.create(tables, { dialect: "sqlite", storage: "file" });
     onTestFinished(() => storage.close());
     const client = await ObjectClient.open({
         clock: Clock.system,
@@ -143,249 +138,234 @@ async function chunks(database: DatabaseConnection) {
         }));
 }
 
-/** Spell the digits cycling through a length. */
+/** Write the digits cycling through a length. */
 function digits(length: number, offset = 0): string {
     return Array.from({ length }, (_, index) => String((index + offset) % 10)).join("");
 }
 
-test.for(TEST_DIALECTS)(
-    "edit a text through chunk splits, read it assembled, undo exactly and guard it on %s",
-    async (dialect) => {
-        const { connect: connectAs, database } = await serveDocuments(dialect);
-        const alice = connectAs(users.alice);
-        const bob = connectAs(users.bob);
-        const created = await alice.document.create({
+test("edit a text through chunk splits, read it assembled, undo exactly and guard it", async () => {
+    const { connect: connectAs, database } = await serveDocuments();
+    const alice = connectAs(users.alice);
+    const bob = connectAs(users.bob);
+    const created = await alice.document.create({
+        spaceId,
+        requestId: RequestId.create(Date.now()),
+        title: "Plan",
+    });
+    expect(created.body).toBe("");
+
+    // edit through a mirror sequence, one call per change
+    let mirror = new Sequence();
+    let counter = 0;
+    const edit = async (from: number, to: number, insert: string) => {
+        counter += 1;
+        const edits = mirror.change({ from, to, insert }, `alice.${counter}`);
+        for (const each of edits) {
+            mirror = mirror.apply(each);
+        }
+
+        return alice.document.edit({
             spaceId,
+            id: created.id,
             requestId: RequestId.create(Date.now()),
-            title: "Plan",
+            field: "body",
+            edits,
         });
-        expect(created.body).toBe("");
+    };
 
-        // edit through a mirror sequence, one call per change
-        let mirror = new Sequence();
-        let counter = 0;
-        const edit = async (from: number, to: number, insert: string) => {
-            counter += 1;
-            const edits = mirror.change({ from, to, insert }, `alice.${counter}`);
-            for (const each of edits) {
-                mirror = mirror.apply(each);
-            }
+    // type past one chunk and paste into the middle, splitting evenly
+    await edit(0, 0, digits(3000));
+    expect((await chunks(database)).map((row) => row.characters)).toEqual(
+        Array.from({ length: 8 }, () => 375),
+    );
+    await edit(1000, 1000, digits(5000, 3));
+    expect((await chunks(database)).map((row) => row.characters)).toEqual([
+        375,
+        375,
+        ...Array.from({ length: 13 }, () => 384),
+        383,
+        ...Array.from({ length: 5 }, () => 375),
+    ]);
+    expect((await chunks(database)).every((row) => row.characters <= CHUNK_CHARACTERS)).toBe(true);
 
-            return alice.document.edit({
+    // delete across chunks, rewriting only the chunks it touches
+    const before = await chunks(database);
+    const deleted = await edit(3000, 3400, "");
+    const after = await chunks(database);
+    expect(after.map((row) => row.id)).toEqual(before.map((row) => row.id));
+    expect(
+        after.flatMap((row, index) => (row.runs === nth(before, index).runs ? [] : [index])),
+    ).toEqual([7, 8]);
+
+    // read the text assembled through get and list
+    const text = mirror.text();
+    expect(text.length).toBe(8000 - 400);
+    expect((await alice.document.get({ spaceId, id: created.id })).body).toBe(text);
+    expect((await alice.document.list({ spaceId })).items.map((item) => item.body)).toEqual([text]);
+
+    // undo the deletion exactly through its inverse
+    const undone = await alice.document.edit({
+        spaceId,
+        id: created.id,
+        requestId: RequestId.create(Date.now()),
+        field: "body",
+        edits: deleted.inverse,
+    });
+    expect((await alice.document.get({ spaceId, id: created.id })).body).toBe(
+        digits(1000) + digits(5000, 3) + digits(2000, 1000),
+    );
+
+    // redo the deletion through the undo's inverse
+    await alice.document.edit({
+        spaceId,
+        id: created.id,
+        requestId: RequestId.create(Date.now()),
+        field: "body",
+        edits: undone.inverse,
+    });
+    expect((await alice.document.get({ spaceId, id: created.id })).body).toBe(text);
+
+    // refuse text in a plain update, and an edit referring to a missing element
+    const replaced = {
+        spaceId,
+        id: created.id,
+        requestId: RequestId.create(Date.now()),
+        body: "replaced",
+    };
+    const plain = await refusal(alice.document.update(replaced));
+    expect(plain).toEqual(["BAD_REQUEST", 'invalid input: unrecognized key: "body"']);
+    expect(
+        await refusal(
+            alice.document.edit({
                 spaceId,
                 id: created.id,
                 requestId: RequestId.create(Date.now()),
                 field: "body",
-                edits,
-            });
-        };
+                edits: [{ insert: "x", run: "alice.99", after: { run: "nobody.1", offset: 0 } }],
+            }),
+        ),
+    ).toEqual(["BAD_REQUEST", "no chunk has element nobody.1:0"]);
 
-        // type past one chunk and paste into the middle, splitting evenly
-        await edit(0, 0, digits(3000));
-        expect((await chunks(database)).map((row) => row.characters)).toEqual(
-            Array.from({ length: 8 }, () => 375),
-        );
-        await edit(1000, 1000, digits(5000, 3));
-        expect((await chunks(database)).map((row) => row.characters)).toEqual([
-            375,
-            375,
-            ...Array.from({ length: 13 }, () => 384),
-            383,
-            ...Array.from({ length: 5 }, () => 375),
-        ]);
-        expect((await chunks(database)).every((row) => row.characters <= CHUNK_CHARACTERS)).toBe(
-            true,
-        );
+    // refuse a run the text already contains anywhere
+    expect(
+        await refusal(
+            alice.document.edit({
+                spaceId,
+                id: created.id,
+                requestId: RequestId.create(Date.now()),
+                field: "body",
+                edits: [{ insert: "x", run: "alice.1" }],
+            }),
+        ),
+    ).toEqual(["BAD_REQUEST", "body already has run alice.1"]);
 
-        // delete across chunks, rewriting only the chunks it touches
-        const before = await chunks(database);
-        const deleted = await edit(3000, 3400, "");
-        const after = await chunks(database);
-        expect(after.map((row) => row.id)).toEqual(before.map((row) => row.id));
-        expect(
-            after.flatMap((row, index) => (row.runs === nth(before, index).runs ? [] : [index])),
-        ).toEqual([7, 8]);
+    // report which elements the text contains, deleted ones included
+    const owner = document.reference(spaceId, created.id);
+    const contained = [
+        await Chunk.contains(Snapshot.live(database), owner, "body", [
+            { run: "alice.1", offset: 2999 },
+        ]),
+        await Chunk.contains(Snapshot.live(database), owner, "body", [
+            { run: "alice.2", offset: 0 },
+            { run: "alice.2", offset: 4999 },
+        ]),
+        await Chunk.contains(Snapshot.live(database), owner, "body", [
+            { run: "alice.1", offset: 3000 },
+        ]),
+    ];
+    expect(contained).toEqual([true, true, false]);
 
-        // read the text assembled through get and list
-        const text = mirror.text();
-        expect(text.length).toBe(8000 - 400);
-        expect((await alice.document.get({ spaceId, id: created.id })).body).toBe(text);
-        expect((await alice.document.list({ spaceId })).items.map((item) => item.body)).toEqual([
-            text,
-        ]);
+    // hide the text from a caller without read, and show it once shared
+    const listed = async () =>
+        (await bob.document.list({ spaceId })).items.map((item) => item.body);
+    expect(await listed()).toEqual([]);
+    await alice.document.grant({
+        spaceId,
+        id: created.id,
+        requestId: RequestId.create(Date.now()),
+        relation: "editor",
+        subject: principal.user.reference("universe", users.bob),
+    });
+    expect(await listed()).toEqual([text]);
+});
 
-        // undo the deletion exactly through its inverse
-        const undone = await alice.document.edit({
-            spaceId,
-            id: created.id,
-            requestId: RequestId.create(Date.now()),
-            field: "body",
-            edits: deleted.inverse,
-        });
-        expect((await alice.document.get({ spaceId, id: created.id })).body).toBe(
-            digits(1000) + digits(5000, 3) + digits(2000, 1000),
-        );
+test("predict edits on two clients, converge after push, undo one exactly and hide chunks from others", async () => {
+    const { endpoint } = await serveDocuments();
+    const alice = await openClient(users.alice, endpoint(users.alice));
+    const bob = await openClient(users.bob, endpoint(users.bob));
+    const carol = await openClient(users.carol, endpoint(users.carol));
 
-        // redo the deletion through the undo's own inverse
-        await alice.document.edit({
-            spaceId,
-            id: created.id,
-            requestId: RequestId.create(Date.now()),
-            field: "body",
-            edits: undone.inverse,
-        });
-        expect((await alice.document.get({ spaceId, id: created.id })).body).toBe(text);
+    // create a shared document with a first line
+    const created = alice.client.mutate(document).create({ title: "Plan" });
+    const { id } = await created.predicted;
+    await created.confirmed;
+    const base = new Sequence().change({ from: 0, to: 0, insert: "hello world" }, "alice.1");
+    await alice.client.mutate(document).edit({ id, field: "body", edits: base }).confirmed;
+    await alice.client.mutate(document).grant({
+        id,
+        relation: "editor",
+        subject: principal.user.reference("universe", users.bob),
+    }).confirmed;
+    await expect.poll(() => body(bob.live)).toEqual(["hello world"]);
 
-        // refuse text in a plain update, and an edit referring to a missing element
-        const replaced = {
-            spaceId,
-            id: created.id,
-            requestId: RequestId.create(Date.now()),
-            body: "replaced",
-        };
-        const plain = await refusal(alice.document.update(replaced));
-        expect(plain).toEqual(["BAD_REQUEST", 'invalid input: unrecognized key: "body"']);
-        expect(
-            await refusal(
-                alice.document.edit({
-                    spaceId,
-                    id: created.id,
-                    requestId: RequestId.create(Date.now()),
-                    field: "body",
-                    edits: [
-                        { insert: "x", run: "alice.99", after: { run: "nobody.1", offset: 0 } },
-                    ],
-                }),
-            ),
-        ).toEqual(["BAD_REQUEST", "no chunk has element nobody.1:0"]);
+    // predict one edit on each client at once and see each locally first
+    const replica = base.reduce((sequence, each) => sequence.apply(each), new Sequence());
+    const shout = replica.change({ from: 0, to: 5, insert: "HELLO" }, "alice.2");
+    const exclaim = replica.change({ from: 11, to: 11, insert: "!" }, "bob.1");
+    const shouted = alice.client.mutate(document).edit({ id, field: "body", edits: shout });
+    const exclaimed = bob.client.mutate(document).edit({ id, field: "body", edits: exclaim });
+    await Promise.all([shouted.predicted, exclaimed.predicted]);
+    expect([await body(alice.live), await body(bob.live)]).toEqual([
+        ["HELLO world"],
+        ["hello world!"],
+    ]);
 
-        // refuse a run the text already contains anywhere
-        expect(
-            await refusal(
-                alice.document.edit({
-                    spaceId,
-                    id: created.id,
-                    requestId: RequestId.create(Date.now()),
-                    field: "body",
-                    edits: [{ insert: "x", run: "alice.1" }],
-                }),
-            ),
-        ).toEqual(["BAD_REQUEST", "body already has run alice.1"]);
+    // converge both replicas once both edits arrive at the server
+    await Promise.all([shouted.confirmed, exclaimed.confirmed]);
+    await expect.poll(() => body(alice.live)).toEqual(["HELLO world!"]);
+    await expect.poll(() => body(bob.live)).toEqual(["HELLO world!"]);
 
-        // report which elements the text contains, deleted ones included
-        const owner = document.reference(spaceId, created.id);
-        const contained = [
-            await Chunk.contains(Snapshot.live(database), owner, "body", [
-                { run: "alice.1", offset: 2999 },
-            ]),
-            await Chunk.contains(Snapshot.live(database), owner, "body", [
-                { run: "alice.2", offset: 0 },
-                { run: "alice.2", offset: 4999 },
-            ]),
-            await Chunk.contains(Snapshot.live(database), owner, "body", [
-                { run: "alice.1", offset: 3000 },
-            ]),
-        ];
-        expect(contained).toEqual([true, true, false]);
+    // undo alice's edit exactly, leaving bob's
+    await alice.client.undo().confirmed;
+    await expect.poll(() => body(bob.live)).toEqual(["hello world!"]);
+    expect(await body(alice.live)).toEqual(["hello world!"]);
 
-        // hide the text from a caller without read, and show it once shared
-        const listed = async () =>
-            (await bob.document.list({ spaceId })).items.map((item) => item.body);
-        expect(await listed()).toEqual([]);
-        await alice.document.grant({
-            spaceId,
-            id: created.id,
-            requestId: RequestId.create(Date.now()),
-            relation: "editor",
-            subject: principal.user.reference("universe", users.bob),
-        });
-        expect(await listed()).toEqual([text]);
-    },
-);
+    // store no chunks for a caller without read
+    await carol.live.ready;
+    const stored = await carol.client.database.select().from(chunk);
+    expect([await body(carol.live), stored]).toEqual([[], []]);
+    expect([alice.errors, bob.errors, carol.errors]).toEqual([[], [], []]);
+});
 
-test.for(TEST_DIALECTS)(
-    "predict edits on two clients, converge after push, undo one exactly and hide chunks from others on %s",
-    async (dialect) => {
-        const { endpoint } = await serveDocuments(dialect);
-        const alice = await openClient(users.alice, endpoint(users.alice));
-        const bob = await openClient(users.bob, endpoint(users.bob));
-        const carol = await openClient(users.carol, endpoint(users.carol));
+test("type into a live text by offsets, one change after another, and converge on the server", async () => {
+    const { endpoint } = await serveDocuments();
+    const alice = await openClient(users.alice, endpoint(users.alice));
+    const bob = await openClient(users.bob, endpoint(users.bob));
 
-        // create a shared document with a first line
-        const created = alice.client.mutate(document).create({ title: "Plan" });
-        const { id } = await created.predicted;
-        await created.confirmed;
-        const base = new Sequence().change({ from: 0, to: 0, insert: "hello world" }, "alice.1");
-        await alice.client.mutate(document).edit({ id, field: "body", edits: base }).confirmed;
-        await alice.client.mutate(document).grant({
-            id,
-            relation: "editor",
-            subject: principal.user.reference("universe", users.bob),
-        }).confirmed;
-        await expect.poll(() => body(bob.live)).toEqual(["hello world"]);
+    // create a document shared with bob and follow its body as a sequence
+    const created = alice.client.mutate(document).create({ title: "Plan" });
+    const { id } = await created.predicted;
+    await created.confirmed;
+    await alice.client.mutate(document).grant({
+        id,
+        relation: "editor",
+        subject: principal.user.reference("universe", users.bob),
+    }).confirmed;
+    const text = LiveText.open(alice.client, document, id, "body");
+    await text.ready;
 
-        // predict one edit on each client at once and see each locally first
-        const replica = base.reduce((sequence, each) => sequence.apply(each), new Sequence());
-        const shout = replica.change({ from: 0, to: 5, insert: "HELLO" }, "alice.2");
-        const exclaim = replica.change({ from: 11, to: 11, insert: "!" }, "bob.1");
-        const shouted = alice.client.mutate(document).edit({ id, field: "body", edits: shout });
-        const exclaimed = bob.client.mutate(document).edit({ id, field: "body", edits: exclaim });
-        await Promise.all([shouted.predicted, exclaimed.predicted]);
-        expect([await body(alice.live), await body(bob.live)]).toEqual([
-            ["HELLO world"],
-            ["hello world!"],
-        ]);
+    // type twice without waiting against the text of the previous change
+    const typed = text.change({ from: 0, to: 0, insert: "Hello" });
+    const extended = text.change({ from: 5, to: 5, insert: " world" });
+    const edits = await Promise.all([typed, extended]);
+    const local = (await text.read()).text();
 
-        // converge both replicas once both edits reach the server
-        await Promise.all([shouted.confirmed, exclaimed.confirmed]);
-        await expect.poll(() => body(alice.live)).toEqual(["HELLO world!"]);
-        await expect.poll(() => body(bob.live)).toEqual(["HELLO world!"]);
-
-        // undo alice's edit exactly, leaving bob's
-        await alice.client.undo().confirmed;
-        await expect.poll(() => body(bob.live)).toEqual(["hello world!"]);
-        expect(await body(alice.live)).toEqual(["hello world!"]);
-
-        // store no chunks for a caller without read
-        await carol.live.ready;
-        const stored = await carol.client.database.select().from(chunk);
-        expect([await body(carol.live), stored]).toEqual([[], []]);
-        expect([alice.errors, bob.errors, carol.errors]).toEqual([[], [], []]);
-    },
-);
-
-test.for(TEST_DIALECTS)(
-    "type into a live text by offsets, one change after another, and converge on the server on %s",
-    async (dialect) => {
-        const { endpoint } = await serveDocuments(dialect);
-        const alice = await openClient(users.alice, endpoint(users.alice));
-        const bob = await openClient(users.bob, endpoint(users.bob));
-
-        // create a document shared with bob and follow its body as a sequence
-        const created = alice.client.mutate(document).create({ title: "Plan" });
-        const { id } = await created.predicted;
-        await created.confirmed;
-        await alice.client.mutate(document).grant({
-            id,
-            relation: "editor",
-            subject: principal.user.reference("universe", users.bob),
-        }).confirmed;
-        const text = LiveText.open(alice.client, document, id, "body");
-        await text.ready;
-
-        // type twice without waiting against the text of the previous change
-        const typed = text.change({ from: 0, to: 0, insert: "Hello" });
-        const extended = text.change({ from: 5, to: 5, insert: " world" });
-        const edits = await Promise.all([typed, extended]);
-        const local = (await text.read()).text();
-
-        // converge bob's replica once both edits reach the server
-        await Promise.all(edits.map((edit) => edit.confirmed));
-        await expect.poll(() => body(bob.live)).toEqual(["Hello world"]);
-        await text.close();
-        expect([local, alice.errors, bob.errors]).toEqual(["Hello world", [], []]);
-    },
-);
+    // converge bob's replica once both edits arrive at the server
+    await Promise.all(edits.map((edit) => edit.confirmed));
+    await expect.poll(() => body(bob.live)).toEqual(["Hello world"]);
+    await text.close();
+    expect([local, alice.errors, bob.errors]).toEqual(["Hello world", [], []]);
+});
 
 /** Read the bodies of the documents a user's client follows. */
 async function body(live: Awaited<ReturnType<typeof openClient>>["live"]): Promise<string[]> {
@@ -394,7 +374,7 @@ async function body(live: Awaited<ReturnType<typeof openClient>>["live"]): Promi
 
 test("tell whether a document's body has the elements a reader asks about", async () => {
     // write a body of five characters in one run
-    const storage = await TestDatabase.create("sqlite", documentsDatabase, { isMigrated: true });
+    const storage = await TestDatabase.create(documentsDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
     const store = new ObjectStore({

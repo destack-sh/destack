@@ -26,21 +26,21 @@ export const space = defineObject({
     shareable: { by: "share" },
 });
 
-/** Reference a space as the principal its server's own work runs as. */
+/** Reference a space as the principal its server's work runs as. */
 export function spacePrincipal(id: string): Subject {
     return principal.space.reference(Scope.universe.id, id);
 }
 
-/** Record a space owned by itself, public unless private. */
+/** Record a space with itself as owner, public unless private. */
 export async function openSpace(
     database: DatabaseConnection,
     id: string,
     visibility: "public" | "private" = "public",
 ): Promise<void> {
-    // record the space's scope, owned by the space as its creation binds it
+    // record the space's scope, with the space as owner as its creation binds it
     const object = space.reference(Scope.universe.id, id);
     const fixture = new AccessFixture(database);
-    await fixture.replicateScope(object, "own");
+    await fixture.replicateScope(object, "self");
     await fixture.bindOwner(object, spacePrincipal(id), 0);
 
     // relate anyone to a public space as its reader

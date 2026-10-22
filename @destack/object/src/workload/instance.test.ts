@@ -15,6 +15,7 @@ import { PackageHandle } from "../declare/index.ts";
 import { hosting } from "../test/fixture.ts";
 import { testCallKey } from "../test/context.ts";
 import { Clock } from "@destack/environment";
+import { tablesOf } from "../index.ts";
 
 /** The first fixture package. */
 const first = PackageHandle.of(
@@ -404,7 +405,10 @@ test("fold the reloads requested during a start into one start after it", async 
 
 test("run one start's controllers at a time, stopping the previous start's before the next start's run", async () => {
     // record each start's controller running and stopping, over an access database
-    const storage = await TestDatabase.create("sqlite", [marker], { isMigrated: true });
+    const storage = await TestDatabase.create(
+        tablesOf({ packages: [], follows: [], tables: [marker] }).tables,
+        { isMigrated: true },
+    );
     onTestFinished(() => storage.close());
     const events: string[] = [];
     const running = [Promise.withResolvers<void>(), Promise.withResolvers<void>()];
@@ -469,7 +473,10 @@ test("run one start's controllers at a time, stopping the previous start's befor
 
 test("close a server whose controllers were never activated, running none of them", async () => {
     // start a server whose controllers wait for an activation that never comes
-    const storage = await TestDatabase.create("sqlite", [marker], { isMigrated: true });
+    const storage = await TestDatabase.create(
+        tablesOf({ packages: [], follows: [], tables: [marker] }).tables,
+        { isMigrated: true },
+    );
     onTestFinished(() => storage.close());
     const runs: string[] = [];
     const controller: Controller = {

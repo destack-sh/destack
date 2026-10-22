@@ -18,7 +18,7 @@ export function recordColumns<const Prefix extends string>(prefix: Prefix) {
         id: identifier("id", prefix).primaryKey(),
         /** Creation time in UTC epoch milliseconds. */
         createdAt: integer("created_at").notNull(),
-        /** The package of the creating subject, absent for the platform's own writes. */
+        /** The package of the creating subject, absent for the platform's writes. */
         createdByPackageId: identifier("created_by_package_id", "package"),
         /** The type of the creating call's subject. */
         createdByType: text("created_by_type"),
@@ -28,7 +28,7 @@ export function recordColumns<const Prefix extends string>(prefix: Prefix) {
         createdById: text("created_by_id"),
         /** Last modification time in UTC epoch milliseconds. */
         updatedAt: integer("updated_at").notNull(),
-        /** The package of the last modifying subject, absent for the platform's own writes. */
+        /** The package of the last modifying subject, absent for the platform's writes. */
         updatedByPackageId: identifier("updated_by_package_id", "package"),
         /** The type of the last modifying call's subject. */
         updatedByType: text("updated_by_type"),

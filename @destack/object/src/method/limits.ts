@@ -69,9 +69,9 @@ export const Limits = {
     /** Read a dotted path of an input, refusing a missing one. */
     read(input: JsonValue, path: string): JsonValue {
         let value: JsonValue = input;
-        for (const part of path.split(".")) {
+        for (const segment of path.split(".")) {
             const parsed = INPUT_OBJECT.safeParse(value);
-            const entry = parsed.success ? parsed.data[part] : undefined;
+            const entry = parsed.success ? parsed.data[segment] : undefined;
             if (entry === undefined) {
                 throw new TypeError(`an input has no ${path} to key its limit by`);
             }

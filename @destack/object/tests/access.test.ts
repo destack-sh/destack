@@ -11,142 +11,140 @@ import {
     Relationship,
 } from "@destack/access";
 import { defineDatabase, Transaction } from "@destack/db";
-import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
+import { TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
 
 import { subjectContext, testCallKey } from "@destack/object/test";
-import { callTables, testEvents, serversOf } from "../src/test/index.ts";
+import { testEvents, serversOf } from "../src/test/index.ts";
 import { RequestId, ObjectReference, type Subject } from "@destack/sync";
 import { ObjectStore } from "../src/server/index.ts";
 import { defineObject, field, ObjectPolicy, relationship, role } from "../src/index.ts";
 import { space, spacePrincipal } from "./fixture/space.ts";
 import { Clock } from "@destack/environment";
+import { tablesOf } from "../src/index.ts";
+import objectPackage from "../src/package.ts";
 
 /** The space whose roles and members the test follows. */
 const SPACE_ID = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002");
 
-test.for(TEST_DIALECTS)(
-    "follow a space's roles and members as the owner defines and binds them on %s",
-    async (dialect) => {
-        const storage = await TestDatabase.create(
-            dialect,
-            defineDatabase({
-                name: "main",
-                tables: [...role.tables, space.table, ...callTables],
+test("follow a space's roles and members as the owner defines and binds them", async () => {
+    const storage = await TestDatabase.create(
+        defineDatabase({
+            name: "main",
+            ...tablesOf({
+                packages: [objectPackage, { objects: { role }, tables: [] }],
+                follows: [],
+                tables: [space.table],
             }),
-            { isMigrated: true },
-        );
-        onTestFinished(() => storage.close());
-        const database = storage.database;
+        }),
+        { isMigrated: true },
+    );
+    onTestFinished(() => storage.close());
+    const database = storage.database;
 
-        // reference the owner and the space it owns
-        const owner = principal.user.reference("universe", users.owner);
-        const object = space.reference("universe", SPACE_ID);
+    // reference the owner and the space of the owner
+    const owner = principal.user.reference("universe", users.owner);
+    const object = space.reference("universe", SPACE_ID);
 
-        // serve the space's roles and relationships to the owner
-        const store = new ObjectStore({
-            chain: async () => undefined,
-            clock: Clock.system,
-            principal: spacePrincipal(SPACE_ID),
-            servers: serversOf([role, relationship]),
-            policies: [space],
-            database,
-            callKey: testCallKey,
-            events: await testEvents(database),
-            origin: {
-                package: role.package,
-            },
-        });
-        await database
-            .insert(space.table)
-            .values({ id: SPACE_ID, scope: "universe", createdAt: 1, updatedAt: 1 });
-        const creating = await Transaction.open(database);
-        await new Authorization(store.authorizer, creating, () =>
-            AccessContext.of(Caller.of(owner), Date.now()),
-        ).create(object, { owner });
-        await creating.commit();
-        const controller = new AbortController();
-        onTestFinished(() => controller.abort());
-        const context = subjectContext(
-            principal.user.reference("universe", users.owner),
-            SPACE_ID,
-            {
-                signal: controller.signal,
-            },
-        );
+    // serve the space's roles and relationships to the owner
+    const store = new ObjectStore({
+        chain: async () => undefined,
+        clock: Clock.system,
+        principal: spacePrincipal(SPACE_ID),
+        servers: serversOf([role, relationship]),
+        policies: [space],
+        database,
+        callKey: testCallKey,
+        events: await testEvents(database),
+        origin: {
+            package: role.package,
+        },
+    });
+    await database
+        .insert(space.table)
+        .values({ id: SPACE_ID, scope: "universe", createdAt: 1, updatedAt: 1 });
+    const creating = await Transaction.open(database);
+    await new Authorization(store.authorizer, creating, () =>
+        AccessContext.of(Caller.of(owner), Date.now()),
+    ).create(object, { owner });
+    await creating.commit();
+    const controller = new AbortController();
+    onTestFinished(() => controller.abort());
+    const context = subjectContext(principal.user.reference("universe", users.owner), SPACE_ID, {
+        signal: controller.signal,
+    });
 
-        // take the owner role and its binding from the snapshot
-        const pages = store.source.relayed(
-            store.source.queriesPublication.subscription({
-                name: "objects",
-                scope: SPACE_ID,
-                target: SPACE_ID,
-                parameters: {
-                    queries: {
-                        roles: { object: "role" },
-                        members: { object: "relationship" },
-                    },
+    // take the owner role and its binding from the snapshot
+    const pages = store.source.relayed(
+        store.source.queriesPublication.subscription({
+            name: "objects",
+            scope: SPACE_ID,
+            target: SPACE_ID,
+            parameters: {
+                queries: {
+                    roles: { object: "role" },
+                    members: { object: "relationship" },
                 },
-            }),
-            context,
-        );
-        const next = async () => {
-            // skip the pages without changes
-            let read = await pages.next();
-            while (read.done !== true && read.value.changes.length === 0) {
-                read = await pages.next();
-            }
-            if (read.done === true) {
-                throw new TypeError("the sync stream ended before a change");
-            }
-            const page = read.value;
-
-            // name each role by its name, and each relationship by its subject
-            return page.changes.map((change) => [
-                change.table,
-                change.operation,
-                change.row["name"] ?? userName(schema.string().parse(change.row["subjectId"])),
-            ]);
-        };
-        expect(await next()).toEqual([["destack__access__relationship", "insert", "owner"]]);
-
-        // upsert a new role at once and its binding to a member
-        const reviewer = await store
-            .mutate(context.access(), {
-                id: RequestId.create(Date.now()),
-                calls: [
-                    role.call("create", {
-                        scope: SPACE_ID,
-                        name: "reviewer",
-                        description: "Reviews the space",
-                        permissions: [],
-                    }),
-                ],
-            })
-            .then(([written]) => written);
-        expect(await next()).toEqual([["destack__access__role", "insert", "reviewer"]]);
-        const granting = await Transaction.open(database);
-        const authorization = await store.authorize(granting, SPACE_ID, context.access());
-        const before = authorization.isCurrent;
-        await Relationship.grant(
-            {
-                object,
-                role: reviewer.id,
-                subject: principal.user.reference("universe", users.member),
             },
-            authorization,
-        );
-        const after = authorization.isCurrent;
-        await granting.commit();
+        }),
+        context,
+    );
+    const next = async () => {
+        // skip the pages without changes
+        let read = await pages.next();
+        while (read.done !== true && read.value.changes.length === 0) {
+            read = await pages.next();
+        }
+        if (read.done === true) {
+            throw new TypeError("the sync stream ended before a change");
+        }
+        const page = read.value;
 
-        // see the binding, and the authorization outdated by the write it made
-        expect([await next(), before, after]).toEqual([
-            [["destack__access__relationship", "insert", "member"]],
-            true,
-            false,
+        // label each role by its name, and each relationship by its subject
+        return page.changes.map((change) => [
+            change.table,
+            change.operation,
+            change.row["name"] ?? userName(schema.string().parse(change.row["subjectId"])),
         ]);
-    },
-);
+    };
+    expect(await next()).toEqual([["destack__access__relationship", "insert", "owner"]]);
+
+    // upsert a new role at once and its binding to a member
+    const reviewer = await store
+        .mutate(context.access(), {
+            id: RequestId.create(Date.now()),
+            calls: [
+                role.call("create", {
+                    scope: SPACE_ID,
+                    name: "reviewer",
+                    description: "Reviews the space",
+                    permissions: [],
+                }),
+            ],
+        })
+        .then(([written]) => written);
+    expect(await next()).toEqual([["destack__access__role", "insert", "reviewer"]]);
+    const granting = await Transaction.open(database);
+    const authorization = await store.authorize(granting, SPACE_ID, context.access());
+    const before = authorization.isCurrent;
+    await Relationship.grant(
+        {
+            object,
+            role: reviewer.id,
+            subject: principal.user.reference("universe", users.member),
+        },
+        authorization,
+    );
+    const after = authorization.isCurrent;
+    await granting.commit();
+
+    // see the binding, and the authorization outdated by the write it made
+    expect([await next(), before, after]).toEqual([
+        [["destack__access__relationship", "insert", "member"]],
+        true,
+        false,
+    ]);
+});
 
 test("refuse traits on an object type over a foreign table", () => {
     // declare roles that would be recoverable
@@ -177,9 +175,9 @@ test("live in the universe when listed there or when living in any scope, and no
     // read where a universe type, an any-scope type and a space type live
     const universal = defineObject({ name: "anchor", plural: "anchors", scope: "universe" });
     const anywhere = defineObject({ name: "badge", plural: "badges" });
-    const spaced = defineObject({ name: "pin", plural: "pins", scope: space });
+    const spaced = defineObject({ name: "marker", plural: "markers", scope: space });
 
-    // admit the first two in the universe, the any-scope one living in any scope
+    // accept the first two in the universe, the any-scope one living in any scope
     expect(
         [universal, anywhere, spaced].map((type) => [type.isInUniverse, type.isAnyScope]),
     ).toEqual([
@@ -192,8 +190,14 @@ test("live in the universe when listed there or when living in any scope, and no
 test("authorize an object type that the objects and the policies list several times", async () => {
     // serve roles and list them twice among the policies, as composed extensions do
     const storage = await TestDatabase.create(
-        "sqlite",
-        defineDatabase({ name: "main", tables: [...role.tables, space.table, ...callTables] }),
+        defineDatabase({
+            name: "main",
+            ...tablesOf({
+                packages: [objectPackage, { objects: { role }, tables: [] }],
+                follows: [],
+                tables: [space.table],
+            }),
+        }),
         { isMigrated: true },
     );
     onTestFinished(() => storage.close());
@@ -233,10 +237,13 @@ const installed = defineObject(
 test("delete the grants of an installation as the installation is deleted", async () => {
     // serve a space's installations to its owner
     const storage = await TestDatabase.create(
-        "sqlite",
         defineDatabase({
             name: "main",
-            tables: [...installed.tables, ...role.tables, space.table, ...callTables],
+            ...tablesOf({
+                packages: [objectPackage, { objects: { installed, role }, tables: [] }],
+                follows: [],
+                tables: [space.table],
+            }),
         }),
         { isMigrated: true },
     );

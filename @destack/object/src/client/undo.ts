@@ -69,7 +69,7 @@ export class UndoStack {
     /** The latest toggle, which the next one waits for. */
     #toggling: Promise<unknown> = Promise.resolve();
 
-    /** Hold a client's undo and redo stacks. */
+    /** Create a client's undo and redo stacks. */
     constructor(client: ObjectClient) {
         this.client = client;
     }
@@ -105,8 +105,8 @@ export class UndoStack {
         steps: readonly StoredStep[],
     ): Promise<void> {
         // clear the redo stack
-        const ownEntries = eq(undoEntry.origin, this.client.origin);
-        await database.delete(undoEntry).where(and(ownEntries, eq(undoEntry.state, "undone")));
+        const mine = eq(undoEntry.origin, this.client.origin);
+        await database.delete(undoEntry).where(and(mine, eq(undoEntry.state, "undone")));
 
         // require an inverse for every call
         const isUndoable =
@@ -122,7 +122,7 @@ export class UndoStack {
         const [last] = await database
             .select({ sequence: max(undoEntry.sequence) })
             .from(undoEntry)
-            .where(ownEntries);
+            .where(mine);
         await database.insert(undoEntry).values({
             id,
             origin: this.client.origin,

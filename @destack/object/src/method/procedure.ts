@@ -66,7 +66,7 @@ export interface Route {
     readonly path: "" | `/${string}`;
 }
 
-/** How callers reach one method. */
+/** How callers call one method. */
 export interface MethodProcedure {
     /** The route below the object's collection. */
     readonly route: Route;
@@ -77,7 +77,7 @@ export interface MethodProcedure {
 }
 
 /** The fields paging a list. */
-export const PageShape = {
+export const PageFields = {
     /** The continuation from the previous page. */
     cursor: schema.string().min(1).exactOptional(),
     /** The largest page to return. */
@@ -122,7 +122,7 @@ export const ListPage = {
 };
 
 /** The revision a change requires. */
-export const RevisionShape = { revision: schema.number().int().positive().exactOptional() };
+export const RevisionFields = { revision: schema.number().int().positive().exactOptional() };
 
 /** The empty result of methods returning nothing. */
 export const Empty = schema.object({});
@@ -378,12 +378,12 @@ export type ScopeField<Object extends ObjectType> =
         : never;
 
 /** The fields selecting an object's scope. */
-export type ScopeShape<Object extends ObjectType> = {
+export type ScopeFields<Object extends ObjectType> = {
     [Field in ScopeField<Object>]: schema.Schema<string, string>;
 };
 
 /** The fields selecting one object. */
-export type TargetShape<Object extends ObjectType> = ScopeShape<Object> & {
+export type TargetFields<Object extends ObjectType> = ScopeFields<Object> & {
     id: IdSchema<Object>;
 };
 
@@ -413,7 +413,7 @@ type IsOrphanable<Object extends ObjectType> = null extends Select<Object["table
     : false;
 
 /** A child's parent-selecting field. */
-export type ParentShape<Object extends ObjectType> = "parentId" extends keyof Select<
+export type ParentFields<Object extends ObjectType> = "parentId" extends keyof Select<
     Object["table"]
 >
     ? {
@@ -426,7 +426,7 @@ export type ParentShape<Object extends ObjectType> = "parentId" extends keyof Se
     : {};
 
 /** The parent a moved object moves to. */
-export type DestinationShape<Object extends ObjectType> = "parentId" extends keyof Select<
+export type DestinationFields<Object extends ObjectType> = "parentId" extends keyof Select<
     Object["table"]
 >
     ? {
@@ -437,13 +437,10 @@ export type DestinationShape<Object extends ObjectType> = "parentId" extends key
     : {};
 
 /** The field identifying a mutation: its request identifier or writer. */
-export type ReplayShape<Object extends ObjectType = ObjectType> =
+export type ReplayFields<Object extends ObjectType = ObjectType> =
     Object["storage"] extends "ephemeral"
         ? { writerId: typeof WriterId }
         : { requestId: typeof RequestId.schema };
-
-/** The revision a change requires. */
-export type RevisionField = typeof RevisionShape;
 
 /** The keys a record may omit. */
 type OptionalKeys<Record> = {
@@ -464,26 +461,26 @@ type WrittenName<Object extends ObjectType, Declared extends Method> =
           : never);
 
 /** The JSON validators of the columns a creation or update writes. */
-export type WrittenShape<
+export type WrittenFields<
     Object extends ObjectType,
     Declared extends Method,
     IsPartial extends boolean,
-> = ColumnShape<Object, WrittenName<Object, Declared>, IsPartial, FilledName<Declared>>;
+> = ColumnFields<Object, WrittenName<Object, Declared>, IsPartial, FilledName<Declared>>;
 
 /** The columns a creation's handler fills where the caller leaves them out. */
 type FilledName<Declared extends Method> = NonNullable<Declared["filled"]>[number];
 
-/** One object per creation variant: the shared fields, its own columns and its literal. */
+/** One object per creation variant: the shared fields, its columns and its literal. */
 export type VariantSchema<
     Object extends ObjectType,
     Declared extends Method,
-    Shape,
+    Fields,
     Variants = NonNullable<Declared["variants"]>,
 > = schema.DiscriminatedUnion<
     {
         [Field in keyof Variants & string]: {
             [Value in keyof Variants[Field] & string]: schema.Object<
-                Shape & { [Key in Field]: schema.Schema<Value, Value> } & RequiredShape<
+                Fields & { [Key in Field]: schema.Schema<Value, Value> } & RequiredFields<
                         Object,
                         VariantField<Variants[Field][Value]>
                     >
@@ -493,7 +490,7 @@ export type VariantSchema<
 >;
 
 /** The JSON validators of the columns a write gives a value, refusing null. */
-export type RequiredShape<
+export type RequiredFields<
     Object extends ObjectType,
     Written extends string,
     Row = Insert<Object["table"]>,
@@ -508,7 +505,7 @@ export type RequiredShape<
 type VariantField<Fields> = Fields extends readonly (infer Field extends string)[] ? Field : never;
 
 /** The JSON validators of the given columns, each optional to a partial write. */
-export type ColumnShape<
+export type ColumnFields<
     Object extends ObjectType,
     Written extends string,
     IsPartial extends boolean,
@@ -538,31 +535,33 @@ export type ColumnShape<
     >;
 };
 
-/** A method's own input fields. */
-export type FieldShape<Declared extends Method> = [NonNullable<Declared["input"]>] extends [never]
+/** A method's input fields. */
+export type InputFields<Declared extends Method> = [NonNullable<Declared["input"]>] extends [never]
     ? {}
-    : NonNullable<Declared["input"]> extends schema.Object<infer Shape>
-      ? Shape
+    : NonNullable<Declared["input"]> extends schema.Object<infer Fields>
+      ? Fields
       : {};
 
 /** A custom method's schema: routing fields joined to its input, per variant for sum types. */
-export type CustomSchema<Shape extends Readonly<Record<string, schema.Schema>>, Input> = [
+export type CustomSchema<Fields extends Readonly<Record<string, schema.Schema>>, Input> = [
     NonNullable<Input>,
 ] extends [never]
-    ? schema.Object<Shape>
+    ? schema.Object<Fields>
     : NonNullable<Input> extends schema.DiscriminatedUnion<infer Options>
       ? schema.DiscriminatedUnion<
             (Options[number] extends infer Option
-                ? Option extends schema.Object<infer Own>
-                    ? schema.Object<Shape & Own>
+                ? Option extends schema.Object<infer Extra>
+                    ? schema.Object<Fields & Extra>
                     : never
                 : never)[]
         >
-      : schema.Object<Shape & (NonNullable<Input> extends schema.Object<infer Own> ? Own : {})>;
+      : schema.Object<
+            Fields & (NonNullable<Input> extends schema.Object<infer Extra> ? Extra : {})
+        >;
 
 /** One object as callers see it, in its JSON form. */
 export type RowSchema<Object extends ObjectType> = schema.Object<
-    RowShape<
+    RowFields<
         JsonFields<Omit<Select<Object["table"]>, SensitiveField<Object["fields"]>>>,
         GuardedField<Object["fields"]>
     > & { [Name in TextFieldName<Object["fields"]>]: schema.Schema<string> }
@@ -572,7 +571,7 @@ export type RowSchema<Object extends ObjectType> = schema.Object<
 type JsonFields<Row> = { [Name in keyof Row]: JsonOf<Row[Name]> };
 
 /** The validators of a row's fields, the guarded ones accepting omission. */
-type RowShape<Row, Guarded> = {
+type RowFields<Row, Guarded> = {
     [Name in Exclude<keyof Row, Guarded>]: schema.Schema<Row[Name]>;
 } & {
     [Name in Extract<keyof Row, Guarded>]: schema.ExactOptional<schema.Schema<Row[Name]>>;

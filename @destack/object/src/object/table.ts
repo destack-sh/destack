@@ -289,7 +289,7 @@ export const ObjectTable = {
     },
 
     /** Find the table with an aggregate. */
-    findHolder(definition: ObjectDefinition, aggregate: ObjectAggregate, own: Table): Table {
+    findHolder(definition: ObjectDefinition, aggregate: ObjectAggregate, fallback: Table): Table {
         // follow the reference field or the parent
         const field = aggregate.via === undefined ? undefined : definition.fields?.[aggregate.via];
         const parent = definition.nested?.in;
@@ -303,7 +303,7 @@ export const ObjectTable = {
             throw new TypeError(`aggregate of ${definition.name} needs a parent or a reference`);
         }
 
-        return holder?.table ?? own;
+        return holder?.table ?? fallback;
     },
 
     /** Declare the objects' scope column: any scope, the universe, or one scope type's ids. */

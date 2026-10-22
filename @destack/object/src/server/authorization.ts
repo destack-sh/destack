@@ -29,7 +29,7 @@ import type { StoreExecution } from "../method/execution.ts";
 import type { MethodKind } from "../method/kind.ts";
 import { SCOPE_LIST, SCOPE_READ, type ObjectType } from "../object/object.ts";
 
-/** How a decision treats replicas of other scopes: passed as included, or checked like own rows. */
+/** How a decision treats replicas of other scopes: passed as included, or checked as local rows. */
 type ReplicaDecision = "included" | "checked";
 
 /** The kinds of method a scope with capped storage still runs, since they free storage. */
@@ -59,7 +59,7 @@ export class Authorization extends access.Authorization {
         return this.transaction.changes.writes(this.authorizer.decidingTables) === this.#writes;
     }
 
-    /** Match the rows the caller holds a permission on, and a required one too, or "memory". */
+    /** Match the rows the caller has a permission on, and a required one too, or "memory". */
     where(object: ObjectType, permission: Permission, required?: Permission): SQL | "memory" {
         // match both permissions, checking the required one on replicas too
         const permitted = this.#where(object, permission, "included");
@@ -71,7 +71,7 @@ export class Authorization extends access.Authorization {
         return held === undefined ? permitted : and(permitted, held);
     }
 
-    /** Filter the rows in hand the caller holds a permission on, and a required one too. */
+    /** Filter the rows in hand the caller has a permission on, and a required one too. */
     async filter<Filtered extends Row>(
         object: ObjectType,
         permission: Permission,
@@ -102,9 +102,9 @@ export class Authorization extends access.Authorization {
         };
     }
 
-    /** Match the rows the caller holds a permission on in SQL, or "memory" for `#filter`. */
+    /** Match the rows the caller has a permission on in SQL, or "memory" for `#filter`. */
     #where(object: ObjectType, permission: Permission, replicas: ReplicaDecision): SQL | "memory" {
-        // decide ephemeral and external rows in memory, and checked replicas at their own scopes
+        // decide ephemeral and external rows in memory, and checked replicas at their scopes
         if (object.storage !== "durable" || replicas === "checked") {
             return "memory";
         }
@@ -129,7 +129,7 @@ export class Authorization extends access.Authorization {
         }
     }
 
-    /** Decide which rows in hand the caller holds a permission on, as `#where` matches them. */
+    /** Decide which rows in hand the caller has a permission on, as `#where` matches them. */
     async #filter<Filtered extends Row>(
         object: ObjectType,
         permission: Permission,
@@ -154,7 +154,7 @@ export class Authorization extends access.Authorization {
         const others = scoped.filter((entry) => entry.scope !== scope);
         let passed: ReadonlySet<number>;
         let below: ReadonlyMap<string, Access> = new Map();
-        // check replicas like own rows
+        // check replicas like local rows
         if (replicas === "checked") {
             passed = new Set();
         }
@@ -188,15 +188,15 @@ export class Authorization extends access.Authorization {
             below = await this.descend(scope, [...new Set(left.map((entry) => entry.scope))]);
         }
 
-        // check the permission on the scope's own rows and on the rows of the scopes it encloses
-        const own = scoped.filter(
+        // check the permission on the scope's rows and on the rows of the scopes it encloses
+        const local = scoped.filter(
             (entry) =>
                 !passed.has(entry.position) && (entry.scope === scope || below.has(entry.scope)),
         );
         const checked = await this.checkRows(
             permission,
             scope,
-            own.map((entry) => entry.row),
+            local.map((entry) => entry.row),
             reader,
             below,
         );
@@ -213,10 +213,10 @@ export class Authorization extends access.Authorization {
         );
         const until = earliest([checked.until, ...decisions.map(({ decision }) => decision.until)]);
 
-        // permit the passed replicas, the permitted own rows and the allowed checked replicas
+        // permit the passed replicas, the permitted local rows and the allowed checked replicas
         const permitted = new Set([
             ...passed,
-            ...own
+            ...local
                 .filter((_entry, index) => checked.permitted.has(index))
                 .map((entry) => entry.position),
             ...decisions
@@ -246,7 +246,7 @@ export class Authorization extends access.Authorization {
         // read the row the view shows, allowed with the caller's grants now
         const { object, scope } = context;
         const row = await snapshot.read(object.table).findFirst({ where: { id } });
-        const isAdmitted =
+        const isVisible =
             row !== undefined &&
             (await this.filter(object, permission, [row], { scope })).rows.length > 0;
 
@@ -254,7 +254,7 @@ export class Authorization extends access.Authorization {
         const reference = object.reference(scope, id);
         const governing = this.authorizer.governingScope(reference);
         const isAllowed =
-            isAdmitted &&
+            isVisible &&
             (snapshot.position === undefined ||
                 (
                     await this.authorizer.check(
@@ -321,7 +321,7 @@ export class Authorization extends access.Authorization {
         evaluated: Access,
         execution: StoreExecution,
     ): Promise<readonly Row[]> {
-        // read the object through the call's transaction, its own writes included, and decide in memory
+        // read the object through the call's transaction, its writes included, and decide in memory
         return this.#decide(context, id, permission, evaluated, execution);
     }
 
@@ -394,19 +394,19 @@ export class Authorization extends access.Authorization {
         }
 
         // decide for the caller, or only for its subject where its grant gives something in the scope
-        const own = this.access.scopes[0];
+        const first = this.access.scopes[0];
         const permissions = this.access.permissions;
         const subject = { ...this.access.context, actors: [], grants: [] };
-        const isScope = own?.id === scope && objects.some((object) => object.livesIn(own));
+        const isScope = first?.id === scope && objects.some((object) => object.livesIn(first));
 
         return (
             isScope &&
             (permissions === undefined
-                ? await this.#sees(own, (bound) => this.in(bound))
+                ? await this.#sees(first, (bound) => this.in(bound))
                 : permissions.some((entry) =>
                       access.GrantPermission.overlaps(entry.scope, scope),
                   ) &&
-                  (await this.#sees(own, (bound) =>
+                  (await this.#sees(first, (bound) =>
                       this.authorizer.resolve(this.snapshot, bound, subject),
                   )))
         );
@@ -414,32 +414,41 @@ export class Authorization extends access.Authorization {
 
     /** Decide whether an access sees a scope: it reads or lists it, or has a grant inside it. */
     async #sees(
-        own: ObjectReference,
+        reference: ObjectReference,
         resolve: (scope: string) => Promise<Access>,
     ): Promise<boolean> {
         // see a scope the access reads or lists, by the permissions its type declares
-        const container = await resolve(this.authorizer.governingScope(own));
-        const declared = this.authorizer.policy(own).definition.permissions;
+        const container = await resolve(this.authorizer.governingScope(reference));
+        const declared = this.authorizer.policy(reference).definition.permissions;
         const names = [SCOPE_READ, SCOPE_LIST].filter((name) => Object.hasOwn(declared, name));
         for (const name of names) {
-            const permission = { packageId: own.packageId, type: own.type, name };
-            const decided = await this.authorizer.check(this.snapshot, permission, own, container);
+            const permission = { packageId: reference.packageId, type: reference.type, name };
+            const decided = await this.authorizer.check(
+                this.snapshot,
+                permission,
+                reference,
+                container,
+            );
             if (decided.isAllowed) {
                 return true;
             }
         }
 
         // see a scope the access has a granted relationship inside, such as a shared object
-        return this.authorizer.isRelatedIn(this.snapshot, own.id, await resolve(own.id));
+        return this.authorizer.isRelatedIn(
+            this.snapshot,
+            reference.id,
+            await resolve(reference.id),
+        );
     }
 
     /** Decide whether an object type's rows live in scopes of the authorized scope's type. */
     isScopeOf(object: ObjectType): boolean {
-        const own = this.access.scopes[0];
+        const first = this.access.scopes[0];
 
         return this.access.scope === Scope.universe.id
             ? object.isInUniverse
-            : own?.id === this.access.scope && object.livesIn(own);
+            : first?.id === this.access.scope && object.livesIn(first);
     }
 
     /** Decide whether the authorized scope has every row of a type its replicas read. */
@@ -462,10 +471,10 @@ export class Authorization extends access.Authorization {
     requireHere(
         permissions: readonly access.PermissionReference[],
         served: string | undefined,
-        own: string | undefined,
+        accessed: string | undefined,
     ): void {
         this.#requireUnmoved(permissions);
-        this.#requirePartition(served, own);
+        this.#requirePartition(served, accessed);
     }
 
     /** Refuse a moved scope with its new holder, unless every permission is a moving one. */
@@ -485,13 +494,15 @@ export class Authorization extends access.Authorization {
     }
 
     /** Refuse a call in another partition than the store's, or in one inside the store's scope. */
-    #requirePartition(served: string | undefined, own: string | undefined): void {
-        // refuse another partition than the one served, or a partition nearer than the store's own scope
+    #requirePartition(served: string | undefined, accessed: string | undefined): void {
+        // refuse another partition than the one served, or a partition nearer than the store's scope
         const { scope, partition, scopes } = this.access;
         const isOther = served !== undefined && partition !== served;
         const nearest = scopes.findIndex((link) => link.id === partition);
-        const ownAt = own === undefined ? -1 : scopes.findIndex((link) => link.id === own);
-        const isInside = served === undefined && nearest !== -1 && ownAt !== -1 && nearest < ownAt;
+        const accessedAt =
+            accessed === undefined ? -1 : scopes.findIndex((link) => link.id === accessed);
+        const isInside =
+            served === undefined && nearest !== -1 && accessedAt !== -1 && nearest < accessedAt;
         if (partition !== undefined && (isOther || isInside)) {
             throw new CallError("MISDIRECTED_REQUEST", {
                 message: `${scope} is served by partition ${partition}`,
@@ -500,7 +511,7 @@ export class Authorization extends access.Authorization {
         }
     }
 
-    /** Refuse a method the caller's grants tie to other methods of its type. */
+    /** Refuse a method the caller's grants bind to other methods of its type. */
     requireMethods(calls: readonly { readonly object: ObjectType; readonly name: string }[]): void {
         // pass a caller under no grant
         const grant = this.access.context.grants.at(-1);
@@ -686,7 +697,7 @@ export class Authorization extends access.Authorization {
             }
         }
 
-        // decide the rows of the scopes below in their own chains
+        // decide the rows of the scopes below in their chains
         const scope = this.access.scope;
         const others = rows
             .map((row) => schema.string().parse(row["scope"]))

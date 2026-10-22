@@ -4,7 +4,7 @@ import { Package } from "@destack/package";
 import { defineDatabase, type DatabaseConnection } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { none, principal, through } from "@destack/access";
-import { schema, nth, type Identifier } from "@destack/schema";
+import { schema, type Identifier } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { subjectContext, testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
@@ -13,10 +13,12 @@ import { v7 } from "uuid";
 import { ObjectStore, implementPackage } from "../src/server/index.ts";
 import { ObjectClient } from "../src/client/index.ts";
 import { definePackage } from "@destack/object";
-import { serveObjects } from "./fixture/device.ts";
-import { notebook, notesDatabase } from "./fixture/note.ts";
+import { notebook, notesPackage } from "./fixture/note.ts";
+import objectPackage from "../src/package.ts";
 import { openSpace, space, unmoved, spacePrincipal } from "./fixture/space.ts";
 import { Clock } from "@destack/environment";
+import { tablesOf } from "../src/index.ts";
+import { TestObjectStore } from "../src/test/index.ts";
 
 /** An entry's natural key: the notebook's term, as a moniker identifies a symbol. */
 const Term = schema.string().regex(/^term:[A-Za-z]+$/u);
@@ -72,8 +74,14 @@ const lookup = defineObject(
 test("read external objects named by their key from the database their files open per scope, allowing callers by the durable database", async () => {
     // store a public space's notebook in the durable database
     const durable = await TestDatabase.create(
-        "sqlite",
-        defineDatabase({ name: "main", tables: [...notesDatabase.tables, ...lookup.tables] }),
+        defineDatabase({
+            name: "main",
+            ...tablesOf({
+                packages: [objectPackage, notesPackage, { objects: { lookup }, tables: [] }],
+                follows: [],
+                tables: [],
+            }),
+        }),
         { isMigrated: true },
     );
     onTestFinished(() => durable.close());
@@ -84,7 +92,6 @@ test("read external objects named by their key from the database their files ope
 
     // open each scope's entries from files, here one database built per scope
     const files = await TestDatabase.create(
-        "sqlite",
         defineDatabase({ name: "files", tables: entry.tables }),
         { isMigrated: true },
     );
@@ -148,27 +155,26 @@ test("read external objects named by their key from the database their files ope
 
     // follow the entries in a client's live query, through the external replica
     const notebooks = definePackage({ objects: { notebook, entry } });
-    const served = serveObjects(
-        nth(
-            new ObjectStore({
-                servers: [
-                    implementPackage(notebooks, {
-                        external: { objects: [entry], open: async () => files.database },
-                    }),
-                ],
-                chain: async () => undefined,
-                clock: Clock.system,
-                origin: { package: Package.of(notebooks) },
-                principal: spacePrincipal(spaceId),
-                database: durable.database,
-                callKey: testCallKey,
-                events: await testEvents(durable.database),
-            }).packages,
-            0,
-        ),
-        spaceId,
+    const served = TestObjectStore.serve(
+        new ObjectStore({
+            servers: [
+                implementPackage(notebooks, {
+                    external: { objects: [entry], open: async () => files.database },
+                }),
+            ],
+            chain: async () => undefined,
+            clock: Clock.system,
+            origin: { package: Package.of(notebooks) },
+            principal: spacePrincipal(spaceId),
+            database: durable.database,
+            callKey: testCallKey,
+            events: await testEvents(durable.database),
+        }),
     );
-    const local = await TestDatabase.create("sqlite", ObjectClient.tables({ notebook, entry }));
+    onTestFinished(() => served[Symbol.asyncDispose]());
+    const local = await TestDatabase.create(ObjectClient.tables({ notebook, entry }), {
+        dialect: "sqlite",
+    });
     onTestFinished(() => local.close());
     const client = await ObjectClient.open({
         clock: Clock.system,
@@ -176,7 +182,7 @@ test("read external objects named by their key from the database their files ope
         objects: { notebook, entry },
         scope: spaceId,
         caller: principal.user.reference("universe", users.alice),
-        endpoint: served.endpoint(users.alice),
+        endpoint: served.endpoint(notebooks, users.alice),
         reconnect: unmoved,
     });
     const stopping = new AbortController();

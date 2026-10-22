@@ -1,5 +1,5 @@
-import { accessTables, none, through } from "@destack/access";
-import { asc, defineDatabase, lease, ControlLoop } from "@destack/db";
+import { none, through } from "@destack/access";
+import { asc, defineDatabase, ControlLoop } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { PackageHandle } from "@destack/object";
 import { testCallKey } from "@destack/object/test";
@@ -8,9 +8,11 @@ import { Scope, type Subscription } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import { defineObject, defineShape, field, Follow, followKey } from "../src/index.ts";
 import { implementPackage, ObjectStore } from "../src/server/index.ts";
-import { callTables, serversOf, testEvents } from "../src/test/index.ts";
+import { serversOf, testEvents } from "../src/test/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { VirtualClock } from "@destack/environment/simulation";
+import { tablesOf } from "../src/stack/db.ts";
+import objectPackage from "../src/package.ts";
 
 /** How long a test waits for a replica: 5 s, far above its milliseconds. */
 const REPLICA_MILLISECONDS = 5000;
@@ -44,11 +46,10 @@ const titleShape = defineShape({
 /** The follow of cards by title, each title followed ten minutes after its last acquisition. */
 const byTitle = Follow.of(titleShape, { onDemand: { ttl: { minutes: TTL_MINUTES } } });
 
-/** The follower's database: its own tables and the replicated cards. */
+/** The follower's database: its tables and the replicated cards. */
 const followerDatabase = defineDatabase({
     name: "main",
-    tables: [lease, followKey, ...accessTables],
-    replicated: [card.table],
+    ...tablesOf({ packages: [], follows: [byTitle], tables: [] }),
 });
 
 /** Serve the cards at home and a follower acquiring them by title on a clock the test moves. */
@@ -59,10 +60,17 @@ async function openStores(): Promise<{
     readonly keys: () => Promise<readonly string[]>;
 }> {
     // create three cards at home in a public space
-    const homeDatabase = await TestDatabase.create("sqlite", [...callTables, ...card.tables], {
-        isMigrated: true,
-    });
-    const followerTest = await TestDatabase.create("sqlite", followerDatabase, {
+    const homeDatabase = await TestDatabase.create(
+        tablesOf({
+            packages: [objectPackage, { objects: { card }, tables: [] }],
+            follows: [],
+            tables: [],
+        }).tables,
+        {
+            isMigrated: true,
+        },
+    );
+    const followerTest = await TestDatabase.create(followerDatabase, {
         isMigrated: true,
     });
     onTestFinished(async () => {

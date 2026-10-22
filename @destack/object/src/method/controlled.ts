@@ -19,7 +19,7 @@ export const approvalMethod = new MethodBuilder<
 export const observe = controlledMethod
     .mutation({ permission: "control", input: Observation })
     .handle(async (context) => {
-        // refuse an observation of a generation the record has not reached
+        // refuse an observation of a generation the record has not arrived at
         const { observedGeneration, conditions, fields } = context.input;
         if (observedGeneration > context.target.generation) {
             throw new CallError("CONFLICT", {
@@ -27,7 +27,7 @@ export const observe = controlledMethod
             });
         }
 
-        // merge the conditions and hold transition times while their status stays
+        // merge the conditions and preserve transition times while their status stays
         const current = context.target.conditions;
         const merged = Object.fromEntries(
             Object.entries(conditions).map(([name, condition]) => [

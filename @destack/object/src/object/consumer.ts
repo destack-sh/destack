@@ -16,7 +16,7 @@ export interface ReaderPage {
     readonly after: number;
     /** The log sequence the page ends at, the claim a retry takes again. */
     readonly through: number;
-    /** When the page was claimed, in Unix milliseconds, which every retry of it keeps. */
+    /** When the page was claimed, in Unix milliseconds, which every retry of it preserves. */
     readonly claimedAt: number;
 }
 
@@ -60,7 +60,7 @@ export class Consumer implements Controller {
             throw new TypeError(`object ${object.name} has no reader ${reader} by scope`);
         }
 
-        // keep the store, the type, the reader, its batch and the handler
+        // store the store, the type, the reader, its batch and the handler
         this.name = `${object.name}/${reader}`;
         this.watches = [object.table];
         this.#store = store;

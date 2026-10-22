@@ -8,7 +8,7 @@ export const FeedPublisher = {
         feed: Feed,
         queries: (subscription: Subscription) => Readonly<Record<string, Query>>,
     ): Publisher {
-        // keep each subscription's open stream by its replica and target
+        // store each subscription's open stream by its replica and target
         const streams = new Map<string, Stream>();
 
         return {

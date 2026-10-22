@@ -20,7 +20,7 @@ import { Observation, type ObservationReport, type ObservedRecord } from "./cond
 import { type ResultsOf } from "../method/context.ts";
 import type { MutateOptions, ObjectStore } from "../server/store.ts";
 
-/** The fields of a pending object's key, as its key name holds them. */
+/** The fields of a pending object's key, as its key name has them. */
 const KeyFields = schema.record(schema.string(), Scalar);
 
 /** The fields grouping objects a controller reconciles together, in JSON form. */
@@ -32,13 +32,13 @@ export interface ObjectController<Object extends ObjectType = ObjectType> {
     readonly pending: Condition;
     /** The fields grouping objects reconciled together, the identifier by default. */
     key?(row: RowImage<Object["table"]>): KeyFields;
-    /** The tables whose changed rows select keys beside a changed pending object's own. */
+    /** The tables whose changed rows select keys beside a changed pending object's key. */
     readonly watches?: readonly ObjectWatch[];
     /** Whether a key converges and returns, or follows until its objects leave the pending ones. */
     readonly mode?: "reconcile" | "follow";
     /** The keys reconciled at once, one by default. */
     readonly concurrency?: number;
-    /** List the keys a start reconciles with a query of its own; changes still match `pending`. */
+    /** List the keys a start reconciles with a separate query; changes still match `pending`. */
     readonly list?: (view: Snapshot) => Promise<readonly KeyFields[]>;
     /** Reconcile the pending objects of one key, returning the wait until the next look. */
     reconcile(reconciliation: ObjectReconciliation<Object>): Promise<number | undefined>;
@@ -78,7 +78,7 @@ export interface ObjectReconciliation<
     readonly database: DatabaseConnection;
     /** The object store running the controller. */
     readonly store: ObjectStore;
-    /** The caller the reconciliation acts as: the store's own principal. */
+    /** The caller the reconciliation acts as: the store's principal. */
     readonly caller: AccessContext;
     /** Run calls in one transaction as the store under the controller's name, results in order. */
     readonly mutate: <const Calls extends readonly Call[]>(

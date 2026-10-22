@@ -1,10 +1,11 @@
-import { callTables } from "../src/test/index.ts";
 import { type ObjectOf, defineObject, field } from "../src/index.ts";
 
 import { relation, through, union, principal } from "@destack/access";
 import { defineDatabase } from "@destack/db";
 import { schema } from "@destack/schema";
 import { space } from "./fixture/space.ts";
+import { tablesOf } from "../src/index.ts";
+import objectPackage from "../src/package.ts";
 
 /** People, the user principal the example objects reference. */
 export const user = defineObject({
@@ -171,16 +172,12 @@ export const folder = defineObject(
 /** The example database with the objects, their access and the journal journal. */
 export const objectDatabase = defineDatabase({
     name: "main",
-    tables: [
-        space.table,
-        note.table,
-        label.table,
-        ...callTables,
-        ...task.tables,
-        ...team.tables,
-        ...comment.tables,
-        ...taskVersion.tables,
-        ...taskCopy.tables,
-        ...folder.tables,
-    ],
+    ...tablesOf({
+        packages: [
+            objectPackage,
+            { objects: { task, team, comment, taskVersion, taskCopy, folder }, tables: [] },
+        ],
+        follows: [],
+        tables: [space.table, note.table, label.table],
+    }),
 });

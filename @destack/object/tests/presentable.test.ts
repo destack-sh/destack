@@ -1,17 +1,19 @@
 import { defineObject, field, ObjectDescription } from "../src/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { testCallKey } from "@destack/object/test";
-import { callTables, testEvents, serversOf } from "../src/test/index.ts";
+import { testEvents, serversOf } from "../src/test/index.ts";
 import { principal, relation } from "@destack/access";
 import { defineDatabase, TABLE } from "@destack/db";
-import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
+import { TestDatabase } from "@destack/db/test";
 import { ResourceDeclaration } from "@destack/resource";
-import { present, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { Clock } from "@destack/environment";
+import { tablesOf } from "../src/index.ts";
+import objectPackage from "../src/package.ts";
 
 /** The space containing the boards. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000c1");
@@ -35,11 +37,11 @@ const board = defineObject(
         fields: {
             owner: field.reference(principal.user).caller(),
             name: field.string(),
-            summary: field.string().optional(),
+            excerpt: field.string().optional(),
             rank: field.integer().default(0),
         },
-        presentable: { subtitle: "summary", cover: media },
-        search: { searchable: ["name", "summary"], filterable: ["ownerId"], sortable: ["rank"] },
+        presentable: { subtitle: "excerpt", cover: media },
+        search: { searchable: ["name", "excerpt"], filterable: ["ownerId"], sortable: ["rank"] },
         permissions: { read: relation("owner"), write: relation("owner") },
     },
     (method) => ({
@@ -50,8 +52,14 @@ const board = defineObject(
 test("present an object by its name, subtitle, chosen icon, accent and cover, described for pickers with its query roles and an index per filtered or sorted field", async () => {
     // create a board with an icon, an accent and a cover
     const storage = await TestDatabase.create(
-        present(TEST_DIALECTS.at(-1), "the last test dialect"),
-        defineDatabase({ name: "board", tables: [...board.tables, ...callTables] }),
+        defineDatabase({
+            name: "board",
+            ...tablesOf({
+                packages: [objectPackage, { objects: { board }, tables: [] }],
+                follows: [],
+                tables: [],
+            }),
+        }),
         { isMigrated: true },
     );
     onTestFinished(() => storage.close());
@@ -98,12 +106,12 @@ test("present an object by its name, subtitle, chosen icon, accent and cover, de
         ],
         presentation: {
             title: "name",
-            subtitle: "summary",
+            subtitle: "excerpt",
             icon: { field: "icon" },
             color: { field: "color" },
             cover: { field: "cover", bucket: { packageId: space.package.id, name: "media" } },
         },
-        search: { searchable: ["name", "summary"], filterable: ["ownerId"], sortable: ["rank"] },
+        search: { searchable: ["name", "excerpt"], filterable: ["ownerId"], sortable: ["rank"] },
         indexes: ["board_ownerId", "board_rank"],
     });
 });

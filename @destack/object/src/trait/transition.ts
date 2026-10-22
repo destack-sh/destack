@@ -7,10 +7,10 @@ import type { StateField, StateMachine } from "../field/field.ts";
 import { defineMethod, Method } from "../method/method.ts";
 import {
     type Procedure,
-    type ReplayShape,
-    type RequiredShape,
+    type ReplayFields,
+    type RequiredFields,
     type RowSchema,
-    type TargetShape,
+    type TargetFields,
 } from "../method/procedure.ts";
 import type { ObjectType } from "../object/object.ts";
 import type { Trait } from "./trait.ts";
@@ -116,13 +116,13 @@ export const transitions: Trait<StateFields> & {
             },
             target: "object",
             result: "object",
-            procedure: (method, shapes) => ({
+            procedure: (method, schemas) => ({
                 route: { method: "POST", path: `/{id}/${Casing.kebab(method)}` },
-                input: shapes.target.extend({
-                    ...shapes.replay,
-                    ...(transition.fields === undefined ? {} : shapes.recorded(transition.fields)),
+                input: schemas.target.extend({
+                    ...schemas.replay,
+                    ...(transition.fields === undefined ? {} : schemas.recorded(transition.fields)),
                 }),
-                output: shapes.row,
+                output: schemas.row,
             }),
             handler: (context) => {
                 // write the state with the fields the transition records
@@ -160,9 +160,9 @@ export const transitions: Trait<StateFields> & {
 export type TransitionProcedures<Object extends ObjectType, Declared extends Method = Method> = {
     transition: Procedure<
         schema.Object<
-            TargetShape<Object> &
-                ReplayShape<Object> &
-                RequiredShape<Object, NonNullable<Declared["fields"]>[number] & string>
+            TargetFields<Object> &
+                ReplayFields<Object> &
+                RequiredFields<Object, NonNullable<Declared["fields"]>[number] & string>
         >,
         RowSchema<Object>
     >;

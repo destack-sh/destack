@@ -27,13 +27,15 @@ import { RequestContext } from "@destack/object/server";
 import { ResourceContext } from "@destack/resource/context";
 import { Identifier, schema } from "@destack/schema";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { defineObject, defineShape, field, QUERIES_PUBLICATION } from "../src/index.ts";
+import { defineObject, defineShape, field, Follow, QUERIES_PUBLICATION } from "../src/index.ts";
 import { implementPackage, ObjectStore } from "../src/server/index.ts";
 import { definePackage } from "@destack/object";
-import { callTables, testEvents, serversOf } from "../src/test/index.ts";
+import { testEvents, serversOf } from "../src/test/index.ts";
 import { spaceId } from "./fixture/device.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { Clock } from "@destack/environment";
+import { tablesOf } from "../src/stack/db.ts";
+import objectPackage from "../src/package.ts";
 
 /** A mention of a person in a space, readable by that person wherever a replica has it. */
 const mention = defineObject(
@@ -80,8 +82,11 @@ const mentionShape = defineShape({
 test("list and follow the mentions a home has as replicas of another space, from the moment the replica appears", async () => {
     // store a mention of alice in another space beside her home, both readable by anyone
     const storage = await TestDatabase.create(
-        "sqlite",
-        [...mention.tables, ...callTables, ...replicaTables],
+        tablesOf({
+            packages: [objectPackage, { objects: { mention }, tables: [] }],
+            follows: [],
+            tables: [...replicaTables],
+        }).tables,
         { isMigrated: true },
     );
     onTestFinished(() => storage.close());
@@ -196,8 +201,11 @@ test("list and follow the mentions a home has as replicas of another space, from
 test("follow a person's mentions on their behalf as the home they relate, and refuse another space", async () => {
     // store mentions of alice and bob in a space, and relate alice's home as her home
     const storage = await TestDatabase.create(
-        "sqlite",
-        [...mention.tables, ...person.tables, ...callTables, ...replicaTables],
+        tablesOf({
+            packages: [objectPackage, { objects: { mention, person }, tables: [] }],
+            follows: [],
+            tables: [...replicaTables],
+        }).tables,
         { isMigrated: true },
     );
     onTestFinished(() => storage.close());
@@ -264,8 +272,11 @@ test("follow a person's mentions on their behalf as the home they relate, and re
 test("allow a home's follow on its person's behalf with a token bound to the followed space, and refuse a token without the person's home set", async () => {
     // store a mention of alice in a space, and her user row without any relationship
     const storage = await TestDatabase.create(
-        "sqlite",
-        [...mention.tables, ...person.tables, ...callTables, ...replicaTables],
+        tablesOf({
+            packages: [objectPackage, { objects: { mention, person }, tables: [] }],
+            follows: [],
+            tables: [...replicaTables],
+        }).tables,
         { isMigrated: true },
     );
     onTestFinished(() => storage.close());
@@ -344,8 +355,11 @@ test("allow a home's follow on its person's behalf with a token bound to the fol
 test("refuse an anonymous follower of a subject's shape as unauthenticated, and another subject as forbidden", async () => {
     // serve a space's mentions and the people a home follows them for
     const storage = await TestDatabase.create(
-        "sqlite",
-        [...mention.tables, ...person.tables, ...callTables, ...replicaTables],
+        tablesOf({
+            packages: [objectPackage, { objects: { mention, person }, tables: [] }],
+            follows: [],
+            tables: [...replicaTables],
+        }).tables,
         { isMigrated: true },
     );
     onTestFinished(() => storage.close());
@@ -384,8 +398,11 @@ test("refuse an anonymous follower of a subject's shape as unauthenticated, and 
 test("refuse a follow with malformed chain parameters as a bad request", async () => {
     // serve a space's mentions
     const storage = await TestDatabase.create(
-        "sqlite",
-        [...mention.tables, ...callTables, ...replicaTables],
+        tablesOf({
+            packages: [objectPackage, { objects: { mention }, tables: [] }],
+            follows: [],
+            tables: [...replicaTables],
+        }).tables,
         { isMigrated: true },
     );
     onTestFinished(() => storage.close());
@@ -402,7 +419,7 @@ test("refuse a follow with malformed chain parameters as a bad request", async (
         origin: { package: mention.package },
     });
 
-    // follow the space's chain as the space itself with parameters naming no scopes
+    // follow the space's chain as the space itself with parameters listing no scopes
     const following = new AbortController();
     onTestFinished(() => following.abort());
     const pages = store.source.relayed(
@@ -416,7 +433,7 @@ test("refuse a follow with malformed chain parameters as a bad request", async (
         subjectContext(spacePrincipal(spaceId), spaceId, { signal: following.signal }),
     );
 
-    // refuse the parameters as the follower's own bad input, naming the missing fields
+    // refuse the parameters as the follower's bad input, listing the missing fields
     expect(await refusal(pages.next())).toEqual([
         "BAD_REQUEST",
         "invalid input: scopes: invalid input: expected array, received undefined; types: invalid input: expected array, received undefined; via: invalid input: expected array, received undefined; between: invalid input: expected array, received undefined",
@@ -458,11 +475,13 @@ test("answer a replicated type's query over its replica rows, and refuse its mut
         (method) => ({ create: method.create("write") }),
     );
     const storage = await TestDatabase.create(
-        "sqlite",
         defineDatabase({
             name: "main",
-            tables: [...callTables, ...note.tables],
-            replicated: [realm.table],
+            ...tablesOf({
+                packages: [objectPackage, { objects: { note }, tables: [] }],
+                follows: [Follow.chain([realm])],
+                tables: [],
+            }),
         }),
         { isMigrated: true },
     );
@@ -471,7 +490,7 @@ test("answer a replicated type's query over its replica rows, and refuse its mut
     const realmId = Identifier.create("realm");
     const owner = principal.user.reference(Scope.universe.id, users.owner);
     const access = new AccessFixture(database);
-    await access.replicateScope(realm.reference(Scope.universe.id, realmId), "own");
+    await access.replicateScope(realm.reference(Scope.universe.id, realmId), "self");
     await access.bindOwner(realm.reference(Scope.universe.id, realmId), owner);
     await database.insert(realm.table).values({
         id: realmId,
@@ -509,7 +528,7 @@ test("answer a replicated type's query over its replica rows, and refuse its mut
     });
 });
 
-test("replicate only the rows a query's own permission allows, drop a row once the follower loses it, and refuse an undeclared permission", async () => {
+test("replicate only the rows a query's permission allows, drop a row once the follower loses it, and refuse an undeclared permission", async () => {
     // store two loans alice reads, the first one hers to use
     const loan = defineObject(
         {
@@ -546,9 +565,16 @@ test("replicate only the rows a query's own permission allows, drop a row once t
             }),
         }),
     );
-    const storage = await TestDatabase.create("sqlite", [...loan.tables, ...callTables], {
-        isMigrated: true,
-    });
+    const storage = await TestDatabase.create(
+        tablesOf({
+            packages: [objectPackage, { objects: { loan }, tables: [] }],
+            follows: [],
+            tables: [],
+        }).tables,
+        {
+            isMigrated: true,
+        },
+    );
     onTestFinished(() => storage.close());
     const { database } = storage;
     await openSpace(database, spaceId);
@@ -648,9 +674,16 @@ test("replicate only the rows a query's own permission allows, drop a row once t
 
 test("answer a follow of a type the scope does not install with a complete page of no rows", async () => {
     // serve mentions alone in the space
-    const storage = await TestDatabase.create("sqlite", [...mention.tables, ...callTables], {
-        isMigrated: true,
-    });
+    const storage = await TestDatabase.create(
+        tablesOf({
+            packages: [objectPackage, { objects: { mention }, tables: [] }],
+            follows: [],
+            tables: [],
+        }).tables,
+        {
+            isMigrated: true,
+        },
+    );
     onTestFinished(() => storage.close());
     const { database } = storage;
     await openSpace(database, spaceId);
@@ -680,7 +713,7 @@ test("answer a follow of a type the scope does not install with a complete page 
     );
     const first = await pages.next();
 
-    // answer the follow as complete and empty, keeping it open for when the type arrives
+    // answer the follow as complete and empty, and leave it open for when the type arrives
     expect(
         first.done === true ? "ended" : [first.value.complete, first.value.changes.length],
     ).toEqual([true, 0]);
@@ -688,9 +721,16 @@ test("answer a follow of a type the scope does not install with a complete page 
 
 test("answer a query follow of a type the store does not serve with a complete page of no rows", async () => {
     // open a space serving mentions alone
-    const storage = await TestDatabase.create("sqlite", [...mention.tables, ...callTables], {
-        isMigrated: true,
-    });
+    const storage = await TestDatabase.create(
+        tablesOf({
+            packages: [objectPackage, { objects: { mention }, tables: [] }],
+            follows: [],
+            tables: [],
+        }).tables,
+        {
+            isMigrated: true,
+        },
+    );
     onTestFinished(() => storage.close());
     const { database } = storage;
     await openSpace(database, spaceId);

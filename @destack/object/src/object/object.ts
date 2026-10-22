@@ -153,7 +153,7 @@ import { ObjectSearch, search, type SearchDefinition } from "../trait/search.ts"
 import { Chunk } from "../text/chunk.ts";
 import { chunk, chunkRun } from "../text/table.ts";
 import type { GateOf, Gated, Trait } from "../trait/trait.ts";
-import { storeTables } from "../stack/db.ts";
+import { SYSTEM_TABLES } from "../stack/db.ts";
 import { eventTables } from "@destack/event/stack";
 import { desiredState } from "../trait/desired.ts";
 import type { ObjectController } from "./controller.ts";
@@ -185,7 +185,7 @@ interface Derived {
 /** The scope and identifier of an object's row, read from a row of any object table. */
 export const ObjectKey = schema.looseObject({ scope: schema.string(), id: schema.string() });
 
-/** The options an object type over a table another package owns takes none of. */
+/** The options an object type over another package's table takes none of. */
 const FOREIGN_REFUSED = [
     "identity",
     "recoverable",
@@ -231,7 +231,7 @@ const EVENT_COLUMNS: ReadonlySet<string> = new Set(EVENT_COLUMN_NAMES);
 /** The relation to an object's scope of any scope type, read as `through("scope", permission)`. */
 export const SCOPE = "scope";
 
-/** The permission on a scope's own object that shows the scope. */
+/** The permission on a scope's object that shows the scope. */
 export const SCOPE_READ = "read";
 
 /** The permission finding a scope without reading it, such as a guest's of a space. */
@@ -368,7 +368,7 @@ export interface ObjectDefinition<
     readonly identity?: string;
     /** The plural name. */
     readonly plural: string;
-    /** Where the objects live in another package's table, absent to derive the type's own. */
+    /** Where the objects live in another package's table, absent to derive the type's table. */
     readonly mapping?: Omit<TableMapping, "policy">;
     /** The scope types the objects live in, any scope when absent. */
     readonly scope?: Scope;
@@ -388,7 +388,7 @@ export interface ObjectDefinition<
     readonly administration?: readonly NoInfer<Granted>[];
     /** Permissions available while the object's scope moves to another machine. */
     readonly moving?: readonly NoInfer<Granted>[];
-    /** An access-owned type whose identity the objects take. */
+    /** An access type whose identity the objects take. */
     readonly represents?: Policy;
     /** Whether the objects are scopes containing other objects. */
     readonly isScope?: boolean;
@@ -406,7 +406,7 @@ export interface ObjectDefinition<
     readonly attachments?: readonly Attachment[];
     /** Checks, indexes, unique constraints and foreign keys over the columns, by name. */
     readonly constraints?: Readonly<Record<string, ObjectConstraint>>;
-    /** Unique indexes the key index holds across databases, by name. */
+    /** Unique indexes the key index has across databases, by name. */
     readonly indexes?: Readonly<Record<string, ObjectIndex>>;
     /** Where the objects live: a kind, or the event log with its settings. */
     readonly storage?: Exclude<ObjectStorage, "events"> | EventStorage;
@@ -422,7 +422,7 @@ export interface ObjectDefinition<
 
 /** An event log reader with one slot per distinct value of a row column. */
 export interface ReaderDefinition {
-    /** The column whose distinct values each have their own slot. */
+    /** The column whose distinct values each have a separate slot. */
     readonly by: "id" | "scope";
     /** Where a new slot starts: the creating commit's log position, or the log's start. */
     readonly start: "latest" | "earliest";
@@ -432,7 +432,7 @@ export interface ReaderDefinition {
     readonly batch?: Duration;
 }
 
-/** A package's setting of days a scope places, as data the type's description keeps. */
+/** A package's setting of days a scope places, as data the type's description stores. */
 export interface RetentionSetting {
     /** The setting's package-local name. */
     readonly name: string;
@@ -506,7 +506,7 @@ type ObjectTypeDefinition<Configuration extends ObjectConfiguration> = ObjectDef
     readonly events: Configuration["events"];
 };
 
-/** A definition as a type holds it: expanded by traits, lists present, built members apart. */
+/** A definition as a type stores it: expanded by traits, lists present, built members apart. */
 export type ObjectAssembly<Configuration extends ObjectConfiguration = ObjectConfiguration> =
     ObjectTypeDefinition<Configuration> & {
         readonly scope: ObjectScope | readonly ObjectScope[];
@@ -534,13 +534,13 @@ export interface ObjectImplementation<
     readonly declaration?: DeclarationHandler<Self, Collected, Resolved>;
 }
 
-/** A unique index the key index holds across databases. */
+/** A unique index the key index has across databases. */
 export interface ObjectIndex {
     /** The indexed fields, in key order. */
     readonly on: readonly string[];
     /** The scope type of the keys' uniqueness: the universe or an enclosing type, read lazily. */
     readonly across: () => ObjectType | typeof universe;
-    /** The namespace shared with other types' same-named indexes, the type's own if absent. */
+    /** The namespace shared with other types' same-named indexes, the type's name if absent. */
     readonly namespace?: string;
 }
 
@@ -552,7 +552,7 @@ export interface MethodDescription {
     readonly permission: string;
     /** Whether the method changes state. */
     readonly mutates: boolean;
-    /** The HTTP method and path callers reach the method at. */
+    /** The HTTP method and path callers call the method at. */
     readonly route: { readonly method: string; readonly path: string };
     /** The input as JSON Schema, without the request a change replays under. */
     readonly input: JsonObject;
@@ -602,7 +602,7 @@ export interface ObjectConfiguration {
     readonly fields: Readonly<Record<string, Field>>;
     /** The parent type's identity, "self" for a tree, "any" for attachments, undefined for none. */
     readonly parent: string | undefined;
-    /** The reference field the objects are owned through, undefined for unowned objects. */
+    /** The reference field to the objects' owner, undefined for objects without an owner. */
     readonly owner: string | undefined;
     /** The identities of the attachment types the objects take, never for none. */
     readonly attachments: string;
@@ -641,7 +641,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     /** The parent of nested objects. */
     readonly parent:
         | {
-              /** The owning object type, or "any" for attachments. */
+              /** The owner object type, or "any" for attachments. */
               readonly object: ObjectType | "any";
               /** Whether an object may have no parent. */
               readonly optional: boolean;
@@ -671,7 +671,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
 
     /** Retain a definition with its table and methods, and assemble its policy. */
     constructor(owner: Package, definition: ObjectTypeDefinition<Configuration>) {
-        // require a logged table, and hold the definition with its lists present
+        // require a logged table, and store the definition with its lists present
         ObjectType.#requireLogged(definition.table);
         this.package = owner;
         this.definition = {
@@ -738,7 +738,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return this.definition.scope;
     }
 
-    /** Whether the objects live in any scope, their definition naming none. */
+    /** Whether the objects live in any scope, their definition declaring none. */
     get isAnyScope(): boolean {
         return [this.scope].flat().length === 0;
     }
@@ -784,7 +784,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return this.definition.fields;
     }
 
-    /** The fields needing their own read permission. */
+    /** The fields needing a separate read permission. */
     get guarded(): readonly string[] {
         return this.definition.guarded;
     }
@@ -833,7 +833,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return this.definition.limits ?? {};
     }
 
-    /** The unique indexes the key index holds across databases, by name. */
+    /** The unique indexes the key index has across databases, by name. */
     get indexes(): Readonly<Record<string, ObjectIndex>> {
         return this.definition.indexes;
     }
@@ -942,7 +942,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
                         : slot.place(now, database),
                 );
             }
-            // release a removed row's own slot
+            // release a removed row's slot
             else if (before !== null && after === null && declared.by === "id") {
                 const slot = this.reader(name).at(schema.string().parse(before[declared.by]));
                 transaction.record((database) => slot.release(database));
@@ -1288,7 +1288,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return { object: this.name, ...options };
     }
 
-    /** Follow a shape at one key per row of these objects in the follower's own database. */
+    /** Follow a shape at one key per row of these objects in the follower's database. */
     follow<Self extends ObjectType, Parameters extends object>(
         this: Self,
         shape: Shape<Parameters>,
@@ -1463,7 +1463,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
 
     /** Read a unique key duplicate as a conflict listing its fields, else pass on the failure. */
     conflict(error: unknown): unknown {
-        // read the violated key of the type's own table
+        // read the violated key of the type's table
         const definition = this.table[TABLE];
         const key = error instanceof DatabaseError ? error.key : undefined;
         if (key === undefined || key.table !== definition.sqlName) {
@@ -1561,7 +1561,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         if (
             object === undefined ||
             method === undefined ||
-            !CallSite.reaches(site, object, method) ||
+            !CallSite.covers(site, object, method) ||
             (mutates && !method.mutates)
         ) {
             throw new CallError("BAD_REQUEST", {
@@ -1689,7 +1689,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return isInline && parent !== "any" ? parent : undefined;
     }
 
-    /** The column of the reference the objects are owned through, absent for unowned objects. */
+    /** The column of the reference to the objects' owner, absent for objects without an owner. */
     get ownerColumn(): string | undefined {
         const { owner } = this;
         if (owner === undefined) {
@@ -1919,7 +1919,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return scopes.filter((type): type is ObjectType => type !== Scope.universe.id);
     }
 
-    /** List the tables the objects need: the store's or the event log's, and their own. */
+    /** List the tables the objects need: the store's or the event log's, and the type's. */
     #databaseTables(): readonly Table[] {
         // store events in the event log's tables, and ephemeral and external rows only in their table
         if (this.events !== undefined) {
@@ -1930,7 +1930,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
 
         return [
             this.table,
-            ...storeTables,
+            ...SYSTEM_TABLES,
             ...(this.text.length === 0 ? [] : [chunk, chunkRun]),
             ...(this.provisioned === undefined ? [] : [desiredState]),
         ];
@@ -1938,7 +1938,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
 
     /** Require valid methods, fields, aggregates, scopes, indexes and traits. */
     #requireValid(definition: ObjectTypeDefinition<Configuration>): void {
-        // require the type's own members
+        // require the type's members
         this.#requireMethods();
         this.#requireAggregates();
         this.#requireScopes();
@@ -1977,7 +1977,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         }
     }
 
-    /** Refuse sharing methods on a partitioned scope, whose access lives in its own partition. */
+    /** Refuse sharing methods on a partitioned scope, whose access lives in its partition. */
     #requireRowSharing(): void {
         const isSharing = Object.values(this.methods).some((declared) =>
             SHARING_KINDS.has(declared.kind),
@@ -2175,7 +2175,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         )?.[1];
         if (owner !== undefined && (field?.type !== "reference" || field.target === undefined)) {
             throw new TypeError(
-                `object ${this.name} is owned through ${owner}, but no reference relates it`,
+                `object ${this.name} takes its owner from ${owner}, but no reference relates it`,
             );
         }
     }
@@ -2240,7 +2240,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return "setting" in retention ? retention : Duration.milliseconds(retention);
     }
 
-    /** List the key columns naming an event's person: a reference's columns, else a text field. */
+    /** List the key columns of an event's person: a reference's columns, else a text field. */
     static #subjectKeys(
         name: string,
         fields: Readonly<Record<string, Field>>,
@@ -2632,11 +2632,8 @@ export interface Attachment<Object extends ObjectType = ObjectType> {
     readonly by: string;
 }
 
-/** An object definition as data: its fields, permissions and traits, or another package's table. */
-export type ObjectShape = Omit<ObjectDefinition, "methods">;
-
 /** The builder of a definition's declared methods, typed by its table, fields and permissions. */
-export type MethodsOf<Definition extends ObjectShape> = Definition extends {
+export type MethodsOf<Definition extends ObjectDefinition> = Definition extends {
     readonly mapping: { readonly table: Table };
 }
     ? MethodBuilder<ForeignTable<Definition>, string, Listed<DeclaredPermissions<Definition>>>
@@ -2646,8 +2643,8 @@ export type MethodsOf<Definition extends ObjectShape> = Definition extends {
           Listed<DefinedPermissions<Definition>>
       >;
 
-/** The object type over a table another package owns, with its declared methods. */
-export type ForeignType<Definition extends ObjectShape, Methods> = ObjectType<{
+/** The object type over another package's table, with its declared methods. */
+export type ForeignType<Definition extends ObjectDefinition, Methods> = ObjectType<{
     readonly name: Definition["name"];
     readonly plural: Definition["plural"];
     readonly identity: Definition["name"];
@@ -2671,7 +2668,7 @@ type Option<Definition, Key extends PropertyKey, Default = undefined> = Key exte
     ? Exclude<Definition[Key], undefined>
     : Default;
 
-/** Spell a union of names out by its members, as messages list them. */
+/** Write a union of names out by its members, as messages list them. */
 type Listed<Union extends string> = `${Union}`;
 
 /** The permission names a definition declares. */
@@ -2684,7 +2681,7 @@ type DeclaredPermissions<Definition> = Definition extends {
     : never;
 
 /** The options that reference permissions, typed by the permissions a definition grants. */
-type Checked<Definition extends ObjectShape> = ObjectTraits<
+type Checked<Definition extends ObjectDefinition> = ObjectTraits<
     unknown,
     DefinedPermissions<Definition> | RolePermission
 > & {
@@ -2702,23 +2699,23 @@ type Checked<Definition extends ObjectShape> = ObjectTraits<
     readonly storage?: Exclude<ObjectStorage, "events"> | EventStorage;
 } & {
     /** Keys no definition takes, refused. */
-    readonly [Key in Exclude<keyof Definition, keyof ObjectShape>]: never;
+    readonly [Key in Exclude<keyof Definition, Exclude<keyof ObjectDefinition, "methods">>]: never;
 };
 
 /** The constraints a definition declares, with its columns and those of the referenced types. */
-type DefinedConstraints<Definition extends ObjectShape> = {
+type DefinedConstraints<Definition extends ObjectDefinition> = {
     readonly [Name in keyof Option<Definition, "constraints", {}>]: ObjectConstraint<
         DefinedColumn<Definition>,
         ReferencedColumn<Option<Definition, "constraints", {}>[Name], DefinedColumn<Definition>>
     >;
 };
 
-/** The columns a foreign key references: its own, a typed object type's, or any unknown type's. */
-type ReferencedColumn<Constraint, Own extends string> = Constraint extends {
+/** The columns a foreign key references: its table's, a typed object type's, or any type's. */
+type ReferencedColumn<Constraint, Column extends string> = Constraint extends {
     readonly references: { readonly object: infer Referenced };
 }
     ? Referenced extends "self"
-        ? Own
+        ? Column
         : Referenced extends () => ObjectType<infer Configuration>
           ? string extends Configuration["name"]
               ? string
@@ -2726,8 +2723,10 @@ type ReferencedColumn<Constraint, Own extends string> = Constraint extends {
           : string
     : string;
 
-/** The foreign table of an object type over a table another package owns. */
-type ForeignTable<Definition extends ObjectShape> = NonNullable<Definition["mapping"]>["table"];
+/** The foreign table of an object type over another package's table. */
+type ForeignTable<Definition extends ObjectDefinition> = NonNullable<
+    Definition["mapping"]
+>["table"];
 
 /** The traits a definition sets that type its table, methods or declarations. */
 type DefinitionTraits<Definition> = TraitOptions<{
@@ -2749,12 +2748,12 @@ type TraitOptions<Traits> = {
     readonly [Key in keyof Traits as [Traits[Key]] extends [undefined] ? never : Key]: Traits[Key];
 };
 
-/** The traits a definition's objects take: its own, and those its kind adds. */
+/** The traits a definition's objects take: its traits, and those its kind adds. */
 type DefinedTraits<Definition> = DefinitionTraits<Definition> &
     ProvisionedTraitsOf<Option<Definition, "provisioned">>;
 
-/** The fields a definition's objects have: its own, and those its sharing, kind and traits add. */
-type DefinedFields<Definition extends ObjectShape> = FieldsByColumn<
+/** The fields a definition's objects have: its fields, and those of its sharing, kind, traits. */
+type DefinedFields<Definition extends ObjectDefinition> = FieldsByColumn<
     NonNullable<Definition["fields"]> &
         RoleFieldsOf<Option<Definition, "shareable">, Option<Definition, "isScope", false>> &
         ProvisionedFieldsOf<Option<Definition, "provisioned">> &
@@ -2773,14 +2772,14 @@ type DefinedPermissions<Definition> =
 type DefinedScope<Definition> = ScopeIdentityOf<Option<Definition, "scope", ObjectScope>>;
 
 /** The prefix of a definition's identifiers. */
-type DefinedIdentity<Definition extends ObjectShape> = Option<
+type DefinedIdentity<Definition extends ObjectDefinition> = Option<
     Definition,
     "identity",
     Definition["name"]
 >;
 
 /** The table a definition derives. */
-type DefinedTable<Definition extends ObjectShape> = ObjectTable<
+type DefinedTable<Definition extends ObjectDefinition> = ObjectTable<
     Definition["name"],
     DefinedScope<Definition>,
     DefinedFields<Definition>,
@@ -2790,7 +2789,7 @@ type DefinedTable<Definition extends ObjectShape> = ObjectTable<
 >;
 
 /** The columns a definition's constraints name. */
-type DefinedColumn<Definition extends ObjectShape> = ConstraintColumn<
+type DefinedColumn<Definition extends ObjectDefinition> = ConstraintColumn<
     FieldsByColumn<NonNullable<Definition["fields"]>>,
     StorageKind<Option<Definition, "storage", "durable">>
 >;
@@ -2821,7 +2820,7 @@ type DeclaredMethods<Methods> = {
 };
 
 /** The object type a definition declares with its methods. */
-export type DefinedType<Definition extends ObjectShape, Methods> = ObjectType<{
+export type DefinedType<Definition extends ObjectDefinition, Methods> = ObjectType<{
     readonly name: Definition["name"];
     readonly plural: Definition["plural"];
     readonly identity: DefinedIdentity<Definition>;
@@ -2909,7 +2908,7 @@ export type TraitMethods<Fields, Traits> = TransitionMethodMap<Fields> &
 
 /** Declare an object type from its data, with the methods it declares beside the derived ones. */
 export function defineObject<
-    const Definition extends ObjectShape & Checked<Definition>,
+    const Definition extends ObjectDefinition & Checked<Definition>,
     const Methods extends Readonly<Record<string, Method | false>> = {},
 >(
     definition: Definition,
@@ -2942,7 +2941,7 @@ type ObjectInput = Omit<ObjectDefinition, "methods"> & {
     readonly methods?: Readonly<Record<string, Method | false>>;
 };
 
-/** The name of a field whose values need their own read permission. */
+/** The name of a field whose values need a separate read permission. */
 export type GuardedField<Fields extends Readonly<Record<string, Field>>> = {
     [Name in keyof Fields & string]: Fields[Name] extends { readonly guarded: true } ? Name : never;
 }[keyof Fields & string];

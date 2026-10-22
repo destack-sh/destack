@@ -1,8 +1,8 @@
 import * as access from "@destack/access";
 import { accessInvitation, Invitation, INVITATION_PAGE } from "@destack/access";
-import { InvitationShape, InviteInput, InviteShape } from "../trait/shareable.ts";
+import { InvitationFields, InviteInput, InviteFields } from "../trait/shareable.ts";
 import { Page } from "../method/page.ts";
-import { ListPage, PageShape } from "../method/procedure.ts";
+import { ListPage, PageFields } from "../method/procedure.ts";
 import { ObjectReference } from "@destack/sync";
 import { schema } from "@destack/schema";
 import { defineMethod } from "../method/method.ts";
@@ -12,15 +12,15 @@ import { Execution } from "../method/execution.ts";
 import { ObjectPolicy } from "../object/access.ts";
 
 /** An invitation to create: its object, the relationship it offers, and why. */
-const InvitationInput = schema.object({ object: ObjectReference, ...InviteShape });
+const InvitationInput = schema.object({ object: ObjectReference, ...InviteFields });
 
 /** One invitation to an object, by its identifier. */
-const InvitationKey = schema.object({ object: ObjectReference, ...InvitationShape });
+const InvitationKey = schema.object({ object: ObjectReference, ...InvitationFields });
 
 /** A page of an object's pending invitations, at most access's page. */
 const InvitationListing = schema.object({
     object: ObjectReference,
-    ...PageShape,
+    ...PageFields,
     limit: schema.number().int().min(1).max(INVITATION_PAGE).exactOptional(),
 });
 
@@ -51,9 +51,9 @@ export const invitation = defineObject(
             target: "scope",
             result: "value",
             isPredicted: false,
-            procedure: (_name, shapes) => ({
+            procedure: (_name, schemas) => ({
                 route: { method: "POST", path: "" },
-                input: shapes.scope.extend({ ...shapes.replay, ...InvitationInput.shape }),
+                input: schemas.scope.extend({ ...schemas.replay, ...InvitationInput.shape }),
                 output: access.Invitation.schema,
             }),
             handler: (context, execution) => {
@@ -87,9 +87,9 @@ export const invitation = defineObject(
             target: "scope",
             result: "value",
             isPredicted: false,
-            procedure: (_name, shapes) => ({
+            procedure: (_name, schemas) => ({
                 route: { method: "POST", path: "/{invitationId}/accept" },
-                input: shapes.scope.extend({ ...shapes.replay, ...InvitationKey.shape }),
+                input: schemas.scope.extend({ ...schemas.replay, ...InvitationKey.shape }),
                 output: access.Relationship.schema,
             }),
             handler: (context, execution) => {
@@ -120,9 +120,9 @@ export const invitation = defineObject(
             target: "scope",
             result: "value",
             isPredicted: false,
-            procedure: (_name, shapes) => ({
+            procedure: (_name, schemas) => ({
                 route: { method: "DELETE", path: "/{invitationId}" },
-                input: shapes.scope.extend({ ...shapes.replay, ...InvitationKey.shape }),
+                input: schemas.scope.extend({ ...schemas.replay, ...InvitationKey.shape }),
                 output: access.Invitation.schema,
             }),
             handler: (context, execution) => {
@@ -153,9 +153,9 @@ export const invitation = defineObject(
             target: "scope",
             result: "value",
             isPredicted: false,
-            procedure: (_name, shapes) => ({
+            procedure: (_name, schemas) => ({
                 route: { method: "GET", path: "" },
-                input: shapes.scope.extend(InvitationListing.shape),
+                input: schemas.scope.extend(InvitationListing.shape),
                 output: ListPage.schema(access.Invitation.schema),
             }),
             handler: async (context, execution) => {

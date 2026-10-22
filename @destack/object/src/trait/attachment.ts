@@ -54,7 +54,7 @@ export const attachments: Trait<readonly Attachment[]> = {
                     `object ${object.name} attaches ${plural} by missing permission ${attachment.by}`,
                 );
             }
-            // require the host's own receive permission to be the attaching one
+            // require the host's receive permission to be the attaching one
             else if (permissions.includes(receive)) {
                 if (attachment.by !== receive) {
                     throw new TypeError(

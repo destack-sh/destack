@@ -1,8 +1,8 @@
 import { present, schema, type Identifier } from "@destack/schema";
 import { expect, refusal, onTestFinished, test } from "@destack/test";
 import { intersection, principal, relation, through, union } from "@destack/access";
-import { asc, eq, type Dialect, defineDatabase } from "@destack/db";
-import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
+import { asc, eq, defineDatabase } from "@destack/db";
+import { TestDatabase } from "@destack/db/test";
 import { v7 } from "uuid";
 
 import { RequestId } from "@destack/sync";
@@ -18,9 +18,11 @@ import { user } from "./schema.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { testCallKey } from "@destack/object/test";
-import { callTables, testEvents, serversOf } from "../src/test/index.ts";
+import { testEvents, serversOf } from "../src/test/index.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
 import { Clock } from "@destack/environment";
+import { tablesOf } from "../src/index.ts";
+import objectPackage from "../src/package.ts";
 
 /** The space containing the objects. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000003");
@@ -49,15 +51,15 @@ const remark = defineObject(
     }),
 );
 
-/** Pins that protect any hosting object from deletion. */
-const pin = defineObject(
+/** Markers that protect any hosting object from deletion. */
+const marker = defineObject(
     {
-        name: "pin",
-        plural: "pins",
+        name: "marker",
+        plural: "markers",
         scope: space,
-        nested: { in: "any", delete: "restrict", receive: "pin" },
+        nested: { in: "any", delete: "restrict", receive: "mark" },
         fields: {},
-        permissions: { read: through("parent", "read"), write: through("parent", "pin") },
+        permissions: { read: through("parent", "read"), write: through("parent", "mark") },
     },
     (method) => ({ create: method.create("write"), delete: method.delete("write") }),
 );
@@ -78,7 +80,7 @@ const article = defineObject(
     }),
 );
 
-/** Photos their owner remarks on and pins by reading them. */
+/** Photos their owner remarks on and marks by reading them. */
 const photo = defineObject(
     {
         name: "photo",
@@ -86,7 +88,7 @@ const photo = defineObject(
         scope: space,
         fields: { owner: field.reference(principal.user).caller(), remarkCount: field.count() },
         permissions: { read: relation("owner") },
-        attachments: [remark.attach({ by: "read" }), pin.attach({ by: "read" })],
+        attachments: [remark.attach({ by: "read" }), marker.attach({ by: "read" })],
     },
     (method) => ({
         create: method.create("read"),
@@ -150,12 +152,15 @@ const board = defineObject(
 );
 
 test("map the types attached to served objects, which the database has beside them", async () => {
-    // serve photos alone over a database with their remarks and pins
+    // serve photos alone over a database with their remarks and markers
     const storage = await TestDatabase.create(
-        "sqlite",
         defineDatabase({
             name: "main",
-            tables: [...callTables, ...photo.tables, ...remark.tables, ...pin.tables],
+            ...tablesOf({
+                packages: [objectPackage, { objects: { photo, remark, marker }, tables: [] }],
+                follows: [],
+                tables: [],
+            }),
         }),
         { isMigrated: true },
     );
@@ -171,183 +176,175 @@ test("map the types attached to served objects, which the database has beside th
         origin: { package: photo.package },
     });
 
-    // map the remarks and pins whose permissions read through their photo
+    // map the remarks and markers whose permissions read through their photo
     expect(
-        [remark, pin].map(
+        [remark, marker].map(
             (type) => store.authorizer.mapping(type.typeReference)?.table === type.table,
         ),
     ).toEqual([true, true]);
 });
 
-test.for(TEST_DIALECTS)(
-    "attach remarks to articles and photos, counting them and deleting them with their host, on %s",
-    async (dialect) => {
-        const { storage, store, context, call, host, as } = await serveObjects(dialect, {
-            remark,
-            pin,
-            article,
-            photo,
-            task,
-        });
+test("attach remarks to articles and photos, counting them and deleting them with their host", async () => {
+    const { storage, store, context, call, host, as } = await serveObjects({
+        remark,
+        marker,
+        article,
+        photo,
+        task,
+    });
 
-        // remark on alice's article and photo, and count the remarks on each
-        const draft = await call(article, "create", {});
-        const snapshot = await call(photo, "create", {});
-        const task1 = await call(task, "create", {});
-        await call(remark, "create", { ...host(article, draft.id), text: "Tighten the intro" });
-        await call(remark, "create", { ...host(article, draft.id), text: "Cite the source" });
-        const caption = await call(remark, "create", { ...host(photo, snapshot.id), text: "Crop" });
-        const counts = async () => [
-            ...(await storage.database.select().from(article.table)).map((row) => row.remarkCount),
-            ...(await storage.database.select().from(photo.table)).map((row) => row.remarkCount),
-        ];
-        expect(await counts()).toEqual([2, 1]);
+    // remark on alice's article and photo, and count the remarks on each
+    const draft = await call(article, "create", {});
+    const snapshot = await call(photo, "create", {});
+    const task1 = await call(task, "create", {});
+    await call(remark, "create", { ...host(article, draft.id), text: "Tighten the intro" });
+    await call(remark, "create", { ...host(article, draft.id), text: "Cite the source" });
+    const caption = await call(remark, "create", { ...host(photo, snapshot.id), text: "Crop" });
+    const counts = async () => [
+        ...(await storage.database.select().from(article.table)).map((row) => row.remarkCount),
+        ...(await storage.database.select().from(photo.table)).map((row) => row.remarkCount),
+    ];
+    expect(await counts()).toEqual([2, 1]);
 
-        // refuse invalid, missing and unreadable hosts
-        const missing = `article-${v7()}`;
-        expect(
-            await refusal(call(remark, "create", { ...host(task, task1.id), text: "Nope" })),
-        ).toEqual(["BAD_REQUEST", "task cannot have remarks"]);
-        expect(
-            await refusal(call(remark, "create", { ...host(article, missing), text: "Nope" })),
-        ).toEqual(["NOT_FOUND", `no article ${missing}`]);
-        as(users.bob);
-        expect(
-            await refusal(call(remark, "create", { ...host(article, draft.id), text: "Nope" })),
-        ).toEqual(["NOT_FOUND", `no article ${draft.id}`]);
-        as(users.alice);
+    // refuse invalid, missing and unreadable hosts
+    const missing = `article-${v7()}`;
+    expect(
+        await refusal(call(remark, "create", { ...host(task, task1.id), text: "Nope" })),
+    ).toEqual(["BAD_REQUEST", "task cannot have remarks"]);
+    expect(
+        await refusal(call(remark, "create", { ...host(article, missing), text: "Nope" })),
+    ).toEqual(["NOT_FOUND", `no article ${missing}`]);
+    as(users.bob);
+    expect(
+        await refusal(call(remark, "create", { ...host(article, draft.id), text: "Nope" })),
+    ).toEqual(["NOT_FOUND", `no article ${draft.id}`]);
+    as(users.alice);
 
-        // include each article's remarks, and only its own, sharing identifiers with no photo
-        const pages = store.source.relayed(
-            store.source.queriesPublication.subscription({
-                name: "objects",
-                scope: spaceId,
-                target: spaceId,
-                parameters: {
-                    queries: {
-                        articles: {
-                            object: "article",
-                            with: { remarks: {} },
-                        },
+    // include each article's remarks, and only those, sharing identifiers with no photo
+    const pages = store.source.relayed(
+        store.source.queriesPublication.subscription({
+            name: "objects",
+            scope: spaceId,
+            target: spaceId,
+            parameters: {
+                queries: {
+                    articles: {
+                        object: "article",
+                        with: { remarks: {} },
                     },
                 },
-            }),
-            context(),
-        );
-        const read = await pages.next();
-        if (read.done === true) {
-            throw new TypeError("the sync stream ended before its first page");
-        }
-        expect(
-            read.value.changes
-                .filter((change) => change.table === "destack__object__remark")
-                .map((change) => schema.string().parse(change.row["text"]))
-                .toSorted((left, right) => left.localeCompare(right)),
-        ).toEqual(["Cite the source", "Tighten the intro"]);
-
-        // delete the article's remarks with it, leaving the pinned photo with its remark
-        const pinned = await call(pin, "create", host(photo, snapshot.id));
-        await call(article, "delete", { id: draft.id });
-        expect(await refusal(call(photo, "delete", { id: snapshot.id }))).toEqual([
-            "BROKEN_REFERENCE",
-            "the change would leave a reference to a missing record",
-        ]);
-        const remaining = await storage.database
-            .select({ id: remark.table.id })
-            .from(remark.table)
-            .orderBy(asc(remark.table.id));
-        expect(remaining.map((row) => row.id)).toEqual([caption.id]);
-        expect(await counts()).toEqual([1]);
-
-        // delete the photo with its remark once unpinned
-        await call(pin, "delete", { id: pinned.id });
-        await call(photo, "delete", { id: snapshot.id });
-        expect([
-            await storage.database
-                .select()
-                .from(photo.table)
-                .where(eq(photo.table.id, schema.identifier("photo").parse(snapshot.id))),
-            await storage.database.select().from(remark.table),
-        ]).toEqual([[], []]);
-    },
-);
-
-test.for(TEST_DIALECTS)(
-    "hold each reader's favourite of a shared board private and single on %s",
-    async (dialect) => {
-        const { call, host, as } = await serveObjects(dialect, { favourite, board });
-
-        // let the owner and a viewer each mark the board, once
-        const plans = await call(board, "create", {});
-        const shared = await call(board, "grant", {
-            id: plans.id,
-            relation: "viewer",
-            subject: principal.user.reference("universe", users.bob),
-        });
-        const mine = await call(favourite, "create", host(board, plans.id));
-        expect(await refusal(call(favourite, "create", host(board, plans.id)))).toEqual([
-            "CONFLICT",
-            "another favourite has the same parent and reader",
-        ]);
-        as(users.bob);
-        const theirs = await call(favourite, "create", host(board, plans.id));
-
-        // show each reader only their own mark, and refuse one to a reader of nothing
-        const listed = async () => (await call(favourite, "list", {})).items.map((item) => item.id);
-        expect(await listed()).toEqual([theirs.id]);
-        as(users.alice);
-        expect(await listed()).toEqual([mine.id]);
-        as(users.carol);
-        expect(await refusal(call(favourite, "create", host(board, plans.id)))).toEqual([
-            "NOT_FOUND",
-            `no board ${plans.id}`,
-        ]);
-
-        // hide a mark from a reader who lost the board, and delete the marks with the board
-        as(users.alice);
-        await call(board, "revoke", { id: plans.id, relationshipId: shared.id });
-        as(users.bob);
-        expect(await listed()).toEqual([]);
-        as(users.alice);
-        await call(board, "delete", { id: plans.id });
-        expect(await listed()).toEqual([]);
-    },
-);
-
-test.for(TEST_DIALECTS)(
-    "authorize a scoped method of attachments on the parent its input refers to, on %s",
-    async (dialect) => {
-        const counted = remark.implement({
-            methods: {
-                count: async (call) => ({
-                    count: (
-                        await call
-                            .read(remark)
-                            .findMany({ where: { parentId: call.input.parent.id } })
-                    ).length,
-                }),
             },
-        });
-        const { call, host, as } = await serveObjects(dialect, { remark: counted, article });
+        }),
+        context(),
+    );
+    const read = await pages.next();
+    if (read.done === true) {
+        throw new TypeError("the sync stream ended before its first page");
+    }
+    expect(
+        read.value.changes
+            .filter((change) => change.table === "destack__object__remark")
+            .map((change) => schema.string().parse(change.row["text"]))
+            .toSorted((left, right) => left.localeCompare(right)),
+    ).toEqual(["Cite the source", "Tighten the intro"]);
 
-        // count the remarks on alice's article as alice, and refuse bob, who reads no article
-        const draft = await call(article, "create", {});
-        await call(counted, "create", { ...host(article, draft.id), text: "Tighten the intro" });
-        const mine = await call(counted, "count", host(article, draft.id));
-        as(users.bob);
-        const theirs = await refusal(call(counted, "count", host(article, draft.id)));
-        expect([mine, theirs]).toEqual([{ count: 1 }, ["FORBIDDEN", "permission denied: read"]]);
-    },
-);
+    // delete the article's remarks with it, leaving the marked photo with its remark
+    const marked = await call(marker, "create", host(photo, snapshot.id));
+    await call(article, "delete", { id: draft.id });
+    expect(await refusal(call(photo, "delete", { id: snapshot.id }))).toEqual([
+        "BROKEN_REFERENCE",
+        "the change would leave a reference to a missing record",
+    ]);
+    const remaining = await storage.database
+        .select({ id: remark.table.id })
+        .from(remark.table)
+        .orderBy(asc(remark.table.id));
+    expect(remaining.map((row) => row.id)).toEqual([caption.id]);
+    expect(await counts()).toEqual([1]);
+
+    // delete the photo with its remark once unpinned
+    await call(marker, "delete", { id: marked.id });
+    await call(photo, "delete", { id: snapshot.id });
+    expect([
+        await storage.database
+            .select()
+            .from(photo.table)
+            .where(eq(photo.table.id, schema.identifier("photo").parse(snapshot.id))),
+        await storage.database.select().from(remark.table),
+    ]).toEqual([[], []]);
+});
+
+test("store each reader's favourite of a shared board private and single", async () => {
+    const { call, host, as } = await serveObjects({ favourite, board });
+
+    // let the owner and a viewer each mark the board, once
+    const plans = await call(board, "create", {});
+    const shared = await call(board, "grant", {
+        id: plans.id,
+        relation: "viewer",
+        subject: principal.user.reference("universe", users.bob),
+    });
+    const mine = await call(favourite, "create", host(board, plans.id));
+    expect(await refusal(call(favourite, "create", host(board, plans.id)))).toEqual([
+        "CONFLICT",
+        "another favourite has the same parent and reader",
+    ]);
+    as(users.bob);
+    const theirs = await call(favourite, "create", host(board, plans.id));
+
+    // show each reader only their mark, and refuse one to a reader of nothing
+    const listed = async () => (await call(favourite, "list", {})).items.map((item) => item.id);
+    expect(await listed()).toEqual([theirs.id]);
+    as(users.alice);
+    expect(await listed()).toEqual([mine.id]);
+    as(users.carol);
+    expect(await refusal(call(favourite, "create", host(board, plans.id)))).toEqual([
+        "NOT_FOUND",
+        `no board ${plans.id}`,
+    ]);
+
+    // hide a mark from a reader who lost the board, and delete the marks with the board
+    as(users.alice);
+    await call(board, "revoke", { id: plans.id, relationshipId: shared.id });
+    as(users.bob);
+    expect(await listed()).toEqual([]);
+    as(users.alice);
+    await call(board, "delete", { id: plans.id });
+    expect(await listed()).toEqual([]);
+});
+
+test("authorize a scoped method of attachments on the parent its input refers to", async () => {
+    const counted = remark.implement({
+        methods: {
+            count: async (call) => ({
+                count: (
+                    await call.read(remark).findMany({ where: { parentId: call.input.parent.id } })
+                ).length,
+            }),
+        },
+    });
+    const { call, host, as } = await serveObjects({ remark: counted, article });
+
+    // count the remarks on alice's article as alice, and refuse bob, who reads no article
+    const draft = await call(article, "create", {});
+    await call(counted, "create", { ...host(article, draft.id), text: "Tighten the intro" });
+    const mine = await call(counted, "count", host(article, draft.id));
+    as(users.bob);
+    const theirs = await refusal(call(counted, "count", host(article, draft.id)));
+    expect([mine, theirs]).toEqual([{ count: 1 }, ["FORBIDDEN", "permission denied: read"]]);
+});
 
 /** Serve object types over a new database to one user at a time. */
-async function serveObjects(dialect: Dialect, objects: Readonly<Record<string, ObjectType>>) {
+async function serveObjects(objects: Readonly<Record<string, ObjectType>>) {
     // store the objects and their requests in one database
     const storage = await TestDatabase.create(
-        dialect,
         defineDatabase({
             name: "main",
-            tables: [...callTables, ...Object.values(objects).flatMap((object) => object.tables)],
+            ...tablesOf({
+                packages: [objectPackage, { objects: objects, tables: [] }],
+                follows: [],
+                tables: [],
+            }),
         }),
         { isMigrated: true },
     );

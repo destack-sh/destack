@@ -7,16 +7,18 @@ import { schema } from "@destack/schema";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { defineObject, field } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
-import { callTables, testEvents, serversOf } from "../src/test/index.ts";
+import { testEvents, serversOf } from "../src/test/index.ts";
 import { request } from "./fixture/request.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { Clock } from "@destack/environment";
+import { tablesOf } from "../src/index.ts";
+import objectPackage from "../src/package.ts";
 
-/** The space with the pins. */
+/** The space with the markers. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000007");
 
-/** Labels a pin may point at. */
+/** Labels a marker may point at. */
 const label = defineObject(
     {
         name: "label",
@@ -28,7 +30,7 @@ const label = defineObject(
     (method) => ({ create: method.create("write", { fields: [] }) }),
 );
 
-/** Notes a pin may not point at. */
+/** Notes a marker may not point at. */
 const note = defineObject(
     {
         name: "note",
@@ -40,11 +42,11 @@ const note = defineObject(
     (method) => ({ create: method.create("write", { fields: [] }) }),
 );
 
-/** Pins pointing at a label each, by its reference. */
-const pin = defineObject(
+/** Markers pointing at a label each, by its reference. */
+const marker = defineObject(
     {
-        name: "pin",
-        plural: "pins",
+        name: "marker",
+        plural: "markers",
         scope: space,
         fields: {
             owner: field.reference(principal.user).caller(),
@@ -60,13 +62,16 @@ const pin = defineObject(
     }),
 );
 
-test("store a pin's target as its label's reference columns, refuse a note, and list the pins of one label", async () => {
-    // open the space's store of labels, notes and pins
+test("store a marker's target as its label's reference columns, refuse a note, and list the markers of one label", async () => {
+    // open the space's store of labels, notes and markers
     const storage = await TestDatabase.create(
-        "sqlite",
         defineDatabase({
             name: "main",
-            tables: [...callTables, ...label.tables, ...note.tables, ...pin.tables],
+            ...tablesOf({
+                packages: [objectPackage, { objects: { label, note, marker }, tables: [] }],
+                follows: [],
+                tables: [],
+            }),
         }),
         { isMigrated: true },
     );
@@ -76,17 +81,17 @@ test("store a pin's target as its label's reference columns, refuse a note, and 
         chain: async () => undefined,
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        servers: serversOf([label, note, pin]),
+        servers: serversOf([label, note, marker]),
         database: storage.database,
         callKey: testCallKey,
         events: await testEvents(storage.database),
-        origin: { package: pin.package },
+        origin: { package: marker.package },
     });
     const context = userContext(users.frank, spaceId);
     const create = (target: ObjectReference) =>
         request(
             store,
-            pin,
+            marker,
             "create",
             spaceId,
             {
@@ -96,7 +101,7 @@ test("store a pin's target as its label's reference columns, refuse a note, and 
             context,
         );
 
-    // pin two labels, one of them twice, and refuse a note
+    // mark two labels, one of them twice, and refuse a note
     const first = label.reference(spaceId, label.generateId());
     const second = label.reference(spaceId, label.generateId());
     await create(first);
@@ -104,10 +109,10 @@ test("store a pin's target as its label's reference columns, refuse a note, and 
     await create(second);
     const refused = await refusal(create(note.reference(spaceId, note.generateId())));
 
-    // list the first label's pins by its key, reading each target back
+    // list the first label's markers by its key, reading each target back
     const listed = await request(
         store,
-        pin,
+        marker,
         "list",
         spaceId,
         { where: ObjectReference.columns("target", first) },

@@ -241,13 +241,13 @@ test("list a package's procedures as members the package serves", () => {
     ]);
 });
 
-test("describe a package's routes, adapters, views, requested permissions and capabilities, with its own types' hooks", () => {
-    // route the package's own query with hooks
-    const own = { ...query({}), hooks: { create: ["authorize"] } };
+test("describe a package's routes, adapters, views, requested permissions and capabilities, with its types' hooks", () => {
+    // route the package's query with hooks
+    const custom = { ...query({}), hooks: { create: ["authorize"] } };
     const user = new Policy(MODULE.package, { name: "user", permissions: { recipient: none() } });
     const handle = definePackage(
         {
-            objects: { query: own },
+            objects: { query: custom },
             adapters: { npm: defineAdapter("npm", { path: "/npm" }, MODULE) },
             permissions: { installation: { universe: [user.permission("recipient")] } },
             capabilities: {
@@ -265,7 +265,7 @@ test("describe a package's routes, adapters, views, requested permissions and ca
     expect(describePackage(handle)).toEqual({
         api: { name: handle.name, procedures: [] },
         objects: {
-            query: { type: own.typeReference, hooks: { create: ["authorize"] } },
+            query: { type: custom.typeReference, hooks: { create: ["authorize"] } },
         },
         adapters: { npm: { path: "/npm" } },
         views: [],

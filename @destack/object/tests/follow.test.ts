@@ -1,7 +1,7 @@
 import { VirtualClock } from "@destack/environment/simulation";
 import { subjectContext, testCallKey } from "@destack/object/test";
-import { reconciliation, TEST_DIALECTS, TestDatabase } from "@destack/db/test";
-import { callTables, FeedPublisher, testEvents, serversOf } from "../src/test/index.ts";
+import { reconciliation, TestDatabase } from "@destack/db/test";
+import { FeedPublisher, testEvents, serversOf } from "../src/test/index.ts";
 import {
     ControlLoop,
     type DatabaseConnection,
@@ -28,7 +28,8 @@ import {
 } from "@destack/access";
 
 import { AccessFixture } from "@destack/access/test";
-import { Identifier, nth, present, schema } from "@destack/schema";
+import { canonicalize, Identifier, nth, present, schema } from "@destack/schema";
+import { followKey } from "../src/replica/key.ts";
 
 import { CallError } from "@destack/object";
 import {
@@ -47,6 +48,8 @@ import { defineObject, defineShape, field, Follow } from "../src/index.ts";
 import { ObjectSink, ObjectStore } from "../src/server/index.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { spacePrincipal } from "./fixture/space.ts";
+import { tablesOf } from "../src/stack/db.ts";
+import objectPackage from "../src/package.ts";
 
 /** The event loop turns a woken store gets to report ready early, ten times one check. */
 const READY_TURNS = 20;
@@ -54,7 +57,7 @@ const READY_TURNS = 20;
 /** The source rows the incremental listing test follows: a thousand. */
 const STRESS_ROWS = 1000;
 
-/** How long a replica may take to reach its home or relist: 5 s, far above its milliseconds. */
+/** How long a replica may take to arrive at its home or relist: 5 s, far above its milliseconds. */
 const REPLICA_MILLISECONDS = 5000;
 
 /** Refuse a change sent over the uplink, as these replicas receive none. */
@@ -153,157 +156,200 @@ const documentShape = defineShape({
     queries: () => [document.query()],
 });
 
-test.each(TEST_DIALECTS)(
-    "decide calls over a relayed replica of access as the holder does, through the account's members and restricted credentials, on %s",
-    async (dialect) => {
-        const home = await TestDatabase.create(dialect, accessTables, { isMigrated: true });
-        const installed = await TestDatabase.create(dialect, [...document.tables, ...callTables], {
+/** The accounts, every row at the universe, which installations relate to. */
+const ACCOUNTS = defineShape({
+    name: "accounts",
+    parameters: schema.object({}),
+    objects: [account],
+    queries: () => [account.query({})],
+});
+
+/** The spaces in every account. */
+const SPACES = defineShape({
+    name: "spaces",
+    parameters: schema.object({}),
+    objects: [space],
+    queries: () => [space.query({ scopes: "every" })],
+});
+
+/** The follow of the accounts at the universe. */
+const ACCOUNTS_FOLLOW = Follow.of(ACCOUNTS, { keys: [{ key: { scope: Scope.universe.id } }] });
+
+/** The spaces and their documents in every account. */
+const DOCUMENTS = defineShape({
+    name: "documents",
+    parameters: schema.object({}),
+    objects: [space, document],
+    queries: () => [space.query({ scopes: "every" }), document.query({ scopes: "every" })],
+});
+
+/** The spaces a follow on a person's behalf brings into an installation. */
+const ACTIVITY = defineShape({
+    name: "activity",
+    parameters: schema.object({}),
+    objects: [space],
+    queries: () => [space.query({ scopes: "every" })],
+});
+
+/** The follow of the spaces at the universe. */
+const SPACES_FOLLOW = Follow.of(SPACES, { keys: [{ key: { scope: Scope.universe.id } }] });
+
+/** The follow of the spaces and their documents at the universe. */
+const DOCUMENTS_FOLLOW = Follow.of(DOCUMENTS, { keys: [{ key: { scope: Scope.universe.id } }] });
+
+test("decide calls over a relayed replica of access as the holder does, through the account's members and restricted credentials", async () => {
+    const home = await TestDatabase.create(accessTables, { isMigrated: true });
+    const installed = await TestDatabase.create(
+        tablesOf({
+            packages: [objectPackage, { objects: { document }, tables: [] }],
+            follows: [],
+            tables: [],
+        }).tables,
+        {
             isMigrated: true,
-        });
-        onTestFinished(async () => {
-            await Promise.all([home.close(), installed.close()]);
-        });
+        },
+    );
+    onTestFinished(async () => {
+        await Promise.all([home.close(), installed.close()]);
+    });
 
-        // insert an account owned by alice, a member role carol has through the account, and its empty space at home
-        const alice = principal.user.reference("universe", users.alice);
-        const carol = principal.user.reference("universe", users.carol);
-        const accountObject = account.reference(Scope.universe.id, accountId);
-        const access = new AccessFixture(home.database);
-        await access.replicateScope(accountObject);
-        await access.replicateScope(space.reference(accountId, spaceId), "own");
-        await access.bindOwner(accountObject, alice);
-        await access.replicateRole(
-            accountObject,
+    // insert an account of alice, a member role carol has through the account, and its empty space at home
+    const alice = principal.user.reference("universe", users.alice);
+    const carol = principal.user.reference("universe", users.carol);
+    const accountObject = account.reference(Scope.universe.id, accountId);
+    const access = new AccessFixture(home.database);
+    await access.replicateScope(accountObject);
+    await access.replicateScope(space.reference(accountId, spaceId), "self");
+    await access.bindOwner(accountObject, alice);
+    await access.replicateRole(
+        accountObject,
+        {
+            name: "member",
+            description: "Writes documents in the account's spaces",
+            permissions: [
+                space.permission("read"),
+                document.permission("read"),
+                document.permission("write"),
+            ],
+        },
+        { ...accountObject, relation: "member" },
+    );
+    await home.database.insert(accessRelationship).values(
+        Relationship.encode(
             {
-                name: "member",
-                description: "Writes documents in the account's spaces",
-                permissions: [
-                    space.permission("read"),
-                    document.permission("read"),
-                    document.permission("write"),
-                ],
+                id: schema.identifier("relationship").parse(`relationship-${v7()}`),
+                object: accountObject,
+                relation: "member",
+                subject: carol,
+                createdAt: 0,
+                expiresAt: null,
             },
-            { ...accountObject, relation: "member" },
-        );
-        await home.database.insert(accessRelationship).values(
-            Relationship.encode(
-                {
-                    id: schema.identifier("relationship").parse(`relationship-${v7()}`),
-                    object: accountObject,
-                    relation: "member",
-                    subject: carol,
-                    createdAt: 0,
-                    expiresAt: null,
-                },
-                accountId,
-            ),
-        );
-
-        // serve the documents of one space over the installation's database to each call's user, replicating its chain from the home database
-        const feed = new Feed(home.database, accessTables, { clock: Clock.system });
-        const store: ObjectStore = new ObjectStore({
-            chain: async () => ({ kind: "follower", parent: accountId }),
-            clock: Clock.system,
-            principal: spacePrincipal(spaceId),
-            servers: serversOf([document]),
-            database: installed.database,
-            uplink: {
-                ...FeedPublisher.of(
-                    feed,
-                    (subscription) => store.source.buildReplica(subscription).queries,
-                ),
-                receive: refuseChanges,
-                call: refuseQueries,
-            },
-            callKey: testCallKey,
-            events: await testEvents(installed.database),
-            origin: {
-                package: document.package,
-            },
-        });
-
-        // follow the space's chain up to the universe
-        const follower = present(
-            store.controllers().find((each) => each.name === "replica"),
-            "the replica controller",
-        );
-        const controller = new AbortController();
-        const following: Promise<void>[] = [];
-        onTestFinished(async () => {
-            controller.abort();
-            await Promise.allSettled(following);
-        });
-        const head = await home.database.log.position();
-        for (const scope of [spaceId, accountId, Scope.universe.id]) {
-            // follow each scope's chain, which at the universe has the grants delegated in
-            const keys = (await follower.list(Snapshot.live(store.database))).filter(
-                (entry) => readScope(entry) === scope,
-            );
-            for (const key of keys) {
-                following.push(
-                    follower
-                        .reconcile(key, reconciliation(controller.signal))
-                        .then(() => undefined),
-                );
-            }
-            await Replica.wait(installed.database, scope, head, controller.signal);
-        }
-        expect((await follower.list(Snapshot.live(store.database))).map(readScope)).toEqual([
-            spaceId,
             accountId,
-            Scope.universe.id,
-        ]);
+        ),
+    );
 
-        // create through tokens whose grants give the space, another one or everything, and list as alice
-        const create = async (user: Identifier<"user">, title: string, restricted?: string) => {
-            // limit the caller's token to one scope by its grant when asked
-            const token = principal.client.reference(Scope.universe.id, `client-${user}`);
-            const grantId =
-                restricted === undefined
-                    ? undefined
-                    : await new AccessFixture(installed.database).replicateGrant(
-                          principal.user.reference("universe", user),
-                          token,
-                          [document.permission("read"), document.permission("write")].map(
-                              (permission) => ({ ...permission, scope: restricted }),
-                          ),
-                      );
-            const context = userContext(
-                user,
-                spaceId,
-                grantId === undefined
-                    ? {}
-                    : { actors: [token], grants: [{ id: grantId, scope: user }] },
+    // serve the documents of one space over the installation's database to each call's user, replicating its chain from the home database
+    const feed = new Feed(home.database, accessTables, { clock: Clock.system });
+    const store: ObjectStore = new ObjectStore({
+        chain: async () => ({ kind: "follower", parent: accountId }),
+        clock: Clock.system,
+        principal: spacePrincipal(spaceId),
+        servers: serversOf([document]),
+        database: installed.database,
+        uplink: {
+            ...FeedPublisher.of(
+                feed,
+                (subscription) => store.source.buildReplica(subscription).queries,
+            ),
+            receive: refuseChanges,
+            call: refuseQueries,
+        },
+        callKey: testCallKey,
+        events: await testEvents(installed.database),
+        origin: {
+            package: document.package,
+        },
+    });
+
+    // follow the space's chain up to the universe
+    const follower = present(
+        store.controllers().find((each) => each.name === "replica"),
+        "the replica controller",
+    );
+    const controller = new AbortController();
+    const following: Promise<void>[] = [];
+    onTestFinished(async () => {
+        controller.abort();
+        await Promise.allSettled(following);
+    });
+    const head = await home.database.log.position();
+    for (const scope of [spaceId, accountId, Scope.universe.id]) {
+        // follow each scope's chain, which at the universe has the grants delegated in
+        const keys = (await follower.list(Snapshot.live(store.database))).filter(
+            (entry) => readScope(entry) === scope,
+        );
+        for (const key of keys) {
+            following.push(
+                follower.reconcile(key, reconciliation(controller.signal)).then(() => undefined),
             );
+        }
+        await Replica.wait(installed.database, scope, head, controller.signal);
+    }
+    expect((await follower.list(Snapshot.live(store.database))).map(readScope)).toEqual([
+        spaceId,
+        accountId,
+        Scope.universe.id,
+    ]);
 
-            const created = store
-                .mutate(context.access(), {
-                    id: RequestId.create(Date.now()),
-                    calls: [document.call("create", { spaceId, title })],
-                })
-                .then(([written]) => written);
-            const refused = await refusal(created);
-
-            return refused === "done" ? (await created).title : refused;
-        };
-        const outcomes = [
-            await create(users.alice, "Plan", spaceId),
-            await create(users.alice, "Elsewhere", otherSpaceId),
-            await create(users.dave, "Leak", spaceId),
-            await create(users.dave, "Leak"),
-            await create(users.carol, "Budget"),
-        ];
-        const listed = await store.query(
-            userContext(users.alice, spaceId).access(),
-            document.call("list", { spaceId }),
+    // create through tokens whose grants give the space, another one or everything, and list as alice
+    const create = async (user: Identifier<"user">, title: string, restricted?: string) => {
+        // limit the caller's token to one scope by its grant when asked
+        const token = principal.client.reference(Scope.universe.id, `client-${user}`);
+        const grantId =
+            restricted === undefined
+                ? undefined
+                : await new AccessFixture(installed.database).replicateGrant(
+                      principal.user.reference("universe", user),
+                      token,
+                      [document.permission("read"), document.permission("write")].map(
+                          (permission) => ({ ...permission, scope: restricted }),
+                      ),
+                  );
+        const context = userContext(
+            user,
+            spaceId,
+            grantId === undefined
+                ? {}
+                : { actors: [token], grants: [{ id: grantId, scope: user }] },
         );
 
-        // allow the owner through a credential for the empty space and hide the space from the rest
-        const hidden = ["NOT_FOUND", `no scope ${spaceId}`];
-        expect(outcomes).toEqual(["Plan", hidden, hidden, hidden, "Budget"]);
-        expect(listed.items.map((item) => item.title).toSorted()).toEqual(["Budget", "Plan"]);
-    },
-);
+        const created = store
+            .mutate(context.access(), {
+                id: RequestId.create(Date.now()),
+                calls: [document.call("create", { spaceId, title })],
+            })
+            .then(([written]) => written);
+        const refused = await refusal(created);
+
+        return refused === "done" ? (await created).title : refused;
+    };
+    const outcomes = [
+        await create(users.alice, "Plan", spaceId),
+        await create(users.alice, "Elsewhere", otherSpaceId),
+        await create(users.dave, "Leak", spaceId),
+        await create(users.dave, "Leak"),
+        await create(users.carol, "Budget"),
+    ];
+    const listed = await store.query(
+        userContext(users.alice, spaceId).access(),
+        document.call("list", { spaceId }),
+    );
+
+    // allow the owner through a credential for the empty space and hide the space from the rest
+    const hidden = ["NOT_FOUND", `no scope ${spaceId}`];
+    expect(outcomes).toEqual(["Plan", hidden, hidden, hidden, "Budget"]);
+    expect(listed.items.map((item) => item.title).toSorted()).toEqual(["Budget", "Plan"]);
+});
 
 /** An account outside every chain the tests' followers have. */
 const FOREIGN_ACCOUNT = "account-01996ab0-0000-7000-8000-0000000000ff";
@@ -311,8 +357,11 @@ const FOREIGN_ACCOUNT = "account-01996ab0-0000-7000-8000-0000000000ff";
 test("record the reads of a replica listing, so only a change of a followed source row touches it", async () => {
     // follow another space's annotations for each document titled to ask for them
     const machine = await TestDatabase.create(
-        "sqlite",
-        [...document.tables, ...annotation.tables, ...callTables, lease],
+        tablesOf({
+            packages: [objectPackage, { objects: { document, annotation }, tables: [] }],
+            follows: [],
+            tables: [lease],
+        }).tables,
         { isMigrated: true },
     );
     onTestFinished(() => machine.close());
@@ -381,8 +430,11 @@ test("record the reads of a replica listing, so only a change of a followed sour
 test("read a row follow's keys again only for the source rows a change touched, across many rows", async () => {
     // follow another space's annotations for each document, counting the key reads
     const machine = await TestDatabase.create(
-        "sqlite",
-        [...document.tables, ...annotation.tables, ...callTables, lease],
+        tablesOf({
+            packages: [objectPackage, { objects: { document, annotation }, tables: [] }],
+            follows: [],
+            tables: [lease],
+        }).tables,
         { isMigrated: true },
     );
     onTestFinished(() => machine.close());
@@ -486,8 +538,11 @@ test("read a row follow's keys again only for the source rows a change touched, 
 test("serve a store whose follows ask for nothing before its replica controller lists them", async () => {
     // follow nothing for any document, with no chain above the store
     const machine = await TestDatabase.create(
-        "sqlite",
-        [...document.tables, ...callTables, lease],
+        tablesOf({
+            packages: [objectPackage, { objects: { document }, tables: [] }],
+            follows: [],
+            tables: [lease],
+        }).tables,
         {
             isMigrated: true,
         },
@@ -532,21 +587,30 @@ test("serve a store whose follows ask for nothing before its replica controller 
 
 test("report a follow its source refuses, and drop its replica once a change of the rows the follow reads stops requesting it", async () => {
     // store an account and its two spaces at home, and a document of the first space on a machine
-    const home = await TestDatabase.create("sqlite", [...accessTables, ...document.tables], {
-        isMigrated: true,
-    });
+    const home = await TestDatabase.create(
+        tablesOf({ packages: [{ objects: { document }, tables: [] }], follows: [], tables: [] })
+            .tables,
+        {
+            isMigrated: true,
+        },
+    );
     const machine = await TestDatabase.create(
-        "sqlite",
-        [...document.tables, ...callTables, lease],
-        { isMigrated: true },
+        tablesOf({
+            packages: [objectPackage, { objects: { document }, tables: [] }],
+            follows: [],
+            tables: [lease],
+        }).tables,
+        {
+            isMigrated: true,
+        },
     );
     onTestFinished(async () => {
         await Promise.all([home.close(), machine.close()]);
     });
     const access = new AccessFixture(home.database);
     await access.replicateScope(account.reference(Scope.universe.id, accountId));
-    await access.replicateScope(space.reference(accountId, spaceId), "own");
-    await access.replicateScope(space.reference(accountId, otherSpaceId), "own");
+    await access.replicateScope(space.reference(accountId, spaceId), "self");
+    await access.replicateScope(space.reference(accountId, otherSpaceId), "self");
     const requesting = Identifier.create("document");
     await machine.database.insert(document.table).values({
         id: requesting,
@@ -556,7 +620,7 @@ test("report a follow its source refuses, and drop its replica once a change of 
         updatedAt: 1,
     });
 
-    // follow the other space's documents beside the store's own chain while a document asks, failing a refused scope's streams
+    // follow the other space's documents beside the scope chain while a document asks, failing refused streams
     const feed = new Feed(home.database, [...accessTables, ...document.tables], {
         clock: Clock.system,
     });
@@ -634,26 +698,31 @@ test("report a follow its source refuses, and drop its replica once a change of 
         .set({ title: "Archived" })
         .where(eq(document.table.id, requesting));
     await machine.database.log.until(
-        async () => (await ownReplicas(machine.database)) === OWN_REPLICAS,
+        async () => (await localReplicas(machine.database)) === LOCAL_REPLICAS,
         controller.signal,
     );
     expect(failures).toEqual([refused]);
 });
 
 test("replicate a person's grant to an installation of the space from the universe into the space", async () => {
-    // keep alice's grant to an installation of the space, and another one's to an installation elsewhere, at home
-    const home = await TestDatabase.create("sqlite", accessTables, { isMigrated: true });
+    // store alice's grant to the space's installation, and another's grant to one elsewhere, at home
+    const home = await TestDatabase.create(accessTables, { isMigrated: true });
     const machine = await TestDatabase.create(
-        "sqlite",
-        [...document.tables, ...callTables, lease],
-        { isMigrated: true },
+        tablesOf({
+            packages: [objectPackage, { objects: { document }, tables: [] }],
+            follows: [],
+            tables: [lease],
+        }).tables,
+        {
+            isMigrated: true,
+        },
     );
     onTestFinished(async () => {
         await Promise.all([home.close(), machine.close()]);
     });
     const access = new AccessFixture(home.database);
     await access.replicateScope(account.reference(Scope.universe.id, accountId));
-    await access.replicateScope(space.reference(accountId, spaceId), "own");
+    await access.replicateScope(space.reference(accountId, spaceId), "self");
     const alice = principal.user.reference(Scope.universe.id, users.alice);
     const granted = await access.replicateGrant(
         alice,
@@ -706,23 +775,30 @@ test("replicate a person's grant to an installation of the space from the univer
     const head = await home.database.log.position();
     await Replica.wait(machine.database, Scope.universe.id, head, controller.signal);
 
-    // keep only the grant to the space's installation
-    const kept = await machine.database.select({ id: accessGrant.id }).from(accessGrant);
-    expect(kept.map((row) => row.id)).toEqual([granted]);
+    // retain only the grant to the space's installation
+    const remaining = await machine.database.select({ id: accessGrant.id }).from(accessGrant);
+    expect(remaining.map((row) => row.id)).toEqual([granted]);
 });
 
-test("serve a woken store only once its home confirms the replicas it held unheard past the lag", async () => {
+test("serve a woken store only once its home confirms the replicas it stored unheard past the lag", async () => {
     // insert an account and its space at home
-    const home = await TestDatabase.create("sqlite", accessTables, { isMigrated: true });
-    const installed = await TestDatabase.create("sqlite", [...document.tables, ...callTables], {
-        isMigrated: true,
-    });
+    const home = await TestDatabase.create(accessTables, { isMigrated: true });
+    const installed = await TestDatabase.create(
+        tablesOf({
+            packages: [objectPackage, { objects: { document }, tables: [] }],
+            follows: [],
+            tables: [],
+        }).tables,
+        {
+            isMigrated: true,
+        },
+    );
     onTestFinished(async () => {
         await Promise.all([home.close(), installed.close()]);
     });
     const access = new AccessFixture(home.database);
     await access.replicateScope(account.reference(Scope.universe.id, accountId));
-    await access.replicateScope(space.reference(accountId, spaceId), "own");
+    await access.replicateScope(space.reference(accountId, spaceId), "self");
 
     // serve the space over the installation's database under an hour's heartbeat
     const events = await testEvents(installed.database);
@@ -741,7 +817,7 @@ test("serve a woken store only once its home confirms the replicas it held unhea
             database: installed.database,
             uplink: {
                 ...published,
-                // hold the universe chain's pages until released
+                // block the universe chain's pages until released
                 async *stream(subscription, signal) {
                     if (subscription.scope === Scope.universe.id) {
                         await pages;
@@ -774,7 +850,7 @@ test("serve a woken store only once its home confirms the replicas it held unhea
     const followed = open(Promise.resolve());
     const firstFollow = follow(followed, first.signal);
     const isComplete = async () => {
-        const gates = (await followed.sink.followed()).filter((entry) => entry.isReadinessGate);
+        const gates = await followed.sink.gates();
         const current = await Promise.all(
             gates.map(({ subscription }) =>
                 Replica.confirmedAt(installed.database, subscription).then(
@@ -790,7 +866,7 @@ test("serve a woken store only once its home confirms the replicas it held unhea
     await firstFollow;
     clock.advance(60_000);
 
-    // wake a store over the same database, holding the universe's pages while the others arrive
+    // wake a store over the same database, blocking the universe's pages while the others arrive
     const pages = Promise.withResolvers<void>();
     const woken = open(pages.promise);
     const handle = definePackage({ objects: { document } });
@@ -804,8 +880,8 @@ test("serve a woken store only once its home confirms the replicas it held unhea
     const following = follow(woken, waking.signal);
     const now = clock.now();
     const isOthersFresh = async () => {
-        const gates = (await woken.sink.followed()).filter(
-            (entry) => entry.isReadinessGate && entry.subscription.scope !== Scope.universe.id,
+        const gates = (await woken.sink.gates()).filter(
+            ({ subscription }) => subscription.scope !== Scope.universe.id,
         );
         const fresh = await Promise.all(
             gates.map(({ subscription }) =>
@@ -832,15 +908,15 @@ test("serve a woken store only once its home confirms the replicas it held unhea
 });
 
 test("follow replicates as a server without methods, journal or call key", async () => {
-    // store an account and its space at home, and a database holding access replicas
-    const home = await TestDatabase.create("sqlite", accessTables, { isMigrated: true });
-    const follower = await TestDatabase.create("sqlite", accessTables, { isMigrated: true });
+    // store an account and its space at home, and a database with access replicas
+    const home = await TestDatabase.create(accessTables, { isMigrated: true });
+    const follower = await TestDatabase.create(accessTables, { isMigrated: true });
     onTestFinished(async () => {
         await Promise.all([home.close(), follower.close()]);
     });
     const access = new AccessFixture(home.database);
     await access.replicateScope(account.reference(Scope.universe.id, accountId));
-    await access.replicateScope(space.reference(accountId, spaceId), "own");
+    await access.replicateScope(space.reference(accountId, spaceId), "self");
 
     // follow the universe's rows the space reads, without a journal
     const feed = new Feed(home.database, accessTables, { clock: Clock.system });
@@ -880,15 +956,25 @@ test("follow replicates as a server without methods, journal or call key", async
 
 test("replicate the chains of an installation's two served spaces in one replica via both, requiring it to replicate each and refusing a scope outside them", async () => {
     // store an account with two spaces at home, and another account
-    const home = await TestDatabase.create("sqlite", [...space.tables, ...callTables], {
-        isMigrated: true,
-    });
+    const home = await TestDatabase.create(
+        tablesOf({
+            packages: [objectPackage, { objects: { space }, tables: [] }],
+            follows: [],
+            tables: [],
+        }).tables,
+        {
+            isMigrated: true,
+        },
+    );
     const declared = defineDatabase({
         name: "installed",
-        tables: [...document.tables, ...callTables],
-        replicated: [space.table],
+        ...tablesOf({
+            packages: [objectPackage, { objects: { document }, tables: [] }],
+            follows: [SPACES_FOLLOW],
+            tables: [],
+        }),
     });
-    const installed = await TestDatabase.create("sqlite", declared, { isMigrated: true });
+    const installed = await TestDatabase.create(declared, { isMigrated: true });
     onTestFinished(async () => {
         await Promise.all([home.close(), installed.close()]);
     });
@@ -898,7 +984,7 @@ test("replicate the chains of an installation's two served spaces in one replica
     for (const id of [spaceId, otherSpaceId]) {
         await new AccessFixture(home.database).replicateScope(
             space.reference(accountId, id),
-            "own",
+            "self",
         );
         await home.database
             .insert(space.table)
@@ -931,7 +1017,9 @@ test("replicate the chains of an installation's two served spaces in one replica
         chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
         clock: Clock.system,
         principal: spacePrincipal(spaceId),
-        servers: serversOf([document]),
+        servers: serversOf([document], {
+            follows: [Follow.of(SPACES, { keys: [{ key: { scope: Scope.universe.id } }] })],
+        }),
         policies: [space],
         database: installed.database,
         uplink: {
@@ -985,7 +1073,6 @@ test("replicate the chains of an installation's two served spaces in one replica
     }).toEqual({
         requests: [
             [ObjectSink.chainName(followingSpaceId), Scope.universe.id, followingSpaceId],
-            [ObjectSink.queriesName(followingSpaceId), Scope.universe.id, followingSpaceId],
             [ObjectSink.viaName(followingSpaceId), Scope.universe.id, followingSpaceId],
         ],
         parameters: [[spaceId, otherSpaceId], [accountId]],
@@ -997,13 +1084,20 @@ test("replicate the chains of an installation's two served spaces in one replica
 
 test("refuse a chain follow with no via to a caller without replicate on the scope", async () => {
     // store an account with a space at home
-    const home = await TestDatabase.create("sqlite", [...space.tables, ...callTables], {
-        isMigrated: true,
-    });
+    const home = await TestDatabase.create(
+        tablesOf({
+            packages: [objectPackage, { objects: { space }, tables: [] }],
+            follows: [],
+            tables: [],
+        }).tables,
+        {
+            isMigrated: true,
+        },
+    );
     onTestFinished(() => home.close());
     const access = new AccessFixture(home.database);
     await access.replicateScope(account.reference(Scope.universe.id, accountId));
-    await access.replicateScope(space.reference(accountId, spaceId), "own");
+    await access.replicateScope(space.reference(accountId, spaceId), "self");
     await home.database
         .insert(space.table)
         .values({ id: spaceId, scope: accountId, createdAt: 1, updatedAt: 1 });
@@ -1083,15 +1177,22 @@ test("refuse a chain follow with no via to a caller without replicate on the sco
     });
 });
 
-test("replicate a partition's chain via its installation's space, which the source holds no row of the partition below", async () => {
-    // store an account with a space at home, which holds no row of the installation's partition
-    const home = await TestDatabase.create("sqlite", [...space.tables, ...callTables], {
-        isMigrated: true,
-    });
+test("replicate a partition's chain via its installation's space, whose source has no row of the partition below", async () => {
+    // store an account with a space at home, which has no row of the installation's partition
+    const home = await TestDatabase.create(
+        tablesOf({
+            packages: [objectPackage, { objects: { space }, tables: [] }],
+            follows: [],
+            tables: [],
+        }).tables,
+        {
+            isMigrated: true,
+        },
+    );
     onTestFinished(() => home.close());
     const access = new AccessFixture(home.database);
     await access.replicateScope(account.reference(Scope.universe.id, accountId));
-    await access.replicateScope(space.reference(accountId, spaceId), "own");
+    await access.replicateScope(space.reference(accountId, spaceId), "self");
     await home.database
         .insert(space.table)
         .values({ id: spaceId, scope: accountId, createdAt: 1, updatedAt: 1 });
@@ -1168,12 +1269,16 @@ test("replicate a partition's chain via its installation's space, which the sour
 
 test("request no via chain for the rows a subject's follow brought, which their source decided for that subject", async () => {
     // store a space replicated into an installation's database by a follow on alice's behalf
+    const follow = Follow.of(ACTIVITY, { onDemand: { ttl: { minutes: 10 } } });
     const declared = defineDatabase({
         name: "installed",
-        tables: [...document.tables, ...callTables],
-        replicated: [space.table],
+        ...tablesOf({
+            packages: [objectPackage, { objects: { document }, tables: [] }],
+            follows: [follow],
+            tables: [],
+        }),
     });
-    const installed = await TestDatabase.create("sqlite", declared, { isMigrated: true });
+    const installed = await TestDatabase.create(declared, { isMigrated: true });
     onTestFinished(() => installed.close());
     const { database } = installed;
     const alice = principal.user.reference(Scope.universe.id, Identifier.create("user"));
@@ -1181,9 +1286,11 @@ test("request no via chain for the rows a subject's follow brought, which their 
         .insert(space.table)
         .values({ id: spaceId, scope: accountId, createdAt: 1, updatedAt: 1 });
     const name = `activity:${spaceId}`;
-    await database
-        .insert(sync.replica)
-        .values({ name, scope: spaceId, tables: [space.table[TABLE].sqlName] });
+    await database.insert(sync.replica).values({
+        name,
+        scope: spaceId,
+        tables: [space.table[TABLE].sqlName],
+    });
     await database.insert(sync.replicaSubscription).values({
         name,
         scope: spaceId,
@@ -1207,12 +1314,12 @@ test("request no via chain for the rows a subject's follow brought, which their 
         concealed: [],
     });
 
-    // list the installation's chains below its own space
+    // list the installation's chains below its space
     const store = new ObjectStore({
         chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
         clock: Clock.system,
         principal: spacePrincipal(followingSpaceId),
-        servers: serversOf([document]),
+        servers: serversOf([document], { follows: [follow] }),
         policies: [space],
         database,
         uplink: {
@@ -1240,53 +1347,36 @@ test("request no via chain for the rows a subject's follow brought, which their 
     expect(vias).toEqual([]);
 });
 
-test("serve a store whose on-behalf follow is refused, without gating its readiness", async () => {
-    // store a space replicated into an installation's database by a best-effort follow on alice's behalf
-    const declared = defineDatabase({
-        name: "installed",
-        tables: [...document.tables, ...callTables],
-        replicated: [space.table],
+test("wait before serving for the store's declared replicas up its chain, never for another home's, another principal's or an acquired one", async () => {
+    // follow the documents at the universe for the store, the spaces there and a space's activity for alice, and accounts on demand
+    const alice = principal.user.reference(Scope.universe.id, Identifier.create("user"));
+    const declaredFollow = Follow.of(DOCUMENTS, { keys: [{ key: { scope: Scope.universe.id } }] });
+    const behalf = Follow.of(SPACES, {
+        keys: [{ key: { scope: Scope.universe.id }, subject: alice }],
     });
-    const installed = await TestDatabase.create("sqlite", declared, { isMigrated: true });
+    const elsewhere = Follow.of(ACTIVITY, { keys: [{ key: { scope: spaceId }, subject: alice }] });
+    const acquired = Follow.of(ACCOUNTS, { onDemand: { ttl: { minutes: 10 } } });
+    const follows = [declaredFollow, behalf, elsewhere, acquired];
+    const installed = await TestDatabase.create(
+        defineDatabase({
+            name: "installed",
+            ...tablesOf({
+                packages: [objectPackage, { objects: { document }, tables: [] }],
+                follows,
+                tables: [],
+            }),
+        }),
+        { isMigrated: true },
+    );
     onTestFinished(() => installed.close());
     const { database } = installed;
-    const alice = principal.user.reference(Scope.universe.id, Identifier.create("user"));
-    const activity = defineShape({
-        name: "activity",
-        parameters: schema.object({}),
-        objects: [document],
-        queries: () => [document.query()],
-    });
-    const follow = Follow.of(activity, {
-        keys: [{ key: { scope: spaceId }, subject: alice }],
-        isReadinessGate: false,
-    });
-    const brought = activity.subscription({ scope: spaceId }, followingSpaceId, alice);
-    await database
-        .insert(space.table)
-        .values({ id: spaceId, scope: accountId, createdAt: 1, updatedAt: 1 });
-    await database
-        .insert(sync.replica)
-        .values({ name: brought.name, scope: spaceId, tables: [space.table[TABLE].sqlName] });
-    await database.insert(sync.replicaSubscription).values({
-        name: brought.name,
-        scope: spaceId,
-        ...sync.Replica.subscriptionColumns(brought, "caller"),
-    });
-    await database.insert(sync.replicaKey).values({
-        name: brought.name,
-        scope: spaceId,
-        table: space.table[TABLE].sqlName,
-        key: Key.name(space.table, { id: spaceId, scope: accountId }),
-        concealed: [],
-    });
 
-    // serve the installation's store, whose publisher refuses every follow
+    // serve the installation's store, whose publisher refuses every follow, with an accounts key a use acquired
     const store = new ObjectStore({
         chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
         clock: Clock.system,
         principal: spacePrincipal(followingSpaceId),
-        servers: serversOf([document], { follows: [follow] }),
+        servers: serversOf([document], { follows }),
         policies: [space],
         database,
         publisher: () => ({
@@ -1300,35 +1390,56 @@ test("serve a store whose on-behalf follow is refused, without gating its readin
         events: await testEvents(database),
         origin: { package: document.package },
     });
-    const subscriber = present(store.subscriber, "the store's subscriber");
-    const gates = (await subscriber.subscriptions(Snapshot.live(database)))
-        .filter(({ subscription }) => subscription.subject !== undefined)
-        .map(({ subscription, isReadinessGate }) => [subscription.name, isReadinessGate]);
+    await database.insert(followKey).values({
+        shape: ACCOUNTS.name,
+        scope: Scope.universe.id,
+        parameters: canonicalize({}),
+        subject: canonicalize(store.principal),
+        expiresAt: Date.now() + 60_000,
+    });
 
-    // leave the best-effort follow ungated
-    expect(gates).toEqual([[brought.name, false]]);
+    // gate on the chain and the store's declared documents, listing the other three without gating
+    const listed = await present(store.subscriber, "the store's subscriber").subscriptions(
+        Snapshot.live(database),
+    );
+    const gates = (await store.sink.gates()).map(({ subscription }) => subscription.name);
+    expect([listed.length, gates.toSorted()]).toEqual([
+        5,
+        [
+            ObjectSink.chainName(followingSpaceId),
+            DOCUMENTS.replicaName({ scope: Scope.universe.id }),
+        ].toSorted(),
+    ]);
 });
 
 test("replicate a scoped table an installation's database declares beside its followed space's chain, and drop its rows once the installation may no longer read the space", async () => {
     // store an account with two spaces and a document in each at home
     const home = await TestDatabase.create(
-        "sqlite",
-        [...space.tables, ...document.tables, ...callTables],
-        { isMigrated: true },
+        tablesOf({
+            packages: [objectPackage, { objects: { space, document }, tables: [] }],
+            follows: [],
+            tables: [],
+        }).tables,
+        {
+            isMigrated: true,
+        },
     );
     const declared = defineDatabase({
         name: "installed",
-        tables: [...comment.tables, ...callTables, lease],
-        replicated: [space.table, document.table],
+        ...tablesOf({
+            packages: [objectPackage, { objects: { comment }, tables: [] }],
+            follows: [DOCUMENTS_FOLLOW],
+            tables: [],
+        }),
     });
-    const installed = await TestDatabase.create("sqlite", declared, { isMigrated: true });
+    const installed = await TestDatabase.create(declared, { isMigrated: true });
     onTestFinished(async () => {
         await Promise.all([home.close(), installed.close()]);
     });
     const access = new AccessFixture(home.database);
     await access.replicateScope(account.reference(Scope.universe.id, accountId));
     for (const id of [spaceId, otherSpaceId]) {
-        await access.replicateScope(space.reference(accountId, id), "own");
+        await access.replicateScope(space.reference(accountId, id), "self");
         await home.database
             .insert(space.table)
             .values({ id, scope: accountId, createdAt: 1, updatedAt: 1 });
@@ -1370,7 +1481,9 @@ test("replicate a scoped table an installation's database declares beside its fo
         chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
         clock: Clock.system,
         principal: subject,
-        servers: serversOf([comment]),
+        servers: serversOf([comment], {
+            follows: [Follow.of(DOCUMENTS, { keys: [{ key: { scope: Scope.universe.id } }] })],
+        }),
         policies: [space, document],
         database: installed.database,
         uplink: {
@@ -1417,15 +1530,15 @@ test("replicate a scoped table an installation's database declares beside its fo
     });
 });
 
-/** The store's own replicas, its chain with the grants into its space, as names and scopes. */
-const OWN_REPLICAS = JSON.stringify(
+/** The store's replicas, its chain with the grants into its space, as names and scopes. */
+const LOCAL_REPLICAS = JSON.stringify(
     [spaceId, accountId, Scope.universe.id]
         .map((scope) => [ObjectSink.chainName(spaceId), scope])
         .toSorted((left, right) => left.join().localeCompare(right.join())),
 );
 
-/** List a database's replicas as their names and scopes, to compare with the own ones. */
-async function ownReplicas(database: DatabaseConnection): Promise<string> {
+/** List a database's replicas as their names and scopes, to compare with the store's. */
+async function localReplicas(database: DatabaseConnection): Promise<string> {
     const replicas = (await Replica.subscriptions(Snapshot.live(database)))
         .map((replica) => [replica.name, replica.scope])
         .toSorted((left, right) => left.join().localeCompare(right.join()));
@@ -1443,17 +1556,27 @@ function readScope(key: string): string | undefined {
     return key.split(" ")[1];
 }
 
-test("replicate the chains of the accounts an installation's rows relate to, beside its own space where those rows live", async () => {
+test("replicate the chains of the accounts an installation's rows relate to, beside its space where those rows live", async () => {
     // store two accounts at home, the first readable by the installation
-    const home = await TestDatabase.create("sqlite", [...account.tables, ...callTables], {
-        isMigrated: true,
-    });
+    const home = await TestDatabase.create(
+        tablesOf({
+            packages: [objectPackage, { objects: { account }, tables: [] }],
+            follows: [],
+            tables: [],
+        }).tables,
+        {
+            isMigrated: true,
+        },
+    );
     const declared = defineDatabase({
         name: "installed",
-        tables: [...annotation.tables, ...callTables],
-        replicated: [account.table],
+        ...tablesOf({
+            packages: [objectPackage, { objects: { annotation }, tables: [] }],
+            follows: [ACCOUNTS_FOLLOW],
+            tables: [],
+        }),
     });
-    const installed = await TestDatabase.create("sqlite", declared, { isMigrated: true });
+    const installed = await TestDatabase.create(declared, { isMigrated: true });
     onTestFinished(async () => {
         await Promise.all([home.close(), installed.close()]);
     });
@@ -1489,7 +1612,9 @@ test("replicate the chains of the accounts an installation's rows relate to, bes
         chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
         clock: Clock.system,
         principal: spacePrincipal(followingSpaceId),
-        servers: serversOf([annotation]),
+        servers: serversOf([annotation], {
+            follows: [Follow.of(ACCOUNTS, { keys: [{ key: { scope: Scope.universe.id } }] })],
+        }),
         policies: [account],
         database: installed.database,
         uplink: {
@@ -1505,7 +1630,7 @@ test("replicate the chains of the accounts an installation's rows relate to, bes
     });
     await followUniverse(replicating, home.database);
 
-    // request one replica of the readable account's chain and the installation's own space
+    // request one replica of the readable account's chain and the installation's space
     const requests = (
         await replicating.sink.chains(followingSpaceId, Snapshot.live(replicating.database))
     ).map((entry) => entry.subscription);
@@ -1520,7 +1645,6 @@ test("replicate the chains of the accounts an installation's rows relate to, bes
         requests: [
             [ObjectSink.chainName(followingSpaceId), followingSpaceId, followingSpaceId],
             [ObjectSink.chainName(followingSpaceId), Scope.universe.id, followingSpaceId],
-            [ObjectSink.queriesName(followingSpaceId), Scope.universe.id, followingSpaceId],
             [ObjectSink.viaName(followingSpaceId), Scope.universe.id, followingSpaceId],
         ],
         via: [accountId],
@@ -1529,15 +1653,25 @@ test("replicate the chains of the accounts an installation's rows relate to, bes
 
 test("replicate the chain of an account another replica brought first, once the universe replica includes it", async () => {
     // store an account at home that the installation reads
-    const home = await TestDatabase.create("sqlite", [...account.tables, ...callTables], {
-        isMigrated: true,
-    });
+    const home = await TestDatabase.create(
+        tablesOf({
+            packages: [objectPackage, { objects: { account }, tables: [] }],
+            follows: [],
+            tables: [],
+        }).tables,
+        {
+            isMigrated: true,
+        },
+    );
     const declared = defineDatabase({
         name: "installed",
-        tables: [...annotation.tables, ...callTables],
-        replicated: [account.table],
+        ...tablesOf({
+            packages: [objectPackage, { objects: { annotation }, tables: [] }],
+            follows: [ACCOUNTS_FOLLOW],
+            tables: [],
+        }),
     });
-    const installed = await TestDatabase.create("sqlite", declared, { isMigrated: true });
+    const installed = await TestDatabase.create(declared, { isMigrated: true });
     onTestFinished(async () => {
         await Promise.all([home.close(), installed.close()]);
     });
@@ -1579,7 +1713,7 @@ test("replicate the chain of an account another replica brought first, once the 
             if (asked.name !== chain) {
                 yield* source.source.replicate(asked, asked.after, follower, signal);
             }
-            // record a chain request via the account and hold it open
+            // record a chain request via the account and leave it open
             else {
                 const via = asked.parameters["via"];
                 if (Array.isArray(via) && via.includes(accountId)) {
@@ -1595,7 +1729,7 @@ test("replicate the chain of an account another replica brought first, once the 
         chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
         clock: Clock.system,
         principal: spacePrincipal(followingSpaceId),
-        servers: serversOf([annotation]),
+        servers: serversOf([annotation], { follows: [ACCOUNTS_FOLLOW] }),
         policies: [account],
         database: installed.database,
         uplink: publisher,
@@ -1603,15 +1737,8 @@ test("replicate the chain of an account another replica brought first, once the 
         events: await testEvents(installed.database),
         origin: { package: annotation.package },
     });
-    const listed = await replicating.sink.chains(
-        followingSpaceId,
-        Snapshot.live(installed.database),
-    );
     const residents = {
-        ...present(
-            listed.find((entry) => entry.subscription.publication === "queries")?.subscription,
-            "the universe request",
-        ),
+        ...ACCOUNTS.subscription({ scope: Scope.universe.id }, followingSpaceId),
         name: "residents",
     };
     const early = new AbortController();
@@ -1677,7 +1804,7 @@ async function followUniverse(
         await Promise.allSettled(following);
     });
 
-    // wait for it to reach the home's head
+    // wait for it to arrive at the home's head
     const head = await home.log.position();
     await Replica.wait(replicating.database, Scope.universe.id, head, controller.signal);
 

@@ -48,9 +48,9 @@ export const Step = {
         return Step.reference(step, id);
     },
 
-    /** Build the input identifying one object of the step's type in the scope the call carried. */
+    /** Build the input identifying one object of the step's type in the scope of the call. */
     reference(step: Step, id: JsonValue): JsonObject {
-        // read the scope the call carried
+        // read the scope of the call
         const { field } = step.object.route;
         const scope = field === undefined ? undefined : step.input[field];
         if (field !== undefined && scope === undefined) {

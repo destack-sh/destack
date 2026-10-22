@@ -3,7 +3,7 @@ import type { PackageId } from "@destack/package";
 import type { ObjectType } from "../object/object.ts";
 import type { Method } from "./method.ts";
 
-/** Where a call is made: the store's own code, a client, or a package's sandboxed hook. */
+/** Where a call is made: the store's code, a client, or a package's sandboxed hook. */
 export type CallSite =
     | { readonly kind: "store" }
     | { readonly kind: "client" }
@@ -11,7 +11,7 @@ export type CallSite =
 
 /** The sites calls are made from, and the methods each can call. */
 export const CallSite = {
-    /** The store's own code, which can call every method. */
+    /** The store's code, which can call every method. */
     store: { kind: "store" } as const satisfies CallSite,
 
     /** A client, which can call public methods. */
@@ -23,7 +23,7 @@ export const CallSite = {
     },
 
     /** Decide whether a site can call a method: an internal one only from its store or package. */
-    reaches(site: CallSite, object: ObjectType, method: Method): boolean {
+    covers(site: CallSite, object: ObjectType, method: Method): boolean {
         return (
             method.isInternal !== true ||
             site.kind === "store" ||

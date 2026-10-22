@@ -27,7 +27,7 @@ export function compileQueries(
             if (!object) {
                 throw new CallError("BAD_REQUEST", { message: `no object ${objectName}` });
             }
-            // read every scope's rows, each decided by its own access
+            // read every scope's rows, each decided by its access
             else if (scopes === "every") {
                 return [name, { ...compile(object, options, objects), scopes }];
             }

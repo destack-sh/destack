@@ -10,10 +10,13 @@ import {
     text,
     uniqueIndex,
 } from "@destack/db";
-import type { Table } from "@destack/db";
+import type { DatabaseDefinition, Table } from "@destack/db";
 import { accessTables } from "@destack/access";
 import { settlement } from "../method/settlement.ts";
 import { followKey } from "../replica/key.ts";
+import { Follow } from "../replica/shape.ts";
+import type { PackageHandle } from "../declare/package.ts";
+import { ObjectType } from "../object/object.ts";
 
 /** The calls a database executed recently, which retries of their requests replay. */
 export const journal = defineTable(
@@ -51,8 +54,8 @@ export const journal = defineTable(
     },
 );
 
-/** The tables every durable type's database has: access, journal, settlements, leases, buckets. */
-export const storeTables: readonly Table[] = [
+/** Each object store's system tables: access, journal, settlement, lease, bucket and follow key. */
+export const SYSTEM_TABLES: readonly Table[] = [
     ...accessTables,
     journal,
     settlement,
@@ -60,3 +63,36 @@ export const storeTables: readonly Table[] = [
     bucket,
     followKey,
 ];
+
+/** List a store's tables: its system tables, what it serves and follows, and its host's tables. */
+export function tablesOf(store: {
+    /** The packages the store serves. */
+    readonly packages: readonly Pick<PackageHandle, "objects" | "tables">[];
+    /** The shapes the store follows. */
+    readonly follows: readonly Follow[];
+    /** The tables the store's host stores in its database, such as its keys. */
+    readonly tables: readonly Table[];
+}): Pick<DatabaseDefinition, "tables" | "replicated"> {
+    // replicate the followed shapes' types, whose rows live at their home even where served here
+    const replicated = new Set(
+        store.follows.flatMap((follow) => Follow.types(follow)).map((type) => type.table),
+    );
+
+    // take the rest: the served packages' durable and event types, their tables and the host's
+    const types = store.packages
+        .flatMap((handle) => Object.values(handle.objects))
+        .filter((declared) => declared instanceof ObjectType);
+    const local = new Set<Table>([
+        ...SYSTEM_TABLES,
+        ...types
+            .filter((type) => type.storage === "durable" || type.storage === "events")
+            .flatMap((type) => type.tables),
+        ...store.packages.flatMap((handle) => handle.tables),
+        ...store.tables,
+    ]);
+
+    return {
+        tables: [...local].filter((table) => !replicated.has(table)),
+        replicated: [...replicated],
+    };
+}

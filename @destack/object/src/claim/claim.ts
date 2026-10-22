@@ -49,21 +49,21 @@ const claim = schema.object({
     packageId: schema.string().min(1),
     /** The object claiming the name. */
     objectId: schema.string().min(1),
-    /** The scope owning the name: the object's own, or its owner's for an owned object. */
+    /** The owner scope of the name: the object's scope, or its owner's for an object with one. */
     owner: schema.string().min(1),
 });
 
-/** The object an active name resolves to, with the scope owning the name. */
+/** The object an active name resolves to, with the owner scope of the name. */
 export const ClaimOwner = claim.pick({ objectId: true, owner: true });
-/** The object an active name resolves to, with the scope owning the name. */
+/** The object an active name resolves to, with the owner scope of the name. */
 export type ClaimOwner = schema.Infer<typeof ClaimOwner>;
 
-/** The answer of a claim call writing names: the names other objects own. */
+/** The answer of a claim call writing names: the names other objects claim. */
 export const ClaimRefusal = schema.object({
-    /** The names other objects own. */
+    /** The names other objects claim. */
     refused: schema.array(claim),
 });
-/** The answer of a claim call writing names: the names other objects own. */
+/** The answer of a claim call writing names: the names other objects claim. */
 export type ClaimRefusal = schema.Infer<typeof ClaimRefusal>;
 
 /** The lookup of the objects active names resolve to. */
@@ -82,7 +82,7 @@ export const ClaimLookup = {
 
 /** A name an object claims in a unique index across databases, with the keying verbs. */
 export const Claim = Object.assign(claim, {
-    /** Read the index of a type's unique index: its shared namespace, or the type's own. */
+    /** Read the index of a type's unique index: its shared namespace, or the type's index. */
     index(type: ObjectType, name: string): string {
         return (
             type.indexes[name]?.namespace ??
@@ -110,7 +110,7 @@ export const Claim = Object.assign(claim, {
         return { index: Claim.index(type, name), key: canonicalize([within, ...values]) };
     },
 
-    /** Read the scope owning a row's names: its owner's for an owned object, else its own. */
+    /** Read the owner scope of a row's names: its owner's when it has one, else its scope. */
     owning(type: ObjectType, row: Row): string {
         const column = type.ownerColumn;
 
@@ -163,7 +163,7 @@ export const Claim = Object.assign(claim, {
         return found === undefined ? undefined : { scope: found.owner, id: found.objectId };
     },
 
-    /** Reserve an object's names until its write commits, returning the names others own. */
+    /** Reserve an object's names until its write commits, returning the names others claim. */
     async reserve(
         database: DatabaseConnection,
         claimant: Claimant,
@@ -192,7 +192,7 @@ export const Claim = Object.assign(claim, {
                       .returning({ index: claimTable.index, key: claimTable.key });
         const existing = ClaimKey.missing(claimant.claims, inserted);
 
-        // refuse the existing names other objects own
+        // refuse the existing names other objects claim
         return existing.length === 0
             ? []
             : ClaimKey.refused(existing, await Claim.owners(database, existing));
@@ -229,9 +229,9 @@ export const Claim = Object.assign(claim, {
             );
     },
 
-    /** Replace an object's names after an unreserved write, returning the names others own. */
+    /** Replace an object's names after an unreserved write, returning the names others claim. */
     async replace(database: DatabaseConnection, claimant: Claimant): Promise<Claim[]> {
-        // refuse the names other objects own before writing any
+        // refuse the names other objects claim before writing any
         Claimant.require(claimant);
         const found = await Claim.owners(database, claimant.claims);
         const refused = ClaimKey.refused(claimant.claims, found);
@@ -294,7 +294,7 @@ export const Claim = Object.assign(claim, {
         return new Set(rows.map((row) => row.key));
     },
 
-    /** List the expired reservations of some indexes a reader holds, and the next deadline. */
+    /** List the expired reservations of some indexes a reader has, and the next deadline. */
     async expired(
         claims: RelationalQueryBuilder<typeof claimTable>,
         indexes: readonly string[],
@@ -329,7 +329,7 @@ export const Claim = Object.assign(claim, {
             : { claims: found, next: present(next.expiresAt, "a pending claim's expiry") };
     },
 
-    /** Read the objects owning some names, by claim key. */
+    /** Read the objects that claim some names, by claim key. */
     async owners(
         database: DatabaseConnection,
         claims: readonly Claim[],
@@ -403,7 +403,7 @@ export const Claim = Object.assign(claim, {
         scope: string,
         snapshot: Snapshot,
     ): Promise<string> {
-        // key universe-wide indexes by the universe, and indexes across the object's own scope by it
+        // key universe-wide indexes by the universe, and indexes across the object's scope by it
         const enclosingType = across();
         if (!(enclosingType instanceof ObjectType)) {
             return Scope.universe.id;
@@ -447,7 +447,7 @@ const claimant = schema.object({
     indexes: schema.array(schema.string().min(1)),
     /** The object. */
     objectId: schema.string().min(1),
-    /** The scope owning the object's names. */
+    /** The owner scope of the object's names. */
     owner: schema.string().min(1),
     /** The names it claims. */
     claims: schema.array(claim),
@@ -540,7 +540,7 @@ export const claimTable = defineTable(
         packageId: text("package_id").notNull(),
         /** The object claiming the name. */
         objectId: text("object_id").notNull(),
-        /** The scope owning the name. */
+        /** The owner scope of the name. */
         owner: text("owner").notNull(),
         /** Whether the claim is pending, active or trashed. */
         state: textEnum("state", CLAIM_STATES).notNull(),
@@ -595,7 +595,7 @@ const ClaimKey = {
         return claims.filter((entry) => !written.has(ClaimKey.of(entry)));
     },
 
-    /** List the claims whose names another object owns. */
+    /** List the claims whose names another object claims. */
     refused(claims: readonly Claim[], found: ReadonlyMap<string, string>): Claim[] {
         return claims.filter((entry) => {
             const objectId = found.get(ClaimKey.of(entry));

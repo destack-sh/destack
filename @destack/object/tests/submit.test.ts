@@ -4,7 +4,7 @@ import { Device, serveNotes, spaceId } from "./fixture/device.ts";
 import { note, notebook } from "./fixture/note.ts";
 
 test("predict recorded calls as one mutation, which the server executes together", async () => {
-    const { connect, endpoint } = await serveNotes("sqlite");
+    const { connect, endpoint } = await serveNotes();
     const alice = connect(users.alice);
     const device = await Device.open(users.alice, endpoint(users.alice));
     device.online();

@@ -34,15 +34,15 @@ const Listed = schema.looseObject({
 /** The results of a pushed mutation's calls, in call order. */
 const CALL_RESULTS = schema.array(schema.json());
 
-/** An installation's objects, reached through the package serving them. */
+/** An installation's objects, called through the package serving them. */
 export interface DynamicObjectClientOptions {
     /** The object types the installation serves, as its manifest describes them. */
     readonly objects: readonly ObjectType[];
     /** The scope of the calls and watches, such as a space. */
     readonly scope: string;
-    /** Where and how to reach the package serving the objects. */
+    /** Where and how to call the package serving the objects. */
     readonly endpoint: ClientOptions;
-    /** Where and how to reach the home of another scope a change acts in, such as a space's. */
+    /** Where and how to call the home of another scope a change acts in, such as a space's. */
     readonly homes?: (scope: string) => ClientOptions;
     /** The clock the local log compacts at. */
     readonly clock: Clock;
@@ -50,16 +50,16 @@ export interface DynamicObjectClientOptions {
 
 /** An installation's objects called by name, with types from its manifest's descriptions. */
 export class DynamicObjectClient {
-    /** The installation the client reaches, and its local database. */
+    /** The installation the client calls, and its local database. */
     readonly options: DynamicObjectClientOptions;
     /** The store procedures of the package serving the objects. */
     readonly #store: Client<StoreProcedures>;
-    /** Reach the store procedures of a scope's home, the client's store for its scope. */
+    /** Call the store procedures of a scope's home, the client's store for its scope. */
     readonly #home: (scope: string) => Client<StoreProcedures>;
     /** The local tables each watch's database has, created once per database. */
     readonly #migrated = new WeakMap<DatabaseConnection, Promise<unknown>>();
 
-    /** Reach an installation's objects through the package serving them. */
+    /** Connect to an installation's objects through the package serving them. */
     constructor(options: DynamicObjectClientOptions) {
         this.options = options;
         this.#store = ObjectClient.store(options.endpoint);
@@ -241,7 +241,7 @@ export class DynamicObjectClient {
         return migrated;
     }
 
-    /** Apply a subscription's pages until aborted, holding the local log to its window. */
+    /** Apply a subscription's pages until aborted, bounding the local log to its window. */
     async #follow(
         database: DatabaseConnection,
         replica: sync.Replica,

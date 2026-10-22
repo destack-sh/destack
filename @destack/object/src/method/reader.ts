@@ -15,7 +15,7 @@ export interface Session {
     readonly read: <Definition extends Table>(
         table: Definition,
     ) => RelationalQueryBuilder<Definition>;
-    /** Read the whole rows of a type of the hook's own package in the mutation. */
+    /** Read the whole rows of a type of the hook's package in the mutation. */
     readonly reveal: <Definition extends Table>(
         table: Definition,
     ) => RelationalQueryBuilder<Definition, Select<Definition>>;

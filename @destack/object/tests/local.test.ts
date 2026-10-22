@@ -9,7 +9,7 @@ import { serveDatabase, WasmClient, type Message } from "@destack/db/browser";
 import { Identifier, nth } from "@destack/schema";
 import { definePackage } from "@destack/object";
 import { testCallKey } from "@destack/object/test";
-import { callTables, testEvents, serversOf } from "../src/test/index.ts";
+import { testEvents, serversOf } from "../src/test/index.ts";
 import { BrowserTab, type BrowserHost } from "../src/browser/index.ts";
 import { ObjectClient, type ObjectAccess } from "../src/client/index.ts";
 import { ObjectStore, implementPackage } from "../src/server/index.ts";
@@ -18,9 +18,11 @@ import { spacePrincipal, unmoved } from "./fixture/space.ts";
 import { draft, panel, sticky, user } from "./fixture/local.ts";
 import { note, notebook } from "./fixture/note.ts";
 import { Clock } from "@destack/environment";
+import { tablesOf } from "../src/index.ts";
+import objectPackage from "../src/package.ts";
 
 test("read a local object one tab writes in another tab over the shared database, out of the outbox", async () => {
-    const { endpoint } = await serveNotes("sqlite");
+    const { endpoint } = await serveNotes();
     const alice = Identifier.create("user");
 
     // open two tabs sharing one database worker
@@ -65,14 +67,14 @@ test("read a local object one tab writes in another tab over the shared database
     await first.close();
 });
 
-test("hide a user's local objects from another user on the same device, and the device's own from another device", async () => {
-    const { endpoint } = await serveNotes("sqlite");
+test("hide a user's local objects from another user on the same device, and the device's from another device", async () => {
+    const { endpoint } = await serveNotes();
     const [alice, bob] = [Identifier.create("user"), Identifier.create("user")];
     const [laptop, phone] = [Identifier.create("device"), Identifier.create("device")];
 
     // open the users' object clients over one local database, as the laptop and as the phone
     const objects = { notebook, note, draft, panel };
-    const storage = await TestDatabase.create("sqlite", []);
+    const storage = await TestDatabase.create([], { dialect: "sqlite" });
     await ObjectClient.migrate(storage.database, objects);
     const openClient = (person: Identifier<"user">, on: string) =>
         ObjectClient.open({
@@ -109,8 +111,8 @@ test("hide a user's local objects from another user on the same device, and the 
     await storage.close();
 });
 
-test("refuse to serve local objects at another principal's store, and refuse local definitions reaching beyond the device", async () => {
-    const { database } = await serveNotes("sqlite");
+test("refuse to serve local objects at another principal's store, and refuse local definitions beyond the device", async () => {
+    const { database } = await serveNotes();
     const local = { scope: device, storage: "local", fields: {}, permissions: [] } as const;
     const events = await testEvents(database);
 
@@ -178,7 +180,7 @@ test("refuse to serve local objects at another principal's store, and refuse loc
             ),
         ),
     ]).toEqual([
-        "local object draft lives only in its scope's own store",
+        "local object draft lives only in its scope's store",
         "local object shared must live in one scope type",
         "local object spread must live in one scope type",
         "local object sticky cannot have inherited",
@@ -193,13 +195,16 @@ function newCaller(id: string, inside: readonly Subject[]): AccessContext {
     return AccessContext.of({ ...person, groups: [...person.groups, ...inside] }, Date.now());
 }
 
-test("serve a device's local objects at its own store to the people signed in on it alone", async () => {
+test("serve a device's local objects at its store to the people signed in on it alone", async () => {
     // store a laptop's stickies
     const [ada, bob] = [Identifier.create("user"), Identifier.create("user")];
     const laptop = device.reference(Scope.universe.id, Identifier.create("device"));
     const storage = await TestDatabase.create(
-        "sqlite",
-        [...accessTables, sticky.table, ...callTables],
+        tablesOf({
+            packages: [objectPackage],
+            follows: [],
+            tables: [...accessTables, sticky.table],
+        }).tables,
         {
             isMigrated: true,
         },
@@ -207,7 +212,7 @@ test("serve a device's local objects at its own store to the people signed in on
     onTestFinished(() => storage.close());
     await new AccessFixture(storage.database).replicateScope(laptop);
 
-    // serve them at the laptop's own store
+    // serve them at the laptop's store
     const store = new ObjectStore({
         chain: async () => undefined,
         clock: Clock.system,

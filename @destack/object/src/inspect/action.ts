@@ -12,7 +12,7 @@ export function describeAuditAction(action: AuditAction): AuditActionDescription
     });
 }
 
-/** List an action's term: its name, with the shapes of its calls. */
+/** List an action's term: its name, with the target and details of its calls. */
 export function auditActionVocabulary(action: AuditAction): Record<string, JsonValue> {
     const description = describeAuditAction(action);
 

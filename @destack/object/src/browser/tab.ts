@@ -22,7 +22,7 @@ export interface BrowserHost {
     readonly start: () => Promise<() => Promise<void>>;
 }
 
-/** One tab's objects over the database of the owning tab's worker. */
+/** One tab's objects over the database of the leading tab's worker. */
 export class BrowserTab<
     Objects extends Readonly<Record<string, ObjectType>> = Readonly<Record<string, ObjectType>>,
 > {
@@ -30,7 +30,7 @@ export class BrowserTab<
     readonly client: ObjectClient<Objects>;
     /** Settles once the database answers with its tables. */
     readonly ready: Promise<void>;
-    /** The connection to the owning tab's worker. */
+    /** The connection to the leading tab's worker. */
     readonly #database: ReturnType<typeof connectShared>;
     /** The browser the tab runs in. */
     readonly #host: BrowserHost;
@@ -40,7 +40,7 @@ export class BrowserTab<
     readonly #stopping: AbortController;
     /** Release the tab's presence lock. */
     readonly #leave: () => void;
-    /** Settles once the tab no longer owns the database or waits to. */
+    /** Settles once the tab no longer leads the database or waits to. */
     readonly #owning: Promise<void>;
 
     /** Join the tabs as one party. */
@@ -51,7 +51,7 @@ export class BrowserTab<
         host: BrowserHost,
         name: string,
         stopping: AbortController,
-        own: {
+        leading: {
             readonly objects: Readonly<Record<string, ObjectType>>;
             readonly report: (error: unknown) => void;
         },
@@ -70,11 +70,11 @@ export class BrowserTab<
         this.#leave = leave;
         void host.request(this.#presence(client.origin), () => left);
 
-        // wait to own the database
+        // wait to lead the database
         const signal = this.#stopping.signal;
         const owner = `destack:${name}:owner`;
         this.#owning = host
-            .request(owner, () => this.#own(own.objects, own.report), signal)
+            .request(owner, () => this.#lead(leading.objects, leading.report), signal)
             .catch((error: unknown) => {
                 // rethrow unless closing
                 if (!signal.aborted) {
@@ -83,7 +83,7 @@ export class BrowserTab<
             });
     }
 
-    /** Open a tab's objects over the database of the owning tab's worker. */
+    /** Open a tab's objects over the database of the leading tab's worker. */
     static async open<const Objects extends Readonly<Record<string, ObjectType>>>(options: {
         /** The database's name, shared by every tab of the origin. */
         readonly name: string;
@@ -95,19 +95,19 @@ export class BrowserTab<
         readonly caller: Subject;
         /** The browser's device, whose partition stores local objects scoped to devices. */
         readonly device: Subject;
-        /** Where and how to reach the server serving the objects. */
+        /** Where and how to call the server serving the objects. */
         readonly endpoint: ClientOptions;
-        /** Where and how to reach the machine serving a moved scope now. */
+        /** Where and how to call the machine serving a moved scope now. */
         readonly reconnect: (machine: string) => ClientOptions;
-        /** Where and how to reach the home of an enclosing scope whose rows the tab changes. */
+        /** Where and how to call the home of an enclosing scope whose rows the tab changes. */
         readonly homes?: (scope: string) => ClientOptions;
-        /** The most object rows the shared replica holds, absent for no limit. */
+        /** The most object rows the shared replica stores, absent for no limit. */
         readonly storage?: { readonly rows: number };
         /** How long the shared local log retains changes, a minute by default. */
         readonly log?: { readonly retention: Duration };
-        /** The browser capabilities, the page's own by default. */
+        /** The browser capabilities, the page's by default. */
         readonly host?: BrowserHost;
-        /** Report the owning tab's loop failures. */
+        /** Report the leading tab's loop failures. */
         readonly report: (error: unknown) => void;
         /** The clock the tab's client reads time at. */
         readonly clock: Clock;
@@ -164,8 +164,8 @@ export class BrowserTab<
         await this.#database.close();
     }
 
-    /** Own the database until the tab closes, migrating its tables from this tab's build. */
-    async #own(
+    /** Lead the database until the tab closes, migrating its tables from this tab's build. */
+    async #lead(
         objects: Readonly<Record<string, ObjectType>>,
         report: (error: unknown) => void,
     ): Promise<void> {

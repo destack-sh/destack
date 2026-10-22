@@ -139,7 +139,7 @@ export async function runWorkload(
         (error) => process.stderr.write(`workload failed: ${String(error)}\n`),
     );
 
-    // serve the workload on the socket only its host reaches
+    // serve the workload on the socket only its host can open
     await serveProcess({
         endpoints: [{ unix: socket, fetch: (request) => workload.fetch(request) }],
         network: Network.system,

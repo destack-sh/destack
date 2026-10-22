@@ -94,9 +94,9 @@ export const role = defineObject(
             target: "scope",
             result: "value",
             isPredicted: false,
-            procedure: (_name, shapes) => ({
+            procedure: (_name, schemas) => ({
                 route: { method: "POST", path: "/upsert-binding" },
-                input: shapes.scope.extend({ ...shapes.replay, ...RoleBinding.shape }),
+                input: schemas.scope.extend({ ...schemas.replay, ...RoleBinding.shape }),
                 output: Empty,
             }),
             handler: async (context, execution) => {

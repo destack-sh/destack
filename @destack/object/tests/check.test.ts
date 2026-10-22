@@ -6,38 +6,43 @@ import { defineDatabase } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
 import { subjectContext, testCallKey } from "@destack/object/test";
-import { callTables, testEvents, serversOf } from "../src/test/index.ts";
+import { testEvents, serversOf } from "../src/test/index.ts";
 import { Scope, type Subject } from "@destack/sync";
 import { relationship } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { space, spacePrincipal } from "./fixture/space.ts";
 import { Clock } from "@destack/environment";
+import { tablesOf } from "../src/index.ts";
+import objectPackage from "../src/package.ts";
 
 /** The space whose access the checks decide. */
 const SPACE_ID = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000041");
 
-/** Alice, who owns the space. */
+/** Alice, the owner of the space. */
 const alice = principal.user.reference(Scope.universe.id, users.alice);
 /** Bob, who reads the space. */
 const bob = principal.user.reference(Scope.universe.id, users.bob);
 /** Carol, who has no access. */
 const carol = principal.user.reference(Scope.universe.id, users.carol);
 
-test("check the caller's own access under its grant, and another subject's for grantors alone", async () => {
+test("check the caller's access under its grant, and another subject's for grantors alone", async () => {
     const storage = await TestDatabase.create(
-        "sqlite",
         defineDatabase({
             name: "main",
-            tables: [...relationship.tables, space.table, ...callTables],
+            ...tablesOf({
+                packages: [objectPackage, { objects: { relationship }, tables: [] }],
+                follows: [],
+                tables: [space.table],
+            }),
         }),
         { isMigrated: true },
     );
     onTestFinished(() => storage.close());
 
-    // create a private space owned by alice and read by bob
+    // create a private space of alice, read by bob
     const object = space.reference(Scope.universe.id, SPACE_ID);
     const fixture = new AccessFixture(storage.database);
-    await fixture.replicateScope(object, "own");
+    await fixture.replicateScope(object, "self");
     await fixture.bindOwner(object, alice);
     await fixture.replicateRole(
         object,
@@ -93,7 +98,7 @@ test("check the caller's own access under its grant, and another subject's for g
         unknown: await check(alice, alice, "edit"),
     };
 
-    // answer the caller's own access, limit the token to its grant, and let only grantors ask for others
+    // answer the caller's access, limit the token to its grant, and let only grantors ask for others
     const needsShare = ["FORBIDDEN", "checking another subject's access to space needs share"];
     expect(checks).toEqual({
         aliceShare: { isAllowed: true },
