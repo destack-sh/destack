@@ -12,7 +12,7 @@ interface Declared {
     readonly returns: string | undefined;
 }
 
-/** Reject an implementation under overload signatures whose return types differ from its own. */
+/** Reject an implementation whose return type differs from its overload signatures'. */
 export const noOverloadCast: Rule = {
     meta: {
         type: "problem",

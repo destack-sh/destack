@@ -12,9 +12,9 @@ const NONDETERMINISTIC: Readonly<Record<string, readonly string[]>> = {
 /** The phases of a handler that run in the transaction, again on every attempt. */
 const TRANSACTION_PHASES = new Set(["handle", "authorize"]);
 
-/** A syntax node the rule walks, by the fields it reads. */
+/** An AST node the rule walks, by the fields it reads. */
 interface Node {
-    /** The node's syntax type. */
+    /** The node's AST type. */
     readonly type: string;
     /** The node containing this one, absent at the root. */
     readonly parent?: Node | null;
@@ -71,7 +71,7 @@ export const deterministicHandler: Rule = {
                 }
             },
             NewExpression(node) {
-                // report reading the clock through a date of no arguments inside a handler or a workflow
+                // report a clock read through a date without arguments in a handler or a workflow
                 const isClock =
                     node.callee.type === "Identifier" &&
                     node.callee.name === "Date" &&

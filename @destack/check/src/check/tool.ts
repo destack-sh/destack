@@ -5,7 +5,7 @@ import { basename, join } from "node:path";
 import process from "node:process";
 import { CheckError } from "../error/index.ts";
 
-/** Captured output from a pinned checking tool. */
+/** Captured output from a checking tool at a fixed version. */
 export interface ToolResult {
     /** The exit status, including ordinary diagnostic failures. */
     code: number;

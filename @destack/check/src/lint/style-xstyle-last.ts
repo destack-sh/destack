@@ -9,7 +9,7 @@ function isCallerStyles(node: ESTree.Node | null | undefined): boolean {
     );
 }
 
-/** Merge a caller's `xstyle` after a component's own styles, so the caller's styles win. */
+/** Merge a caller's `xstyle` after a component's styles, so the caller's styles win. */
 export const styleXstyleLast: Rule = {
     meta: {
         type: "problem",

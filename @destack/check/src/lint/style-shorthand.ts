@@ -19,7 +19,7 @@ const SHORTHANDS = new Set([
     "gap",
 ]);
 
-/** Report whether a value lists several parts outside parentheses. */
+/** Report whether a value lists several values outside parentheses. */
 function isList(text: string): boolean {
     let depth = 0;
     for (const character of text.trim()) {

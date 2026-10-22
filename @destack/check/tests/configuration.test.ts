@@ -129,7 +129,7 @@ test("refuse a hand-edited tsconfig.json", async () => {
 });
 
 test("write lint and format settings at the workspace root and compiler settings in each member", async () => {
-    // place a member package inside a workspace root of its own temporary directory
+    // place a member package inside a workspace root in a separate temporary directory
     const workspace = await mkdtemp(join(tmpdir(), "destack-workspace-"));
     onTestFinished(() => rm(workspace, { recursive: true }));
     const member = join(workspace, "member");
@@ -154,7 +154,7 @@ test("write lint and format settings at the workspace root and compiler settings
         await exists(join(member, ".oxfmtrc.json")),
     ]).toEqual([true, false, false]);
 
-    // read the root's own expectations beside the member's, each against its directory
+    // read the root's expectations beside the member's, each against its directory
     const expectation = {
         files: ["scripts/release.ts"],
         rules: ["eslint/no-console"],
@@ -200,7 +200,7 @@ test("accept the findings a package expects and refuse an expectation nothing ma
         },
     ];
 
-    // keep the unexpected finding, drop the expected one, and report the stale expectation
+    // report the unexpected finding and the stale expectation, dropping the expected one
     const applied = applyExpectations(
         [finding("src/log.ts", "eslint(no-console)"), finding("src/log.ts", "eslint(curly)")],
         expectations,

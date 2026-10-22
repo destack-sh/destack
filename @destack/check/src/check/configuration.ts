@@ -69,7 +69,7 @@ export function lintConfiguration(
                 },
             ],
 
-            // type every value precisely: no assertions, non-null claims, any, or compiler directives
+            // type every value precisely: no assertions, non-null claims, any or directives
             "typescript/consistent-type-assertions": ["error", { assertionStyle: "never" }],
             "typescript/no-non-null-assertion": "error",
             "typescript/no-explicit-any": "error",
@@ -140,7 +140,7 @@ export function lintConfiguration(
         },
         overrides: [
             {
-                // keep declarations and client-safe layers free of server code
+                // stop server code from importing declarations and client-safe layers
                 files: [
                     "**/src/service/**",
                     "**/src/connection/**",
@@ -186,11 +186,11 @@ export async function typescriptConfiguration(directory: string) {
     const sources = await readSources(directory);
     const hasViews = uses("@destack/view") && sources.hasViews;
 
-    // select ambient types from the declared type packages and the build's browser modules
+    // select ambient types from the declared type packages, the view library and the build
     const isBun = names.has("@types/bun") || names.has("bun-types");
     const types = [
         ...runtimeTypes(names),
-        ...(hasViews ? ["@destack/view/client"] : []),
+        ...(hasViews && names.has("@destack/view") ? ["@destack/view/client"] : []),
         ...(runtimes.has("browser") && names.has("@destack/build")
             ? ["@destack/build/browser"]
             : []),
@@ -257,7 +257,7 @@ function jsxOptions(
 
 /** Find the nested packages and TSX modules in a package's included directories. */
 async function readSources(directory: string) {
-    // walk the included directories, stopping at each directory with its own manifest
+    // walk the included directories, stopping at each directory with a manifest
     const packages: string[] = [];
     let hasViews = false;
     const pending: string[] = SOURCES.filter((name) => existsSync(resolve(directory, name)));
@@ -308,7 +308,7 @@ export async function configurePackage(
     }
 }
 
-/** Write a configuration as formatted JSON, as the formatter keeps package files. */
+/** Write a configuration as formatted JSON, as the formatter writes package files. */
 async function writeJson(path: string, value: unknown): Promise<void> {
     await writeFile(path, await formatSource(path, `${JSON.stringify(value)}\n`));
 }
@@ -318,7 +318,7 @@ export async function checkConfiguration(
     directory: string,
     plugins: readonly Plugin[] = [],
 ): Promise<void> {
-    // permit omitted editor files while rejecting independent rule definitions, compiler settings only for Destack packages
+    // write the configurations, with compiler settings for Destack packages alone
     const configurations = [
         [
             ".oxlintrc.json",
@@ -347,9 +347,9 @@ export async function checkConfiguration(
     }
 }
 
-/** Decide whether a directory keeps the lint and format settings. */
+/** Decide whether a directory has the lint and format settings. */
 async function holdsToolSettings(directory: string): Promise<boolean> {
-    // keep them at a workspace root and in a template
+    // put them at a workspace root and in a template
     if ((await readManifest(directory))?.workspaces !== undefined) {
         return true;
     }
@@ -358,7 +358,7 @@ async function holdsToolSettings(directory: string): Promise<boolean> {
         return true;
     }
 
-    // keep them in a package that no enclosing workspace covers
+    // put them in a package that no enclosing workspace covers
     for (
         let parent = dirname(resolve(directory));
         parent !== dirname(parent);

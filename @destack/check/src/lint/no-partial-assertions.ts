@@ -1,7 +1,7 @@
 import type { Rule } from "@oxlint/plugins";
 import { isTestFile } from "./word.ts";
 
-/** Matchers that assert part of a value. */
+/** Matchers that assert a fragment of a value. */
 const PARTIAL = new Set(["toContain", "toMatch", "stringContaining", "stringMatching"]);
 
 /** Require tests to assert complete values. */

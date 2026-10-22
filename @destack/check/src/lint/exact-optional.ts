@@ -1,6 +1,6 @@
 import type { Rule } from "@oxlint/plugins";
 
-/** The builder whose own `optional` makes a nullable object field. */
+/** The builder whose `optional` method makes a nullable object field. */
 const FIELD_BUILDER = "field";
 
 /** Require schema properties that may be absent to reject an explicit undefined. */

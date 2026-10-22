@@ -11,7 +11,7 @@ import { CheckError } from "../error/index.ts";
 /** The longest the formatter runs, in milliseconds, far above formatting a scope's sources. */
 const FORMAT_TIMEOUT = 30_000;
 
-/** This package's directory, whose dependencies hold the tools when running from a workspace. */
+/** This package's directory, whose dependencies include the tools when running from a workspace. */
 const PACKAGE = fileURLToPath(new URL("../..", import.meta.url));
 
 /** Format generated source with the same fixed settings as package files. */

@@ -13,7 +13,7 @@ function codes(text: string): string[] {
 }
 
 test("split prose lines into one sentence each", () => {
-    // report and fix a line with two sentences, keeping list indentation
+    // report and fix a line with two sentences, preserving list indentation
     const text = "# Notes\n\n- Read the note. Then write it.\n";
     expect(codes(text)).toEqual(["markdown(one-sentence-per-line)"]);
     expect(fixMarkdown(text)).toBe("# Notes\n\n- Read the note.\n  Then write it.\n");
@@ -44,7 +44,7 @@ test("require one prose line then listings in each package README section", () =
         "# @example/notes\n\nKeep notes.\n\n## Read\n\n`read` reads a note.\n\n```ts\nread();\n```\n\n- one\n  more\n";
     expect(checkMarkdown("README.md", valid)).toEqual([]);
 
-    // report a second prose line, prose after a listing and a table, only in a README
+    // report a second prose line and prose after a listing or a table, in a README alone
     const invalid =
         "# @example/notes\n\nKeep notes.\nShare them.\n\n## Read\n\nRead.\n\n```ts\nread();\n```\n\nThen write.\n\n| A |\n| - |\n";
     expect(checkMarkdown("notes/README.md", invalid).map((diagnostic) => diagnostic.code)).toEqual([

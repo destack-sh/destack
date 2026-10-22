@@ -15,6 +15,9 @@ const PACKAGE_HANDLE = new URL("../src/package.ts", import.meta.url).pathname;
 const PACKAGE_INDEX = new URL("../src/index.ts", import.meta.url).pathname;
 /** A package source path for rules that depend on the module location. */
 const SOURCE = new URL("../src/note/note.ts", import.meta.url).pathname;
+
+/** A package test kit path, which only the package's tests and its dependents' tests import. */
+const TEST_KIT = new URL("../src/note/test/note.ts", import.meta.url).pathname;
 /** A test module path of a Destack package. */
 const TEST = new URL("../src/note/note.test.ts", import.meta.url).pathname;
 
@@ -435,6 +438,10 @@ tester.run("valid-declaration", rules["valid-declaration"], {
         {
             code: 'import { valueOf } from "@destack/db";\nfunction f() {\n    return valueOf({});\n}',
             filename: SOURCE,
+        },
+        {
+            code: 'import { defineDatabase } from "@destack/db";\nfunction f() {\n    return defineDatabase({});\n}',
+            filename: TEST_KIT,
         },
     ],
     invalid: [

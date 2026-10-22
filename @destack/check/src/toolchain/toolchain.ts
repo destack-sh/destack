@@ -18,11 +18,11 @@ export const Toolchain = {
 
     /** Find an executable's toolchain: in its macOS application's resources, else beside it. */
     of(executable: string): string {
-        // read a macOS application's toolchain from its bundle's resources, as code signing requires
-        const parts = executable.split(sep);
-        const contents = parts.lastIndexOf("Contents");
-        if (parts[contents - 1]?.endsWith(".app") === true) {
-            return join(parts.slice(0, contents + 1).join(sep), "Resources", TOOLCHAIN);
+        // read a macOS application's toolchain from its bundle's resources for code signing
+        const segments = executable.split(sep);
+        const contents = segments.lastIndexOf("Contents");
+        if (segments[contents - 1]?.endsWith(".app") === true) {
+            return join(segments.slice(0, contents + 1).join(sep), "Resources", TOOLCHAIN);
         }
 
         // read the toolchain beside any other executable

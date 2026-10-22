@@ -13,10 +13,12 @@ export const methodSignatureStyle: Rule = {
     create(context) {
         return {
             TSMethodSignature(node) {
-                // keep accessors, and a member over its container's own type parameters, which stays covariant
-                const owned = typeParameters(context.sourceCode.getAncestors(node));
-                const isOwned = node.params.some((parameter) => mentions(parameter, owned));
-                if (node.kind !== "method" || isOwned) {
+                // allow accessors and members over their container's type parameters, which stay covariant
+                const enclosing = typeParameters(context.sourceCode.getAncestors(node));
+                const isEnclosingTyped = node.params.some((parameter) =>
+                    mentions(parameter, enclosing),
+                );
+                if (node.kind !== "method" || isEnclosingTyped) {
                     return;
                 }
 
@@ -32,7 +34,7 @@ export const methodSignatureStyle: Rule = {
 function typeParameters(ancestors: readonly unknown[]): ReadonlySet<string> {
     const names = new Set<string>();
     for (const ancestor of ancestors) {
-        // take the declaration's own type parameters
+        // take the declaration's type parameters
         const kind = field(ancestor, "type");
         const isDeclaration =
             kind === "TSInterfaceDeclaration" || kind === "TSTypeAliasDeclaration";

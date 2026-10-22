@@ -18,7 +18,7 @@ export class Workspace {
     /** The member packages, the root included when it is named. */
     readonly members: readonly WorkspaceMember[];
 
-    /** Keep a workspace's members. */
+    /** Store a workspace's members. */
     private constructor(root: string, members: readonly WorkspaceMember[]) {
         this.root = root;
         this.members = members;

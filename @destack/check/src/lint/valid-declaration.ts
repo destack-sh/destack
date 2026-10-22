@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 import type { ESTree, Rule } from "@oxlint/plugins";
 import { PackageLocator } from "@destack/package/locator";
 import { isPackageFile } from "./package.ts";
-import { isTestFile } from "./word.ts";
+import { isTestFile, isTestKitFile } from "./word.ts";
 import { schema } from "@destack/schema";
 
 /** Package names found for linted directories, absent above the filesystem root. */
@@ -26,8 +26,12 @@ export const validDeclaration: Rule = {
         },
     },
     create(context) {
-        // skip test modules and files outside Destack packages
-        if (isTestFile(context.filename) || !isPackageFile(context.filename)) {
+        // skip test modules, test kits and files outside Destack packages
+        if (
+            isTestFile(context.filename) ||
+            isTestKitFile(context.filename) ||
+            !isPackageFile(context.filename)
+        ) {
             return {};
         }
         const imports = new Map<string, { name: string | undefined; source: string }>();
@@ -51,7 +55,7 @@ export const validDeclaration: Rule = {
                     return;
                 }
 
-                // require export const name = constructor(...) at module level, or its default export
+                // require a module-level `export const name = constructor(...)` or a default export
                 if (!isExported(node)) {
                     context.report({ node, messageId: "export", data: { name } });
                 }

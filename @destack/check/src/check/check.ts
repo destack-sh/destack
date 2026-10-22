@@ -14,7 +14,7 @@ import { CheckError } from "../error/index.ts";
 import type { Plugin } from "../lint/plugin.ts";
 import { schema } from "@destack/schema";
 
-/** This package's directory, whose dependencies hold the tools when running from a workspace. */
+/** This package's directory, whose dependencies include the tools when running from a workspace. */
 const PACKAGE = fileURLToPath(new URL("../..", import.meta.url));
 
 /** The diagnostics of an oxlint JSON report. */
@@ -69,7 +69,7 @@ async function lintPackage(options: CheckOptions, fix: boolean): Promise<CheckRe
     }
     const result = await lintSources({ ...options, directory, files: sources }, fix);
 
-    // accept the findings the covering workspace's packages expect, refusing expectations nothing met
+    // accept the findings the workspace's packages expect, and refuse expectations nothing met
     const expectations = await readExpectations(await settingsRoot(directory));
 
     return CheckResult.parse({
@@ -135,7 +135,7 @@ async function listFiles(directory: string): Promise<string[]> {
         if (entry.isDirectory() && entry.name !== "node_modules" && !entry.name.startsWith(".")) {
             files.push(...(await listFiles(path)));
         }
-        // keep regular files
+        // take regular files
         else if (entry.isFile()) {
             files.push(path);
         }

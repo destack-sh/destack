@@ -24,7 +24,7 @@ function isStyles(node: ESTree.Node, created: ReadonlySet<string>): boolean {
     return root.type === "Identifier" && created.has(root.name);
 }
 
-/** Pass StyleX styles to components as `xstyle`, keeping `style` for inline styles. */
+/** Pass StyleX styles to components as `xstyle`, leaving `style` for inline styles. */
 export const styleAttribute: Rule = {
     meta: {
         type: "problem",

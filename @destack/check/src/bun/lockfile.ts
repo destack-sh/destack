@@ -51,9 +51,9 @@ export class BunLockfile {
     /** The resolved packages by their key in the dependency tree. */
     readonly packages: Readonly<Record<string, LockedPackage>>;
 
-    /** Keep a parsed lockfile. */
+    /** Store a parsed lockfile. */
     private constructor(directory: string, text: schema.Infer<typeof LockfileText>) {
-        // keep the fields the readers use
+        // store the fields the readers use
         this.directory = directory;
         this.version = text.lockfileVersion;
         this.workspaces = text.workspaces;
@@ -107,7 +107,7 @@ function isMissing(error: unknown): boolean {
     return error instanceof Error && "code" in error && error.code === "ENOENT";
 }
 
-/** Drop the trailing commas Bun writes into lockfiles, matching strings whole to keep theirs. */
+/** Drop the trailing commas Bun writes into lockfiles, matching strings whole to leave theirs. */
 function dropTrailingCommas(text: string): string {
     return text.replaceAll(/("(?:[^"\\]|\\.)*")|,(?=\s*[}\]])/gu, "$1");
 }

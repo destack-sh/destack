@@ -15,7 +15,7 @@ export interface DeclaredExpectation {
 
 /** Read a package's expectations, and every member's when the directory is a workspace root. */
 export async function readExpectations(directory: string): Promise<DeclaredExpectation[]> {
-    // read the directory's own and its members' declarations
+    // read the declarations of the directory and its members
     const members = await workspaceMembers(directory);
     const expectations = await Promise.all([directory, ...members].map(packageExpectations));
 
@@ -40,9 +40,9 @@ export function applyExpectations(
     directory: string,
     selection: readonly string[],
 ): Diagnostic[] {
-    // keep the findings no expectation accepts, noting the expectations that matched
+    // return the findings no expectation accepts, noting the expectations that matched
     const matched = new Set<DeclaredExpectation>();
-    const kept = diagnostics.filter((diagnostic) => {
+    const unexpected = diagnostics.filter((diagnostic) => {
         // find the expectation for the finding's file and rule
         const file = resolve(directory, diagnostic.filename);
         const expectation = expectations.find(
@@ -68,7 +68,7 @@ export function applyExpectations(
     );
 
     return [
-        ...kept,
+        ...unexpected,
         ...stale.map(({ expectation, ...declared }): Diagnostic => ({
             code: "destack(unfulfilled-expectation)",
             message: `nothing matches the expectation of ${expectation.rules.join(", ")} (${expectation.reason}); remove it`,
@@ -100,7 +100,7 @@ async function workspaceMembers(directory: string): Promise<string[]> {
     // read the member patterns
     const workspaces = (await readManifest(directory))?.workspaces;
 
-    // expand each pattern segment by segment, keeping directories with a package manifest
+    // expand each pattern segment by segment, retaining directories with a package manifest
     const members: string[] = [];
     for (const pattern of workspaces ?? []) {
         let directories = [directory];

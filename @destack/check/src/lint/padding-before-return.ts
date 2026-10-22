@@ -23,7 +23,7 @@ export const paddingBeforeReturn: Rule = {
                     return;
                 }
 
-                // treat comments directly above the return as part of its block
+                // count comments directly above the return in its block
                 let first: ESTree.Node | Comment = node;
                 for (const comment of context.sourceCode.getCommentsBefore(node).toReversed()) {
                     if (comment.loc.end.line !== first.loc.start.line - 1) {

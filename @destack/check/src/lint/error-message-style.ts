@@ -15,7 +15,7 @@ const errorConstructors = new Set([
 /** A failure code, such as NOT_FOUND, that coded error constructors take before their message. */
 const CODE = /^[A-Z][A-Z0-9_]*$/u;
 
-/** The call failure constructor whose options carry the message. */
+/** The call failure constructor whose options include the message. */
 const CALL_ERROR = "CallError";
 
 /** Check error messages without assuming custom constructor signatures. */
@@ -60,7 +60,7 @@ export const errorMessageStyle: Rule = {
 
         /** Report a literal message that starts uppercase or ends with a period. */
         function checkStyle(message: ESTree.Node | null | undefined): void {
-            // check interpolated messages by their text parts
+            // check interpolated messages by their text spans
             if (message?.type === "TemplateLiteral" && message.expressions.length > 0) {
                 checkTemplate(message);
 

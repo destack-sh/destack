@@ -69,7 +69,7 @@ export function checkMarkdown(filename: string, text: string): Diagnostic[] {
         });
 }
 
-/** Split prose lines at sentence breaks, keeping indentation and list continuation. */
+/** Split prose lines at sentence breaks, preserving indentation and list continuation. */
 export function fixMarkdown(text: string): string {
     const lines = classifyLines(text);
 
@@ -294,7 +294,7 @@ function checkReadme(lines: readonly SourceLine[]): Finding[] {
             findings.push({ code: "readme-section", message, ...position });
         }
 
-        // keep the section's first block until a listing follows its prose
+        // buffer the section's first block until a listing follows its prose
         section = section === undefined || block !== "prose" ? block : section;
         previous = block;
     }

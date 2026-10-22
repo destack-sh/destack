@@ -43,3 +43,8 @@ export function isDeclaredName(node: ESTree.Node): boolean {
 export function isTestFile(path: string): boolean {
     return /\.test\.[cm]?[jt]sx?$/u.test(path) || /[\\/]tests[\\/]/u.test(path);
 }
+
+/** Report whether a path is a module of a package's test kit, which only its tests import. */
+export function isTestKitFile(path: string): boolean {
+    return /[\\/]src[\\/](?:[^\\/]+[\\/])*test[\\/]/u.test(path);
+}
