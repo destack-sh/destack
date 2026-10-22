@@ -12,9 +12,9 @@
 </div>
 
 Destack is an open-source software engine for general purpose application software, just like Unity and Unreal are engines for games.
-Think GitHub + NPM + Convex + Vercel + Sentry in one box, with all the boring integration already done: auth, schemas, migrations, multiplayer, permissions, workflows, telemetry and hosting.
+Think GitHub + NPM + Convex + Vercel + Sentry, with all the boring decisions already made: auth, schemas, migrations, multiplayer, permissions, workflows, telemetry and hosting.
 
-The Destack comprises both the _software engine_ for building malleable software _and_ standard apps for siloed SaaS applications (like Notion or Linear).
+The Destack comprises both the platform core for building malleable software _and_ standard apps for siloed SaaS applications (like Notion or Linear).
 All apps built on Destack - ours and yours - get the advantages of standardisation and integration out of the box and are thus fully hackable and programmable by your agents.
 
 _Your_ entire Destack - your own personal superapp, with your full personal context, standardised apps, and custom tools - runs on a _single_ SQLite instance on a Cloudflare worker, on your laptop, or on your server.
