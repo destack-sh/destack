@@ -560,7 +560,7 @@ Assert exact outcomes:
 - **CT32** Non-trivial assertions SHOULD be commented like other logic blocks.
 
 Keep tests fast:
-- **CT40** Tests slower than a few milliseconds, tens at most, MUST be investigated for fundamental model issues.
+- **CT40** "Regular" unit-style tests slower than a few milliseconds, tens at most, SHOULD be investigated for fundamental model issues (heavier integration- and scenario-style tests may take longer, but we SHOULD do the napkin math and figure out what which tests really need where).
 - **CT41** Test runs MUST use a tight timeout, such as building first without a timeout and then testing with one; slow tests are a hard failure.
 
 ### Formatting (CF)
