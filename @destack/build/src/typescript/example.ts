@@ -29,7 +29,7 @@ import type { SymbolInspector } from "./symbol.ts";
 /** A literal a select control offers. */
 type Literal = string | number | boolean;
 
-/** An example a module exports, located and described without evaluating the module. */
+/** An example a module exports, located and described, with the properties its module gives. */
 export interface ExampleDeclaration extends DefinitionSite {
     /** The symbol the example shows. */
     readonly of: SymbolReference;
@@ -44,8 +44,10 @@ export interface ExampleDeclaration extends DefinitionSite {
             }[]
         >
     >;
-    /** The description without its calls: literal properties and the shown symbol's controls. */
-    readonly description: Omit<ExampleDescription, "objects">;
+    /** The description without its calls and properties: the shown symbol's controls. */
+    readonly description: Omit<ExampleDescription, "objects" | "properties">;
+    /** The properties the example renders with, as its module evaluates them. */
+    readonly properties: JsonObject;
 }
 
 /** An example a module exports, located at its definition. */
@@ -55,7 +57,7 @@ export const ExampleDeclaration = {
         source: SourceFile,
         file: string,
         inspector: SymbolInspector,
-    ): Promise<ExampleDeclaration[]> {
+    ): Promise<Omit<ExampleDeclaration, "properties">[]> {
         const definitions = await DefinitionDeclaration.collect(
             source,
             file,
@@ -68,9 +70,11 @@ export const ExampleDeclaration = {
             definitions.map(async ({ site, fields }) => {
                 // describe the example by its properties and the controls of what it shows
                 const of = await fields.symbol("of", inspector);
-                const description = ExampleDescription.omit({ objects: true }).parse({
+                const description = ExampleDescription.omit({
+                    objects: true,
+                    properties: true,
+                }).parse({
                     description: fields.text("description"),
-                    properties: fields.literal("properties") ?? {},
                     controls: await describeControls(of, inspector),
                 });
 
@@ -99,7 +103,7 @@ async function describeControls(
     symbol: TypeScriptSymbol,
     inspector: SymbolInspector,
 ): Promise<Control[]> {
-    // read the first parameter of the symbol's first call signature, none for a symbol no call renders
+    // read the first parameter of the symbol's first call signature
     const checker = inspector.project.checker;
     const type =
         symbol.flags & SymbolFlags.Value ? await checker.getTypeOfSymbol(symbol) : undefined;
@@ -116,11 +120,10 @@ async function describeControls(
     const controls: Control[] = [];
     for (const property of await checker.getPropertiesOfType(properties)) {
         const handle = property.declarations[0];
-        const declaration = handle === undefined ? undefined : await inspector.node(handle);
-        if (
-            declaration === undefined ||
-            !isAuthored(inspector.root, declaration.getSourceFile().fileName)
-        ) {
+        const isDeclared =
+            handle !== undefined && isAuthored(inspector.root, await inspector.file(handle));
+        const declaration = isDeclared ? await inspector.node(handle) : undefined;
+        if (declaration === undefined) {
             continue;
         }
         const propertyType = await checker.getTypeOfSymbol(property);

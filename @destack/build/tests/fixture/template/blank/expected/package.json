@@ -15,8 +15,8 @@
         "@destack/check": "2026.9.0"
     },
     "dependencies": {
+        "@destack/object": "2026.9.0",
         "@destack/package": "2026.9.0",
-        "@destack/runtime": "2026.9.0",
         "@destack/schema": "2026.9.0",
         "@destack/setting": "2026.9.0",
         "@example/stack": "2026.9.0"

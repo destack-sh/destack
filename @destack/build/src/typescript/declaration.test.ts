@@ -1,3 +1,4 @@
+import { CompilerPool } from "../index.ts";
 import { DeclarationDescription } from "@destack/package";
 import { expect, test } from "@destack/test";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
@@ -5,7 +6,8 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { schema } from "@destack/schema";
 import { TestDeclaration } from "./test.ts";
-import { Compiler } from "../build/compiler.ts";
+import { Workspace } from "../dependency/workspace.ts";
+import { LocalPackageStore } from "../store/local.ts";
 
 /** The packages of the inspected workspace, by identity. */
 const packages = {
@@ -31,6 +33,7 @@ async function writeWorkspace(directory: string, owner: string, app = GREETING):
         "node_modules/@example/other/index.ts": define.replace("define(", "defineGreeting("),
         "node_modules/@example/other/inspect.ts": describe,
         "src/index.ts": app,
+        "bun.lock": JSON.stringify({ lockfileVersion: 2, workspaces: {}, packages: {} }),
     };
     for (const [key, identity] of Object.entries(packages)) {
         const root = key === "app" ? "" : `node_modules/${identity.name}/`;
@@ -71,13 +74,20 @@ async function writeWorkspace(directory: string, owner: string, app = GREETING):
                     ? { ".": "./src/index.ts" }
                     : { ".": "./index.ts", "./inspect": "./inspect.ts" },
             dependencies:
-                key === "app" ? { "@example/other": "2026.9.0" } : { "@example/owner": "2026.9.0" },
+                key === "app"
+                    ? { "@example/other": "2026.9.0" }
+                    : key === "other"
+                      ? { "@example/owner": "2026.9.0" }
+                      : {},
         });
     }
     for (const [path, text] of Object.entries(files)) {
         await mkdir(dirname(join(directory, path)), { recursive: true });
         await writeFile(join(directory, path), text);
     }
+
+    // make the workspace a git checkout, whose listing keys its units
+    expect(Bun.spawnSync(["git", "init", "--quiet", directory]).exitCode).toBe(0);
 }
 
 test("describe one declaration as every kind its constructor lists, each owned by the package declaring the kind", async () => {
@@ -85,8 +95,10 @@ test("describe one declaration as every kind its constructor lists, each owned b
     const directory = await mkdtemp(join(tmpdir(), "destack-kinds-"));
     try {
         await writeWorkspace(directory, "@example/owner");
-        await using builder = await Compiler.start(directory);
-        const inspection = await builder.inspect({ runtime: "bun" });
+        await using store = await LocalPackageStore.temporary();
+        await using compilers = await CompilerPool.open(store);
+        const workspace = await Workspace.open(directory, compilers);
+        const inspection = await workspace.inspect({ runtime: "bun" });
         const { declarations, tests } = schema
             .object({
                 tests: schema.array(TestDeclaration),
@@ -138,8 +150,10 @@ test("describe a declaration a method call chained on its constructor returns, a
                 'defineGreeting({ name: "greeting" }).renamed("hello")',
             ),
         );
-        await using builder = await Compiler.start(directory);
-        const inspection = await builder.inspect({ runtime: "bun" });
+        await using store = await LocalPackageStore.temporary();
+        await using compilers = await CompilerPool.open(store);
+        const workspace = await Workspace.open(directory, compilers);
+        const inspection = await workspace.inspect({ runtime: "bun" });
         const { declarations } = schema
             .object({
                 tests: schema.array(TestDeclaration),
@@ -172,8 +186,10 @@ test("describe a module's default-exported declaration under the default export"
             "@example/owner",
             'import { defineGreeting } from "@example/other";\n\nexport default defineGreeting({ name: "greeting" });\n',
         );
-        await using builder = await Compiler.start(directory);
-        const inspection = await builder.inspect({ runtime: "bun" });
+        await using store = await LocalPackageStore.temporary();
+        await using compilers = await CompilerPool.open(store);
+        const workspace = await Workspace.open(directory, compilers);
+        const inspection = await workspace.inspect({ runtime: "bun" });
         const { declarations } = schema
             .object({
                 tests: schema.array(TestDeclaration),

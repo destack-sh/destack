@@ -7,7 +7,7 @@ import { LocalBucket } from "@destack/bucket/bun";
 import { PackageError } from "@destack/package/error";
 import { PackageFile } from "@destack/package/file";
 import { BuildReader, PackageManifest } from "@destack/package/manifest";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { found, present } from "@destack/schema";
 import { type PackageAccess, PackageClient, PackageStore, Retention } from "./index.ts";
 
@@ -195,6 +195,55 @@ test("sweep the builds retention drops, the files only they list and the cache e
         ].toSorted(),
     );
     expect(await store.cached(keys.dropped)).toBeUndefined();
+});
+
+test("attach a code index to a build, keep it while the build is retained, and sweep it with the build", async () => {
+    // store two builds, each with its own code index attached
+    const directory = await temporary();
+    await using bucket = await LocalBucket.open(
+        join(directory, "bucket"),
+        "space-test",
+        Clock.system,
+    );
+    const store = new PackageStore(bucket);
+    const attached = async (sources: Readonly<Record<string, string>>, index: string) => {
+        const manifest = await store.put(await written(sources));
+        const bytes = new TextEncoder().encode(index);
+        const file = await PackageFile.describe("code.json", "application/json", bytes);
+        await store.receive(file.digest, bytes, file.mediaType);
+        await store.attach(manifest, file);
+
+        return { manifest, file };
+    };
+    const kept = await attached(SOURCES, "[]");
+    const dropped = await attached(
+        { ...SOURCES, "src/answer.ts": "export const answer = 43;\n" },
+        "[ ]",
+    );
+
+    // refuse a file the store lacks, and read each attached index back
+    const missing = { ...kept.file, digest: "c".repeat(64) };
+    await expect(store.attach(kept.manifest, missing)).rejects.toThrow(
+        `build ${kept.manifest} lists code.json, which was not uploaded`,
+    );
+    expect([
+        await store.referrer(kept.manifest, "code.json"),
+        await store.referrer(dropped.manifest, "code.json"),
+        await store.referrer(kept.manifest, "other.json"),
+    ]).toEqual([kept.file, dropped.file, undefined]);
+
+    // mark and drop the build retention leaves out, its index and its referrer with it
+    const later = new Date(Date.now() + 1000);
+    await store.sweep(Retention.of([kept.manifest]), later, Retention.none, later);
+    await store.sweep(Retention.of([kept.manifest]), later, Retention.none, later, later);
+    const files = await (await store.contents(kept.manifest)).distributed();
+    expect(await listing(bucket)).toEqual(
+        [
+            ...new Set([...files, kept.file].map((file) => `files/${file.digest}`)),
+            `manifests/${kept.manifest}`,
+            `referrers/${kept.manifest}/code.json`,
+        ].toSorted(),
+    );
 });
 
 test("sweep an old unretained build but keep the files a recent build shares with it", async () => {

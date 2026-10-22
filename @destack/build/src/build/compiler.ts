@@ -1,19 +1,28 @@
+import type { graph } from "@destack/package";
 import { type PackageInspection } from "@destack/package/code";
-import { mkdir, mkdtemp, realpath, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, realpath, rename, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Sandbox } from "@destack/sandbox";
+import { readBuild } from "@destack/package/bun";
 import { Toolchain } from "@destack/check/toolchain";
 import { BunProcess } from "@destack/check/bun";
 import { BuildError } from "../error/index.ts";
 import { locateWorkspace } from "@destack/check/workspace";
 import { present } from "@destack/schema";
 import { PackageFile } from "@destack/package/file";
-import type { PackageManifest } from "@destack/package/manifest";
-import type { BuildKeys, CacheEntry, CachedOutput } from "../cache/index.ts";
+import type { OutputKeys, CacheEntry, CachedOutput } from "../cache/index.ts";
 import type { PackageStore } from "../store/index.ts";
-import type { BuildOptions } from "./build.ts";
+import type { LocalPackageStore } from "../store/local.ts";
+import type { PackageBuildOptions } from "./build.ts";
+import { DependencyTree } from "../dependency/tree.ts";
+import {
+    type NpmConversionRequest,
+    type NpmConverter,
+    type NpmDependency,
+    NpmUnit,
+} from "../dependency/npm.ts";
 import { PackageBuild } from "./build.ts";
 import {
     type BuildRequest,
@@ -26,6 +35,7 @@ import {
     writeMessage,
 } from "./message.ts";
 import type { InspectOptions } from "../inspection/inspection.ts";
+import type { PackageManifest } from "@destack/package/manifest";
 
 /** The compiler executable beside a standalone Destack executable. */
 const EXECUTABLE = "destack-build";
@@ -36,11 +46,14 @@ const TRANSFORM_DIRECTORY = "transforms";
 /** The most diagnostics a compiler retains, 1 MiB. */
 const MAX_DIAGNOSTICS = 1_048_576;
 
+/** The diagnostics a failure over the limit quotes, 4 KiB: about 25 lines, the first errors. */
+const DIAGNOSTICS_HEAD = 4096;
+
 /** How a host starts the compiler: its executable, arguments, and tool directories. */
 export interface CompilerCommand {
     /** The executable starting the compiler. */
     readonly executable: string;
-    /** The arguments before the package directory. */
+    /** The arguments starting the compiler. */
     readonly arguments: readonly string[];
     /** The directories with the compiler and its tools. */
     readonly read: readonly string[];
@@ -78,13 +91,23 @@ export const CompilerCommand = {
     },
 };
 
-/** A sandboxed compiler retained across builds of one source checkout. */
+/** How a compiler starts: its command, and the store it builds into. */
+export interface CompilerOptions {
+    /** The command starting it, absent for this process's compiler. */
+    readonly command?: CompilerCommand;
+    /** The store whose cache its builds reuse and fill. */
+    readonly store: LocalPackageStore;
+}
+
+/** A sandboxed compiler retained across builds of a workspace's packages. */
 export class Compiler implements AsyncDisposable {
-    /** The source package directory. */
-    readonly directory: string;
+    /** The workspace whose packages it builds. */
+    readonly workspace: string;
+    /** The store whose cache its builds reuse and fill. */
+    readonly store: LocalPackageStore;
     /** The compiler's files, its temporary files and the builds it writes, removed on shutdown. */
     readonly #temporary: string;
-    /** The directories the compiler reads: the workspace with its dependencies, and its tools. */
+    /** The directories the compiler reads: the workspace, its tools and the store's trees. */
     readonly #read: readonly string[];
     /** How the compiler starts. */
     readonly #compiler: CompilerCommand;
@@ -92,12 +115,11 @@ export class Compiler implements AsyncDisposable {
     #sandbox: Sandbox;
     /** Compiler completion, including native compiler shutdown. */
     #closed: Promise<void>;
-    /** The request awaiting a response, with the store its transforms' cache requests read. */
+    /** The request awaiting a response. */
     #pending:
         | {
               resolve: (result: BuildResponse) => void;
               reject: (error: unknown) => void;
-              store: PackageStore | undefined;
           }
         | undefined;
     /** The failure that stopped the current compiler. */
@@ -112,21 +134,23 @@ export class Compiler implements AsyncDisposable {
     #exitCode: number | null = null;
     /** Compiler diagnostics retained until exit. */
     #stderr = "";
-    /** The builds the compiler wrote, naming the directory of the next. */
+    /** The builds the compiler wrote, which numbers the directory of the next. */
     #builds = 0;
     /** The last request's settled work, since the compiler takes one request at a time. */
     #queue: Promise<void> = Promise.resolve();
 
-    /** Retain the package directory, compiler files, read paths, command and started compiler. */
+    /** Retain the workspace, store, compiler files, read paths, command and started compiler. */
     private constructor(
-        directory: string,
+        workspace: string,
+        store: LocalPackageStore,
         temporary: string,
         read: readonly string[],
         compiler: CompilerCommand,
         sandbox: Sandbox,
     ) {
-        // keep the package and the compiler's files
-        this.directory = directory;
+        // keep the workspace, the store and the compiler's files
+        this.workspace = workspace;
+        this.store = store;
         this.#temporary = temporary;
         this.#read = read;
         this.#compiler = compiler;
@@ -136,37 +160,42 @@ export class Compiler implements AsyncDisposable {
         this.#closed = this.#watch(sandbox);
     }
 
-    /** Start a reusable compiler for one source package, this process's unless given another. */
-    static async start(directory: string, command?: CompilerCommand): Promise<Compiler> {
-        // read the package's workspace with its installed dependencies, and the compiler's tools
-        directory = await realpath(resolve(directory));
-        const started = command ?? (await CompilerCommand.current());
-        const workspace = await locateWorkspace(directory);
-        const paths = await Promise.all([workspace, ...started.read].map((path) => realpath(path)));
-        const read = [...new Set(paths)];
+    /** Start a reusable compiler for a directory's workspace, building into a store. */
+    static async start(directory: string, options: CompilerOptions): Promise<Compiler> {
+        // read the workspace, the compiler's tools and the store's trees
+        const { store } = options;
+        const started = options.command ?? (await CompilerCommand.current());
+        const workspace = await realpath(await locateWorkspace(resolve(directory)));
+        const paths = [workspace, ...started.read, store.trees];
+        const read = [...new Set(await Promise.all(paths.map((path) => realpath(path))))];
 
         // start the compiler with a temporary directory
         const temporary = await realpath(await mkdtemp(join(tmpdir(), "destack-compile-")));
         try {
-            const sandbox = await spawn(directory, temporary, read, started);
+            const sandbox = await spawn(workspace, temporary, read, started);
 
-            return new Compiler(directory, temporary, read, started, sandbox);
+            return new Compiler(workspace, store, temporary, read, started, sandbox);
         } catch (error) {
             await rm(temporary, { recursive: true });
             throw error;
         }
     }
 
+    /** Materialize a request's dependency builds in the store's trees, which the compiler reads. */
+    async #install(dependencies: PackageBuildOptions["dependencies"]): Promise<DependencyTree> {
+        return await DependencyTree.install(dependencies, this.workspace, this.store);
+    }
+
     /** Start the compiler again after a failed one. */
     async #restart(): Promise<void> {
-        // reset the failure and diagnostics of the stopped compiler
+        // start the next compiler, keeping the failure of the stopped one should it not start
+        const sandbox = await spawn(this.workspace, this.#temporary, this.#read, this.#compiler);
+
+        // reset the failure and diagnostics, then watch the next compiler
         this.#failure = undefined;
         this.#stopping = false;
         this.#exitCode = null;
         this.#stderr = "";
-
-        // start and watch the next compiler
-        const sandbox = await spawn(this.directory, this.#temporary, this.#read, this.#compiler);
         this.#sandbox = sandbox;
         this.#closed = this.#watch(sandbox);
     }
@@ -206,7 +235,13 @@ export class Compiler implements AsyncDisposable {
         sandbox.stderr.on("data", (chunk: string) => {
             this.#stderr += chunk;
             if (this.#stderr.length > MAX_DIAGNOSTICS) {
-                fail(new BuildError("BUILD_FAILED", "build diagnostics exceeded 1 MiB"));
+                const head = this.#stderr.slice(0, DIAGNOSTICS_HEAD);
+                fail(
+                    new BuildError(
+                        "BUILD_FAILED",
+                        `build diagnostics exceeded 1 MiB, starting: ${head}`,
+                    ),
+                );
             }
         });
 
@@ -230,7 +265,7 @@ export class Compiler implements AsyncDisposable {
             }
             // answer a transform's cache request from the pending build's store
             else {
-                void this.#answer(sandbox, message, pending.store).catch((error: unknown) =>
+                void this.#answer(sandbox, message).catch((error: unknown) =>
                     this.#fail(
                         new BuildError("BUILD_FAILED", "cannot answer a cache request", {
                             cause: error,
@@ -241,18 +276,10 @@ export class Compiler implements AsyncDisposable {
         }
     }
 
-    /** Read or keep a transform's file in a build's store, refusing a build without one. */
-    async #answer(
-        sandbox: Sandbox,
-        request: CacheRequest,
-        store: PackageStore | undefined,
-    ): Promise<void> {
-        // refuse a cache request of a build without a store, which its transforms never reach
-        if (store === undefined) {
-            throw new BuildError("BUILD_FAILED", "a build without a store requested its cache");
-        }
-
-        // read the file a key names, a miss without an entry
+    /** Read or keep a transform's file in the store. */
+    async #answer(sandbox: Sandbox, request: CacheRequest): Promise<void> {
+        // read the file a key caches, a miss without an entry
+        const { store } = this;
         let bytes: Uint8Array<ArrayBuffer> | null = null;
         if (request.kind === "read") {
             const entry = await store.cached(request.key);
@@ -274,38 +301,24 @@ export class Compiler implements AsyncDisposable {
         await writeMessage(sandbox.stdin, { kind: "cached", id: request.id, bytes });
     }
 
-    /** Build current source with retained compiler state after the requests before it. */
-    build(options: Omit<BuildOptions, "directory">): Promise<PackageBuild> {
+    /** Build a package's current source after the requests before it. */
+    build(options: PackageBuildOptions): Promise<PackageBuild> {
         return this.#serially(() => this.#build(options));
     }
 
-    /** Build current source using retained compiler state. */
-    async #build(options: Omit<BuildOptions, "directory">): Promise<PackageBuild> {
-        // write into temporary files, moving the build to its destination once complete
-        const { signal, timeout, store, ...request } = options;
-        const destination = await mkdtemp(join(tmpdir(), "destack-build-"));
+    /** Build a package's current source using retained compiler state. */
+    async #build(options: PackageBuildOptions): Promise<PackageBuild> {
+        // build the package at its real directory
+        const { signal, timeout, ...given } = options;
+        const requested = { ...given, directory: await realpath(resolve(given.directory)) };
+
+        // install the dependencies, then build into temporary files moved into place once complete
+        const tree = await this.#install(requested.dependencies);
+        const request = { ...requested, tree: tree.directories };
         const written = join(this.#temporary, "builds", String(this.#builds++));
+        const destination = await mkdtemp(join(tmpdir(), "destack-build-"));
         try {
-            // build without a cache
-            if (store === undefined) {
-                const response = await this.#compile(
-                    request,
-                    {},
-                    written,
-                    signal,
-                    timeout,
-                    undefined,
-                );
-                await rename(written, destination);
-
-                return new PackageBuild(response.manifest, destination, "temporary");
-            }
-            // build through the store's cache
-            else {
-                const call = { request, written, destination, signal, timeout };
-
-                return await this.#buildCached(store, call);
-            }
+            return await this.#buildCached(request, written, destination, signal, timeout);
         } catch (error) {
             if (this.#stopping) {
                 await this.#closed;
@@ -316,44 +329,57 @@ export class Compiler implements AsyncDisposable {
         }
     }
 
-    /** Restore a whole build the cache names, else compile the outputs it lacks and fill it. */
+    /** Compile the outputs the cache lacks, reusing the others' files, and fill the cache. */
     async #buildCached(
-        store: PackageStore,
-        call: {
-            readonly request: RequestedBuild;
-            readonly written: string;
-            readonly destination: string;
-            readonly signal: AbortSignal | undefined;
-            readonly timeout: number | undefined;
-        },
+        request: RequestedBuild,
+        written: string,
+        destination: string,
+        signal: AbortSignal | undefined,
+        timeout: number | undefined,
     ): Promise<PackageBuild> {
-        // restore a whole build the cache names
-        const { request, written, destination, signal, timeout } = call;
+        // compile the outputs the cache lacks beside the cached outputs' files
+        const { store } = this;
         const keys = await this.#plan(request, signal, timeout);
-        const whole = await store.cached(keys.build);
-        if (whole !== undefined) {
-            const manifest = await restore(store, cachedManifest(whole), destination);
-            const reused = Object.keys(keys.outputs);
-
-            return new PackageBuild(manifest, destination, "temporary", reused);
-        }
-
-        // write each cached output's files, then compile the others with the store's cache
         const reuse = await reuseOutputs(store, keys, written);
-        const response = await this.#compile(request, reuse, written, signal, timeout, store);
+        const response = await this.#compile(request, reuse, written, signal, timeout);
         await rename(written, destination);
         const reused = Object.keys(reuse);
-        const build = new PackageBuild(response.manifest, destination, "temporary", reused);
+        const build = new PackageBuild(
+            await readBuild(destination),
+            destination,
+            "temporary",
+            reused,
+        );
 
-        // store the build, then name it and each compiled output by its key
-        const manifest = await store.put(build.reader, signal);
+        // refuse an unloadable build, then store it and key each compiled output
+        await Compiler.#requireLoadable(build.manifest, store);
+        await store.put(build.reader, signal);
         for (const [name, output] of Object.entries(response.outputs)) {
-            const key = present(keys.outputs[name], `the key of output ${name}`);
+            const key = present(keys[name], `the key of output ${name}`);
             await store.cache(key, { kind: "output", output });
         }
-        await store.cache(keys.build, { kind: "build", manifest });
 
         return build;
+    }
+
+    /** Refuse an output importing an npm unit whose build lacks the output's runtime. */
+    static async #requireLoadable(manifest: PackageManifest, store: PackageStore): Promise<void> {
+        for (const output of Object.values(manifest.outputs)) {
+            // take the npm units the output imports
+            const units = Object.values(output.dependencies).filter(
+                (dependency): dependency is NpmDependency => dependency.kind === "npm",
+            );
+            for (const unit of units) {
+                // refuse a unit without the runtime: a native addon, or one importing such a unit
+                const { outputs } = await store.get(unit.manifest);
+                if (!Object.values(outputs).some((each) => each.runtime === output.runtime)) {
+                    throw new BuildError(
+                        "BUILD_FAILED",
+                        `the ${output.runtime} output of ${manifest.package.name} needs ${unit.package.name}, which ${output.runtime} cannot load`,
+                    );
+                }
+            }
+        }
     }
 
     /** Derive a build's cache keys inside the compiler. */
@@ -361,7 +387,7 @@ export class Compiler implements AsyncDisposable {
         options: RequestedBuild,
         signal: AbortSignal | undefined,
         timeout: number | undefined,
-    ): Promise<BuildKeys> {
+    ): Promise<OutputKeys> {
         const planned = await this.#request({ kind: "plan", options }, signal, timeout);
         if (planned.kind !== "plan") {
             throw new BuildError("BUILD_FAILED", "unexpected compiler result");
@@ -377,7 +403,6 @@ export class Compiler implements AsyncDisposable {
         destination: string,
         signal: AbortSignal | undefined,
         timeout: number | undefined,
-        store: PackageStore | undefined,
     ): Promise<Extract<BuildResult, { kind: "build" }>> {
         // send the build with its destination, reused outputs and whether transforms have a cache
         await mkdir(destination, { recursive: true });
@@ -386,9 +411,8 @@ export class Compiler implements AsyncDisposable {
             destination,
             options,
             reuse,
-            isCached: store !== undefined,
         };
-        const response = await this.#request(request, signal, timeout, store);
+        const response = await this.#request(request, signal, timeout);
         if (response.kind !== "build") {
             throw new BuildError("BUILD_FAILED", "unexpected compiler result");
         }
@@ -398,16 +422,75 @@ export class Compiler implements AsyncDisposable {
 
     /** Inspect source inside the isolated compiler process after the requests before it. */
     inspect(
-        options: Omit<InspectOptions, "directory">,
+        options: InspectOptions & Pick<PackageBuildOptions, "dependencies">,
         signal?: AbortSignal,
     ): Promise<PackageInspection> {
         return this.#serially(async () => {
-            const response = await this.#request({ kind: "inspect", options }, signal);
+            // send the inspection at the real directory, the dependencies materialized
+            const request = { kind: "inspect", options: await this.#inspected(options) } as const;
+            const response = await this.#request(request, signal);
             if (response.kind !== "inspect") {
                 throw new BuildError("INSPECTION_FAILED", "unexpected compiler result");
             }
 
             return response.inspection;
+        });
+    }
+
+    /** Index source inside the isolated compiler process after the requests before it. */
+    index(
+        options: InspectOptions & Pick<PackageBuildOptions, "dependencies">,
+        signal?: AbortSignal,
+    ): Promise<graph.Document[]> {
+        return this.#serially(async () => {
+            // send the index request at the real directory, the dependencies materialized
+            const request = { kind: "index", options: await this.#inspected(options) } as const;
+            const response = await this.#request(request, signal);
+            if (response.kind !== "index") {
+                throw new BuildError("INSPECTION_FAILED", "unexpected compiler result");
+            }
+
+            return response.code;
+        });
+    }
+
+    /** Read inspection options at the real directory, the Destack dependencies materialized. */
+    async #inspected(
+        options: InspectOptions & Pick<PackageBuildOptions, "dependencies">,
+    ): Promise<InspectOptions & Pick<RequestedBuild, "tree">> {
+        // resolve the directory and materialize the dependencies' builds
+        const { dependencies, ...inspected } = options;
+        const directory = await realpath(resolve(inspected.directory));
+        const tree = await this.#install(dependencies);
+
+        return { ...inspected, directory, tree: tree.directories };
+    }
+
+    /** Convert an installed npm package for workerd inside the compiler, answering its files. */
+    convert(request: NpmConversionRequest): ReturnType<NpmConverter> {
+        return this.#serially(async () => {
+            // convert into a directory of the compiler's own, then read the converted copy
+            const destination = await mkdtemp(join(this.#temporary, "npm-"));
+            try {
+                const response = await this.#request({
+                    kind: "convert",
+                    source: request.source,
+                    destination,
+                    name: request.name,
+                    dependencies: [...request.dependencies],
+                    peers: [...request.peers],
+                });
+                if (response.kind !== "convert") {
+                    throw new BuildError("BUILD_FAILED", "unexpected compiler result");
+                }
+
+                return {
+                    files: await NpmUnit.files(destination),
+                    imported: new Set(response.imported),
+                };
+            } finally {
+                await rm(destination, { recursive: true });
+            }
         });
     }
 
@@ -426,14 +509,16 @@ export class Compiler implements AsyncDisposable {
     async #request(
         request: BuildRequest,
         signal?: AbortSignal,
-        timeout = 60_000,
-        store?: PackageStore,
+        timeout?: number,
     ): Promise<BuildResult> {
         // refuse a closed compiler, an invalid timeout and a cancelled request
         if (this.#disposed) {
             throw new BuildError("BUILD_FAILED", "compiler is closed");
         }
-        if (!Number.isSafeInteger(timeout) || timeout <= 0 || timeout > 2 ** 31 - 1) {
+        if (
+            timeout !== undefined &&
+            (!Number.isSafeInteger(timeout) || timeout <= 0 || timeout > 2 ** 31 - 1)
+        ) {
             throw new BuildError("BUILD_FAILED", "invalid compiler timeout");
         }
         if (signal?.aborted === true) {
@@ -449,15 +534,22 @@ export class Compiler implements AsyncDisposable {
             this.#fail(
                 new BuildError("BUILD_FAILED", "build cancelled", { cause: signal?.reason }),
             );
-        const timer = setTimeout(
-            () => this.#fail(new BuildError("BUILD_FAILED", `build exceeded ${timeout} ms`)),
-            timeout,
-        );
+        // fail a build past the caller's deadline, and leave one without a deadline to its signal
+        const timer =
+            timeout === undefined
+                ? undefined
+                : setTimeout(
+                      () =>
+                          this.#fail(
+                              new BuildError("BUILD_FAILED", `build exceeded ${timeout} ms`),
+                          ),
+                      timeout,
+                  );
         signal?.addEventListener("abort", abort, { once: true });
 
         // send the request and wait for its response
         try {
-            return resultOf(await this.#send(request, store));
+            return resultOf(await this.#send(request));
         } finally {
             clearTimeout(timer);
             signal?.removeEventListener("abort", abort);
@@ -466,11 +558,11 @@ export class Compiler implements AsyncDisposable {
     }
 
     /** Send a request to the compiler and await its response. */
-    #send(request: BuildRequest, store: PackageStore | undefined): Promise<BuildResponse> {
+    #send(request: BuildRequest): Promise<BuildResponse> {
         this.#stderr = "";
 
         return new Promise<BuildResponse>((deliver, reject) => {
-            this.#pending = { resolve: deliver, reject, store };
+            this.#pending = { resolve: deliver, reject };
             void writeMessage(this.#sandbox.stdin, request).catch((error: unknown) =>
                 this.#fail(
                     new BuildError("BUILD_FAILED", "cannot send the compiler request", {
@@ -523,17 +615,17 @@ export class Compiler implements AsyncDisposable {
     }
 }
 
-/** Start a sandboxed compiler without network or host environment, writing only temp files. */
+/** Start a sandboxed compiler in a workspace without network or host environment. */
 function spawn(
-    directory: string,
+    workspace: string,
     temporary: string,
     read: readonly string[],
     compiler: CompilerCommand,
 ): Promise<Sandbox> {
     return Sandbox.start({
         executable: compiler.executable,
-        arguments: [...compiler.arguments, directory],
-        directory,
+        arguments: [...compiler.arguments],
+        directory: workspace,
         environment: {
             NODE_ENV: "production",
             HOME: temporary,
@@ -563,19 +655,21 @@ function resultOf(response: BuildResponse): BuildResult {
 
 /** Write the files of each cached output into a build directory once, returning the outputs. */
 async function reuseOutputs(
-    store: PackageStore,
-    keys: BuildKeys,
+    store: LocalPackageStore,
+    keys: OutputKeys,
     destination: string,
 ): Promise<Record<string, CachedOutput>> {
     // write each cached output's files no earlier output wrote
     const reuse: Record<string, CachedOutput> = {};
     const placed = new Set<string>();
-    for (const [name, key] of Object.entries(keys.outputs)) {
+    for (const [name, key] of Object.entries(keys)) {
         const entry = await store.cached(key);
         if (entry !== undefined) {
             const output = cachedOutput(entry);
             const files = output.files.filter((file) => !placed.has(file.path));
-            await place(store, files, destination);
+            for (const file of files) {
+                await store.place(file, join(destination, file.path));
+            }
             for (const file of files) {
                 placed.add(file.path);
             }
@@ -586,15 +680,6 @@ async function reuseOutputs(
     return reuse;
 }
 
-/** Read the manifest a cached build names, refusing an entry of another kind. */
-function cachedManifest(entry: CacheEntry): string {
-    if (entry.kind !== "build") {
-        throw new BuildError("BUILD_FAILED", "a build's cache key names an output");
-    }
-
-    return entry.manifest;
-}
-
 /** Read the output a cached output names, refusing an entry of another kind. */
 function cachedOutput(entry: CacheEntry): CachedOutput {
     if (entry.kind !== "output") {
@@ -602,51 +687,4 @@ function cachedOutput(entry: CacheEntry): CachedOutput {
     }
 
     return entry.output;
-}
-
-/** Write a stored build's files and manifest into a directory, returning the manifest. */
-async function restore(
-    store: PackageStore,
-    digest: string,
-    destination: string,
-): Promise<PackageManifest> {
-    // write the files, then the manifest naming them
-    const reader = await store.contents(digest);
-    const { manifest } = reader;
-    await place(store, await reader.distributed(), destination);
-    await writeFile(join(destination, "manifest.json"), JSON.stringify(manifest), { flag: "wx" });
-
-    return manifest;
-}
-
-/** Write stored files into a directory at their paths. */
-async function place(
-    store: PackageStore,
-    files: readonly PackageFile[],
-    destination: string,
-): Promise<void> {
-    for (const file of files) {
-        const path = join(destination, file.path);
-        await mkdir(dirname(path), { recursive: true });
-        await writeFile(path, await store.file(file), { flag: "wx" });
-    }
-}
-
-/** Compile once and close the isolated compiler. */
-export async function buildPackage(options: BuildOptions): Promise<PackageBuild> {
-    // reject a cancelled request before starting a compiler
-    options.signal?.throwIfAborted();
-    const { directory, ...request } = options;
-    let result: PackageBuild | undefined;
-
-    // transfer the result only after the compiler has closed successfully
-    try {
-        await using builder = await Compiler.start(directory);
-        result = await builder.build(request);
-    } catch (error) {
-        await result?.[Symbol.asyncDispose]();
-        throw error;
-    }
-
-    return result;
 }

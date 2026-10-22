@@ -50,7 +50,7 @@ export class OutputPass implements Pass {
     /** The extensions of the package's dependency closure. */
     readonly extensions: readonly BuildExtension[];
     /** The build's cache of files the extensions' transforms derive. */
-    readonly cache: TransformCache | undefined;
+    readonly cache: TransformCache;
     /** The generated files, by package path. */
     readonly files = new Map<string, Uint8Array<ArrayBuffer>>();
     /** The files written straight into the build directory. */
@@ -82,7 +82,7 @@ export class OutputPass implements Pass {
         >,
         runtimes: RuntimeCompiler,
         extensions: readonly BuildExtension[],
-        cache: TransformCache | undefined,
+        cache: TransformCache,
     ) {
         // keep the build's inputs and one inspection per output
         this.project = project;
@@ -117,11 +117,14 @@ export class OutputPass implements Pass {
     }
 
     /** Return the plugins of the dependency closure's extensions, transforming the modules. */
-    transforms(context: Omit<TransformContext, "directory" | "cache">): PluginOption[] {
+    transforms(
+        context: Omit<TransformContext, "directory" | "cache" | "dependencies">,
+    ): PluginOption[] {
         return transformPlugins(this.extensions, {
             ...context,
             directory: this.project.directory,
-            ...(this.cache === undefined ? {} : { cache: this.cache }),
+            dependencies: this.project.tree.directories,
+            cache: this.cache,
         });
     }
 

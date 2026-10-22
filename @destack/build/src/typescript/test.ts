@@ -4,7 +4,6 @@ import {
     type Identifier,
     isArrowFunction,
     isCallExpression,
-    isFunctionDeclaration,
     isFunctionExpression,
     isIdentifier,
     isImportDeclaration,
@@ -18,6 +17,7 @@ import {
 } from "typescript/unstable/ast";
 import { schema } from "@destack/schema";
 import { BuildError } from "../error/index.ts";
+import { isDeferringFunction } from "./global.ts";
 
 /** The statements and expressions that register tests only on some executions. */
 const CONDITIONAL_KINDS = new Set([
@@ -189,11 +189,11 @@ function describeTest(
     for (let parent = node.parent; parent.kind !== SyntaxKind.SourceFile; parent = parent.parent) {
         scopes.push(parent);
     }
-    if (scopes.some((scope) => isFunction(scope) && !suites.has(scope))) {
+    if (scopes.some((scope) => isDeferringFunction(scope) && !suites.has(scope))) {
         return undefined;
     }
 
-    // name the enclosing suites through the innermost suite callback
+    // list the enclosing suites through the innermost suite callback
     const titles =
         scopes.map((scope) => suites.get(scope)).find((value) => value !== undefined) ?? [];
 
@@ -237,9 +237,4 @@ function describeTest(
         end: node.getEnd(),
         modifiers,
     };
-}
-
-/** Report whether a node is a function body that runs when called. */
-function isFunction(node: Node): boolean {
-    return isArrowFunction(node) || isFunctionExpression(node) || isFunctionDeclaration(node);
 }

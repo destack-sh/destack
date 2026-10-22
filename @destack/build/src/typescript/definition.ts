@@ -174,7 +174,7 @@ export class DefinitionFields {
         return field === undefined ? undefined : this.#json(field, name);
     }
 
-    /** Resolve a field naming a symbol, such as an imported component. */
+    /** Resolve a field referring to a symbol, such as an imported component. */
     async symbol(name: string, inspector: SymbolInspector): Promise<TypeScriptSymbol> {
         const field = this.#fields.get(name);
         if (field === undefined) {

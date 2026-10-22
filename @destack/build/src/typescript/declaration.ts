@@ -5,7 +5,6 @@ import {
     type CallExpression,
     isCallExpression,
     isExportAssignment,
-    isFunctionDeclaration,
     isIdentifier,
     isPropertyAccessExpression,
     isVariableDeclaration,
@@ -116,13 +115,8 @@ export class ConstructorCatalog {
         if (metadata.isDefaultLibrary) {
             return undefined;
         }
-        const declaration = await inspector.node(handle);
-        if (!isFunctionDeclaration(declaration)) {
-            return undefined;
-        }
-
         // require a function its package declares as an inspected constructor
-        const file = declaration.getSourceFile().fileName;
+        const file = await inspector.file(handle);
         const location = await this.locate(dirname(file));
         const inspected = (await this.#inspected(location)).get(symbol.name);
         if (inspected === undefined) {
@@ -235,7 +229,7 @@ export class ConstructorCatalog {
         };
     }
 
-    /** Locate the functions a package names for a kind it declares. */
+    /** Locate the functions a package lists for a kind it declares. */
     async #locateInspector(location: PackageLocation, kind: DeclarationKind): Promise<Inspector> {
         // locate the describing function and the optional ones
         const describe = await this.#locateFunction(location, kind.function);
@@ -298,10 +292,10 @@ export class ConstructorCatalog {
             );
         }
 
-        return { directory: location.directory, subpath, target, name };
+        return { package: location.name, directory: location.directory, subpath, target, name };
     }
 
-    /** Locate a function a package exports when a reference names one. */
+    /** Locate a function a package exports when a reference refers to one. */
     async #locateOptional(
         location: PackageLocation,
         reference: string | undefined,
@@ -432,7 +426,7 @@ export async function exportedNames(
     source: SourceFile,
     inspector: SymbolInspector,
 ): Promise<Map<number, string>> {
-    // name each export's original symbol
+    // key each export's original symbol
     const checker = inspector.project.checker;
     const module = await checker.getSymbolAtLocation(source);
     const exports = module ? await checker.getExportsOfModule(module) : [];

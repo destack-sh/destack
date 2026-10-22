@@ -4,9 +4,10 @@ import { join } from "node:path";
 import { createServer } from "vite";
 import { DependencyResolution } from "@destack/package";
 import { expect, test } from "@destack/test";
-import { buildPackage } from "../src/index.ts";
+import { Compiler, Workspace, CompilerPool } from "../src/index.ts";
 import { resolutionPlugin } from "../src/compile/dependency.ts";
 import { PackageSource } from "../src/source/index.ts";
+import { LocalPackageStore } from "../src/store/local.ts";
 
 /** The schema every package definition names. */
 const SCHEMA = "https://destack.app/schemas/2026.9.0/destack.json";
@@ -89,6 +90,8 @@ test("refuse an undeclared, differently selected or unsupported dependency in th
         await using source = await PackageSource.open({
             directory: join(root, "application"),
             runtime: "browser",
+            tree: {},
+            roots: "package",
         });
         const server = await createServer({
             root: source.directory,
@@ -123,12 +126,17 @@ test("refuse an undeclared, differently selected or unsupported dependency in th
 test("resolve a dependency the build releases at a given version exactly, refusing any other version", async () => {
     // build the application importing one dependency the host selects at a version
     const root = await writeApplication();
-    await writeFile(join(root, "bun.lock"), JSON.stringify({ lockfileVersion: 1, workspaces: {} }));
+    await writeFile(
+        join(root, "bun.lock"),
+        JSON.stringify({ lockfileVersion: 1, workspaces: {}, packages: {} }),
+    );
     const directory = join(root, "application");
     await writeFile(join(directory, "src", "index.ts"), 'export { pinned } from "./pinned.ts";\n');
     const dev = { "@fixture/application": "2026.9.0-dev.4", "@fixture/pinned": "2026.9.0-dev.4" };
+    await using store = await LocalPackageStore.temporary();
+    await using compiler = await Compiler.start(directory, { store });
     const build = (version: string, versions?: typeof dev) =>
-        buildPackage({
+        compiler.build({
             directory,
             dependencies: {
                 "@fixture/pinned": DependencyResolution.parse({
@@ -141,7 +149,7 @@ test("resolve a dependency the build releases at a given version exactly, refusi
                     files: [],
                 }),
             },
-            outputs: { browser: { kind: "module", runtime: "browser", bundle: true } },
+            outputs: { browser: { kind: "module", runtime: "browser" } },
             ...(versions === undefined ? {} : { versions }),
         });
     try {
@@ -162,26 +170,41 @@ test("resolve a dependency the build releases at a given version exactly, refusi
 });
 
 test("refuse an unsupported dependency in a build as the development server does", async () => {
-    // let the sandboxed compiler read the dependencies beside the application as one workspace
+    // let the dependencies beside the application be the members of one checkout
     const root = await writeApplication();
-    await writeFile(join(root, "bun.lock"), JSON.stringify({ lockfileVersion: 1, workspaces: {} }));
+    const members = ["server", "pinned", "undeclared", "application"];
+    const workspaces = Object.fromEntries(
+        members.map((name) => [name, { name: `@fixture/${name}` }]),
+    );
+    await writeFile(
+        join(root, "bun.lock"),
+        JSON.stringify({ lockfileVersion: 2, workspaces, packages: {} }),
+    );
+    await writeFile(join(root, ".gitignore"), "node_modules/\n");
+    expect(Bun.spawnSync(["git", "init", "--quiet", root]).exitCode).toBe(0);
 
     // build the module importing a dependency for the server only, for the server and for the browser
     const directory = join(root, "application");
     await writeFile(join(directory, "src", "index.ts"), 'export { server } from "./server.ts";\n');
     try {
-        const build = await buildPackage({
-            directory,
-            dependencies: {},
-            outputs: { bun: { kind: "module", runtime: "bun", bundle: true } },
+        await using store = await LocalPackageStore.temporary();
+        await using compilers = await CompilerPool.open(store);
+        const workspace = await Workspace.open(directory, compilers);
+        await using build = await workspace.build({
+            outputs: { bun: { kind: "module", runtime: "bun" } },
         });
-        expect(Object.keys(build.manifest.outputs)).toEqual(["bun"]);
+        expect({
+            outputs: Object.keys(build.manifest.outputs),
+            server: build.manifest.outputs["bun"]?.dependencies["@fixture/server"]?.kind,
+        }).toEqual({ outputs: ["bun"], server: "destack" });
         await expect(
-            buildPackage({
-                directory,
-                dependencies: {},
-                outputs: { browser: { kind: "module", runtime: "browser", bundle: true } },
-            }),
+            compilers.use(directory, (compiler) =>
+                compiler.build({
+                    directory,
+                    dependencies: {},
+                    outputs: { browser: { kind: "module", runtime: "browser" } },
+                }),
+            ),
         ).rejects.toMatchObject({
             code: "BUILD_FAILED",
             message: "unsupported browser dependency: @fixture/server",
@@ -194,7 +217,10 @@ test("refuse an unsupported dependency in a build as the development server does
 test("build a browser-safe export whose entry re-exports a sibling of a package that runs in Bun alone", async () => {
     // write a Bun package with a browser export that re-exports a sibling module
     const root = await realpath(await mkdtemp(join(tmpdir(), "destack-build-export-")));
-    await writeFile(join(root, "bun.lock"), JSON.stringify({ lockfileVersion: 1, workspaces: {} }));
+    await writeFile(
+        join(root, "bun.lock"),
+        JSON.stringify({ lockfileVersion: 1, workspaces: {}, packages: {} }),
+    );
     const library = join(root, "library");
     await writePackage(
         library,
@@ -237,12 +263,54 @@ test("build a browser-safe export whose entry re-exports a sibling of a package 
     await mkdir(join(directory, "node_modules", "@fixture"), { recursive: true });
     await symlink(library, join(directory, "node_modules", "@fixture", "library"));
     try {
-        const build = await buildPackage({
+        await using store = await LocalPackageStore.temporary();
+        await using compiler = await Compiler.start(directory, { store });
+        await using build = await compiler.build({
             directory,
             dependencies: {},
-            outputs: { browser: { kind: "module", runtime: "browser", bundle: true } },
+            outputs: { browser: { kind: "module", runtime: "browser" } },
         });
         expect(Object.keys(build.manifest.outputs)).toEqual(["browser"]);
+    } finally {
+        await rm(root, { recursive: true });
+    }
+});
+
+test("refuse star exports that reach back into a module, naming the cycle", async () => {
+    // write a package whose modules star-export each other
+    const root = await realpath(await mkdtemp(join(tmpdir(), "destack-build-cycle-")));
+    await writeFile(
+        join(root, "bun.lock"),
+        JSON.stringify({ lockfileVersion: 1, workspaces: {}, packages: {} }),
+    );
+    const directory = join(root, "cycle");
+    await writePackage(
+        directory,
+        { name: "@fixture/cycle", exports: { ".": "./src/index.ts" } },
+        { id: "package-01a10a00-0000-7000-8000-000000000013", runtimes: ["bun"] },
+        'export * from "./left.ts";\n',
+    );
+    await writeFile(
+        join(directory, "src", "left.ts"),
+        'export * from "./right.ts";\nexport const left = 1;\n',
+    );
+    await writeFile(
+        join(directory, "src", "right.ts"),
+        'export * from "./left.ts";\nexport const right = 2;\n',
+    );
+    try {
+        await using store = await LocalPackageStore.temporary();
+        await using compiler = await Compiler.start(directory, { store });
+        await expect(
+            compiler.build({
+                directory,
+                dependencies: {},
+                outputs: { bun: { kind: "module", runtime: "bun" } },
+            }),
+        ).rejects.toMatchObject({
+            code: "INSPECTION_FAILED",
+            message: "export * cycle: src/left.ts -> src/right.ts -> src/left.ts",
+        });
     } finally {
         await rm(root, { recursive: true });
     }

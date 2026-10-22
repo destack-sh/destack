@@ -37,8 +37,17 @@ test("follow the modules and files a compiler reads from a package's root files"
     const entry = join(root, "src/index.ts");
     const scanned = await ProgramImports.scan(
         root,
-        { options: { strict: true, configFilePath: "/elsewhere/tsconfig.json" }, files: [entry] },
-        new Identities(),
+        {
+            options: {
+                strict: true,
+                configFilePath: "/elsewhere/tsconfig.json",
+                pathsBasePath: "/elsewhere",
+                paths: { "@example/tree": [join(dirname(root), "tree/index.ts")] },
+                rootDir: join(root, "src"),
+            },
+            files: [entry],
+        },
+        Identities.of({}),
     );
     const targets = (file: string) =>
         scanned.modules
@@ -50,7 +59,7 @@ test("follow the modules and files a compiler reads from a package's root files"
                     : [target.kind, target.file.slice(root.length + 1)],
             ]);
 
-    // key the options without the configuration's location, and follow every module once
+    // key option paths by the generated configuration's directory or the package, and follow every module once
     expect({
         options: scanned.options,
         packages: scanned.packages,
@@ -60,7 +69,13 @@ test("follow the modules and files a compiler reads from a package's root files"
             .get(entry)
             ?.directories.map((path) => path.slice(root.length + 1)),
     }).toEqual({
-        options: JSON.stringify({ strict: true }),
+        options: JSON.stringify({
+            strict: true,
+            configFilePath: "<configuration>/tsconfig.json",
+            pathsBasePath: "<configuration>",
+            paths: { "@example/tree": ["../tree/index.ts"] },
+            rootDir: "src",
+        }),
         packages: [],
         modules: ["src/index.ts", "src/local/index.ts", "src/shared/value.ts", "src/twin.ts"],
         entry: [

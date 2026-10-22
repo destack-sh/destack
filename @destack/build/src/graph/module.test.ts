@@ -23,6 +23,7 @@ function described(digest: string, specifier: string, global: string): ModuleDes
                 name: global,
                 members: [],
                 dynamic: false,
+                evaluation: "module",
                 source: { file: "src/platform.ts", start: 0, end: 3 },
             },
         ],

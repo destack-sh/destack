@@ -1,14 +1,14 @@
+import { graph } from "@destack/package";
 import { PackageInspection } from "@destack/package/code";
 import { deserialize, serialize } from "node:v8";
 import type { Writable } from "node:stream";
 import { DependencyResolution, PackageName } from "@destack/package";
 import { OutputRequest } from "@destack/package/build";
-import { PackageManifest } from "@destack/package/manifest";
 import { Runtime } from "@destack/package/runtime";
 import { History } from "@destack/resource";
 import { Commit, Digest, schema, Version } from "@destack/schema";
 import { BuildError, BuildErrorCode } from "../error/index.ts";
-import { BuildKeys, CachedOutput } from "../cache/entry.ts";
+import { CachedOutput, OutputKeys } from "../cache/entry.ts";
 import { ModuleOptions } from "./build.ts";
 
 /** Completed compiler work. */
@@ -16,12 +16,10 @@ export const BuildResult = schema.discriminatedUnion("kind", [
     schema.object({
         kind: schema.literal("plan"),
         /** The build's cache keys. */
-        keys: BuildKeys,
+        keys: OutputKeys,
     }),
     schema.object({
         kind: schema.literal("build"),
-        /** The built package's manifest. */
-        manifest: PackageManifest,
         /** The requested outputs the build compiled, to cache under their keys. */
         outputs: schema.record(schema.string(), CachedOutput),
     }),
@@ -29,6 +27,16 @@ export const BuildResult = schema.discriminatedUnion("kind", [
         kind: schema.literal("inspect"),
         /** The inspected package. */
         inspection: PackageInspection,
+    }),
+    schema.object({
+        kind: schema.literal("index"),
+        /** The code of each module of the indexed package. */
+        code: schema.array(graph.Document),
+    }),
+    schema.object({
+        kind: schema.literal("convert"),
+        /** The installed packages the converted modules import. */
+        imported: schema.array(schema.string()),
     }),
 ]);
 /** Completed compiler work. */
@@ -60,8 +68,10 @@ export type BuildResponse = schema.Infer<typeof BuildResponse>;
 /** The most bytes of one compiler message, bounding what package code makes the host allocate. */
 const MAX_MESSAGE_BYTES = 256 * 1024 * 1024;
 
-/** The options of a build beside its package directory. */
+/** The options of a build of one source package. */
 export const RequestedBuild = schema.object({
+    /** The source package directory. */
+    directory: schema.string(),
     /** Named module outputs, and outputs of kinds the dependency closure's extensions compile. */
     outputs: schema
         .record(schema.string(), schema.union([ModuleOptions, OutputRequest]))
@@ -76,35 +86,50 @@ export const RequestedBuild = schema.object({
     commit: Commit.exactOptional(),
     /** The versions the build releases its source packages at, by package name. */
     versions: schema.record(PackageName, Version).readonly().exactOptional(),
+    /** The directory the host materialized each Destack dependency's build in, by package name. */
+    tree: schema.record(PackageName, schema.string()).readonly(),
 });
 
-/** The options of a build beside its package directory. */
+/** The options of a build of one source package. */
 export type RequestedBuild = schema.Infer<typeof RequestedBuild>;
 
 /** Work accepted by the isolated compiler. */
 export const BuildRequest = schema.discriminatedUnion("kind", [
     schema.object({
         kind: schema.literal("plan"),
-        /** The build's options beside the package directory. */
+        /** The build's options. */
         options: RequestedBuild,
     }),
     schema.object({
         kind: schema.literal("build"),
         /** The directory the build writes into, holding the files of the reused outputs. */
         destination: schema.string(),
-        /** The build's options beside the package directory. */
+        /** The build's options. */
         options: RequestedBuild,
         /** The requested outputs to reuse instead of compiling them, by name. */
         reuse: schema.record(schema.string(), CachedOutput),
-        /** Whether the build's transforms read and fill its store's cache through the host. */
-        isCached: schema.boolean(),
     }),
     schema.object({
-        kind: schema.literal("inspect"),
-        /** The inspection's options beside the package directory. */
+        kind: schema.literal("convert"),
+        /** The installed copy of the npm package. */
+        source: schema.string(),
+        /** The directory the converted copy is written into. */
+        destination: schema.string(),
+        /** The package's name. */
+        name: schema.string(),
+        /** The installed packages it requires. */
+        dependencies: schema.array(schema.string()),
+        /** The peers it declares. */
+        peers: schema.array(schema.string()),
+    }),
+    schema.object({
+        kind: schema.enum(["inspect", "index"]),
+        /** The inspection's options. */
         options: schema.object({
+            directory: RequestedBuild.shape.directory,
             runtime: Runtime,
             configuration: schema.string().exactOptional(),
+            tree: RequestedBuild.shape.tree,
         }),
     }),
 ]);

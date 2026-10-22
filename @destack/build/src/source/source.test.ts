@@ -1,8 +1,8 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, onTestFinished, test } from "@destack/test";
-import { readPackageJson } from "./source.ts";
+import { PackageSource, readPackageJson } from "./source.ts";
 
 /** Write a package whose destack.json overrides the runtimes of some exports. */
 async function writePackage(overrides: readonly string[]): Promise<string> {
@@ -38,4 +38,30 @@ test("read runtime overrides of a package's exports, and refuse one of an export
         message: "destack.json overrides the runtimes of an export package.json lacks: ./gone",
     });
     expect(read.definition.exports).toEqual({ "./server": { runtimes: ["workerd"] } });
+});
+
+test("expand a pattern export into the modules its target matches, nested ones included", async () => {
+    // write a package exporting its icons by a pattern, beside a file the pattern leaves out
+    const directory = await writePackage([]);
+    await writeFile(
+        join(directory, "package.json"),
+        JSON.stringify({
+            name: "@example/source",
+            version: "2026.9.0",
+            exports: { ".": "./src/index.ts", "./icons/*": "./src/icons/*.ts" },
+        }),
+    );
+    await mkdir(join(directory, "src", "icons", "nested"), { recursive: true });
+    for (const path of ["index.ts", "icons/a.ts", "icons/nested/b.ts", "icons/readme.md"]) {
+        await writeFile(join(directory, "src", path), "export {};\n");
+    }
+
+    // open it, naming each matched module by the text the wildcard stands for
+    await using source = await PackageSource.open({
+        directory,
+        runtime: "bun",
+        tree: {},
+        roots: "package",
+    });
+    expect(Object.keys(source.exports).toSorted()).toEqual([".", "./icons/a", "./icons/nested/b"]);
 });

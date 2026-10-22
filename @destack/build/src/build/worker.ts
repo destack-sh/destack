@@ -1,4 +1,6 @@
+import { writeSync } from "node:fs";
 import { readFile, realpath } from "node:fs/promises";
+import { DependencyTree } from "../dependency/tree.ts";
 import type { TestDeclaration } from "../typescript/test.ts";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -6,7 +8,6 @@ import {
     type DependencyResolution,
     graph,
     type Package,
-    type PackageId,
     type DeclarationDescription,
 } from "@destack/package";
 import type { ModuleDescription } from "@destack/package/code";
@@ -35,23 +36,24 @@ import { PackageSource, readPackageJson } from "../source/index.ts";
 import { OutputCompilation, type CompiledFiles } from "../compile/compilation.ts";
 import { type LoadedExtension, loadExtensions } from "../compile/extension.ts";
 import {
-    type BuildKeys,
+    type OutputKeys,
     type CachedOutput,
     deriveModuleKeys,
     Identities,
     identifyToolchain,
     importClosure,
 } from "../cache/index.ts";
+import { NpmConversion } from "../compile/conversion.ts";
 import { OutputPass } from "../compile/pass.ts";
 import { checkRuntime, RuntimeCompiler } from "../compile/runtime.ts";
 import { Template } from "../template/index.ts";
 import { BuildError, isMissing } from "../error/index.ts";
 import { ProgramImports } from "../cache/scan.ts";
-import { PackageBuild, type BuildOptions, type ModuleOptions } from "./build.ts";
+import type { PackageBuildOptions, ModuleOptions } from "./build.ts";
 import { BuildDirectory } from "./directory.ts";
 import { readCatalogs } from "./catalog.ts";
 import { comparePath, stringifyInspection } from "./serialization.ts";
-import { describeGraph, joinModules } from "../graph/module.ts";
+import { describeCode, describeGraph, joinModules } from "../graph/module.ts";
 import { HostCache } from "./host-cache.ts";
 import {
     type BuildRequest,
@@ -59,8 +61,10 @@ import {
     HostMessage,
     readMessages,
     writeMessage,
+    type RequestedBuild,
 } from "./message.ts";
 import { Console } from "node:console";
+import { PRIMARY_RUNTIMES } from "@destack/package/runtime";
 
 /** This package's directory, whose dependencies hold the tools when running from a workspace. */
 const PACKAGE = fileURLToPath(new URL("../..", import.meta.url));
@@ -100,14 +104,12 @@ interface InspectedOutput {
     readonly evaluation: Evaluation;
 }
 
-/** The compiler inside the sandbox, keeping state for one source package across requests. */
+/** The compiler inside the sandbox, keeping the last requested package's state across requests. */
 export class CompilerWorker implements AsyncDisposable {
-    /** The native TypeScript compiler. */
-    readonly typescript: TypeScriptCompiler;
+    /** The native TypeScript compiler of the last requested package. */
+    #typescript: TypeScriptCompiler | undefined;
     /** Runtime type environments reused across output checks. */
     readonly runtimes = new RuntimeCompiler();
-    /** The source package directory. */
-    readonly directory: string;
     /** The Destack packages the build tool's dependencies resolve to. */
     readonly #packages = new PackageLocator();
     /** Configurations indexed by output settings. */
@@ -117,13 +119,30 @@ export class CompilerWorker implements AsyncDisposable {
     /** The identity of each loaded extension's package, read once as the process keeps its code. */
     readonly #extensions = new Map<string, Promise<Digest>>();
 
-    /** Start the compiler for one source checkout. */
-    constructor(directory: string) {
-        this.directory = resolve(directory);
-        this.typescript = new TypeScriptCompiler(this.directory);
+    /** Switch to a package's native compiler, closing the others' compiler and configurations. */
+    async #switch(directory: string): Promise<TypeScriptCompiler> {
+        // keep the compiler of the package the last request named
+        const kept = this.#typescript;
+        if (kept?.directory === directory) {
+            return kept;
+        }
+
+        // close the last package's compiler and the other packages' configurations
+        await kept?.[Symbol.asyncDispose]();
+        for (const [key, { source }] of this.#sources) {
+            if (source.directory !== directory) {
+                await source[Symbol.asyncDispose]();
+                this.#sources.delete(key);
+            }
+        }
+
+        // start the package's compiler
+        this.#typescript = new TypeScriptCompiler(directory);
+
+        return this.#typescript;
     }
 
-    /** Answer the host's requests on stdin with one retained compiler for the given directory. */
+    /** Answer the host's requests on stdin with one retained compiler. */
     static async run(): Promise<void> {
         // reserve stdout for framed build results and send package logs to diagnostics
         Object.assign(
@@ -131,12 +150,8 @@ export class CompilerWorker implements AsyncDisposable {
             new Console({ stdout: process.stderr, stderr: process.stderr }),
             { write: writeDiagnostics },
         );
-        const directory = process.argv[2];
-        if (directory === undefined) {
-            throw new BuildError("BUILD_FAILED", "the compiler needs a package directory");
-        }
         const cache = new HostCache(process.stdout);
-        await using compiler = new CompilerWorker(directory);
+        await using compiler = new CompilerWorker();
 
         // read the host's messages while requests run
         let responding = Promise.resolve();
@@ -150,7 +165,7 @@ export class CompilerWorker implements AsyncDisposable {
                 responding = responding.then(async () =>
                     writeMessage(
                         process.stdout,
-                        await CompilerWorker.#respond(compiler, directory, message, cache),
+                        await CompilerWorker.#respond(compiler, message, cache),
                     ),
                 );
             }
@@ -162,72 +177,93 @@ export class CompilerWorker implements AsyncDisposable {
     }
 
     /** Inspect source using retained compiler state and source configurations. */
-    async inspect(options: InspectOptions) {
-        // inspect source with the selected compiler configuration
-        const project = await this.open(options);
-        const { modules, tests, declarations } = await this.typescript.inspect(
-            project.configuration,
-            project.entries,
-            project,
+    async inspect(options: InspectOptions & Pick<RequestedBuild, "tree">) {
+        const { project, inspection, evaluation } = await this.#inspectPackage(options);
+
+        return inspectModules(
+            project.packageJson.package,
+            inspection.modules,
+            inspection.tests,
+            evaluation.declarations,
         );
-
-        // evaluate the collected domain declarations
-        const evaluation = await Evaluation.evaluate(declarations, project);
-
-        return inspectModules(project.packageJson.package, modules, tests, evaluation.declarations);
     }
 
-    /** Identify a build's non-module inputs: toolchain, extensions, manifests and catalogs. */
+    /** Index source completely: every module's symbols and the edges of its code. */
+    async index(options: InspectOptions & Pick<RequestedBuild, "tree">): Promise<graph.Document[]> {
+        const { project, inspection, evaluation } = await this.#inspectPackage(options);
+
+        return describeCode(
+            project.packageJson.package,
+            inspection.modules,
+            evaluation.declarations,
+            {
+                package: await findPackage("@destack/test", this.#packages),
+                declarations: inspection.tests,
+            },
+        );
+    }
+
+    /** Inspect the whole package with its dependencies' builds and evaluate its declarations. */
+    async #inspectPackage(
+        options: InspectOptions & Pick<RequestedBuild, "tree">,
+    ): Promise<InspectedOutput> {
+        // inspect source with the selected compiler configuration and the dependencies' builds
+        const project = await this.open({ ...options, roots: "package" });
+        const typescript = await this.#switch(options.directory);
+        const [inspected] = await typescript.inspect([project], "index");
+        const inspection = present(inspected, "the inspection");
+
+        // evaluate the collected domain declarations
+        const evaluation = await Evaluation.evaluate(inspection.declarations, [], project);
+
+        return { project, inspection, evaluation };
+    }
+
+    /** Identify an output's non-module inputs: toolchain, extensions and manifests. */
     async #identifyInputs(
-        directory: string,
-        packageId: PackageId,
         loaded: Awaited<ReturnType<typeof loadExtensions>>,
+        directory: string,
         identities: Identities,
     ) {
-        this.#toolchain ??= identifyToolchain(new Identities());
+        this.#toolchain ??= identifyToolchain(Identities.of({}));
         const files = (paths: Iterable<string>) =>
             Promise.all([...paths].map((path) => identities.file(join(directory, path))));
 
         return {
             toolchain: await this.#toolchain,
-            extensions: await Promise.all(loaded.map((entry) => this.#identify(entry))),
+            extensions: await Promise.all(loaded.map((entry) => this.#identify(entry, identities))),
             manifests: await files(["package.json", "destack.json"]),
-            catalogs: await files((await readCatalogs(directory, packageId)).keys()),
         };
     }
 
-    /** Derive the cache keys of a build without checking, evaluating or compiling it. */
-    async plan(options: BuildOptions): Promise<BuildKeys> {
+    /** Derive each requested output's cache key without checking, evaluating or compiling it. */
+    async plan(options: RequestedBuild): Promise<OutputKeys> {
         // plan the outputs with the extensions of the package's dependency closure
         const packageJson = await readPackageJson(options.directory);
-        const loaded = await loadExtensions(options.directory, packageJson);
+        const tree = await DependencyTree.read(options.tree);
+        const loaded = await loadExtensions(options.directory, packageJson, tree);
         const planned = expand(
             options.outputs,
             loaded.map((entry) => entry.extension),
         );
 
-        // identify the toolchain, the extensions, the package's manifests and its catalogs
-        const identities = new Identities();
-        const { toolchain, extensions, manifests, catalogs } = await this.#identifyInputs(
-            options.directory,
-            packageJson.package.id,
+        // identify the toolchain, the extensions and the package's manifests
+        const identities = Identities.of(options.dependencies);
+        const { toolchain, extensions, manifests } = await this.#identifyInputs(
             loaded,
+            options.directory,
             identities,
         );
 
-        // key each requested output by its request, its toolchain and the modules it imports
-        const { modules, outputs } = await this.#keyModules(
-            options,
-            planned,
-            toolchain,
-            identities,
-        );
+        // key each requested output by its request, toolchain, dependencies and the modules it imports
+        const outputs = await this.#keyModules(options, planned, toolchain, identities);
         const keys: Record<string, Digest> = {};
         for (const [request, imported] of outputs) {
             keys[request] = await Digest.json({
                 toolchain,
                 extensions,
                 manifests,
+                dependencies: options.dependencies,
                 versions: options.versions ?? {},
                 request: present(options.outputs[request], `the requested output ${request}`),
                 configuration: options.configuration ?? null,
@@ -235,39 +271,20 @@ export class CompilerWorker implements AsyncDisposable {
             });
         }
 
-        // digest the template a template package publishes
-        const template = packageJson.definition.template
-            ? await digestTemplate(options.directory)
-            : null;
-
-        // key the build by every input that changes it
-        const build = await Digest.json({
-            toolchain,
-            extensions,
-            manifests,
-            versions: options.versions ?? {},
-            catalogs,
-            outputs: keys,
-            modules: modules.toSorted(),
-            dependencies: options.dependencies,
-            history: options.history ?? null,
-            commit: options.commit ?? null,
-            template,
-        });
-
-        return { build, outputs: keys };
+        return keys;
     }
 
-    /** Inspect a source package and compile its requested outputs, reusing the cached ones. */
+    /** Build a source package into a directory, answering the outputs it compiled. */
     async build(
-        options: BuildOptions,
+        options: RequestedBuild,
         reuse: Readonly<Record<string, CachedOutput>>,
         destination: string,
-        cache: TransformCache | undefined,
-    ): Promise<{ build: PackageBuild; outputs: Record<string, CachedOutput> }> {
+        cache: TransformCache,
+    ): Promise<Record<string, CachedOutput>> {
         // plan the outputs with the extensions of the package's dependency closure
         const packageJson = await readPackageJson(options.directory);
-        const extensions = (await loadExtensions(options.directory, packageJson)).map(
+        const tree = await DependencyTree.read(options.tree);
+        const extensions = (await loadExtensions(options.directory, packageJson, tree)).map(
             (entry) => entry.extension,
         );
         const planned = expand(options.outputs, extensions);
@@ -299,7 +316,7 @@ export class CompilerWorker implements AsyncDisposable {
                 : planUpgrade(options.history, source, description.graph, inspected);
 
         // write the manifest
-        const build = await writeManifest(
+        await writeManifest(
             source,
             options.commit,
             compiled,
@@ -309,7 +326,7 @@ export class CompilerWorker implements AsyncDisposable {
             this.#packages,
         );
 
-        return { build, outputs: compiled.cached };
+        return compiled.cached;
     }
 
     /** Reuse a configuration until its package declarations change. */
@@ -317,13 +334,13 @@ export class CompilerWorker implements AsyncDisposable {
         // read the manifests on every build so changed exports update the compiler roots
         const manifests = await Promise.all(
             ["package.json", "destack.json"].map((path) =>
-                readFile(join(this.directory, path), "utf8"),
+                readFile(join(options.directory, path), "utf8"),
             ),
         );
 
         // include authored compiler settings in configuration invalidation
         const configuration = await readOptional(
-            resolve(this.directory, options.configuration ?? "tsconfig.json"),
+            resolve(options.directory, options.configuration ?? "tsconfig.json"),
         );
 
         // reuse the configuration while its inputs remain unchanged
@@ -347,7 +364,7 @@ export class CompilerWorker implements AsyncDisposable {
         try {
             // await both compiler shutdowns before releasing source configurations
             const results = await Promise.allSettled([
-                this.typescript[Symbol.asyncDispose](),
+                this.#typescript?.[Symbol.asyncDispose](),
                 this.runtimes[Symbol.asyncDispose](),
             ]);
 
@@ -366,8 +383,13 @@ export class CompilerWorker implements AsyncDisposable {
     }
 
     /** Open the package with an output's entries and its kind's extra modules as roots. */
-    #project(options: BuildOptions, output: PlannedOutput): Promise<PackageSource> {
+    #project(
+        options: RequestedBuild,
+        output: PlannedOutput,
+        roots: "package" | "entries",
+    ): Promise<PackageSource> {
         return this.open({
+            roots,
             directory: options.directory,
             ...(options.configuration === undefined
                 ? {}
@@ -376,44 +398,63 @@ export class CompilerWorker implements AsyncDisposable {
             ...(output.options.entries === undefined ? {} : { entries: output.options.entries }),
             files: output.files,
             ...(options.versions === undefined ? {} : { versions: options.versions }),
+            tree: options.tree,
         });
     }
 
-    /** Key each distinct program's modules once, and collect each output's module keys. */
+    /** Key each distinct program's modules once, collecting each output's module keys. */
     async #keyModules(
-        options: BuildOptions,
+        options: RequestedBuild,
         planned: ReadonlyMap<string, PlannedOutput>,
         toolchain: Digest,
         identities: Identities,
-    ): Promise<{ modules: Digest[]; outputs: Map<string, Set<Digest>> }> {
-        // collect the keys of every module and of each output's modules
+    ): Promise<Map<string, Set<Digest>>> {
+        // open each output's project, gathering the entries each program compiles
+        const projects = new Map<string, { project: PackageSource; entries: string[] }>();
+        const compiled = new Map<string, string[]>();
+        const primary = CompilerWorker.#primary(planned);
+        for (const [name, output] of planned) {
+            const project = await this.#project(
+                options,
+                output,
+                name === primary ? "package" : "entries",
+            );
+            const entries = await Promise.all(project.entries.map((entry) => realpath(entry)));
+            projects.set(name, { project, entries });
+            compiled.set(project.configuration, [
+                ...(compiled.get(project.configuration) ?? []),
+                ...entries,
+            ]);
+        }
+
+        // collect the keys of each output's modules
         const programs = new Map<string, Promise<ProgramKeys>>();
-        const modules = new Map<string, Digest>();
         const outputs = new Map<string, Set<Digest>>();
         for (const [name, output] of planned) {
             // key each program's modules once
-            const project = await this.#project(options, output);
+            const { project, entries } = found(projects, name);
             let program = programs.get(project.configuration);
             if (program === undefined) {
-                program = this.#keys(project, toolchain, identities);
+                program = this.#keys(
+                    project,
+                    toolchain,
+                    identities,
+                    found(compiled, project.configuration),
+                );
                 programs.set(project.configuration, program);
             }
             const { imports, keys } = await program;
-            for (const [file, key] of keys) {
-                modules.set(`${project.configuration}\0${file}`, key);
-            }
 
             // collect the keys of the modules each requested output imports
             const request = output.pass?.name ?? name;
             const imported = outputs.get(request) ?? new Set();
-            const entries = await Promise.all(project.entries.map((entry) => realpath(entry)));
             for (const file of importClosure(imports, entries)) {
                 imported.add(found(keys, file));
             }
             outputs.set(request, imported);
         }
 
-        return { modules: [...modules.values()], outputs };
+        return outputs;
     }
 
     /** Read a program's imports and key its modules. */
@@ -421,20 +462,29 @@ export class CompilerWorker implements AsyncDisposable {
         project: PackageSource,
         toolchain: Digest,
         identities: Identities,
+        entries: readonly string[],
     ): Promise<ProgramKeys> {
-        // scan the configuration's root files and key their modules
-        const configuration = await this.typescript.configure(project.configuration);
+        // scan the configuration's root files and key the entries' closure
+        const typescript = await this.#switch(project.directory);
+        const configuration = await typescript.configure(project.configuration);
         const imports = await ProgramImports.scan(project.directory, configuration, identities);
-        const keys = await deriveModuleKeys(imports, project.directory, toolchain, identities);
+        const compiled = importClosure(imports, entries);
+        const keys = await deriveModuleKeys(
+            imports,
+            project.directory,
+            toolchain,
+            identities,
+            compiled,
+        );
 
         return { imports, keys };
     }
 
     /** Identify an extension's package once, as the process keeps the first imported extension. */
-    #identify(loaded: LoadedExtension): Promise<Digest> {
+    #identify(loaded: LoadedExtension, identities: Identities): Promise<Digest> {
         let identity = this.#extensions.get(loaded.directory);
         if (identity === undefined) {
-            identity = new Identities().package(loaded.directory);
+            identity = identities.package(loaded.directory);
             this.#extensions.set(loaded.directory, identity);
         }
 
@@ -443,44 +493,58 @@ export class CompilerWorker implements AsyncDisposable {
 
     /** Open and inspect each output, check every source, then evaluate each inspection once. */
     async #inspect(
-        options: BuildOptions,
+        options: RequestedBuild,
         planned: ReadonlyMap<string, PlannedOutput>,
     ): Promise<Map<string, InspectedOutput>> {
-        // share equal inspections across outputs
-        const inspections = new Map<string, TypeScriptInspection>();
-        const opened = new Map<string, Omit<InspectedOutput, "evaluation">>();
+        // open each output's project, the primary one reading the whole source
+        const primary = CompilerWorker.#primary(planned);
+        const ordered = [...planned].toSorted(
+            ([left], [right]) => Number(right === primary) - Number(left === primary),
+        );
+        const projects = new Map<string, PackageSource>();
         let source: Package | undefined;
-        for (const [name, output] of planned) {
-            // open the package with the output's entries and the kind's extra modules as roots
-            const project = await this.#project(options, output);
-
-            // refuse a package that changes identity while the build runs
+        for (const [name, output] of ordered) {
+            const project = await this.#project(
+                options,
+                output,
+                name === primary ? "package" : "entries",
+            );
             const identity = project.packageJson.package;
             if (source !== undefined && !isSamePackage(source, identity)) {
                 throw new BuildError("BUILD_FAILED", "package changed during build");
             }
             source = identity;
+            projects.set(name, project);
+        }
 
-            // reuse identical inspections within this build
-            let inspection = inspections.get(project.configuration);
-            if (!inspection) {
-                inspection = await this.typescript.inspect(
-                    project.configuration,
-                    project.entries,
-                    project,
-                );
-                inspections.set(project.configuration, inspection);
-            }
-            opened.set(name, { project, inspection });
+        // inspect each distinct program together, the primary one first
+        const programs = [
+            ...new Map(
+                [...projects.values()].map((project) => [project.configuration, project]),
+            ).values(),
+        ];
+        const typescript = await this.#switch(options.directory);
+        const inspections = await typescript.inspect(programs, "build");
+        const opened = new Map<string, Omit<InspectedOutput, "evaluation">>();
+        for (const [name, project] of projects) {
+            const index = programs.findIndex(
+                (each) => each.configuration === project.configuration,
+            );
+            opened.set(name, { project, inspection: nth(inspections, index) });
         }
 
         // evaluate each distinct inspection's declarations once
         const evaluated = new Map<TypeScriptInspection, Evaluation>();
         const inspected = new Map<string, InspectedOutput>();
-        for (const [name, { project, inspection }] of opened) {
+        for (const name of planned.keys()) {
+            const { project, inspection } = found(opened, name);
             let evaluation = evaluated.get(inspection);
             if (!evaluation) {
-                evaluation = await Evaluation.evaluate(inspection.declarations, project);
+                evaluation = await Evaluation.evaluate(
+                    inspection.declarations,
+                    inspection.examples,
+                    project,
+                );
                 evaluated.set(inspection, evaluation);
             }
             inspected.set(name, { project, inspection, evaluation });
@@ -489,15 +553,27 @@ export class CompilerWorker implements AsyncDisposable {
         return inspected;
     }
 
+    /** Pick the output whose program reads the whole source, by the runtime declarations run on. */
+    static #primary(planned: ReadonlyMap<string, PlannedOutput>): string {
+        // prefer Bun, where declarations evaluate, then workerd, then the browser
+        const outputs = [...planned].toSorted(
+            ([, left], [, right]) =>
+                PRIMARY_RUNTIMES.indexOf(left.options.runtime) -
+                PRIMARY_RUNTIMES.indexOf(right.options.runtime),
+        );
+
+        return present(outputs[0], "a planned output")[0];
+    }
+
     /** Compile each uncached output, a kind's outputs in one pass, and reuse the others. */
     async #compile(
-        options: BuildOptions,
+        options: RequestedBuild,
         planned: ReadonlyMap<string, PlannedOutput>,
         inspected: ReadonlyMap<string, InspectedOutput>,
         extensions: readonly BuildExtension[],
         files: BuildDirectory,
         reuse: Readonly<Record<string, CachedOutput>>,
-        cache: TransformCache | undefined,
+        cache: TransformCache,
     ): Promise<{
         outputs: Map<string, Pick<CompiledFiles, "output" | "inspection">>;
         sourceMaps: SourceMapReference[];
@@ -566,11 +642,11 @@ export class CompilerWorker implements AsyncDisposable {
     async #module(
         name: string,
         output: PlannedOutput,
-        options: BuildOptions,
+        options: RequestedBuild,
         inspected: ReadonlyMap<string, InspectedOutput>,
         extensions: readonly BuildExtension[],
         files: BuildDirectory,
-        cache: TransformCache | undefined,
+        cache: TransformCache,
     ): Promise<CachedOutput> {
         // compile the output and keep its files
         const compilation = createCompilation(name, output, inspected, extensions, cache);
@@ -591,12 +667,12 @@ export class CompilerWorker implements AsyncDisposable {
     /** Compile the outputs of one kind's request in a separate pass and keep their files. */
     async #pass(
         request: NonNullable<PlannedOutput["pass"]>,
-        options: BuildOptions,
+        options: RequestedBuild,
         planned: ReadonlyMap<string, PlannedOutput>,
         inspected: ReadonlyMap<string, InspectedOutput>,
         extensions: readonly BuildExtension[],
         files: BuildDirectory,
-        cache: TransformCache | undefined,
+        cache: TransformCache,
     ): Promise<CachedOutput> {
         // lend the kind the build's inputs for the outputs its request expanded into
         const plans = [...planned].filter(([, plan]) => plan.pass?.name === request.name);
@@ -679,7 +755,7 @@ export class CompilerWorker implements AsyncDisposable {
             for (const test of entry.inspection.tests) {
                 tests.retain(test);
             }
-            for (const example of entry.inspection.examples) {
+            for (const example of entry.evaluation.examples) {
                 examples.retain(example);
             }
             for (const scenario of entry.inspection.scenarios) {
@@ -687,7 +763,7 @@ export class CompilerWorker implements AsyncDisposable {
             }
         }
 
-        // describe the package's graph from its modules, every evaluated declaration, its tests, examples and scenarios
+        // describe the package's graph from its modules and evaluated declarations
         const described = describeGraph(
             sourcePackage(inspected),
             [...modules.values()],
@@ -733,34 +809,50 @@ export class CompilerWorker implements AsyncDisposable {
     /** Run one request, answering its result or its failure. */
     static async #respond(
         compiler: CompilerWorker,
-        directory: string,
         request: BuildRequest,
         cache: TransformCache,
     ): Promise<BuildResponse> {
         try {
             // plan a build's keys
             if (request.kind === "plan") {
-                const keys = await compiler.plan({ ...request.options, directory });
+                const keys = await compiler.plan(request.options);
 
                 return { kind: "result", result: { kind: "plan", keys } };
             }
             // build the package, reusing the cached outputs
             else if (request.kind === "build") {
-                const { build, outputs } = await compiler.build(
-                    { ...request.options, directory },
+                const outputs = await compiler.build(
+                    request.options,
                     request.reuse,
                     request.destination,
-                    request.isCached ? cache : undefined,
+                    cache,
                 );
 
                 return {
                     kind: "result",
-                    result: { kind: "build", manifest: build.manifest, outputs },
+                    result: { kind: "build", outputs },
                 };
+            }
+            // convert an npm package for workerd
+            else if (request.kind === "convert") {
+                const conversion = new NpmConversion(
+                    request.name,
+                    request.dependencies,
+                    request.peers,
+                );
+                const imported = await conversion.convert(request.source, request.destination);
+
+                return { kind: "result", result: { kind: "convert", imported } };
+            }
+            // index the package's code
+            else if (request.kind === "index") {
+                const code = await compiler.index(request.options);
+
+                return { kind: "result", result: { kind: "index", code } };
             }
             // inspect the package
             else {
-                const inspection = await compiler.inspect({ ...request.options, directory });
+                const inspection = await compiler.inspect(request.options);
 
                 return { kind: "result", result: { kind: "inspect", inspection } };
             }
@@ -805,7 +897,7 @@ async function releasedManifest(project: PackageSource): Promise<Uint8Array<Arra
     return new TextEncoder().encode(`${JSON.stringify({ ...manifest, version }, null, 4)}\n`);
 }
 
-/** Report whether two identities name the same package release. */
+/** Report whether two identities are the same package release. */
 function isSamePackage(left: Package, right: Package): boolean {
     return left.id === right.id && left.name === right.name && left.version === right.version;
 }
@@ -865,7 +957,7 @@ class SharedValues<Value> {
 
 /** Expand the requested outputs into module outputs and the outputs of each kind's pass. */
 function expand(
-    requests: BuildOptions["outputs"],
+    requests: PackageBuildOptions["outputs"],
     extensions: readonly BuildExtension[],
 ): Map<string, PlannedOutput> {
     // plan each requested output
@@ -935,7 +1027,7 @@ function createCompilation(
     output: PlannedOutput,
     inspected: ReadonlyMap<string, InspectedOutput>,
     extensions: readonly BuildExtension[],
-    cache: TransformCache | undefined,
+    cache: TransformCache,
 ): OutputCompilation {
     const { project, inspection, evaluation } = found(inspected, name);
 
@@ -1055,9 +1147,9 @@ async function writeManifest(
     upgrade: Upgrade | undefined,
     files: BuildDirectory,
     locator: PackageLocator,
-): Promise<PackageBuild> {
+): Promise<void> {
     // write the build in its format, the upgrade qualified by the package defining it
-    const manifest = await files.finish({
+    await files.finish({
         package: source,
         ...(commit === undefined ? {} : { commit }),
         outputs: Object.fromEntries(
@@ -1075,8 +1167,6 @@ async function writeManifest(
                   },
               }),
     });
-
-    return new PackageBuild(manifest, files.directory, "retained");
 }
 
 /** Plan the upgrade from what the package has published. */
@@ -1136,18 +1226,6 @@ function joinResolutions(
     return { ...next, files: ordered };
 }
 
-/** Digest a template package's files by path. */
-async function digestTemplate(directory: string): Promise<[string, Digest][]> {
-    const template = await Template.read(directory);
-
-    return await Promise.all(
-        [...template.files].map(async ([path, bytes]): Promise<[string, Digest]> => [
-            path,
-            await Digest.of(new Uint8Array(bytes)),
-        ]),
-    );
-}
-
 /** Read the identity of a Destack package among the build tool's dependencies. */
 async function findPackage(name: string, locator: PackageLocator): Promise<Package> {
     const owner = await locator.find(join(Toolchain.locate([name], PACKAGE), "package.json"));
@@ -1188,8 +1266,9 @@ function cloneableCause(cause: unknown): unknown {
 
 /** Write console output to diagnostics, returning the bytes written. */
 function writeDiagnostics(...messages: (string | ArrayBufferView | ArrayBuffer)[]): number {
+    // write at once, as the console's write answers the bytes written
     const bytes = Buffer.concat(messages.map((message) => toBuffer(message)));
-    process.stderr.write(bytes);
+    writeSync(2, bytes);
 
     return bytes.length;
 }

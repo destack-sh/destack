@@ -1,0 +1,6 @@
+{
+    "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
+    "id": "package-01a16b00-0000-7000-8000-000000000102",
+    "language": "typescript",
+    "runtimes": ["bun"]
+}

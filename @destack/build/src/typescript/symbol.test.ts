@@ -1,12 +1,19 @@
+import { CompilerPool } from "../index.ts";
 import { expect, test } from "@destack/test";
 import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { Compiler } from "../build/compiler.ts";
+import { Workspace } from "../dependency/workspace.ts";
+import { LocalPackageStore } from "../store/local.ts";
 
 /** The workspace's packages: an app declaring a document, and a dependency augmenting it. */
 const FILES: Readonly<Record<string, string>> = {
-    "bun.lock": JSON.stringify({ lockfileVersion: 1, workspaces: {}, packages: {} }),
+    "bun.lock": JSON.stringify({
+        lockfileVersion: 2,
+        workspaces: { app: { name: "@example/app" }, other: { name: "@example/other" } },
+        packages: {},
+    }),
+    ".gitignore": "node_modules/\n",
     "app/destack.json": JSON.stringify({
         $schema: "https://destack.app/schemas/2026.9.0/destack.json",
         id: "package-01996ab0-0000-7000-8000-00000000000c",
@@ -42,10 +49,13 @@ test("describe a symbol by the package's declarations, leaving a linked dependen
         }
         await mkdir(join(directory, "app/node_modules/@example"), { recursive: true });
         await symlink(join(directory, "other"), join(directory, "app/node_modules/@example/other"));
+        expect(Bun.spawnSync(["git", "init", "--quiet", directory]).exitCode).toBe(0);
 
         // inspect the app
-        await using builder = await Compiler.start(join(directory, "app"));
-        const inspection = await builder.inspect({ runtime: "bun" });
+        await using store = await LocalPackageStore.temporary();
+        await using compilers = await CompilerPool.open(store);
+        const workspace = await Workspace.open(join(directory, "app"), compilers);
+        const inspection = await workspace.inspect({ runtime: "bun" });
         const symbols = inspection.code.flatMap((module) => module.symbols);
 
         // describe the document by its one declaration and member in the app
@@ -71,7 +81,14 @@ test("describe a class's private members by the names their declarations write",
     // write a package with a class keeping a private field and method
     const directory = await realpath(await mkdtemp(join(tmpdir(), "destack-private-")));
     try {
-        await writeFile(join(directory, "bun.lock"), FILES["bun.lock"] ?? "");
+        await writeFile(
+            join(directory, "bun.lock"),
+            JSON.stringify({
+                lockfileVersion: 2,
+                workspaces: { app: { name: "@example/app" } },
+                packages: {},
+            }),
+        );
         await mkdir(join(directory, "app/src"), { recursive: true });
         await writeFile(join(directory, "app/destack.json"), FILES["app/destack.json"] ?? "");
         await writeFile(
@@ -82,10 +99,13 @@ test("describe a class's private members by the names their declarations write",
             join(directory, "app/src/index.ts"),
             "/** An inbox. */\nexport class Inbox {\n    /** The unread count. */\n    #unread = 0;\n\n    /** Read every message. */\n    read(): number {\n        return this.#clear();\n    }\n\n    /** Clear the unread count. */\n    #clear(): number {\n        this.#unread = 0;\n\n        return this.#unread;\n    }\n}\n",
         );
+        expect(Bun.spawnSync(["git", "init", "--quiet", directory]).exitCode).toBe(0);
 
         // inspect the app
-        await using builder = await Compiler.start(join(directory, "app"));
-        const inspection = await builder.inspect({ runtime: "bun" });
+        await using store = await LocalPackageStore.temporary();
+        await using compilers = await CompilerPool.open(store);
+        const workspace = await Workspace.open(join(directory, "app"), compilers);
+        const inspection = await workspace.inspect({ runtime: "bun" });
         const symbols = inspection.code.flatMap((module) => module.symbols);
 
         // name the private members, and the private method the public one calls, without the compiler's per-program prefix

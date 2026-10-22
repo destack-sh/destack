@@ -2,6 +2,7 @@ import { test } from "@destack/test";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { graph } from "@destack/package";
+import { PackageManifest } from "@destack/package/manifest";
 import { schema } from "@destack/schema";
 import { Fixture } from "./fixture.ts";
 import * as library from "./fixture/library/request.ts";
@@ -61,13 +62,14 @@ function local(moniker: string): string {
 const CARD_EXAMPLES = `import { defineExample, defineScenario } from "@destack/package/declare";
 import { NoteCard } from "./card.ts";
 import { cardInteraction } from "./card.interaction.ts";
+import { LOUD_LOOK } from "./card.look.ts";
 
 /** A loud card. */
 export const noteCardLoud = defineExample({
     of: NoteCard,
     name: "loud",
     description: "a loud card",
-    properties: { title: "Groceries", tone: "loud", lines: -2 },
+    properties: { title: "Groceries", ...LOUD_LOOK, lines: 1 / -0.5 },
     render: (properties) => NoteCard({ title: "Groceries", ...properties }),
 });
 
@@ -84,6 +86,11 @@ export const noteCardComplete = defineScenario({
         end: { state: "done" },
     },
 });
+`;
+
+/** A module keeping the loud look an example spreads. */
+const CARD_LOOK = `/** The look of a loud card. */
+export const LOUD_LOOK = { tone: "loud" } as const;
 `;
 
 /** Add a card component with an interaction, an example and a scenario taking steps on it. */
@@ -105,6 +112,7 @@ async function writeCards(source: string): Promise<void> {
     // write the card, the interaction and the module declaring the example and the scenario
     await writeFile(join(source, "src/card.ts"), CARD);
     await writeFile(join(source, "src/card.interaction.ts"), CARD_INTERACTION);
+    await writeFile(join(source, "src/card.look.ts"), CARD_LOOK);
     await writeFile(join(source, "src/card.example.ts"), CARD_EXAMPLES);
 }
 
@@ -137,7 +145,7 @@ test.concurrent("reuse the graph file of each module an edit leaves unchanged", 
     ]).toEqual([true, false, false, true]);
 });
 
-test.concurrent("declare each test in its module's graph covering the package symbols it calls", async ({
+test.concurrent("declare each test in its module's graph, and index the package symbols it calls as covered", async ({
     expect,
 }) => {
     // add a suite whose test calls the library's note constructor
@@ -160,8 +168,10 @@ describe("note", () => {
 `,
     );
     await using build = await input.build(library.request);
+    const code = await input.index();
 
-    // read the test module's declarations and the edges from its test
+    // read the test module's declarations from the build, and its symbols and the edges from its test from the code index
+    const indexed = code.find((each) => each.path === "src/note.test.ts");
     const root = await build.reader.graph();
     const module = graph.Module.parse(
         JSON.parse(
@@ -174,14 +184,14 @@ describe("note", () => {
     const registered = module.declarations.find((declaration) => declaration.kind === "test");
     expect({
         // declare each test and suite at the module, which defines no symbols of its own
-        symbols: module.symbols,
+        symbols: indexed?.symbols,
         declarations: module.declarations.map(({ moniker, symbol, kind, name }) => ({
             moniker: local(moniker),
             symbol: local(symbol),
             kind,
             name,
         })),
-        covers: module.edges
+        covers: (indexed?.edges ?? [])
             .filter((edge) => edge.from === registered?.moniker && edge.kind === "covers")
             .map((edge) => edge.to.slice(edge.to.indexOf("/") + 1)),
     }).toEqual({
@@ -204,7 +214,7 @@ describe("note", () => {
     });
 });
 
-test.concurrent("declare each example showing its symbol with controls, and each scenario with its interaction and steps covering what its examples show", async ({
+test.concurrent("declare each example showing its symbol with controls and the properties its module evaluates from imported constants, and each scenario with its interaction and steps covering what its examples show", async ({
     expect,
 }) => {
     // add a card component, an interaction, an example of the card and a scenario given that example
@@ -242,7 +252,7 @@ test.concurrent("declare each example showing its symbol with controls, and each
                 description: {
                     description: "complete a card",
                     interaction: graph.Moniker.of({
-                        packageId: build.manifest.package.id,
+                        packageId: PackageManifest.package(build.manifest).id,
                         module: "src/card.interaction.ts",
                         name: "cardInteraction",
                     }),

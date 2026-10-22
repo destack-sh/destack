@@ -1,40 +1,90 @@
 import { BuildReader } from "@destack/package/manifest";
 import { found } from "@destack/schema";
-import { cp, mkdtemp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, mkdir, readdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { Buffer } from "node:buffer";
 import { expect } from "@destack/test";
-import {
-    buildPackage,
-    readDependencies,
-    type BuildOptions,
-    type PackageBuild,
-} from "../src/index.ts";
+import type { graph } from "@destack/package";
+import { type PackageBuildOptions, Compiler, type PackageBuild } from "../src/index.ts";
 import { comparePath } from "../src/build/serialization.ts";
+import { LocalPackageStore } from "../src/store/local.ts";
 import { linkDependencies } from "../src/source/index.ts";
 import { tmpdir } from "node:os";
-import type { PackageHandle } from "@destack/runtime";
-import type { Workload } from "@destack/runtime/workload";
+
+/** The kind package's constructor, inspector and manifests, and the app declaring one thing. */
+export const THING_FILES: Readonly<Record<string, string>> = {
+    "bun.lock": JSON.stringify({ lockfileVersion: 2, workspaces: {}, packages: {} }),
+    "package.json": JSON.stringify({
+        name: "@example/app",
+        version: "2026.9.0",
+        type: "module",
+        exports: { ".": "./src/app.ts" },
+        dependencies: { "@example/owner": "2026.9.0" },
+    }),
+    "destack.json": JSON.stringify({
+        $schema: "https://destack.app/schemas/2026.9.0/destack.json",
+        id: "package-01996ab0-0000-7000-8000-00000000000c",
+        language: "typescript",
+        runtimes: ["bun"],
+    }),
+    "src/app.ts":
+        'import { defineThing } from "@example/owner";\n\nexport const greeting = defineThing({ name: "greeting" });\n',
+    "node_modules/@example/owner/package.json": JSON.stringify({
+        name: "@example/owner",
+        version: "2026.9.0",
+        type: "module",
+        exports: { ".": "./index.ts", "./inspect": "./inspect.ts" },
+    }),
+    "node_modules/@example/owner/destack.json": JSON.stringify({
+        $schema: "https://destack.app/schemas/2026.9.0/destack.json",
+        id: "package-01996ab0-0000-7000-8000-00000000000a",
+        language: "typescript",
+        runtimes: ["bun"],
+        declarations: {
+            defineThing: { describes: [{ kind: "thing", function: "./inspect#describe" }] },
+        },
+        stamps: { defineThing: { module: 1 } },
+    }),
+    "node_modules/@example/owner/index.ts":
+        "export function defineThing(definition: { name: string }, module?: { package: object }) {\n    return { ...definition, package: module!.package };\n}\n",
+    "node_modules/@example/owner/inspect.ts":
+        "export function describe(value: { name: string }) {\n    return { name: value.name };\n}\n",
+};
+
+/** Write the thing kind's package and an app as a git workspace, answering the app. */
+export async function writeThing(directory: string, app: string): Promise<string> {
+    // place the kind's package as a member beside the app, which links it
+    const owner = "node_modules/@example/owner/";
+    const files: Record<string, string> = {
+        "bun.lock": JSON.stringify({
+            lockfileVersion: 2,
+            workspaces: { owner: { name: "@example/owner" }, app: { name: "@example/app" } },
+            packages: {},
+        }),
+        ".gitignore": "node_modules/\n",
+    };
+    for (const [path, text] of Object.entries({ ...THING_FILES, "src/app.ts": app })) {
+        if (path !== "bun.lock") {
+            files[path.startsWith(owner) ? `owner/${path.slice(owner.length)}` : `app/${path}`] =
+                text;
+        }
+    }
+    for (const [path, text] of Object.entries(files)) {
+        await mkdir(dirname(join(directory, path)), { recursive: true });
+        await writeFile(join(directory, path), text);
+    }
+    await mkdir(join(directory, "app/node_modules/@example"), { recursive: true });
+    await symlink(join(directory, "owner"), join(directory, "app/node_modules/@example/owner"));
+    expect(Bun.spawnSync(["git", "init", "--quiet", directory]).exitCode).toBe(0);
+
+    return join(directory, "app");
+}
 
 /** A built library module exporting createNote. */
 export interface NoteModule {
     /** Create a note with a title. */
     readonly createNote: (title: string) => unknown;
-}
-
-/** A built server module whose default export answers requests. */
-export interface HandlerModule {
-    /** The request handler. */
-    readonly default: { readonly fetch: (request: Request) => Response | Promise<Response> };
-}
-
-/** A built server module exporting its workload and the package it serves. */
-export interface WorkloadModule {
-    /** The workload serving the package. */
-    readonly web: Workload;
-    /** The package's handle. */
-    readonly notes: PackageHandle;
 }
 
 /** Read the file a build output exports at a path, refusing an output or export the build lacks. */
@@ -123,7 +173,7 @@ export async function readBuildFiles(
     return files;
 }
 
-/** An isolated source checkout used by complete build fixtures. */
+/** An isolated source checkout of a build fixture without Destack or npm dependencies. */
 export class Fixture implements AsyncDisposable {
     /** Source fixture location. */
     readonly fixture: URL;
@@ -131,38 +181,29 @@ export class Fixture implements AsyncDisposable {
     readonly directory: string;
     /** Copied package source directory. */
     readonly source: string;
-    /** Resolved fixture dependencies. */
-    readonly dependencies: BuildOptions["dependencies"];
+    /** The store the fixture's compiler builds into. */
+    readonly #store: LocalPackageStore;
+    /** The compiler building and indexing the copy. */
+    readonly #compiler: Compiler;
 
-    /** Reuse immutable dependency records across cases for the same fixture. */
-    static readonly #dependencies = new Map<string, ReturnType<typeof readDependencies>>();
-
-    /** Retain copied source and its immutable dependencies. */
+    /** Retain the fixture, its copied source, and the store and compiler building it. */
     private constructor(
         fixture: URL,
         directory: string,
         source: string,
-        dependencies: BuildOptions["dependencies"],
+        built: { readonly store: LocalPackageStore; readonly compiler: Compiler },
     ) {
         this.fixture = fixture;
         this.directory = directory;
         this.source = source;
-        this.dependencies = dependencies;
+        this.#store = built.store;
+        this.#compiler = built.compiler;
     }
 
-    /** Copy a fixture and resolve its installed dependencies. */
+    /** Copy a fixture into a temporary checkout beside the installed toolchain. */
     static async open(name: string): Promise<Fixture> {
-        const fixture = new URL(`./fixture/${name}/`, import.meta.url);
-
-        // share dependency preparation across concurrent cases without caching edited source
-        let dependencies = Fixture.#dependencies.get(name);
-        if (!dependencies) {
-            dependencies = readDependencies(fileURLToPath(new URL("source/", fixture)));
-            Fixture.#dependencies.set(name, dependencies);
-        }
-        const resolved = await dependencies;
-
         // copy each case into a separate editable checkout
+        const fixture = new URL(`./fixture/${name}/`, import.meta.url);
         const directory = await mkdtemp(join(tmpdir(), "destack-build-fixture-"));
         const source = join(directory, "source");
         try {
@@ -173,7 +214,10 @@ export class Fixture implements AsyncDisposable {
             });
             await linkDependencies(fileURLToPath(new URL("source/", fixture)), source);
 
-            return new Fixture(fixture, directory, source, resolved);
+            const store = await LocalPackageStore.temporary();
+            const compiler = await Compiler.start(source, { store });
+
+            return new Fixture(fixture, directory, source, { store, compiler });
         } catch (error) {
             await rm(directory, { recursive: true });
             throw error;
@@ -181,16 +225,25 @@ export class Fixture implements AsyncDisposable {
     }
 
     /** Build the copied package with the fixture's output selection. */
-    async build(request: Omit<BuildOptions, "directory" | "dependencies">): Promise<PackageBuild> {
-        return await buildPackage({
+    async build(
+        request: Omit<PackageBuildOptions, "directory" | "dependencies">,
+    ): Promise<PackageBuild> {
+        return await this.#compiler.build({ directory: this.source, dependencies: {}, ...request });
+    }
+
+    /** Index the copied package's code for Bun. */
+    async index(): Promise<graph.Document[]> {
+        return await this.#compiler.index({
             directory: this.source,
-            dependencies: this.dependencies,
-            ...request,
+            runtime: "bun",
+            dependencies: {},
         });
     }
 
-    /** Remove only this fixture's temporary checkout and distribution. */
+    /** Close the compiler and the store, then remove the fixture's temporary checkout. */
     async [Symbol.asyncDispose](): Promise<void> {
+        await this.#compiler[Symbol.asyncDispose]();
+        await this.#store[Symbol.asyncDispose]();
         await rm(this.directory, { recursive: true });
     }
 }
@@ -257,30 +310,16 @@ export function isNoteModule(module: object): module is NoteModule {
     return "createNote" in module && typeof module.createNote === "function";
 }
 
-/** Report whether a module's default export answers requests. */
-export function isHandlerModule(module: object): module is HandlerModule {
-    const handler = "default" in module ? module.default : undefined;
+/** Count the objects a store keeps. */
+export async function countObjects(store: LocalPackageStore): Promise<number> {
+    // count each page of the bucket's listing
+    let count = 0;
+    let cursor: string | undefined;
+    do {
+        const page = await store.bucket.list(cursor === undefined ? {} : { cursor });
+        count += page.files.length;
+        cursor = page.cursor;
+    } while (cursor !== undefined);
 
-    return (
-        typeof handler === "object" &&
-        handler !== null &&
-        "fetch" in handler &&
-        typeof handler.fetch === "function"
-    );
-}
-
-/** Report whether a module exports a workload and a package handle. */
-export function isWorkloadModule(module: object): module is WorkloadModule {
-    const workload = "web" in module ? module.web : undefined;
-    const handle = "notes" in module ? module.notes : undefined;
-
-    return (
-        typeof workload === "object" &&
-        workload !== null &&
-        "start" in workload &&
-        typeof workload.start === "function" &&
-        typeof handle === "object" &&
-        handle !== null &&
-        "router" in handle
-    );
+    return count;
 }

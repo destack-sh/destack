@@ -1,6 +1,6 @@
-import { mkdtemp, realpath, rm, stat, writeFile, readFile } from "node:fs/promises";
+import { mkdtemp, readdir, realpath, rm, stat, writeFile, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve, isAbsolute } from "node:path";
+import { dirname, join, resolve, isAbsolute, sep } from "node:path";
 import { type InspectOptions } from "../inspection/inspection.ts";
 import { runtimeConditions, TYPE_CHECKS, TYPESCRIPT_OPTIONS } from "@destack/package/build";
 import { linkDependencies, ReleasedPackage } from "./dependency.ts";
@@ -11,6 +11,7 @@ import { PackagePath } from "@destack/package/file";
 import { type Runtime } from "@destack/package/runtime";
 import { PackageLocator } from "@destack/package/locator";
 import { isMissing } from "../error/index.ts";
+import { DependencyTree } from "../dependency/tree.ts";
 
 /** Source manifests and selected runtime exports for a package build. */
 export interface PackageSource extends AsyncDisposable {
@@ -30,6 +31,8 @@ export interface PackageSource extends AsyncDisposable {
     runtime: Runtime;
     /** The modules the configuration roots: exports, type declarations and extra modules. */
     entries: readonly string[];
+    /** The builds of the package's Destack dependencies, materialized for it. */
+    tree: DependencyTree;
 }
 
 /** A package's inputs opened for inspection and compilation. */
@@ -43,6 +46,10 @@ export const PackageSource = {
             files?: readonly string[];
             /** The versions the build releases its source packages at, by package name. */
             versions?: Readonly<Record<string, Version>>;
+            /** The materialized directory of each Destack dependency's build, by package name. */
+            tree: Readonly<Record<string, string>>;
+            /** What the program reads: the package's whole source, or the entries' closure. */
+            roots: "package" | "entries";
         },
     ): Promise<PackageSource> {
         // read the package.json and destack.json and select the runtime's exports
@@ -65,7 +72,8 @@ export const PackageSource = {
             hasConfiguration = false;
         }
 
-        // root the configuration at the selected exports, type declarations and extra modules
+        // read the dependencies' builds, then root the configuration at the selected modules
+        const tree = await DependencyTree.read(options.tree);
         const temporary = await mkdtemp(join(tmpdir(), "destack-project-"));
         const configuration = join(temporary, "tsconfig.json");
         const extra = (options.files ?? []).map((path) =>
@@ -81,7 +89,13 @@ export const PackageSource = {
             // resolve explicit type packages from the same installation as authored modules
             await linkDependencies(definition.directory, temporary);
             const extended = hasConfiguration ? await realpath(authored) : undefined;
-            const settings = compilerSettings(definition, files, extended);
+            const settings = compilerSettings(
+                definition,
+                files,
+                extended,
+                tree.paths(),
+                options.roots,
+            );
             await writeFile(configuration, JSON.stringify(settings), { flag: "wx" });
         } catch (error) {
             await rm(temporary, { recursive: true });
@@ -92,6 +106,7 @@ export const PackageSource = {
             ...definition,
             configuration,
             entries: files,
+            tree,
             async [Symbol.asyncDispose]() {
                 await rm(temporary, { recursive: true });
             },
@@ -104,6 +119,8 @@ function compilerSettings(
     definition: Pick<PackageSource, "directory" | "runtime">,
     files: readonly string[],
     authored: string | undefined,
+    paths: Readonly<Record<string, string[]>>,
+    roots: "package" | "entries",
 ): object {
     const conditions = runtimeConditions(definition.runtime);
 
@@ -111,8 +128,9 @@ function compilerSettings(
     if (authored !== undefined) {
         return {
             extends: authored,
-            compilerOptions: { ...TYPE_CHECKS, customConditions: conditions },
+            compilerOptions: { ...TYPE_CHECKS, customConditions: conditions, paths },
             files,
+            ...(roots === "entries" ? { include: [] } : {}),
         };
     }
     // check the package's sources and tests with the default options
@@ -123,14 +141,18 @@ function compilerSettings(
                 jsx: "preserve",
                 jsxImportSource: "@destack/view",
                 customConditions: conditions,
+                paths,
             },
             files,
-            include: [
-                resolve(definition.directory, "src/**/*.ts"),
-                resolve(definition.directory, "src/**/*.tsx"),
-                resolve(definition.directory, "test/**/*.test.ts"),
-                resolve(definition.directory, "tests/**/*.test.ts"),
-            ],
+            include:
+                roots === "entries"
+                    ? []
+                    : [
+                          resolve(definition.directory, "src/**/*.ts"),
+                          resolve(definition.directory, "src/**/*.tsx"),
+                          resolve(definition.directory, "test/**/*.test.ts"),
+                          resolve(definition.directory, "tests/**/*.test.ts"),
+                      ],
         };
     }
 }
@@ -141,7 +163,7 @@ async function readPackageSource(
     runtime: Runtime,
     entries: Readonly<Record<string, string>> | undefined,
     versions: Readonly<Record<string, Version>>,
-): Promise<Omit<PackageSource, "configuration" | "entries" | typeof Symbol.asyncDispose>> {
+): Promise<Omit<PackageSource, "configuration" | "entries" | "tree" | typeof Symbol.asyncDispose>> {
     // read the package.json and destack.json
     directory = await realpath(directory);
     const packageJson = await readPackageJson(directory, versions);
@@ -154,7 +176,7 @@ async function readPackageSource(
         ? Object.fromEntries(
               Object.entries(entries).map(([name, path]) => [name, `./${PackagePath.parse(path)}`]),
           )
-        : mapExports(packageJson);
+        : await expandPatterns(directory, mapExports(packageJson));
     const exports: Record<string, string> = {};
     const types: Record<string, string> = {};
     for (const [name, entry] of Object.entries(authoredEntries)) {
@@ -196,15 +218,9 @@ function isCompiled(
     runtime: Runtime,
     isSelected: boolean,
 ): boolean {
-    // require a subpath export naming a concrete module
+    // require a subpath export of a concrete module
     if (!isSelected && name !== "." && !name.startsWith("./")) {
         throw new PackageError("INVALID_DEFINITION", `invalid export: ${name}`);
-    }
-    if (name.includes("*")) {
-        throw new PackageError(
-            "INVALID_DEFINITION",
-            `build exports must name concrete modules: ${name}`,
-        );
     }
 
     // skip the test layer
@@ -280,7 +296,7 @@ export async function readPackageJson(
     });
     const definition = packageJson.definition;
 
-    // require each runtime override to name an export of package.json
+    // require each runtime override to refer to an export of package.json
     const overridden = Object.keys(definition.exports ?? {});
     const exported = overridden.length === 0 ? {} : mapExports(packageJson);
     const stale = overridden.find((name) => !Object.hasOwn(exported, name));
@@ -312,6 +328,42 @@ export async function readPackageJson(
 /** Read a package.json field, an empty object when absent. */
 function field(metadata: JsonObject, name: string): JsonValue {
     return metadata[name] ?? {};
+}
+
+/** Expand each pattern export into the concrete modules its target matches, as Node resolves. */
+async function expandPatterns(
+    directory: string,
+    exports: Readonly<Record<string, PackageExport>>,
+): Promise<Record<string, PackageExport>> {
+    const expanded: Record<string, PackageExport> = {};
+    for (const [name, entry] of Object.entries(exports)) {
+        // keep a concrete export
+        if (!name.includes("*")) {
+            expanded[name] = entry;
+        }
+        // refuse a pattern without one pattern target
+        else if (typeof entry !== "string" || !entry.includes("*")) {
+            throw new PackageError(
+                "INVALID_DEFINITION",
+                `a pattern export maps to one pattern target: ${name}`,
+            );
+        }
+        // key each file the target matches by the text its wildcard stands for
+        else {
+            const [prefix = "", suffix = ""] = PackagePath.parse(entry.slice(2)).split("*");
+            const files = await readdir(join(directory, dirname(prefix)), { recursive: true });
+            for (const file of files) {
+                const path = join(dirname(prefix), file).replaceAll(sep, "/");
+                const isMatch = path.length >= prefix.length + suffix.length;
+                if (isMatch && path.startsWith(prefix) && path.endsWith(suffix)) {
+                    const stem = path.slice(prefix.length, path.length - suffix.length);
+                    expanded[name.replace("*", stem)] = `./${path}`;
+                }
+            }
+        }
+    }
+
+    return expanded;
 }
 
 /** Key a package's exports by export name, such as `.` and `./server`. */

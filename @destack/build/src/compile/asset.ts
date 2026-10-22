@@ -1,11 +1,11 @@
-import { Text } from "@destack/schema";
 import { createHash } from "node:crypto";
-import { readdir, readFile, realpath } from "node:fs/promises";
+import { realpath } from "node:fs/promises";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import MagicString from "magic-string";
 import { type DirectoryReference } from "../typescript/index.ts";
 import { type Plugin, type Manifest } from "vite";
 import type { EmittedAsset } from "rolldown";
+import { readDirectory } from "../build/directory.ts";
 import { BuildError } from "../error/index.ts";
 import { modulePackage, relativePath } from "../source/dependency.ts";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -55,7 +55,13 @@ export function directoryPlugin(
                     );
 
                     // emit the directory's files and keep the package's in the build
-                    const entries = await readDirectory(source);
+                    const entries = await readDirectory(source).catch((cause: unknown) => {
+                        throw new BuildError(
+                            "BUILD_FAILED",
+                            `${id} references an unreadable directory`,
+                            { cause },
+                        );
+                    });
                     const url = await emitDirectory(this, reference.path, source, entries, emitted);
                     const path = owner.directory === directory ? local : undefined;
                     retainEntries(entries, source, path, files, sources);
@@ -95,7 +101,7 @@ async function emitDirectory(
     entries: ReadonlyMap<string, Uint8Array<ArrayBuffer>>,
     emitted: Set<string>,
 ): Promise<string> {
-    // name the directory by the digest of its file names and bytes
+    // key the directory by the digest of its file names and bytes
     const digest = createHash("sha256");
     for (const [name, bytes] of entries) {
         digest.update(JSON.stringify([name, bytes.length]));
@@ -136,30 +142,6 @@ function retainEntries(
             files.set(`${path}/${name}`, bytes);
         }
     }
-}
-
-/** Read regular files in deterministic order and reject symbolic links. */
-export async function readDirectory(
-    directory: string,
-): Promise<Map<string, Uint8Array<ArrayBuffer>>> {
-    // walk directories breadth first and collect regular files
-    const files = new Map<string, Uint8Array<ArrayBuffer>>();
-    const pending = [""];
-    for (const parent of pending) {
-        const entries = await readdir(join(directory, parent), { withFileTypes: true });
-        for (const entry of entries) {
-            const name = parent ? `${parent}/${entry.name}` : entry.name;
-            if (entry.isDirectory()) {
-                pending.push(name);
-            } else if (entry.isFile()) {
-                files.set(name, new Uint8Array(await readFile(join(directory, name))));
-            } else {
-                throw new BuildError("BUILD_FAILED", `unsupported directory entry: ${name}`);
-            }
-        }
-    }
-
-    return new Map([...files].toSorted(([left], [right]) => Text.compare(left, right)));
 }
 
 /** Describe Vite assets without checkout-relative module identifiers. */

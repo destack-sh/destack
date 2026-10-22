@@ -1,4 +1,4 @@
-import { Digest, Instant, present, schema } from "@destack/schema";
+import { Digest, Instant, nth, present, schema } from "@destack/schema";
 import {
     type Bucket,
     type BucketBody,
@@ -10,7 +10,7 @@ import {
 } from "@destack/bucket";
 import { PackageFile } from "@destack/package/file";
 import { BuildReader, type PackageLocation, PackageManifest } from "@destack/package/manifest";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { Tarball } from "@destack/package/archive";
 import { comparePath } from "../build/serialization.ts";
 import { CacheEntry } from "../cache/entry.ts";
@@ -19,8 +19,14 @@ import { type PackageAccess, serveStore } from "./http.ts";
 /** The concurrent uploads of one store. */
 const CONCURRENT_UPLOADS = 8;
 
+/** The prefix of the keys storing files, each followed by its digest. */
+const FILES_PREFIX = "files/";
+
 /** The prefix of the keys storing manifests, each followed by its digest. */
 const MANIFESTS_PREFIX = "manifests/";
+
+/** The prefix of the keys storing referrers, each followed by its subject's digest and its path. */
+const REFERRERS_PREFIX = "referrers/";
 
 /** The key of a sweep's marks: each dropped object's key to the instant a sweep marked it. */
 const MARKS_KEY = "marks";
@@ -30,6 +36,9 @@ const SWEPT_KEY = "swept";
 
 /** The marks of the objects a sweep drops, by key. */
 const Marks = schema.record(schema.string(), Instant);
+
+/** The prefix of the keys of the roots, each retaining manifests under its name. */
+const ROOTS_PREFIX = "roots/";
 
 /** The manifests one root retains. */
 const Roots = schema.array(Digest);
@@ -56,10 +65,17 @@ export class PackageStore {
     readonly bucket: Bucket;
     /** The reader of each build opened so far, by manifest digest, until its build is deleted. */
     readonly #readers = new Map<string, Promise<BuildReader>>();
+    /** The builds of cache keys in flight, so callers asking at once build each key once. */
+    readonly #building = new Map<string, Promise<string>>();
 
     /** Store builds in a bucket. */
     constructor(bucket: Bucket) {
         this.bucket = bucket;
+    }
+
+    /** Build the bucket key of a stored file from its digest. */
+    static fileKey(digest: string): string {
+        return `${FILES_PREFIX}${digest}`;
     }
 
     /** Serve the store's manifests, files and archives below a mount, as a host allows each. */
@@ -137,7 +153,7 @@ export class PackageStore {
             });
         }
         await this.putFile(
-            { path: `files/${digest}`, digest, size: bytes.byteLength, mediaType },
+            { path: PackageStore.fileKey(digest), digest, size: bytes.byteLength, mediaType },
             async () => bytes,
         );
     }
@@ -176,10 +192,37 @@ export class PackageStore {
 
     /** Store a file under its digest unless the bucket has it, opening its bytes only if needed. */
     async putFile(file: PackageFile, open: () => Promise<BucketBody>): Promise<void> {
-        const key = `files/${file.digest}`;
+        const key = PackageStore.fileKey(file.digest);
         if (!(await this.#has(key, file))) {
             await this.#put(key, await open(), file);
         }
+    }
+
+    /** Attach a stored file to a stored manifest as its referrer at a path, keeping a first one. */
+    async attach(subject: string, file: PackageFile): Promise<void> {
+        // require the manifest and the file
+        await this.head(subject);
+        await this.#requireStored(subject, [file]);
+
+        // record the referrer, keeping the one another writer recorded first
+        const key = PackageStore.#referrerKey(subject, file.path);
+        await this.bucket
+            .put(key, JSON.stringify(file), {
+                onlyIf: { etagDoesNotMatch: "*" },
+                httpMetadata: { contentType: "application/json" },
+            })
+            .catch((error: unknown) => {
+                if (!(error instanceof BucketPreconditionError)) {
+                    throw error;
+                }
+            });
+    }
+
+    /** Read the file attached to a manifest at a path, absent for a manifest without one. */
+    async referrer(subject: string, path: string): Promise<PackageFile | undefined> {
+        const object = await this.bucket.get(PackageStore.#referrerKey(subject, path));
+
+        return object === null ? undefined : PackageFile.parse(await object.json());
     }
 
     /** Read and verify a build's manifest. */
@@ -254,7 +297,7 @@ export class PackageStore {
         }
         const entry = CacheEntry.parse(await object.json());
 
-        // miss an entry naming a manifest or file retention removed since
+        // miss an entry of a manifest or file retention removed since
         const named = PackageStore.#objects(entry);
         const stored = await Promise.all(named.map((name) => this.bucket.head(name)));
 
@@ -268,6 +311,32 @@ export class PackageStore {
         });
     }
 
+    /** Take the build a key caches, else build and cache it once for all callers at once. */
+    cachedBuild(key: string, build: () => Promise<string>): Promise<string> {
+        // join a build of the key in flight
+        const flying = this.#building.get(key);
+        if (flying !== undefined) {
+            return flying;
+        }
+
+        // take the cached build, else build it and cache its manifest
+        const building = (async () => {
+            // take the cached build, else build and cache its manifest
+            const entry = await this.cached(key);
+            if (entry?.kind === "build") {
+                return entry.manifest;
+            }
+            const manifest = await build();
+            await this.cache(key, { kind: "build", manifest });
+
+            return manifest;
+        })();
+        this.#building.set(key, building);
+        void building.finally(() => this.#building.delete(key)).catch(() => undefined);
+
+        return building;
+    }
+
     /** Lease a manifest or file until a moment, keeping it and its listed files from sweeps. */
     async lease(digest: string, until: Date): Promise<void> {
         await this.bucket.put(`leases/${Digest.parse(digest)}`, JSON.stringify(until.getTime()), {
@@ -278,7 +347,7 @@ export class PackageStore {
     /** Keep the manifests a root retains, such as a space's, replacing what it retained before. */
     async root(name: string, manifests: ReadonlySet<string>): Promise<void> {
         // forget a root that retains nothing
-        const key = `roots/${name}`;
+        const key = `${ROOTS_PREFIX}${name}`;
         if (manifests.size === 0) {
             await this.bucket.delete(key);
 
@@ -291,21 +360,28 @@ export class PackageStore {
         });
     }
 
-    /** Read the manifests every root retains. */
-    async retained(): Promise<ReadonlySet<string>> {
-        const retained = new Set<string>();
-        for await (const file of this.#list("roots/")) {
+    /** Read the manifests each root retains, by root name. */
+    async roots(): Promise<ReadonlyMap<string, ReadonlySet<string>>> {
+        const roots = new Map<string, ReadonlySet<string>>();
+        for await (const file of this.#list(ROOTS_PREFIX)) {
             // skip a root forgotten since the listing
             const object = await this.bucket.get(file.key);
-            if (object === null) {
-                continue;
-            }
-            for (const manifest of Roots.parse(await object.json())) {
-                retained.add(manifest);
+            if (object !== null) {
+                roots.set(
+                    file.key.slice(ROOTS_PREFIX.length),
+                    new Set(Roots.parse(await object.json())),
+                );
             }
         }
 
-        return retained;
+        return roots;
+    }
+
+    /** Read the manifests every root retains. */
+    async retained(): Promise<ReadonlySet<string>> {
+        const roots = await this.roots();
+
+        return new Set([...roots.values()].flatMap((manifests) => [...manifests]));
     }
 
     /** Report whether a lease keeps a manifest or file at a moment. */
@@ -366,7 +442,7 @@ export class PackageStore {
         // replace the marks
         await this.#writeMarks(next, etag);
 
-        // delete the cache entries naming a deleted manifest or file
+        // delete the cache entries of a deleted manifest or file
         await this.#deleteDanglingEntries();
     }
 
@@ -432,9 +508,17 @@ export class PackageStore {
             }
         });
 
+        // drop the referrers of dropped manifests
+        for await (const file of this.#list(REFERRERS_PREFIX)) {
+            const subject = nth(file.key.slice(REFERRERS_PREFIX.length).split("/"), 0);
+            if (!kept.has(subject)) {
+                candidates.set(file.key, subject);
+            }
+        }
+
         // keep the files of kept manifests, the retained files and the files stored since the moment
         const listed = await this.#listedFiles(kept);
-        await this.#batches("files/", async (batch) => {
+        await this.#batches(FILES_PREFIX, async (batch) => {
             const old = batch.filter(
                 (file) => file.uploaded < before && !listed.has(PackageStore.#digest(file)),
             );
@@ -494,7 +578,7 @@ export class PackageStore {
         }
     }
 
-    /** Delete the cache entries naming a deleted manifest or file. */
+    /** Delete the cache entries of a deleted manifest or file. */
     async #deleteDanglingEntries(): Promise<void> {
         const dangling: string[] = [];
         for await (const file of this.#list("cache/")) {
@@ -546,7 +630,7 @@ export class PackageStore {
     async open(file: PackageFile, range?: BucketRange) {
         // read the object and refuse a size or digest mismatch
         const object = await this.bucket.get(
-            `files/${file.digest}`,
+            PackageStore.fileKey(file.digest),
             range === undefined ? {} : { range },
         );
         if (!object) {
@@ -588,7 +672,7 @@ export class PackageStore {
     /** Require the store to hold each file a build's manifest lists. */
     async #requireStored(digest: string, files: readonly PackageFile[]): Promise<void> {
         for (const file of files) {
-            if (!(await this.#has(`files/${file.digest}`, file))) {
+            if (!(await this.#has(PackageStore.fileKey(file.digest), file))) {
                 throw new CallError("CONFLICT", {
                     message: `build ${digest} lists ${file.path}, which was not uploaded`,
                 });
@@ -596,7 +680,7 @@ export class PackageStore {
         }
     }
 
-    /** Collect the digests of the files the retained manifests the store holds list. */
+    /** Collect the digests of the files the retained manifests the store holds list or attach. */
     async #listedFiles(retained: ReadonlySet<string>): Promise<Set<string>> {
         const kept = new Set<string>();
         for (const digest of retained) {
@@ -605,10 +689,17 @@ export class PackageStore {
                 continue;
             }
 
-            // keep every file the manifest lists
+            // keep every file the manifest lists and every file attached to it
             const reader = await this.contents(digest);
             for (const file of await reader.distributed()) {
                 kept.add(file.digest);
+            }
+            for await (const entry of this.#list(`${REFERRERS_PREFIX}${digest}/`)) {
+                // skip a referrer a concurrent sweep deleted since the listing
+                const object = await this.bucket.get(entry.key);
+                if (object !== null) {
+                    kept.add(PackageFile.parse(await object.json()).digest);
+                }
             }
         }
 
@@ -670,15 +761,15 @@ export class PackageStore {
     /** List the objects a cache entry names: a manifest, or files. */
     static #objects(entry: CacheEntry): string[] {
         switch (entry.kind) {
-            // name a whole build's manifest
+            // key a whole build's manifest
             case "build":
                 return [`${MANIFESTS_PREFIX}${entry.manifest}`];
-            // name an output's files
+            // key an output's files
             case "output":
-                return entry.output.files.map((file) => `files/${file.digest}`);
+                return entry.output.files.map((file) => PackageStore.fileKey(file.digest));
             // name a transform's file
             case "file":
-                return [`files/${entry.file.digest}`];
+                return [PackageStore.fileKey(entry.file.digest)];
         }
     }
 
@@ -722,6 +813,11 @@ export class PackageStore {
                 message: `stored object differs: ${key}`,
             });
         }
+    }
+
+    /** Key the referrer of a manifest at a path. */
+    static #referrerKey(subject: string, path: string): string {
+        return `${REFERRERS_PREFIX}${Digest.parse(subject)}/${path}`;
     }
 
     /** Read the digest of a manifest or file entry from its key. */

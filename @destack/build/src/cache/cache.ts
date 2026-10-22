@@ -1,20 +1,22 @@
 import { readdir, readFile } from "node:fs/promises";
-import { dirname, join, sep } from "node:path";
+import { join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { version } from "typescript";
+import { type DependencyResolution, PackageJson } from "@destack/package";
 import { PackageLocator } from "@destack/package/locator";
 import { Digest, found, schema } from "@destack/schema";
 import { BunProcess } from "@destack/check/bun";
-import { readDirectory } from "../compile/asset.ts";
 import { BuildError, isMissing } from "../error/index.ts";
+import { ModuleClosure } from "./closure.ts";
 import type { ProgramImports } from "./scan.ts";
 import { relativePath } from "../source/dependency.ts";
+import { readDirectory } from "../build/directory.ts";
+
+/** The entry a compiler process starts from, whose module closure identifies the toolchain. */
+const COMPILER_ENTRY = new URL("../main.ts", import.meta.url);
 
 /** The layout of cache keys, changed whenever keys derive from different inputs. */
 const KEY_LAYOUT = 2;
-
-/** The manifest fields naming a package's dependencies, which its identity follows. */
-const DEPENDENCY_FIELDS = ["dependencies", "peerDependencies", "optionalDependencies"] as const;
 
 /** A package.json as package identities read it. */
 const Manifest = schema.looseObject({
@@ -33,6 +35,24 @@ export class Identities {
     readonly #locator = new PackageLocator();
     /** Each package's identity and the packages it depends on, by directory. */
     readonly #packages = new Map<string, Promise<PackageIdentity>>();
+    /** The manifest digests of the Destack dependencies' builds, by package name. */
+    readonly #builds: ReadonlyMap<string, string>;
+
+    /** Identify packages, Destack dependencies by their builds' manifests. */
+    private constructor(builds: ReadonlyMap<string, string>) {
+        this.#builds = builds;
+    }
+
+    /** Identify packages with a build's dependencies, Destack ones by their manifests. */
+    static of(dependencies: Readonly<Record<string, DependencyResolution>>): Identities {
+        return new Identities(
+            new Map(
+                Object.entries(dependencies).flatMap(([name, dependency]) =>
+                    dependency.kind === "destack" ? [[name, dependency.manifest]] : [],
+                ),
+            ),
+        );
+    }
 
     /** Identify a package with its dependencies: releases by version, source packages by files. */
     async package(directory: string): Promise<Digest> {
@@ -57,8 +77,10 @@ export class Identities {
     async installed(directory: string): Promise<readonly string[]> {
         // read the manifest's dependencies of every kind
         const manifest = await readManifest(directory);
-        const fields = [...DEPENDENCY_FIELDS, "devDependencies"] as const;
-        const names = new Set(fields.flatMap((field) => Object.keys(manifest[field] ?? {})));
+        const names = new Set([
+            ...PackageJson.runtimeDependencies(manifest),
+            ...Object.keys(manifest.devDependencies ?? {}),
+        ]);
 
         return [...names].flatMap((name) => this.#locator.directory(name, directory) ?? []);
     }
@@ -75,27 +97,34 @@ export class Identities {
         );
     }
 
-    /** Digest a file's bytes, or name it absent. */
-    async file(path: string): Promise<string> {
+    /** Digest a file's bytes, null for a missing file. */
+    async file(path: string): Promise<string | null> {
         try {
             return await Digest.of(new Uint8Array(await readFile(path)));
         } catch (error) {
             if (isMissing(error)) {
-                return "absent";
+                return null;
             }
             throw error;
         }
     }
 
-    /** Digest a directory's files by their paths and bytes. */
-    async directory(path: string): Promise<Digest> {
-        const files = await readDirectory(path);
+    /** Digest a directory's files by their paths and bytes, null for a missing directory. */
+    async directory(path: string): Promise<string | null> {
+        try {
+            const files = await readDirectory(path);
 
-        return await Digest.json(
-            await Promise.all(
-                [...files].map(async ([name, bytes]) => [name, await Digest.of(bytes)]),
-            ),
-        );
+            return await Digest.json(
+                await Promise.all(
+                    [...files].map(async ([name, bytes]) => [name, await Digest.of(bytes)]),
+                ),
+            );
+        } catch (error) {
+            if (isMissing(error)) {
+                return null;
+            }
+            throw error;
+        }
     }
 
     /** Read a package's identity and the directories of the dependencies installed for it. */
@@ -111,22 +140,26 @@ export class Identities {
 
     /** Identify a release by name and version, and a source package by manifests and sources. */
     async #read(directory: string): Promise<PackageIdentity> {
-        // read the manifest and locate each installed dependency, leaving absent optional ones
+        // key a Destack dependency by its build's manifest, which records its own dependencies
         const manifest = await readManifest(directory);
-        const names = new Set(
-            DEPENDENCY_FIELDS.flatMap((field) => Object.keys(manifest[field] ?? {})),
-        );
+        const build = this.#builds.get(manifest.name);
+        if (build !== undefined) {
+            return { identity: `${manifest.name} ${build}`, dependencies: [] };
+        }
+
+        // locate each installed dependency, leaving absent optional ones
+        const names = new Set(PackageJson.runtimeDependencies(manifest));
         const dependencies = [...names]
             .toSorted()
             .flatMap((name) => this.#locator.directory(name, directory) ?? []);
 
-        // name an installed release by its version
+        // key an installed release by its version
         const release = `${manifest.name}@${manifest.version}`;
         if (directory.split(sep).includes("node_modules")) {
             return { identity: release, dependencies };
         }
 
-        // name a source package by its manifests and the files of its sources
+        // key a source package by its manifests and the files of its sources
         const files = await Promise.all(
             ["package.json", "destack.json"].map(async (path) => [
                 path,
@@ -161,23 +194,24 @@ export async function identifyToolchain(identities: Identities): Promise<Digest>
         });
     }
 
-    // identify Bun, TypeScript and the build package's sources with every package it depends on
-    const directory = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
+    // identify Bun, TypeScript and the modules the compiler's entry loads
+    const compiler = await ModuleClosure.read(fileURLToPath(COMPILER_ENTRY));
 
     return await Digest.json({
         layout: KEY_LAYOUT,
         bun: BunProcess.revision(),
         typescript: version,
-        build: await identities.package(directory),
+        compiler: await compiler.digest(),
     });
 }
 
-/** Key each module by toolchain, program, bytes and its import cycle's digest. */
+/** Key each module by toolchain, program, bytes and import cycle, and its read directories. */
 export async function deriveModuleKeys(
     program: ProgramImports,
     root: string,
     toolchain: Digest,
     identities: Identities,
+    compiled: ReadonlySet<string>,
 ): Promise<Map<string, Digest>> {
     // identify the program by its options and its packages
     const context = await Digest.json({
@@ -192,7 +226,7 @@ export async function deriveModuleKeys(
     const digests = new Map<string, Digest>();
     for (const cycle of new CycleFinder(program).cycles()) {
         const digest = await Digest.json(
-            await describeCycle(cycle, program, root, digests, identities),
+            await describeCycle(cycle, program, root, digests, identities, compiled),
         );
         for (const file of cycle) {
             digests.set(file, digest);
@@ -214,26 +248,27 @@ interface CycleMember {
     /** The digest of the module's bytes. */
     readonly digest: Digest;
     /** Each import's target: a member path, a cycle digest, a file digest or the specifier. */
-    readonly imports: Readonly<Record<string, string>>;
-    /** The digest of each directory the module reads, by path. */
-    readonly directories: Readonly<Record<string, Digest>>;
+    readonly imports: Readonly<Record<string, string | null>>;
+    /** The digest of each directory the module reads by path, null for a missing one. */
+    readonly directories: Readonly<Record<string, string | null>>;
 }
 
-/** Describe each member of an import cycle, naming the cycles it imports by their digests. */
+/** Describe each member of an import cycle, keying the cycles it imports by their digests. */
 async function describeCycle(
     cycle: readonly string[],
     program: ProgramImports,
     root: string,
     digests: ReadonlyMap<string, Digest>,
     identities: Identities,
+    compiled: ReadonlySet<string>,
 ): Promise<Record<string, CycleMember>> {
     // describe each member by its path
     const members = new Set(cycle);
     const described: Record<string, CycleMember> = {};
     for (const file of cycle) {
-        // name a member by its path, another cycle by its digest, a file by its bytes and anything else by its specifier
+        // describe each import's target: a member path, a cycle digest, a file digest or the specifier
         const module = found(program.modules, file);
-        const imports: Record<string, string> = {};
+        const imports: Record<string, string | null> = {};
         for (const { specifier, target } of module.imports) {
             if (target.kind === "module" && members.has(target.file)) {
                 imports[specifier] = relativePath(root, target.file);
@@ -246,9 +281,9 @@ async function describeCycle(
             }
         }
 
-        // digest the directories the member reads
-        const directories: Record<string, Digest> = {};
-        for (const directory of module.directories) {
+        // digest the directories a compiled member reads, which its output ships
+        const directories: Record<string, string | null> = {};
+        for (const directory of compiled.has(file) ? module.directories : []) {
             directories[relativePath(root, directory)] = await identities.directory(directory);
         }
         described[relativePath(root, file)] = { digest: module.digest, imports, directories };

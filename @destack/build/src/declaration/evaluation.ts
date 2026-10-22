@@ -1,27 +1,36 @@
-import { Digest, schema } from "@destack/schema";
-import { join } from "node:path";
+import { Digest, present, schema } from "@destack/schema";
+import { realpath } from "node:fs/promises";
+import { join, sep } from "node:path";
 import { pathToFileURL } from "node:url";
-import { isBuiltin } from "node:module";
 import { SourceTextModule, SyntheticModule } from "node:vm";
 import { type Plugin, rolldown } from "rolldown";
 import { transform } from "rolldown/utils";
 import { graph, Package, DeclarationDescription } from "@destack/package";
 import type { DeclarationExport, FunctionExport } from "./declaration.ts";
+import type { ExampleDeclaration } from "../typescript/example.ts";
 import { type Comparator, Plan } from "@destack/resource";
 import type { PackageSource } from "../source/index.ts";
 import { modulePlugin } from "@destack/package/vite";
 import { BuildError } from "../error/index.ts";
+import type { DependencyTree } from "../dependency/index.ts";
 import { stringifyInspection } from "../build/serialization.ts";
-import { runtimeConditions } from "@destack/package/build";
+import { isHostModule, type PluginOption, runtimeConditions } from "@destack/package/build";
+import { HOST_RUNTIME, type Runtime, WORKERD_SCHEME } from "@destack/package/runtime";
 import { selectExport } from "../source/source.ts";
 import { loadExtensions, transformPlugins } from "../compile/extension.ts";
 
+/** An installed JavaScript module, imported as the host loads it, without a query such as ?url. */
+const INSTALLED_MODULE = /\.[cm]?js$/u;
+/** A stylesheet, which declarations evaluate without. */
+const STYLESHEET = /\.css(?:\?.*)?$/u;
+/** The prefix of the module standing in for a workerd module, which the host lacks. */
+const UNAVAILABLE_PREFIX = "\0destack-unavailable:";
 /** The exports of a module. */
 const Exports = schema.record(schema.string(), schema.unknown());
 
 /** The exports of the generated declaration module, aligned by declaration. */
 const DeclarationExports = schema.object({
-    /** The descriptions each kind's describe function returned. */
+    /** The descriptions each kind's describe function returns. */
     default: schema.array(schema.unknown()),
     /** The exported declarations. */
     declared: schema.array(schema.unknown()),
@@ -33,7 +42,12 @@ const DeclarationExports = schema.object({
     vocabulary: schema.array(schema.unknown()),
     /** Each declaration's kind symbols, if it lists them. */
     symbols: schema.array(schema.unknown()),
+    /** The properties of each example, as its module evaluates them. */
+    examples: schema.array(schema.jsonObject()),
 });
+
+/** The exports of the evaluated entry. */
+type EvaluatedEntry = schema.Infer<typeof DeclarationExports>;
 
 /** The identifier of the generated entry. */
 const ENTRY = "\0destack-declarations";
@@ -53,6 +67,8 @@ export interface Evaluation {
     readonly declarations: DeclarationDescription[];
     /** The function comparing two releases of a kind, by `kindKey`. */
     readonly compare: ReadonlyMap<string, Comparator>;
+    /** The examples, with the properties their modules evaluate. */
+    readonly examples: ExampleDeclaration[];
 }
 
 /** Key a kind by its declaring package and name. */
@@ -65,14 +81,15 @@ export const Evaluation = {
     /** Evaluate exported declarations together in the current build worker. */
     async evaluate(
         declarations: readonly DeclarationExport[],
+        examples: readonly Omit<ExampleDeclaration, "properties">[],
         project: PackageSource,
     ): Promise<Evaluation> {
-        if (!declarations.length) {
-            return { declarations: [], compare: new Map() };
+        if (!declarations.length && !examples.length) {
+            return { declarations: [], compare: new Map(), examples: [] };
         }
 
-        // rebuild the complete graph so edits to imported modules cannot leave stale values
-        const source = generateEntry(declarations, project);
+        // bundle the package's declaring and example modules
+        const source = generateEntry(declarations, examples, project.directory);
         const namespace = await evaluateEntry(source, project).catch((cause: unknown) => {
             throw new BuildError(
                 "INSPECTION_FAILED",
@@ -81,12 +98,12 @@ export const Evaluation = {
             );
         });
 
-        // require every declaration to name the package declaring it
+        // require every declaration to record the package declaring it
         for (const [index, declaration] of declarations.entries()) {
             requireDeclaringPackage(declaration, namespace.declared[index]);
         }
 
-        // describe each declaration beside its kind's comparison, naming one a kind's function fails on
+        // describe each declaration beside its kind's comparison
         const described: DeclarationDescription[] = [];
         const compare = new Map<string, Comparator>();
         for (const [index, declaration] of declarations.entries()) {
@@ -106,17 +123,26 @@ export const Evaluation = {
             described.push(description);
         }
 
-        return { declarations: described, compare };
+        // give each example the properties its module evaluates
+        const evaluated = examples.map((example, index) => ({
+            ...example,
+            properties: present(namespace.examples[index], `the properties of ${example.symbol}`),
+        }));
+
+        return { declarations: described, compare, examples: evaluated };
     },
 };
 
 /** Write the entry importing each declaration and inspector, exporting the kinds' results. */
-function generateEntry(declarations: readonly DeclarationExport[], project: PackageSource): string {
-    // select each inspecting module once
-    const conditions = new Set(["import", "default", ...runtimeConditions(project.runtime)]);
+function generateEntry(
+    declarations: readonly DeclarationExport[],
+    examples: readonly Omit<ExampleDeclaration, "properties">[],
+    directory: string,
+): string {
+    // select each inspecting module once, as the build worker runs it
+    const conditions = new Set(["import", "default", ...runtimeConditions(HOST_RUNTIME)]);
     const modules = new Map<string, number>();
-    const locate = (inspector: FunctionExport) =>
-        locateFunction(inspector, conditions, modules, project);
+    const locate = (inspector: FunctionExport) => locateFunction(inspector, conditions, modules);
     const functions = declarations.map(({ inspector }) => ({
         value: inspector.value && locate(inspector.value),
         describe: locate(inspector.describe),
@@ -131,8 +157,13 @@ function generateEntry(declarations: readonly DeclarationExport[], project: Pack
             (declaration, index) =>
                 `import { ${JSON.stringify(declaration.export)} as declaration${index} } from ${JSON.stringify(declaration.file)};`,
         ),
+        ...examples.map(
+            (example, index) =>
+                `import { ${JSON.stringify(example.symbol)} as example${index} } from ${JSON.stringify(join(directory, example.source.file))};`,
+        ),
         ...[...modules].map(
-            ([file, index]) => `import * as inspector${index} from ${JSON.stringify(file)};`,
+            ([specifier, index]) =>
+                `import * as inspector${index} from ${JSON.stringify(specifier)};`,
         ),
     ];
 
@@ -152,6 +183,7 @@ function generateEntry(declarations: readonly DeclarationExport[], project: Pack
         `export const compare = [${list("compare")}];`,
         `export const vocabulary = [${list("vocabulary")}];`,
         `export const symbols = [${list("symbols")}];`,
+        `export const examples = [${examples.map((_, index) => `example${index}.properties`).join(", ")}];`,
         `export default await Promise.all([${calls.join(",\n")}]);`,
     ].join("\n");
 }
@@ -161,30 +193,26 @@ function locateFunction(
     inspector: FunctionExport,
     conditions: ReadonlySet<string>,
     modules: Map<string, number>,
-    project: PackageSource,
 ): string {
     // require the module the runtime selects
     const path = selectExport(inspector.target, conditions);
     if (typeof path !== "string") {
         throw new BuildError(
             "INSPECTION_FAILED",
-            `${inspector.directory} exports no ${project.runtime} module at ${inspector.subpath}`,
+            `${inspector.directory} exports no ${HOST_RUNTIME} module at ${inspector.subpath}`,
         );
     }
 
-    // import each module once, reading the function from its namespace
-    const file = join(inspector.directory, path);
-    const index = modules.get(file) ?? modules.size;
-    modules.set(file, index);
+    // import each module once by its package specifier
+    const specifier = `${inspector.package}${inspector.subpath.slice(1)}`;
+    const index = modules.get(specifier) ?? modules.size;
+    modules.set(specifier, index);
 
     return `inspector${index}[${JSON.stringify(inspector.name)}]`;
 }
 
 /** Bundle the generated entry and evaluate it as a fresh module, past the import cache. */
-async function evaluateEntry(
-    source: string,
-    project: PackageSource,
-): Promise<schema.Infer<typeof DeclarationExports>> {
+async function evaluateEntry(source: string, project: PackageSource): Promise<EvaluatedEntry> {
     let bundle: Awaited<ReturnType<typeof rolldown>> | undefined;
     try {
         // bundle the entry with the declarations it imports
@@ -193,23 +221,25 @@ async function evaluateEntry(
             cwd: project.directory,
             tsconfig: project.configuration,
             platform: "node",
-            external: isBuiltin,
-            resolve: { conditionNames: runtimeConditions(project.runtime) },
+            external: isHostModule,
+            resolve: { conditionNames: runtimeConditions(HOST_RUNTIME) },
             treeshake: { moduleSideEffects: true },
             plugins: [
                 entryPlugin(source),
+                treePlugin(project.tree, project.runtime),
                 modulePlugin(project.versions),
                 ...transformPlugins(
-                    (await loadExtensions(project.directory, project.packageJson)).map(
-                        (loaded) => loaded.extension,
-                    ),
+                    (
+                        await loadExtensions(project.directory, project.packageJson, project.tree)
+                    ).map((loaded) => loaded.extension),
                     {
                         directory: project.directory,
-                        runtime: project.runtime,
-                        server: false,
+                        runtime: HOST_RUNTIME,
+                        server: true,
                         options: {},
+                        dependencies: project.tree.directories,
                     },
-                ),
+                ).map((option) => serverTransform(option)),
             ],
         });
         const generated = await bundle.generate({ format: "esm", codeSplitting: false });
@@ -222,9 +252,9 @@ async function evaluateEntry(
             );
         }
 
-        // link runtime builtins into the fresh module and evaluate it, leaving emitted assets aside
+        // evaluate the entry, linking its externals as the host loads them
         const module = new SourceTextModule(chunk.code);
-        await module.link(linkBuiltin);
+        await module.link(linkHost);
         await module.evaluate();
 
         return DeclarationExports.parse(module.namespace);
@@ -233,14 +263,66 @@ async function evaluateEntry(
     }
 }
 
+/** Link an external of the entry as the host loads it: a builtin, a build module or a file. */
+async function linkHost(specifier: string): Promise<SyntheticModule> {
+    // expose the host module's exports, which the host caches once per file
+    const exports = Exports.parse(await import(specifier));
+    const names = Object.keys(exports);
+
+    return new SyntheticModule(names, function () {
+        for (const name of names) {
+            this.setExport(name, exports[name]);
+        }
+    });
+}
+
+/** Keep dependencies external: Destack ones at their builds' modules, npm ones at their files. */
+function treePlugin(tree: DependencyTree, runtime: Runtime): Plugin {
+    return {
+        name: "destack-dependency-builds",
+        async resolveId(specifier, importer, options) {
+            // import a Destack dependency's module from its build, else the output runtime's
+            const modules = tree.export(specifier);
+            if (modules !== undefined) {
+                const module = modules[HOST_RUNTIME] ?? modules[runtime];
+                if (module === undefined) {
+                    throw new BuildError(
+                        "INSPECTION_FAILED",
+                        `${specifier} has no ${[...new Set([HOST_RUNTIME, runtime])].join(" or ")} module`,
+                    );
+                }
+
+                return { id: module, external: true };
+            }
+
+            // load an installed or built package's module from its file
+            if (specifier.startsWith(".") || specifier.startsWith("\0")) {
+                return null;
+            }
+            const resolved = await this.resolve(specifier, importer, {
+                ...options,
+                skipSelf: true,
+            });
+            const isModule =
+                resolved !== null &&
+                resolved.id.split(sep).includes("node_modules") &&
+                INSTALLED_MODULE.test(resolved.id);
+
+            return isModule ? { id: await realpath(resolved.id), external: true } : null;
+        },
+    };
+}
+
 /** Resolve and load the generated entry, setting module URLs and leaving lazy imports. */
 function entryPlugin(source: string): Plugin {
     return {
         name: "destack-declarations",
         resolveId(specifier, _importer, options) {
-            // resolve the generated entry
+            // resolve the generated entry, and a workerd module as one failing once touched
             if (specifier === ENTRY) {
                 return ENTRY;
+            } else if (WORKERD_SCHEME.test(specifier)) {
+                return `${UNAVAILABLE_PREFIX}${specifier}`;
             }
             // leave lazily imported modules unloaded
             else if (options.kind === "dynamic-import") {
@@ -251,7 +333,20 @@ function entryPlugin(source: string): Plugin {
                 return null;
             }
         },
-        load: { filter: { id: /^\0destack-declarations$/u }, handler: () => source },
+        load: (id) => {
+            // load the entry, a stand-in for a workerd module, and a stylesheet as nothing
+            if (id === ENTRY) {
+                return source;
+            } else if (id.startsWith(UNAVAILABLE_PREFIX)) {
+                const code = unavailableModule(id.slice(UNAVAILABLE_PREFIX.length));
+
+                return { code, moduleType: "js" };
+            } else if (STYLESHEET.test(id)) {
+                return { code: "export {};\n", moduleType: "js" };
+            }
+
+            return null;
+        },
         transform: {
             filter: { id: /\.[cm]?[jt]sx?$/u, code: /import\.meta\.url/u },
             async handler(code, id) {
@@ -273,31 +368,14 @@ function entryPlugin(source: string): Plugin {
     };
 }
 
-/** Link a runtime builtin into a fresh module, refusing any other import. */
-async function linkBuiltin(specifier: string): Promise<SyntheticModule> {
-    if (!isBuiltin(specifier)) {
-        throw new BuildError("INSPECTION_FAILED", `unbundled declaration import: ${specifier}`);
-    }
-
-    // expose the imported module's exports
-    const exports = Exports.parse(await import(specifier));
-    const names = Object.keys(exports);
-
-    return new SyntheticModule(names, function () {
-        for (const name of names) {
-            this.setExport(name, exports[name]);
-        }
-    });
-}
-
 /** Describe one evaluated declaration with its terms and symbols, keeping its kind's comparison. */
 async function describeDeclaration(
     declaration: DeclarationExport,
     index: number,
-    namespace: schema.Infer<typeof DeclarationExports>,
+    namespace: EvaluatedEntry,
     compare: Map<string, Comparator>,
 ): Promise<DeclarationDescription> {
-    // serialize the domain description, naming the declaration as the description names it
+    // serialize the domain description under the declaration's described name
     const description: unknown = JSON.parse(stringifyInspection(namespace.default[index]));
     const parsed = DeclarationDescription.parse({
         ...declaration.description,
@@ -370,6 +448,48 @@ function requireDeclaringPackage(declaration: DeclarationExport, value: unknown)
             `${declaration.export} declaration belongs to a different package`,
         );
     }
+}
+
+/** Write the CommonJS module standing in for a runtime module the host lacks, failing once read. */
+function unavailableModule(specifier: string): string {
+    const message = JSON.stringify(`${specifier} is unavailable while declarations evaluate`);
+
+    return [
+        `const fail = () => { throw new Error(${message}); };`,
+        'const failing = { get: (_target, key) => (key === "__esModule" ? undefined : fail()), ownKeys: () => [] };',
+        "module.exports = new Proxy({}, { ...failing, getPrototypeOf: () => new Proxy({}, failing) });",
+        "",
+    ].join("\n");
+}
+
+/** Transform modules as Vite's server environment does, as the host runs what it evaluates. */
+function serverTransform(option: PluginOption): PluginOption {
+    // follow nested and pending plugins to each plugin
+    if (Array.isArray(option)) {
+        return option.map((each: PluginOption) => serverTransform(each));
+    } else if (option instanceof Promise) {
+        return option.then((each: PluginOption) => serverTransform(each));
+    } else if (typeof option !== "object" || option === null || !("transform" in option)) {
+        return option;
+    }
+
+    // pass each transform the server flag Vite gives server modules
+    const { transform: hook } = option;
+    if (hook === undefined) {
+        return option;
+    }
+    const handler = typeof hook === "function" ? hook : hook.handler;
+    const served: typeof handler = function (code, id, options) {
+        return handler.call(this, code, id, {
+            ...present(options, "the transform options rolldown passes"),
+            ssr: true,
+        });
+    };
+
+    return {
+        ...option,
+        transform: typeof hook === "function" ? served : { ...hook, handler: served },
+    };
 }
 
 /** Read a failure's message. */

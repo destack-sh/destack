@@ -1,7 +1,7 @@
 import { readFile, stat } from "node:fs/promises";
-import { join, relative, sep } from "node:path";
+import { dirname, isAbsolute, join, relative, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { Digest } from "@destack/schema";
+import { Digest, schema } from "@destack/schema";
 import { isMissing } from "../error/index.ts";
 import type { ParsedConfiguration } from "../typescript/index.ts";
 import type { Identities } from "./cache.ts";
@@ -61,9 +61,10 @@ export const ProgramImports = {
         configuration: ParsedConfiguration,
         identities: Identities,
     ): Promise<ProgramImports> {
-        // identify the options without the location of the generated configuration
-        const options = Object.entries(configuration.options).filter(
-            ([key]) => key !== "configFilePath",
+        // identify the options by paths relative to the package and the generated configuration
+        const generated = dirname(schema.string().parse(configuration.options["configFilePath"]));
+        const options = JSON.stringify(configuration.options, (_key, value: unknown) =>
+            typeof value === "string" ? relocate(value, directory, generated) : value,
         );
 
         // list the installed packages and read the subpath imports
@@ -89,7 +90,7 @@ export const ProgramImports = {
         }
 
         return {
-            options: JSON.stringify(Object.fromEntries(options)),
+            options,
             packages: [...packages].toSorted(),
             modules,
         };
@@ -231,4 +232,21 @@ function isWithin(root: string, file: string): boolean {
     const path = relative(root, file);
 
     return !path.startsWith("..") && !path.split(sep).includes("node_modules");
+}
+
+/** Write an absolute path relative to the generated configuration's directory or the package. */
+function relocate(value: string, directory: string, generated: string): string {
+    // keep values other than absolute paths
+    const configured = relative(generated, value);
+    if (!isAbsolute(value)) {
+        return value;
+    }
+    // key a path in the generated configuration's directory by that directory
+    else if (!configured.startsWith("..")) {
+        return join("<configuration>", configured);
+    }
+    // name any other path by the package directory
+    else {
+        return relative(directory, value);
+    }
 }

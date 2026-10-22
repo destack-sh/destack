@@ -14,16 +14,6 @@ export interface InspectOptions {
     configuration?: string;
 }
 
-/** Collect code and tests, then evaluate exported domain declarations. */
-export async function inspectPackage(options: InspectOptions): Promise<PackageInspection> {
-    // start an isolated compiler
-    const { Compiler } = await import("../build/compiler.ts");
-    const { directory, ...request } = options;
-    await using compiler = await Compiler.start(directory);
-
-    return await compiler.inspect(request);
-}
-
 /** Describe the modules and declarations collected by the compiler. */
 export function inspectModules(
     source: Package,

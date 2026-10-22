@@ -2,10 +2,11 @@ import { realpathSync } from "node:fs";
 import { realpath } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { API, type Project } from "typescript/unstable/async";
+import { API, type Diagnostic, type Project } from "typescript/unstable/async";
 import { Toolchain } from "@destack/check/toolchain";
+import { nth } from "@destack/schema";
 import { BuildError } from "../error/index.ts";
-import { TypeScriptInspection } from "./module.ts";
+import { type InspectionDepth, TypeScriptInspection } from "./module.ts";
 import { isAuthored } from "../source/dependency.ts";
 import type { PackageSource } from "../source/index.ts";
 
@@ -43,37 +44,66 @@ export class TypeScriptCompiler implements AsyncDisposable {
         return join(Toolchain.locate(["typescript", platform], PACKAGE), "lib", "tsc");
     }
 
-    /** Inspect a configuration, collecting the declarations of the modules its entries import. */
-    inspect(
-        configuration: string,
-        entries: readonly string[],
-        compiled: Pick<PackageSource, "directory" | "versions">,
-    ): Promise<TypeScriptInspection> {
-        return this.#read(configuration, async (project) => {
-            // check the configuration and the package's modules
-            const authored = (await project.program.getSourceFileNames()).filter((file) =>
-                isAuthored(this.directory, file),
-            );
-            const diagnostics = (
-                await Promise.all([
-                    project.program.getConfigFileParsingDiagnostics(),
-                    project.program.getProgramDiagnostics(),
-                    ...authored.flatMap((file) => [
-                        project.program.getSyntacticDiagnostics(file),
-                        project.program.getBindDiagnostics(file),
-                        project.program.getSemanticDiagnostics(file),
-                    ]),
-                ])
-            ).flat();
-            if (diagnostics.length) {
-                throw new BuildError(
-                    "INSPECTION_FAILED",
-                    `the TypeScript inspection failed: ${JSON.stringify(diagnostics)}`,
-                );
-            }
+    /** Inspect programs to a depth: check them at once, then read the first and the rest. */
+    async inspect(
+        programs: readonly Pick<
+            PackageSource,
+            "configuration" | "entries" | "directory" | "versions"
+        >[],
+        depth: InspectionDepth,
+    ): Promise<TypeScriptInspection[]> {
+        return await this.#read(
+            programs.map((program) => program.configuration),
+            async (projects) => {
+                // check every program's configuration and authored modules at once
+                const diagnostics = (
+                    await Promise.all(projects.map((project) => this.#check(project)))
+                ).flat();
+                if (diagnostics.length) {
+                    throw new BuildError(
+                        "INSPECTION_FAILED",
+                        `the TypeScript inspection failed: ${JSON.stringify(diagnostics)}`,
+                    );
+                }
 
-            return await TypeScriptInspection.describe(project, compiled, entries);
-        });
+                // read the first program, then the others beside it
+                const [first, ...rest] = programs.map((program, index) => ({
+                    program,
+                    project: nth(projects, index),
+                }));
+                if (first === undefined) {
+                    return [];
+                }
+                const describing = TypeScriptInspection.read(first.project, first.program, depth);
+                const [described, ...others] = await Promise.all([
+                    describing,
+                    ...rest.map(({ program, project }) =>
+                        TypeScriptInspection.read(project, program, depth, describing),
+                    ),
+                ]);
+
+                return [described, ...others];
+            },
+        );
+    }
+
+    /** Collect a program's configuration diagnostics and its authored modules' diagnostics. */
+    async #check(project: Project): Promise<Diagnostic[]> {
+        const authored = (await project.program.getSourceFileNames()).filter((file) =>
+            isAuthored(this.directory, file),
+        );
+
+        return (
+            await Promise.all([
+                project.program.getConfigFileParsingDiagnostics(),
+                project.program.getProgramDiagnostics(),
+                ...authored.flatMap((file) => [
+                    project.program.getSyntacticDiagnostics(file),
+                    project.program.getBindDiagnostics(file),
+                    project.program.getSemanticDiagnostics(file),
+                ]),
+            ])
+        ).flat();
     }
 
     /** Parse a configuration into options and root files, without loading its program. */
@@ -84,13 +114,15 @@ export class TypeScriptCompiler implements AsyncDisposable {
         return { options: parsed.options, files: parsed.fileNames };
     }
 
-    /** Read a configuration's project from a fresh snapshot, then release the snapshot. */
+    /** Read configurations' projects from one fresh snapshot, then release the snapshot. */
     async #read<Result>(
-        configuration: string,
-        read: (project: Project) => Promise<Result>,
+        configurations: readonly string[],
+        read: (projects: Project[]) => Promise<Result>,
     ): Promise<Result> {
-        // refresh the selected configuration
-        configuration = await realpath(resolve(this.directory, configuration));
+        // refresh the selected configurations
+        const paths = await Promise.all(
+            configurations.map((configuration) => realpath(resolve(this.directory, configuration))),
+        );
 
         // refresh client ASTs while the native compiler retains incremental project state
         this.#api.clearSourceFileCache();
@@ -99,23 +131,27 @@ export class TypeScriptCompiler implements AsyncDisposable {
         });
         await invalidated.dispose();
 
-        // reread configured include patterns so added and removed modules change the list
+        // reread configured include patterns so added and removed modules change the lists
         const snapshot = await this.#api.updateSnapshot({
-            openProjects: [configuration],
-            fileChanges: { changed: [configuration] },
+            openProjects: paths,
+            fileChanges: { changed: paths },
         });
 
-        // read the requested compiler project and release the snapshot
+        // read the requested compiler projects and release the snapshot
         try {
-            const project = snapshot.getProject(configuration);
-            if (!project) {
-                throw new BuildError(
-                    "INSPECTION_FAILED",
-                    `the TypeScript compiler did not load ${configuration}`,
-                );
-            }
+            const projects = paths.map((path) => {
+                const project = snapshot.getProject(path);
+                if (!project) {
+                    throw new BuildError(
+                        "INSPECTION_FAILED",
+                        `the TypeScript compiler did not load ${path}`,
+                    );
+                }
 
-            return await read(project);
+                return project;
+            });
+
+            return await read(projects);
         } finally {
             await snapshot.dispose();
         }

@@ -14,32 +14,35 @@
         "./template": "./src/template/index.ts",
         ".": "./src/index.ts",
         "./error": "./src/error/index.ts",
-        "./store": "./src/store/index.ts"
+        "./store": "./src/store/index.ts",
+        "./test": "./src/test/index.ts"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "dependencies": {
-        "@destack/check": "workspace:*",
-        "@destack/locale": "workspace:*",
-        "magic-string": "1.4.1",
         "@cloudflare/workers-types": "5.20260917.1",
-        "@destack/runtime": "workspace:*",
+        "@destack/bucket": "workspace:*",
+        "@destack/check": "workspace:*",
+        "@destack/db": "workspace:*",
+        "@destack/environment": "workspace:*",
+        "@destack/error": "workspace:*",
+        "@destack/fs": "workspace:*",
+        "@destack/locale": "workspace:*",
+        "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
+        "@destack/resource": "workspace:*",
+        "@destack/sandbox": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/test": "workspace:*",
-        "vite": "8.3.0",
-        "typescript": "7.0.2",
+        "cjs-module-lexer": "2.3.0",
+        "magic-string": "1.4.1",
         "rolldown": "1.2.9",
-        "@destack/bucket": "workspace:*",
-        "@destack/resource": "workspace:*",
-        "@destack/db": "workspace:*",
-        "@destack/sandbox": "workspace:*",
-        "@destack/error": "workspace:*"
+        "typescript": "7.0.2",
+        "vite": "8.3.0"
     },
     "devDependencies": {
-        "@destack/environment": "workspace:*",
         "@destack/observability": "workspace:*",
         "@destack/setting": "workspace:*",
         "@destack/theme": "workspace:*",

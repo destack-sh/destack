@@ -3,7 +3,7 @@ import {
     type DomainError,
     CALL_ERROR_STATUSES,
     type CallErrorCode,
-    type CallErrorReport,
+    type Failure,
 } from "@destack/error";
 
 /** Failures during source inspection and compilation. */
@@ -39,7 +39,7 @@ export class BuildError extends Error implements DomainError {
     }
 
     /** Convert the failure to the call error a caller receives. */
-    toCallError(): CallErrorReport {
+    toCallError(): Failure {
         return { code: CALL_CODES[this.code], message: this.message };
     }
 
@@ -70,7 +70,7 @@ export class BuildError extends Error implements DomainError {
     }
 }
 
-/** Report whether a filesystem failure names a missing file. */
+/** Report whether a filesystem failure is a missing file. */
 export function isMissing(error: unknown): boolean {
     return error instanceof Error && "code" in error && error.code === "ENOENT";
 }

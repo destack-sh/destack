@@ -1,10 +1,11 @@
 import { openAsBlob } from "node:fs";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { dirname, join } from "node:path";
 import type { PackageFile } from "@destack/package/file";
 import { type BuildContents, BuildWriter, type PackageManifest } from "@destack/package/manifest";
 import { BuildError } from "../error/index.ts";
+import { Text } from "@destack/schema";
 
 /** The directory a build writes into: its sources retained until written, then its files. */
 export class BuildDirectory {
@@ -84,4 +85,31 @@ export async function digestFile(path: string): Promise<{ digest: string; size: 
     }
 
     return { digest: hash.digest("hex"), size };
+}
+
+/** Read regular files in deterministic order and reject symbolic links. */
+export async function readDirectory(
+    directory: string,
+): Promise<Map<string, Uint8Array<ArrayBuffer>>> {
+    // walk directories breadth first and collect regular files
+    const files = new Map<string, Uint8Array<ArrayBuffer>>();
+    const pending = [""];
+    for (const parent of pending) {
+        const entries = await readdir(join(directory, parent), { withFileTypes: true });
+        for (const entry of entries) {
+            const name = parent ? `${parent}/${entry.name}` : entry.name;
+            if (entry.isDirectory()) {
+                pending.push(name);
+            } else if (entry.isFile()) {
+                files.set(name, new Uint8Array(await readFile(join(directory, name))));
+            } else {
+                throw new BuildError(
+                    "BUILD_FAILED",
+                    `unsupported directory entry: ${name} in ${directory}`,
+                );
+            }
+        }
+    }
+
+    return new Map([...files].toSorted(([left], [right]) => Text.compare(left, right)));
 }

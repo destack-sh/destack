@@ -65,6 +65,21 @@ export class SymbolInspector {
     readonly #steps = new Map<number, Promise<TypeStep>>();
     /** The package-relative path of each compiler file. */
     readonly #paths = new Map<string, string>();
+    /** The call and construct signatures of each type, by type and kind, read once. */
+    readonly #signatures = new Map<string, Promise<readonly Signature[]>>();
+    /** The return type of each signature, read once. */
+    readonly #returns = new Map<number, Promise<Type | undefined>>();
+    /** The symbol each alias names, read once. */
+    readonly #aliases = new Map<number, Promise<TypeScriptSymbol>>();
+
+    /** The documentation of each symbol, read once. */
+    readonly #documentation = new Map<number, Promise<SymbolDescription["documentation"]>>();
+    /** The description of each signature at each location, described once. */
+    readonly #described = new Map<string, Promise<SignatureDescription>>();
+    /** The text of each type at each location, rendered once. */
+    readonly #texts = new Map<string, Promise<string>>();
+    /** The name of each program file, by the path the compiler keys it by, read once. */
+    #files: Promise<ReadonlyMap<string, string>> | undefined;
 
     /** Associate compiler results with package declarations and source files. */
     constructor(
@@ -80,7 +95,9 @@ export class SymbolInspector {
     /** Resolve an alias to the symbol it names, keeping any other symbol. */
     async original(symbol: TypeScriptSymbol): Promise<TypeScriptSymbol> {
         return symbol.flags & SymbolFlags.Alias
-            ? await this.project.checker.getAliasedSymbol(symbol)
+            ? await once(this.#aliases, symbol.id, () =>
+                  this.project.checker.getAliasedSymbol(symbol),
+              )
             : symbol;
     }
 
@@ -343,7 +360,9 @@ export class SymbolInspector {
 
         // render the expression as hovers do, truncated, while walking its references
         const [text, references] = await Promise.all([
-            this.project.checker.typeToString(type, location),
+            once(this.#texts, `${type.id} ${locationKey(location)}`, () =>
+                this.project.checker.typeToString(type, location),
+            ),
             this.#references(type),
         ]);
 
@@ -393,7 +412,7 @@ export class SymbolInspector {
 
     /** Read a type's named declaration and the types it leads to, expanding only unnamed types. */
     async #walk(type: Type): Promise<TypeStep> {
-        // name a declared class, interface, alias, enum, function or namespace
+        // key a declared class, interface, alias, enum, function or namespace
         const symbol = (await type.getAliasSymbol()) ?? (await type.getSymbol());
         const isNamed =
             symbol !== undefined &&
@@ -443,8 +462,8 @@ export class SymbolInspector {
         else if (type.isObjectType()) {
             const [properties, calls, constructs] = await Promise.all([
                 this.project.checker.getPropertiesOfType(type),
-                this.project.checker.getSignaturesOfType(type, SignatureKind.Call),
-                this.project.checker.getSignaturesOfType(type, SignatureKind.Construct),
+                this.#signaturesOf(type, SignatureKind.Call),
+                this.#signaturesOf(type, SignatureKind.Construct),
             ]);
             const [propertyTypes, signatureTypes] = await Promise.all([
                 this.#typesOf(properties),
@@ -462,7 +481,7 @@ export class SymbolInspector {
     /** Read a signature's return type and parameter types. */
     async #signatureTypes(signature: Signature): Promise<Type[]> {
         const [returns, parameters] = await Promise.all([
-            this.project.checker.getReturnTypeOfSignature(signature),
+            this.#returnOf(signature),
             signature.getParameters().then((symbols) => this.#typesOf(symbols)),
         ]);
         if (!returns) {
@@ -470,6 +489,20 @@ export class SymbolInspector {
         }
 
         return [returns, ...parameters];
+    }
+
+    /** Read a type's signatures of a kind once per inspection. */
+    #signaturesOf(type: Type, kind: SignatureKind): Promise<readonly Signature[]> {
+        return once(this.#signatures, `${type.id} ${kind}`, () =>
+            this.project.checker.getSignaturesOfType(type, kind),
+        );
+    }
+
+    /** Read a signature's return type once per inspection. */
+    #returnOf(signature: Signature): Promise<Type | undefined> {
+        return once(this.#returns, signature.id, () =>
+            this.project.checker.getReturnTypeOfSignature(signature),
+        );
     }
 
     /** Read the types of symbols in one compiler request, requiring each. */
@@ -495,7 +528,7 @@ export class SymbolInspector {
     async signatures(type: Type, location: Node | undefined): Promise<SignatureDescription[]> {
         const signatures = await Promise.all(
             [SignatureKind.Call, SignatureKind.Construct].map((kind) =>
-                this.project.checker.getSignaturesOfType(type, kind),
+                this.#signaturesOf(type, kind),
             ),
         );
 
@@ -505,7 +538,16 @@ export class SymbolInspector {
     }
 
     /** Describe a callable signature, including receiver and rest parameters. */
-    async signature(
+    signature(signature: Signature, location: Node | undefined): Promise<SignatureDescription> {
+        const at = signature.declaration === undefined ? locationKey(location) : "declared";
+
+        return once(this.#described, `${signature.id} ${at}`, () =>
+            this.#signature(signature, location),
+        );
+    }
+
+    /** Describe a callable signature at a location, once per signature and location. */
+    async #signature(
         signature: Signature,
         location: Node | undefined,
     ): Promise<SignatureDescription> {
@@ -518,7 +560,7 @@ export class SymbolInspector {
             declaration,
             NodeBuilderFlags.UseAliasDefinedOutsideCurrentScope | NodeBuilderFlags.IgnoreErrors,
         );
-        const returns = await this.project.checker.getReturnTypeOfSignature(signature);
+        const returns = await this.#returnOf(signature);
         if (!node || !returns) {
             throw new BuildError(
                 "INSPECTION_FAILED",
@@ -636,13 +678,13 @@ export class SymbolInspector {
     }
 
     /** Read documentation through the compiler's symbol model. */
-    async documentation(symbol: TypeScriptSymbol): Promise<SymbolDescription["documentation"]> {
-        return {
+    documentation(symbol: TypeScriptSymbol): Promise<SymbolDescription["documentation"]> {
+        return once(this.#documentation, symbol.id, async () => ({
             text: await this.project.checker.getDocumentationCommentOfSymbol(symbol),
             tags: (await this.project.checker.getJsDocTagsOfSymbol(symbol)).map(({ name, text }) =>
                 text === undefined ? { name } : { name, text },
             ),
-        };
+        }));
     }
 
     /** Resolve the source declarations of a symbol. */
@@ -650,16 +692,36 @@ export class SymbolInspector {
         return Promise.all(symbol.declarations.map((handle) => this.node(handle)));
     }
 
-    /** Resolve a symbol's declarations in package modules, leaving dependency augmentations. */
+    /** Resolve a symbol's declarations in package modules, leaving dependencies' unread. */
     async #authored(symbol: TypeScriptSymbol): Promise<Node[]> {
-        const nodes = await this.nodes(symbol);
+        const files = await Promise.all(symbol.declarations.map((handle) => this.file(handle)));
+        const authored = symbol.declarations.filter((_handle, index) =>
+            isAuthored(this.root, nth(files, index)),
+        );
 
-        return nodes.filter((node) => isAuthored(this.root, node.getSourceFile().fileName));
+        return await Promise.all(authored.map((handle) => this.node(handle)));
+    }
+
+    /** Read the file a declaration sits in, without fetching the file's syntax. */
+    async file(handle: NodeHandle): Promise<string> {
+        // map the compiler's file keys to the program's file paths once
+        this.#files ??= this.project.program.getSourceFileNames().then(
+            (names) =>
+                new Map(
+                    names.flatMap((name) => [
+                        [name, name],
+                        [name.toLowerCase(), name],
+                    ]),
+                ),
+        );
+        const files = await this.#files;
+
+        return present(files.get(handle.path), `the program file at ${handle.path}`);
     }
 
     /** Name a node's range by its file's package-relative path, read once per file. */
     range(node: Node): SourceRange {
-        // name each file once, since ranges cover every expression
+        // key each file once, since ranges cover every expression
         const file = node.getSourceFile().fileName;
         let path = this.#paths.get(file);
         if (path === undefined) {
@@ -688,6 +750,28 @@ export class SymbolInspector {
 
         return node;
     }
+}
+
+/** Read a value once per key, sharing the pending read between callers. */
+function once<Key, Value>(
+    cache: Map<Key, Promise<Value>>,
+    key: Key,
+    read: () => Promise<Value>,
+): Promise<Value> {
+    let value = cache.get(key);
+    if (value === undefined) {
+        value = read();
+        cache.set(key, value);
+    }
+
+    return value;
+}
+
+/** Key a location by its file and range, the same for every node at it. */
+function locationKey(location: Node | undefined): string {
+    return location === undefined
+        ? ""
+        : `${location.getSourceFile().fileName}:${location.pos}:${location.end}`;
 }
 
 /** Read the name a symbol's declaration writes, stable across compilations. */

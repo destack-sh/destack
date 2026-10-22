@@ -1,118 +1,218 @@
-import { sep } from "node:path";
+import { realpath } from "node:fs/promises";
+import { resolve, sep } from "node:path";
+import { locateWorkspace } from "@destack/check/workspace";
 import { Compiler, CompilerCommand } from "./compiler.ts";
+import type { LocalPackageStore } from "../store/local.ts";
 
-/** The warm compilers a machine keeps at once. */
+/** The warm compilers a machine keeps at once: 4, each a TypeScript program of a few hundred MB. */
 const MAX_WARM_COMPILERS = 4;
 
 /** How long an unused compiler stays warm: fifteen minutes, since a cold start costs seconds. */
 const IDLE_MILLISECONDS = 15 * 60_000;
 
-/** A package directory's warm compiler and when it was last used. */
+/** A workspace's warm compiler, the package it last built and when it was last used. */
 interface Warm {
     /** The compiler, started once. */
     readonly compiler: Promise<Compiler>;
-    /** The last use, in Unix milliseconds, which orders eviction at the cap. */
-    usedAt: number;
+    /** The workspace whose packages it builds. */
+    readonly workspace: string;
+    /** The package directory it last served, whose state it keeps warm. */
+    directory: string;
+    /** Whether a lease uses it now. */
+    isBusy: boolean;
+    /** The pool's use count at its last use, which orders reuse and eviction. */
+    use: number;
     /** The timer closing the compiler once it idles. */
     idle: ReturnType<typeof setTimeout>;
 }
 
-/** Warm compilers, one per package directory, closed when idle or beyond the cap. */
+/** A lease waiting for a compiler of a package. */
+interface Waiter {
+    /** The package's workspace. */
+    readonly workspace: string;
+    /** The package's directory. */
+    readonly directory: string;
+    /** Hand the waiter its compiler. */
+    readonly take: (warm: Warm) => void;
+}
+
+/** Warm compilers building into one store, leased one package at a time in request order. */
 export class CompilerPool implements AsyncDisposable {
+    /** The store every compiler builds into. */
+    readonly store: LocalPackageStore;
     /** The command the pool starts each compiler with. */
     readonly #command: CompilerCommand;
-    /** The warm compilers, by package directory. */
-    readonly #warm = new Map<string, Warm>();
-    /** Report a compiler failing to close after it idled or was evicted. */
-    readonly #report: (error: unknown) => void;
+    /** The warm compilers. */
+    #warm: Warm[] = [];
+    /** The compilers closing, which still count against the cap. */
+    #closing = 0;
+    /** The uses so far, counting each compiler taken. */
+    #uses = 0;
+    /** The leases waiting for a compiler, first come first served. */
+    readonly #waiting: Waiter[] = [];
+    /** The failures of compilers closing with no lease to answer, thrown on disposal. */
+    readonly #failures: unknown[] = [];
 
-    /** Keep compilers started with a command, reporting failures no request answers. */
-    private constructor(command: CompilerCommand, report: (error: unknown) => void) {
+    /** Keep compilers started with a command into a store. */
+    private constructor(store: LocalPackageStore, command: CompilerCommand) {
+        this.store = store;
         this.#command = command;
-        this.#report = report;
     }
 
-    /** Open a pool starting the current compiler. */
-    static async open(report: (error: unknown) => void): Promise<CompilerPool> {
-        return new CompilerPool(await CompilerCommand.current(), report);
+    /** Open a pool starting the current compiler, building into a store. */
+    static async open(store: LocalPackageStore): Promise<CompilerPool> {
+        return new CompilerPool(store, await CompilerCommand.current());
     }
 
-    /** Use a directory's warm compiler, starting it once and closing the oldest beyond the cap. */
-    compiler(directory: string): Promise<Compiler> {
-        // keep a warm compiler warm for another idle period
-        const now = Date.now();
-        const warm = this.#warm.get(directory);
-        if (warm !== undefined) {
-            warm.usedAt = now;
-            warm.idle.refresh();
+    /** Run work with a package's compiler, taken for the package alone until the work settles. */
+    async use<Result>(
+        directory: string,
+        work: (compiler: Compiler) => Promise<Result>,
+    ): Promise<Result> {
+        // queue for a compiler of the package's workspace
+        const resolved = await realpath(resolve(directory));
+        const workspace = await realpath(await locateWorkspace(resolved));
+        const warm = await new Promise<Warm>((take) => {
+            this.#waiting.push({ workspace, directory: resolved, take });
+            this.#serve();
+        });
 
-            return warm.compiler;
+        // run the work, then free the compiler, closing one the pool released meanwhile
+        try {
+            return await work(await warm.compiler);
+        } finally {
+            warm.isBusy = false;
+            if (this.#warm.includes(warm)) {
+                warm.idle.refresh();
+            } else {
+                void this.#dispose(warm);
+            }
+            this.#serve();
         }
-
-        // start the compiler, forgetting one that fails to start
-        const compiler = Compiler.start(directory, this.#command);
-        const idle = setTimeout(
-            () => void this.#close([directory]).catch(this.#report),
-            IDLE_MILLISECONDS,
-        );
-        idle.unref();
-        this.#warm.set(directory, { compiler, usedAt: now, idle });
-        compiler.catch(() => {
-            if (this.#warm.get(directory)?.compiler === compiler) {
-                clearTimeout(idle);
-                this.#warm.delete(directory);
-            }
-        });
-
-        // close the least recently used compilers beyond the cap
-        const evicted = [...this.#warm]
-            .toSorted(([, left], [, right]) => right.usedAt - left.usedAt)
-            .slice(MAX_WARM_COMPILERS)
-            .map(([evictee]) => evictee);
-        void this.#close(evicted).catch(this.#report);
-
-        return compiler;
     }
 
-    /** Close the warm compilers of the packages at or below a directory, such as a working tree. */
-    async release(root: string): Promise<void> {
-        await this.#close(
-            [...this.#warm.keys()].filter(
-                (directory) => directory === root || directory.startsWith(`${root}${sep}`),
-            ),
-        );
-    }
-
-    /** Close every warm compiler. */
-    async [Symbol.asyncDispose](): Promise<void> {
-        await this.#close([...this.#warm.keys()]);
-    }
-
-    /** Forget the warm compilers of some directories, closing each after its queued requests. */
-    async #close(directories: readonly string[]): Promise<void> {
-        // forget each warm compiler of the directories
-        const closing = directories.flatMap((directory) => {
-            // skip a directory without a warm compiler
-            const warm = this.#warm.get(directory);
+    /** Hand compilers to the waiting leases in order, while the first can be served. */
+    #serve(): void {
+        for (let waiter = this.#waiting[0]; waiter !== undefined; waiter = this.#waiting[0]) {
+            // stop at a waiter no compiler serves yet
+            const warm = this.#pick(waiter);
             if (warm === undefined) {
-                return [];
+                return;
             }
 
-            // stop its idle timer and drop it from the pool
-            clearTimeout(warm.idle);
-            this.#warm.delete(directory);
+            // lease the compiler to the package
+            this.#waiting.shift();
+            warm.directory = waiter.directory;
+            warm.isBusy = true;
+            warm.use = ++this.#uses;
+            warm.idle.refresh();
+            waiter.take(warm);
+        }
+    }
 
-            return [warm.compiler];
+    /** Pick a waiter's compiler: the package's, a new one, the workspace's oldest idle, or none. */
+    #pick(waiter: Waiter): Warm | undefined {
+        // find the package's compiler, and the idle ones by their last use
+        const own = this.#warm.find((warm) => warm.directory === waiter.directory);
+        const idle = this.#warm
+            .filter((warm) => !warm.isBusy)
+            .toSorted((left, right) => left.use - right.use);
+        const shared = idle.find((warm) => warm.workspace === waiter.workspace);
+        const other = idle.find((warm) => warm.workspace !== waiter.workspace);
+        const isFull = this.#warm.length + this.#closing >= MAX_WARM_COMPILERS;
+
+        // take the package's compiler once idle, which keeps its state warm
+        if (own !== undefined) {
+            return own.isBusy ? undefined : own;
+        }
+        // start one below the cap
+        else if (!isFull) {
+            return this.#start(waiter.workspace, waiter.directory);
+        }
+        // switch the workspace's oldest idle compiler to the package
+        else if (shared !== undefined) {
+            return shared;
+        }
+        // close another workspace's oldest idle compiler, starting this one once it stopped
+        else if (other !== undefined) {
+            void this.#close([other]);
+
+            return undefined;
+        }
+        // wait for a compiler to come free
+        else {
+            return undefined;
+        }
+    }
+
+    /** Start a workspace's compiler, forgetting it when it fails to start. */
+    #start(workspace: string, directory: string): Warm {
+        // start the compiler, closing it once it idles
+        const compiler = Compiler.start(workspace, { command: this.#command, store: this.store });
+        const idle = setTimeout(() => {
+            if (!warm.isBusy) {
+                void this.#close([warm]);
+            }
+        }, IDLE_MILLISECONDS);
+        idle.unref();
+        const warm: Warm = { compiler, workspace, directory, isBusy: false, use: this.#uses, idle };
+        this.#warm.push(warm);
+
+        // forget one that fails to start, which its lease answers, and serve the next waiter
+        compiler.catch(() => {
+            clearTimeout(idle);
+            this.#warm = this.#warm.filter((each) => each !== warm);
+            this.#serve();
         });
 
-        // close each after its queued requests, ignoring one that failed to start
-        await Promise.all(
-            closing.map((compiler) =>
-                compiler.then(
-                    (started) => started[Symbol.asyncDispose](),
-                    () => undefined,
-                ),
+        return warm;
+    }
+
+    /** Close the compilers of the workspaces at or below a directory, such as a working tree. */
+    async release(root: string): Promise<void> {
+        const resolved = await realpath(root);
+        await this.#close(
+            this.#warm.filter(
+                (warm) =>
+                    warm.workspace === resolved || warm.workspace.startsWith(`${resolved}${sep}`),
             ),
         );
+    }
+
+    /** Close every warm compiler, then throw the failures of compilers closed in the background. */
+    async [Symbol.asyncDispose](): Promise<void> {
+        await this.#close(this.#warm);
+        if (this.#failures.length > 0) {
+            throw new AggregateError(this.#failures, "compilers failed to close");
+        }
+    }
+
+    /** Forget some warm compilers, closing each idle one now and each busy one after its lease. */
+    async #close(closed: readonly Warm[]): Promise<void> {
+        // stop their idle timers and drop them from the pool
+        for (const warm of closed) {
+            clearTimeout(warm.idle);
+        }
+        this.#warm = this.#warm.filter((warm) => !closed.includes(warm));
+
+        // close the idle ones, which count against the cap until they stopped
+        const idle = closed.filter((warm) => !warm.isBusy);
+        await Promise.all(idle.map((warm) => this.#dispose(warm)));
+    }
+
+    /** Close a forgotten compiler, keeping a failure no lease answers, then serve the waiters. */
+    async #dispose(warm: Warm): Promise<void> {
+        this.#closing++;
+        try {
+            await warm.compiler.then(
+                (started) => started[Symbol.asyncDispose](),
+                () => undefined,
+            );
+        } catch (error) {
+            this.#failures.push(error);
+        } finally {
+            this.#closing--;
+            this.#serve();
+        }
     }
 }

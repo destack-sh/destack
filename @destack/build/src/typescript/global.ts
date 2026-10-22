@@ -5,15 +5,18 @@ import {
 } from "typescript/unstable/async";
 import {
     type Identifier,
+    isCallExpression,
     isElementAccessExpression,
     isExpressionWithTypeArguments,
     isHeritageClause,
     isIdentifier,
     isNumericLiteral,
     isPropertyAccessExpression,
+    isPropertyDeclaration,
     isStringLiteral,
     isTypeNode,
     type Node,
+    type PropertyDeclaration,
     type SourceFile,
     SyntaxKind,
 } from "typescript/unstable/ast";
@@ -27,6 +30,22 @@ const GLOBAL_SYMBOL =
     SymbolFlags.Class |
     SymbolFlags.Enum |
     SymbolFlags.ValueModule;
+
+/** The functions whose bodies and parameters run once called, not as the module evaluates. */
+const DEFERRING_FUNCTIONS: ReadonlySet<SyntaxKind> = new Set([
+    SyntaxKind.FunctionDeclaration,
+    SyntaxKind.FunctionExpression,
+    SyntaxKind.ArrowFunction,
+    SyntaxKind.MethodDeclaration,
+    SyntaxKind.GetAccessor,
+    SyntaxKind.SetAccessor,
+    SyntaxKind.Constructor,
+]);
+
+/** Report whether a node is a function whose body and parameters run once called. */
+export function isDeferringFunction(node: Node): boolean {
+    return DEFERRING_FUNCTIONS.has(node.kind);
+}
 
 /** Inspect runtime globals while excluding local declarations that shadow them. */
 export async function collectGlobals(
@@ -49,7 +68,7 @@ export async function collectGlobals(
             continue;
         }
 
-        // retain property access with its source location, without evaluating computed application expressions
+        // retain each property access with its source location
         const declarations = symbol.declarations;
         const { members, isDynamic } = accessPath(node);
         globals.push({
@@ -57,6 +76,7 @@ export async function collectGlobals(
             ...(declarations.length ? { symbol: await reference(symbol) } : {}),
             members,
             dynamic: isDynamic,
+            evaluation: evaluation(node),
             source: { file, start: node.getStart(), end: node.getEnd() },
         });
     }
@@ -101,7 +121,7 @@ function runtimeIdentifiers(source: SourceFile): Identifier[] {
     return identifiers;
 }
 
-/** Report whether an identifier names the member of a property access rather than a value. */
+/** Report whether an identifier is the member of a property access rather than a value. */
 function isMemberName(node: Identifier): boolean {
     const parent = node.parent;
 
@@ -120,7 +140,7 @@ function isClassExtension(node: Node): boolean {
     );
 }
 
-/** Report whether an identifier names an ambient global rather than a package declaration. */
+/** Report whether an identifier refers to an ambient global rather than a package declaration. */
 async function isAmbient(symbol: TypeScriptSymbol, node: Identifier): Promise<boolean> {
     // accept declaration files and the built-in globals outside any namespace
     const declarations = symbol.declarations;
@@ -140,14 +160,20 @@ function accessPath(node: Identifier): { members: string[]; isDynamic: boolean }
     while (true) {
         // follow a property access, or an element access by a literal key
         const parent = expression.parent;
+        // extend the path by a property name
         if (isPropertyAccessExpression(parent) && parent.expression === expression) {
             members.push(parent.name.text);
-        } else if (isElementAccessExpression(parent) && parent.expression === expression) {
+        }
+        // extend it by a literal key, ending at a well-known symbol key
+        else if (isElementAccessExpression(parent) && parent.expression === expression) {
             const argument = parent.argumentExpression;
             if (isStringLiteral(argument) || isNumericLiteral(argument)) {
                 members.push(argument.text);
+            } else if (isWellKnownSymbol(argument)) {
+                break;
             } else {
                 isDynamic = true;
+                break;
             }
         } else {
             break;
@@ -156,4 +182,57 @@ function accessPath(node: Identifier): { members: string[]; isDynamic: boolean }
     }
 
     return { members, isDynamic };
+}
+
+/** Find when an identifier runs: as its module evaluates, or once a function around it runs. */
+function evaluation(node: Node): GlobalReference["evaluation"] {
+    // walk outward to the first function or instance field that defers the expression
+    for (
+        let child = node, parent = node.parent;
+        parent !== undefined;
+        child = parent, parent = parent.parent
+    ) {
+        // defer a function's body and parameters, unless the module calls the function right away
+        if (DEFERRING_FUNCTIONS.has(parent.kind) && !isCalledAtOnce(parent)) {
+            return "function";
+        }
+        // defer an instance field's initializer to construction
+        else if (
+            isPropertyDeclaration(parent) &&
+            parent.initializer === child &&
+            !isStatic(parent)
+        ) {
+            return "function";
+        }
+    }
+
+    return "module";
+}
+
+/** Report whether a function expression is called where it is written, as an IIFE is. */
+function isCalledAtOnce(node: Node): boolean {
+    // step out of the parentheses around the function
+    let expression = node;
+    while (expression.parent.kind === SyntaxKind.ParenthesizedExpression) {
+        expression = expression.parent;
+    }
+    const call = expression.parent;
+    const isExpression =
+        node.kind === SyntaxKind.FunctionExpression || node.kind === SyntaxKind.ArrowFunction;
+
+    return isExpression && isCallExpression(call) && call.expression === expression;
+}
+
+/** Report whether a class field is static. */
+function isStatic(node: PropertyDeclaration): boolean {
+    return node.modifiers?.some((modifier) => modifier.kind === SyntaxKind.StaticKeyword) ?? false;
+}
+
+/** Report whether a key is a member of the global Symbol, such as Symbol.iterator. */
+function isWellKnownSymbol(node: Node): boolean {
+    return (
+        isPropertyAccessExpression(node) &&
+        isIdentifier(node.expression) &&
+        node.expression.text === "Symbol"
+    );
 }

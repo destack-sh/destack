@@ -2,7 +2,8 @@ import { expect, test } from "@destack/test";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { readOutputs } from "./build.ts";
+import { outputsOf } from "./build.ts";
+import { readPackageJson } from "../source/index.ts";
 
 test("read one module per runtime the shipped exports compile for", async () => {
     // declare packages with every runtime, with runtimes per export, with a test layer and without runtimes
@@ -20,7 +21,7 @@ test("read one module per runtime the shipped exports compile for", async () => 
             }),
         );
         try {
-            return await readOutputs(directory);
+            return outputsOf(await readPackageJson(directory));
         } catch (error) {
             if (!(error instanceof Error)) {
                 throw error;
@@ -56,15 +57,15 @@ test("read one module per runtime the shipped exports compile for", async () => 
             await read(exports, { id, language: "typescript" }),
         ]).toEqual([
             {
-                browser: { kind: "module", runtime: "browser", bundle: true },
-                bun: { kind: "module", runtime: "bun", bundle: true },
-                workerd: { kind: "module", runtime: "workerd", bundle: true },
+                browser: { kind: "module", runtime: "browser" },
+                bun: { kind: "module", runtime: "bun" },
+                workerd: { kind: "module", runtime: "workerd" },
             },
             {
-                browser: { kind: "module", runtime: "browser", bundle: true },
-                workerd: { kind: "module", runtime: "workerd", bundle: true },
+                browser: { kind: "module", runtime: "browser" },
+                workerd: { kind: "module", runtime: "workerd" },
             },
-            { browser: { kind: "module", runtime: "browser", bundle: true } },
+            { browser: { kind: "module", runtime: "browser" } },
             "no runtimes declared for export: .",
         ]);
     } finally {

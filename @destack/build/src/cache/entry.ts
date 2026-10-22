@@ -24,15 +24,10 @@ export const CachedOutput = schema.object({
 /** A requested output a build reuses instead of compiling it. */
 export type CachedOutput = schema.Infer<typeof CachedOutput>;
 
-/** The cache keys of a build: the whole build's and each requested output's. */
-export const BuildKeys = schema.object({
-    /** The key of the whole build. */
-    build: Digest,
-    /** The key of each requested output, by name. */
-    outputs: schema.record(schema.string(), Digest),
-});
-/** The cache keys of a build. */
-export type BuildKeys = schema.Infer<typeof BuildKeys>;
+/** The cache key of each requested output, by name. */
+export const OutputKeys = schema.record(schema.string(), Digest);
+/** The cache key of each requested output, by name. */
+export type OutputKeys = schema.Infer<typeof OutputKeys>;
 
 /** What a cache key names: a build's manifest, one output, or one file a transform derived. */
 export const CacheEntry = schema.discriminatedUnion("kind", [

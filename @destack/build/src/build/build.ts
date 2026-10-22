@@ -1,16 +1,21 @@
 import { BuildError } from "../error/index.ts";
-import { type DependencyResolution, PackageDefinition, TEST_EXPORT } from "@destack/package";
+import {
+    type DependencyResolution,
+    PackageDefinition,
+    type PackageJson,
+    TEST_EXPORT,
+} from "@destack/package";
 import type { History } from "@destack/resource";
-import type { PackageStore } from "../store/index.ts";
-import { mapExports, readPackageJson } from "../source/source.ts";
+import type { LocalPackageStore } from "../store/local.ts";
+import { mapExports } from "../source/source.ts";
 import type { OutputRequest } from "@destack/package/build";
 import { Runtime } from "@destack/package/runtime";
 import { type Commit, schema, type Version } from "@destack/schema";
-import { mkdir, readFile, writeFile, rm } from "node:fs/promises";
-import { createReadStream } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { BuildReader, PackageManifest } from "@destack/package/manifest";
-import { type PackageFile, PackagePath } from "@destack/package/file";
+import { mkdir, writeFile, rm } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
+import { readBuild } from "@destack/package/bun";
+import { type BuildReader, MANIFEST_PATH, type PackageManifest } from "@destack/package/manifest";
+import type { PackageFile } from "@destack/package/file";
 import { digestFile } from "./directory.ts";
 import { PackageError } from "@destack/package/error";
 
@@ -27,21 +32,19 @@ export class PackageBuild implements AsyncDisposable {
     /** The requested outputs the build reused from a cache instead of compiling them. */
     readonly reused: readonly string[];
 
-    /** Associate compiler output or imported files with their manifest. */
+    /** Keep a build directory's reader, its ownership and the outputs it reused. */
     constructor(
-        manifest: PackageManifest,
+        reader: BuildReader,
         directory: string,
         ownership: "temporary" | "retained",
         reused: readonly string[] = [],
     ) {
-        // retain the manifest and the directory with its reused outputs
-        this.manifest = manifest;
+        // keep the reader with its manifest, the directory and how the build owns it
+        this.reader = reader;
+        this.manifest = reader.manifest;
         this.directory = directory;
         this.ownership = ownership;
         this.reused = reused;
-
-        // open the reader of the build's files
-        this.reader = openReader(manifest, directory);
     }
 
     /** Remove only temporary results owned by this instance. */
@@ -51,16 +54,33 @@ export class PackageBuild implements AsyncDisposable {
         }
     }
 
-    /** Read only the root manifest and load each description when requested. */
-    static async open(directory: string): Promise<BuildReader> {
-        return openReader(await readManifest(directory), directory);
+    /** Write a stored build's files and manifest into a directory, reusing every output. */
+    static async restore(
+        store: LocalPackageStore,
+        digest: string,
+        destination: string,
+    ): Promise<PackageBuild> {
+        // clone the files, then write the manifest listing them
+        const reader = await store.contents(digest);
+        const { manifest } = reader;
+        for (const file of await reader.distributed()) {
+            await store.place(file, join(destination, file.path));
+        }
+        await writeFile(join(destination, MANIFEST_PATH), JSON.stringify(manifest), {
+            flag: "wx",
+        });
+
+        // read the written build back, reusing every output
+        const reused = Object.keys(manifest.outputs);
+
+        return new PackageBuild(await readBuild(destination), destination, "temporary", reused);
     }
 
     /** Read a distributed build and verify its files. */
     static async read(directory: string): Promise<PackageBuild> {
         // follow verified file references without retaining source or executable contents
-        const manifest = await readManifest(directory);
-        const reader = openReader(manifest, directory);
+        const reader = await readBuild(directory);
+        const { manifest } = reader;
         const list = await reader.distributed();
 
         // reject ambiguous paths and outputs before opening source and executable files
@@ -86,7 +106,7 @@ export class PackageBuild implements AsyncDisposable {
             }
         }
 
-        return new PackageBuild(manifest, directory, "retained");
+        return new PackageBuild(reader, directory, "retained");
     }
 
     /** Write a build to a new directory, its manifest last, for the caller to move into place. */
@@ -94,53 +114,16 @@ export class PackageBuild implements AsyncDisposable {
         // require a new directory so a failed write cannot damage an existing build
         await mkdir(directory);
         for (const file of await reader.distributed()) {
-            const destination = resolve(directory, PackagePath.parse(file.path));
+            const destination = resolve(directory, file.path);
             await mkdir(dirname(destination), { recursive: true });
             await writeFile(destination, await reader.load(file.path));
         }
 
         // make the build readable only after every file has been written
-        await writeFile(resolve(directory, "manifest.json"), JSON.stringify(reader.manifest), {
+        await writeFile(resolve(directory, MANIFEST_PATH), JSON.stringify(reader.manifest), {
             flag: "wx",
         });
     }
-}
-
-/** Read a build directory's manifest. */
-async function readManifest(directory: string): Promise<PackageManifest> {
-    return PackageManifest.parse(
-        JSON.parse(await readFile(resolve(directory, "manifest.json"), "utf8")),
-    );
-}
-
-/** Read a build's files from its directory. */
-function openReader(manifest: PackageManifest, directory: string): BuildReader {
-    return new BuildReader(manifest, async (path, signal) =>
-        streamFile(resolve(directory, PackagePath.parse(path)), signal),
-    );
-}
-
-/** Stream a file's chunks as the web stream's reader asks for them. */
-function streamFile(file: string, signal: AbortSignal | undefined): ReadableStream<Uint8Array> {
-    const chunks = createReadStream(file, signal === undefined ? {} : { signal })[
-        Symbol.asyncIterator
-    ]();
-
-    return new ReadableStream<Uint8Array>({
-        pull: async (controller) => {
-            const next = await chunks.next();
-            if (next.done === true) {
-                controller.close();
-            } else if (next.value instanceof Uint8Array) {
-                controller.enqueue(next.value);
-            } else {
-                throw new TypeError(`file stream of ${file} yielded no bytes`);
-            }
-        },
-        cancel: async () => {
-            await chunks.return?.();
-        },
-    });
 }
 
 /** Refuse the manifest path, a duplicate path or a file below another, returning the paths. */
@@ -148,7 +131,7 @@ function requireDistinctPaths(list: readonly PackageFile[]): Set<string> {
     // refuse reserved and duplicate paths
     const paths = new Set<string>();
     for (const file of list) {
-        if (file.path === "manifest.json" || file.path.startsWith("manifest.json/")) {
+        if (file.path === MANIFEST_PATH || file.path.startsWith(`${MANIFEST_PATH}/`)) {
             throw new PackageError("INVALID_FILE", `reserved build path: ${file.path}`);
         }
         if (paths.has(file.path)) {
@@ -235,8 +218,6 @@ export const ModuleOptions = schema.object({
     runtime: Runtime,
     /** Package-relative module or HTML entries, absent to compile the package exports. */
     entries: schema.record(schema.string(), schema.string()).readonly().exactOptional(),
-    /** Bundle dependencies, off for library dependencies installed separately. */
-    bundle: schema.boolean().exactOptional(),
     /** Minify generated code with Vite's minifier. */
     minify: schema.boolean().exactOptional(),
     /** Public URL prefix used by browser assets. */
@@ -246,7 +227,7 @@ export const ModuleOptions = schema.object({
 export type ModuleOptions = schema.Infer<typeof ModuleOptions>;
 
 /** Inputs to a package build. */
-export interface BuildOptions {
+export interface PackageBuildOptions {
     /** The source package directory, kept unchanged for the duration of this build. */
     directory: string;
     /** Named module outputs, and outputs of kinds the dependency closure's extensions compile. */
@@ -257,36 +238,33 @@ export interface BuildOptions {
     configuration?: string;
     /** Cancel compilation and terminate its subprocesses. */
     signal?: AbortSignal;
-    /** Maximum compilation time in milliseconds. */
+    /** The longest a compilation may take, in milliseconds, absent for no deadline. */
     timeout?: number;
-    /** What the package has published, to plan the upgrade from. */
+    /** What the package has published, to plan its upgrade from. */
     history?: History;
     /** The commit of the source directory, absent for a working tree with changes. */
     commit?: Commit;
     /** The versions the build releases its source packages at, by package name. */
     versions?: Readonly<Record<string, Version>>;
-    /** The store whose cache the build reuses and fills, absent to build without a cache. */
-    store?: PackageStore;
 }
 
-/** Read the module outputs a package ships, or the ones a build selects. */
-export async function readOutputs(
-    directory: string,
+/** List the module outputs a package ships, or the ones a build selects. */
+export function outputsOf(
+    packageJson: PackageJson,
     names?: readonly string[],
-): Promise<Readonly<Record<string, ModuleOptions>>> {
+): Readonly<Record<string, ModuleOptions>> {
     // read the runtimes every export but the test layer compiles for
-    const packageJson = await readPackageJson(directory);
     const runtimes = new Set(
         Object.keys(mapExports(packageJson))
             .filter((name) => name !== TEST_EXPORT)
             .flatMap((name) => PackageDefinition.runtimes(packageJson.definition, name)),
     );
 
-    // compile each as one bundled module named after it, in the runtimes' declared order
+    // compile each as one module named after it, in the runtimes' declared order
     const implied = Object.fromEntries(
         Runtime.options
             .filter((runtime) => runtimes.has(runtime))
-            .map((runtime) => [runtime, { kind: "module" as const, runtime, bundle: true }]),
+            .map((runtime) => [runtime, { kind: "module" as const, runtime }]),
     );
     if (names === undefined) {
         return implied;

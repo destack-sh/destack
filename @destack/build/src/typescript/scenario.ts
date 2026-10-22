@@ -35,7 +35,7 @@ export const ScenarioDeclaration = {
 
         return await Promise.all(
             definitions.map(async ({ site, fields }) => {
-                // read what it exercises, its interaction, the examples and environment it is given, and its steps and observations
+                // read the scenario's subject, interaction, examples, environment, steps and observations
                 const of = await fields.symbol("of", inspector);
                 const interaction = await fields.symbol("interaction", inspector);
                 const given = new DefinitionFields(

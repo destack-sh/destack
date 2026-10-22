@@ -1,7 +1,7 @@
 import { Digest } from "@destack/schema";
 import { PackagePath, type PackageFile } from "@destack/package/file";
-import { CallError } from "@destack/runtime/error";
-import type { PackageStore } from "./store.ts";
+import { CallError } from "@destack/object";
+import { PackageStore } from "./store.ts";
 
 /** The most bytes one upload holds: 64 MiB, which bounds its memory. */
 const MAX_UPLOAD_BYTES = 64 * 1024 * 1024;
@@ -70,7 +70,9 @@ async function write(
     // tell whether a file is held
     if (request.method === "HEAD") {
         const held =
-            target?.kind === "file" ? await store.bucket.head(`files/${target.digest}`) : null;
+            target?.kind === "file"
+                ? await store.bucket.head(PackageStore.fileKey(target.digest))
+                : null;
 
         return new Response(null, { status: held === null ? 404 : 200 });
     }
@@ -269,7 +271,7 @@ async function archive(store: PackageStore, request: Request, digest: string): P
 interface UploadTarget {
     /** What the upload stores. */
     readonly kind: "file" | "manifest";
-    /** The digest naming it. */
+    /** The digest keying it. */
     readonly digest: string;
     /** The scope the upload is sent below, such as its package, absent for none. */
     readonly scope: string | undefined;
@@ -284,11 +286,11 @@ const UploadTarget = {
         const scope = segments.length === 3 ? segments[0] : undefined;
         const [first = "", second = "", third] = scope === undefined ? segments : segments.slice(1);
 
-        // name a file by its digest
+        // key a file by its digest
         if (third === undefined && first === "files" && Digest.safeParse(second).success) {
             return { kind: "file", digest: second, scope };
         }
-        // name a manifest by the digest of its build
+        // key a manifest by the digest of its build
         else if (
             third === undefined &&
             second === "manifest.json" &&

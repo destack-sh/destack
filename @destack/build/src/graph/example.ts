@@ -42,6 +42,7 @@ export class ExampleGraph {
                 name: example.name,
                 description: {
                     ...example.description,
+                    properties: example.properties,
                     objects: Object.fromEntries(
                         Object.entries(example.objects).map(([scope, calls]) => [
                             scope,

@@ -29,7 +29,7 @@ import {
 } from "@destack/package/build";
 import type { BuildDescription } from "@destack/package/manifest";
 import type { ModuleDescription } from "@destack/package/code";
-import type { Sandbox } from "@destack/package";
+import { PackageJson, type Sandbox } from "@destack/package";
 import { PackagePath } from "@destack/package/file";
 import { type PackageOutput } from "@destack/package/manifest";
 import { type SourceMapReference } from "@destack/package/source";
@@ -44,6 +44,9 @@ import { sourcePlugin, mapSource } from "./source.ts";
 import { dependencyPlugin, modulePath, type ModuleSource } from "./dependency.ts";
 import { directoryPlugin } from "./asset.ts";
 import { transformPlugins } from "./extension.ts";
+
+/** The helpers the compiler's transforms import for lowered syntax, bundled into each build. */
+const TRANSFORM_HELPERS = "@oxc-project/runtime";
 
 /** The files and descriptions one compiled output adds to its build. */
 export interface CompiledFiles {
@@ -90,7 +93,7 @@ export class OutputCompilation implements Compilation {
     /** Whether an output kind compiles the output in its pass, where extensions emit no entries. */
     readonly isLent: boolean;
     /** The build's cache of files the extensions' transforms derive. */
-    readonly cache: TransformCache | undefined;
+    readonly cache: TransformCache;
     /** The modules extensions emit, by package entrypoint. */
     readonly #entries = new Map<string, string>();
     /** The host modules the runtime supplies, and those importers replace with nothing. */
@@ -108,7 +111,7 @@ export class OutputCompilation implements Compilation {
         },
         extensions: readonly BuildExtension[],
         isLent: boolean,
-        cache: TransformCache | undefined,
+        cache: TransformCache,
     ) {
         // keep the output's settings, package and inspection
         this.name = name;
@@ -198,7 +201,21 @@ export class OutputCompilation implements Compilation {
         const { project } = this;
         const compiled = this.#createFiles();
         const plugins = this.#plugins();
-        const entries = Object.values(project.exports);
+
+        // export each stylesheet as the source file the build ships, compiling the modules alone
+        const exported = Object.entries(project.exports);
+        for (const [name, entry] of exported.filter(([, path]) => path.endsWith(".css"))) {
+            compiled.output.exports[name] = PackagePath.parse(
+                relativePath(project.directory, entry),
+            );
+            compiled.files.set(
+                compiled.output.exports[name],
+                new Uint8Array(await readFile(entry)),
+            );
+        }
+        const entries = exported
+            .map(([, entry]) => entry)
+            .filter((entry) => !entry.endsWith(".css"));
         if (!entries.length && !this.#entries.size) {
             return compiled;
         }
@@ -258,7 +275,7 @@ export class OutputCompilation implements Compilation {
         const described: CompiledOutput = {
             exports,
             declarations: (entrypoint) =>
-                this.#declarationsOf(entrypoint, exports, facades, inspection),
+                this.#declarationsOf(entrypoint, output, facades, inspection),
         };
 
         // merge each extension's description into the output
@@ -280,9 +297,11 @@ export class OutputCompilation implements Compilation {
         const context = {
             directory: this.directory,
             runtime: this.runtime,
-            server: false,
+            // render components on the server runtimes, which run them without a document
+            server: this.runtime !== "browser",
             options: {},
-            ...(this.cache === undefined ? {} : { cache: this.cache }),
+            dependencies: this.project.tree.directories,
+            cache: this.cache,
         };
 
         return [...transformPlugins(this.extensions, context), ...compiling];
@@ -536,28 +555,30 @@ export class OutputCompilation implements Compilation {
         );
     }
 
-    /** Check whether a specifier names a local module or one a bundled dependency imports. */
+    /** Report whether the output bundles its dependencies, as a browser has no installed tree. */
+    get #isBundling(): boolean {
+        return this.options.runtime === "browser";
+    }
+
+    /** Check whether a specifier refers to a local module or one a bundled dependency imports. */
     #isBundled(specifier: string, importer: string | undefined): boolean {
         // bundle relative, absolute, virtual and package-internal modules
-        const { options, project } = this;
+        const { project } = this;
         if (
             specifier.startsWith(".") ||
             specifier.startsWith("/") ||
             specifier.startsWith("\0") ||
+            specifier.startsWith("virtual:") ||
             specifier.startsWith("#") ||
-            DependencyName.of(specifier) === project.packageJson.package.name
+            DependencyName.of(specifier) === project.packageJson.package.name ||
+            DependencyName.of(specifier) === TRANSFORM_HELPERS
         ) {
-            return true;
-        }
-
-        // bundle what modules a build extension generates import, as the extension's own code
-        if (importer?.startsWith("\0") === true) {
             return true;
         }
 
         // bundle what bundled dependencies import
         return (
-            options.bundle === true &&
+            this.#isBundling &&
             importer !== undefined &&
             (importer.split(sep).includes("node_modules") ||
                 relative(project.directory, importer).startsWith(`..${sep}`))
@@ -573,12 +594,7 @@ export class OutputCompilation implements Compilation {
     ): boolean {
         // require a declared dependency
         const { packageJson } = this.project;
-        const groups = [
-            packageJson.dependencies,
-            packageJson.peerDependencies,
-            packageJson.optionalDependencies,
-        ];
-        if (!groups.some((requirements) => Object.hasOwn(requirements, dependency))) {
+        if (!PackageJson.runtimeDependencies(packageJson).includes(dependency)) {
             const by = importer === undefined ? "" : `, imported by ${importer}`;
             throw new BuildError(
                 "BUILD_FAILED",
@@ -586,8 +602,8 @@ export class OutputCompilation implements Compilation {
             );
         }
 
-        // bundle it, or keep its registry release external
-        if (this.options.bundle === true) {
+        // bundle it into a browser output, or keep its release external
+        if (this.#isBundling) {
             return false;
         }
         const selected = dependencies[dependency];
@@ -608,17 +624,17 @@ export class OutputCompilation implements Compilation {
     /** Select an entrypoint's module declarations, including ones shaken out of its chunks. */
     #declarationsOf(
         entrypoint: string,
-        exports: Readonly<Record<string, string>>,
+        output: PackageOutput,
         facades: ReadonlyMap<string, string>,
         inspection: BuildDescription,
     ): DeclarationDescription[] {
-        // require an emitted entrypoint whose chunks import only what the runtime supplies
-        const emitted = exports[entrypoint];
+        // require an emitted entrypoint, then check its chunks' imports
+        const emitted = output.exports[entrypoint];
         const facade = facades.get(entrypoint);
         if (emitted === undefined || facade === undefined) {
             throw new BuildError("BUILD_FAILED", `no emitted entrypoint: ${entrypoint}`);
         }
-        this.#checkChunks(entrypoint, emitted, inspection);
+        this.#checkChunks(entrypoint, emitted, output, inspection);
 
         // start from the entry's module as the dependency plugin records it
         const root = isAbsolute(facade)
@@ -643,8 +659,13 @@ export class OutputCompilation implements Compilation {
         });
     }
 
-    /** Refuse external imports of an entry's chunks that the runtime lacks. */
-    #checkChunks(entrypoint: string, emitted: string, inspection: BuildDescription): void {
+    /** Refuse external imports of an entry's chunks that the runtime and dependencies lack. */
+    #checkChunks(
+        entrypoint: string,
+        emitted: string,
+        output: PackageOutput,
+        inspection: BuildDescription,
+    ): void {
         const chunks = [emitted];
         const visited = new Set<string>();
         for (const path of chunks) {
@@ -658,11 +679,15 @@ export class OutputCompilation implements Compilation {
                 throw new BuildError("BUILD_FAILED", `unknown emitted chunk: ${path}`);
             }
 
-            // follow internal imports and check external ones against the runtime
+            // follow internal imports and check external ones against the runtime and the dependencies
             for (const imported of chunk.imports) {
+                const isDependency = Object.hasOwn(
+                    output.dependencies,
+                    DependencyName.of(imported.path),
+                );
                 if (!imported.external) {
                     chunks.push(imported.path);
-                } else if (!isRuntimeModule(imported.path, this.runtime)) {
+                } else if (!isRuntimeModule(imported.path, this.runtime) && !isDependency) {
                     throw new BuildError(
                         "BUILD_FAILED",
                         `unsupported external import of ${entrypoint} on ${this.runtime}: ${imported.path}`,

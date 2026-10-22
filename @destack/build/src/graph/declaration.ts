@@ -142,7 +142,7 @@ export class DeclarationGraph {
 
 /** Describe an evaluated declaration at its symbol. */
 function describe(declaration: DeclarationDescription): graph.Declaration {
-    // name the symbol, then the declaration as its kind at the symbol
+    // key the symbol, then the declaration as its kind at the symbol
     const location = {
         packageId: declaration.symbol.package.id,
         module: declaration.symbol.symbol.module,

@@ -1,4 +1,3 @@
-import { Clock } from "@destack/environment";
 import { test } from "@destack/test";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -9,259 +8,47 @@ import {
     expectManifest,
     exported,
     importBuilt,
-    isHandlerModule,
     isNoteModule,
-    isWorkloadModule,
-    property,
-    readBuildFiles,
 } from "./fixture.ts";
 import * as library from "./fixture/library/request.ts";
-import * as workload from "./fixture/workload/request.ts";
-import * as resource from "./fixture/resource/request.ts";
-import * as stack from "./fixture/stack/request.ts";
-import { requests } from "./fixture/web/request.ts";
 import { BuildReader } from "@destack/package/manifest";
-import { WorkloadInstance } from "@destack/runtime/workload";
-import { ResourceContext } from "@destack/resource/context";
-import { testCallKey } from "@destack/runtime/test";
 import { Catalog } from "@destack/locale";
 import { PackageDefinition } from "@destack/package";
 
-/** Complete build scenarios, a web application in each rendering mode. */
-const fixtures = [
-    { name: "library", request: library.request, mode: "library" },
-    { name: "workload", request: workload.request, mode: "workload" },
-    { name: "resource", request: resource.request, mode: "resource" },
-    { name: "stack", request: stack.request, mode: "stack" },
-    ...Object.entries(requests).map(([mode, application]) => ({
-        name: "web",
-        mode: `web ${mode}`,
-        request: { outputs: { website: application } },
-    })),
-];
-
-test.concurrent.for(fixtures)(
-    "relocate the $mode build and run its outputs",
-    async (fixture, { expect }) => {
-        await using input = await Fixture.open(fixture.name);
-        await using build = await input.build(fixture.request);
-
-        // load the complete distribution after removing its source checkout
-        const destination = join(input.directory, "build");
-        await PackageBuild.write(build.reader, destination);
-        await rm(input.source, { recursive: true });
-        const restored = await PackageBuild.read(destination);
-        expect(restored.manifest).toEqual(build.manifest);
-        await expectFiles(restored, build);
-
-        await expectManifest(build, destination);
-
-        // reject corrupted description bytes, then call the library's exports from the relocated build
-        if (fixture.name === "library") {
-            const corrupt = new BuildReader(build.manifest, async (path) => {
-                const bytes = new Uint8Array(await readFile(join(destination, path)));
-                const [first = 0] = bytes;
-                bytes[0] = first ^ 1;
-
-                return new Blob([bytes]).stream();
-            });
-            await expect(corrupt.files()).rejects.toMatchObject({
-                code: "INVALID_FILE",
-                message: `file digest mismatch: ${build.manifest.lists.files.path}`,
-            });
-
-            const module = await importBuilt(
-                destination,
-                exported(build.manifest.outputs["library"], "."),
-            );
-            if (!isNoteModule(module)) {
-                throw new TypeError("the library exports no createNote function");
-            }
-            expect(module.createNote("A note")).toEqual({ title: "A note", complete: false });
-        }
-        // run each output's declared workload
-        else if (fixture.name === "workload") {
-            for (const output of Object.values(build.manifest.outputs)) {
-                expect(await callFeed(destination, output)).toEqual([
-                    200,
-                    { path: "/feed", version: "2026.9.0" },
-                ]);
-            }
-        }
-        // read the declared database from the bundle
-        else if (fixture.name === "resource") {
-            const module = await importBuilt(
-                destination,
-                exported(build.manifest.outputs["library"], "."),
-            );
-
-            // distribute the declared tables with the database, so the bundle plans the database's migration
-            const database = property(module, "database");
-            expect(property(database, "tables")).toEqual([property(module, "note")]);
-        }
-        // read the declared stack from the bundle
-        else if (fixture.name === "stack") {
-            const module = await importBuilt(
-                destination,
-                exported(build.manifest.outputs["stack"], "."),
-            );
-
-            // retain the shared bucket's description in the stack definition
-            const files = property(module, "files");
-            const owner = property(files, "package");
-            const ownerId = property(owner, "id");
-            if (typeof ownerId !== "string") {
-                throw new TypeError("the bucket's package has no identifier");
-            }
-            const declaration = Object.fromEntries(
-                ["name", "kind", "version", "spec"].map((key) => [key, property(files, key)]),
-            );
-            const definition = property(property(module, "personal"), "definition");
-            expect(property(definition, "resources")).toEqual({
-                files: {
-                    declaration: { package: owner, ...declaration },
-                    retention: { within: { days: 30 } },
-                    tags: {},
-                },
-            });
-            expect(property(definition, "installations")).toEqual({
-                notes: {
-                    package: {
-                        id: property(property(module, "stack"), "id"),
-                        name: "@example/stack",
-                        version: "2026.9.0",
-                    },
-                    status: "enabled",
-                    name: "stack",
-                    bindings: {
-                        [ownerId]: {
-                            files: {
-                                target: { type: "resource", name: "files" },
-                                state: {},
-                            },
-                        },
-                    },
-                    compute: {},
-                    capabilities: [],
-                    directories: [],
-                    tags: {},
-                },
-            });
-        } else if (fixture.name === "web") {
-            const distributed = await readBuildFiles(build);
-            const server = build.manifest.outputs["website-server"];
-            if (server?.emit === true) {
-                const module = await importBuilt(destination, exported(server, "."));
-                if (!isHandlerModule(module)) {
-                    throw new TypeError("the server exports no request handler");
-                }
-                const response = await module.default.fetch(new Request("https://example.test/"));
-                const document = await response.text();
-                expect([response.status, headings(document)]).toEqual([200, ["Hello Destack"]]);
-                expect(missingAssets(document, distributed)).toEqual([]);
-            }
-
-            // resolve every generated page's asset references to distributed files
-            for (const [path, bytes] of distributed) {
-                if (path.endsWith(".html")) {
-                    expect(
-                        missingAssets(new TextDecoder().decode(bytes), distributed),
-                        path,
-                    ).toEqual([]);
-                }
-            }
-        }
-    },
-);
-
-test.concurrent("release a build at a given version its manifest, package.json and modules carry", async ({
+test.concurrent("relocate the library build and call its exports, refusing corrupted description bytes", async ({
     expect,
 }) => {
-    // build the workload at a dev version of its declared release, after removing its source checkout
-    await using input = await Fixture.open("workload");
-    await using build = await input.build({
-        ...workload.request,
-        versions: { "@destack/build-workload-fixture": "2026.9.0-dev.3" },
-    });
+    await using input = await Fixture.open("library");
+    await using build = await input.build(library.request);
+
+    // load the complete distribution after removing its source checkout
     const destination = join(input.directory, "build");
     await PackageBuild.write(build.reader, destination);
     await rm(input.source, { recursive: true });
+    const restored = await PackageBuild.read(destination);
+    expect(restored.manifest).toEqual(build.manifest);
+    await expectFiles(restored, build);
+    await expectManifest(build, destination);
 
-    // call its feed, which answers the version its modules carry, and read its package.json
-    const output = build.manifest.outputs["bun"];
-    const called = output === undefined ? undefined : await callFeed(destination, output);
-    const manifest: unknown = JSON.parse(await readFile(join(destination, "package.json"), "utf8"));
-    expect({
-        release: build.manifest.package.version,
-        manifest: property(manifest, "version"),
-        called,
-    }).toEqual({
-        release: "2026.9.0-dev.3",
-        manifest: "2026.9.0-dev.3",
-        called: [200, { path: "/feed", version: "2026.9.0-dev.3" }],
+    // reject corrupted description bytes
+    const corrupt = new BuildReader(build.manifest, async (path) => {
+        const bytes = new Uint8Array(await readFile(join(destination, path)));
+        const [first = 0] = bytes;
+        bytes[0] = first ^ 1;
+
+        return new Blob([bytes]).stream();
     });
-});
+    await expect(corrupt.files()).rejects.toMatchObject({
+        code: "INVALID_FILE",
+        message: `file digest mismatch: ${build.manifest.lists.files.path}`,
+    });
 
-/** Start a written build's declared workload from an output's package export and call its feed. */
-async function callFeed(
-    destination: string,
-    output: NonNullable<PackageBuild["manifest"]["outputs"][string]>,
-): Promise<[number, unknown]> {
-    // start the declared workload from its package export
-    const module = await importBuilt(destination, exported(output, "./server"));
-    if (!isWorkloadModule(module)) {
-        throw new TypeError("the server exports no workload or package handle");
+    // call the library's exports from the relocated build
+    const module = await importBuilt(destination, exported(build.manifest.outputs["library"], "."));
+    if (!isNoteModule(module)) {
+        throw new TypeError("the library exports no createNote function");
     }
-    await using instance = await WorkloadInstance.start(module.web, {
-        clock: Clock.system,
-        callKey: testCallKey,
-        report: (error) => {
-            throw error;
-        },
-        resources: new ResourceContext(),
-        serverOptions: () => ({
-            scope: "fixture",
-            drainTimeout: 1000,
-            authenticate: async () => undefined,
-            authorizeMachine: async () => {},
-        }),
-    });
-
-    // call the package's feed
-    const response = await instance.fetch(module.notes, new Request("https://example.test/feed"));
-
-    return [response.status, await response.json()];
-}
-
-/** List the text of a page's headings. */
-function headings(document: string): string[] {
-    return [...document.matchAll(/<h1[^>]*>([^<]*)<\/h1>/gu)].map((match) => match[1] ?? "");
-}
-
-/** List the root-relative asset references of a page the browser output does not distribute. */
-function missingAssets(document: string, distributed: ReadonlyMap<string, Uint8Array>): string[] {
-    return [...document.matchAll(/(?:src|href)="\/([^"]+)"/gu)]
-        .map((match) => match[1] ?? "")
-        .filter((asset) => !distributed.has(`output/website-browser/${asset}`));
-}
-
-test.concurrent("refuse a server entry reading a browser global before framework compilation", async ({
-    expect,
-}) => {
-    // write a server entry reading a browser global, which the fixture's DOM library types
-    await using input = await Fixture.open("web");
-    await writeFile(
-        join(input.source, "server.ts"),
-        "/** Render the page title. */\nexport function render(): string {\n    return document.title;\n}\n",
-    );
-    await writeFile(join(input.source, "client.ts"), "export {};\n");
-
-    // refuse the build before framework compilation or rendering
-    const application = { ...requests.static, entryServer: "server.ts", entryClient: "client.ts" };
-    await expect(input.build({ outputs: { website: application } })).rejects.toMatchObject({
-        code: "BUILD_FAILED",
-        message: "unsupported bun API: document.title at server.ts:76",
-    });
+    expect(module.createNote("A note")).toEqual({ title: "A note", complete: false });
 });
 
 test.concurrent("ship a package's own catalogs in its build, refusing a misnamed one and another package's", async ({

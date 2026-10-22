@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { Toolchain } from "@destack/check/toolchain";
 import { API, type Program } from "typescript/unstable/async";
 import type { GlobalReference, ModuleDescription } from "@destack/package/code";
-import type { Runtime } from "@destack/package/runtime";
+import { FILE_RESOLVING_RUNTIMES, type Runtime } from "@destack/package/runtime";
 import { TYPESCRIPT_OPTIONS } from "@destack/package/build";
 import type { BuildDescription } from "@destack/package/manifest";
 import { BuildError } from "../error/index.ts";
@@ -23,10 +23,39 @@ export class RuntimeCompiler implements AsyncDisposable {
         { directory: string; configuration: string; api: API }
     >();
 
-    /** Check globals against the selected runtime's declarations. */
-    async check(references: readonly GlobalReference[], runtime: Runtime): Promise<void> {
+    /** Refuse each global that every runtime a module ships to lacks. */
+    async check(
+        references: readonly GlobalReference[],
+        runtimes: readonly Runtime[],
+    ): Promise<void> {
+        // refuse dynamic property access, which no runtime's declarations check
+        const dynamic = references.find((reference) => reference.dynamic);
+        if (dynamic !== undefined) {
+            const { path, location } = describeReference(dynamic);
+            throw new BuildError("BUILD_FAILED", `dynamic global access: ${path} at ${location}`);
+        }
+
+        // collect the globals each runtime rejects
+        const rejected = await Promise.all(
+            runtimes.map(async (runtime) => new Set(await this.#rejected(references, runtime))),
+        );
+
+        // refuse the first global none of them has
+        const refused = references.find((reference) =>
+            rejected.every((each) => each.has(reference)),
+        );
+        if (refused !== undefined) {
+            throw unsupported(refused, runtimes);
+        }
+    }
+
+    /** List the globals a runtime's declarations lack. */
+    async #rejected(
+        references: readonly GlobalReference[],
+        runtime: Runtime,
+    ): Promise<GlobalReference[]> {
         if (!references.length) {
-            return;
+            return [];
         }
 
         // write one access per distinct global for the compiler to resolve
@@ -50,8 +79,9 @@ export class RuntimeCompiler implements AsyncDisposable {
             }
             await checkEnvironment(project.program, runtime);
 
-            // report rejected APIs at their original source locations
+            // list rejected APIs at their original source locations
             const failures = await project.program.getSemanticDiagnostics();
+            const rejected: GlobalReference[] = [];
             for (const failure of failures) {
                 if (failure.fileName !== entry) {
                     throw new BuildError("BUILD_FAILED", `invalid ${runtime} type environment`, {
@@ -66,8 +96,10 @@ export class RuntimeCompiler implements AsyncDisposable {
                 if (!reference) {
                     throw new BuildError("BUILD_FAILED", failure.text, { cause: failure });
                 }
-                throw unsupported(reference, runtime);
+                rejected.push(reference);
             }
+
+            return rejected;
         } finally {
             await snapshot.dispose();
         }
@@ -134,16 +166,16 @@ export class RuntimeCompiler implements AsyncDisposable {
     }
 }
 
-/** Write one access expression per global, refusing dynamic access and eval on workerd. */
+/** Write one access expression per global, refusing eval on workerd. */
 function accessExpressions(
     references: readonly GlobalReference[],
     runtime: Runtime,
 ): Map<string, GlobalReference> {
     const expressions = new Map<string, GlobalReference>();
     for (const reference of references) {
-        // refuse dynamic property access and code evaluation on workerd
-        if (reference.dynamic || (runtime === "workerd" && isEvaluation(reference))) {
-            throw unsupported(reference, runtime);
+        // refuse code evaluation on workerd
+        if (runtime === "workerd" && isEvaluation(reference)) {
+            throw unsupported(reference, [runtime]);
         }
 
         // access each member without narrowing on the way
@@ -206,14 +238,22 @@ function declarationFiles(runtime: Runtime): string[] {
     }
 }
 
-/** Report an unavailable API at the authored expression. */
-function unsupported(reference: GlobalReference, runtime: Runtime): BuildError {
-    const path = [reference.name, ...reference.members].join(".");
+/** Report an API none of a module's runtimes has, at the authored expression. */
+function unsupported(reference: GlobalReference, runtimes: readonly Runtime[]): BuildError {
+    const { path, location } = describeReference(reference);
 
     return new BuildError(
         "BUILD_FAILED",
-        `unsupported ${runtime} API: ${path} at ${reference.source.file}:${reference.source.start}`,
+        `unsupported ${runtimes.join(", ")} API: ${path} at ${location}`,
     );
+}
+
+/** Describe a global reference by its member path and its source location. */
+function describeReference(reference: GlobalReference): { path: string; location: string } {
+    const path = [reference.name, ...reference.members].join(".");
+    const location = `${reference.source.file}:${reference.source.start}`;
+
+    return { path, location };
 }
 
 /** Check emitted source against the declared runtime APIs and the runtime's global APIs. */
@@ -226,7 +266,11 @@ export async function checkRuntime(
     // index the compiled inputs and source modules
     const inputs = new Set(Object.values(build.outputs).flatMap((output) => output.inputs));
     const source = new Map(modules.map((module) => [module.path, module]));
-    const globals = [];
+    const evaluated: GlobalReference[] = [];
+    const deferred = new Map<
+        string,
+        { runtimes: readonly Runtime[]; globals: GlobalReference[] }
+    >();
 
     // check retained modules once, including library outputs without workload declarations
     for (const id of inputs) {
@@ -240,16 +284,30 @@ export async function checkRuntime(
                 `unsupported ${runtime} module: ${input.package ?? "source"}/${input.path}`,
             );
         }
-        if (input.unresolvedImports !== undefined && input.unresolvedImports.length > 0) {
+        // refuse imports a deployed module graph lacks, unless the runtime resolves them from files
+        const isUnresolved =
+            input.unresolvedImports !== undefined && input.unresolvedImports.length > 0;
+        if (isUnresolved && !FILE_RESOLVING_RUNTIMES.has(runtime)) {
             throw new BuildError("BUILD_FAILED", `unresolved runtime imports: ${input.path}`);
         }
 
-        // dependency source declarations remain in the compiler list under their package
+        // collect the package's own globals, those in functions by the runtimes their module ships to
         if (input.package === undefined) {
-            globals.push(...(source.get(modulePath(input.path))?.globals ?? []));
+            const runtimes = input.runtimes ?? [runtime];
+            const key = runtimes.toSorted().join(" ");
+            const group = deferred.get(key) ?? { runtimes, globals: [] };
+            for (const global of source.get(modulePath(input.path))?.globals ?? []) {
+                (global.evaluation === "module" ? evaluated : group.globals).push(global);
+            }
+            deferred.set(key, group);
         }
     }
 
-    // check the collected globals against the runtime
-    await compiler.check(globals, runtime);
+    // check the globals module evaluation runs against the output's runtime
+    await compiler.check(evaluated, [runtime]);
+
+    // check the globals in functions against any runtime their module ships to
+    for (const group of deferred.values()) {
+        await compiler.check(group.globals, group.runtimes);
+    }
 }

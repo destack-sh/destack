@@ -1,7 +1,7 @@
 import { readFile, stat, symlink } from "node:fs/promises";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { BuildError, isMissing } from "../error/index.ts";
-import { DependencyName, DependencyResolution } from "@destack/package";
+import { DependencyName, NpmRelease, PackageJson } from "@destack/package";
 import { BunLockfile, type LockedPackage } from "@destack/check/bun";
 import { PackageLocator } from "@destack/package/locator";
 import { schema, type Version } from "@destack/schema";
@@ -48,7 +48,7 @@ export async function modulePackage(
     directory: string,
     versions: Readonly<Record<string, Version>>,
 ): Promise<{ directory: string; name: string; version: string }> {
-    // find the nearest manifest naming a release, passing subpath manifests that configure module scopes
+    // find the nearest manifest of a release, passing subpath manifests
     for (const current of ancestors(directory)) {
         const metadata = ReleasedPackage.safeParse(await readJson(join(current, "package.json")));
         if (metadata.success) {
@@ -61,43 +61,25 @@ export async function modulePackage(
     throw new BuildError("BUILD_FAILED", `no package declaration for module: ${directory}`);
 }
 
-/** Read installed npm releases from Bun's lockfile. */
+/** Read the npm releases the nearest Bun lockfile pins, by release and by import name. */
 export async function readDependencies(
     directory: string,
-): Promise<Record<string, DependencyResolution>> {
+    lockfile?: BunLockfile,
+): Promise<Record<string, NpmRelease>> {
     // read the authored dependency names, and resolve none for a package that declares none
     directory = resolve(directory);
     const declaration = DependencyManifest.parse(
         JSON.parse(await readFile(join(directory, "package.json"), "utf8")),
     );
-    const names = new Set(
-        Object.keys({
-            ...declaration.dependencies,
-            ...declaration.peerDependencies,
-            ...declaration.optionalDependencies,
-        }),
-    );
+    const names = new Set(PackageJson.runtimeDependencies(declaration));
     if (names.size === 0) {
         return {};
     }
 
     // locate the lockfile without changing the selected releases
-    const lock = await readLockfile(directory);
-    const dependencies: Record<string, DependencyResolution> = {};
-
-    // combine registry locations with locked release integrity
-    for (const [id, entry] of Object.entries(lock.packages)) {
-        const resolution = readLockedRelease(id, entry);
-        if (resolution === undefined) {
-            continue;
-        }
-        const key = `${resolution.package.name}@${resolution.package.version}`;
-        const existing = dependencies[key];
-        if (existing && JSON.stringify(existing) !== JSON.stringify(resolution)) {
-            throw new BuildError("BUILD_FAILED", `conflicting locked dependency: ${key}`);
-        }
-        dependencies[key] = resolution;
-    }
+    const lock =
+        lockfile === undefined ? await readLockfile(directory) : requireLockfileVersion(lockfile);
+    const dependencies = readLockedReleases(lock);
 
     // associate authored import names, including npm aliases, with their installed releases
     for (const name of names) {
@@ -115,9 +97,29 @@ export async function readDependencies(
     return dependencies;
 }
 
+/** Read every npm release a lockfile pins, by `name@version`. */
+export function readLockedReleases(lockfile: BunLockfile): Record<string, NpmRelease> {
+    // combine registry locations with locked release integrity
+    const releases: Record<string, NpmRelease> = {};
+    for (const [id, entry] of Object.entries(requireLockfileVersion(lockfile).packages)) {
+        const release = readLockedRelease(id, entry);
+        if (release === undefined) {
+            continue;
+        }
+        const key = `${release.package.name}@${release.package.version}`;
+        const existing = releases[key];
+        if (existing && JSON.stringify(existing) !== JSON.stringify(release)) {
+            throw new BuildError("BUILD_FAILED", `conflicting locked dependency: ${key}`);
+        }
+        releases[key] = release;
+    }
+
+    return releases;
+}
+
 /** Read a locked registry release, absent for a workspace package. */
-function readLockedRelease(id: string, entry: LockedPackage): DependencyResolution | undefined {
-    // name the release, leaving workspace packages to their sources
+function readLockedRelease(id: string, entry: LockedPackage): NpmRelease | undefined {
+    // identify the release, leaving workspace packages to their sources
     const [release, location, , integrity] = entry;
     const separator = release.indexOf("@", 1);
     const name = release.slice(0, separator);
@@ -140,8 +142,7 @@ function readLockedRelease(id: string, entry: LockedPackage): DependencyResoluti
         registry = location.slice(0, position + 1);
     }
 
-    return DependencyResolution.parse({
-        kind: "npm",
+    return NpmRelease.parse({
         package: { name, version },
         registry,
         integrity,
@@ -179,12 +180,17 @@ export function isAuthored(root: string, file: string): boolean {
 }
 
 /** Read the nearest Bun lockfile used by the source package, refusing other formats. */
-async function readLockfile(directory: string): Promise<BunLockfile> {
-    // require the nearest lockfile in the format the package records follow
+export async function readLockfile(directory: string): Promise<BunLockfile> {
     const lockfile = await BunLockfile.read(directory);
     if (lockfile === undefined) {
         throw new BuildError("BUILD_FAILED", "no Bun lockfile");
     }
+
+    return requireLockfileVersion(lockfile);
+}
+
+/** Require a lockfile in the format the package records follow. */
+function requireLockfileVersion(lockfile: BunLockfile): BunLockfile {
     if (lockfile.version !== LOCKFILE_VERSION) {
         throw new BuildError(
             "BUILD_FAILED",

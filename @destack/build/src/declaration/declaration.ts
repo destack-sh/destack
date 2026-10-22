@@ -4,6 +4,8 @@ import { type Package, type PackageExport, type DeclarationDescription } from "@
 
 /** A function a package exports, located for evaluation. */
 export interface FunctionExport {
+    /** The package's name, which imports of the function go through. */
+    readonly package: string;
     /** The package directory. */
     readonly directory: string;
     /** The package export of the function, such as `./inspect`. */

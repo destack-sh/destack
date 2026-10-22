@@ -107,19 +107,50 @@ export function describeGraph(
     tests: TestSource,
     played: ExampleSource,
 ): graph.Module[] {
-    // collect the symbols any module of the package exports
+    // collect the package's declarations, tests, examples and scenarios
     const declared = new DeclarationGraph(source, declarations);
     const tested = new TestGraph(source, tests);
     const name = (reference: SymbolReference) => monikerOf(source, reference);
     const examples = new ExampleGraph(source, played.package, played.examples, declared, name);
     const scenarios = new ScenarioGraph(source, played.package, played.scenarios, examples, name);
+
+    return modules.map((module) =>
+        describeModule(source, module, { declared, tested, examples, scenarios }),
+    );
+}
+
+/** Describe each module's code for the code index: its symbols and the edges of its code. */
+export function describeCode(
+    source: Package,
+    modules: readonly ModuleDescription[],
+    declarations: readonly DeclarationDescription[],
+    tests: TestSource,
+): graph.Document[] {
+    // collect the exported symbols, and the declarations and tests uses cover
+    const declared = new DeclarationGraph(source, declarations);
+    const tested = new TestGraph(source, tests);
     const exported = new Set(
         modules.flatMap((module) => module.exports.map((entry) => monikerOf(source, entry.symbol))),
     );
 
-    return modules.map((module) =>
-        describeModule(source, module, { declared, tested, examples, scenarios, exported }),
-    );
+    return modules.map((module) => {
+        // describe each named symbol and member once, with the edges of their types
+        const moniker = graph.Moniker.of({ packageId: source.id, module: module.path });
+        const symbols = new ModuleSymbols(source, module, exported);
+        for (const symbol of module.symbols) {
+            symbols.add(symbol);
+        }
+
+        // attribute calls and globals to their innermost enclosing symbol or test
+        attributeUses(module, symbols, { declared, tested }, tested.describe(module.path), moniker);
+
+        return graph.Document.parse({
+            path: module.path,
+            digest: module.source.digest,
+            symbols: symbols.list(),
+            edges: symbols.edges.list(),
+        });
+    });
 }
 
 /** Join two outputs' descriptions of one module. */
@@ -158,17 +189,15 @@ interface PackageGraph {
     readonly examples: ExampleGraph;
     /** The package's scenarios. */
     readonly scenarios: ScenarioGraph;
-    /** The symbols any module of the package exports. */
-    readonly exported: ReadonlySet<graph.Moniker>;
 }
 
-/** Describe one module's symbols, declarations and outgoing edges. */
+/** Describe one module's exports, declarations and the edges of its imports and declarations. */
 function describeModule(
     source: Package,
     module: ModuleDescription,
-    { declared, tested, examples, scenarios, exported }: PackageGraph,
+    { declared, tested, examples, scenarios }: PackageGraph,
 ): graph.Module {
-    // name the module and its exports
+    // key the module and its exports
     const moniker = graph.Moniker.of({ packageId: source.id, module: module.path });
     const exports = module.exports.map((entry) => ({
         name: entry.name,
@@ -176,22 +205,12 @@ function describeModule(
         isTypeOnly: entry.isTypeOnly,
     }));
 
-    // describe each named symbol and member once, with the edges of their types
-    const symbols = new ModuleSymbols(source, module, exported);
-    for (const symbol of module.symbols) {
-        symbols.add(symbol);
-    }
-    const described = symbols.list();
-    const edges = symbols.edges;
-
-    // attribute calls and globals to their innermost enclosing symbol or test
-    const tests = tested.describe(module.path);
-    attributeUses(module, symbols, { declared, tested }, tests, moniker);
-
     // depend on each resolved import
+    const edges = new Edges();
+    const tests = tested.describe(module.path);
     for (const imported of module.imports) {
         if (imported.target !== undefined) {
-            edges.add(moniker, "depends", symbols.name(imported.target));
+            edges.add(moniker, "depends", nameOf(source, imported.target));
         }
     }
 
@@ -214,7 +233,6 @@ function describeModule(
         digest: module.source.digest,
         imports: module.imports.map((imported) => imported.specifier),
         exports,
-        symbols: described,
         declarations,
         edges: edges.list(),
     });
@@ -242,14 +260,12 @@ class ModuleSymbols {
 
     /** Name a referenced symbol, absent for an anonymous one. */
     name(reference: SymbolReference): graph.Moniker | undefined {
-        const name = "symbol" in reference ? reference.symbol.name : reference.name;
-
-        return isAnonymous(name) ? undefined : monikerOf(this.source, reference);
+        return nameOf(this.source, reference);
     }
 
     /** Describe a symbol and its members, leaving anonymous types to the enclosing symbol. */
     add(symbol: SymbolDescription): void {
-        // name the symbol
+        // key the symbol
         if (isAnonymous(symbol.name)) {
             return;
         }
@@ -354,7 +370,7 @@ export function monikerOf(source: Package, reference: SymbolReference): graph.Mo
         symbol = reference;
     }
 
-    // name a module by its path alone
+    // key a module by its path alone
     return graph.Moniker.of({
         packageId,
         module: symbol.module,
@@ -401,6 +417,13 @@ function attributeUses(
             attribute(global.source, "references", symbols.name(global.symbol));
         }
     }
+}
+
+/** Name a referenced symbol by its moniker, absent for an anonymous one. */
+function nameOf(source: Package, reference: SymbolReference): graph.Moniker | undefined {
+    const name = "symbol" in reference ? reference.symbol.name : reference.name;
+
+    return isAnonymous(name) ? undefined : monikerOf(source, reference);
 }
 
 /** Report whether a symbol is one of the package's own outside its test modules. */

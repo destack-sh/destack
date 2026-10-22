@@ -1,7 +1,7 @@
 import { Digest } from "@destack/schema";
 import type { BuildReader } from "@destack/package/manifest";
 import { PackageManifest } from "@destack/package/manifest";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { distinctFiles, encodeManifest, inBatches } from "./store.ts";
 
 /** The client of a package server, pushing builds by digest as registry clients push images. */

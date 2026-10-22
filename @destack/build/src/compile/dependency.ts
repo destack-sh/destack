@@ -1,5 +1,5 @@
 import { BuildDescription } from "@destack/package/manifest";
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { dirname, isAbsolute, join, resolve, sep, posix } from "node:path";
 import { type Plugin } from "vite";
 import { type DependencyResolution } from "@destack/package";
@@ -7,7 +7,13 @@ import { comparePath } from "../build/serialization.ts";
 import { BuildError, isMissing } from "../error/index.ts";
 import { type PackageSource } from "../source/index.ts";
 import { PackageFile } from "@destack/package/file";
-import { DependencyName, Package, PackageDefinition, type PackageId } from "@destack/package";
+import {
+    DependencyName,
+    Package,
+    PackageDefinition,
+    type PackageId,
+    PackageJson,
+} from "@destack/package";
 import { type Runtime } from "@destack/package/runtime";
 import { modulePackage, relativePath } from "../source/dependency.ts";
 import { isBuiltin } from "node:module";
@@ -16,6 +22,9 @@ import { type ESTree, Visitor } from "rolldown/utils";
 import { found, Text, type Version } from "@destack/schema";
 import { Catalog } from "@destack/locale";
 import { readCatalogs } from "../build/catalog.ts";
+
+/** The prefixes of virtual module identifiers, as Rollup and Vite give them. */
+const VIRTUAL_PREFIXES = ["\0", "virtual:"];
 
 /** A parsed module's source package and path. */
 export interface ModuleSource {
@@ -200,6 +209,42 @@ class DependencyRecorder {
         return owner.directory === target.directory && owner.directory !== this.project.directory;
     }
 
+    /** Give each project module the runtimes of the exports reaching it, the runtime for others. */
+    reach(imports: ReadonlyMap<string, ParsedImports>, runtime: Runtime): void {
+        // seed each export's entry with the runtimes its export declares
+        const { definition } = this.project.packageJson;
+        const reached = new Map<string, Set<Runtime>>();
+        const pending = Object.entries(this.project.exports).map(
+            ([name, entry]) => [entry, PackageDefinition.runtimes(definition, name)] as const,
+        );
+
+        // add the runtimes each module gains to the project modules it imports
+        for (const [id, runtimes] of pending) {
+            const known = reached.get(id) ?? new Set();
+            const added = runtimes.filter((candidate) => !known.has(candidate));
+            if (added.length > 0) {
+                reached.set(id, new Set([...known, ...added]));
+                const imported = imports.get(id);
+                const next = [
+                    ...(imported?.importedIds ?? []),
+                    ...(imported?.dynamicallyImportedIds ?? []),
+                ];
+                pending.push(...next.map((each) => [each, added] as const));
+            }
+        }
+
+        // record the reached runtimes on the project's source modules
+        for (const [id, recorded] of this.locations) {
+            if (recorded.kind === "source" && recorded.package === undefined) {
+                const runtimes = reached.get(id);
+                this.locations.set(id, {
+                    ...recorded,
+                    runtimes: runtimes === undefined ? [runtime] : [...runtimes],
+                });
+            }
+        }
+    }
+
     /** Narrow the runtimes a dependency module is reviewed for, as an importing export declares. */
     narrow(id: string, runtimes: Runtime[]): void {
         const recorded = this.locations.get(id);
@@ -221,8 +266,21 @@ class DependencyRecorder {
 
     /** Record a bundle's asset from an original file, keeping a directory asset in a snapshot. */
     async asset(root: string, original: string): Promise<void> {
-        // attribute assets read by CSS plugins without creating JavaScript modules
+        // leave an asset a virtual module emits, and refuse a missing file
+        const segments = original.split("/");
+        if (
+            segments.some((segment) =>
+                VIRTUAL_PREFIXES.some((prefix) => segment.startsWith(prefix)),
+            )
+        ) {
+            return;
+        }
         const absolute = resolve(root, original);
+        if (!(await isFile(absolute))) {
+            throw new BuildError("BUILD_FAILED", `missing asset file: ${original}`);
+        }
+
+        // attribute assets read by CSS plugins without creating JavaScript modules
         const owner = await this.resolver.package(dirname(absolute));
         const path = relativePath(owner.directory, absolute);
         const key = `${owner.name}@${owner.version}`;
@@ -259,7 +317,7 @@ class DependencyRecorder {
         path: string,
         key: string,
     ): Promise<void> {
-        // match installed code to the resolver's immutable release, bundling a Destack release's catalogs once
+        // match installed code to the resolver's release
         const resolution = this.resolutions[key] ?? this.resolutions[source.name];
         if (resolution || path.split(sep).includes("node_modules")) {
             const release = this.#release(source, key, "unresolved bundled dependency");
@@ -431,6 +489,9 @@ export function dependencyPlugin(
         async generateBundle(_, bundle) {
             // identify retained directory assets alongside the dependency's source modules
             await recorder.bundled(root, bundle);
+            if (runtime !== undefined) {
+                recorder.reach(imports, runtime);
+            }
 
             // describe the compiled inputs and outputs
             Object.assign(
@@ -528,12 +589,7 @@ function requireDeclared(source: PackageSource, importer: string, name: string):
     }
 
     // refuse a dependency no requirement group names
-    const groups = [
-        packageJson.dependencies,
-        packageJson.peerDependencies,
-        packageJson.optionalDependencies,
-    ];
-    if (!groups.some((requirements) => Object.hasOwn(requirements, name))) {
+    if (!PackageJson.runtimeDependencies(packageJson).includes(name)) {
         throw new BuildError("BUILD_FAILED", `undeclared runtime dependency: ${name}`);
     }
 }
@@ -627,7 +683,7 @@ function describeInputs(
             [true, module.dynamicallyImportedIds],
         ] as const) {
             for (const path of paths) {
-                // name a parsed import by its identifier and an external one by its specifier
+                // key a parsed import by its identifier and an external one by its specifier
                 const isExternal = !parsed.has(path);
                 const reference = isExternal ? path : identifiers.get(path);
                 if (reference === undefined) {
@@ -674,7 +730,7 @@ function chunkInputs(
     return inputs;
 }
 
-/** List a chunk's imports, naming the bundle's files by output path and others by specifier. */
+/** List a chunk's imports, the bundle's files by output path and others by specifier. */
 function chunkImports(chunk: OutputChunk, bundle: OutputBundle, output: string): DescribedImport[] {
     const imports: DescribedImport[] = [];
     for (const [dynamic, paths] of [
@@ -733,4 +789,16 @@ export function unresolvedImports(ast: ESTree.Program): string[] {
     }).visit(ast);
 
     return imports;
+}
+
+/** Report whether a path is a file on disk, refusing any failure but a missing one. */
+async function isFile(path: string): Promise<boolean> {
+    try {
+        return (await stat(path)).isFile();
+    } catch (error) {
+        if (isMissing(error)) {
+            return false;
+        }
+        throw error;
+    }
 }

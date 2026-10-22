@@ -136,36 +136,36 @@ test("derive the member symbols kinds list and resolve their relationships by ki
         [
             [
                 [
-                    at("src/note.ts#Note.get:method"),
-                    at("src/note.ts#Note"),
-                    "method",
-                    "get",
-                    { mutates: false },
-                ],
-                [
-                    at("src/note.ts#Note.rename:method"),
-                    at("src/note.ts#Note"),
-                    "method",
-                    "rename",
-                    { mutates: true },
-                ],
-                [
                     at("src/note.ts#Note:object:note"),
                     at("src/note.ts#Note"),
                     "object",
                     "note",
                     { name: "note" },
                 ],
+                [
+                    at("src/note.ts#Note:object:note.get:method"),
+                    at("src/note.ts#Note"),
+                    "method",
+                    "get",
+                    { mutates: false },
+                ],
+                [
+                    at("src/note.ts#Note:object:note.rename:method"),
+                    at("src/note.ts#Note"),
+                    "method",
+                    "rename",
+                    { mutates: true },
+                ],
             ],
             [
                 {
-                    from: at("src/note.ts#Note.get:method"),
-                    to: at("src/database.ts#database.app__note:table"),
+                    from: at("src/note.ts#Note:object:note.get:method"),
+                    to: at("src/database.ts#database:resource:main.app__note:table"),
                     kind: "reads",
                 },
                 {
-                    from: at("src/note.ts#Note.rename:method"),
-                    to: at("src/database.ts#database.app__note:table"),
+                    from: at("src/note.ts#Note:object:note.rename:method"),
+                    to: at("src/database.ts#database:resource:main.app__note:table"),
                     kind: "writes",
                 },
             ],
@@ -173,18 +173,18 @@ test("derive the member symbols kinds list and resolve their relationships by ki
         [
             [
                 [
-                    at("src/database.ts#database.app__note:table"),
-                    at("src/database.ts#database"),
-                    "table",
-                    "app__note",
-                    { sqlite: {} },
-                ],
-                [
                     at("src/database.ts#database:resource:main"),
                     at("src/database.ts#database"),
                     "resource",
                     "main",
                     { name: "main" },
+                ],
+                [
+                    at("src/database.ts#database:resource:main.app__note:table"),
+                    at("src/database.ts#database"),
+                    "table",
+                    "app__note",
+                    { sqlite: {} },
                 ],
             ],
             [],
@@ -219,7 +219,7 @@ test("derive the member symbols kinds list and resolve their relationships by ki
                 },
                 {
                     from: at("src/view.ts#rename:command:rename"),
-                    to: at("src/note.ts#Note.rename:method"),
+                    to: at("src/note.ts#Note:object:note.rename:method"),
                     kind: "invokes",
                 },
             ],

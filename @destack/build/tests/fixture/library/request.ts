@@ -1,4 +1,4 @@
-import type { BuildOptions } from "../../../src/index.ts";
+import type { PackageBuildOptions } from "../../../src/index.ts";
 
 /** Compile public modules and their declarations without bundling dependencies. */
 export const request = {
@@ -10,4 +10,4 @@ export const request = {
             bundle: false,
         },
     },
-} satisfies Omit<BuildOptions, "directory">;
+} satisfies Omit<PackageBuildOptions, "directory">;
