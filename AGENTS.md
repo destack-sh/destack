@@ -494,9 +494,9 @@ Rewrite as understanding grows, toward the final shape, always rewrite: generali
 
 Question what exists, keep what is intended:
 - **RS01** Code SHOULD be refactored, cleaned, re-audited and semantically compressed continuously; nothing is final.
-- **RS02** Agents MUST NOT assume existing code is good because it exists, is in use or is tested.
+- **RS02** We MUST NOT assume existing code is good because it exists, is in use or is tested.
 - **RS03** Failing tests MAY be wrong instead of the new code.
-- **RS04** Tests and expectations MUST NOT change without explicit prior discussion and agreement.
+- **RS04** Tests and expectations SHOULD NOT change without explicit prior discussion (for substantial behavior changes) or at least reporting later (when in scope and directionally agreed).
 - **RS05** Stubs that clearly mark an unfinished shape SHOULD NOT be removed when they are meant to be filled in later; ask when unsure.
 
 Earn every part of the final model:
