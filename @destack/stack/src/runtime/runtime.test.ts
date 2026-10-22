@@ -2,7 +2,7 @@ import { PackageId } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
 import { ResourceId } from "@destack/resource";
 import { schema } from "@destack/schema";
-import { testKeys } from "@destack/runtime/test";
+import { testKeys } from "@destack/object/test";
 import { expect, refusal, test } from "@destack/test";
 import { InstanceRegistry, InstanceSpec } from "./runtime.ts";
 

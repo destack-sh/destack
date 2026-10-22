@@ -7,11 +7,12 @@ import {
     type DurableObjectStorage,
     type DurableObjectStub,
 } from "@destack/db/cloudflare";
+import type { Bucket } from "@destack/bucket";
 import type { ObjectType } from "@destack/object";
-import type { ExternalStorage } from "@destack/object/server";
-import type { BuildReader } from "@destack/package/manifest";
-import { Digest, type Identifier, schema } from "@destack/schema";
-import { catalog, GraphIndex, module, symbol } from "../object/graph.ts";
+import type { PackageStore } from "@destack/build/store";
+import type { ExternalGraphStorage } from "../server/resource/retention.ts";
+import { Digest, schema, zip } from "@destack/schema";
+import { catalog, declaration, GraphIndex, module, symbol } from "../object/graph.ts";
 
 /** The origin of the requests to an index object, which its stub routes by path alone. */
 const OBJECT_ORIGIN = "https://graph.invalid";
@@ -21,6 +22,9 @@ const GRAPH_PATH = "/.destack/graph";
 
 /** The most parameters Durable Object SQLite binds to a statement, as Cloudflare limits it. */
 const OBJECT_PARAMETERS = 100;
+
+/** The prefix of the keys marking each manifest an index object keeps, which sweeps list. */
+const INDEXED_PREFIX = "graphs/";
 
 /** The table marking a manifest's index complete, which one write seals. */
 const SEALED_TABLE = "destack_graph_sealed";
@@ -37,6 +41,14 @@ const IndexedBuild = schema.object({
     finishedAt: schema.number().int(),
 });
 
+/** A build's opened view of its manifest's index. */
+interface OpenedView {
+    /** The digest of the build's manifest. */
+    readonly manifest: string;
+    /** The build's view of the index's rows. */
+    readonly database: DatabaseConnection;
+}
+
 /** An operation on a manifest's index object. */
 const GraphOperation = schema.discriminatedUnion("operation", [
     schema.object({
@@ -46,6 +58,8 @@ const GraphOperation = schema.discriminatedUnion("operation", [
         index: IndexedBuild,
         /** The module rows in JSON form. */
         modules: schema.array(schema.jsonObject()),
+        /** The declaration rows in JSON form. */
+        declarations: schema.array(schema.jsonObject()),
         /** The symbol rows in JSON form. */
         symbols: schema.array(schema.jsonObject()),
         /** The catalog rows in JSON form. */
@@ -57,6 +71,10 @@ const GraphOperation = schema.discriminatedUnion("operation", [
         /** The build. */
         index: IndexedBuild,
     }),
+    schema.object({
+        /** Delete the index, once retention drops its manifest. */
+        operation: schema.literal("delete"),
+    }),
 ]);
 /** An operation on a manifest's index object. */
 type GraphOperation = schema.Infer<typeof GraphOperation>;
@@ -65,27 +83,56 @@ type GraphOperation = schema.Infer<typeof GraphOperation>;
 const Viewed = schema.object({ isSealed: schema.boolean() });
 
 /** The graph of each build as external objects, one index object per manifest. */
-export class DurableObjectGraphStorage implements ExternalStorage {
+export class DurableObjectGraphStorage implements ExternalGraphStorage {
     /** The graph's object types. */
-    readonly objects: readonly ObjectType[] = [module, symbol, catalog];
+    readonly objects: readonly ObjectType[] = [module, declaration, symbol, catalog];
     /** The database with the builds. */
     readonly #database: DatabaseConnection;
-    /** Read a build a space stores by its manifest's digest. */
-    readonly #builds: (spaceId: Identifier<"space">, manifest: string) => Promise<BuildReader>;
+    /** The builds and code indexes the spaces store. */
+    readonly #builds: Pick<PackageStore, "contains" | "contents" | "referrer" | "file">;
     /** The index objects, one per manifest. */
     readonly #indexes: DurableObjectNamespace;
-    /** The opened builds' views, by build. */
-    readonly #opened = new Map<string, Promise<DatabaseConnection>>();
+    /** The bucket marking each manifest an index object keeps, which sweeps list. */
+    readonly #indexed: Pick<Bucket, "put" | "list" | "delete">;
+    /** The opened builds' views with their manifests, by build. */
+    readonly #opened = new Map<string, Promise<OpenedView>>();
 
     /** Index the builds a database records and their spaces store, in one object per manifest. */
     constructor(
         database: DatabaseConnection,
-        builds: (spaceId: Identifier<"space">, manifest: string) => Promise<BuildReader>,
+        builds: Pick<PackageStore, "contains" | "contents" | "referrer" | "file">,
         indexes: DurableObjectNamespace,
+        indexed: Pick<Bucket, "put" | "list" | "delete">,
     ) {
+        // keep the database, the builds, the index objects and their marks
         this.#database = database;
         this.#builds = builds;
         this.#indexes = indexes;
+        this.#indexed = indexed;
+    }
+
+    /** Delete the index objects and marks of the manifests the build store no longer keeps. */
+    async sweep(): Promise<void> {
+        let cursor: string | undefined;
+        do {
+            // list a page of marked manifests
+            const page = await this.#indexed.list({
+                prefix: INDEXED_PREFIX,
+                ...(cursor === undefined ? {} : { cursor }),
+            });
+            cursor = page.cursor;
+
+            // forget each dropped manifest's views, delete its object, then its mark
+            for (const { key } of page.files) {
+                const manifest = key.slice(INDEXED_PREFIX.length);
+                if (!(await this.#builds.contains(manifest))) {
+                    await this.#forget(manifest);
+                    const object = this.#indexes.get(this.#indexes.idFromName(manifest));
+                    await send(object, { operation: "delete" });
+                    await this.#indexed.delete(key);
+                }
+            }
+        } while (cursor !== undefined);
     }
 
     /** Open a build's graph, indexing its manifest on first use. */
@@ -98,11 +145,22 @@ export class DurableObjectGraphStorage implements ExternalStorage {
             opened.catch(() => this.#opened.delete(scope));
         }
 
-        return opened;
+        return (await opened).database;
+    }
+
+    /** Forget the opened views of a manifest's builds, except the failed opens. */
+    async #forget(manifest: string): Promise<void> {
+        const opened = [...this.#opened];
+        const settled = await Promise.allSettled(opened.map(([, view]) => view));
+        for (const [[scope], view] of zip(opened, settled)) {
+            if (view.status === "fulfilled" && view.value.manifest === manifest) {
+                this.#opened.delete(scope);
+            }
+        }
     }
 
     /** Show a build its manifest's index, writing the index first when it is not sealed. */
-    async #open(scope: string): Promise<DatabaseConnection> {
+    async #open(scope: string): Promise<OpenedView> {
         // read the build's place, and its manifest's object
         const index = await GraphIndex.of(this.#database, scope);
         const object = this.#indexes.get(this.#indexes.idFromName(index.manifest));
@@ -116,20 +174,24 @@ export class DurableObjectGraphStorage implements ExternalStorage {
         // index the manifest from the build when no build did, then show the build its rows
         const viewed = Viewed.parse(await send(object, { operation: "view", index: fields }));
         if (!viewed.isSealed) {
-            const { modules, symbols, catalogs } = await index.rows(
-                await this.#builds(index.space, index.manifest),
-            );
+            // mark the manifest for sweeps, then store its rows
+            await this.#indexed.put(`${INDEXED_PREFIX}${index.manifest}`, null);
+            const { modules, declarations, symbols, catalogs } = await index.rows(this.#builds);
             await send(object, {
                 operation: "index",
                 index: fields,
                 modules: modules.map((row) => module.table[TABLE].encode(row)),
+                declarations: declarations.map((row) => declaration.table[TABLE].encode(row)),
                 symbols: symbols.map((row) => symbol.table[TABLE].encode(row)),
                 catalogs: catalogs.map((row) => catalog.table[TABLE].encode(row)),
             });
             await send(object, { operation: "view", index: fields });
         }
 
-        return DurableObjectReader.connect(object, GraphIndex.tables, index.build);
+        return {
+            manifest: index.manifest,
+            database: DurableObjectReader.connect(object, GraphIndex.tables, index.build),
+        };
     }
 }
 
@@ -161,7 +223,15 @@ export class GraphIndexObject {
             await this.#index(body);
 
             return Response.json({});
-        } else {
+        }
+        // delete every row, view and the seal
+        else if (body.operation === "delete") {
+            await this.#host.storage.deleteAll();
+
+            return Response.json({});
+        }
+        // show a build its view
+        else {
             return Response.json(this.#view(new GraphIndex(body.index)));
         }
     }
@@ -177,6 +247,9 @@ export class GraphIndexObject {
         const modules = body.modules.map((row) =>
             Table.complete(module.table, Table.decode(module.table, row)),
         );
+        const declarations = body.declarations.map((row) =>
+            Table.complete(declaration.table, Table.decode(declaration.table, row)),
+        );
         const symbols = body.symbols.map((row) =>
             Table.complete(symbol.table, Table.decode(symbol.table, row)),
         );
@@ -189,7 +262,11 @@ export class GraphIndexObject {
         await database.migrate(GraphIndex.tables);
         await database.transaction(async (transaction) => {
             // insert the rows, then seal the index
-            await GraphIndex.write(transaction, { modules, symbols, catalogs }, OBJECT_PARAMETERS);
+            await GraphIndex.write(
+                transaction,
+                { modules, declarations, symbols, catalogs },
+                OBJECT_PARAMETERS,
+            );
             this.#host.storage.sql.exec(
                 `CREATE TABLE IF NOT EXISTS "${SEALED_TABLE}" (manifest TEXT PRIMARY KEY)`,
             );

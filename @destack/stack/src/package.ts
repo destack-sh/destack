@@ -1,6 +1,6 @@
 import { principal } from "@destack/access";
-import { defineAdapter, definePackage } from "@destack/runtime";
-import { catalog, module, symbol } from "./object/graph.ts";
+import { defineAdapter, definePackage } from "@destack/object";
+import { catalog, declaration, module, symbol } from "./object/graph.ts";
 import {
     binding,
     branch,
@@ -46,6 +46,7 @@ export default definePackage({
         branchEntry,
         branchChange,
         module,
+        declaration,
         symbol,
         catalog,
     },

@@ -9,16 +9,18 @@ import {
 } from "@destack/db";
 import { none, relation, through, union } from "@destack/access";
 import { defineObject, defineShape, field } from "@destack/object";
+import { PackageFile } from "@destack/package/file";
 import { PackageManifest } from "@destack/package/manifest";
 import { Lease } from "@destack/resource";
 import { PackageId } from "@destack/package";
 import type { ResultsOf } from "@destack/object";
 import type { Call } from "@destack/sync";
 import { Commit, Digest, type Identifier, present, schema, Version } from "@destack/schema";
-import { errorOf, CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { PackageDirectory } from "../declare/installation.ts";
 import { machine, space } from "@destack/account/object";
-import { Failure, ObjectReference, Subject } from "@destack/sync";
+import { ObjectReference, Subject } from "@destack/sync";
+import { Failure } from "@destack/error";
 import { installationRevision } from "./installation.ts";
 
 /** Where a build stands: waiting for its runner, running, or finished one of three ways. */
@@ -124,6 +126,8 @@ export const BuildEnd = schema.discriminatedUnion("kind", [
         kind: schema.literal("stored"),
         /** The stored build's manifest. */
         manifest: PackageManifest,
+        /** The digest and size of its code index, which the runner stored as a file. */
+        code: PackageFile.pick({ digest: true, size: true }),
     }),
     FailedBuild,
 ]);
@@ -369,7 +373,7 @@ export const Build = {
         }
         // refuse a failed build with its failure
         else if (narrowed.state === "failed") {
-            throw errorOf(narrowed.failure);
+            throw Failure.error(narrowed.failure);
         }
         // refuse a build without a manifest
         else {

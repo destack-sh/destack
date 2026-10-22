@@ -28,7 +28,7 @@ test("retain each source's latest builds and every build a revision applies", as
             state: manifest === null ? "failed" : "succeeded",
             manifest,
             failure:
-                manifest === null ? { code: "BUILD_FAILED", status: 500, message: "failed" } : null,
+                manifest === null ? { code: "INTERNAL_SERVER_ERROR", message: "failed" } : null,
             startedAt: finishedAt,
             finishedAt,
             createdAt: finishedAt,

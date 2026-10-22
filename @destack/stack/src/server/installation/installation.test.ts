@@ -1,8 +1,8 @@
 import { expect, test } from "@destack/test";
 import { eq } from "@destack/db";
 import { Identifier, present } from "@destack/schema";
-import { RequestId } from "@destack/runtime/request";
-import { CallError } from "@destack/runtime/error";
+import { RequestId } from "@destack/sync";
+import { CallError } from "@destack/object";
 import { Installation, installation, installationRevision } from "../../object/index.ts";
 import { ids, insertRelease, StackFixture } from "../../test/index.ts";
 

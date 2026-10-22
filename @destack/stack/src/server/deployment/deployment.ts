@@ -1,4 +1,11 @@
-import { InstallationName } from "@destack/runtime";
+import {
+    InstallationName,
+    type ObjectReconciliation,
+    ObjectWatch,
+    type StatusCondition,
+    InstallationBindingState,
+    InstallationKind,
+} from "@destack/object";
 import { Space, space } from "@destack/account/object";
 import { RESOURCE_DECLARATION, ResourceId, type ResourceKind } from "@destack/resource";
 import {
@@ -14,9 +21,9 @@ import {
 } from "@destack/db";
 import { SandboxError, type PackageId } from "@destack/package";
 import { nth, type JsonValue, schema, type Identifier, present, Version } from "@destack/schema";
-import { type ObjectReconciliation, ObjectWatch, type StatusCondition } from "@destack/object";
-import { RetryPolicy } from "@destack/runtime/timer";
-import { Scope, Failure } from "@destack/sync";
+import { RetryPolicy } from "@destack/environment";
+import { Scope } from "@destack/sync";
+import { Failure } from "@destack/error";
 import {
     RUNTIME_SUPPORT,
     type Runtime,
@@ -24,7 +31,6 @@ import {
     type WorkloadResource,
     type WorkloadServed,
 } from "../../runtime/index.ts";
-import { InstallationBindingState, InstallationKind } from "@destack/runtime/declare";
 import type { BuildReader } from "@destack/package/manifest";
 import {
     Build,

@@ -3,7 +3,7 @@ import { Caller } from "@destack/access";
 import { schema } from "@destack/schema";
 import { Subject } from "@destack/sync";
 import { Space } from "@destack/account/object";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import {
     BucketCustomMetadata,
     BucketHttpMetadata,

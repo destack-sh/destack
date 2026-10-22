@@ -2,7 +2,7 @@ import { none, principal, relation, through, union } from "@destack/access";
 import { LogPosition, type Table } from "@destack/db";
 import { Branch, BranchType, defineObject, field, type MethodContext } from "@destack/object";
 import { Approval, approval, changeRequest } from "@destack/workflow";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { type Identifier, schema } from "@destack/schema";
 import { Call, ObjectTypeReference } from "@destack/sync";
 import { SettingValue } from "@destack/setting/object";

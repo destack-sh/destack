@@ -1,7 +1,7 @@
 import { hostname, space } from "@destack/account/object";
 import { type Transaction } from "@destack/db";
 import { type Identifier, present, schema } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { installation, route } from "../../object/index.ts";
 
 /** Implement the routes a stack declares in its space. */

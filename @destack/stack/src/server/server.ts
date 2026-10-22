@@ -1,9 +1,9 @@
 import { type Identifier, schema } from "@destack/schema";
 import { Snapshot, type Database, type DatabaseConnection } from "@destack/db";
 import { type Publisher, type Subject, Scope, type Uplink } from "@destack/sync";
-import type { CallKey } from "@destack/runtime/request";
+import type { CallKey } from "@destack/object";
 import type accountPackage from "@destack/account/package";
-import type { ClientOf } from "@destack/runtime/client";
+import type { ClientOf } from "@destack/object/client";
 import { type IdentityKeystore } from "@destack/account/identity";
 import { Follow, type ObjectType, type HookSandbox } from "@destack/object";
 import {
@@ -17,20 +17,20 @@ import {
 } from "@destack/account/object";
 import {
     type ClaimHome,
-    defineServer,
+    implementPackage,
     type ExternalStorage,
     ObjectStore,
-    type PackageServer,
-    type ServerDefinition,
+    type PackageImplementation,
+    type ImplementationInput,
 } from "@destack/object/server";
-import { type PackageImplementation } from "@destack/runtime/server";
+import { type PackageHandler } from "@destack/object/server";
 import workflowServer from "@destack/workflow/server";
 import { bucketProvider, type CatalogueBucketHost } from "@destack/bucket/provider";
 import { implementBucket } from "./resource/bucket.ts";
 import type { Runtime } from "../runtime/index.ts";
 import { Setting } from "@destack/setting";
 import { settingServer } from "@destack/setting/server";
-import { branchType, installation } from "../object/index.ts";
+import { branchType, Installation, installation } from "../object/index.ts";
 import objectPackage from "@destack/object/package";
 import stackPackage from "../package.ts";
 import { implementRestore, implementSnapshot } from "./resource/snapshot.ts";
@@ -52,12 +52,12 @@ import { implementTransfer, type TransferOptions } from "./host/transfer.ts";
 import { type Handoff, handoffAdapter } from "./host/handoff.ts";
 import type { EventStore } from "@destack/event";
 import { BuildStore, type Registry, implementBuild } from "./installation/build.ts";
-import type { RepositoryOwner } from "./installation/selection.ts";
+import type { Forge } from "./installation/follow.ts";
 import { AssignmentController } from "./deployment/assignment.ts";
 import { PlacementController } from "./host/placement.ts";
 import { TransferController } from "./host/transfer.ts";
 import { ConsumerController } from "./resource/consumer.ts";
-import { RetentionController, type SweepCache } from "./resource/retention.ts";
+import { type ExternalGraphStorage, RetentionController } from "./resource/retention.ts";
 import { hookAdapter } from "./installation/hook.ts";
 import type { SocketRegistry } from "./host/socket.ts";
 import { implementRoute } from "./access/route.ts";
@@ -68,8 +68,13 @@ import { Clock } from "@destack/environment";
 export interface SpaceAccounts {
     /** The residencies of accounts and the cloud machines serving them. */
     readonly residency: Pick<AccountClient["residency"], "machines">;
-    /** The homes of people. */
-    readonly user: Pick<AccountClient["user"], "home">;
+    /** People's profiles, read for their home spaces. */
+    readonly user: {
+        /** Read a person's profile. */
+        readonly get: (input: {
+            readonly id: Identifier<"user">;
+        }) => Promise<{ readonly homeId: Identifier<"space"> }>;
+    };
 }
 
 /** The account package's client. */
@@ -111,15 +116,15 @@ export interface SpaceOptions {
     /** The keystore of the spaces, wrapping their keys under the machine's keyring. */
     readonly keystore: IdentityKeystore;
     /** The space's other package servers, such as its vaults and messages. */
-    readonly servers: readonly PackageServer[];
+    readonly servers: readonly PackageImplementation[];
     /** The sandboxes of the installations whose packages main serves without a workload. */
     readonly sandboxes: readonly HookSandbox[];
     /** The registry of published releases. */
     readonly registry: Registry;
     /** The platform's declaration of every space's main database, with the platform's tables. */
     readonly main: Database;
-    /** Delete what build retention drops from the machine's pull cache. */
-    readonly sweepCache: SweepCache | null;
+    /** The graph indexes of the machine's spaces, swept once their builds go. */
+    readonly graphs: Pick<ExternalGraphStorage, "sweep">;
     /** The host of the spaces' buckets. */
     readonly buckets: CatalogueBucketHost;
     /** The machine's store of every build. */
@@ -130,10 +135,12 @@ export interface SpaceOptions {
     readonly runtimes: readonly Runtime[];
     /** The events of the spaces, recording their finished runs. */
     readonly events: EventStore;
-    /** Read the account owning a repository an installation selects. */
-    readonly repositories: RepositoryOwner | null;
+    /** The repositories installations select and follow, null on a machine following none. */
+    readonly forge: Forge | null;
     /** The shapes the machine follows beside the space's own, such as its repository references. */
     readonly follows: readonly Follow[];
+    /** The host's own controllers of the served space: its serving lifecycle and its meters. */
+    readonly controllers: NonNullable<ImplementationInput["controllers"]>;
     /** The storage of the machine's external object types: its builds' graphs. */
     readonly external: ExternalStorage;
     /** The live sockets of the machine's spaces. */
@@ -147,9 +154,9 @@ function stackServer(
     options: SpaceOptions,
     others: readonly {
         readonly objects: readonly ObjectType[];
-        readonly providers?: ServerDefinition["providers"];
+        readonly providers?: ImplementationInput["providers"];
     }[],
-): PackageServer {
+): PackageImplementation {
     // index the machine's providers and bindable kinds, and schedule and move the spaces through one scheduler
     const listed = spaceProviders(options);
     const providers = new ProviderIndex(options.machine, listed, others);
@@ -166,7 +173,7 @@ function stackServer(
         ? ownObjects(options, providers, binder, scheduler, transfers)
         : stackObjects([implementRestore(transfers), implementTransfer(transfers)]);
 
-    return defineServer(stackPackage, {
+    return implementPackage(stackPackage, {
         objects: [...own, ...externalObjects(options, own)],
         external: options.external,
         providers: listed,
@@ -180,10 +187,11 @@ function stackServer(
             handoff: handoffAdapter({ ...options, providers }),
             hook: hookAdapter(options.sandboxes),
         },
-        // move the space in either role, and run the primary's consumers and retention
+        // move the space in either role, run the primary's consumers and retention, and the host's own
         controllers: [
             (store) => new TransferController(transfers, store),
             ...(isPrimary ? primaryControllers(options, providers) : []),
+            ...options.controllers,
         ],
         responseHeaders: { "Cache-Control": "no-store" },
     });
@@ -193,7 +201,7 @@ function stackServer(
 function primaryControllers(
     options: SpaceOptions,
     providers: ProviderIndex,
-): NonNullable<ServerDefinition["controllers"]> {
+): NonNullable<ImplementationInput["controllers"]> {
     return [
         () =>
             new AssignmentController(
@@ -204,8 +212,7 @@ function primaryControllers(
             ),
         (store) => new PlacementController(store, options.machine, options),
         (store) => new ConsumerController(store, providers.objects(), options.main),
-        (store) =>
-            new RetentionController(store, options.builds, options.sweepCache, options.store),
+        (store) => new RetentionController(store, options.builds, options.graphs, options.store),
         ...options.providers.flatMap((provider) =>
             (provider.controllers ?? []).map((controller) => () => controller),
         ),
@@ -215,13 +222,13 @@ function primaryControllers(
 /** Serve a space's stack and other packages over its one database, the stack first. */
 export function serveSpace(options: SpaceOptions): {
     readonly store: ObjectStore;
-    readonly packages: readonly PackageImplementation[];
+    readonly packages: readonly PackageHandler[];
 } {
     // serve each other package once, its resources provisioned beside the stack's
     const others = options.servers.map((server) => {
         // read the package's definition once, serving it as a static one
         const definition = server.definition(server.installation);
-        const resolved = defineServer(server.package, definition);
+        const resolved = implementPackage(server.package, definition);
 
         // list the package's types, the handled ones in place, whose resources the stack provisions
         const handled = definition.objects ?? [];
@@ -243,7 +250,7 @@ export function serveSpace(options: SpaceOptions): {
         options,
         others.map((each) => each.served),
     );
-    const access = defineServer(objectPackage, {
+    const access = implementPackage(objectPackage, {
         objects: [implementRole(), implementRelationship()],
     });
     const store = new ObjectStore({
@@ -324,7 +331,7 @@ function ownObjects(
             binder,
             runtimes: options.runtimes.map((runtime) => runtime.name),
             accounts: options.accounts,
-            repositories: options.repositories,
+            forge: options.forge,
             issuer: options.keystore.issuer(options.database, options.principal.id),
             isEnforcingEntitlements: options.isEnforcingEntitlements,
             database: options.database,
@@ -357,14 +364,15 @@ function stackObjects(served: readonly ObjectType[]): ObjectType[] {
 }
 
 /** Serve the space's installations' settings, read from the builds they install. */
-function installedSettingsServer(options: SpaceOptions): PackageServer {
+function installedSettingsServer(options: SpaceOptions): PackageImplementation {
     const snapshot = Snapshot.live(options.database);
     const declared = Setting.declared((written) =>
-        options.builds.installed(
+        Installation.reader(
             snapshot,
             schema.identifier("space").parse(written.scope),
             written.package ?? written.packageId,
             written.installation,
+            options.builds.packages,
         ),
     );
 

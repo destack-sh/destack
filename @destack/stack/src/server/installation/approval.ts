@@ -11,7 +11,7 @@ import { Address, Plan } from "@destack/resource";
 import { principal } from "@destack/access";
 import { ObjectReference } from "@destack/sync";
 import { canonicalize, present, schema } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { binding, type Installation, installation } from "../../object/index.ts";
 
 /** One waiting plan and the object accepting it. */

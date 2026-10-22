@@ -6,13 +6,11 @@ import type { ObjectStore } from "@destack/object/server";
 import { Plan, type ContentStore } from "@destack/resource";
 import { Recipient } from "@destack/identity";
 import { type Digest, type Identifier, present } from "@destack/schema";
-import { Scope } from "@destack/sync";
+import { Scope, RequestId } from "@destack/sync";
 import { Restore, restore, snapshot } from "../../object/snapshot.ts";
 import { SpaceTransfer, type TransferOptions } from "../host/transfer.ts";
 import type { Transfer } from "../../object/index.ts";
 import type { Handoff } from "../host/handoff.ts";
-import { RequestId } from "@destack/runtime/request";
-import { Clock } from "@destack/environment";
 
 /** How long a snapshot no move retires stays in the store: a day. */
 const SNAPSHOT_RETENTION_MILLISECONDS = 24 * 60 * 60 * 1000;
@@ -181,7 +179,7 @@ async function restoreRow(
     const source = await options.source(row.sourceId, spaceId);
     const moving = await SpaceTransfer.readActive(reconciliation.store.database, spaceId);
     const requested = { resourceId: row.resourceId, recipient: recipient.key };
-    const digest = await snapshotOf(source, moving, requested, reconciliation.signal);
+    const digest = await snapshotOf(source, moving, requested, reconciliation);
     const copy: Copy = {
         digest,
         store: relayed(options.store, source, spaceId),
@@ -200,15 +198,17 @@ async function snapshotOf(
     source: Handoff,
     moving: Transfer,
     requested: Parameters<Handoff["snapshot"]>[1],
-    signal: AbortSignal,
+    reconciliation: Pick<RestoreReconciliation, "store" | "signal">,
 ): Promise<Digest> {
+    // ask within one attempt, whose recipient key lives in memory alone
     for (let interval = SNAPSHOT_POLL_INITIAL_MILLISECONDS; ; interval *= 2) {
-        // answer the digest of a taken snapshot, else ask again after a doubling wait
+        // answer the digest of a taken snapshot, else ask again after a doubling wait on the store's clock
         const { digest } = await source.snapshot(moving, requested);
         if (digest !== null) {
             return digest;
         }
-        await Clock.system.sleep(Math.min(interval, SNAPSHOT_POLL_MILLISECONDS), signal);
+        const wait = Math.min(interval, SNAPSHOT_POLL_MILLISECONDS);
+        await reconciliation.store.clock.sleep(wait, reconciliation.signal);
     }
 }
 

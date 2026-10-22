@@ -5,9 +5,9 @@ import { principal } from "@destack/access";
 import { procedureInvoke } from "@destack/object/server";
 import { eq } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { nth, schema, present } from "@destack/schema";
-import { RequestId } from "@destack/runtime/request";
+import { RequestId } from "@destack/sync";
 import {
     afterAll,
     afterEach,
@@ -451,7 +451,7 @@ test.for(TEST_DIALECTS)("refuse callers without the bucket permission on %s", as
                 details: { authentication: "public" },
                 outcome: {
                     kind: "denied",
-                    error: { code: "FORBIDDEN", status: 403, message: "permission denied: write" },
+                    error: { code: "FORBIDDEN", message: "permission denied: write" },
                 },
                 target: { type: "procedure", id: "bucket.open" },
                 startedAt: NOW,

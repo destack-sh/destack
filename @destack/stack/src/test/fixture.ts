@@ -2,12 +2,12 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { LocalBucketHost } from "@destack/bucket/bun";
-import type { Controller } from "@destack/runtime/control";
+import type { Controller } from "@destack/db";
 import type { BuildReader } from "@destack/package/manifest";
-import { RequestId } from "@destack/runtime/request";
+import { RequestId, Call, type Publisher, Scope, type Subject, type Uplink } from "@destack/sync";
 import { LocalKeyring, MemoryKeychain } from "@destack/identity";
-import { Call, type Publisher, Scope, type Subject, type Uplink } from "@destack/sync";
-import { reconciliation, testCallKey } from "@destack/runtime/test";
+import { testCallKey, testEvents, serversOf } from "@destack/object/test";
+import { reconciliation, TestDatabase, TestTemplate } from "@destack/db/test";
 import { expect, onTestFinished } from "@destack/test";
 import {
     AccessContext,
@@ -20,12 +20,12 @@ import {
     universe,
 } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
-import { account, claim, machine, placement, space } from "@destack/account/object";
+import { account, claim, machine, placement, space, entitlement } from "@destack/account/object";
 import { IdentityKeystore, type IdentityRegistry, identityKey } from "@destack/account/identity";
 import { AccountFixture, STACKS, TestDirectory, TestIdentityRegistry } from "@destack/account/test";
 import accountPackage from "@destack/account/package";
 import { Provisioned } from "@destack/object";
-import { ObjectStore } from "@destack/object/server";
+import { Health, ObjectStore, Server, type PackageHandler } from "@destack/object/server";
 import {
     Change,
     type DatabaseConnection,
@@ -35,17 +35,21 @@ import {
     Snapshot,
     Transaction,
 } from "@destack/db";
-import { TestDatabase, TestTemplate } from "@destack/db/test";
 import { MemoryContentStore } from "@destack/resource/test";
 import { connectBunSqlite } from "@destack/db/bun";
 import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { canonicalize, Identifier, type JsonObject, present, schema } from "@destack/schema";
-import { Health } from "@destack/runtime/health";
-import { type ClientOptions, createClient } from "@destack/runtime/client";
-import { Server, type PackageImplementation } from "@destack/runtime/server";
-import { until } from "@destack/runtime/timer";
-import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/runtime/authentication";
+import {
+    canonicalize,
+    Digest,
+    Identifier,
+    type JsonObject,
+    present,
+    schema,
+} from "@destack/schema";
+import { type ClientOptions, createClient } from "@destack/object/client";
+import { until, Clock } from "@destack/environment";
+import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/access/token";
 import type { StackClient } from "../client/index.ts";
 import {
     type BuildUpload,
@@ -68,13 +72,10 @@ import {
 import { spaceReplicated, stackTables } from "../stack/index.ts";
 import stackPackage from "../package.ts";
 import type { EventStore } from "@destack/event";
-import { testEvents, serversOf } from "@destack/object/test";
-import { entitlement } from "@destack/account/object";
 import { TestRegistry } from "./build.ts";
 import { TestRuntime } from "./runtime.ts";
 import { insertBuildScope, insertRelease } from "./install.ts";
 import { BunGraphStorage } from "../bun/graph.ts";
-import { Clock } from "@destack/environment";
 
 /** The main database of a space a test machine serves without other modules. */
 export const spaceDatabase = defineDatabase({
@@ -287,9 +288,10 @@ export class StackFixture implements AsyncDisposable {
             sockets,
             isEnforcingEntitlements: false,
             publisherAt: null,
-            sweepCache: null,
-            repositories: null,
+            graphs: { sweep: async () => (await this.index()).sweep() },
+            forge: null,
             follows: [],
+            controllers: [],
             external: await this.index(),
             ...overrides,
         };
@@ -337,7 +339,7 @@ export class StackFixture implements AsyncDisposable {
         // keep every person in the fixture's home, serving the residency on no cloud machine
         return {
             residency: { machines: async () => [] },
-            user: { home: async () => ids.home },
+            user: { get: async () => ({ homeId: ids.home }) },
         };
     }
 
@@ -442,11 +444,7 @@ export class StackFixture implements AsyncDisposable {
             // keep the index files in a directory removed with the index once the test ends
             const directory = await mkdtemp(join(tmpdir(), "destack-stack-index-"));
             const builds = await this.builds();
-            const index = new BunGraphStorage(
-                this.database,
-                async (_space, manifest) => builds.packages.contents(manifest),
-                directory,
-            );
+            const index = new BunGraphStorage(this.database, builds.packages, directory);
             onTestFinished(async () => {
                 await index[Symbol.asyncDispose]();
                 await rm(directory, { recursive: true, force: true });
@@ -473,13 +471,17 @@ export class StackFixture implements AsyncDisposable {
             requestId: RequestId.create(Date.now()),
             progress: { phase: "storing", files },
         });
-        await (await this.builds()).packages.put(reader);
+        const { packages } = await this.builds();
+        await packages.put(reader);
 
-        // finish with the manifest
+        // store an empty code index beside it, then finish with the manifest
+        const bytes = new TextEncoder().encode(JSON.stringify([]));
+        const code = { digest: await Digest.of(bytes), size: bytes.byteLength };
+        await packages.receive(code.digest, bytes, "application/json");
         await runner.build.finish({
             ...target,
             requestId: RequestId.create(Date.now()),
-            end: { kind: "stored", manifest: reader.manifest },
+            end: { kind: "stored", manifest: reader.manifest, code },
         });
 
         return uploads;
@@ -546,7 +548,7 @@ export class StackFixture implements AsyncDisposable {
     ): Promise<{ readonly id: Identifier<"build">; readonly manifest: string }> {
         // replicate the release the registry keeps into the build store, and keep it as the space's build
         const manifest = await this.registry.find(packageId, version);
-        const reader = await (await this.builds()).open(this.registry, packageId, manifest);
+        const reader = await (await this.builds()).pull(this.registry, packageId, manifest);
         const release = { package: packageId, version, manifest };
 
         return insertRelease(
@@ -616,7 +618,7 @@ export class StackFixture implements AsyncDisposable {
     }
 
     /** Start a served package, authenticating the callers headers name after the package's own. */
-    static #start(implementation: PackageImplementation, isControlled: boolean): Server {
+    static #start(implementation: PackageHandler, isControlled: boolean): Server {
         // serve without waiting for readiness, running controllers when asked
         const { ready: _ready, ...served } = implementation;
         const server = Server.start({
@@ -659,15 +661,19 @@ export class StackFixture implements AsyncDisposable {
     static handoff(server: Pick<Server, "fetch">, caller: string): Handoff {
         const endpoint = StackFixture.endpoint(server, caller);
 
-        return Handoff.connect(SPACE_URL, async (request) => {
-            // send the request with the caller's headers
-            const sent = new Request(request);
-            for (const [name, value] of Object.entries(endpoint.headers ?? {})) {
-                sent.headers.set(name, String(value));
-            }
+        return Handoff.connect(
+            SPACE_URL,
+            async (request) => {
+                // send the request with the caller's headers
+                const sent = new Request(request);
+                for (const [name, value] of Object.entries(endpoint.headers ?? {})) {
+                    sent.headers.set(name, String(value));
+                }
 
-            return server.fetch(sent);
-        });
+                return server.fetch(sent);
+            },
+            Clock.system,
+        );
     }
 
     /** Close the machine's database once. */

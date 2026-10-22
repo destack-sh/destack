@@ -1,7 +1,9 @@
-import { RequestId } from "@destack/runtime/request";
+import type { Clock } from "@destack/environment";
+import { Failure } from "@destack/error";
+import { RequestId, Page, Scope, type Uplink } from "@destack/sync";
 import { AccessContext, Caller, principal } from "@destack/access";
 import { Digest, type Identifier, present, schema } from "@destack/schema";
-import { createClient } from "@destack/runtime/client";
+import { createClient } from "@destack/object/client";
 import { type DatabaseConnection, LogPosition, type Row, Snapshot, type Table } from "@destack/db";
 import { type IdentityKeystore } from "@destack/account/identity";
 import type { MethodContext } from "@destack/object";
@@ -9,8 +11,7 @@ import type { AdapterFetch } from "@destack/object/server";
 import type { Runtime } from "../../runtime/index.ts";
 import { type ResourceId, type Rewrapper, type ContentStore } from "@destack/resource";
 import { Recipient } from "@destack/identity";
-import { errorOf, failureOf, CallError } from "@destack/runtime/error";
-import { Page, Scope, type Uplink } from "@destack/sync";
+import { CallError } from "@destack/object";
 import { type Fence, snapshot, type Transfer } from "../../object/index.ts";
 import type { BuildStore } from "../installation/build.ts";
 import { SpaceTransfer } from "./transfer.ts";
@@ -90,7 +91,7 @@ export interface Handoff {
 /** How a target reaches a source's handoff. */
 export const Handoff = {
     /** Connect to a source's handoff through a fetch reaching its stack package at a URL. */
-    connect(url: string, fetch: (request: Request) => Promise<Response>): Handoff {
+    connect(url: string, fetch: (request: Request) => Promise<Response>, clock: Clock): Handoff {
         // call the source's stack package and its handoff adapter below it
         const stack = createClient(stackPackage, { url, fetch });
         const adapter = `${url}${HANDOFF_PATH}`;
@@ -98,7 +99,7 @@ export const Handoff = {
             // refuse a failed answer as the source answered it
             const response = await fetch(request);
             if (!response.ok || response.body === null) {
-                throw errorOf(await failureOf(response));
+                throw Failure.error(await Failure.read(response));
             }
 
             return response;
@@ -123,7 +124,7 @@ export const Handoff = {
                 stack.transfer.fence({
                     spaceId: transfer.scope,
                     id: transfer.id,
-                    requestId: RequestId.create(Date.now()),
+                    requestId: RequestId.create(clock.now()),
                 }),
             capture: async function* ({ spaceId, recipient }, options = {}) {
                 const path = `${adapter}${HandoffPath.of(spaceId, "capture")}`;
@@ -139,7 +140,7 @@ export const Handoff = {
                 stack.transfer.snapshot({
                     spaceId: transfer.scope,
                     id: transfer.id,
-                    requestId: RequestId.create(Date.now()),
+                    requestId: RequestId.create(clock.now()),
                     ...input,
                 }),
             read: async function* (spaceId, digest, options = {}) {

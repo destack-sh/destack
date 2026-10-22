@@ -6,16 +6,16 @@ import {
     ResidencyCode,
     Space,
     space,
+    Placement,
 } from "@destack/account/object";
 import { and, desc, type DatabaseConnection, eq, isNull } from "@destack/db";
-import { Placement } from "@destack/account/object";
 import { ObjectWatch, type Condition } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
 import { type Identifier, present } from "@destack/schema";
 import { setting, SettingValue } from "@destack/setting/object";
 import { transfer } from "../../object/index.ts";
 import { tenancy } from "../../setting/index.ts";
-import { RequestId } from "@destack/runtime/request";
+import { RequestId } from "@destack/sync";
 import type { SpaceAccounts } from "../server.ts";
 
 /** What a machine schedules its spaces with. */

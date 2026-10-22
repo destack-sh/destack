@@ -1,5 +1,5 @@
 import { AccessContext, Authorization, Caller } from "@destack/access";
-import { account, Space, space, type StackSource } from "@destack/account/object";
+import { account, Space, space, type StackSource, placement } from "@destack/account/object";
 import {
     and,
     Change,
@@ -9,12 +9,11 @@ import {
     type Table,
     Transaction,
 } from "@destack/db";
-import { placement } from "@destack/account/object";
 import type { ObjectStore } from "@destack/object/server";
 import { Digest, type Identifier, type JsonObject, present } from "@destack/schema";
 import { Provisioned } from "@destack/object";
-import type { Controller } from "@destack/runtime/control";
-import { Scope } from "@destack/sync";
+import type { Controller } from "@destack/db";
+import { Scope, RequestId } from "@destack/sync";
 import {
     database,
     type Installation,
@@ -25,7 +24,6 @@ import {
 import { BuildStore, type Registry } from "../installation/build.ts";
 import type { PackageId } from "@destack/package";
 import { declaredStack } from "../installation/stack.ts";
-import { RequestId } from "@destack/runtime/request";
 
 /** The name of the installation applying the stack a space carries from its creation. */
 const STACK_INSTALLATION = "stack";
@@ -270,9 +268,9 @@ export class PlacementController implements Controller {
     async #declared(stack: StackSource): Promise<JsonObject> {
         // copy the stack's build, evaluate its export, and read its installations' builds without storing them
         const { builds, registry } = this.#options;
-        const reader = await builds.open(registry, stack.package.id, stack.manifest);
+        const reader = await builds.pull(registry, stack.package.id, stack.manifest);
         const read = (packageId: PackageId, manifest: string) =>
-            builds.read(registry, packageId, manifest);
+            builds.pull(registry, packageId, manifest);
 
         return declaredStack(reader, stack.export, stack.settings, read);
     }

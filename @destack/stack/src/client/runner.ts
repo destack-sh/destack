@@ -1,6 +1,6 @@
 import type { ResourceDeclaration } from "@destack/resource";
-import type { RunnerOptions, Workload } from "@destack/runtime/workload";
-import { createClient } from "@destack/runtime/client";
+import type { RunnerOptions, Workload } from "@destack/object/workload";
+import { createClient } from "@destack/object/client";
 import { Uplink } from "@destack/sync";
 import stackPackage from "../package.ts";
 import type { StackClient } from "./client.ts";

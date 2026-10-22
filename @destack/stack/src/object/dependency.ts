@@ -1,5 +1,4 @@
-import { InstallationKind } from "@destack/runtime/declare";
-import { defineObject } from "@destack/object";
+import { InstallationKind, defineObject } from "@destack/object";
 import { space } from "@destack/account/object";
 
 /** A named dependency of an installation on an installation of a package, at its address. */

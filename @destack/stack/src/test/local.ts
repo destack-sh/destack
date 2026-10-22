@@ -1,10 +1,8 @@
 import type { Authentication } from "@destack/access";
 import type { Identifier } from "@destack/schema";
-import { Egress, InstallationMount } from "@destack/runtime";
-import { CallError } from "@destack/runtime/error";
+import { Egress, InstallationMount, CallError, VERSION_HEADER } from "@destack/object";
 import type { Deriver } from "@destack/identity";
-import { VERSION_HEADER } from "@destack/runtime/request";
-import { type RunnerOptions, WorkloadRunner } from "@destack/runtime/workload";
+import { type RunnerOptions, WorkloadRunner } from "@destack/object/workload";
 import { bunEphemeral } from "../bun/runner.ts";
 import { InstanceRegistry, InstanceSpec, type Runtime, WorkloadRequest } from "../runtime/index.ts";
 

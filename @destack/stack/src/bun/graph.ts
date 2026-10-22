@@ -4,22 +4,22 @@ import { Database } from "bun:sqlite";
 import { connectBunSqlite } from "@destack/db/bun";
 import { type DatabaseConnection, TABLE } from "@destack/db";
 import type { ObjectType } from "@destack/object";
-import type { ExternalStorage } from "@destack/object/server";
-import type { BuildReader } from "@destack/package/manifest";
-import { type Identifier, zip } from "@destack/schema";
-import { catalog, GraphIndex, module, symbol } from "../object/graph.ts";
+import type { PackageStore } from "@destack/build/store";
+import type { ExternalGraphStorage } from "../server/resource/retention.ts";
+import { nth, zip } from "@destack/schema";
+import { catalog, declaration, GraphIndex, module, symbol } from "../object/graph.ts";
 
 /** The most parameters SQLite binds to a statement: SQLITE_MAX_VARIABLE_NUMBER since 3.32. */
 const SQLITE_PARAMETERS = 32_766;
 
 /** The graph of each build as external objects. */
-export class BunGraphStorage implements ExternalStorage, AsyncDisposable {
+export class BunGraphStorage implements ExternalGraphStorage, AsyncDisposable {
     /** The graph's object types. */
-    readonly objects: readonly ObjectType[] = [module, symbol, catalog];
+    readonly objects: readonly ObjectType[] = [module, declaration, symbol, catalog];
     /** The database with the builds. */
     readonly #database: DatabaseConnection;
-    /** Read a build a space stores by its manifest's digest. */
-    readonly #builds: (spaceId: Identifier<"space">, manifest: string) => Promise<BuildReader>;
+    /** The builds and code indexes the spaces store. */
+    readonly #builds: Pick<PackageStore, "contains" | "contents" | "referrer" | "file">;
     /** The directory with one index file per manifest, which every build of it reads. */
     readonly #directory: string;
     /** The opened indexes, by build. */
@@ -28,7 +28,7 @@ export class BunGraphStorage implements ExternalStorage, AsyncDisposable {
     /** Index the builds a database records and their spaces store, under a directory. */
     constructor(
         database: DatabaseConnection,
-        builds: (spaceId: Identifier<"space">, manifest: string) => Promise<BuildReader>,
+        builds: Pick<PackageStore, "contains" | "contents" | "referrer" | "file">,
         directory: string,
     ) {
         this.#database = database;
@@ -49,19 +49,22 @@ export class BunGraphStorage implements ExternalStorage, AsyncDisposable {
         return (await opened).database;
     }
 
-    /** Delete the indexes of the manifests retention drops, closing their builds' databases. */
-    async sweep(retained: ReadonlySet<string>): Promise<void> {
-        // close the dropped builds' indexes except the failed opens
+    /** Delete and close the indexes of the manifests the build store no longer keeps. */
+    async sweep(): Promise<void> {
+        // close the swept builds' indexes except the failed opens
         const opened = [...this.#opened];
         const settled = await Promise.allSettled(opened.map(([, index]) => index));
         for (const [[scope], index] of zip(opened, settled)) {
-            if (index.status === "fulfilled" && !retained.has(index.value.manifest)) {
+            if (
+                index.status === "fulfilled" &&
+                !(await this.#builds.contains(index.value.manifest))
+            ) {
                 this.#opened.delete(scope);
                 await index.value.database.close();
             }
         }
 
-        // delete their files
+        // delete the index files and pending writes of each manifest the store dropped
         const files = await readdir(this.#directory).catch((error: unknown) => {
             if (isMissing(error)) {
                 return [];
@@ -69,8 +72,12 @@ export class BunGraphStorage implements ExternalStorage, AsyncDisposable {
 
             throw error;
         });
-        for (const file of files.filter((name) => !retained.has(name.split(".")[0] ?? name))) {
-            await rm(join(this.#directory, file), { force: true });
+        for (const [manifest, kept] of Map.groupBy(files, (name) => nth(name.split("."), 0))) {
+            if (!(await this.#builds.contains(manifest))) {
+                for (const file of kept) {
+                    await rm(join(this.#directory, file), { force: true });
+                }
+            }
         }
     }
 
@@ -96,7 +103,7 @@ export class BunGraphStorage implements ExternalStorage, AsyncDisposable {
         const file = join(this.#directory, `${manifest}.sqlite`);
         if (!(await exists(file))) {
             await mkdir(this.#directory, { recursive: true });
-            await write(index, await this.#builds(index.space, manifest), file);
+            await write(index, this.#builds, file);
         }
 
         // read it as the build's rows: in its scope, made when it finished
@@ -121,9 +128,13 @@ interface OpenedIndex {
 }
 
 /** Write a manifest's objects into a new index file as the indexing build's, published whole. */
-async function write(index: GraphIndex, reader: BuildReader, file: string): Promise<void> {
+async function write(
+    index: GraphIndex,
+    builds: Pick<PackageStore, "contains" | "contents" | "referrer" | "file">,
+    file: string,
+): Promise<void> {
     // derive the build's objects
-    const rows = await index.rows(reader);
+    const rows = await index.rows(builds);
 
     // write a private file in the rollback journal mode read-only readers open
     const pending = `${file}.${crypto.randomUUID()}`;

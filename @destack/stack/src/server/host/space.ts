@@ -8,9 +8,8 @@ import {
     type Observation,
 } from "@destack/object";
 import { nth, type JsonObject } from "@destack/schema";
-import { RequestId } from "@destack/runtime/request";
+import { RequestId, Scope, type Uplink } from "@destack/sync";
 import { AccessContext, Caller, principal } from "@destack/access";
-import { Scope, type Uplink } from "@destack/sync";
 import { Installation, installation, installationRevision } from "../../object/index.ts";
 import type { Scheduler } from "./scheduler.ts";
 

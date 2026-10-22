@@ -1,8 +1,9 @@
+import { Failure } from "@destack/error";
 import { HandlerAnswer, HookServer } from "@destack/object";
 import { present } from "@destack/schema";
-import type { PackageHandle } from "@destack/runtime";
-import { errorOf, failureOf } from "@destack/runtime/error";
-import type { WorkloadContext, WorkloadImplementation } from "@destack/runtime/workload";
+import type { PackageHandle } from "@destack/object";
+
+import type { WorkloadContext, WorkloadImplementation } from "@destack/object/workload";
 import stackPackage, { HOOK_PATH } from "../package.ts";
 
 /** The name of the workload a build derives to serve its package's object hooks. */
@@ -30,7 +31,7 @@ export function serveHooks(
                     }),
                 );
                 if (!answer.ok) {
-                    throw errorOf(await failureOf(answer));
+                    throw Failure.error(await Failure.read(answer));
                 }
 
                 return HandlerAnswer.parse(await answer.json());

@@ -9,13 +9,14 @@ import {
     inArray,
     Order,
     type Row,
+    type RowImage,
     Snapshot,
     TABLE,
     type Table,
     type Transaction,
 } from "@destack/db";
 import { Recipient } from "@destack/identity";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { Feed, Replica, replica, replicaPosition, Scope } from "@destack/sync";
 import { type Fence, restore, snapshot, transfer } from "../../object/index.ts";
 import type { Handoff } from "./handoff.ts";
@@ -159,6 +160,16 @@ export class SpaceReplica {
         if (await this.replica.isRecorded(transaction.view())) {
             await this.replica.promote(transaction);
         }
+    }
+
+    /** Rewrite a row a takeover owns outside methods: a moved resource's, or its own restore. */
+    async rewrite<Rewritten extends Table>(
+        transaction: Transaction,
+        table: Rewritten,
+        before: RowImage<Rewritten>,
+        after: RowImage<Rewritten> | null,
+    ): Promise<void> {
+        await transaction.write({ table, before, after });
     }
 
     /** Delete the space's subtree's rows children first, as the replica wrote them. */

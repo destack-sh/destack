@@ -4,9 +4,11 @@ import { defineObject, field } from "@destack/object";
 import { graph, PackageId } from "@destack/package";
 import { SourceRange } from "@destack/package/source";
 import { type DatabaseConnection, eq, type Insert, TABLE, type Table } from "@destack/db";
-import type { BuildReader } from "@destack/package/manifest";
+import { PackageManifest } from "@destack/package/manifest";
 import { Digest, type Identifier, present, schema } from "@destack/schema";
 import { build, Build } from "./build.ts";
+import type { PackageStore } from "@destack/build/store";
+import type { PackageFile } from "@destack/package/file";
 
 /** A relationship of a symbol to another, after SCIP's `Relationship`, resolved to its moniker. */
 export const Relationship = schema.object({
@@ -38,7 +40,37 @@ export const module = defineObject({
     permissions: { read: through("build", "read") },
 });
 
-/** One symbol of a build's graph, keyed by its moniker. */
+/** One declaration of a build's graph, keyed by its moniker. */
+export const declaration = defineObject({
+    name: "declaration",
+    plural: "declarations",
+    scope: build,
+    storage: "external",
+    key: graph.Moniker,
+    fields: {
+        /** The module declaring it. */
+        module: field.reference(module),
+        /** The declaration kind, such as `package`. */
+        kind: field.string(schema.string().min(1)),
+        /** The declaration's name within its kind. */
+        name: field.string(schema.string().min(1)),
+        /** The code symbol or module it is declared at. */
+        enclosing: field.string(graph.Moniker),
+        /** The package declaring its kind. */
+        kindPackageId: field.string(PackageId),
+        /** Whether a module of the package exports its symbol. */
+        isExported: field.boolean(),
+        /** Its description, parsed by its kind's schema at read. */
+        description: field.json(schema.jsonObject()),
+        /** Its terms with the digest of each definition, absent without terms. */
+        vocabulary: field.json(schema.record(schema.string(), Digest)).optional(),
+        /** The relationships to other symbols, by kind and target. */
+        relationships: field.json(schema.array(Relationship)),
+    },
+    permissions: { read: through("build", "read") },
+});
+
+/** One code symbol of a build's graph, from its code index, keyed by its moniker. */
 export const symbol = defineObject({
     name: "symbol",
     plural: "symbols",
@@ -48,27 +80,19 @@ export const symbol = defineObject({
     fields: {
         /** The module declaring the symbol. */
         module: field.reference(module),
-        /** The kind: a code kind such as `function`, or a declaration kind such as `package`. */
+        /** The code kind, such as `function`. */
         kind: field.string(schema.string().min(1)),
-        /** The name: the qualified code name, or the declaration's name within its kind. */
+        /** The qualified code name. */
         name: field.string(schema.string().min(1)),
-        /** The code symbol or module a declaration is declared at, absent for a code symbol. */
-        enclosing: field.string(graph.Moniker).optional(),
-        /** The package declaring a declaration's kind, absent for a code symbol. */
-        kindPackageId: field.string(PackageId).optional(),
         /** Whether a module of the package exports the symbol. */
         isExported: field.boolean(),
-        /** The code symbol's first source range, absent for a declaration. */
-        source: field.json(SourceRange).optional(),
-        /** The code symbol's printed declaration, absent for a declaration. */
-        signature: field.string().optional(),
+        /** The symbol's first source range. */
+        source: field.json(SourceRange),
+        /** The symbol's printed declaration. */
+        signature: field.string(),
         /** The first sentence of the documentation, absent without documentation. */
         comment: field.string().optional(),
-        /** A declaration's description, parsed by its kind's schema at read. */
-        description: field.json(schema.jsonObject()).optional(),
-        /** A declaration's terms with the digest of each definition, absent without terms. */
-        vocabulary: field.json(schema.record(schema.string(), Digest)).optional(),
-        /** The relationships to other symbols, by kind and target. */
+        /** The relationships of its code to other symbols, by kind and target. */
         relationships: field.json(schema.array(Relationship)),
     },
     permissions: { read: through("build", "read") },
@@ -94,10 +118,43 @@ export const catalog = defineObject({
     permissions: { read: through("build", "read") },
 });
 
+/** The path a build's code index is attached to its manifest at. */
+const CODE_INDEX_PATH = "code.json";
+
+/** A build's code index: one document per module, attached to its manifest. */
+export const CodeIndex = Object.assign(schema.array(graph.Document), {
+    /** Describe a stored code index as the file attached to its manifest. */
+    file(stored: Pick<PackageFile, "digest" | "size">): PackageFile {
+        return { ...stored, path: CODE_INDEX_PATH, mediaType: "application/json" };
+    },
+
+    /** Read the code index attached to a build, empty for a release pulled without one. */
+    async read(
+        packages: Pick<PackageStore, "referrer" | "file">,
+        manifest: string,
+    ): Promise<readonly graph.Document[]> {
+        // read no documents of a build without a code index
+        const attached = await packages.referrer(manifest, CODE_INDEX_PATH);
+        if (attached === undefined) {
+            return [];
+        }
+
+        // read and verify the attached file
+        const bytes = await packages.file(attached);
+
+        return CodeIndex.parse(JSON.parse(new TextDecoder().decode(bytes)));
+    },
+});
+
 /** A build's view of its manifest's graph index: the build, its manifest and when it finished. */
 export class GraphIndex {
     /** The index tables, one per graph object type. */
-    static readonly tables = [module.table, symbol.table, catalog.table] as const;
+    static readonly tables = [
+        module.table,
+        declaration.table,
+        symbol.table,
+        catalog.table,
+    ] as const;
 
     /** The build reading the index. */
     readonly build: Identifier<"build">;
@@ -125,6 +182,7 @@ export class GraphIndex {
     ): Promise<void> {
         const tables = [
             [module.table, rows.modules],
+            [declaration.table, rows.declarations],
             [symbol.table, rows.symbols],
             [catalog.table, rows.catalogs],
         ] as const;
@@ -165,30 +223,39 @@ export class GraphIndex {
         });
     }
 
-    /** Derive the module, symbol and catalog rows of the build, stored once for its manifest. */
-    async rows(reader: BuildReader): Promise<{
+    /** Derive the rows of the build and its code index, stored once for its manifest. */
+    async rows(
+        packages: Pick<PackageStore, "contains" | "contents" | "referrer" | "file">,
+    ): Promise<{
         modules: Insert<typeof module.table>[];
+        declarations: Insert<typeof declaration.table>[];
         symbols: Insert<typeof symbol.table>[];
         catalogs: Insert<typeof catalog.table>[];
     }> {
-        // derive the objects of every module file
-        const root = await reader.graph();
-        const packageId = reader.manifest.package.id;
-        const modules: Insert<typeof module.table>[] = [];
-        const symbols: Insert<typeof symbol.table>[] = [];
-        for (const digest of Object.values(root.modules)) {
-            const graphFile = await reader.module(digest);
-            const indexed = indexModule(graphFile, digest, packageId, this.build, this.finishedAt);
-            modules.push(indexed.module);
-            symbols.push(...indexed.symbols);
-        }
+        // read the build and its code index
+        const reader = await packages.contents(this.manifest);
+        const code = await CodeIndex.read(packages, this.manifest);
 
-        // keep the catalogs it ships: its own and its unpublished dependencies'
+        // derive the module and declaration objects of every module file
+        const root = await reader.graph();
+        const packageId = PackageManifest.package(reader.manifest).id;
         const record = {
             scope: this.build,
             createdAt: this.finishedAt,
             updatedAt: this.finishedAt,
         };
+        const modules: Insert<typeof module.table>[] = [];
+        const declarations: Insert<typeof declaration.table>[] = [];
+        for (const digest of Object.values(root.modules)) {
+            const indexed = indexModule(await reader.module(digest), digest, packageId, record);
+            modules.push(indexed.module);
+            declarations.push(...indexed.declarations);
+        }
+
+        // derive the code symbols of the code index
+        const symbols = code.flatMap((file) => indexCode(file, packageId, record));
+
+        // keep the catalogs it ships: its own and its unpublished dependencies'
         const catalogs = (await Catalog.read(reader)).map((shipped) => ({
             ...record,
             id: `${shipped.package}/${shipped.locale}`,
@@ -198,7 +265,7 @@ export class GraphIndex {
             ...(shipped.drafts === undefined ? {} : { drafts: shipped.drafts }),
         }));
 
-        return { modules, symbols, catalogs };
+        return { modules, declarations, symbols, catalogs };
     }
 
     /** Select an index table's stored rows as the build's: in its scope, made when it finished. */
@@ -219,26 +286,40 @@ export class GraphIndex {
     }
 }
 
-/** Derive one module file's module object and its symbol objects. */
+/** The scope and times every row of a build's index has. */
+type IndexRecord = Pick<Insert<typeof module.table>, "scope" | "createdAt" | "updatedAt">;
+
+/** Derive one module file's module object and its declaration objects. */
 function indexModule(
     file: graph.Module,
     digest: string,
     packageId: string,
-    scope: Identifier<"build">,
-    finishedAt: number,
-): { module: Insert<typeof module.table>; symbols: Insert<typeof symbol.table>[] } {
+    record: IndexRecord,
+): { module: Insert<typeof module.table>; declarations: Insert<typeof declaration.table>[] } {
     // group the module's edges by source
     const moniker = graph.Moniker.of({ packageId, module: file.path });
     const relationships = Map.groupBy(file.edges, (edge) => edge.from);
     const outgoing = (from: string): Relationship[] =>
         (relationships.get(from) ?? []).map(({ kind, to }) => ({ kind, to }));
-    const record = { scope, createdAt: finishedAt, updatedAt: finishedAt };
 
-    // keep the code symbols and the declarations at them
-    const symbols = indexSymbols(file, moniker, record, outgoing);
+    // keep the declarations at the module's symbols or the module, exported where their symbol is
+    const exported = new Set(file.exports.map((entry) => entry.symbol));
+    const declarations = file.declarations.map((each) => ({
+        ...record,
+        id: each.moniker,
+        moduleId: moniker,
+        kind: each.kind,
+        name: each.name,
+        enclosing: each.symbol,
+        kindPackageId: each.kindPackageId,
+        isExported: exported.has(each.symbol),
+        description: each.description,
+        vocabulary: each.vocabulary ?? null,
+        relationships: outgoing(each.moniker),
+    }));
 
-    // refuse an edge from neither the module nor one of its symbols
-    const sources = new Set<string>([moniker, ...symbols.map((entry) => entry.id)]);
+    // refuse an edge from neither the module nor one of its declarations
+    const sources = new Set<string>([moniker, ...declarations.map((entry) => entry.id)]);
     const stray = file.edges.find((edge) => !sources.has(edge.from));
     if (stray !== undefined) {
         throw new TypeError(
@@ -255,52 +336,33 @@ function indexModule(
             file: digest,
             relationships: outgoing(moniker),
         },
-        symbols,
+        declarations,
     };
 }
 
-/** Derive the symbol objects of one module file's code symbols and the declarations at them. */
-function indexSymbols(
-    file: graph.Module,
-    moniker: graph.Moniker,
-    record: Pick<Insert<typeof symbol.table>, "scope" | "createdAt" | "updatedAt">,
-    outgoing: (from: string) => Relationship[],
+/** Derive the symbol objects of one module's code, with the relationships of their code. */
+function indexCode(
+    file: graph.Document,
+    packageId: string,
+    record: IndexRecord,
 ): Insert<typeof symbol.table>[] {
-    // keep the code symbols
-    const exported = new Map(file.symbols.map((entry) => [entry.moniker, entry.isExported]));
-    const symbols = file.symbols.map((entry) => ({
+    // group the module's code edges by source
+    const moniker = graph.Moniker.of({ packageId, module: file.path });
+    const relationships = Map.groupBy(file.edges, (edge) => edge.from);
+
+    return file.symbols.map((entry) => ({
         ...record,
         id: entry.moniker,
         moduleId: moniker,
         kind: entry.kind,
-        name: entry.moniker.slice(entry.moniker.indexOf("#") + 1),
+        name: present(graph.Moniker.name(entry.moniker), `the name of ${entry.moniker}`),
         isExported: entry.isExported,
         source: entry.source,
         signature: entry.signature,
         comment: entry.comment ?? null,
-        relationships: outgoing(entry.moniker),
+        relationships: (relationships.get(entry.moniker) ?? []).map(({ kind, to }) => ({
+            kind,
+            to,
+        })),
     }));
-
-    // keep the declarations at the code symbols or the module
-    const declarations = file.declarations.map((declaration) => ({
-        ...record,
-        id: declaration.moniker,
-        moduleId: moniker,
-        kind: declaration.kind,
-        name: declaration.name,
-        enclosing: declaration.symbol,
-        kindPackageId: declaration.kindPackageId,
-        isExported:
-            declaration.symbol === moniker
-                ? false
-                : present(
-                      exported.get(declaration.symbol),
-                      `the symbol ${declaration.symbol} of ${declaration.moniker}`,
-                  ),
-        description: declaration.description,
-        vocabulary: declaration.vocabulary ?? null,
-        relationships: outgoing(declaration.moniker),
-    }));
-
-    return [...symbols, ...declarations];
 }

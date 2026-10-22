@@ -1,15 +1,19 @@
 import { type Authentication, CALLER_HEADER, Caller } from "@destack/access";
 import type { DirectoryGrant, PackageId, Sandbox } from "@destack/package";
-import type { BuildReader, PackageManifest } from "@destack/package/manifest";
+import { type BuildReader, PackageManifest } from "@destack/package/manifest";
 import type { ServerRuntime } from "@destack/package/runtime";
 import { BucketKind, S3_PROVIDER } from "@destack/bucket";
 import { type ResourceId, type ResourceRecord } from "@destack/resource";
 import type { Digest, Identifier, JsonValue } from "@destack/schema";
-import { Egress, PackageMount } from "@destack/runtime";
-import { INSTALLATION_PROVIDER, InstallationKind } from "@destack/runtime/declare";
-import { CallError } from "@destack/runtime/error";
+import {
+    Egress,
+    PackageMount,
+    INSTALLATION_PROVIDER,
+    InstallationKind,
+    CallError,
+} from "@destack/object";
 import type { Deriver } from "@destack/identity";
-import { InstallationRoot, type WorkloadStart } from "@destack/runtime/workload";
+import { InstallationRoot, type WorkloadStart } from "@destack/object/workload";
 
 /** The bytes of an instance's secret: 256 bits, beyond guessing. */
 const SECRET_BYTES = 32;
@@ -319,7 +323,7 @@ export interface WorkloadInstallation {
 /** Bind the running package's resources, secrets and other spaces' installations by their names. */
 function bindings(spec: InstanceSpec, egress: string, secret: string): WorkloadStart["bindings"] {
     // bind each resource of the running package under its declared name
-    const packageId = spec.build.manifest.package.id;
+    const packageId = PackageManifest.package(spec.build.manifest).id;
     const bound: WorkloadStart["bindings"] = {};
     for (const resource of spec.resources) {
         // refuse a resource of another package

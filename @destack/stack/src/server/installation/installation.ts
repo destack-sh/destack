@@ -1,5 +1,5 @@
 import { ObjectReference, Subject } from "@destack/sync";
-import { nth, canonicalize, Digest, type Identifier, present, schema, Text } from "@destack/schema";
+import { nth, canonicalize, Digest, type Identifier, present, schema } from "@destack/schema";
 import { principal } from "@destack/access";
 import { and, eq, inArray } from "@destack/db";
 import {
@@ -9,9 +9,9 @@ import {
     type ResourceType,
     type ResultOf,
 } from "@destack/object";
-import { PackageDescription } from "@destack/runtime";
+import { PackageDescription } from "@destack/object";
 import type { PackageId } from "@destack/package";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { entitlement, Space, space } from "@destack/account/object";
 import {
     binding,
@@ -24,7 +24,7 @@ import {
     Build,
     type Submission,
 } from "../../object/index.ts";
-import { ViewDescription, ViewPresentationPriority } from "@destack/package/manifest";
+import { PackageManifest, ViewDescription } from "@destack/package/manifest";
 import {
     Application,
     type ApplicationOptions,
@@ -33,11 +33,12 @@ import {
 } from "./application.ts";
 import { Approval } from "./approval.ts";
 import type { InstallationSelection } from "../../declare/installation.ts";
-import { type RepositoryOwner, SelectedRepository } from "./selection.ts";
+import { SelectedRepository } from "./selection.ts";
+import { followRepository, type Forge } from "./follow.ts";
 import type { SpaceAccounts } from "../server.ts";
 import { reconcileStack, type StackOptions } from "./stack.ts";
 import { StackError } from "../../error/index.ts";
-import type { TokenIssuer } from "@destack/runtime/authentication";
+import type { TokenIssuer } from "@destack/access/token";
 import { InstallationAssertion } from "./token.ts";
 
 /** Installations a stack declares. */
@@ -96,8 +97,8 @@ const declaredInstallation = installation.implement({
 export interface InstallationOptions extends StackOptions, ApplicationOptions {
     /** The objects of the resource kinds the machine serves. */
     readonly resources: readonly ResourceType<typeof space>[];
-    /** Read the account owning a selection's repository. */
-    readonly repositories: RepositoryOwner | null;
+    /** The repositories installations select and follow, null on a machine following none. */
+    readonly forge: Forge | null;
     /** The account package, reading the home a person opens views in. */
     readonly accounts: Pick<SpaceAccounts, "user">;
     /** The space's token issuer, signing the tokens installations are granted. */
@@ -122,13 +123,31 @@ export function implementInstallation(options: InstallationOptions) {
             // apply a space's one stack under its space and deploy each application under its own key
             key: (row) =>
                 row.role === "stack" ? { scope: row.scope, role: "stack" } : { id: row.id },
-            watches: installationWatches(options.resources),
-            reconcile: (reconciliation) => {
+            watches: [
+                ...installationWatches(options.resources),
+                ...(options.forge === null ? [] : repositoryWatches(options.forge)),
+            ],
+            reconcile: async (reconciliation) => {
+                // apply the space's stack, or deploy the application
                 const target = nth(reconciliation.rows, 0);
+                const applied =
+                    target.role === "stack"
+                        ? await reconcileStack(target.scope, reconciliation, options)
+                        : await reconcileApplication(target, reconciliation);
 
-                return target.role === "stack"
-                    ? reconcileStack(target.scope, reconciliation, options)
-                    : reconcileApplication(target, reconciliation);
+                // then build and submit the commit each repository selection's reference resolves to
+                const { forge } = options;
+                for (const row of reconciliation.rows) {
+                    const { selection } = row;
+                    if (forge !== null && selection.kind === "repository") {
+                        await followRepository({ ...row, selection }, reconciliation, {
+                            ...options,
+                            forge,
+                        });
+                    }
+                }
+
+                return applied;
             },
         },
     });
@@ -139,7 +158,6 @@ function handleInstallations(options: InstallationOptions) {
     return declaredInstallation.implement({
         methods: {
             open: (call) => open(call, options),
-            present: (call) => presenter(call, options),
             token: (call) => InstallationAssertion.token(call, options.issuer),
             create: handleSelection(options),
             update: handleSelection(options),
@@ -153,7 +171,7 @@ function handleInstallations(options: InstallationOptions) {
                 // read the owner of a repository the submission selects anew
                 prepare: (context) =>
                     SelectedRepository.owner(
-                        options.repositories,
+                        options.forge,
                         canonicalize(context.input.selection) ===
                             canonicalize(context.target.selection)
                             ? undefined
@@ -241,11 +259,11 @@ function handleInstallations(options: InstallationOptions) {
 }
 
 /** Handle a create or update: read the owner of the repository it selects. */
-function handleSelection(options: Pick<InstallationOptions, "repositories">) {
+function handleSelection(options: Pick<InstallationOptions, "forge">) {
     return {
         prepare: (call: {
             readonly input: { readonly selection?: InstallationSelection | undefined };
-        }) => SelectedRepository.owner(options.repositories, call.input.selection),
+        }) => SelectedRepository.owner(options.forge, call.input.selection),
         handle: async <Selecting extends SelectingCall, Result>(
             call: Selecting,
             next: (call: Selecting) => Promise<Result>,
@@ -283,7 +301,7 @@ async function submit(
     // pin the submitted build and require a build of the installation's package
     const pinned = await pin(context, target, submission.build, options);
     const reader = await options.builds.packages.contents(pinned.manifest);
-    const built = reader.manifest.package.id;
+    const built = PackageManifest.package(reader.manifest).id;
     if (built !== target.packageId) {
         throw new CallError("BAD_REQUEST", {
             message: `${target.name} installs ${target.packageId}, submitted a build of ${built}`,
@@ -341,7 +359,7 @@ async function pin(
         reference.kind === "tag"
             ? await registry.find(target.packageId, reference.tag)
             : (reference.manifest ?? (await registry.find(target.packageId, reference.version)));
-    const reader = await builds.open(registry, target.packageId, manifest);
+    const reader = await builds.pull(registry, target.packageId, manifest);
 
     // refuse a manifest of another version, and keep the release as the space's build
     const version = reader.manifest.package.version;
@@ -358,6 +376,52 @@ async function pin(
         target.scope,
         release,
     );
+}
+
+/** Key a stack installation under its space and an application installation by itself. */
+function installationKey(row: {
+    readonly id: Identifier<"installation">;
+    readonly scope: string;
+    readonly role: Installation["role"];
+}) {
+    return row.role === "stack" ? { scope: row.scope, role: "stack" } : { id: row.id };
+}
+
+/** Wake the installations a moved reference or a finished commit build selects. */
+function repositoryWatches(forge: Forge) {
+    return [
+        // wake the installations of every served space selecting a moved reference
+        ObjectWatch.of(forge.references, async (row, database) => {
+            const { repository, name } = forge.reference(row);
+            // key the installations of every space the database serves selecting the reference
+            const selecting = await Installation.selecting(
+                database,
+                undefined,
+                (selection) => selection.repository === repository && selection.reference === name,
+            );
+
+            return selecting.map(installationKey);
+        }),
+        // wake the installations of the space selecting the directory a finished commit build compiled
+        ObjectWatch.of(build.table, async (row, database) => {
+            // leave unfinished builds and builds of other sources
+            const { source } = row;
+            if (source.kind !== "commit" || !Build.isFinished(row)) {
+                return [];
+            }
+
+            // key the space's installations selecting its directory
+            const selecting = await Installation.selecting(
+                database,
+                row.scope,
+                (selection) =>
+                    selection.repository === source.repository &&
+                    selection.directory === source.directory,
+            );
+
+            return selecting.map(installationKey);
+        }),
+    ];
 }
 
 /** Wake installations on the changes of their resources, deployments, bindings and placement. */
@@ -474,76 +538,20 @@ function declaredRelease(desired: {
     return { package: id, version, manifest };
 }
 
-/** Find the view of a space presenting an object most strongly, or the view asked for. */
-async function presenter(
-    context: MethodContextOf<typeof declaredInstallation, "present">,
-    options: Pick<InstallationOptions, "builds">,
-): Promise<ResultOf<typeof declaredInstallation, "present">> {
-    // read the views of each installation's followed revision
-    const { object, view: asked } = context.input;
-    const scope = schema.identifier("space").parse(context.scope);
-    const installed = await context.read(declaredInstallation).findMany({ where: { scope } });
-    const views = await Promise.all(
-        installed.map(async (each) => {
-            // read the revision the installation follows and its build's views
-            const revision =
-                each.revisionId === null
-                    ? undefined
-                    : await context
-                          .read(installationRevision)
-                          .findFirst({ where: { id: each.revisionId } });
-            if (revision === undefined) {
-                return [];
-            }
-            const built = await Build.require(context, scope, revision.buildId);
-            const reader = await options.builds.packages.contents(built.manifest);
-
-            return Object.entries(ViewDescription.list(reader.manifest)).map(
-                ([view, definition]) => ({ installation: each.name, view, definition }),
-            );
-        }),
-    );
-
-    // choose the strongest of the views asked for presenting the object's type
-    const candidates = views.flat().filter(({ view }) => asked === undefined || view === asked);
-    const presenters = candidates.flatMap(({ installation: name, view, definition }) =>
-        definition.presents
-            .filter(
-                (presented) =>
-                    presented.packageId === object.packageId && presented.type === object.type,
-            )
-            .map((presented) => ({ installation: name, view, priority: presented.priority })),
-    );
-    const [chosen] = presenters.toSorted(
-        (left, right) =>
-            ViewPresentationPriority.compare(left.priority, right.priority) ||
-            Text.compare(left.installation, right.installation) ||
-            Text.compare(left.view, right.view),
-    );
-    if (chosen === undefined) {
-        const missing = asked === undefined ? "no view" : `no view ${asked}`;
-        throw new CallError("NOT_FOUND", {
-            message: `${missing} of ${scope} presents ${object.type} objects`,
-        });
-    }
-
-    return { installation: chosen.installation, view: chosen.view };
-}
-
-/** Open a view the installation's revision declares at a location, in the opening person's home. */
+/** Open a view the installation's applied revision declares at a location, in the opener's home. */
 async function open(
     context: MethodContextOf<typeof declaredInstallation, "open">,
     options: Pick<InstallationOptions, "accounts" | "builds">,
 ): Promise<ResultOf<typeof declaredInstallation, "open">> {
-    // require the revision the installation follows
+    // require the revision the installation applies, whose build serves its views
     const { target } = context;
     const { view, path } = context.input;
     const revision =
-        target.revisionId === null
+        target.appliedRevisionId === null
             ? undefined
             : await context
                   .read(installationRevision)
-                  .findFirst({ where: { id: target.revisionId } });
+                  .findFirst({ where: { id: target.appliedRevisionId } });
     if (revision === undefined) {
         throw new CallError("NOT_FOUND", { message: `${target.name} declares no view ${view}` });
     }
@@ -551,8 +559,8 @@ async function open(
     // read the revision's build and the view it mounts
     const built = await Build.require(context, target.scope, revision.buildId);
     const reader = await options.builds.packages.contents(built.manifest);
-    const definition = ViewDescription.list(reader.manifest)[view];
-    if (definition === undefined) {
+    const mounted = ViewDescription.list(reader.manifest)[view];
+    if (mounted === undefined) {
         throw new CallError("NOT_FOUND", { message: `${target.name} declares no view ${view}` });
     }
 
@@ -561,21 +569,21 @@ async function open(
     if (!principal.user.is(opener)) {
         throw new CallError("BAD_REQUEST", { message: `${Subject.key(opener)} has no home` });
     }
-    const home = await options.accounts.user.home({
+    const { homeId: home } = await options.accounts.user.get({
         id: schema.identifier("user").parse(opener.id),
     });
 
     // read what the opening person lends the installation, as its package and enabled capabilities ask
-    const description = await PackageDescription.of(reader);
+    const declared = await PackageDescription.of(reader);
 
     return {
         installationId: target.id,
         revisionId: revision.id,
         manifest: built.manifest,
         view,
-        definition,
+        description: mounted,
         path,
         home,
-        permissions: Installation.permissions(target, description, "user"),
+        permissions: Installation.permissions(target, declared, "user"),
     };
 }

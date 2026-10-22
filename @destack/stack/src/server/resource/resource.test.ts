@@ -1,6 +1,6 @@
 import { Plan } from "@destack/resource";
 import { expect, onTestFinished, test } from "@destack/test";
-import { Scope } from "@destack/sync";
+import { Scope, RequestId } from "@destack/sync";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -17,7 +17,7 @@ import {
 } from "@destack/db";
 import * as sqlite from "@destack/db/bun";
 import { nth, schema, present } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { appliedStates, ConsumerController, serveSpace } from "../index.ts";
 import {
     insertRelease,
@@ -29,7 +29,6 @@ import {
     TestSpaceDatabaseHost,
 } from "../../test/index.ts";
 import { principal } from "@destack/access";
-import { RequestId } from "@destack/runtime/request";
 import * as object from "../../object/index.ts";
 import {
     binding,

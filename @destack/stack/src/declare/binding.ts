@@ -1,7 +1,7 @@
 import { AccessName } from "@destack/sync";
 import { DeclarationName } from "@destack/package";
 import { schema } from "@destack/schema";
-import { InstallationName } from "@destack/runtime";
+import { InstallationName } from "@destack/object";
 
 /** The binding target type of a resource the stack declares, whatever its kind. */
 export const RESOURCE_TARGET = "resource";

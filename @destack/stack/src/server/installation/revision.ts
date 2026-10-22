@@ -23,7 +23,7 @@ export function implementInstallationRevision(builds: BuildStore, registry: Regi
 
                 // read the installable packages it depends on, at the releases it compiled against, without storing them
                 const read = (dependency: PackageId, manifest: string) =>
-                    builds.read(registry, dependency, manifest);
+                    builds.pull(registry, dependency, manifest);
                 const dependencies = await installableReleases(reader, read);
 
                 return next(

@@ -1,17 +1,15 @@
 import { space } from "@destack/account/object";
 import type { MethodContext } from "@destack/object";
 import { type Identifier, schema } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import type { InstallationSelection } from "../../declare/installation.ts";
-
-/** Read the account owning a repository, absent for a repository no account owns. */
-export type RepositoryOwner = (id: string) => Promise<Identifier<"account"> | undefined>;
+import type { Forge } from "./follow.ts";
 
 /** The repository an installation selects in the account that owns the space. */
 export const SelectedRepository = {
     /** Read the account owning a selection's repository, null for none. */
     async owner(
-        repositories: RepositoryOwner | null,
+        forge: Pick<Forge, "owner"> | null,
         selection: InstallationSelection | undefined,
     ): Promise<Identifier<"account"> | null> {
         // give no account for other selections
@@ -20,12 +18,12 @@ export const SelectedRepository = {
         }
 
         // read the account owning the repository
-        if (repositories === null) {
+        if (forge === null) {
             throw new CallError("PRECONDITION_FAILED", {
                 message: "this machine follows no repositories",
             });
         }
-        const owner = await repositories(selection.repository);
+        const owner = await forge.owner(selection.repository);
         if (owner === undefined) {
             throw SelectedRepository.missing(selection.repository);
         }

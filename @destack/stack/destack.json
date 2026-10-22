@@ -22,7 +22,13 @@
         "./build": {
             "runtimes": ["bun"]
         },
+        "./stack": {
+            "runtimes": ["bun", "workerd"]
+        },
         "./runtime": {
+            "runtimes": ["bun", "workerd"]
+        },
+        "./workload": {
             "runtimes": ["bun", "workerd"]
         }
     },

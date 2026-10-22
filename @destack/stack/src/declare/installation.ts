@@ -1,4 +1,4 @@
-import { StackReference } from "@destack/object";
+import { StackReference, InstallationName } from "@destack/object";
 import {
     ComputeDefinition,
     DeclarationName,
@@ -6,11 +6,10 @@ import {
     Package,
     PackageId,
 } from "@destack/package";
-import { InstallationName } from "@destack/runtime";
 import { PackagePath } from "@destack/package/file";
 import { Digest, schema, Version } from "@destack/schema";
 import { RESOURCE_TARGET, SECRET_TARGET, StackBinding } from "./binding.ts";
-import type { PackageHandle } from "@destack/runtime/declare";
+import type { PackageHandle } from "@destack/object";
 import { StackError } from "../error/index.ts";
 
 /** A package directory within a repository or checkout, or its root. */
@@ -62,6 +61,8 @@ export const InstallationSelection = schema.discriminatedUnion("kind", [
 ]);
 /** The release, repository reference or checkout an installation follows. */
 export type InstallationSelection = schema.Infer<typeof InstallationSelection>;
+/** An installation's selection of a repository reference. */
+export type RepositorySelection = Extract<InstallationSelection, { readonly kind: "repository" }>;
 
 /** The build a submission selects. */
 export const BuildReference = schema.discriminatedUnion("kind", [

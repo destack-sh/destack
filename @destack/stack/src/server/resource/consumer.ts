@@ -1,4 +1,4 @@
-import { Space, space } from "@destack/account/object";
+import { Space, space, placement } from "@destack/account/object";
 import {
     and,
     Change,
@@ -10,15 +10,14 @@ import {
     Condition,
     Transaction,
 } from "@destack/db";
-import { placement } from "@destack/account/object";
 import { DesiredState, type ResourceType, type ResourceRow } from "@destack/object";
 import { DRAINING, type ObjectStore } from "@destack/object/server";
 import type { ResourceState } from "@destack/package/declare";
 import { nth, Digest, present } from "@destack/schema";
 import type { ResourceKind } from "@destack/resource";
-import type { Controller } from "@destack/runtime/control";
+import type { Controller } from "@destack/db";
 import { binding, capture, Deployment, deployment, MAIN_DATABASE } from "../../object/index.ts";
-import { RequestId } from "@destack/runtime/request";
+import { RequestId } from "@destack/sync";
 
 /** Write each resource's specification from its space and consumers where the resource lives. */
 export class ConsumerController implements Controller {

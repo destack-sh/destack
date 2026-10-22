@@ -1,0 +1,17 @@
+{
+    "name": "@example/stack",
+    "version": "2026.9.0",
+    "type": "module",
+    "exports": {
+        ".": "./src/index.ts"
+    },
+    "dependencies": {
+        "@destack/setting": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/access": "workspace:*",
+        "@template/stack": "workspace:*",
+        "@destack/stack": "workspace:*",
+        "@destack/account": "workspace:*"
+    }
+}

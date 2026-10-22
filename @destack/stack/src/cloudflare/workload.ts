@@ -3,8 +3,8 @@ import {
     DurableObjectRunner,
     type DurableObjectRunnerBindings,
     type DurableObjectRunnerState,
-} from "@destack/runtime/cloudflare";
-import type { Workload } from "@destack/runtime/workload";
+} from "@destack/object/cloudflare";
+import type { Workload } from "@destack/object/workload";
 import { spaceRunner } from "../client/index.ts";
 import { Clock } from "@destack/environment";
 

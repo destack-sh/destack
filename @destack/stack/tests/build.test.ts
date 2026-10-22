@@ -1,12 +1,11 @@
 import { principal } from "@destack/access";
 import { machine } from "@destack/account/object";
-import { ObjectReference, Scope } from "@destack/sync";
+import { ObjectReference, Scope, RequestId } from "@destack/sync";
 import { type DatabaseConnection } from "@destack/db";
 import { BuildReader } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
 import { Digest, present } from "@destack/schema";
-import { createClient } from "@destack/runtime/client";
-import { RequestId } from "@destack/runtime/request";
+import { createClient } from "@destack/object/client";
 import { expect, refusal, test } from "@destack/test";
 import { BuildSource } from "../src/object/index.ts";
 import stackPackage from "../src/package.ts";
@@ -158,7 +157,7 @@ test("refuse advancing a build to anyone but its runner, and a build not running
     const unstarted = await refusal(
         runner.build.finish({
             ...target,
-            end: { kind: "failed", failure: { code: "X", status: 500, message: "x" } },
+            end: { kind: "failed", failure: { code: "INTERNAL_SERVER_ERROR", message: "x" } },
         }),
     );
 
@@ -174,7 +173,7 @@ test("fail a running build with the failure its runner reports, and refuse cance
     const created = await create();
     const target = { spaceId: ids.space, id: created.id };
     await runner.build.start({ ...target, requestId: RequestId.create(Date.now()) });
-    const failure = { code: "INSPECTION_FAILED", status: 422, message: "the inspection failed" };
+    const failure = { code: "UNPROCESSABLE_CONTENT" as const, message: "the inspection failed" };
     await runner.build.finish({
         ...target,
         requestId: RequestId.create(Date.now()),

@@ -14,9 +14,8 @@ import { Account, account, user, space } from "@destack/account/object";
 import { type DatabaseConnection, TABLE } from "@destack/db";
 import { ResourceContext } from "@destack/resource/context";
 import { present, schema } from "@destack/schema";
-import { Health } from "@destack/runtime/health";
-import { Server } from "@destack/runtime/server";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
+import { Health, Server, ObjectSink } from "@destack/object/server";
 import {
     type ObjectTypeReference,
     type Page,
@@ -24,12 +23,11 @@ import {
     replicaPosition,
     Subject,
 } from "@destack/sync";
-import { createClient } from "@destack/runtime/client";
+import { createClient } from "@destack/object/client";
 import stackPackage from "../src/package.ts";
 import * as accountObject from "@destack/account/object";
 import { installation } from "../src/object/index.ts";
 import { serveSpace } from "../src/server/index.ts";
-import { ObjectSink } from "@destack/object/server";
 import { ids, StackFixture } from "../src/test/index.ts";
 import { Clock } from "@destack/environment";
 

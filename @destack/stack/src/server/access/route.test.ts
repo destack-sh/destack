@@ -3,7 +3,7 @@ import { asc } from "@destack/db";
 import { TEST_DIALECTS } from "@destack/db/test";
 import { ObjectError, Claim } from "@destack/object";
 import { nth, found, present } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { expect, test } from "@destack/test";
 import type {} from "@destack/package/import-meta";
 import { Route, route } from "../../object/index.ts";

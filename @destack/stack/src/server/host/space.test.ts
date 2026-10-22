@@ -7,8 +7,7 @@ import * as accountObject from "@destack/account/object";
 import { account } from "@destack/account/object";
 import { type DatabaseConnection, eq, Snapshot } from "@destack/db";
 import { Identifier } from "@destack/schema";
-import { Scope } from "@destack/sync";
-import { RequestId } from "@destack/runtime/request";
+import { Scope, RequestId } from "@destack/sync";
 import * as object from "../../object/index.ts";
 import { LocalKeyring, MemoryKeychain } from "@destack/identity";
 import {

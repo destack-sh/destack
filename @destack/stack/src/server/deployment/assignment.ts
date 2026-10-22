@@ -1,4 +1,4 @@
-import { RequestId } from "@destack/runtime/request";
+import { RequestId } from "@destack/sync";
 import { assignment, placement, Space, space } from "@destack/account/object";
 import {
     and,
@@ -10,7 +10,7 @@ import {
     Change,
     Condition,
 } from "@destack/db";
-import type { Controller } from "@destack/runtime/control";
+import type { Controller } from "@destack/db";
 import { type Identifier } from "@destack/schema";
 import type { Uplink } from "@destack/sync";
 import { ACTIVE_BUILD_STATES, build, deployment, Deployment } from "../../object/index.ts";

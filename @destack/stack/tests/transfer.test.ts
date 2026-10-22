@@ -1,11 +1,11 @@
 import { PackageId } from "@destack/package";
 import { mkdtemp, readdir, rm } from "node:fs/promises";
-import { PublicKey, Recipient } from "@destack/identity";
+import { PublicKey, Recipient, LocalKeyring, MemoryKeychain } from "@destack/identity";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { Identity, Placement, placement } from "@destack/account/object";
+import { Identity, Placement, placement, machine } from "@destack/account/object";
 import { IdentityKeystore } from "@destack/account/identity";
 import { TestDirectory } from "@destack/account/test";
 import {
@@ -22,19 +22,18 @@ import {
     Transaction,
     DatabaseState,
     Lease,
+    databaseProvider,
+    ControlLoop,
 } from "@destack/db";
-import { databaseProvider } from "@destack/db";
 import { BunSqliteDatabaseHost, bunSqliteConnector } from "@destack/db/bun";
 import { SqliteDatabase } from "@destack/db/sqlite";
-import { TEST_DIALECTS } from "@destack/db/test";
+import { TEST_DIALECTS, reconciliation } from "@destack/db/test";
 import { defineObject, desiredState, field } from "@destack/object";
 import { Plan, ResourceId } from "@destack/resource";
-import { reconciliation } from "@destack/runtime/test";
 import { nth, Digest, Identifier, schema, present } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
-import { ControlLoop } from "@destack/runtime/control";
-import { RequestId } from "@destack/runtime/request";
-import { Assertion } from "@destack/runtime/authentication";
+import { CallError } from "@destack/object";
+import { RequestId, Scope, type Uplink } from "@destack/sync";
+import { Assertion } from "@destack/access/token";
 import {
     ProviderIndex,
     serveSpace,
@@ -44,12 +43,9 @@ import {
     TransferController,
     type Handoff,
 } from "../src/server/index.ts";
-import { fixtureBuild, spaceDatabase } from "../src/test/index.ts";
-import { LocalKeyring, MemoryKeychain } from "@destack/identity";
-import { createLocalJWKSet, exportJWK, generateKeyPair, jwtVerify } from "jose";
-import * as object from "../src/object/index.ts";
-import * as accountObject from "@destack/account/object";
 import {
+    fixtureBuild,
+    spaceDatabase,
     replicateAccount,
     ids,
     openUniverse,
@@ -58,10 +54,11 @@ import {
     runNotes,
     StackFixture,
 } from "../src/test/index.ts";
-import { Scope, type Uplink } from "@destack/sync";
+import { createLocalJWKSet, exportJWK, generateKeyPair, jwtVerify } from "jose";
+import * as object from "../src/object/index.ts";
+import * as accountObject from "@destack/account/object";
 import { principal } from "@destack/access";
-import { machine } from "@destack/account/object";
-import { createClient } from "@destack/runtime/client";
+import { createClient } from "@destack/object/client";
 import stackPackage from "../src/package.ts";
 import type { StackClient } from "../src/client/index.ts";
 import { Clock } from "@destack/environment";

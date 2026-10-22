@@ -1,7 +1,7 @@
 import type { ResourceDeclaration } from "@destack/resource";
 import { present } from "@destack/schema";
-import { runWorkload } from "@destack/runtime/bun";
-import type { EphemeralHost, Workload } from "@destack/runtime/workload";
+import { runWorkload } from "@destack/object/bun";
+import type { EphemeralHost, Workload } from "@destack/object/workload";
 import { connectBunSqlite } from "@destack/db/bun";
 import { EphemeralStorage } from "@destack/object/server";
 import { spaceRunner } from "../client/index.ts";

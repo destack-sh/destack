@@ -3,16 +3,14 @@ import { BucketLease, type BucketReference, type BucketLeaseRequest } from "@des
 import type { CatalogueBucketHost } from "@destack/bucket/provider";
 import type { Lease } from "@destack/resource";
 import { PackageStore, encodeManifest } from "@destack/build/store";
-import { Snapshot } from "@destack/db";
 import type { MethodContextOf, NextOf, ResultOf } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
 import { BuildReader, type PackageLocation, PackageManifest } from "@destack/package/manifest";
 import type { PackageRelease, PackageId } from "@destack/package";
-import { PackageDescription } from "@destack/runtime";
+import { PackageDescription } from "@destack/object";
 import { Digest, type Identifier, schema } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
-import { RequestId } from "@destack/runtime/request";
-import { ObjectReference, Scope } from "@destack/sync";
+import { CallError } from "@destack/object";
+import { RequestId, ObjectReference, Scope } from "@destack/sync";
 import {
     build,
     Build,
@@ -21,8 +19,7 @@ import {
     type BuildFile,
     type BuildUpload,
     BuildSource,
-    installation,
-    installationRevision,
+    CodeIndex,
 } from "../../object/index.ts";
 
 /** A checkout source of a build. */
@@ -82,23 +79,8 @@ export class BuildStore {
         );
     }
 
-    /** Read a published build from the store, or through the registry without storing it. */
-    async read(
-        registry: Pick<Registry, "locate">,
-        packageId: PackageId,
-        manifest: string,
-    ): Promise<BuildReader> {
-        // read a stored build, else stream the published one's files from where the registry locates them
-        if (await this.packages.contains(manifest)) {
-            return this.packages.contents(manifest);
-        }
-        const { location, fetch } = await registry.locate(packageId, manifest);
-
-        return BuildReader.open(location, fetch);
-    }
-
-    /** Read a published build, copying it from the registry into the store unless stored. */
-    async open(
+    /** Pull a published build into the store once from where the registry locates it. */
+    async pull(
         registry: Pick<Registry, "locate">,
         packageId: PackageId,
         manifest: string,
@@ -112,49 +94,6 @@ export class BuildStore {
         return this.packages.contents(manifest);
     }
 
-    /** Read the build an installation of a package in a space follows. */
-    async installed(
-        snapshot: Snapshot,
-        spaceId: Identifier<"space">,
-        packageId: PackageId,
-        installationId?: Identifier<"installation">,
-    ): Promise<BuildReader> {
-        // read the installation's revision
-        const [found] = await snapshot.read(installation.table).findMany({
-            where: {
-                scope: spaceId,
-                packageId,
-                ...(installationId === undefined ? {} : { id: installationId }),
-            },
-        });
-        if (found?.revisionId === undefined || found.revisionId === null) {
-            throw new CallError("NOT_FOUND", {
-                message: `no installation in ${spaceId} follows a build of ${packageId}`,
-            });
-        }
-
-        return this.revision(snapshot, found.revisionId);
-    }
-
-    /** Read the build a revision evaluated. */
-    async revision(
-        snapshot: Pick<Snapshot, "read">,
-        revisionId: Identifier<"installation-revision">,
-    ): Promise<BuildReader> {
-        // read the revision, refusing an unknown one
-        const revision = await snapshot
-            .read(installationRevision.table)
-            .findFirst({ where: { id: revisionId } });
-        if (revision === undefined) {
-            throw new CallError("NOT_FOUND", { message: `no revision ${revisionId}` });
-        }
-
-        // read its build from the store
-        const built = await Build.require(snapshot, revision.scope, revision.buildId);
-
-        return this.packages.contents(built.manifest);
-    }
-
     /** Lease writing each file the store lacks. */
     async leaseMissing(files: readonly BuildFile[], now: number): Promise<BuildUpload[]> {
         // look up each distinct file at once, and lease those the store lacks
@@ -162,7 +101,7 @@ export class BuildStore {
         const leased = await Promise.all(
             distinct.map(async (file): Promise<BuildUpload | undefined> => {
                 // skip a file the store keeps
-                const key = `files/${file.digest}`;
+                const key = PackageStore.fileKey(file.digest);
                 if ((await this.packages.bucket.head(key)) !== null) {
                     return undefined;
                 }
@@ -191,10 +130,11 @@ export class BuildStore {
             return end;
         }
 
-        // keep the manifest's bytes under their digest
+        // keep the manifest's bytes under their digest, then attach its code index
         const bytes = encodeManifest(PackageManifest.parse(end.manifest));
         const digest = await Digest.of(bytes);
         await this.packages.adopt(digest, bytes);
+        await this.packages.attach(digest, CodeIndex.file(end.code));
 
         return { kind: "stored", digest };
     }
@@ -271,8 +211,8 @@ export function implementBuild(options: BuildOptions) {
                     if (source.kind === "release") {
                         const { builds, registry } = options;
                         const { manifest } = source;
-                        const reader = await builds.open(registry, source.package, manifest);
-                        const built = reader.manifest.package;
+                        const reader = await builds.pull(registry, source.package, manifest);
+                        const built = PackageManifest.package(reader.manifest);
                         if (built.id !== source.package || built.version !== source.version) {
                             throw new CallError("BAD_REQUEST", {
                                 message: `manifest ${manifest} builds ${built.id} ${built.version}, not ${source.package} ${source.version}`,

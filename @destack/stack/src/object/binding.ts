@@ -2,7 +2,7 @@ import { type Select, type Snapshot } from "@destack/db";
 import { type ObjectOf, defineObject, field } from "@destack/object";
 import { PackageId } from "@destack/package";
 import { type Identifier, schema } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { StackBinding } from "../declare/binding.ts";
 import { Deployment, deployment } from "./deployment.ts";
 import { installation } from "./installation.ts";

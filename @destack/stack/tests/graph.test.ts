@@ -1,6 +1,7 @@
 import { STACKS } from "@destack/account/test";
-import { PackageHandle } from "@destack/runtime";
-import { testEvents, serversOf } from "@destack/object/test";
+import { PackageHandle } from "@destack/object";
+import { Health, implementPackage, ObjectStore, Server } from "@destack/object/server";
+import { testEvents, serversOf, subjectContext, testCallKey } from "@destack/object/test";
 import { onTestFinished, refusal, test } from "@destack/test";
 import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -10,18 +11,13 @@ import { AccessFixture } from "@destack/access/test";
 import { account, space } from "@destack/account/object";
 import { TestDatabase } from "@destack/db/test";
 import { ObjectClient } from "@destack/object/client";
-import { defineServer, ObjectStore } from "@destack/object/server";
 import { graph, PackageId } from "@destack/package";
 import { BuildReader, PackageManifest } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
 import { ResourceContext } from "@destack/resource/context";
 import { Digest, found, present, schema } from "@destack/schema";
-import { Health } from "@destack/runtime/health";
-import { Server } from "@destack/runtime/server";
-import { subjectContext, testCallKey } from "@destack/runtime/test";
 import { BunGraphStorage } from "../src/bun/index.ts";
-import { module, symbol } from "../src/object/index.ts";
-import { build } from "../src/object/index.ts";
+import { build, CodeIndex, declaration, module, symbol } from "../src/object/index.ts";
 import { stackTables } from "../src/stack/index.ts";
 import { ids } from "../src/test/index.ts";
 import { Clock } from "@destack/environment";
@@ -32,12 +28,10 @@ const NOTEBOOK_ID = "package-01996ab0-0000-7000-8000-00000000000a";
 /** The package identifiers of the packages the notebook depends on. */
 const packages = {
     account: "package-01a0c80b-614c-76c1-90c6-f83bdcd72b32",
-    audit: "package-01a0c80b-614e-739d-8c3c-55f69a40525a",
     db: "package-01a0c80b-614f-73f4-a451-d79e4b96b4d1",
     object: "package-01a0d462-1b26-7401-be27-6258e0a32141",
     package: "package-01a0c80b-614d-75ab-8b3b-456b8fdb73f1",
     schema: "package-01a0c80b-614e-739b-bf41-8570d1151a11",
-    service: "package-01a0c80b-614f-73ee-8687-f9c041e21f17",
 };
 
 /** The build the test reads. */
@@ -51,7 +45,7 @@ const repositoryId = schema
     .identifier("repository")
     .parse("repository-01996ab0-0000-7000-8000-000000000005");
 
-test("serve a build's modules and symbols from its index to the build's readers, through the object store and a client", async ({
+test("serve a build's modules, declarations and code symbols from its index to the build's readers, through the object store and a client", async ({
     expect,
 }) => {
     // keep an owned space, its row replicated beside the space's tables
@@ -86,6 +80,13 @@ test("serve a build's modules and symbols from its index to the build's readers,
     const manifest = await Digest.of(
         new TextEncoder().encode(JSON.stringify(PackageManifest.parse(stored.manifest))),
     );
+    const code = notebookCode();
+    const codeBytes = new TextEncoder().encode(JSON.stringify(code));
+    const codeFile = {
+        bytes: codeBytes,
+        digest: await Digest.of(codeBytes),
+        size: codeBytes.byteLength,
+    };
 
     // record it as two of the space's succeeded builds of one commit, the second finished later
     const record = async (id: typeof buildId, finishedAt: number) => {
@@ -119,10 +120,19 @@ test("serve a build's modules and symbols from its index to the build's readers,
     // read the build's graph through the object store as its owner and refuse a stranger
     await using graphs = new BunGraphStorage(
         database,
-        async (spaceId, read) => {
-            expect([spaceId, read]).toEqual([ids.space, manifest]);
+        {
+            contains: async () => true,
+            contents: async (read) => {
+                expect(read).toEqual(manifest);
 
-            return stored;
+                return stored;
+            },
+            referrer: async (read, path) => {
+                expect([read, path]).toEqual([manifest, "code.json"]);
+
+                return CodeIndex.file({ digest: codeFile.digest, size: codeFile.size });
+            },
+            file: async () => codeFile.bytes,
         },
         join(directory, "graph"),
     );
@@ -130,7 +140,7 @@ test("serve a build's modules and symbols from its index to the build's readers,
         chain: async () => undefined,
         clock: Clock.system,
         principal: principal.space.reference("universe", ids.space),
-        servers: serversOf([module, symbol], { external: graphs }),
+        servers: serversOf([module, declaration, symbol], { external: graphs }),
         database,
         callKey: testCallKey,
         events: await testEvents(database),
@@ -140,16 +150,36 @@ test("serve a build's modules and symbols from its index to the build's readers,
         subjectContext(principal.user.reference("universe", user), buildId);
     const moniker = (path: string) => `${NOTEBOOK_ID}/${path}`;
     const at = moniker("src/object.ts");
-    const read = (id: string) =>
-        store.query(context(ids.owner).access(), symbol.call("get", { buildId, id }));
-    const summary = (row: Awaited<ReturnType<typeof read>>) => [
-        row.id,
-        row.moduleId,
-        row.kind,
-        row.name,
-        row.enclosing,
-        relations(row.relationships),
-    ];
+    const declared = async (id: string) => {
+        const row = await store.query(
+            context(ids.owner).access(),
+            declaration.call("get", { buildId, id }),
+        );
+
+        return [
+            row.id,
+            row.moduleId,
+            row.kind,
+            row.name,
+            row.enclosing,
+            relations(row.relationships),
+        ];
+    };
+    const coded = async (id: string) => {
+        const row = await store.query(
+            context(ids.owner).access(),
+            symbol.call("get", { buildId, id }),
+        );
+
+        return [
+            row.id,
+            row.moduleId,
+            row.kind,
+            row.name,
+            row.signature,
+            relations(row.relationships),
+        ];
+    };
     const modules = await store.query(
         context(ids.owner).access(),
         module.call("list", { buildId }),
@@ -164,8 +194,8 @@ test("serve a build's modules and symbols from its index to the build's readers,
     // list every module with its dependencies and the notebook's object declaration at its variable
     expect([
         modules.items.map((row) => [row.id, row.path, relations(row.relationships)]),
-        summary(await read(`${at}#notebook:object:notebook`)),
-        summary(await read(`${at}#notebook`)),
+        await declared(`${at}#notebook:object:notebook`),
+        await coded(`${at}#notebook`),
         [rebuilt.scope, rebuilt.createdAt],
         await readdir(join(directory, "graph")),
     ]).toEqual([
@@ -175,7 +205,14 @@ test("serve a build's modules and symbols from its index to the build's readers,
             [moniker("src/service.ts"), "src/service.ts", ["depends src/object.ts"]],
         ],
         [`${at}#notebook:object:notebook`, at, "object", "notebook", `${at}#notebook`, []],
-        [`${at}#notebook`, at, "variable", "notebook", null, [`calls ${packages.object}`]],
+        [
+            `${at}#notebook`,
+            at,
+            "variable",
+            "notebook",
+            NOTEBOOK_SIGNATURE,
+            [`calls ${packages.object}`],
+        ],
         [rebuiltId, now + 1],
         [`${manifest}.sqlite`],
     ]);
@@ -188,11 +225,13 @@ test("serve a build's modules and symbols from its index to the build's readers,
     expect(refused).toEqual(["NOT_FOUND", `no scope ${buildId}`]);
 
     // serve the graph objects to a client
-    const indexed = PackageHandle.of(symbol.package, { objects: { module, symbol } });
+    const indexed = PackageHandle.of(symbol.package, { objects: { module, declaration } });
     const served = Server.start({
         clock: Clock.system,
         ...new ObjectStore({
-            servers: [defineServer(indexed, { objects: [module, symbol], external: graphs })],
+            servers: [
+                implementPackage(indexed, { objects: [module, declaration], external: graphs }),
+            ],
             chain: async () => undefined,
             clock: Clock.system,
             origin: { package: indexed },
@@ -224,12 +263,12 @@ test("serve a build's modules and symbols from its index to the build's readers,
         },
     });
     onTestFinished(() => served.close());
-    const local = await TestDatabase.create("sqlite", ObjectClient.tables({ module, symbol }));
+    const local = await TestDatabase.create("sqlite", ObjectClient.tables({ module, declaration }));
     onTestFinished(() => local.close());
     const client = await ObjectClient.open({
         clock: Clock.system,
         database: local.database,
-        objects: { module, symbol },
+        objects: { module, declaration },
         scope: buildId,
         caller: owner,
         endpoint: {
@@ -252,7 +291,7 @@ test("serve a build's modules and symbols from its index to the build's readers,
 
     // read the service's procedures in the client's live query
     const service = `${moniker("src/service.ts")}#notebooksService`;
-    const procedures = client.query.symbol
+    const procedures = client.query.declaration
         .findMany({ where: { kind: "procedure" }, orderBy: { id: "asc" } })
         .subscribe();
     await procedures.ready;
@@ -273,13 +312,18 @@ test("sweep the indexes retention drops while an open of an unknown build fails"
     onTestFinished(() => rm(directory, { recursive: true, force: true }));
     await using graphs = new BunGraphStorage(
         storage.database,
-        () => Promise.reject(new TypeError("the test stores no builds")),
+        {
+            contains: async () => false,
+            contents: () => Promise.reject(new TypeError("the test stores no builds")),
+            referrer: () => Promise.reject(new TypeError("the test stores no builds")),
+            file: () => Promise.reject(new TypeError("the test stores no builds")),
+        },
         join(directory, "graph"),
     );
 
     // sweep while the open fails and refuse the open alone
     const opening = graphs.open(buildId);
-    const swept = graphs.sweep(new Set());
+    const swept = graphs.sweep();
     expect(await Promise.allSettled([swept, opening])).toEqual([
         { status: "fulfilled", value: undefined },
         { status: "rejected", reason: new TypeError(`build ${buildId} is missing`) },
@@ -301,15 +345,39 @@ function relations(
     return [...new Set(listed)];
 }
 
-/** Declare an exported variable of a module at its moniker. */
-function variable(moniker: graph.Moniker, path: string) {
-    return {
-        moniker,
-        kind: "variable" as const,
-        source: { file: path, start: 0, end: 40 },
-        signature: "const",
-        isExported: true,
-    };
+/** The printed declaration of the notebook's variable. */
+const NOTEBOOK_SIGNATURE = "const notebook: ObjectType";
+
+/** The notebook's code index: its variable, which calls the object package's constructor. */
+function notebookCode(): graph.Document[] {
+    const notebook = graph.Moniker.of({
+        packageId: NOTEBOOK_ID,
+        module: "src/object.ts",
+        name: "notebook",
+    });
+
+    return [
+        {
+            path: "src/object.ts",
+            digest: "0".repeat(64),
+            symbols: [
+                {
+                    moniker: notebook,
+                    kind: "variable",
+                    source: { file: "src/object.ts", start: 0, end: 20 },
+                    signature: NOTEBOOK_SIGNATURE,
+                    isExported: true,
+                },
+            ],
+            edges: [
+                {
+                    from: notebook,
+                    to: graph.Moniker.parse(`${packages.object}/src/object.ts#defineObject`),
+                    kind: "calls",
+                },
+            ],
+        },
+    ];
 }
 
 /** Write the notebook's build: an entry, the notebook object, and two procedures serving it. */
@@ -323,11 +391,14 @@ async function writeNotebook(): Promise<BuildReader> {
         });
     const notebook = monikerOf("src/object.ts", "notebook");
     const service = monikerOf("src/service.ts", "notebooksService");
+    const served = graph.Declaration.at(service, {
+        kind: "service",
+        kindPackageId: PackageId.parse(packages.object),
+        name: "notebooks",
+        description: {},
+    });
     const procedure = (name: string) =>
-        graph.Declaration.member(
-            { symbol: service, kindPackageId: PackageId.parse(packages.service) },
-            { kind: "procedure", name, description: {} },
-        );
+        graph.Declaration.member(served, { kind: "procedure", name, description: {} });
 
     // write each module's source beside its graph file
     const sources = new Map(
@@ -343,7 +414,6 @@ async function writeNotebook(): Promise<BuildReader> {
             digest: await digest("src/index.ts"),
             imports: ["./object.ts"],
             exports: [],
-            symbols: [],
             declarations: [],
             edges: [
                 {
@@ -358,7 +428,6 @@ async function writeNotebook(): Promise<BuildReader> {
             digest: await digest("src/object.ts"),
             imports: ["@destack/object"],
             exports: [{ name: "notebook", symbol: notebook, isTypeOnly: false }],
-            symbols: [variable(notebook, "src/object.ts")],
             declarations: [
                 graph.Declaration.at(notebook, {
                     kind: "object",
@@ -373,11 +442,6 @@ async function writeNotebook(): Promise<BuildReader> {
                     to: graph.Moniker.parse(`${packages.object}/src/index.ts`),
                     kind: "depends",
                 },
-                {
-                    from: notebook,
-                    to: graph.Moniker.parse(`${packages.object}/src/object/object.ts#defineObject`),
-                    kind: "calls",
-                },
             ],
         },
         {
@@ -385,8 +449,7 @@ async function writeNotebook(): Promise<BuildReader> {
             digest: await digest("src/service.ts"),
             imports: ["./object.ts"],
             exports: [{ name: "notebooksService", symbol: service, isTypeOnly: false }],
-            symbols: [variable(service, "src/service.ts")],
-            declarations: [procedure("notebook.get"), procedure("notebook.list")],
+            declarations: [served, procedure("notebook.get"), procedure("notebook.list")],
             edges: [
                 {
                     from: monikerOf("src/service.ts"),

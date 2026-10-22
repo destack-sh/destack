@@ -1,17 +1,11 @@
 import { proof } from "@destack/object";
 import { principal } from "@destack/access";
-import { PublicKey } from "@destack/identity";
-import { LocalKeyring, MemoryKeychain } from "@destack/identity";
+import { PublicKey, LocalKeyring, MemoryKeychain } from "@destack/identity";
 import { Digest, Identifier, present } from "@destack/schema";
 import { PackageId } from "@destack/package";
-import {
-    Assertion,
-    ASSERTION_TYPE,
-    INSTALLATION_KEY,
-    TokenVerifier,
-} from "@destack/runtime/authentication";
-import { createClient } from "@destack/runtime/client";
-import { RequestId } from "@destack/runtime/request";
+import { Assertion, ASSERTION_TYPE, INSTALLATION_KEY, TokenVerifier } from "@destack/access/token";
+import { createClient } from "@destack/object/client";
+import { RequestId } from "@destack/sync";
 import { expect, refusal, test } from "@destack/test";
 import {
     createLocalJWKSet,

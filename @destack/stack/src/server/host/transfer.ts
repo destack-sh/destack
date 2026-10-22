@@ -4,9 +4,17 @@ import {
     type ProviderIndex,
     type SpaceProvider,
 } from "../resource/resource.ts";
-import { RequestId } from "@destack/runtime/request";
-import { placement, Space } from "@destack/account/object";
-import { Replica } from "@destack/sync";
+import {
+    RequestId,
+    Replica,
+    type Call,
+    ObjectReference,
+    replica,
+    Scope,
+    type Subject,
+    type Uplink,
+} from "@destack/sync";
+import { placement, Space, Placement } from "@destack/account/object";
 import { SpaceReplica } from "./replica.ts";
 import { machineBound, type HandoffOptions, type Handoff, SourceHandoff } from "./handoff.ts";
 import type { Runtime } from "../../runtime/index.ts";
@@ -33,22 +41,13 @@ import {
     DatabaseState,
 } from "@destack/db";
 import type { ResourceState } from "@destack/package/declare";
-import { Placement } from "@destack/account/object";
 import { type IdentityKeystore } from "@destack/account/identity";
 import { DesiredState, type SettlementContext } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
 import type { ResourceId, ResourceRecord, ContentStore } from "@destack/resource";
 import { Recipient } from "@destack/identity";
-import { CallError } from "@destack/runtime/error";
-import type { Controller, Reconciliation } from "@destack/runtime/control";
-import {
-    type Call,
-    ObjectReference,
-    replica,
-    Scope,
-    type Subject,
-    type Uplink,
-} from "@destack/sync";
+import { CallError } from "@destack/object";
+import type { Controller, Reconciliation } from "@destack/db";
 import { AccessContext, Caller, principal } from "@destack/access";
 import {
     Database,
@@ -818,7 +817,7 @@ export class SpaceTransfer {
             for (const row of await transaction
                 .read(restore.table)
                 .findMany({ where: this.#restoring() })) {
-                await transaction.write({ table: restore.table, before: row, after: null });
+                await this.space.rewrite(transaction, restore.table, row, null);
             }
         });
 
@@ -947,16 +946,12 @@ export class SpaceTransfer {
                         },
                     });
                     if (row !== undefined) {
-                        await transaction.write({
-                            table: object.table,
-                            before: row,
-                            after: {
-                                ...row,
-                                provider: copy.provider,
-                                reference: copy.reference,
-                                location: copy.location,
-                                machineId: options.machine,
-                            },
+                        await this.space.rewrite(transaction, object.table, row, {
+                            ...row,
+                            provider: copy.provider,
+                            reference: copy.reference,
+                            location: copy.location,
+                            machineId: options.machine,
                         });
                     }
                 }
@@ -989,7 +984,11 @@ export class SpaceTransfer {
         );
         const provisioning = present(provider.provision, "the space provider's provisioning");
         const { reference } = await provisioning.provision(provider.kind.record(main));
-        await Database.place(transaction, main, reference, options.machine);
+        await this.space.rewrite(transaction, kind.table, main, {
+            ...main,
+            reference,
+            machineId: options.machine,
+        });
     }
 
     /** Stop the space's instances on this machine's runtimes, whatever their records say. */

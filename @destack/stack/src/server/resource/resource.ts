@@ -13,8 +13,13 @@ import {
     Provisioned,
     type ResourceType,
     type ResourceRow,
+    CallError,
+    HttpsKind,
+    INSTALLATION_PROVIDER,
+    InstallationBindingSpec,
+    InstallationKind,
 } from "@destack/object";
-import { ResourceController, type ServerDefinition } from "@destack/object/server";
+import { ResourceController, type ImplementationInput } from "@destack/object/server";
 import {
     CONNECTION_PROVIDER,
     type ResourceKind,
@@ -23,15 +28,8 @@ import {
     type Rewrapper,
 } from "@destack/resource";
 import type { ResourceState } from "@destack/package/declare";
-import { CallError } from "@destack/runtime/error";
 import { StackError } from "../../error/index.ts";
-import {
-    HttpsKind,
-    INSTALLATION_PROVIDER,
-    InstallationBindingSpec,
-    InstallationKind,
-} from "@destack/runtime/declare";
-import type { Controller } from "@destack/runtime/control";
+import type { Controller } from "@destack/db";
 import { dependency, https } from "../../object/index.ts";
 
 /** A provider of a space's resources. */
@@ -106,7 +104,7 @@ export class ProviderIndex {
         providers: readonly SpaceProvider[],
         packages: readonly {
             readonly objects: readonly ObjectType[];
-            readonly providers?: ServerDefinition["providers"];
+            readonly providers?: ImplementationInput["providers"];
         }[] = [],
     ) {
         // take the other packages' provisioned objects and their providers

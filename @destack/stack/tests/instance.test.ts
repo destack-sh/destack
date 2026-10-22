@@ -1,14 +1,15 @@
+import objectHandle from "@destack/object/package";
 import {
     defineObject,
     field,
     type Field,
     type ObjectDefinition,
     ObjectDescription,
+    InstallationBindingSpec,
 } from "@destack/object";
-import { PACKAGE_KIND_PACKAGE_ID } from "@destack/runtime";
 import { MemoryBuild } from "@destack/package/test";
 import { Plan } from "@destack/resource";
-import { ObjectReference, Scope } from "@destack/sync";
+import { ObjectReference, Scope, RequestId } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -62,8 +63,6 @@ import {
     StackFixture,
     TestSpaceDatabaseHost,
 } from "../src/test/index.ts";
-import { InstallationBindingSpec } from "@destack/runtime/declare";
-import { RequestId } from "@destack/runtime/request";
 import { VirtualClock } from "@destack/environment/simulation";
 
 /** The time the backoff scenario starts at, 09:00 UTC on 27 September 2026. */
@@ -76,9 +75,9 @@ const notesPackage = Package.parse({
     version: "2026.9.0",
 });
 
-/** The package defining object types. */
+/** The package defining object types, resource kinds and triggers. */
 const objectPackage = Package.parse({
-    id: "package-01996ab0-0000-7000-8000-00000000000d",
+    id: objectHandle.id,
     name: "@destack/object",
     version: "2026.9.0",
 });
@@ -90,13 +89,6 @@ const mainWorkload = { ...workload, resources: [] };
 const VAULT = Package.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000f2",
     name: "@acme/vault",
-    version: "2026.9.0",
-});
-
-/** The package defining resource kinds and triggers. */
-const runtimePackage = Package.parse({
-    id: PACKAGE_KIND_PACKAGE_ID,
-    name: "@destack/runtime",
     version: "2026.9.0",
 });
 
@@ -141,7 +133,7 @@ const main = noteType({ body: field.string().optional() });
 
 /** The tasks binding, calling an installation of the notes package. */
 const tasks: Declared = {
-    definer: runtimePackage,
+    definer: objectPackage,
     name: "tasks",
     description: {
         name: "tasks",
@@ -154,7 +146,7 @@ const tasks: Declared = {
 function requesting(permissions: PermissionRequest): Declared {
     return {
         kind: "package",
-        definer: runtimePackage,
+        definer: objectPackage,
         name: "notes",
         description: {
             api: { name: "notes", procedures: [] },
@@ -857,7 +849,7 @@ test("deploy nothing of a build declaring its own database, and report why", asy
     const fixture = await StackFixture.open();
     const { database } = fixture;
     const archive: Declared = {
-        definer: runtimePackage,
+        definer: objectPackage,
         name: "archive",
         description: { name: "archive", kind: "database", spec: {} },
     };
@@ -1089,7 +1081,7 @@ test("refuse to deploy an installation binding without an address, then run the 
             .identifier("dependency")
             .parse("dependency-01996ab0-0000-7000-8000-000000000021"),
         name: "tasks",
-        definitionPackageId: runtimePackage.id,
+        definitionPackageId: objectPackage.id,
         definitionVersion: "2026.9.0",
         definitionName: "tasks",
         spec: InstallationBindingSpec.parse(tasks.description["spec"]),
@@ -1365,7 +1357,7 @@ test("keep a release serving while a caller pins it, and retire it once the call
             .identifier("dependency")
             .parse("dependency-01996ab0-0000-7000-8000-000000000031"),
         name: "calls.notes",
-        definitionPackageId: runtimePackage.id,
+        definitionPackageId: objectPackage.id,
         definitionVersion: "2026.9.0",
         definitionName: "notes",
         spec: { package: ids.package },
@@ -1407,7 +1399,7 @@ test("keep a release serving while a caller pins it, and retire it once the call
         main,
         {
             kind: "package",
-            definer: runtimePackage,
+            definer: objectPackage,
             name: "notes",
             description: {
                 since: "2026.10.0",
@@ -1740,7 +1732,7 @@ test("wait for a provider of a kind no provider here serves yet, naming the kind
     // install notes binding a vault, whose provider no installation here serves yet
     const fixture = await StackFixture.open();
     const credentials: Declared = {
-        definer: runtimePackage,
+        definer: objectPackage,
         name: "credentials",
         description: { name: "credentials", kind: "vault", spec: {} },
     };

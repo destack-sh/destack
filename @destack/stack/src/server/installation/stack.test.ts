@@ -1,3 +1,4 @@
+import objectPackage from "@destack/object/package";
 import { defineObject, role } from "@destack/object";
 import { STACKS } from "@destack/account/test";
 import { space } from "@destack/account/object";
@@ -7,7 +8,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { mkdtemp, rm } from "node:fs/promises";
 import { spaceReplicated } from "../../stack/index.ts";
-import { PACKAGE_DECLARATION, PACKAGE_KIND_PACKAGE_ID, PackageHandle } from "@destack/runtime";
+import { PACKAGE_DECLARATION, PackageHandle } from "@destack/object";
 import { expect, onTestFinished, test } from "@destack/test";
 import {
     and,
@@ -18,7 +19,7 @@ import {
     isNotNull,
 } from "@destack/db";
 import * as sqlite from "@destack/db/bun";
-import { defineServer, ObjectStore } from "@destack/object/server";
+import { implementPackage, ObjectStore } from "@destack/object/server";
 import { Plan } from "@destack/resource";
 import {
     Digest,
@@ -49,8 +50,7 @@ import {
     ids,
 } from "../../test/index.ts";
 import { principal } from "@destack/access";
-import { ObjectReference } from "@destack/sync";
-import { RequestId } from "@destack/runtime/request";
+import { ObjectReference, RequestId } from "@destack/sync";
 import { VirtualClock } from "@destack/environment/simulation";
 
 /** A database a stack declares for its own use, beside the space's main database. */
@@ -198,12 +198,9 @@ const gaugeDatabase = defineDatabase({
 });
 
 /** The server of gauges in the space. */
-const gauges = defineServer(PackageHandle.of(gauge.package, { objects: { gauge } }), {
+const gauges = implementPackage(PackageHandle.of(gauge.package, { objects: { gauge } }), {
     objects: [gauge],
 });
-
-/** The package defining the object declarations builds list. */
-const objectPackage = PackageId.parse("package-01a0d462-1b26-7401-be27-6258e0a32141");
 
 /** A type an installed package declares, which stacks declare once the store serves it. */
 const meter = defineObject({
@@ -225,7 +222,7 @@ const meterDatabase = defineDatabase({
 });
 
 /** The server of meters in the space. */
-const meters = defineServer(PackageHandle.of(meter.package, { objects: { meter } }), {
+const meters = implementPackage(PackageHandle.of(meter.package, { objects: { meter } }), {
     objects: [meter],
 });
 
@@ -628,7 +625,7 @@ test("install a package and declare records of its type in one approved plan, ap
         [
             {
                 kind: "object",
-                kindPackageId: objectPackage,
+                kindPackageId: objectPackage.id,
                 name: "meter",
                 description: describeObject(meter),
             },
@@ -764,7 +761,7 @@ async function fixtureRelease(
         ? [
               {
                   kind: PACKAGE_DECLARATION,
-                  kindPackageId: PACKAGE_KIND_PACKAGE_ID,
+                  kindPackageId: objectPackage.id,
                   name: "default",
                   description: {
                       api: { name: owner.name, procedures: [] },

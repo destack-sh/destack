@@ -1,4 +1,4 @@
-import { DatabaseKind, type Select, type Snapshot, type Transaction } from "@destack/db";
+import { DatabaseKind, type Select, type Snapshot } from "@destack/db";
 import { defineObject, OBJECT_DECLARATION, Observation } from "@destack/object";
 import { space } from "@destack/account/object";
 import { sudo } from "@destack/account/authentication";
@@ -53,20 +53,6 @@ export const Database = {
         return snapshot
             .read(database.table)
             .findFirst({ where: { scope: spaceId, name: MAIN_DATABASE } });
-    },
-
-    /** Point a space's main database at where a machine keeps it. */
-    async place(
-        transaction: Transaction,
-        main: Database,
-        reference: string,
-        machineId: Identifier<"machine">,
-    ): Promise<void> {
-        await transaction.write({
-            table: database.table,
-            before: main,
-            after: { ...main, reference, machineId },
-        });
     },
 
     /** Read the revision a space serves each installation at, with its build and declarations. */

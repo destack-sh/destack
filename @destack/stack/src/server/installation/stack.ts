@@ -10,8 +10,8 @@ import {
 import { type ApplyOptions, Stack, type ObjectStore } from "@destack/object/server";
 import type { PackageRelease, PackageId } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
-import { PackageDescription } from "@destack/runtime";
-import { CallError } from "@destack/runtime/error";
+import { PackageDescription } from "@destack/object";
+import { CallError } from "@destack/object";
 import { install, type InstallationDefinition } from "../../declare/installation.ts";
 import { StackDefinition } from "../../declare/stack.ts";
 import { StackError } from "../../error/index.ts";
@@ -27,7 +27,7 @@ import {
 import { Approval } from "./approval.ts";
 import { implementRelationship, implementRole } from "../access/role.ts";
 import { type BuildStore, installableReleases } from "./build.ts";
-import { Failure } from "@destack/sync";
+import { Failure } from "@destack/error";
 
 /** What a machine applies stacks with: its build store. */
 export interface StackOptions {
@@ -53,7 +53,13 @@ export async function reconcileStack(
     let deferred: string | undefined;
     try {
         const release: StackApplicationOptions["release"] = (snapshot, packageId, installationId) =>
-            options.builds.installed(snapshot, spaceId, packageId, installationId);
+            Installation.reader(
+                snapshot,
+                spaceId,
+                packageId,
+                installationId,
+                options.builds.packages,
+            );
         const objects = declaredTypes(reconciliation.store.objects);
         const store = reconciliation.store;
         const applying = stackApplication(database, stack, revision, objects, { store, release });

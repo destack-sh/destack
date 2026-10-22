@@ -1,7 +1,7 @@
 import { present } from "@destack/schema";
 import { SessionRequest, type HookSandbox } from "@destack/object";
 import type { AdapterFetch } from "@destack/object/server";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { Subject } from "@destack/sync";
 
 /** Answer installations' hook sessions through their sandboxes, a POST of one request each. */

@@ -2,7 +2,7 @@ import { type Authentication, Caller, principal } from "@destack/access";
 import { and, eq, isNull, type DatabaseConnection } from "@destack/db";
 import type { MethodContextOf, ResultOf } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
-import { RequestId } from "@destack/runtime/request";
+import { RequestId } from "@destack/sync";
 import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
 import {
@@ -13,8 +13,8 @@ import {
     INSTALLATION_KEY,
     TOKEN_LIFETIME_MILLISECONDS,
     type TokenIssuer,
-} from "@destack/runtime/authentication";
-import { CallError } from "@destack/runtime/error";
+} from "@destack/access/token";
+import { CallError } from "@destack/object";
 import { installation } from "../../object/installation.ts";
 import { installationKey } from "../../object/key.ts";
 import { proof } from "@destack/object";

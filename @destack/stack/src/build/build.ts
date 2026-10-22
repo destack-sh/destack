@@ -14,10 +14,10 @@ import type {
 } from "@destack/package/build";
 import { DeclarationReference } from "@destack/package/declare";
 import { WorkloadDefinition, WorkloadDescription } from "@destack/package/manifest";
-import { WORKLOAD_EXPORT } from "@destack/runtime/cloudflare";
-import { PackageDescription } from "@destack/runtime";
+import { WORKLOAD_EXPORT } from "@destack/object/cloudflare";
+import { PackageDescription } from "@destack/object";
 import { StackError } from "../error/index.ts";
-import { HOOK_WORKLOAD } from "../client/hook.ts";
+import { HOOK_WORKLOAD } from "../workload/hook.ts";
 import { SECRET_DECLARATION } from "../declare/binding.ts";
 import { RESOURCE_DECLARATION } from "@destack/resource";
 
@@ -125,7 +125,7 @@ function hookRunnable(
     const module = JSON.stringify({ package: compilation.package });
     const code = runModule(
         [
-            'import { defineWorkload, serveHooks } from "@destack/stack/client";',
+            'import { defineWorkload, serveHooks } from "@destack/stack/workload";',
             ...hooked.map((declaration, index) =>
                 importModule(compilation.locate(declaration), `routing${index}`),
             ),

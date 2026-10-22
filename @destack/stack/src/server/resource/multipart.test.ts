@@ -1,7 +1,7 @@
 import { present } from "@destack/schema";
 import { TEST_DIALECTS } from "@destack/db/test";
-import { CallError } from "@destack/runtime/error";
-import { RequestId } from "@destack/runtime/request";
+import { CallError } from "@destack/object";
+import { RequestId } from "@destack/sync";
 import { afterAll, afterEach, beforeAll, beforeEach, expect, test, vi } from "@destack/test";
 import { LEASE_LIFETIME_SECONDS } from "@destack/bucket/s3";
 import { BucketFixture, NOW, PRESIGNED } from "../../test/index.ts";

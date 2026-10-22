@@ -1,8 +1,8 @@
 import { Plan } from "@destack/resource";
 import { expect, refusal, test } from "@destack/test";
 import { schema, present } from "@destack/schema";
-import { RequestId } from "@destack/runtime/request";
-import { CallError } from "@destack/runtime/error";
+import { RequestId } from "@destack/sync";
+import { CallError } from "@destack/object";
 import { eq, Snapshot } from "@destack/db";
 import type { BuildReference, InstallationSelection } from "../src/declare/index.ts";
 import { serveSpace } from "../src/server/index.ts";
@@ -96,11 +96,14 @@ test("apply a submitted stack build and open its installations' views", async ()
         steps: [],
     });
 
-    // open a view the installed release's revision declares and refuse opening one it does not
+    // apply the notes installation, then open a view its applied revision declares and refuse one it does not
     const listed = (await owner.installation.list({ spaceId: ids.space })).items.find(
         (entry) => entry.name === "notes",
     );
     const notes = present(listed, "the notes installation");
+    await reconcile(store, "installation", { id: notes.id });
+    await fixture.serveInstalled(store, ids.space);
+    await reconcile(store, "installation", { id: notes.id });
     expect(
         await owner.installation.open({
             spaceId: ids.space,
@@ -113,7 +116,7 @@ test("apply a submitted stack build and open its installations' views", async ()
         revisionId: notes.revisionId,
         manifest: await fixture.registry.find(ids.package, "2026.9.0"),
         view: "home",
-        definition: {
+        description: {
             entrypoint: "view.js",
             sandbox: {},
             presents: [{ packageId: ids.package, type: "note", priority: "option" }],
@@ -131,26 +134,6 @@ test("apply a submitted stack build and open its installations' views", async ()
             message: "notes declares no view settings",
         }),
     );
-
-    // present a note in the view presenting it by default, in the view asked for, and refuse others
-    const note = { packageId: ids.package, type: "note", scope: ids.space, id: "note-1" };
-    const presented = (object: typeof note, view?: string) =>
-        owner.installation.present({
-            spaceId: ids.space,
-            object,
-            ...(view === undefined ? {} : { view }),
-        });
-    expect([
-        await presented(note),
-        await presented(note, "home"),
-        await refusal(presented(note, "settings")),
-        await refusal(presented({ ...note, type: "folder" })),
-    ]).toEqual([
-        { installation: "notes", view: "editor" },
-        { installation: "notes", view: "home" },
-        ["NOT_FOUND", `no view settings of ${ids.space} presents note objects`],
-        ["NOT_FOUND", `no view of ${ids.space} presents folder objects`],
-    ]);
 });
 
 test("apply an earlier build submitted again after a later one, approving each plan that waits", async () => {
@@ -218,7 +201,10 @@ test("apply an earlier build submitted again after a later one, approving each p
 
 test("install an application from a checkout by submitting its build, following its revision's views and declarations", async () => {
     const fixture = await StackFixture.open();
-    const owner = (await fixture.serve())(ids.owner);
+    const owner = (await fixture.serve({ isControlled: false }))(ids.owner);
+    const store = serveSpace(
+        await fixture.options({ providers: [await TestSpaceDatabaseHost.provider()] }),
+    ).store;
     const notes = await owner.installation.create({
         spaceId: ids.space,
         requestId: RequestId.create(Date.now()),
@@ -228,7 +214,7 @@ test("install an application from a checkout by submitting its build, following 
         name: "notes",
     });
 
-    // submit the checkout's build and open the view it mounts
+    // submit the checkout's build, apply it, and open the view it mounts
     const reader = await fixtureBuild(ids.package, "2026.9.0");
     const recorded = await fixture.recordBuild(reader);
     await owner.installation.submit({
@@ -238,6 +224,9 @@ test("install an application from a checkout by submitting its build, following 
         selection,
         build: recorded,
     });
+    await reconcile(store, "installation", { id: notes.id });
+    await fixture.serveInstalled(store, ids.space);
+    await reconcile(store, "installation", { id: notes.id });
     const followed = await owner.installation.get({ spaceId: ids.space, id: notes.id });
     expect(
         await owner.installation.open({
@@ -251,7 +240,7 @@ test("install an application from a checkout by submitting its build, following 
         revisionId: followed.revisionId,
         manifest: await PackageStore.digest(reader.manifest),
         view: "home",
-        definition: {
+        description: {
             entrypoint: "view.js",
             sandbox: {},
             presents: [{ packageId: ids.package, type: "note", priority: "option" }],
@@ -261,10 +250,7 @@ test("install an application from a checkout by submitting its build, following 
         permissions: {},
         home: ids.home,
     });
-    const declared = await owner.symbol.list({
-        buildId: recorded.build,
-        where: { kindPackageId: { isNotNull: true } },
-    });
+    const declared = await owner.declaration.list({ buildId: recorded.build });
     expect(declared.items.map(({ kind, name, description }) => [kind, name, description])).toEqual([
         ["command", "archive", ARCHIVE],
     ]);
@@ -534,7 +520,13 @@ test("open the build each package's installation in a space follows, refusing a 
     // open each package's build and refuse a package the space does not install
     const builds = await fixture.builds();
     const version = (packageId: PackageId) =>
-        builds.installed(Snapshot.live(database), ids.space, packageId).then(
+        Installation.reader(
+            Snapshot.live(database),
+            ids.space,
+            packageId,
+            undefined,
+            builds.packages,
+        ).then(
             (reader) => reader.manifest.package.version,
             (error: unknown) => (error instanceof Error ? error.message : error),
         );

@@ -7,7 +7,7 @@ import { AccessFixture } from "@destack/access/test";
 import { account, space } from "@destack/account/object";
 import * as sqlite from "@destack/db/bun";
 import { ObjectStore, Stack } from "@destack/object/server";
-import { testCallKey } from "@destack/runtime/test";
+import { testCallKey } from "@destack/object/test";
 import { nth, schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { implementRole, implementRelationship } from "../index.ts";

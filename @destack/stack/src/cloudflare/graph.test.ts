@@ -1,3 +1,4 @@
+import { WORKERD_COMPATIBILITY_DATE } from "@destack/package/build";
 import { Miniflare } from "miniflare";
 import { fileURLToPath } from "node:url";
 import { eq } from "@destack/db";
@@ -6,9 +7,10 @@ import type { DurableObjectNamespace } from "@destack/db/cloudflare";
 import { Package } from "@destack/package";
 import { modulePlugin } from "@destack/package/bun";
 import { MemoryBuild } from "@destack/package/test";
-import { Digest, schema } from "@destack/schema";
+import { Digest, type Identifier, schema } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
-import { build, symbol } from "../object/index.ts";
+import { MemoryBucket } from "@destack/bucket/test";
+import { build, declaration } from "../object/index.ts";
 import { stackTables } from "../stack/index.ts";
 import { ids } from "../test/index.ts";
 import { DurableObjectGraphStorage } from "./graph.ts";
@@ -19,7 +21,7 @@ const builds = [
     schema.identifier("build").parse("build-01996ab0-0000-7000-8000-0000000000a2"),
 ] as const;
 
-test("index a manifest once in its object, and show each build of it the rows in its own scope", async () => {
+test("index a manifest once in its object, show each build of it the rows in its own scope, and delete the object once retention drops the manifest", async () => {
     // keep a release declaring a notification as two builds of the space
     const reader = await MemoryBuild.of(
         Package.parse({ id: ids.package, name: "@example/notes", version: "2026.9.0" }),
@@ -45,31 +47,43 @@ test("index a manifest once in its object, and show each build of it the rows in
 
     // read each build's notification through the index objects, counting the builds read
     let opened = 0;
-    const graphs = new DurableObjectGraphStorage(
-        storage.database,
-        async () => {
-            opened += 1;
+    let isKept = true;
+    const marks = new MemoryBucket();
+    const namespace = await indexes();
+    const graphs = () =>
+        new DurableObjectGraphStorage(
+            storage.database,
+            {
+                contains: async () => isKept,
+                contents: async () => {
+                    opened += 1;
 
-            return reader;
-        },
-        await indexes(),
-    );
-    const read = async (id: (typeof builds)[number]) => {
-        const database = await graphs.open(id);
-        const [row] = await database
-            .select({
-                scope: symbol.table.scope,
-                kind: symbol.table.kind,
-                name: symbol.table.name,
-                createdAt: symbol.table.createdAt,
-            })
-            .from(symbol.table)
-            .where(eq(symbol.table.kind, "notification"));
+                    return reader;
+                },
+                referrer: async () => undefined,
+                file: () => Promise.reject(new TypeError("the builds carry no code index")),
+            },
+            namespace,
+            marks,
+        );
+    const first = graphs();
+    const rows = [
+        await readNotification(first, builds[0]),
+        await readNotification(first, builds[1]),
+    ];
 
-        return row;
-    };
+    // keep the index while the build store keeps the manifest, then delete it with its mark
+    await first.sweep();
+    const kept = (await marks.list()).files.map((file) => file.key);
+    isKept = false;
+    await first.sweep();
+    const swept = (await marks.list()).files.map((file) => file.key);
 
-    expect({ rows: [await read(builds[0]), await read(builds[1])], opened }).toEqual({
+    // index it again through the same storage once the store keeps it again
+    isKept = true;
+    await readNotification(first, builds[0]);
+
+    expect({ rows, kept, swept, opened }).toEqual({
         // show each build the one stored row in its own scope and finish
         rows: builds.map((id, index) => ({
             scope: id,
@@ -77,10 +91,29 @@ test("index a manifest once in its object, and show each build of it the rows in
             name: "mention",
             createdAt: 1000 + index,
         })),
-        // read the build once, for the first build of the manifest
-        opened: 1,
+        // mark the manifest while kept, and drop the mark once swept
+        kept: [`graphs/${manifest}`],
+        swept: [],
+        // read the build once for the first build of the manifest, and again once its object was deleted
+        opened: 2,
     });
 });
+
+/** Read a build's notification declaration through its index object. */
+async function readNotification(graph: DurableObjectGraphStorage, id: Identifier<"build">) {
+    const database = await graph.open(id);
+    const [row] = await database
+        .select({
+            scope: declaration.table.scope,
+            kind: declaration.table.kind,
+            name: declaration.table.name,
+            createdAt: declaration.table.createdAt,
+        })
+        .from(declaration.table)
+        .where(eq(declaration.table.kind, "notification"));
+
+    return row;
+}
 
 /** Run the index objects in the Workers runtime, answered from here, until the test ends. */
 async function indexes(): Promise<DurableObjectNamespace> {
@@ -102,7 +135,7 @@ async function indexes(): Promise<DurableObjectNamespace> {
     const worker = new Miniflare({
         modules: true,
         script: await output.text(),
-        compatibilityDate: "2026-07-30",
+        compatibilityDate: WORKERD_COMPATIBILITY_DATE,
         compatibilityFlags: ["nodejs_compat"],
         durableObjects: { GRAPH: { className: "GraphIndexObject", useSQLite: true } },
     });

@@ -7,6 +7,10 @@ import {
     type MethodContextOf,
     ObjectDescription,
     type ObjectReconciliation,
+    InstallationBindingSpec,
+    type InstallationBindingState,
+    InstallationKind,
+    PackageDescription,
 } from "@destack/object";
 import {
     HOST_SANDBOX,
@@ -15,7 +19,7 @@ import {
     type DirectoryGrant,
     type PackageId,
 } from "@destack/package";
-import type { BuildReader } from "@destack/package/manifest";
+import { type BuildReader, PackageManifest } from "@destack/package/manifest";
 import { ServerRuntime } from "@destack/package/runtime";
 import {
     Address,
@@ -27,12 +31,6 @@ import {
 } from "@destack/resource";
 import { canonicalize, present, schema, Version } from "@destack/schema";
 import { ObjectTypeReference } from "@destack/sync";
-import {
-    InstallationBindingSpec,
-    type InstallationBindingState,
-    InstallationKind,
-} from "@destack/runtime/declare";
-import { PackageDescription } from "@destack/runtime";
 import { StackError } from "../../error/index.ts";
 import {
     binding,
@@ -42,7 +40,7 @@ import {
     deployment,
     Installation,
     installation,
-    type InstallationRevision,
+    InstallationRevision,
     installationRevision,
     instance,
     MAIN_DATABASE,
@@ -50,7 +48,7 @@ import {
 import type { Binder, ResourceNeed } from "../resource/binding.ts";
 import { BuildStore, type Registry } from "./build.ts";
 import { Approval } from "./approval.ts";
-import { HOOK_WORKLOAD } from "../../client/hook.ts";
+import { HOOK_WORKLOAD } from "../../workload/hook.ts";
 
 /** The condition of an installation whose bound targets are each ready. */
 const BOUND = { status: "true", reason: "Bound", message: "every bound target is ready" } as const;
@@ -666,7 +664,11 @@ export class Application {
 
     /** Open the build a revision evaluated, which the build store keeps. */
     #open(revision: Pick<InstallationRevision, "id">): Promise<BuildReader> {
-        return this.#options.builds.revision(this.#context, revision.id);
+        return InstallationRevision.reader(
+            this.#context,
+            revision.id,
+            this.#options.builds.packages,
+        );
     }
 
     /** Plan the upgrade steps from an applied build to the next, or refuse a gap in its chain. */
@@ -712,7 +714,7 @@ export class Application {
             );
             const { builds, registry } = this.#options;
             const earlier = await registry.find(target.packageId, upgrade.from);
-            reader = await builds.read(registry, target.packageId, earlier);
+            reader = await builds.pull(registry, target.packageId, earlier);
         }
 
         return { kind: "planned", plan: { steps } };
@@ -860,7 +862,7 @@ export class Application {
         description: PackageDescription | undefined,
     ): Promise<ResourceNeed[]> {
         // declare no tables for a package declaring no object types
-        const packageId = build.manifest.package.id;
+        const packageId = PackageManifest.package(build.manifest).id;
         const owned = ObjectDescription.installed(await build.declarations());
         if (owned.length === 0) {
             return [];
@@ -881,7 +883,7 @@ export class Application {
                 .filter((dependency) => needed.has(dependency.package.id))
                 .map(async (dependency) => {
                     const { id } = dependency.package;
-                    const reader = await builds.read(registry, id, dependency.manifest);
+                    const reader = await builds.pull(registry, id, dependency.manifest);
 
                     return ObjectDescription.installed(await reader.declarations());
                 }),
@@ -902,7 +904,7 @@ export class Application {
 
         return [
             {
-                package: build.manifest.package,
+                package: PackageManifest.package(build.manifest),
                 name: MAIN_DATABASE,
                 kind: DatabaseKind.name,
                 spec: { replicated: [] },
@@ -998,7 +1000,7 @@ async function pinnedReleases(
     needs: readonly ResourceNeed[],
 ): Promise<ReadonlyMap<string, InstallationBindingState>> {
     // read the build's exact dependencies when an installation of another package is needed
-    const own = build.manifest.package;
+    const own = PackageManifest.package(build.manifest);
     const callees = needs
         .filter((entry) => entry.kind === InstallationKind.name)
         .map((need) => ({ need, callee: InstallationBindingSpec.parse(need.spec).package }));
@@ -1033,7 +1035,7 @@ function describeNeed(
     declaration: Awaited<ReturnType<BuildReader["declarations"]>>[number],
 ): ResourceNeed {
     // split a resource's description into its kind, specification and required state
-    const owner = build.manifest.package;
+    const owner = PackageManifest.package(build.manifest);
     if (declaration.kind === RESOURCE_DECLARATION) {
         const described = ResourceDescription.catchall(schema.json()).parse(
             declaration.description,

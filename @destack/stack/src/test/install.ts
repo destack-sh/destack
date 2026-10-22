@@ -1,11 +1,12 @@
 import { type DatabaseConnection, eq } from "@destack/db";
-import type { BuildReader } from "@destack/package/manifest";
+import { type BuildReader, PackageManifest } from "@destack/package/manifest";
 import { Digest, Identifier, present, schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import type { PackageId } from "@destack/package";
 import {
     build,
     module,
+    declaration,
     symbol,
     catalog,
     deployment,
@@ -19,7 +20,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { onTestFinished } from "@destack/test";
 import { BunGraphStorage } from "../bun/graph.ts";
-import type { PackageServer } from "@destack/object/server";
+import type { PackageImplementation } from "@destack/object/server";
 import { serversOf } from "@destack/object/test";
 import { workload } from "./build.ts";
 
@@ -27,8 +28,8 @@ import { workload } from "./build.ts";
 export async function buildIndexServers(
     database: DatabaseConnection,
     builds: readonly BuildReader[],
-): Promise<PackageServer[]> {
-    return serversOf([build, module, symbol, catalog], {
+): Promise<PackageImplementation[]> {
+    return serversOf([build, module, declaration, symbol, catalog], {
         external: await buildIndex(database, builds),
     });
 }
@@ -45,7 +46,13 @@ async function buildIndex(
     const directory = await mkdtemp(join(tmpdir(), "destack-stack-index-"));
     const index = new BunGraphStorage(
         database,
-        async (_space, manifest) => present(byManifest.get(manifest), `the build ${manifest}`),
+        {
+            contains: async (manifest) => byManifest.has(manifest),
+            contents: async (manifest) =>
+                present(byManifest.get(manifest), `the build ${manifest}`),
+            referrer: async () => undefined,
+            file: () => Promise.reject(new TypeError("the installed builds carry no code index")),
+        },
         directory,
     );
 
@@ -120,7 +127,7 @@ export async function installBuild(
     now = Date.now(),
 ): Promise<Identifier<"installation">> {
     // keep the installation under its package's name
-    const { package: owner } = reader.manifest;
+    const owner = PackageManifest.package(reader.manifest);
     const installationId = Identifier.create("installation");
     const revisionId = Identifier.create("installation-revision");
     const manifest = await manifestOf(reader);

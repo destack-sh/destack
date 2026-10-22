@@ -3,7 +3,7 @@ import { type Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
 import { PublicKey } from "@destack/identity";
-import { CallError } from "@destack/runtime/error";
+import { CallError } from "@destack/object";
 import { installation } from "./installation.ts";
 import { space } from "@destack/account/object";
 

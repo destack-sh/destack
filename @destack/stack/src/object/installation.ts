@@ -13,7 +13,7 @@ import {
     principal,
     self,
 } from "@destack/access";
-import { InstallationName, type PackageDescription } from "@destack/runtime";
+import { InstallationName, type PackageDescription } from "@destack/object";
 import {
     and,
     type DatabaseConnection,
@@ -22,17 +22,17 @@ import {
     Snapshot,
     type Select,
     type SQL,
-    type Transaction,
 } from "@destack/db";
 import {
-    type MethodContext,
-    type ObjectOf,
     defineObject,
     field,
-    ObjectError,
+    grant,
+    type MethodContext,
+    type ObjectOf,
     Observation,
+    role,
 } from "@destack/object";
-import type { ObjectStore, Stack } from "@destack/object/server";
+import type { ObjectStore } from "@destack/object/server";
 import {
     ComputeDefinition,
     DeclarationName,
@@ -53,17 +53,20 @@ import {
     present,
     schema,
 } from "@destack/schema";
-import { CallError } from "@destack/runtime/error";
-import { RequestId } from "@destack/runtime/request";
+import { CallError } from "@destack/object";
+import { RequestId, Scope } from "@destack/sync";
 import { Setting } from "@destack/setting";
 import { SettingValue } from "@destack/setting/object";
-import { ObjectReference, Scope } from "@destack/sync";
-import { InstallationSelection, InstallationDefinition } from "../declare/installation.ts";
-import { build } from "./build.ts";
+import {
+    InstallationSelection,
+    InstallationDefinition,
+    type RepositorySelection,
+} from "../declare/installation.ts";
+import { build, Build } from "./build.ts";
+import type { PackageStore } from "@destack/build/store";
 import { StackDefinition } from "../declare/stack.ts";
 import { space, Space } from "@destack/account/object";
 import { Submission } from "./stack.ts";
-import { grant, role } from "./role.ts";
 
 /** The name managing an installation's grant, beside the declarations of its stack. */
 const GRANT_NAME = "permissions";
@@ -82,7 +85,7 @@ export const InstallationView = schema.object({
     /** The view's name. */
     view: DeclarationName,
     /** The view as the build's output mounts it. */
-    definition: ViewDescription,
+    description: ViewDescription,
     /** The location within the view. */
     path: ViewPath,
     /** The opening person's home space, where the view's home types open. */
@@ -284,24 +287,6 @@ export const installation = defineObject(
             output: InstallationView,
         }),
 
-        /** Find the view of the space presenting an object most strongly, or the view asked for. */
-        present: method.query({
-            permission: "list",
-            target: "scope",
-            input: schema.object({
-                /** The object. */
-                object: ObjectReference,
-                /** The view asked for, absent for the strongest presenting the object's type. */
-                view: DeclarationName.exactOptional(),
-            }),
-            output: schema.object({
-                /** The installation's name. */
-                installation: InstallationName,
-                /** The view's name. */
-                view: DeclarationName,
-            }),
-        }),
-
         /** Follow the revision applied before the current one again. */
         rollBack: method.mutation({
             permission: "apply",
@@ -437,6 +422,63 @@ export type Installation = Select<typeof installation.table>;
 
 /** Reads of installations that other packages resolve references by. */
 export const Installation = {
+    /** List the installations selecting a matching repository reference, in one space or all. */
+    async selecting(
+        database: DatabaseConnection,
+        spaceId: Identifier<"space"> | undefined,
+        matches: (selection: RepositorySelection) => boolean,
+    ): Promise<
+        {
+            readonly id: Identifier<"installation">;
+            readonly scope: string;
+            readonly role: Installation["role"];
+            readonly selection: RepositorySelection;
+        }[]
+    > {
+        // read the live installations, of the space if given
+        const live = isNull(installation.table.deletedAt);
+        const rows = await database
+            .select({
+                id: installation.table.id,
+                scope: installation.table.scope,
+                role: installation.table.role,
+                selection: installation.table.selection,
+            })
+            .from(installation.table)
+            .where(spaceId === undefined ? live : and(eq(installation.table.scope, spaceId), live));
+
+        return rows.flatMap((each) =>
+            each.selection.kind === "repository" && matches(each.selection)
+                ? [{ ...each, selection: each.selection }]
+                : [],
+        );
+    },
+
+    /** Read the build a space's installation of a package follows from a store of builds. */
+    async reader(
+        snapshot: Snapshot,
+        spaceId: Identifier<"space">,
+        packageId: PackageId,
+        installationId: Identifier<"installation"> | undefined,
+        packages: Pick<PackageStore, "contents">,
+    ): Promise<BuildReader> {
+        // read the installation's revision
+        const [found] = await snapshot.read(installation.table).findMany({
+            where: {
+                scope: spaceId,
+                packageId,
+                ...(installationId === undefined ? {} : { id: installationId }),
+            },
+        });
+        if (found?.revisionId === undefined || found.revisionId === null) {
+            throw new CallError("NOT_FOUND", {
+                message: `no installation in ${spaceId} follows a build of ${packageId}`,
+            });
+        }
+
+        return InstallationRevision.reader(snapshot, found.revisionId, packages);
+    },
+
     /** List the optional capabilities an installation allows: declared ones and requested ones. */
     capabilities(row: Pick<Installation, "capabilities" | "allowed">): string[] {
         return [...new Set([...row.capabilities, ...row.allowed])];
@@ -667,45 +709,6 @@ export const Installation = {
         return Object.fromEntries(resolved);
     },
 
-    /** Require an installation of a space by identifier, rejecting the declaration otherwise. */
-    async require(
-        transaction: Transaction,
-        spaceId: Identifier<"space">,
-        id: Identifier<"installation">,
-    ): Promise<Identifier<"installation">> {
-        const [existing] = await transaction
-            .read(installation.table)
-            .findMany({ where: { scope: spaceId, id } });
-        if (existing === undefined) {
-            throw new ObjectError(
-                "INVALID_DECLARATION",
-                `installation ${id} is no installation of the space`,
-            );
-        }
-
-        return existing.id;
-    },
-
-    /** Resolve a declared installation: one the stack declares by name, or the space's by id. */
-    async resolve(
-        reference: string | { readonly id: string },
-        stack: Stack,
-    ): Promise<Identifier<"installation">> {
-        // resolve an installation the stack declares
-        if (typeof reference === "string") {
-            return schema
-                .identifier("installation")
-                .parse(await stack.require(installation, reference));
-        }
-
-        // require an existing installation of the space
-        return Installation.require(
-            stack.transaction,
-            schema.identifier("space").parse(stack.scope),
-            schema.identifier("installation").parse(reference.id),
-        );
-    },
-
     /** Read the fields recording a revision applied, keeping the one applied before. */
     applied(
         target: Pick<Installation, "appliedRevisionId" | "previousRevisionId">,
@@ -831,6 +834,26 @@ export type InstallationRevision = Select<typeof installationRevision.table>;
 
 /** The revisions of an installation: one per distinct build and stack evaluation. */
 export const InstallationRevision = {
+    /** Read the build a revision evaluated from a store of builds. */
+    async reader(
+        snapshot: Pick<Snapshot, "read">,
+        revisionId: Identifier<"installation-revision">,
+        packages: Pick<PackageStore, "contents">,
+    ): Promise<BuildReader> {
+        // read the revision, refusing an unknown one
+        const revision = await snapshot
+            .read(installationRevision.table)
+            .findFirst({ where: { id: revisionId } });
+        if (revision === undefined) {
+            throw new CallError("NOT_FOUND", { message: `no revision ${revisionId}` });
+        }
+
+        // read its build from the store
+        const built = await Build.require(snapshot, revision.scope, revision.buildId);
+
+        return packages.contents(built.manifest);
+    },
+
     /** Read the revision an installation follows, absent before its first. */
     async followed(
         database: DatabaseConnection,

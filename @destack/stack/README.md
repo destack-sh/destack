@@ -110,12 +110,12 @@ const { store, packages } = serveSpace({
 
 ## Views
 
-`installation.open` reads the view an installation's revision declares, and `installation.present` finds the view of a space presenting an object most strongly.
+`installation.open` reads the view an installation's revision declares, and `readBuilds` reads every installation's build through the space's build contents.
 
 ```ts
 const opened = await stack.installation.open({ spaceId, id, view: "home", path: "/" }); // its build, permissions and home
-const shown = await stack.installation.present({ spaceId, object: note }); // { installation: "notes", view: "editor" }
-await stack.installation.present({ spaceId, object: note, view: "home" }); // the view asked for
+const builds = await readBuilds(spaceId, url, fetch); // [{ installation, reader }], each build by its manifest
+const views = ViewDescription.list(builds[0].reader.manifest); // the views a build mounts
 ```
 
 ## Change requests

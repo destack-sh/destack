@@ -1,5 +1,4 @@
-import { HttpsKind } from "@destack/runtime/declare";
-import { defineObject } from "@destack/object";
+import { HttpsKind, defineObject } from "@destack/object";
 import { space } from "@destack/account/object";
 
 /** An external HTTPS API a workload calls, lent a connection's credential by the machine. */
