@@ -5,7 +5,7 @@ import { DatabaseError } from "../error/error.ts";
 import { literal, quote } from "../dialect/quote.ts";
 import { relation } from "../table/namespace.ts";
 
-// NOTE #Performance: PgQ positions over a ticker's snapshots would remove the one lock per log serialising commits
+// NOTE #Performance: PgQ positions over a ticker's snapshots would remove the log's commit lock
 /** The advisory lock class serialising a PostgreSQL log's commits, keyed by the log's schema. */
 export const COMMIT_LOCK = 471_026_381;
 
@@ -15,19 +15,19 @@ export const LOG = "__destack_log";
 /** The SQL name of the highest compacted change sequence. */
 export const LOG_HORIZON = "__destack_log_horizon";
 
-/** The SQL name of the consumers' slots: each one's position, and when it stops keeping changes. */
+/** The SQL name of the consumers' slots: each position, and when it stops retaining changes. */
 export const LOG_SLOT = "__destack_log_slot";
 
 /** The SQL name of the log's identity: its identifier, its epoch and the database's scope. */
 export const LOG_EPOCH = "__destack_log_epoch";
 
-/** The SQL name of the replica write marker, held while a replica's transaction writes. */
+/** The SQL name of the replica write marker, set while a replica's transaction writes. */
 export const LOG_REPLICA = "__destack_log_replica";
 
 /** The SQL name of the open SQLite transaction's identity. */
 export const LOG_TRANSACTION = "__destack_log_transaction";
 
-/** The log's own tables, which have no change triggers. */
+/** The log's tables, which have no change triggers. */
 export const LOG_TABLES: readonly string[] = [
     LOG,
     LOG_HORIZON,

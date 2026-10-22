@@ -39,7 +39,7 @@ export type Comparable = schema.Infer<typeof Comparable>;
 /** A comparison operator. */
 export type Operator = (typeof COMPARISONS)[number];
 
-/** A placeholder in its JSON form, as declarations and the wire keep it. */
+/** A placeholder in its JSON form, as declarations and the wire send it. */
 const PlaceholderJson = schema.object({
     /** The placeholder's name. */
     placeholder: schema.string().min(1),
@@ -205,7 +205,7 @@ type KnownCondition<Row, Related> = {
 /** An entry of a condition in its JSON form. */
 type JsonEntry = Comparable | readonly Comparable[] | JsonCondition | readonly JsonCondition[];
 
-/** A condition in JSON form, as declarations, rows and the wire keep it with `{ placeholder }`. */
+/** A condition in JSON form, as declarations, rows and the wire store it with `{ placeholder }`. */
 export type JsonCondition = { readonly [name: string]: JsonEntry };
 
 /** An entry of a condition whose row is unknown. */
@@ -305,7 +305,7 @@ function render(condition: Condition, table: Table, namespace?: Namespace): SQL 
     return Predicate.render(predicate, Predicate.bind(table, {}, namespace));
 }
 
-/** Resolve a condition's entries, which all hold. */
+/** Resolve a condition's entries, which must all match. */
 function resolveCondition(condition: Condition, fields: ReadonlySet<string>): Predicate {
     return Predicate.all(
         ...Object.entries(condition).map(([name, entry]) => resolveEntry(name, entry, fields)),
@@ -375,7 +375,7 @@ function resolveRelation(name: string, entry: OpenEntry): Predicate {
     }
 }
 
-/** Resolve a field's comparisons, which all hold. */
+/** Resolve a field's comparisons, which must all match. */
 function fieldPredicate(name: string, field: FieldCondition): Predicate {
     return Predicate.all(
         ...comparisonPredicates(name, field),

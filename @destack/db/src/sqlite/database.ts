@@ -14,7 +14,7 @@ import type { Table } from "../table/table.ts";
 import { Relations } from "../query/relation.ts";
 import type { Model } from "../query/model.ts";
 
-/** A SQLite database with its own connection. */
+/** A SQLite database with a separate connection. */
 export class SqliteDatabase<
     Client extends SqliteConnectionClient = SqliteConnectionClient,
     Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,

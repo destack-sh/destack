@@ -18,7 +18,7 @@ const JSON_TYPES = [114, 3802] as const;
 /** The encoder measuring characters' UTF-8 widths. */
 const UTF8 = new TextEncoder();
 
-/** The bytes of one notification payload: below PostgreSQL's 8000, with room for the header. */
+/** The bytes of one notification's text, below PostgreSQL's 8000 with room for its party header. */
 const PAYLOAD_BYTES = 7_800;
 
 /** How long a message's fragments wait for the rest before dropping: a minute, past a burst. */
@@ -27,13 +27,13 @@ const FRAGMENT_MILLISECONDS = 60_000;
 /** The client codes of a connection that closed, which leaves nothing to notify or unlisten. */
 const CLOSED_CODES: ReadonlySet<string> = new Set(["CONNECTION_DESTROYED", "CONNECTION_ENDED"]);
 
-/** The prefix of a payload with one fragment of a message, which no JSON text starts with. */
+/** The prefix of a party's payload, one fragment of its message, which no JSON text starts with. */
 const FRAGMENT = "#";
 
 /** Who writes a PostgreSQL database: pools announcing commits via LISTEN and NOTIFY, or one. */
 export type PostgresWriteMode = "shared" | "sole";
 
-/** A PostgreSQL database with its own pool. */
+/** A PostgreSQL database with a separate pool. */
 export class PostgresDatabase<
     Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
 > extends DatabaseConnection<Models> {
@@ -101,7 +101,8 @@ function passJsonText(client: postgres.Sql): void {
 
 /** Connect every party of a PostgreSQL notification channel with JSON messages. */
 export function postgresChannel(client: postgres.Sql, name: Promise<string>): Channel<unknown> {
-    // collect the failures of notifications for the listeners
+    // identify this party to its listeners, and collect the listeners' failures
+    const party = crypto.randomUUID();
     const failures = new Set<(error: unknown) => void>();
     const send = (payload: string) =>
         void name
@@ -123,26 +124,18 @@ export function postgresChannel(client: postgres.Sql, name: Promise<string>): Ch
             });
 
     return {
-        notify: (message) => notifyInFragments(send, message),
+        notify: (message) => notifyInFragments(send, party, message),
         listen: (receive, resume, fail) =>
-            listenToChannel(client, name, failures, receive, resume, fail),
+            listenToChannel(client, name, party, failures, receive, resume, fail),
     };
 }
 
-/** Send a message whole or in numbered fragments. */
-function notifyInFragments(send: (payload: string) => void, message: unknown): void {
-    const text = JSON.stringify(message);
-    // send a small message whole
-    if (UTF8.encode(text).byteLength <= PAYLOAD_BYTES) {
-        send(text);
-    }
-    // send a large message in numbered fragments
-    else {
-        const id = crypto.randomUUID();
-        const parts = fragments(text, PAYLOAD_BYTES);
-        for (const [index, part] of parts.entries()) {
-            send(`${FRAGMENT}${id}:${index}:${parts.length}:${part}`);
-        }
+/** Send a party's message in numbered fragments, one for a small message. */
+function notifyInFragments(send: (payload: string) => void, party: string, message: unknown): void {
+    const id = crypto.randomUUID();
+    const chunks = fragments(JSON.stringify(message), PAYLOAD_BYTES);
+    for (const [index, chunk] of chunks.entries()) {
+        send(`${FRAGMENT}${party}:${id}:${index}:${chunks.length}:${chunk}`);
     }
 }
 
@@ -150,6 +143,7 @@ function notifyInFragments(send: (payload: string) => void, message: unknown): v
 function listenToChannel(
     client: postgres.Sql,
     name: Promise<string>,
+    party: string,
     failures: Set<(error: unknown) => void>,
     receive: (message: unknown) => void,
     resume: (() => void) | undefined,
@@ -160,7 +154,7 @@ function listenToChannel(
         failures.add(fail);
     }
     const listening = name.then((resolved) =>
-        client.listen(resolved, reassembler(resolved, receive), () => resume?.()),
+        client.listen(resolved, reassembler(resolved, party, receive), () => resume?.()),
     );
     listening.catch((error: unknown) => fail?.(error));
 
@@ -183,12 +177,16 @@ function listenToChannel(
     };
 }
 
-/** Deliver whole messages and reassemble fragmented ones. */
-function reassembler(name: string, receive: (message: unknown) => void): (payload: string) => void {
-    const pending = new Map<string, { parts: string[]; received: number; at: number }>();
+/** Deliver the database's messages and reassemble the other parties', skipping a party's echo. */
+function reassembler(
+    name: string,
+    party: string,
+    receive: (message: unknown) => void,
+): (payload: string) => void {
+    const pending = new Map<string, { chunks: string[]; received: number; at: number }>();
 
     return (payload) => {
-        // deliver a whole message at once, as the database's own notifications send them too
+        // deliver a message the database sends whole, such as a commit's
         if (!payload.startsWith(FRAGMENT)) {
             const message: unknown = JSON.parse(payload);
             receive(message);
@@ -196,8 +194,11 @@ function reassembler(name: string, receive: (message: unknown) => void): (payloa
             return;
         }
 
-        // drop the messages whose fragments stopped arriving
-        const { id, position, total, part } = parseFragment(name, payload);
+        // skip this party's echo, and drop the messages whose fragments stopped arriving
+        const { sender, id, position, total, chunk } = parseFragment(name, payload);
+        if (sender === party) {
+            return;
+        }
         const now = Date.now();
         for (const [key, entry] of pending) {
             if (now - entry.at > FRAGMENT_MILLISECONDS) {
@@ -205,39 +206,41 @@ function reassembler(name: string, receive: (message: unknown) => void): (payloa
             }
         }
 
-        // keep the fragment, and deliver its message once every fragment arrived
+        // store the fragment, and deliver its message once every fragment arrived
         const entry = pending.get(id) ?? {
-            parts: Array.from<string>({ length: total }),
+            chunks: Array.from<string>({ length: total }),
             received: 0,
             at: now,
         };
         pending.set(id, entry);
-        entry.parts[position] = part;
+        entry.chunks[position] = chunk;
         entry.received += 1;
-        if (entry.received === entry.parts.length) {
+        if (entry.received === entry.chunks.length) {
             pending.delete(id);
-            const message: unknown = JSON.parse(entry.parts.join(""));
+            const message: unknown = JSON.parse(entry.chunks.join(""));
             receive(message);
         }
     };
 }
 
-/** Read a fragment's message id, position, count and text. */
+/** Read a fragment's sending party, message id, position, count and text. */
 function parseFragment(
     name: string,
     payload: string,
 ): {
+    readonly sender: string;
     readonly id: string;
     readonly position: number;
     readonly total: number;
-    readonly part: string;
+    readonly chunk: string;
 } {
-    // read the header's id, position and count
+    // read the header's party, id, position and count
     const header = payload.slice(FRAGMENT.length);
-    const [id, index, count] = header.split(":", 3);
+    const [sender, id, index, count] = header.split(":", 4);
     const position = Number(index);
     const total = Number(count);
     if (
+        sender === undefined ||
         id === undefined ||
         index === undefined ||
         count === undefined ||
@@ -248,29 +251,29 @@ function parseFragment(
     ) {
         throw new TypeError(`malformed notification fragment on ${name}`);
     }
-    const part = header.slice(id.length + index.length + count.length + 3);
+    const chunk = header.slice(sender.length + id.length + index.length + count.length + 4);
 
-    return { id, position, total, part };
+    return { sender, id, position, total, chunk };
 }
 
-/** Split text into parts of at most some UTF-8 bytes each, never inside a character. */
+/** Split text into chunks of at most some UTF-8 bytes each, never inside a character. */
 function fragments(text: string, bytes: number): string[] {
-    // fill each part up to the limit, measuring each character's UTF-8 width by its code point
-    const parts: string[] = [];
-    let part = "";
+    // fill each chunk up to the limit, measuring each character's UTF-8 width by its code point
+    const chunks: string[] = [];
+    let chunk = "";
     let size = 0;
     for (const character of text) {
-        // start a new part once the character would not fit
+        // start a new chunk once the character would not fit
         const width = UTF8.encode(character).length;
         if (size + width > bytes) {
-            parts.push(part);
-            part = "";
+            chunks.push(chunk);
+            chunk = "";
             size = 0;
         }
-        part += character;
+        chunk += character;
         size += width;
     }
-    parts.push(part);
+    chunks.push(chunk);
 
-    return parts;
+    return chunks;
 }

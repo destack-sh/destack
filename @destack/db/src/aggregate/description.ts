@@ -1,7 +1,7 @@
 import { schema } from "@destack/schema";
 import { Scalar } from "../query/condition.ts";
 
-/** Where an aggregate is kept and which rows it reads. */
+/** Where an aggregate is stored and which rows it reads. */
 const AGGREGATE_TARGET = {
     /** The SQL name of the table storing the aggregate. */
     table: schema.string().min(1),

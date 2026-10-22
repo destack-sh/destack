@@ -23,8 +23,8 @@ const SHARED = "a".repeat(64);
 /** Open two migrated SQLite databases of attachments, closed after the test. */
 async function openPair() {
     const [source, target] = await Promise.all([
-        TestDatabase.create("sqlite", [attachment], { isMigrated: true }),
-        TestDatabase.create("sqlite", [attachment], { isMigrated: true }),
+        TestDatabase.create([attachment], { isMigrated: true }),
+        TestDatabase.create([attachment], { isMigrated: true }),
     ]);
     onTestFinished(async () => {
         await Promise.all([source.close(), target.close()]);
@@ -33,7 +33,7 @@ async function openPair() {
     return [source, target] as const;
 }
 
-/** Read the digests of the pages a snapshot keeps. */
+/** Read the digests of a snapshot's pages. */
 async function pagesOf(store: MemoryContentStore, snapshot: Digest): Promise<string[]> {
     const [bytes] = await Array.fromAsync(store.read(snapshot));
     const manifest = schema
@@ -60,7 +60,7 @@ test("snapshot a database's rows into a content-addressed store and restore them
         title: schema.string().parse(row["title"]).replace("wrapped ", ""),
     }));
 
-    // keep the same rows in the target, under the same digest again
+    // restore the same rows in the target, under the same digest again
     expect([
         await target.database.select().from(attachment),
         await DatabaseHandle.snapshot(source, store),
@@ -71,7 +71,7 @@ test("snapshot a database's rows into a content-addressed store and restore them
 });
 
 test("restore onto a base snapshot only the pages an edit, an insert and a deletion changed", async () => {
-    // keep 6001 attachments
+    // store 6001 attachments
     const [source, target] = await openPair();
     const store = new MemoryContentStore();
     const rows = Array.from({ length: 6001 }, (_, index) => ({
@@ -102,7 +102,7 @@ test("restore onto a base snapshot only the pages an edit, an insert and a delet
     await DatabaseHandle.restore(
         target,
         digest,
-        { read: (part) => (read.push(part), store.read(part)) },
+        { read: (object) => (read.push(object), store.read(object)) },
         undefined,
         base,
     );

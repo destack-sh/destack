@@ -1,7 +1,7 @@
 import { expect, test } from "@destack/test";
 import { ReadCache } from "./cache.ts";
 
-test("share one read per key, keep the most recent values and share nothing of a failed read", async () => {
+test("share one read per key, store the most recent values and share nothing of a failed read", async () => {
     const cache = new ReadCache<string>(2, 1, () => 1);
     const reads: string[] = [];
     const read = (key: string) => async () => {
@@ -10,7 +10,7 @@ test("share one read per key, keep the most recent values and share nothing of a
         return `value of ${key}`;
     };
 
-    // share a running read and answer kept values from memory
+    // share a running read and answer stored values from memory
     const [first, shared] = await Promise.all([
         cache.get("a", read("a"), at(1)),
         cache.get("a", read("a"), at(1)),
@@ -47,7 +47,7 @@ test("answer a position from a value read at it or later, reading a later positi
         return `value of ${key}`;
     };
 
-    // read a at 1, then at 2, answer 1 and 2 from the later value, and read a later epoch anew
+    // read a at 1 and 2, answer both from the later value, and read a later epoch anew
     await cache.get("a", read("a"), at(1));
     await cache.get("a", read("a"), at(1));
     await cache.get("a", read("a"), at(2));
@@ -55,7 +55,7 @@ test("answer a position from a value read at it or later, reading a later positi
     await cache.get("a", read("a"), at(2));
     await cache.get("a", read("a"), { log: "l1", epoch: "e2", sequence: 1 });
 
-    // keep b at its position, and nothing the predicate refuses
+    // store b at its position, and nothing the predicate refuses
     await cache.get("b", read("b"), at(5));
     await cache.get("b", read("b"), at(5));
     await cache.get("big", read("big"), at(1));
@@ -63,7 +63,7 @@ test("answer a position from a value read at it or later, reading a later positi
     expect(reads).toEqual(["a", "a", "a", "b", "big", "big"]);
 });
 
-test("keep the newer value when an older read finishes after it", async () => {
+test("store the newer value when an older read finishes after it", async () => {
     // start a read at 1, finish a read at 2, then finish the read at 1
     const cache = new ReadCache<string>(2, 1, () => 1);
     const older = Promise.withResolvers<string>();
@@ -76,8 +76,8 @@ test("keep the newer value when an older read finishes after it", async () => {
     expect(await cache.get("a", async () => "read again", at(2))).toBe("newer");
 });
 
-test("keep values up to the cache's total weight, dropping the least recently used", async () => {
-    // keep rows up to three, and none heavier than two
+test("store values up to the cache's total weight, dropping the least recently used", async () => {
+    // store rows up to three, and none heavier than two
     const cache = new ReadCache<readonly string[]>(3, 2, (rows) => rows.length);
     const reads: string[] = [];
     const read = (key: string, rows: number) => async () => {

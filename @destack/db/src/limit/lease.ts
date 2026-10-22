@@ -45,7 +45,7 @@ export type LeaseOutcome =
           readonly kind: "acquired";
           /** The slot. */
           readonly slot: number;
-          /** The slot's epoch, which the holder's writes carry. */
+          /** The slot's epoch, which the holder's writes record. */
           readonly epoch: number;
           /** When the slot lapses unless renewed, in UTC epoch milliseconds. */
           readonly expiresAt: number;
@@ -59,7 +59,7 @@ export type LeaseOutcome =
 
 /** Leases of keys to holders, single or in slots, over one database. */
 export const Lease = {
-    /** Take a free, lapsed or own slot of a key, reusing an own slot with most of its time left. */
+    /** Take a free or lapsed slot of a key, or reuse the holder's slot with time left. */
     async acquire(database: DatabaseConnection, request: LeaseRequest): Promise<LeaseOutcome> {
         // read the key's slots within its count, again after a racing holder took the chosen one
         const { name, key, holder, duration, now, slots = 1 } = request;
@@ -75,23 +75,23 @@ export const Lease = {
                 .where(and(eq(lease.name, name), eq(lease.key, key)));
             const rows = read.filter((row) => row.slot < slots);
 
-            // reuse an own slot with most of its time left, without writing
-            const own = rows.find((row) => row.holder === holder && row.expiresAt > now);
-            if (own !== undefined && own.expiresAt - now > duration * REUSE_REMAINING) {
+            // reuse a slot of the holder with most of its time left, without writing
+            const held = rows.find((row) => row.holder === holder && row.expiresAt > now);
+            if (held !== undefined && held.expiresAt - now > duration * REUSE_REMAINING) {
                 return {
                     kind: "acquired",
-                    slot: own.slot,
-                    epoch: own.epoch,
-                    expiresAt: own.expiresAt,
+                    slot: held.slot,
+                    epoch: held.epoch,
+                    expiresAt: held.expiresAt,
                 };
             }
 
-            // choose the own slot, else a missing one, else a lapsed one, else report the earliest lapse
+            // choose the holder's slot, else a missing one, else a lapsed one
             const missing = Array.from({ length: slots }, (_, slot) => slot).find(
                 (slot) => !rows.some((row) => row.slot === slot),
             );
             const lapsed = rows.find((row) => row.expiresAt <= now);
-            const slot = own?.slot ?? missing ?? lapsed?.slot;
+            const slot = held?.slot ?? missing ?? lapsed?.slot;
             if (slot === undefined) {
                 const lapsesAt = Math.min(...rows.map((row) => row.expiresAt));
 
@@ -125,7 +125,7 @@ export const Lease = {
         );
     },
 
-    /** Read when a key's held slots lapse, the latest of them, undefined while none is held. */
+    /** Read when a key's taken slots lapse, the latest of them, undefined while none is taken. */
     async lapsesAt(
         database: DatabaseConnection,
         request: Pick<LeaseRequest, "name" | "key" | "now">,

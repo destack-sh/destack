@@ -45,7 +45,7 @@ export function relation(name: string, namespace: string | undefined): string {
 
 /** Fit a derived SQL name and a reserved suffix within the identifier limit, ending in a hash. */
 export function boundedName(name: string, reserved = 0): string {
-    // keep names that fit
+    // leave names that fit
     const limit = MAX_IDENTIFIER_LENGTH - reserved;
     if (name.length <= limit) {
         return name;

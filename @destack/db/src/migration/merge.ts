@@ -47,7 +47,7 @@ export function mergeStates(declarations: readonly (readonly TableState[])[]): M
     return { declared, conflicts };
 }
 
-/** Merge one table's states into the newest and keep older columns. */
+/** Merge one table's states into the newest and add older columns. */
 function mergeTable(states: readonly TableState[]): {
     readonly state: TableState;
     readonly reason?: string;
@@ -57,12 +57,12 @@ function mergeTable(states: readonly TableState[]): {
     const others = states.filter((state) => state !== newest);
     const { moves, bridges } = bridgeMoves(newest, others);
 
-    // relax bridged columns the older release leaves empty and keep older columns
+    // relax bridged columns the older release leaves empty and add older columns
     const bridged = new Set(bridges.map((bridge) => bridge.to));
     const columns = newest.table.columns.map((column) =>
         bridged.has(column.name) ? relax(column) : column,
     );
-    const disagreement = keepOlderColumns(columns, others, bridged);
+    const disagreement = addOlderColumns(columns, others, bridged);
     if (disagreement !== undefined) {
         return { state: newest, reason: disagreement };
     }
@@ -143,7 +143,7 @@ function bridgeMoves(
 }
 
 /** Add the older releases' columns the newest lacks. */
-function keepOlderColumns(
+function addOlderColumns(
     columns: TableDescription["columns"][number][],
     others: readonly TableState[],
     bridged: ReadonlySet<string>,
@@ -151,7 +151,7 @@ function keepOlderColumns(
     const byName = new Map(columns.map((column) => [column.name, column]));
     for (const state of others) {
         for (const column of state.table.columns) {
-            // keep a missing column unless an older release keys by it
+            // add a missing column unless an older release keys by it
             const existing = byName.get(column.name);
             if (existing === undefined) {
                 if (isKeyColumn(state, column.name)) {
@@ -171,7 +171,7 @@ function keepOlderColumns(
     return undefined;
 }
 
-/** Report whether a column is part of a state's primary key. */
+/** Report whether a column is in a state's primary key. */
 function isKeyColumn(state: TableState, name: string): boolean {
     return state.table.constraints.some(
         (constraint) => constraint.kind === "primaryKey" && constraint.columns.includes(name),

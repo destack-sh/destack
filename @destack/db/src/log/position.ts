@@ -4,7 +4,7 @@ import type { Dialect } from "../dialect/dialect.ts";
 import { DatabaseError } from "../error/error.ts";
 import { LOG, LOG_EPOCH, LOG_HORIZON, LOG_TRANSACTION } from "./schema.ts";
 
-/** The log's own columns, read by the driver types they return, since the log writes them all. */
+/** The log's columns, read by the driver types they return, since the log writes them all. */
 export const LogColumn = {
     /** Read a sequence or time from a number, big integer or numeric text, failing for others. */
     integer(value: unknown): number {
@@ -73,7 +73,7 @@ export const LogColumn = {
 
 /** The schema of a position in the log. */
 const logPositionSchema = schema.object({
-    /** The log's identifier, which a restore keeps. */
+    /** The log's identifier, which a restore preserves. */
     log: schema.string().min(1),
     /** The log's epoch, renewed when the database is restored. */
     epoch: schema.string().min(1),

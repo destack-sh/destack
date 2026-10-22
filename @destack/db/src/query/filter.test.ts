@@ -17,7 +17,7 @@ test("read comparisons, named values and wildcards into conditions", () => {
             "deletedAt = null",
             "deletedAt != null",
             "title = plan*",
-            "isPinned = true",
+            "isStarred = true",
         ].map((filter) => Filter.parse(filter, options)),
     ).toEqual([
         { status: "open" },
@@ -30,7 +30,7 @@ test("read comparisons, named values and wildcards into conditions", () => {
         { deletedAt: { isNull: true } },
         { deletedAt: { isNotNull: true } },
         { title: { like: "plan%" } },
-        { isPinned: true },
+        { isStarred: true },
     ]);
 });
 
@@ -69,7 +69,7 @@ test("escape pattern characters and convert literals for their fields", () => {
 });
 
 test("nest dotted names under relations, or name one field when a filter reads attribute keys", () => {
-    // walk the relation, or keep the dotted key whole
+    // walk the relation, or read the dotted key whole
     expect([
         Filter.parse("project.status = open"),
         Filter.parse("session.status = crashed", { isRelational: false }),

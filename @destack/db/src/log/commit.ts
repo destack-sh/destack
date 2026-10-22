@@ -70,7 +70,7 @@ export class ReadSet {
 
     /** Record a read of one row by its key, a whole row read outranking an image read. */
     #key(table: Table, key: Row, kind: ReadKind): void {
-        // keep the strongest read of the key
+        // record the strongest read of the key
         const name = this.#table(table);
         const keys = this.#keys.get(name) ?? new Map<string, ReadKind>();
         const keyName = Key.name(table, key);
@@ -86,18 +86,18 @@ export class ReadSet {
         this.#matches.set(name, [...matches, { match: Predicate.compile(predicate, table), kind }]);
     }
 
-    /** Record every read another set recorded, keeping the stronger read of a key. */
+    /** Record every read another set recorded, with the stronger read of a key. */
     add(other: ReadSet): void {
         // take the other set's tables, keys and scans
         for (const [name, table] of other.#tables) {
             this.#tables.set(name, table);
         }
         for (const [name, keys] of other.#keys) {
-            const own = this.#keys.get(name) ?? new Map<string, ReadKind>();
+            const recorded = this.#keys.get(name) ?? new Map<string, ReadKind>();
             for (const [key, kind] of keys) {
-                own.set(key, own.get(key) === "row" ? "row" : kind);
+                recorded.set(key, recorded.get(key) === "row" ? "row" : kind);
             }
-            this.#keys.set(name, own);
+            this.#keys.set(name, recorded);
         }
         for (const [name, matches] of other.#matches) {
             this.#matches.set(name, [...(this.#matches.get(name) ?? []), ...matches]);
@@ -135,7 +135,7 @@ export class ReadSet {
         return isKeyRead || isScanned;
     }
 
-    /** Keep a table by its SQL name and return the name. */
+    /** Record a table by its SQL name and return the name. */
     #table(table: Table): string {
         const name = table[TABLE].sqlName;
         this.#tables.set(name, table);
@@ -165,7 +165,7 @@ export class ChangeSet {
         }
         const name = Key.name(table, image);
 
-        // keep the row's first image before and its latest after, counting the write
+        // record the row's first image before and its latest after, counting the write
         const first = this.#rows.get(name);
         this.#rows.set(name, { table, before: first === undefined ? before : first.before, after });
         const sqlName = table[TABLE].sqlName;
@@ -236,7 +236,7 @@ export class ChangeSet {
 
     /** Read the set's rows of a table by key name: each latest image, null once removed. */
     writtenRows(table: Table): Map<string, Row | null> {
-        // keep the latest image of each row of the table
+        // take the latest image of each row of the table
         const name = table[TABLE].sqlName;
         const rows = new Map<string, Row | null>();
         for (const [key, change] of this.#rows) {
@@ -258,7 +258,7 @@ export class ChangeSet {
         // validate reads under the lock and check references after the writes
         await database.transaction(
             async (transaction) => {
-                // hold off other commits first, then refuse once a later commit touched a read
+                // serialize against other commits, then refuse once a later commit touched a read
                 await transaction.log.serialize();
                 await ChangeSet.requireCurrent(transaction, base, reads);
 
@@ -298,7 +298,7 @@ export class ChangeSet {
         return runs;
     }
 
-    /** Read how a change applies: inserted, updated or deleted in batches, else on its own. */
+    /** Read how a change applies: inserted, updated or deleted in batches, else alone. */
     static #operation(
         change: RowChange,
         dialect: Dialect,
@@ -311,7 +311,7 @@ export class ChangeSet {
             return "delete";
         }
 
-        // batch an update keeping its key and its unique values, its columns readable from JSON
+        // batch an update with its key and its unique values, its columns readable from JSON
         const definition = table[TABLE];
         const changed = changedColumns(change);
         const unique = new Set(definition.uniqueKeys.flatMap((key) => key.columns));
@@ -353,7 +353,7 @@ export class ChangeSet {
         else if (operation === "update") {
             await ChangeSet.#update(transaction, run);
         }
-        // update a row moving its key or unique values on its own, in write order
+        // update a row moving its key or unique values alone, in write order
         else {
             await ChangeSet.#set(transaction, first);
         }
@@ -363,7 +363,7 @@ export class ChangeSet {
     static async #set(transaction: DatabaseConnection, change: RowChange): Promise<void> {
         // write the changed columns where the row's key was
         const { table } = change;
-        const { before, after } = ChangeSet.#kept(change);
+        const { before, after } = ChangeSet.#images(change);
         const changed = changedColumns(change);
         await transaction
             .update(table)
@@ -372,7 +372,7 @@ export class ChangeSet {
     }
 
     /** Read a changed row's images before and after, refusing a creation or a removal. */
-    static #kept(change: RowChange): { readonly before: Row; readonly after: Row } {
+    static #images(change: RowChange): { readonly before: Row; readonly after: Row } {
         const { table, before, after } = change;
         if (before === null || after === null) {
             throw new TypeError(
@@ -400,7 +400,7 @@ export class ChangeSet {
         transaction: DatabaseConnection,
         group: readonly RowChange[],
     ): Promise<void> {
-        // update a lone row by its own statement
+        // update a lone row by a separate statement
         const first = nth(group, 0);
         if (group.length === 1) {
             return ChangeSet.#set(transaction, first);
@@ -411,7 +411,7 @@ export class ChangeSet {
         const key = table[TABLE].key;
         const changed = changedColumns(first);
         const tuples = group.map((change) => {
-            const { before, after } = ChangeSet.#kept(change);
+            const { before, after } = ChangeSet.#images(change);
 
             return [
                 ...key.map((column) => jsonOf(table, column, before)),
@@ -453,7 +453,7 @@ export class ChangeSet {
         base: LogPosition,
         reads: ReadSet,
     ): Promise<void> {
-        // require the base's epoch, whose sequences the log keeps counting
+        // require the base's epoch, whose sequences the log continues
         const tables = reads.tables;
         if (tables.length === 0) {
             return;
@@ -535,7 +535,7 @@ export class Transaction {
         }, signal);
     }
 
-    /** Run an attempt opening and committing its own transaction again while it loses a race. */
+    /** Run an attempt in a separate transaction again while it loses a race. */
     static async retry<Value>(run: () => Promise<Value>, signal?: AbortSignal): Promise<Value> {
         for (let attempt = 1; ; attempt++) {
             try {
@@ -584,7 +584,7 @@ export class Transaction {
         return Snapshot.live(this.database).recording(this.reads).layer(this.changes.overlay());
     }
 
-    /** Read a table's whole rows with the transaction's own writes, recording each read. */
+    /** Read a table's whole rows with the transaction's writes, recording each read. */
     read<Definition extends Table>(
         table: Definition,
     ): RelationalQueryBuilder<Definition, Select<Definition>> {
@@ -604,7 +604,7 @@ export class Transaction {
         );
     }
 
-    /** Read one row by its key with the transaction's own writes, unrecorded. */
+    /** Read one row by its key with the transaction's writes, unrecorded. */
     async #row<Definition extends Table>(
         table: Definition,
         key: Key,
@@ -633,7 +633,7 @@ export class Transaction {
         return row;
     }
 
-    /** Read the rows meeting a condition with the transaction's own writes, unrecorded. */
+    /** Read the rows meeting a condition with the transaction's writes, unrecorded. */
     async #rows<Definition extends Table>(
         table: Definition,
         where: Predicate,
@@ -667,7 +667,7 @@ export class Transaction {
         return bounded.map((row) => Table.complete(table, row));
     }
 
-    /** Count the rows meeting a condition with the transaction's own writes. */
+    /** Count the rows meeting a condition with the transaction's writes. */
     async count<Definition extends Table>(
         table: Definition,
         where: Condition<RowImage<NoInfer<Definition>>> = {},
@@ -710,13 +710,13 @@ export class Transaction {
 
     /** Refuse rows sharing a unique key with another, in one recorded read. */
     async #requireUnique(table: Table, changes: readonly RowChange[]): Promise<void> {
-        // take the keys each change sets, leaving out keys with nulls and ones it keeps
+        // take the keys each change sets, leaving out keys with nulls and unchanged ones
         const definition = table[TABLE];
         const keyed = changes.flatMap(({ before, after }) =>
             after === null
                 ? []
                 : definition.uniqueKeys.flatMap((key) => {
-                      // decide whether the change sets the key and whether it keeps it
+                      // decide whether the change sets the key and whether it leaves it unchanged
                       const covers = covering(table, key);
                       const isSet =
                           (key.isNullsNotDistinct ||

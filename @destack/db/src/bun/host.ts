@@ -9,14 +9,14 @@ import type { DatabaseHost } from "../provider/provider.ts";
 import { DatabaseHandle } from "../database/handle.ts";
 import { Table } from "../table/table.ts";
 
-/** Keep databases as SQLite files below a directory, one folder per space. */
+/** Store databases as SQLite files below a directory, one folder per space. */
 export class BunSqliteDatabaseHost implements DatabaseHost {
     /** The provider code of SQLite files. */
     readonly provider: string = "sqlite";
     /** The directory URL with a folder per space. */
     readonly root: URL;
 
-    /** Keep databases below a file directory URL. */
+    /** Store databases below a file directory URL. */
     constructor(root: URL) {
         // require a directory URL
         if (root.protocol !== "file:" || !root.pathname.endsWith("/")) {

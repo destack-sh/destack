@@ -1,6 +1,6 @@
 import { eq } from "../sql/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
-import { TEST_DIALECTS, TestDatabase } from "../test/database.ts";
+import { TestDatabase } from "../test/database.ts";
 import { defineTable, type Select } from "../table/table.ts";
 import type { Row } from "../table/row.ts";
 import { integer, text } from "../table/column.ts";
@@ -73,253 +73,234 @@ function byKey(rows: readonly Row[]): Row[] {
     return rows.toSorted((left, right) => Order.rows(Order.complete([], item), left, right));
 }
 
-test.for(TEST_DIALECTS)(
-    "read tables as they were at sampled earlier positions, ordered and bounded, on %s",
-    async (dialect) => {
-        const storage = await TestDatabase.create(dialect, [item], { isMigrated: true });
-        onTestFinished(() => storage.close());
-        const database = storage.database;
-        const seed = { value: 19 };
-        const where = { scope: "inbox", rank: { gte: 2 } };
-        const orderBy = { rank: "desc" } as const;
+test("read tables as they were at sampled earlier positions, ordered and bounded", async () => {
+    const storage = await TestDatabase.create([item], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const database = storage.database;
+    const seed = { value: 19 };
+    const where = { scope: "inbox", rank: { gte: 2 } };
+    const orderBy = { rank: "desc" } as const;
 
-        // write at random and capture the rows at each position
-        const captured: { readonly position: LogPosition; readonly rows: Select<typeof item>[] }[] =
-            [];
-        for (let index = 0; index < WRITES; index += 1) {
-            const id = `i${Math.floor(random(seed) * 12)}`;
-            const values = {
-                id,
-                scope: random(seed) < 0.8 ? "inbox" : "archive",
-                rank: Math.floor(random(seed) * 6),
-                label: random(seed) < 0.3 ? null : "x",
-            };
-            if (random(seed) < 0.2) {
-                await database.delete(item).where(eq(item.id, id));
-            } else {
-                await database
-                    .insert(item)
-                    .values(values)
-                    .onConflictDoUpdate({ target: item.id, set: values });
-            }
-            const rows = await database.select().from(item);
-            captured.push({ position: await database.log.position(), rows });
+    // write at random and capture the rows at each position
+    const captured: { readonly position: LogPosition; readonly rows: Select<typeof item>[] }[] = [];
+    for (let index = 0; index < WRITES; index += 1) {
+        const id = `i${Math.floor(random(seed) * 12)}`;
+        const values = {
+            id,
+            scope: random(seed) < 0.8 ? "inbox" : "archive",
+            rank: Math.floor(random(seed) * 6),
+            label: random(seed) < 0.3 ? null : "x",
+        };
+        if (random(seed) < 0.2) {
+            await database.delete(item).where(eq(item.id, id));
+        } else {
+            await database
+                .insert(item)
+                .values(values)
+                .onConflictDoUpdate({ target: item.id, set: values });
         }
+        const rows = await database.select().from(item);
+        captured.push({ position: await database.log.position(), rows });
+    }
 
-        // read the snapshot of every sixth position, the last included
-        const sampled = captured.filter((_, index) => (index + 1) % SAMPLE_STRIDE === 0);
-        for (const { position, rows } of sampled) {
-            const snapshot = database.log.at(position);
-            const matching = rows.filter((row) => row.scope === "inbox" && row.rank >= 2);
-            const sorted = matching.toSorted((left, right) =>
-                Order.rows(Order.complete(Order.of(orderBy), item), left, right),
-            );
-
-            // read the first rows of each folder at once, as each folder's own read has them
-            const firstOf = (scope: string) =>
-                rows
-                    .filter((row) => row.scope === scope && row.rank >= 2)
-                    .toSorted((left, right) =>
-                        Order.rows(Order.complete(Order.of(orderBy), item), left, right),
-                    )
-                    .slice(0, 3);
-            expect([
-                position.sequence,
-                byKey(await snapshot.read(item).findMany({ where })),
-                await snapshot.read(item).findFirst({ where: { id: "i3" } }),
-                await snapshot.ordered(item, { where, orderBy, limit: 3 }),
-                await snapshot.read(item).findMany({ where, orderBy, limit: 3 }),
-                await snapshot.read(item).findMany({ where, orderBy }),
-                await snapshot.windows(item, {
-                    where: { rank: { gte: 2 } },
-                    orderBy,
-                    limit: 3,
-                    partition: { column: "scope", values: ["inbox", "archive", "nowhere"] },
-                }),
-            ]).toEqual([
-                position.sequence,
-                byKey(matching),
-                rows.find((row) => row.id === "i3"),
-                sorted.slice(0, 3),
-                sorted.slice(0, 3),
-                sorted,
-                [firstOf("inbox"), firstOf("archive"), []],
-            ]);
-        }
-    },
-);
-
-test.for(TEST_DIALECTS)(
-    "read history past compaction, and refuse compacted windows and other epochs on %s",
-    async (dialect) => {
-        const storage = await TestDatabase.create(dialect, [item, revision], { isMigrated: true });
-        onTestFinished(() => storage.close());
-        const database = storage.database;
-        const everything = {};
-
-        // write, take a position, change and compact
-        await database.insert(item).values({ id: "a", scope: "inbox", rank: 1, label: null });
-        await database.insert(revision).values({ id: "r", scope: "inbox", title: "First" });
-        const position = await database.log.position();
-        await database.update(revision).set({ title: "Second" }).where(eq(revision.id, "r"));
-        await database.delete(item).where(eq(item.id, "a"));
-        const now = Date.now();
-        await database.log.compact(now + 1, now);
+    // read the snapshot of every sixth position, the last included
+    const sampled = captured.filter((_, index) => (index + 1) % SAMPLE_STRIDE === 0);
+    for (const { position, rows } of sampled) {
         const snapshot = database.log.at(position);
-
-        // restore the history table and refuse the window table
-        expect(await snapshot.read(revision).findMany({ where: everything })).toEqual([
-            { id: "r", scope: "inbox", title: "First" },
-        ]);
-        await expect(snapshot.read(item).findMany({ where: everything })).rejects.toMatchObject({
-            code: "CHANGES_COMPACTED",
-        });
-
-        // refuse reads after a new epoch
-        await database.log.renew();
-        await expect(snapshot.read(revision).findMany({ where: everything })).rejects.toMatchObject(
-            {
-                code: "STALE_EPOCH",
-            },
+        const matching = rows.filter((row) => row.scope === "inbox" && row.rank >= 2);
+        const sorted = matching.toSorted((left, right) =>
+            Order.rows(Order.complete(Order.of(orderBy), item), left, right),
         );
-    },
-);
 
-test.for(TEST_DIALECTS)(
-    "read the latest commit and the rows at it inside a writing transaction on %s",
-    async (dialect) => {
-        const storage = await TestDatabase.create(dialect, [item], { isMigrated: true });
-        onTestFinished(() => storage.close());
-        const database = storage.database;
-        await database.insert(item).values({ id: "i1", scope: "inbox", rank: 1, label: "x" });
-        const committed = await database.log.position();
+        // read the first rows of each folder at once, as a read per folder has them
+        const firstOf = (scope: string) =>
+            rows
+                .filter((row) => row.scope === scope && row.rank >= 2)
+                .toSorted((left, right) =>
+                    Order.rows(Order.complete(Order.of(orderBy), item), left, right),
+                )
+                .slice(0, 3);
+        expect([
+            position.sequence,
+            byKey(await snapshot.read(item).findMany({ where })),
+            await snapshot.read(item).findFirst({ where: { id: "i3" } }),
+            await snapshot.ordered(item, { where, orderBy, limit: 3 }),
+            await snapshot.read(item).findMany({ where, orderBy, limit: 3 }),
+            await snapshot.read(item).findMany({ where, orderBy }),
+            await snapshot.windows(item, {
+                where: { rank: { gte: 2 } },
+                orderBy,
+                limit: 3,
+                partition: { column: "scope", values: ["inbox", "archive", "nowhere"] },
+            }),
+        ]).toEqual([
+            position.sequence,
+            byKey(matching),
+            rows.find((row) => row.id === "i3"),
+            sorted.slice(0, 3),
+            sorted.slice(0, 3),
+            sorted,
+            [firstOf("inbox"), firstOf("archive"), []],
+        ]);
+    }
+});
 
-        // write inside a transaction and read the head and a snapshot
-        const [position, rows, row] = await database.transaction(async (transaction) => {
-            await transaction.update(item).set({ rank: 5 }).where(eq(item.id, "i1"));
-            await transaction.insert(item).values({ id: "i2", scope: "inbox", rank: 2 });
-            const head = await transaction.log.position();
-            const snapshot = transaction.log.at(head);
+test("read history past compaction, and refuse compacted windows and other epochs", async () => {
+    const storage = await TestDatabase.create([item, revision], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const database = storage.database;
+    const everything = {};
 
-            return [
-                head,
-                await snapshot.read(item).findMany({ where: { scope: "inbox" } }),
-                await snapshot.read(item).findFirst({ where: { id: "i2" } }),
-            ] as const;
+    // write, take a position, change and compact
+    await database.insert(item).values({ id: "a", scope: "inbox", rank: 1, label: null });
+    await database.insert(revision).values({ id: "r", scope: "inbox", title: "First" });
+    const position = await database.log.position();
+    await database.update(revision).set({ title: "Second" }).where(eq(revision.id, "r"));
+    await database.delete(item).where(eq(item.id, "a"));
+    const now = Date.now();
+    await database.log.compact(now + 1, now);
+    const snapshot = database.log.at(position);
+
+    // restore the history table and refuse the window table
+    expect(await snapshot.read(revision).findMany({ where: everything })).toEqual([
+        { id: "r", scope: "inbox", title: "First" },
+    ]);
+    await expect(snapshot.read(item).findMany({ where: everything })).rejects.toMatchObject({
+        code: "CHANGES_COMPACTED",
+    });
+
+    // refuse reads after a new epoch
+    await database.log.renew();
+    await expect(snapshot.read(revision).findMany({ where: everything })).rejects.toMatchObject({
+        code: "STALE_EPOCH",
+    });
+});
+
+test("read the latest commit and the rows at it inside a writing transaction", async () => {
+    const storage = await TestDatabase.create([item], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const database = storage.database;
+    await database.insert(item).values({ id: "i1", scope: "inbox", rank: 1, label: "x" });
+    const committed = await database.log.position();
+
+    // write inside a transaction and read the head and a snapshot
+    const [position, rows, row] = await database.transaction(async (transaction) => {
+        await transaction.update(item).set({ rank: 5 }).where(eq(item.id, "i1"));
+        await transaction.insert(item).values({ id: "i2", scope: "inbox", rank: 2 });
+        const head = await transaction.log.position();
+        const snapshot = transaction.log.at(head);
+
+        return [
+            head,
+            await snapshot.read(item).findMany({ where: { scope: "inbox" } }),
+            await snapshot.read(item).findFirst({ where: { id: "i2" } }),
+        ] as const;
+    });
+
+    // show the latest commit without the transaction's writes
+    expect([position, rows, row]).toEqual([
+        committed,
+        [{ id: "i1", scope: "inbox", rank: 1, label: "x" }],
+        undefined,
+    ]);
+});
+
+test("read tables under an overlay live and at every earlier position", async () => {
+    const storage = await TestDatabase.create([item], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const database = storage.database;
+    const seed = { value: 7 };
+    const where = { scope: "inbox", rank: { gte: 2 } };
+    const orderBy = { rank: "desc" } as const;
+
+    // put rows over some keys and remove others
+    const overlay = new Map<string, Select<typeof item> | null>();
+    for (let index = 0; index < 12; index += 1) {
+        const draw = random(seed);
+        if (draw < 0.25) {
+            overlay.set(`i${index}`, null);
+        } else if (draw < 0.5) {
+            const rank = Math.floor(random(seed) * 6);
+            overlay.set(`i${index}`, { id: `i${index}`, scope: "inbox", rank, label: "b" });
+        }
+    }
+    const layered = async () =>
+        new Map([...overlay].map(([id, row]) => [Key.name(item, { id }), row]));
+
+    // write at random and capture the rows at each position
+    const captured: { readonly position: LogPosition; readonly rows: Select<typeof item>[] }[] = [];
+    for (let index = 0; index < WRITES; index += 1) {
+        const id = `i${Math.floor(random(seed) * 12)}`;
+        const values = {
+            id,
+            scope: random(seed) < 0.8 ? "inbox" : "archive",
+            rank: Math.floor(random(seed) * 6),
+            label: random(seed) < 0.3 ? null : "x",
+        };
+        if (random(seed) < 0.2) {
+            await database.delete(item).where(eq(item.id, id));
+        } else {
+            await database
+                .insert(item)
+                .values(values)
+                .onConflictDoUpdate({ target: item.id, set: values });
+        }
+        captured.push({
+            position: await database.log.position(),
+            rows: await database.select().from(item),
         });
+    }
 
-        // show the latest commit without the transaction's writes
-        expect([position, rows, row]).toEqual([
-            committed,
-            [{ id: "i1", scope: "inbox", rank: 1, label: "x" }],
-            undefined,
-        ]);
-    },
-);
-
-test.for(TEST_DIALECTS)(
-    "read tables under an overlay live and at every earlier position on %s",
-    async (dialect) => {
-        const storage = await TestDatabase.create(dialect, [item], { isMigrated: true });
-        onTestFinished(() => storage.close());
-        const database = storage.database;
-        const seed = { value: 7 };
-        const where = { scope: "inbox", rank: { gte: 2 } };
-        const orderBy = { rank: "desc" } as const;
-
-        // put rows over some keys and remove others
-        const overlay = new Map<string, Select<typeof item> | null>();
-        for (let index = 0; index < 12; index += 1) {
-            const draw = random(seed);
-            if (draw < 0.25) {
-                overlay.set(`i${index}`, null);
-            } else if (draw < 0.5) {
-                const rank = Math.floor(random(seed) * 6);
-                overlay.set(`i${index}`, { id: `i${index}`, scope: "inbox", rank, label: "b" });
-            }
-        }
-        const layered = async () =>
-            new Map([...overlay].map(([id, row]) => [Key.name(item, { id }), row]));
-
-        // write at random and capture the rows at each position
-        const captured: { readonly position: LogPosition; readonly rows: Select<typeof item>[] }[] =
-            [];
-        for (let index = 0; index < WRITES; index += 1) {
-            const id = `i${Math.floor(random(seed) * 12)}`;
-            const values = {
-                id,
-                scope: random(seed) < 0.8 ? "inbox" : "archive",
-                rank: Math.floor(random(seed) * 6),
-                label: random(seed) < 0.3 ? null : "x",
-            };
-            if (random(seed) < 0.2) {
-                await database.delete(item).where(eq(item.id, id));
-            } else {
-                await database
-                    .insert(item)
-                    .values(values)
-                    .onConflictDoUpdate({ target: item.id, set: values });
-            }
-            captured.push({
-                position: await database.log.position(),
-                rows: await database.select().from(item),
-            });
-        }
-
-        // read each position's snapshot and the live one under the overlay
-        const live = { position: undefined, rows: await database.select().from(item) };
-        for (const { position, rows } of [...captured, live]) {
-            const snapshot = (
-                position === undefined ? Snapshot.live(database) : database.log.at(position)
-            ).layer(layered);
-            const kept = rows.filter((row) => !overlay.has(row.id));
-            const shown = [...kept, ...[...overlay.values()].filter((row) => row !== null)];
-            const matching = shown.filter((row) => row.scope === "inbox" && row.rank >= 2);
-            const sorted = matching.toSorted((left, right) =>
-                Order.rows(Order.complete(Order.of(orderBy), item), left, right),
-            );
-            expect([
-                position?.sequence,
-                byKey(await snapshot.read(item).findMany({ where })),
-                await snapshot.read(item).findFirst({ where: { id: "i3" } }),
-                await snapshot.ordered(item, { where, orderBy, limit: 3 }),
-            ]).toEqual([
-                position?.sequence,
-                byKey(matching),
-                shown.find((row) => row.id === "i3"),
-                sorted.slice(0, 3),
-            ]);
-        }
-    },
-);
-
-test.for(TEST_DIALECTS)(
-    "select rows by keys of text and integer columns, none for a missing key, on %s",
-    async (dialect) => {
-        const storage = await TestDatabase.create(dialect, [part], { isMigrated: true });
-        onTestFinished(() => storage.close());
-        const database = storage.database;
-        await database.insert(part).values([
-            { upload: "u", number: 1, scope: "inbox", size: 10 },
-            { upload: "u", number: 2, scope: "inbox", size: 20 },
-            { upload: "v", number: 1, scope: "inbox", size: 30 },
-        ]);
-
-        // read two kept keys and a missing one
-        const rows = await Snapshot.live(database).select(
-            part,
-            ["upload", "number"],
-            [
-                ["u", 2],
-                ["u", 3],
-                ["v", 1],
-            ],
+    // read each position's snapshot and the live one under the overlay
+    const live = { position: undefined, rows: await database.select().from(item) };
+    for (const { position, rows } of [...captured, live]) {
+        const snapshot = (
+            position === undefined ? Snapshot.live(database) : database.log.at(position)
+        ).layer(layered);
+        const kept = rows.filter((row) => !overlay.has(row.id));
+        const shown = [...kept, ...[...overlay.values()].filter((row) => row !== null)];
+        const matching = shown.filter((row) => row.scope === "inbox" && row.rank >= 2);
+        const sorted = matching.toSorted((left, right) =>
+            Order.rows(Order.complete(Order.of(orderBy), item), left, right),
         );
-        expect(
-            rows.toSorted((left, right) => Order.rows(Order.complete([], part), left, right)),
-        ).toEqual([
-            { upload: "u", number: 2, scope: "inbox", size: 20 },
-            { upload: "v", number: 1, scope: "inbox", size: 30 },
+        expect([
+            position?.sequence,
+            byKey(await snapshot.read(item).findMany({ where })),
+            await snapshot.read(item).findFirst({ where: { id: "i3" } }),
+            await snapshot.ordered(item, { where, orderBy, limit: 3 }),
+        ]).toEqual([
+            position?.sequence,
+            byKey(matching),
+            shown.find((row) => row.id === "i3"),
+            sorted.slice(0, 3),
         ]);
-    },
-);
+    }
+});
+
+test("select rows by keys of text and integer columns, none for a missing key", async () => {
+    const storage = await TestDatabase.create([part], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const database = storage.database;
+    await database.insert(part).values([
+        { upload: "u", number: 1, scope: "inbox", size: 10 },
+        { upload: "u", number: 2, scope: "inbox", size: 20 },
+        { upload: "v", number: 1, scope: "inbox", size: 30 },
+    ]);
+
+    // read two stored keys and a missing one
+    const rows = await Snapshot.live(database).select(
+        part,
+        ["upload", "number"],
+        [
+            ["u", 2],
+            ["u", 3],
+            ["v", 1],
+        ],
+    );
+    expect(
+        rows.toSorted((left, right) => Order.rows(Order.complete([], part), left, right)),
+    ).toEqual([
+        { upload: "u", number: 2, scope: "inbox", size: 20 },
+        { upload: "v", number: 1, scope: "inbox", size: 30 },
+    ]);
+});

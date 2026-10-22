@@ -64,7 +64,7 @@ function createLogTables(): string[] {
     ];
 }
 
-/** Create the deferred stamp trigger, numbering entries in commit order and announcing tables. */
+/** Create the deferred stamp trigger, numbering entries in commit order under the commit lock. */
 function createStamp(): string[] {
     const log = quote(LOG);
 
@@ -92,14 +92,14 @@ function createStamp(): string[] {
             WHERE ${log}.id = numbered.id;
             FOREACH name IN ARRAY tables LOOP
                 IF bytes + octet_length(name) + 3 > ${NOTIFICATION_BYTES} THEN
-                    PERFORM pg_notify('${LOG_CHANNEL}_' || md5(current_schema()), json_build_object('kind', 'commit', 'tables', batch)::TEXT);
+                    PERFORM pg_notify('${LOG_CHANNEL}_' || md5(current_schema()), json_build_object('kind', 'commit', 'tables', batch, 'sequence', base + unstamped - 1)::TEXT);
                     batch := '{}';
                     bytes := 0;
                 END IF;
                 batch := batch || name;
                 bytes := bytes + octet_length(name) + 3;
             END LOOP;
-            PERFORM pg_notify('${LOG_CHANNEL}_' || md5(current_schema()), json_build_object('kind', 'commit', 'tables', batch)::TEXT);
+            PERFORM pg_notify('${LOG_CHANNEL}_' || md5(current_schema()), json_build_object('kind', 'commit', 'tables', batch, 'sequence', base + unstamped - 1)::TEXT);
             PERFORM set_config('${STAMPED_SETTING}', NEW."transaction", true);
             RETURN NULL;
         END $$`,
@@ -216,7 +216,7 @@ function postgresLogTriggers(target: string, description: ChangeDescription): st
         ...(description.scope === undefined ? [] : [literal(description.scope)]),
     ];
 
-    // log only the insertions of an append-only table, refusing its updates and leaving its deletions unlogged
+    // log only an append-only table's insertions, refusing updates and leaving deletions unlogged
     if (description.appendOnly === true) {
         return [
             createRefusal(),

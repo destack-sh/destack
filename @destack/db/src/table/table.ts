@@ -98,7 +98,7 @@ export class Table<
         const columns = Object.fromEntries(
             description.columns.map((column) => {
                 const isUnlogged = state.log !== undefined && !logged.has(column.name);
-                // keep an unlogged column's sealed text opaque, as a copy never opens it
+                // leave an unlogged column's sealed text opaque, as a copy never opens it
                 const definition = {
                     ...COLUMNS[isUnlogged ? "text" : column.kind](column.name).definition,
                     nullable: column.nullable,
@@ -173,7 +173,7 @@ export class Table<
         return mapValues<Row, Select<Definition> & Row>(completed, (value) => value);
     }
 
-    /** Type a row as a table's logged record, requiring each logged column, keeping the rest. */
+    /** Type a row as a table's logged record, requiring each logged column, allowing the rest. */
     static image<Definition extends Table>(
         table: Definition,
         row: Row,
@@ -268,7 +268,7 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
     readonly sqlName: string;
     /** The columns by property. */
     readonly columns: Columns;
-    /** How long the log keeps the table's changes. */
+    /** How long the log retains the table's changes. */
     readonly retention: ChangeRetention;
     /** Whether rows are only ever inserted, deletes going unlogged. */
     readonly isAppendOnly: boolean;
@@ -278,11 +278,11 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
     readonly moved: TableMove;
     /** The row conversions by the release introducing them. */
     readonly convert: Readonly<Record<Version, RowConversion>>;
-    /** The aggregates this table's rows feed or keep. */
-    readonly aggregates: readonly Summary[];
+    /** The aggregates this table's rows feed or store. */
+    readonly aggregates: readonly Aggregate[];
     /** The rows of other tables referencing this table's rows. */
     readonly dependents: readonly Dependent[];
-    /** The predefined rows every database keeps, identical everywhere. */
+    /** The predefined rows every database has, identical everywhere. */
     readonly predefined: readonly Row[];
     /** The table's full-text index, absent for a table nothing searches. */
     readonly fullText: FullTextIndex | undefined;
@@ -319,7 +319,7 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
         declaration: TableDeclaration,
         options: { readonly tree?: TreeColumns; readonly source?: Table },
     ) {
-        // keep the identity, columns and declaration
+        // store the identity, columns and declaration
         this.package = identity.package;
         this.name = identity.name;
         this.sqlName = identity.sqlName;
@@ -447,14 +447,14 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
 
     /** Show a row as readers lacking its concealed columns see it, personal values masked. */
     conceal(row: Row, concealed: readonly string[]): Row {
-        // keep a row nothing conceals as it is
+        // return a row nothing conceals as it is
         if (concealed.length === 0) {
             return row;
         }
 
         return Object.fromEntries(
             Object.entries(row).flatMap(([property, value]) => {
-                // keep a shown column, mask a personal one, and leave out the rest
+                // show a shown column, mask a personal one and leave out the rest
                 if (!concealed.includes(property)) {
                     return [[property, value]];
                 } else if (this.personal.has(property)) {
@@ -489,7 +489,7 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
     constraints(dialect: Dialect): readonly TableConstraint[] {
         const constraints = [...this.#declared()];
         for (const [property, column] of Object.entries(this.columns)) {
-            // keep primary key checks
+            // retain primary key checks
             const definition = column.definition;
             if (
                 dialect === "sqlite" &&
@@ -523,7 +523,7 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
         return encodeRow(this.entries, this.conceal(row, concealed));
     }
 
-    /** Keep a row's logged columns, as log readers see it. */
+    /** Select a row's logged columns, as log readers see it. */
     image(row: Row): Row {
         // pass the row on when the table logs every column
         const logged = this.logged;
@@ -545,7 +545,7 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
     defaults(row: Row): Row {
         const filled: [string, ColumnValue][] = [];
         for (const [property, { definition }] of this.entries) {
-            // keep a given value and leave out a computed one
+            // take a given value and leave out a computed one
             if (
                 Object.hasOwn(row, property) ||
                 definition.generated !== undefined ||
@@ -607,7 +607,7 @@ interface TreeColumns<Property extends string = string> {
 interface TableDeclaration {
     /** Evaluate the constraints. */
     readonly constraints: () => readonly TableConstraint[];
-    /** How long the log keeps the table's changes. */
+    /** How long the log retains the table's changes. */
     readonly retention: ChangeRetention;
     /** Whether rows are only ever inserted, deletes going unlogged. */
     readonly isAppendOnly: boolean;
@@ -617,18 +617,18 @@ interface TableDeclaration {
     readonly moved: TableMove;
     /** The row conversions by the release introducing them. */
     readonly convert: Readonly<Record<Version, RowConversion>>;
-    /** The aggregates this table's rows feed or keep. */
-    readonly aggregates: readonly Summary[];
+    /** The aggregates this table's rows feed or store. */
+    readonly aggregates: readonly Aggregate[];
     /** The rows of other tables referencing this table's rows. */
     readonly dependents: readonly Dependent[];
-    /** The predefined rows every database keeps, identical everywhere. */
+    /** The predefined rows every database has, identical everywhere. */
     readonly predefined: readonly Row[];
     /** The table's full-text index, absent for a table nothing searches. */
     readonly fullText: FullTextIndex | undefined;
 }
 
-/** A count, sum or extreme of one table's rows kept on the rows they reference. */
-export type Summary = SummaryOptions &
+/** A count, sum or extreme of one table's rows, stored on the rows they reference. */
+export type Aggregate = AggregateOptions &
     (
         | {
               /** The target table. */
@@ -640,8 +640,8 @@ export type Summary = SummaryOptions &
           }
     );
 
-/** The options of a summary: a count, or a sum or extreme of a property. */
-type SummaryOptions = {
+/** The options of an aggregate: a count, or a sum or extreme of a property. */
+type AggregateOptions = {
     /** The target property. */
     readonly column: string;
     /** The aggregated table's property referencing the target rows. */
@@ -675,7 +675,7 @@ export interface Dependent {
 
 /** How a table logs its committed changes: an append-only table is never shared. */
 export type LogOptions = {
-    /** How long the log keeps the changes, the window by default. */
+    /** How long the log retains the changes, the window by default. */
     readonly retention?: Exclude<ChangeRetention, "none">;
 } & (
     | {
@@ -709,13 +709,13 @@ export interface TableOptions<Columns> {
     };
     /** The row conversions by the release introducing them, converting rows of earlier releases. */
     readonly convert?: Readonly<Record<Version, RowConversion<Columns>>>;
-    /** The aggregates this table's rows feed or keep. */
-    readonly aggregates?: readonly Summary[];
+    /** The aggregates this table's rows feed or store. */
+    readonly aggregates?: readonly Aggregate[];
     /** The rows of other tables referencing this table's rows. */
     readonly dependents?: readonly Dependent[];
-    /** The predefined rows every database keeps, identical everywhere and never written. */
+    /** The predefined rows every database has, identical everywhere and never written. */
     readonly predefined?: readonly PredefinedRow<Columns>[];
-    /** The text properties a full-text index keeps, in a logged table. */
+    /** The text properties a full-text index covers, in a logged table. */
     readonly fullText?: readonly (keyof Columns & string)[];
 }
 

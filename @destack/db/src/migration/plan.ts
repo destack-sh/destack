@@ -26,7 +26,7 @@ const TRIGGERS: readonly Triggers[] = [
     bridgeTriggers,
 ];
 
-/** One change of a database plan to one table, addressed as `table/<name>` and its parts. */
+/** One change of a database plan to one table, addressed as `table/<name>` and its entries. */
 export interface TableStep extends Step {
     /** The step's SQL, empty for tree rebuilds and log updates. */
     readonly statements: readonly string[];
@@ -65,11 +65,11 @@ export interface PlanInput {
     readonly conflicts?: Merge["conflicts"];
     /** The database's dialect. */
     readonly dialect: Dialect;
-    /** The database's namespace in a shared SQLite store, already part of the states' names. */
+    /** The database's namespace in a shared SQLite store, a prefix of the states' names. */
     readonly namespace?: string;
     /** The applied tables whose declared state differs, by applied name. */
     readonly changed: ReadonlySet<string>;
-    /** The applied tables holding no rows, whose changes convert and fill nothing. */
+    /** The applied tables with no rows, whose changes convert and fill nothing. */
     readonly empty: ReadonlySet<string>;
 }
 
@@ -78,7 +78,7 @@ export function changedTables(
     applied: readonly TableState[],
     declared: readonly TableState[],
 ): Set<string> {
-    // compare each declared table with the applied one it keeps or renames
+    // compare each declared table with the applied one it retains or renames
     const changed = new Set<string>();
     for (const entry of declared) {
         const previous = applied.find(
@@ -110,7 +110,7 @@ export function planTables(input: PlanInput): TablePlan {
     steps.push(...(dialect === "postgresql" ? foreignKeySteps(created) : []));
     steps.push(...declared.flatMap((state) => predefinedSteps(state, applied)));
 
-    // drop applied tables no longer declared, keeping those a newer release of a declared package added
+    // drop applied tables no longer declared, except a newer release's tables
     const dropped = droppedTables(declared, remaining);
     for (const name of dropped) {
         const previous = present(remaining.get(name), `the applied state of ${name}`);
@@ -162,7 +162,7 @@ function planDeclared(
             (state.moved?.table === undefined ? undefined : remaining.get(state.moved.table));
         remaining.delete(previous?.table.name ?? name);
 
-        // create each missing table unless a newer release renamed it or an unmanaged one has its name
+        // create each missing table unless a newer release renamed it or an unmanaged one has it
         if (!previous) {
             const creating = planCreate(state, input, problems);
             if (creating !== undefined) {
@@ -170,7 +170,7 @@ function planDeclared(
                 created.push(state.table);
             }
         }
-        // keep a newer applied table for an older release that it covers, refusing one it cannot cover
+        // retain a newer applied table an older release is covered by, refusing one it is not
         else if (Version.compare(state.package.version, previous.package.version) < 0) {
             if (!coversState(previous, state)) {
                 const detail = `rollback to ${state.package.version} cannot read the table as ${previous.package.version} applied it`;
@@ -366,7 +366,7 @@ function fullTextSteps(state: TableState, previous: TableState): TableStep[] {
     ];
 }
 
-/** Compute new or changed aggregates and stop keeping removed ones. */
+/** Compute new or changed aggregates and stop maintaining removed ones. */
 function aggregateSteps(
     declared: readonly TableState[],
     applied: readonly TableState[],
@@ -387,7 +387,7 @@ function aggregateSteps(
         );
     });
 
-    // stop keeping removed aggregates
+    // stop maintaining removed aggregates
     const deleted = applied.flatMap((previous) => {
         const state = declared.find((entry) => entry.table.name === previous.table.name);
 
@@ -405,12 +405,12 @@ function aggregateSteps(
     return [...created, ...deleted];
 }
 
-/** Start keeping new dependents and stop keeping removed ones. */
+/** Start maintaining new dependents and stop maintaining removed ones. */
 function dependentSteps(
     declared: readonly TableState[],
     applied: readonly TableState[],
 ): TableStep[] {
-    // start keeping new dependents
+    // start maintaining new dependents
     const created = declared.flatMap((state) => {
         const previous = applied.find((entry) => entry.table.name === state.table.name);
 
@@ -425,7 +425,7 @@ function dependentSteps(
         );
     });
 
-    // stop keeping removed dependents
+    // stop maintaining removed dependents
     const deleted = applied.flatMap((previous) => {
         const state = declared.find((entry) => entry.table.name === previous.table.name);
 
@@ -511,7 +511,7 @@ function reinstallTriggers(
     };
 }
 
-/** A kept column with its applied and its declared description. */
+/** A retained column with its applied and its declared description. */
 interface ColumnChange {
     /** The column as applied. */
     readonly applied: TableDescription["columns"][number];
@@ -519,7 +519,7 @@ interface ColumnChange {
     readonly declared: TableDescription["columns"][number];
 }
 
-/** Plan the changes of one table kept under its name. */
+/** Plan the changes of one table retained under its name. */
 function changeTable(
     previous: TableDescription,
     next: TableDescription,
@@ -593,7 +593,7 @@ function changeSQLiteTable(
     removed: readonly TableDescription["columns"][number][],
     changed: readonly ColumnChange[],
 ): TableStep[] {
-    // rebuild for changes beyond additions and indexes, and for a required column without a default, which only an empty table takes
+    // rebuild for changes beyond additions and indexes, or a new required column only an empty table takes
     const isRebuilt =
         removed.length > 0 ||
         changed.length > 0 ||
@@ -775,16 +775,16 @@ function changeIndexes(previous: TableDescription, next: TableDescription): Tabl
 }
 
 /** Split named items into applied ones to drop and declared ones to create, by definition. */
-function differing<Part extends { readonly name: string }>(
-    applied: readonly Part[],
-    declared: readonly Part[],
-): { readonly dropped: Part[]; readonly created: Part[] } {
-    const before = new Map(applied.map((part) => [part.name, canonicalize(part)]));
-    const after = new Map(declared.map((part) => [part.name, canonicalize(part)]));
+function differing<Named extends { readonly name: string }>(
+    applied: readonly Named[],
+    declared: readonly Named[],
+): { readonly dropped: Named[]; readonly created: Named[] } {
+    const before = new Map(applied.map((named) => [named.name, canonicalize(named)]));
+    const after = new Map(declared.map((named) => [named.name, canonicalize(named)]));
 
     return {
-        dropped: applied.filter((part) => after.get(part.name) !== before.get(part.name)),
-        created: declared.filter((part) => before.get(part.name) !== after.get(part.name)),
+        dropped: applied.filter((named) => after.get(named.name) !== before.get(named.name)),
+        created: declared.filter((named) => before.get(named.name) !== after.get(named.name)),
     };
 }
 
@@ -899,7 +899,7 @@ function convertRows(
     };
 }
 
-/** Check each kept column's values: widened values are safe, narrowed ones need a conversion. */
+/** Check each retained column's values: widened ones are safe, narrowed ones need a conversion. */
 function changeValues(
     previous: TableState,
     state: TableState,
@@ -907,7 +907,7 @@ function changeValues(
     isEmpty: boolean,
     problems: Problem[],
 ): TableStep[] {
-    // compare each kept column's value schema, under its previous name when moved
+    // compare each retained column's value schema, under its previous name when moved
     const steps: TableStep[] = [];
     const name = state.table.name;
     for (const column of state.table.columns) {
@@ -919,7 +919,7 @@ function changeValues(
             continue;
         }
 
-        // plan the change, leaving convert steps to the row conversions, which an empty table does not need
+        // plan the change, leaving convert steps to row conversions, which an empty table skips
         const isConverted =
             isEmpty ||
             releases.some((release) => state.conversions?.[release]?.[column.name] !== undefined);

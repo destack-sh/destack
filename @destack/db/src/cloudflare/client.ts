@@ -15,7 +15,7 @@ export interface DurableObjectCursor {
     readonly rowsWritten: number;
 }
 
-/** The parts of a Durable Object's storage the client uses. */
+/** The Durable Object storage APIs the client uses. */
 export interface DurableObjectStorage {
     /** The object's SQLite database. */
     readonly sql: {
@@ -26,12 +26,14 @@ export interface DurableObjectStorage {
     };
     /** Run work in a transaction, nested in the current one when inside it. */
     readonly transaction: <Value>(closure: () => Promise<Value>) => Promise<Value>;
+    /** Delete everything the object stores. */
+    readonly deleteAll: () => Promise<void>;
 }
 
 /** The most parameters Durable Object SQLite storage binds to a statement, as Cloudflare limits. */
 const MAX_PARAMETERS = 100;
 
-/** The largest integer a number keeps exact, 2^53 - 1. */
+/** The largest integer a number represents exactly, 2^53 - 1. */
 const MAX_EXACT = BigInt(Number.MAX_SAFE_INTEGER);
 
 /** The rows a statement returned and the rows it wrote. */

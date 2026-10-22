@@ -5,7 +5,7 @@ import postgres from "postgres";
 import { v7 } from "uuid";
 import type { DatabaseConnection } from "../database/connection.ts";
 import type { Model } from "../query/model.ts";
-import type { Dialect } from "../dialect/dialect.ts";
+import { Dialect } from "../dialect/dialect.ts";
 import type { Table } from "../table/table.ts";
 import type * as declaration from "../declare/database.ts";
 import { declareState } from "../migration/state.ts";
@@ -20,15 +20,9 @@ import type { Channel } from "../channel/channel.ts";
 import { channelHub } from "../channel/channel.ts";
 import { STATE, type TableState } from "../migration/state.ts";
 import { upsertPredefined } from "../migration/plan.ts";
-import { inject } from "@destack/test";
+import { inject, type TestProject, testTarget } from "@destack/test";
 import type { JsonValue } from "@destack/schema";
 import type { TestTemplate, TemplateImage, ImageIndex } from "./template.ts";
-
-/** The test dialects: SQLite, and PostgreSQL when DESTACK_TEST_POSTGRES has a server address. */
-export const TEST_DIALECTS: readonly Dialect[] = [
-    "sqlite",
-    ...((process.env["DESTACK_TEST_POSTGRES"] ?? "") === "" ? [] : (["postgresql"] as const)),
-];
 
 /** The cipher of every test database, a fixed key so schemas reused across test processes open. */
 export const TEST_CIPHER = new ColumnCipher(new Uint8Array(32).fill(7));
@@ -36,14 +30,14 @@ export const TEST_CIPHER = new ColumnCipher(new Uint8Array(32).fill(7));
 /** The connections each test database pools: four multi-database test workers stay under 100. */
 const TEST_POOL_CONNECTIONS = 2;
 
-/** The seconds a test pool keeps an idle connection. */
+/** The seconds a test pool leaves an idle connection open. */
 const TEST_IDLE_SECONDS = 1;
 
 /** How long an unclaimed test schema stays for reuse, in milliseconds: an hour of runs. */
 const SCHEMA_RETENTION_MILLISECONDS = 60 * 60 * 1000;
 
 /** The run's provided values the test databases read. */
-declare module "@destack/test" {
+declare module "vitest" {
     /** The values a run's setup provides to its tests. */
     export interface ProvidedContext {
         /** The images of the run's templates by name and dialect, absent without a setup. */
@@ -86,17 +80,33 @@ export class TestDatabase<
         }
     }
 
-    /** Create an isolated database, empty or migrated. */
+    /** Read the PostgreSQL server address the tests run against, refusing a run without one. */
+    static address(): string {
+        const address = process.env["DESTACK_TEST_POSTGRES"];
+        if (address === undefined || address === "") {
+            throw new TypeError("DESTACK_TEST_POSTGRES has no PostgreSQL server address");
+        }
+
+        return address;
+    }
+
+    /** Read the database the test's project runs against, or a given project's in its setup. */
+    static target(project?: Pick<TestProject, "getProvidedContext">): Dialect {
+        return Dialect.parse(testTarget("database", project));
+    }
+
+    /** Create an isolated database, empty or migrated, in the project's database unless given. */
     static async create<
         Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
     >(
-        dialect: Dialect,
         tables: declaration.Database<Models> | readonly Table[],
         options: TestDatabaseOptions = {},
     ): Promise<TestDatabase<Models>> {
+        // read the tables and the database, the project's unless given
         const declared = "tables" in tables ? tables.tables : tables;
+        const dialect = options.dialect ?? TestDatabase.target();
 
-        // claim or create a PostgreSQL schema, keep empty SQLite in memory, or copy SQLite into a file
+        // claim or create a PostgreSQL schema, or open SQLite in memory or as a file copy
         if (dialect === "postgresql") {
             return TestDatabase.#postgres(declared, tables, options);
         } else if (options.isMigrated !== true && (options.storage ?? "memory") === "memory") {
@@ -112,11 +122,17 @@ export class TestDatabase<
 
     /** Copy a template's image in the run or in given images, with its write's value. */
     static async copy<Models extends Readonly<Record<string, Model>>, Value extends JsonValue>(
-        dialect: Dialect,
         template: TestTemplate<Value, Models>,
-        images: ImageIndex | undefined = inject("templates"),
+        run: {
+            /** The images of the run's templates, the test run's by default. */
+            readonly images?: ImageIndex | undefined;
+            /** The database the images are of, the test project's by default. */
+            readonly dialect?: Dialect;
+        } = {},
     ): Promise<{ readonly storage: TestDatabase<Models>; readonly value: Value }> {
         // read the template's image in the run, refusing a template no setup of the run lists
+        const images = run.images ?? inject("templates");
+        const dialect = run.dialect ?? TestDatabase.target();
         const image = images?.[template.name]?.[dialect];
         if (image === undefined) {
             throw new TypeError(
@@ -135,7 +151,7 @@ export class TestDatabase<
         return { storage, value: template.value.parse(image.value) };
     }
 
-    /** Write a template's image once for a run: a file or a schema the run keeps. */
+    /** Write a template's image once for a run: a file or a schema the run stores. */
     static async image<Value extends JsonValue, Models extends Readonly<Record<string, Model>>>(
         template: TestTemplate<Value, Models>,
         dialect: Dialect,
@@ -146,9 +162,9 @@ export class TestDatabase<
         const declared = "tables" in tables ? tables.tables : tables;
         const name = (await digestOf(template.name)).slice(0, 16);
 
-        // write it into a migrated schema the run keeps until its end
+        // write it into a migrated schema that stays until the run's end
         if (dialect === "postgresql") {
-            const address = testAddress();
+            const address = TestDatabase.address();
             const schema = `test_t${run.id}_${name}`;
             const session = administration(address);
             await session.unsafe(`CREATE SCHEMA "${schema}"`);
@@ -190,7 +206,7 @@ export class TestDatabase<
         return { source: { dialect, file }, value };
     }
 
-    /** Keep SQLite in a file the caller owns, migrated when the file is new. */
+    /** Store SQLite in the caller's file, migrated when the file is new. */
     static async at<Models extends Readonly<Record<string, Model>>>(
         file: string,
         tables: declaration.Database<Models> | readonly Table[],
@@ -206,7 +222,7 @@ export class TestDatabase<
 
     /** Drop the expired schemas no test claims and the images of runs that ended long ago. */
     static sweep(): Promise<void> {
-        return TestSchema.sweep(testAddress());
+        return TestSchema.sweep(TestDatabase.address());
     }
 
     /** Write a template into a database and a directory of the run's, then close the database. */
@@ -230,9 +246,9 @@ export class TestDatabase<
         options: TestDatabaseOptions,
         template?: PostgresImage,
     ): Promise<TestDatabase<Models>> {
-        // claim a migrated schema with the template's rows, held by the claim's own session
-        const address = testAddress();
-        if (options.isMigrated === true) {
+        // claim a migrated schema with the template's rows, locked by the claim's session
+        const address = TestDatabase.address();
+        if (options.isMigrated === true && declared.length > 0) {
             const state = declareState(declared, "postgresql", {
                 isReplica: options.isReplica ?? false,
                 replicated: replicatedOf(tables),
@@ -243,7 +259,7 @@ export class TestDatabase<
             return new TestDatabase(await open(tables), open, () => schema.release());
         }
 
-        // create an empty schema, dropped once the test database closes
+        // create an empty schema for no tables or no migration, dropped once the database closes
         const session = administration(address);
         const schema = `test_${crypto.randomUUID().replaceAll("-", "")}`;
         await session.unsafe(`CREATE SCHEMA "${schema}"`);
@@ -256,7 +272,7 @@ export class TestDatabase<
         });
     }
 
-    /** Keep SQLite in a temporary file, copied from a template's or the migrated database. */
+    /** Store SQLite in a temporary file, copied from a template's or the migrated database. */
     static async #sqliteFile<Models extends Readonly<Record<string, Model>>>(
         declared: readonly Table[],
         tables: declaration.Database<Models> | readonly Table[],
@@ -278,7 +294,7 @@ export class TestDatabase<
         return TestDatabase.#sqliteAt(file, tables, () => rm(directory, { recursive: true }));
     }
 
-    /** Keep SQLite in a file, sharing one hub, removed as given once closed. */
+    /** Store SQLite in a file, sharing one hub, removed as given once closed. */
     static async #sqliteAt<Models extends Readonly<Record<string, Model>>>(
         file: string,
         tables: declaration.Database<Models> | readonly Table[],
@@ -300,7 +316,7 @@ export class TestDatabase<
             return keyed(opened);
         };
 
-        // start a logged copy's own epoch as a restore does
+        // start a new epoch for a logged copy, as a restore does
         const database = await open(tables);
         const [log] = await database.all(
             sql`SELECT name FROM sqlite_master WHERE name = ${LOG_EPOCH}`,
@@ -338,6 +354,8 @@ export class TestDatabase<
 
 /** The options of a test database. */
 export interface TestDatabaseOptions {
+    /** The database, the project's by default, given only by tests of one database's behavior. */
+    readonly dialect?: Dialect;
     /** Where empty SQLite lives. */
     readonly storage?: "memory" | "file";
     /** Whether the database starts migrated to its tables. */
@@ -349,25 +367,25 @@ export interface TestDatabaseOptions {
 /** A template image's PostgreSQL schema, whose rows claimed schemas copy. */
 type PostgresImage = Extract<TemplateImage["source"], { readonly dialect: "postgresql" }>;
 
-/** A migrated schema one test database claims, its own session holding the claim's lock. */
+/** A migrated schema one test database claims, its session with the claim's lock. */
 class TestSchema {
     /** The server address. */
     readonly address: string;
-    /** The session holding the claim's advisory lock until released. */
+    /** The session with the claim's advisory lock until released. */
     readonly session: postgres.Sql;
     /** The schema's name. */
     readonly name: string;
     /** The relations and applied state the schema was claimed with. */
     readonly shape: TestSchemaShape;
 
-    /** Hold a claimed schema with its session and shape. */
+    /** Store a claimed schema with its session and shape. */
     private constructor(
         address: string,
         session: postgres.Sql,
         name: string,
         shape: TestSchemaShape,
     ) {
-        // keep the claim's session, schema and shape
+        // store the claim's session, schema and shape
         this.address = address;
         this.session = session;
         this.name = name;
@@ -391,8 +409,10 @@ class TestSchema {
             SELECT nspname AS name FROM pg_namespace WHERE starts_with(nspname, ${prefix})`;
         for (const { name } of listed) {
             if (await lockListed(session, name)) {
-                const shape = await readShape(session, name);
-                if (await isStamped(session, name, shape)) {
+                // read the shape of a schema whose migration finished, which its stamp marks last
+                const stamp = await readStamp(session, name);
+                const shape = stamp === undefined ? undefined : await readShape(session, name);
+                if (shape !== undefined && stamp === (await digestOf(shape.fingerprint))) {
                     const schema = new TestSchema(address, session, name, shape);
                     await schema.#stamp();
                     await schema.#reset(state, template);
@@ -429,7 +449,7 @@ class TestSchema {
             WHERE (starts_with(nspname, 'test_s') OR starts_with(nspname, 'test_t'))
                 AND split_part(coalesce(obj_description(oid, 'pg_namespace'), '0'), ' ', 1)::bigint < ${expired}`;
 
-        // drop each one no session holds
+        // drop each one no session has claimed
         for (const { name } of schemas) {
             if (await lockListed(session, name)) {
                 await drop(session, name);
@@ -438,14 +458,14 @@ class TestSchema {
         await session.end();
     }
 
-    /** Connect to the schema over a pool of the connection's own. */
+    /** Connect to the schema over a separate pool. */
     async connect<Models extends Readonly<Record<string, Model>>>(
         tables: declaration.Database<Models> | readonly Table[],
     ): Promise<TestConnection<Models>> {
         return keyed(new PostgresDatabase(schemaPool(this.address, this.name), tables));
     }
 
-    /** Release the claim, keeping the schema for the next test of its state. */
+    /** Release the claim, leaving the schema for the next test of its state. */
     async release(): Promise<void> {
         await this.session.end();
     }
@@ -469,7 +489,7 @@ class TestSchema {
         );
         const sequences = this.shape.relations.filter((relation) => relation.kind === "S");
 
-        // empty the tables and restart the sequences and the horizon, then copy the template's or the predefined rows
+        // empty the tables, restart sequences and horizon, then copy template or predefined rows
         const copied =
             template === undefined
                 ? state.flatMap((table) =>
@@ -512,17 +532,7 @@ class TestSchema {
     }
 }
 
-/** Read the PostgreSQL server address the tests run against, refusing a run without one. */
-function testAddress(): string {
-    const address = process.env["DESTACK_TEST_POSTGRES"];
-    if (address === undefined || address === "") {
-        throw new TypeError("DESTACK_TEST_POSTGRES has no PostgreSQL server address");
-    }
-
-    return address;
-}
-
-/** Open a session that manages schemas and holds claims, skipping the array type read. */
+/** Open a session that manages schemas and takes claims, skipping the array type read. */
 function administration(address: string): postgres.Sql {
     return postgres(address, { max: 1, fetch_types: false, onnotice: postgresql.reportNotice });
 }
@@ -576,18 +586,13 @@ async function lockListed(session: postgres.Sql, name: string): Promise<boolean>
     return isPresent;
 }
 
-/** Decide whether a schema still has the shape its last claim stamped. */
-async function isStamped(
-    session: postgres.Sql,
-    name: string,
-    shape: TestSchemaShape,
-): Promise<boolean> {
+/** Read a schema's shape digest once its migration finished, absent before. */
+async function readStamp(session: postgres.Sql, name: string): Promise<string | undefined> {
     const comment: unknown = (
         await session`SELECT obj_description(to_regnamespace(${name}), 'pg_namespace')`.values()
     )[0]?.[0];
-    const stamped = typeof comment === "string" ? comment.split(" ")[1] : undefined;
 
-    return stamped !== undefined && stamped === (await digestOf(shape.fingerprint));
+    return typeof comment === "string" ? comment.split(" ")[1] : undefined;
 }
 
 /** Drop a locked schema, then release its lock. */
@@ -654,7 +659,7 @@ function replicatedOf(tables: declaration.Database | readonly Table[]): Readonly
     return "tables" in tables ? tables.replicated : new Set<string>();
 }
 
-/** Migrate a SQLite file once per declared state, kept on disk under its digest. */
+/** Migrate a SQLite file once per declared state, stored on disk under its digest. */
 async function sqliteTemplate(
     tables: readonly Table[],
     isReplica: boolean,

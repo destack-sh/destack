@@ -7,7 +7,7 @@ import { LOG_TRANSACTION } from "./schema.ts";
 import { relation } from "../table/namespace.ts";
 import { FullTextIndex } from "../search/search.ts";
 
-/** A transaction's log identity: a SQLite marker, else PostgreSQL's own transaction id. */
+/** A transaction's log identity: a SQLite marker, else PostgreSQL's transaction id. */
 export class TransactionIdentity {
     /** The session the transaction runs in. */
     readonly #session: Session;
@@ -15,7 +15,7 @@ export class TransactionIdentity {
     readonly #connection: ConnectionState;
     /** The stamped SQLite marker, absent before the first logged write. */
     #stamped: Promise<string | undefined> | undefined;
-    /** Whether the transaction looked for its marker before, so a log it finds may be its own. */
+    /** Whether the transaction looked for its marker before, so a log it finds may be its log. */
     #isMarking = false;
 
     /** Prepare the identity of a transaction in a session. */
@@ -24,7 +24,7 @@ export class TransactionIdentity {
         this.#connection = connection;
     }
 
-    /** Read the identity, stamping it as PostgreSQL's `pg_current_xact_id` assigns its own. */
+    /** Read the identity, stamping it as PostgreSQL's `pg_current_xact_id` assigns it. */
     async id(): Promise<string | undefined> {
         // assign PostgreSQL's id, else stamp the SQLite marker, absent without a log
         if (this.#session.dialect === "postgresql") {
@@ -42,7 +42,7 @@ export class TransactionIdentity {
 
     /** Submit a SQLite marker once ahead of the first logged write, in statement order. */
     stamp(): Promise<unknown> | undefined {
-        // leave PostgreSQL, whose trigger reads its own transaction id
+        // leave PostgreSQL, whose trigger reads the transaction id
         if (this.#session.dialect === "postgresql") {
             return undefined;
         }
@@ -71,15 +71,15 @@ export class TransactionIdentity {
         this.#stamped = undefined;
     }
 
-    /** Keep a stamped transaction's full-text rows, then clear its marker before commit. */
+    /** Update a stamped transaction's full-text rows, then clear its marker before commit. */
     async close(): Promise<void> {
         // leave a transaction that logged nothing
         if ((await this.#stamped) === undefined) {
             return;
         }
 
-        // keep the full-text rows, then clear the marker
-        await FullTextIndex.keep(
+        // update the full-text rows, then clear the marker
+        await FullTextIndex.update(
             this.#session,
             this.#connection.searched,
             this.#connection.namespace,

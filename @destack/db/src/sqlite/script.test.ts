@@ -1,7 +1,7 @@
 import { expect, test } from "@destack/test";
 import { SqliteScript } from "./script.ts";
 
-test("split a script into statements, keeping trigger bodies, strings and comments whole", () => {
+test("split a script into statements, leaving trigger bodies, strings and comments whole", () => {
     const script = `
         CREATE TABLE note (id TEXT PRIMARY KEY, title TEXT DEFAULT 'a;b');
         -- a comment; with a semicolon
@@ -11,7 +11,7 @@ test("split a script into statements, keeping trigger bodies, strings and commen
         END;
         /* block; comment */ INSERT INTO "odd;name" VALUES ('it''s;'); SELECT 1`;
 
-    // close each statement at the semicolon completing it, and keep the last one without its semicolon
+    // close each statement at its semicolon, and add the last one without its semicolon
     expect(SqliteScript.statements(script)).toEqual([
         "CREATE TABLE note (id TEXT PRIMARY KEY, title TEXT DEFAULT 'a;b');",
         `-- a comment; with a semicolon

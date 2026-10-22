@@ -1,11 +1,11 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { sql } from "../../index.ts";
-import { TEST_DIALECTS, TestDatabase } from "../../test/database.ts";
+import { TestDatabase } from "../../test/database.ts";
 import { baseNode, tree, node } from "./fixture.ts";
 
-/** Keep existing forests while adding and maintaining an ancestor index. */
-test.for(TEST_DIALECTS)("migrate, query, move and remove scoped trees on %s", async (dialect) => {
-    const storage = await TestDatabase.create(dialect, [node]);
+/** Preserve existing forests while adding and maintaining an ancestor index. */
+test("migrate, query, move and remove scoped trees", async () => {
+    const storage = await TestDatabase.create([node]);
     onTestFinished(() => storage.close());
     const { database } = storage;
 
@@ -73,7 +73,7 @@ test.for(TEST_DIALECTS)("migrate, query, move and remove scoped trees on %s", as
             .orderBy(node.id),
     ).toEqual([{ id: "a" }, { id: "b" }]);
 
-    // keep inherited paths after a move and a reparenting deletion
+    // preserve inherited paths after a move and a reparenting deletion
     await tree.move("one", "b", "d", database);
     expect(
         await database

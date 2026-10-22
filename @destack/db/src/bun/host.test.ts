@@ -16,7 +16,7 @@ import { BunSqliteDatabaseHost } from "./host.ts";
 /** Notes with a title. */
 const note = defineTable("note", { id: text("id").primaryKey(), title: text("title") });
 
-/** A table a replica keeps beside the notes. */
+/** A table a replica stores beside the notes. */
 const beside = defineTable("beside", { id: text("id").primaryKey() });
 
 /** The database with the notes. */
@@ -112,7 +112,7 @@ test("open a provisioned SQLite database over its desired tables, migrating tabl
     await handle.database.insert(beside).values({ id: "a" });
     await handle.database.insert(note).values({ id: "n1", title: "First" });
 
-    // drop the table beside once migrated without it, keeping the notes
+    // drop the table beside once migrated without it, retaining the notes
     await handle.migrate([]);
     const tables = (
         await handle.database.execute(

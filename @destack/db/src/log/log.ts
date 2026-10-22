@@ -29,7 +29,7 @@ export interface LogClaim {
     readonly claimedAt: number;
 }
 
-/** Claims as the slot table keeps them. */
+/** Claims as the slot table stores them. */
 export const LogClaim = {
     /** Read a claim from its slot row. */
     read(row: Readonly<Record<string, unknown>>): LogClaim {
@@ -139,7 +139,7 @@ export interface ChangeSelection<Definition extends Table> {
     readonly scopes?: readonly string[];
 }
 
-/** One committed change as the log keeps it. */
+/** One committed change as the log stores it. */
 interface LogEntry {
     /** The entry's sequence, null for PostgreSQL's open transaction until it commits. */
     readonly sequence: number | null;
@@ -198,7 +198,7 @@ const LAYOUT_LENGTH = 32;
 
 /** The committed changes of one database, in commit order. */
 export class Log {
-    /** The database keeping the log. */
+    /** The database that stores the log. */
     readonly database: DatabaseConnection;
 
     /** Create the log of a database. */
@@ -256,7 +256,7 @@ export class Log {
                 changes,
             });
 
-            // keep each row's image before its first change
+            // take each row's image before its first change
             const range = changes.filter(
                 (change) => change.sequence > after && change.sequence <= upto,
             );
@@ -302,7 +302,7 @@ export class Log {
     ): Promise<Change<Definition>[]> {
         const changes: Change<Definition>[] = [];
         for (let reached = selection.after; reached < through;) {
-            // read the next page, keeping its changes through the end
+            // read the next page, with its changes through the end
             const read = await this.read({ ...selection, after: reached });
             changes.push(...read.changes.filter((change) => change.sequence <= through));
             if (read.sequence <= reached) {
@@ -324,7 +324,7 @@ export class Log {
 
     /** Read the position of the latest commit. */
     async position(): Promise<LogPosition> {
-        // read the latest commit once per commit, and afresh inside a transaction seeing its own writes
+        // read the latest commit once per commit, and afresh inside a transaction seeing its writes
         return this.database.driver.transaction === undefined
             ? this.database.state.commits.head(() => this.#latest())
             : this.#latest();
@@ -377,15 +377,15 @@ export class Log {
         };
     }
 
-    /** Read the position the open transaction's reads reach. */
-    async reached(): Promise<LogPosition> {
-        // reach the latest commit
+    /** Read the position the open transaction's reads see. */
+    async current(): Promise<LogPosition> {
+        // see the latest commit
         const committed = await this.position();
         if (this.database.dialect !== "sqlite" || !this.database.driver.transaction) {
             return committed;
         }
 
-        // reach past the open SQLite transaction's entries
+        // see past the open SQLite transaction's entries
         const [row] = await this.database.all(sql`
             SELECT max(sequence) AS sequence FROM ${sql.relation(LOG)}
             WHERE "transaction" = (SELECT id FROM ${sql.relation(LOG_TRANSACTION)} WHERE slot = 1)
@@ -543,14 +543,19 @@ export class Log {
         });
     }
 
-    /** Wait until the log reaches a sequence, returning false once the signal aborts. */
+    /** Wait until the log includes a sequence, returning false once the signal aborts. */
     async wait(sequence: number, signal: AbortSignal): Promise<boolean> {
         // wait on the connection
         if (this.database.driver.transaction) {
             throw new TypeError("wait for changes outside a transaction");
         }
 
-        return this.until(async () => (await this.position()).sequence >= sequence, signal);
+        return this.until(async () => await this.#includes(sequence), signal);
+    }
+
+    /** Settle once the log hears other writers' commits as they end. */
+    listening(): Promise<void> {
+        return this.database.state.commits.listen();
     }
 
     /** Wait until a check of the tables committed since the last check passes after a commit. */
@@ -570,43 +575,42 @@ export class Log {
             readonly isAdvancing?: boolean;
         } = {},
     ): AsyncGenerator<ChangePage<Definition>> {
-        // yield each page with changes, or each advance as a keepalive, then wait for the next commit to read
+        // yield each page with changes or an advance as a keepalive, then wait for the next commit
         const tables = new Set(selection.tables.map((table) => table[TABLE].sqlName));
         let after = selection.after;
         while (!signal.aborted) {
             const page = await this.read({ ...selection, after });
             const isYielded =
                 page.changes.length > 0 || (options.isAdvancing === true && page.sequence > after);
+            const isFull = page.changes.length >= (selection.limit ?? PAGE_LIMIT);
             after = Math.max(after, page.sequence);
             if (isYielded) {
                 yield page;
             }
-            // wait for a commit past the page, of the selected tables unless advancing
-            else {
-                await this.#commitPast(
-                    after,
-                    options.isAdvancing === true ? undefined : tables,
+
+            // read on after a full page, else wait for a commit past it
+            if (!isFull) {
+                const next = after + 1;
+                await this.until(
+                    async (committed) =>
+                        (options.isAdvancing === true ||
+                            [...committed].some((table) => tables.has(table))) &&
+                        (await this.#includes(next)),
                     signal,
                 );
             }
         }
     }
 
-    /** Wait for a commit past a sequence, of some tables if given. */
-    #commitPast(
-        sequence: number,
-        tables: ReadonlySet<string> | undefined,
-        signal: AbortSignal,
-    ): Promise<boolean> {
-        return this.until(
-            async (committed) =>
-                (tables === undefined || [...committed].some((table) => tables.has(table))) &&
-                (await this.position()).sequence > sequence,
-            signal,
+    /** Report whether the log includes a sequence, reading its head only past the announced one. */
+    async #includes(sequence: number): Promise<boolean> {
+        return (
+            this.database.state.commits.sequence >= sequence ||
+            (await this.position()).sequence >= sequence
         );
     }
 
-    /** Place a consumer's slot at a sequence and end its claim, keeping later changes a while. */
+    /** Place a consumer's slot at a sequence and end its claim, retaining later changes a while. */
     async advance(slot: string, sequence: number, expiresAt: number): Promise<void> {
         const table = sql.relation(LOG_SLOT);
         await this.database.run(sql`
@@ -616,7 +620,7 @@ export class Log {
         `);
     }
 
-    /** Place a consumer's slot at the log's start unless placed, keeping changes until a time. */
+    /** Place a consumer's slot at the log's start unless placed, retaining changes until a time. */
     async place(slot: string, expiresAt: number): Promise<void> {
         await this.database.run(sql`
             INSERT INTO ${sql.relation(LOG_SLOT)} (name, sequence, expires_at)
@@ -638,7 +642,7 @@ export class Log {
 
     /** Move a consumer's slot from the position it read to another. */
     async move(slot: string, from: number, to: number, expiresAt: number): Promise<void> {
-        // move a slot at the read position, placing one never placed for a consumer reading from the start
+        // move a slot at the read position, placing a new one for a consumer from the start
         const table = sql.relation(LOG_SLOT);
         const moved = await this.database.all(
             from === 0
@@ -670,7 +674,7 @@ export class Log {
         now: number,
         expiresAt: number,
     ): Promise<LogClaim | undefined> {
-        // keep the slot's claim, else claim through the sequence now, only where the slot stands at the read place
+        // leave the slot's claim, else claim through the sequence at the read
         const table = sql.relation(LOG_SLOT);
         const [row] = await this.database.all(
             after === 0
@@ -712,12 +716,12 @@ export class Log {
         return row === undefined ? undefined : LogColumn.integer(row["sequence"]);
     }
 
-    /** Drop a consumer's slot and its claim, keeping no more changes for it. */
+    /** Drop a consumer's slot and its claim, retaining no more changes for it. */
     async drop(slot: string): Promise<void> {
         await this.database.run(sql`DELETE FROM ${sql.relation(LOG_SLOT)} WHERE name = ${slot}`);
     }
 
-    /** Delete old windowed changes no slot keeps, and advance the horizon. */
+    /** Delete old windowed changes no slot retains, and advance the horizon. */
     async compact(before: number, now: number): Promise<void> {
         await this.database.transaction(async (transaction) => {
             // find the newest removable change
@@ -734,18 +738,18 @@ export class Log {
                 return;
             }
 
-            // keep the changes slots keep
-            const [keptRow] = await transaction.all(sql`
+            // retain the changes after the earliest live slot
+            const [retainedRow] = await transaction.all(sql`
                 SELECT
                     (SELECT min(sequence) FROM ${sql.relation(LOG_SLOT)} WHERE expires_at > ${now}) AS sequence,
                     (SELECT sequence FROM ${sql.relation(LOG_HORIZON)} WHERE slot = 1) AS horizon
             `);
-            const kept = {
-                sequence: LogColumn.nullableInteger(keptRow?.["sequence"]),
-                horizon: LogColumn.integer(keptRow?.["horizon"]),
+            const retained = {
+                sequence: LogColumn.nullableInteger(retainedRow?.["sequence"]),
+                horizon: LogColumn.integer(retainedRow?.["horizon"]),
             };
-            const cap = kept.sequence === null ? newest : Math.min(newest, kept.sequence);
-            if (cap <= kept.horizon) {
+            const cap = retained.sequence === null ? newest : Math.min(newest, retained.sequence);
+            if (cap <= retained.horizon) {
                 return;
             }
 
@@ -891,7 +895,7 @@ function decodeChange<Definition extends Table>(
         changedAt: entry.changedAt,
     };
 
-    // keep the row after an insert, before a deletion, and both around an update
+    // take the row after an insert, before a deletion, and both around an update
     if (entry.operation === "insert") {
         return { ...common, operation: "insert", after: logged };
     } else if (entry.operation === "delete") {
@@ -981,7 +985,7 @@ function tableOf<Definition extends Table>(
     return table;
 }
 
-/** Keep each row's image before its first change, null for an insert. */
+/** Take each row's image before its first change, null for an insert. */
 function imagesOf(table: Table, changes: readonly Change[]): Map<string, Row | null> {
     const images = new Map<string, Row | null>();
     for (const change of changes) {

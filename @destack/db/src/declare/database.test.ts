@@ -4,10 +4,10 @@ import { text } from "../table/column.ts";
 import { defineTable, TABLE } from "../table/table.ts";
 import { defineDatabase } from "./database.ts";
 
-/** Users, which another package owns. */
+/** Users, which another package declares. */
 const user = defineTable("user", { id: text("id").primaryKey() });
 
-/** Folders, a tree another package owns. */
+/** Folders, a tree another package declares. */
 const folder = defineTable(
     "folder",
     {
@@ -18,11 +18,11 @@ const folder = defineTable(
     { tree: { id: "id", scope: "scope", parent: "parentId" } },
 );
 
-/** Notes, which this package owns. */
+/** Notes, which this package declares. */
 const note = defineTable("note", { id: text("id").primaryKey() });
 
-test("keep owned and replicated tables, replicating a replicated tree's index, and refuse a table listed twice", () => {
-    // own the notes and replicate the users and folders with their tree index
+test("declare local and replicated tables, replicating a replicated tree's index, and refuse a table listed twice", () => {
+    // store the notes and replicate the users and folders with their tree index
     const database = defineDatabase({ name: "main", tables: [note], replicated: [user, folder] });
     const tree = folder[TABLE].tree;
     expect({
@@ -40,7 +40,7 @@ test("keep owned and replicated tables, replicating a replicated tree's index, a
         isReplicated: [false, true, true, true, true],
     });
 
-    // refuse a table both owned and replicated
+    // refuse a table both declared and replicated
     expect(() =>
         defineDatabase({ name: "main", tables: [note, user], replicated: [user] }),
     ).toThrow(new TypeError("duplicate SQL table: destack__db__user"));
@@ -50,11 +50,8 @@ test("decide replicated tables on a connection by its declaration, and none over
     // open a database replicating the users and the same tables bare
     const tables = [user, note];
     const opened = await Promise.all([
-        TestDatabase.create(
-            "sqlite",
-            defineDatabase({ name: "main", tables: [note], replicated: [user] }),
-        ),
-        TestDatabase.create("sqlite", tables),
+        TestDatabase.create(defineDatabase({ name: "main", tables: [note], replicated: [user] })),
+        TestDatabase.create(tables),
     ]);
     onTestFinished(async () => {
         await Promise.all(opened.map((opening) => opening.close()));

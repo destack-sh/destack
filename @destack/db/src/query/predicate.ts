@@ -131,7 +131,7 @@ function characters(set: string): string {
     );
 }
 
-/** Require every predicate, keeping a single one as it is. */
+/** Require every predicate, returning a single one as it is. */
 function all(...predicates: Predicate[]): Predicate {
     const [only, ...rest] = predicates;
 
@@ -253,7 +253,7 @@ function requireComparable(
     table: Table,
     namespace: Namespace = { extras: {} },
 ): void {
-    // require a comparable column for each compared field outside the computed values, and text for patterns
+    // require a comparable column per compared field outside computed values, text for patterns
     visit(predicate, (visited) => {
         const isCompared = visited.kind === "compare" || visited.kind === "oneOf";
         if (visited.kind === "compare" && isReference(visited.value)) {
@@ -424,7 +424,7 @@ type LikeToken = "%" | "_" | { readonly literal: string };
 
 /** Read a LIKE pattern's tokens: `%` any run, `_` any one character, `\\` escaping the next. */
 function likeTokens(pattern: string): LikeToken[] {
-    // walk the pattern's code units, which keep each wildcard and escape whole
+    // walk the pattern's code units, which leave each wildcard and escape whole
     const tokens: LikeToken[] = [];
     for (let index = 0; index < pattern.length; index += 1) {
         // read an escaped character literally, refusing an escape ending the pattern
@@ -455,7 +455,7 @@ function escaped(pattern: string): string {
 
 /** Write one LIKE token for PostgreSQL's backslash escape. */
 function escapedToken(token: LikeToken): string {
-    // keep a wildcard
+    // add a wildcard
     if (typeof token === "string") {
         return token;
     }
@@ -463,7 +463,7 @@ function escapedToken(token: LikeToken): string {
     else if (LIKE_SPECIAL.has(token.literal)) {
         return `\\${token.literal}`;
     }
-    // keep any other literal character
+    // add any other literal character
     else {
         return token.literal;
     }
@@ -537,7 +537,7 @@ function renderValue(
         : sql`${scalar}`;
 }
 
-/** Compile a predicate, decoding values as the table's columns keep them, or as scalars. */
+/** Compile a predicate, decoding values as the table's columns store them, or as scalars. */
 function compile(predicate: Predicate, table?: Table): Match {
     switch (predicate.kind) {
         case "compare":
@@ -586,7 +586,7 @@ function compileCompare(
         const placeholder = value.placeholder;
 
         return (binding) => {
-            // read the value and compare it as the field's column keeps it
+            // read the value and compare it as the field's column stores it
             const scalar = binding.placeholder(placeholder);
             const decoded = scalar === null ? null : decode(table, name, scalar);
             const order = Order.values(binding.field(name), decoded);
@@ -766,7 +766,7 @@ function matches(match: Match, row: Row): boolean {
     );
 }
 
-/** Decode a scalar by its column, or keep it for a plain kind, computed value or missing table. */
+/** Decode a scalar by its column, as it is for a plain kind, computed value or missing table. */
 function decode(table: Table | undefined, name: string, scalar: Scalar): unknown {
     const column = table?.[TABLE].columns[name];
 

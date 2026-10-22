@@ -20,6 +20,14 @@ export class CommitWatch {
     #stop?: () => Promise<void>;
     /** The failure that ended listening. */
     #failure?: { readonly error: unknown };
+    /** Settle once the watch hears other writers' commits or stops, failing as listening fails. */
+    readonly #listening: Promise<void>;
+    /** Settle the listening wait. */
+    readonly #settleListening: () => void;
+    /** Fail the listening wait. */
+    readonly #failListening: (error: unknown) => void;
+    /** The latest sequence an announced commit ended at, all earlier ones committed, else zero. */
+    #sequence = 0;
     /** The commits heard since the watch began. */
     #generation = 0;
     /** The log head read since the latest commit heard, at that commit's generation. */
@@ -31,10 +39,25 @@ export class CommitWatch {
         announced: ReadonlySet<string>,
         tables: readonly string[],
     ) {
-        // keep the channel, the tables the database announces and the declared tables
+        // store the channel, the tables the database announces and the declared tables
         this.#channel = channel;
         this.#announced = announced;
         this.#tables = tables;
+
+        // hear a sole writer's commits at once, and other writers' once listening
+        const { promise, resolve, reject } = Promise.withResolvers<void>();
+        promise.catch(() => undefined);
+        this.#listening = promise;
+        this.#settleListening = resolve;
+        this.#failListening = reject;
+        if (channel === undefined) {
+            resolve();
+        }
+    }
+
+    /** The latest sequence an announced commit ended at, all earlier ones committed, else zero. */
+    get sequence(): number {
+        return this.#sequence;
     }
 
     /** Whether readers wait for a commit. */
@@ -42,19 +65,27 @@ export class CommitWatch {
         return this.#waiting.size > 0;
     }
 
-    /** Wake this connection's readers and announce other tables' commits to the other writers. */
+    /** Wake a commit's readers and announce it, except the tables the database announces itself. */
     notify(tables: readonly string[]): void {
-        this.#wake(tables);
-        const unannounced = tables.filter((table) => !this.#announced.has(table));
-        if (unannounced.length > 0) {
-            this.#channel?.notify({ kind: "commit", tables: unannounced });
+        // wake every reader of a sole writer's commit
+        if (this.#channel === undefined) {
+            this.#wake(tables);
+        }
+        // wake the readers of the tables the connection announces, and announce them to the others
+        else {
+            const unannounced = tables.filter((table) => !this.#announced.has(table));
+            if (unannounced.length > 0) {
+                this.#wake(unannounced);
+                this.#channel.notify({ kind: "commit", tables: unannounced });
+            }
         }
     }
 
     /** Fail every waiting and later reader. */
     fail(error: unknown): void {
-        // record the failure and wake the readers
+        // record the failure, end the listening wait and wake the readers
         this.#failure = { error };
+        this.#failListening(error);
         const waiting = [...this.#waiting];
         this.#waiting.clear();
         for (const wake of waiting) {
@@ -95,13 +126,15 @@ export class CommitWatch {
         const committed = new Set(this.#tables);
         this.#committed.add(committed);
         try {
+            // check first once the watch hears other writers' commits
+            await this.#listened(signal);
             while (!signal.aborted) {
                 // refuse waiting on a channel that failed
                 if (this.#failure) {
                     throw this.#failure.error;
                 }
 
-                // register before checking, and hand the check the tables committed since the last one
+                // register before checking, and pass the tables committed since the last check
                 const checked = new AbortController();
                 const next = this.#next(AbortSignal.any([signal, checked.signal]));
                 const tables: ReadonlySet<string> = new Set(committed);
@@ -127,8 +160,20 @@ export class CommitWatch {
         return false;
     }
 
+    /** Listen for other writers' commits once, settling once they are heard. */
+    listen(): Promise<void> {
+        // listen once a reader asks, so a connection without readers never listens
+        if (this.#channel !== undefined) {
+            this.#stop ??= this.#listen();
+        }
+
+        return this.#listening;
+    }
+
     /** Wake every reader and stop listening for other writers. */
     async stop(): Promise<void> {
+        // end the listening wait and wake every reader
+        this.#settleListening();
         this.#wake(this.#tables);
         await this.#stop?.();
     }
@@ -153,11 +198,29 @@ export class CommitWatch {
         }
     }
 
+    /** Wait until the watch listens or stops listening, or for the abort. */
+    #listened(signal: AbortSignal): Promise<void> {
+        return new Promise((resolve) => {
+            // end at once for an aborted signal
+            if (signal.aborted) {
+                resolve();
+
+                return;
+            }
+
+            // end at the abort, or once listening settles or fails, with no listener left
+            const abort = () => resolve();
+            const settle = () => {
+                signal.removeEventListener("abort", abort);
+                resolve();
+            };
+            signal.addEventListener("abort", abort, { once: true });
+            this.listen().then(settle, settle);
+        });
+    }
+
     /** Wait for the next commit or the abort. */
     #next(signal: AbortSignal): Promise<void> {
-        // start listening
-        this.#stop ??= this.#listen();
-
         return new Promise((resolve, reject) => {
             // end at once when already aborted
             if (signal.aborted) {
@@ -187,8 +250,14 @@ export class CommitWatch {
     /** Wake the readers on each announced commit, and on each resumed delivery for all tables. */
     #listen(): () => Promise<void> {
         const stop = this.#channel?.listen(
-            (message) => this.#wake(message.tables),
-            () => this.#wake(this.#tables),
+            (message) => {
+                this.#sequence = Math.max(this.#sequence, message.sequence ?? 0);
+                this.#wake(message.tables);
+            },
+            () => {
+                this.#settleListening();
+                this.#wake(this.#tables);
+            },
             (error) => this.fail(error),
         );
 

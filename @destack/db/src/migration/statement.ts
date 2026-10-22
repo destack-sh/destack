@@ -73,7 +73,7 @@ export function alterColumn(
             `ALTER TABLE ${target} ALTER COLUMN ${column} TYPE ${typed(to)} USING ${column}::${to.type}`,
         );
     }
-    // keep the values under another collation
+    // compare the values under another collation
     else if (from.collation !== to.collation) {
         statements.push(`ALTER TABLE ${target} ALTER COLUMN ${column} TYPE ${typed(to)}`);
     }
@@ -130,19 +130,19 @@ export function rebuildTable(table: TableDescription, copied: readonly string[])
 /** Write one column's definition. */
 function columnDefinition(column: ColumnDescription, dialect: Dialect): string {
     // write the type, default and nullability
-    const parts = [quote(column.name), typed(column)];
+    const terms = [quote(column.name), typed(column)];
     if (column.generated !== undefined) {
-        parts.push(
+        terms.push(
             `GENERATED ALWAYS AS (${column.generated.expression}) ${storage(column, dialect)}`,
         );
     } else if (column.default !== undefined) {
-        parts.push(`DEFAULT ${column.default}`);
+        terms.push(`DEFAULT ${column.default}`);
     }
     if (!column.nullable) {
-        parts.push("NOT NULL");
+        terms.push("NOT NULL");
     }
 
-    return parts.join(" ");
+    return terms.join(" ");
 }
 
 /** Write a column's type with its collation. */
@@ -158,7 +158,7 @@ function storage(column: ColumnDescription, dialect: Dialect): string {
     if (dialect === "postgresql") {
         return "STORED";
     }
-    // keep the declared SQLite storage
+    // add the declared SQLite storage
     else if (dialect === "sqlite") {
         return column.generated?.mode === "virtual" ? "VIRTUAL" : "STORED";
     }

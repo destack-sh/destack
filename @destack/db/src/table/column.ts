@@ -6,7 +6,7 @@ import type { Dialect } from "../dialect/dialect.ts";
 /** How a sensitive value is sealed: randomly, or alike for a column looked up by value. */
 export type Sealing = "random" | "deterministic";
 
-/** The SQL type of a sensitive column, which keeps its value sealed as text. */
+/** The SQL type of a sensitive column, which stores its value sealed as text. */
 const SEALED_TYPES = { sqlite: "text", postgresql: "text" } as const;
 
 /** The logical value types of columns. */
@@ -24,7 +24,7 @@ export const COLUMN_KINDS = [
 /** What a foreign key does to referencing rows on a change, refusals checked at deferred commit. */
 export const REFERENCE_ACTIONS = ["cascade", "no action", "set null", "set default"] as const;
 
-/** The column kinds whose values are their own JSON form and driver parameter. */
+/** The column kinds whose values are their JSON form and driver parameter. */
 const PLAIN_KINDS: ReadonlySet<ColumnKind> = new Set<ColumnKind>(["text", "integer", "real"]);
 
 /** Driver text, such as SQLite's JSON. */
@@ -56,9 +56,9 @@ const INTEGER_TEXT = schema.string().regex(/^-?\d+$/u);
 /** A logical value type of columns. */
 export type ColumnKind = (typeof COLUMN_KINDS)[number];
 
-/** A value a column keeps: JSON, bytes or an exact 64-bit integer. */
+/** A column's value: JSON, bytes or an exact 64-bit integer. */
 export type ColumnValue = JsonValue | Uint8Array | bigint;
-/** A value a column keeps: JSON, bytes or an exact 64-bit integer. */
+/** A column's value: JSON, bytes or an exact 64-bit integer. */
 export const ColumnValue: schema.Schema<ColumnValue> = schema.union([
     schema.json(),
     schema.instanceof(Uint8Array),
@@ -104,7 +104,7 @@ export class Column<
         return value instanceof Column;
     }
 
-    /** Report whether a column's values are their own JSON form and parameter. */
+    /** Report whether a column's values are their JSON form and parameter. */
     static isPlain(column: Column): boolean {
         return PLAIN_KINDS.has(column.definition.kind);
     }
@@ -137,7 +137,7 @@ export class ColumnBuilder<Definition extends ColumnDefinition = ColumnDefinitio
         return new ColumnBuilder({ ...this.definition, default: value });
     }
 
-    /** Make the column part of the table's primary key, in declaration order. */
+    /** Add the column to the table's primary key, in declaration order. */
     primaryKey(): ColumnBuilder<
         Definition & { readonly nullable: false; readonly primaryKey: true }
     > {
@@ -148,13 +148,13 @@ export class ColumnBuilder<Definition extends ColumnDefinition = ColumnDefinitio
         });
     }
 
-    /** Seal the value at rest and keep it out of logs, audits, sync and fingerprints. */
+    /** Seal the value at rest and leave it out of logs, audits, sync and fingerprints. */
     sensitive(
         sealing: Sealing = "random",
     ): ColumnBuilder<Definition & { readonly classification: "sensitive" }> {
         return new ColumnBuilder({
             ...this.definition,
-            // keep the sealed text, whatever the value's own type
+            // store the sealed text, whatever the value's type
             types: SEALED_TYPES,
             classification: "sensitive" as const,
             sealing,
@@ -185,7 +185,7 @@ export class ColumnBuilder<Definition extends ColumnDefinition = ColumnDefinitio
         return new ColumnBuilder({ ...this.definition, reference: { column, ...actions } });
     }
 
-    /** Validate values that are their own JSON form with a narrower schema, in both forms. */
+    /** Validate values that are their JSON form with a narrower schema, in both forms. */
     validate(
         this: ColumnBuilder<Definition & { readonly json: schema.Schema<ValueOf<Definition>> }>,
         validator: schema.Schema<ValueOf<Definition>>,
@@ -231,7 +231,7 @@ export interface ColumnDefinition<
     readonly enumValues?: readonly string[];
     /** Whether the database permits NULL. */
     readonly nullable: boolean;
-    /** Whether the column is part of the primary key. */
+    /** Whether the column is in the primary key. */
     readonly primaryKey?: boolean;
     /** The column's unique constraint. */
     readonly unique?: { readonly name?: string };
@@ -292,7 +292,7 @@ export function text(name: string): ColumnBuilder<ColumnDefinitionOf<string, "te
     return scalarColumn(name, "text", TEXT_TYPES, schema.string());
 }
 
-/** Define text taking one of a set of strings, kept beside the column. */
+/** Define text taking one of a set of strings, listed beside the column. */
 export function textEnum<const Values extends readonly [string, ...string[]]>(
     name: string,
     values: Values,
@@ -516,7 +516,7 @@ export function numeric(name: string): ColumnBuilder<ColumnDefinitionOf<string, 
     );
 }
 
-/** Write a driver's number or exact integer as decimal text, keeping any other value. */
+/** Write a driver's number or exact integer as decimal text, leaving any other value. */
 function decimalText(value: unknown): unknown {
     return typeof value === "number" || typeof value === "bigint" ? value.toString() : value;
 }

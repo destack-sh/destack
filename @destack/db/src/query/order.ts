@@ -161,7 +161,7 @@ export const Order = {
             rows.map((row) => ({ name, row, key: Key.name(table, Key.of(table, row)) })),
         );
 
-        // sort and keep the first
+        // sort and take the first
         entries.sort(
             (left, right) =>
                 Order.rows(order, left.row, right.row) ||
@@ -260,7 +260,7 @@ export const Order = {
 
 /** Match rows equal to a row's value of one key. */
 function equal(table: Table, key: OrderKey, row: Row, namespace: Namespace): SQL {
-    // match a missing value, a computed one as it is, and a column value bound through its column
+    // match a missing value, a computed one as it is, or a column value bound by its column
     const value = row[key.column];
     if (Object.hasOwn(namespace.extras, key.column)) {
         const expression = Order.expression(table, key.column, namespace);

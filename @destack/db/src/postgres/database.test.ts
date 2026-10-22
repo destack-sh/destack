@@ -10,29 +10,25 @@ import { integer, text } from "../table/column.ts";
 import { defineTable, TABLE } from "../table/table.ts";
 import { connectPostgres, reportNotice } from "./connection.ts";
 import { postgresChannel } from "./database.ts";
-import { TEST_DIALECTS, TestDatabase } from "../test/database.ts";
+import { TestDatabase } from "../test/database.ts";
 import { note, revision } from "../log/test/fixture.ts";
 import { LOG_TOPIC } from "../log/schema.ts";
 
-/** The test server's address, absent where the test dialects leave PostgreSQL out. */
-const ADDRESS = TEST_DIALECTS.includes("postgresql")
-    ? process.env["DESTACK_TEST_POSTGRES"]
-    : undefined;
+/** Whether the test's project runs against PostgreSQL, which these tests need. */
+const isPostgresql = TestDatabase.target() === "postgresql";
 
 /** A message between parties, with a body of some size. */
 const Note = schema.object({ from: schema.string(), body: schema.string() });
 /** A message between parties, with a body of some size. */
 type Note = schema.Infer<typeof Note>;
 
-test.skipIf(ADDRESS === undefined)(
-    "carry small and large messages whole through a PostgreSQL channel, splitting the large ones",
+test.skipIf(!isPostgresql)(
+    "send small and large messages whole through a PostgreSQL channel, splitting the large ones",
     async () => {
         // listen with one client and notify with another
-        if (ADDRESS === undefined) {
-            throw new Error("the test server has no address");
-        }
-        const listener = postgres(ADDRESS, { max: 1 });
-        const sender = postgres(ADDRESS, { max: 4 });
+        const address = TestDatabase.address();
+        const listener = postgres(address, { max: 1 });
+        const sender = postgres(address, { max: 4 });
         const name = `destack_test_${crypto.randomUUID().replaceAll("-", "")}`;
         const received: Note[] = [];
         const joined = Promise.withResolvers<void>();
@@ -91,14 +87,12 @@ const QueryPlan = schema.object({
     "QUERY PLAN": schema.array(schema.object({ Plan: schema.json() })),
 });
 
-test.skipIf(ADDRESS === undefined)(
+test.skipIf(!isPostgresql)(
     "list text keys in byte order through their index once migrated to byte collation, in a database collating by ICU",
     async () => {
         // create the ICU database once across concurrent runs
-        if (ADDRESS === undefined) {
-            throw new Error("the test server has no address");
-        }
-        const server = postgres(ADDRESS, { max: 1, onnotice: reportNotice });
+        const address = TestDatabase.address();
+        const server = postgres(address, { max: 1, onnotice: reportNotice });
         onTestFinished(() => server.end());
         const [existing] = await server`SELECT 1 FROM pg_database WHERE datname = ${ICU_DATABASE}`;
         if (existing === undefined) {
@@ -113,14 +107,14 @@ test.skipIf(ADDRESS === undefined)(
                 });
         }
 
-        // connect to a schema of its own in the ICU database
-        const address = new URL(ADDRESS);
-        address.pathname = `/${ICU_DATABASE}`;
-        const administration = postgres(address.href, { max: 1, onnotice: reportNotice });
+        // connect to a separate schema in the ICU database
+        const icu = new URL(address);
+        icu.pathname = `/${ICU_DATABASE}`;
+        const administration = postgres(icu.href, { max: 1, onnotice: reportNotice });
         const name = `test_${crypto.randomUUID().replaceAll("-", "")}`;
         await administration.unsafe(`CREATE SCHEMA "${name}"`);
         const database = await connectPostgres(
-            postgres(address.href, {
+            postgres(icu.href, {
                 max: 2,
                 connection: { search_path: name },
                 onnotice: reportNotice,
@@ -177,12 +171,12 @@ test.skipIf(ADDRESS === undefined)(
     },
 );
 
-test.skipIf(ADDRESS === undefined)(
-    "announce a schema's commits on its own channel alone, never to a database of another schema",
+test.skipIf(!isPostgresql)(
+    "announce a schema's commits on its channel alone, never to a database of another schema",
     async () => {
-        // keep two databases of other tables in two schemas of one server, listening to the second one's commits
-        const here = await TestDatabase.create("postgresql", [revision], { isMigrated: true });
-        const there = await TestDatabase.create("postgresql", [note], { isMigrated: true });
+        // open databases of other tables in two schemas of one server, listening to the second
+        const here = await TestDatabase.create([revision], { isMigrated: true });
+        const there = await TestDatabase.create([note], { isMigrated: true });
         onTestFinished(async () => {
             await Promise.all([here.close(), there.close()]);
         });
@@ -190,7 +184,7 @@ test.skipIf(ADDRESS === undefined)(
             id: "a",
             title: "First",
             scope: "inbox",
-            summary: null,
+            subtitle: null,
             views: 1n,
             labels: [],
             editedAt: 1,
@@ -213,13 +207,13 @@ test.skipIf(ADDRESS === undefined)(
         onTestFinished(stop);
         await joined.promise;
 
-        // commit in the first schema, then in the second, receiving only the second one's commit
+        // commit in both schemas, receiving only the second's commit at its sequence
         await here.database
             .insert(revision)
             .values({ scope: "inbox", noteId: "a", number: 1, title: "First" });
         await there.database.insert(note).values(row);
         await isReceived.promise;
-        expect(received).toEqual([{ kind: "commit", tables: [note[TABLE].sqlName] }]);
+        expect(received).toEqual([{ kind: "commit", tables: [note[TABLE].sqlName], sequence: 1 }]);
     },
 );
 

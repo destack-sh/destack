@@ -4,7 +4,7 @@ import { assertNever } from "../error/error.ts";
 import { quote } from "../dialect/quote.ts";
 import { hashName } from "../table/namespace.ts";
 
-/** A renamed column kept equal to its previous column. */
+/** A renamed column equal to its previous column. */
 export interface Bridge {
     /** The previous column. */
     readonly from: string;
@@ -86,7 +86,7 @@ function bridgeName(table: string, bridge: Bridge): string {
     return `destack_bridge_${hashName(`${table}\0${bridge.from}\0${bridge.to}`)}`;
 }
 
-/** The triggers keeping renamed columns equal to their previous names. */
+/** The triggers that sync renamed columns with their previous names. */
 export const bridgeTriggers: Triggers = {
     install: (state, dialect) =>
         (state.bridges ?? []).flatMap((bridge) => install(state.table.name, bridge, dialect)),

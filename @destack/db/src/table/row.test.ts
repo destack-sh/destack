@@ -67,13 +67,13 @@ test("roundtrip every column kind through its JSON form as text", () => {
     });
     expect(Table.decode(sample, encoded)).toEqual(row);
 
-    // keep null values as null
+    // read null values as null
     expect(sample[TABLE].encode({ id: "b", views: null })).toEqual({ id: "b", views: null });
     expect(Table.decode(sample, { id: "b", views: null })).toEqual({ id: "b", views: null });
 });
 
 test("conceal columns by masking the personal values their schemas mark and leaving out the rest", () => {
-    // keep a call's personal address inside its data, a personal email and a plain note
+    // read a call's personal address inside its value, a personal email and a plain note
     const entry = defineTable("conceal_sample", {
         /** The identity. */
         id: text("id").primaryKey(),
@@ -97,7 +97,7 @@ test("conceal columns by masking the personal values their schemas mark and leav
         note: "hello",
     };
 
-    // mask the personal columns readers lack and leave out the plain one, in rows and their JSON form
+    // mask the personal columns readers lack and leave out the plain one, in rows and JSON
     expect([
         entry[TABLE].conceal(row, []),
         entry[TABLE].conceal(row, ["data", "email", "note"]),

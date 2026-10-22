@@ -44,7 +44,7 @@ export class DatabaseDriver {
         transaction?: TransactionState,
         options: DriverOptions = {},
     ) {
-        // keep the session, the connection's state, the transaction, the meter and whether reads share a version
+        // store the session, the connection's state, the transaction, the meter and read sharing
         this.session = session;
         this.state = state;
         this.transaction = transaction;
@@ -100,7 +100,7 @@ export class DatabaseDriver {
         return this.commit(() => this.#identified(operation, isLogging), written);
     }
 
-    /** Submit work that commits on its own and writes some tables, such as a transaction. */
+    /** Submit work that commits by itself and writes some tables, such as a transaction. */
     async commit<Value>(
         operation: () => Promise<Value>,
         tables: ReadonlySet<string>,
@@ -193,14 +193,14 @@ export class DatabaseDriver {
         const { log, epoch, horizon, latest, applied } = await (this.#version ??
             this.#readVersion());
 
-        // share the statement's rows at its tables' latest change, or past compaction at the horizon
+        // share the rows at the tables' latest change, or past compaction at the horizon
         const sequence = Math.max(
             horizon,
             ...statement.tables.map((table) =>
                 present(latest.get(table), `the version of ${table}`),
             ),
         );
-        // key the read by each of its tables' migrations, which change predefined rows without the log
+        // key the read by its tables' migrations, which change predefined rows without the log
         const migrations = statement.tables.map((table) =>
             present(applied.get(table), `the migration of ${table}`),
         );
@@ -269,17 +269,17 @@ export class DatabaseDriver {
         operation: (session: Session) => Promise<Value>,
         isLogging: boolean,
     ): Promise<Value> {
-        // run a write of unlogged tables, or a PostgreSQL one outside a transaction, as it is
+        // run an unlogged write, or a PostgreSQL write outside a transaction, as it is
         if (!isLogging || (this.transaction === undefined && this.session.dialect !== "sqlite")) {
             return await operation(this.session);
         }
-        // stamp the enclosing transaction ahead of its first logged write, keeping statement order
+        // stamp the enclosing transaction ahead of its first logged write, in statement order
         else if (this.transaction !== undefined) {
             await this.transaction.identity.stamp();
 
             return await operation(this.session);
         }
-        // run a SQLite write in a stamped transaction of its own
+        // run a SQLite write in a separate stamped transaction
         else {
             return await this.session.transaction(
                 async (transaction) => {
@@ -302,7 +302,7 @@ async function failing<Value>(statement: DriverStatement, pending: Promise<Value
     try {
         return await pending;
     } catch (error) {
-        // keep a classified failure, and report another with its statement
+        // rethrow a classified failure, and report another with its statement
         const classified = classifyError(error);
         if (classified instanceof DatabaseError) {
             throw classified;

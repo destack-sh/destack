@@ -100,9 +100,9 @@ export class BunClient extends BunQuery implements SqliteConnectionClient {
         this.#queue = queue;
     }
 
-    /** Read the work queue of a database's file, or a queue of its own for a memory database. */
+    /** Read the work queue of a database's file, or a separate queue for a memory database. */
     static queue(database: bun.Database): SqliteWorkQueue {
-        // give each memory database its own queue
+        // give each memory database a separate queue
         const file = database.filename;
         if (file === "" || file === ":memory:") {
             return new SqliteWorkQueue();

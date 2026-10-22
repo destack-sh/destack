@@ -98,7 +98,7 @@ export type Message = schema.Infer<typeof Message>;
 
 /** Serve a connection to a channel's other parties until stopped. */
 export function serveDatabase(client: SqliteConnectionClient, raw: Channel<unknown>): () => void {
-    // type the channel's messages, name this owner and keep party transactions open
+    // type the channel's messages, name this owner and leave party transactions open
     const channel = typedChannel(raw, Message);
     const owner = crypto.randomUUID();
     const transactions = new Map<number, OwnerTransaction>();
@@ -178,7 +178,7 @@ async function runStatement(
     transactions: ReadonlyMap<number, OwnerTransaction>,
     step: Extract<Step, { readonly type: "statement" }>,
 ): Promise<unknown> {
-    // find the open transaction and keep it alive
+    // find the open transaction and extend it
     const open = step.transaction === undefined ? undefined : transactions.get(step.transaction);
     if (step.transaction !== undefined && open === undefined) {
         throw new DatabaseError("TRANSACTION_CLOSED", "the shared transaction has ended");
@@ -191,13 +191,13 @@ async function runStatement(
         : await target[step.method](step.sql, step.parameters);
 }
 
-/** A transaction the owner keeps open for a party. */
+/** A transaction the owner leaves open for a party. */
 class OwnerTransaction {
     /** The transaction's client. */
     readonly client: SqliteQueryClient;
     /** Resolve on commit and reject on rollback. */
     readonly done: Promise<void>;
-    /** End the callback that keeps the transaction open. */
+    /** End the callback that leaves the transaction open. */
     readonly #finish: (commit: boolean) => void;
     /** Forget the transaction. */
     readonly #forget: () => void;
@@ -211,7 +211,7 @@ class OwnerTransaction {
         finish: (commit: boolean) => void,
         forget: () => void,
     ) {
-        // keep the client and its end
+        // store the client and its end
         this.client = client;
         this.done = done;
         this.#finish = finish;
@@ -219,14 +219,14 @@ class OwnerTransaction {
         this.touch();
     }
 
-    /** Begin a transaction and keep it open. */
+    /** Begin a transaction and leave it open. */
     static begin(
         connection: SqliteConnectionClient,
         mode: "deferred" | "immediate" | "exclusive",
         forget: () => void,
     ): Promise<OwnerTransaction> {
         return new Promise((resolve, reject) => {
-            // keep the callback open until the party ends it
+            // leave the callback open until the party ends it
             let opened: OwnerTransaction | undefined;
             const begin = connection.transactionAsync(
                 (transaction) =>
@@ -334,7 +334,7 @@ export class SharedQuery implements SqliteQueryClient {
         await this.#statement({ method: "run", sql, parameters: parameters.map(sharedValue) });
     }
 
-    /** Run work in a savepoint the owner keeps, at a depth. */
+    /** Run work in an owner's savepoint, at a depth. */
     nest<Value>(
         depth: number,
         operation: (client: SqliteQueryClient) => Promise<Value>,
@@ -401,7 +401,7 @@ export class SharedClient extends SharedQuery implements SqliteConnectionClient 
         this.party.close();
     }
 
-    /** Run a callback in a transaction the owner keeps open. */
+    /** Run a callback in a transaction the owner leaves open. */
     transactionAsync<Value>(operation: (client: SqliteQueryClient) => Promise<Value>) {
         const begin = async (mode: "deferred" | "immediate" | "exclusive") => {
             // begin at the owner and run the callback
@@ -522,10 +522,10 @@ export class Party {
     /** Send one step, queued until an owner serves. */
     #ask(
         step: Step,
-        pinned: string | undefined,
+        asked: string | undefined,
     ): Promise<{ readonly value: unknown; readonly owner: string }> {
         // refuse a step of a stopped owner
-        if (pinned !== undefined && pinned !== this.#owner) {
+        if (asked !== undefined && asked !== this.#owner) {
             return Promise.reject(
                 new DatabaseError("OWNER_CHANGED", "the owner of the transaction changed"),
             );
@@ -556,7 +556,7 @@ export class Party {
     }
 }
 
-/** A transaction an owner keeps open for a party. */
+/** A transaction an owner leaves open for a party. */
 export interface SharedTransaction {
     /** The owner of the transaction. */
     readonly owner: string;
@@ -576,7 +576,7 @@ interface Request {
     readonly reject: (error: unknown) => void;
 }
 
-/** Carry a value to the owner, bytes in a buffer of their own as structured cloning copies them. */
+/** Send a value to the owner, bytes in a separate buffer as structured cloning copies them. */
 function sharedValue(value: DriverValue): DriverValue {
     return value instanceof Uint8Array ? new Uint8Array(value) : value;
 }

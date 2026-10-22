@@ -3,7 +3,7 @@ import { schema } from "@destack/schema";
 import { integer, text } from "./column.ts";
 import { check } from "./constraint.ts";
 import { defineTable } from "./table.ts";
-import { TEST_DIALECTS, TestDatabase } from "../test/database.ts";
+import { TestDatabase } from "../test/database.ts";
 
 /** Commits of a repository, each check one condition operator. */
 const commit = defineTable(
@@ -63,37 +63,34 @@ const KEPT = {
     expiresAt: 2,
 };
 
-test.for(TEST_DIALECTS)(
-    "refuse rows breaking each check of conditions, comparing with values the column refuses, on %s",
-    async (dialect) => {
-        const storage = await TestDatabase.create(dialect, [commit], { isMigrated: true });
-        onTestFinished(() => storage.close());
-        const database = storage.database;
+test("refuse rows breaking each check of conditions, comparing with values the column refuses", async () => {
+    const storage = await TestDatabase.create([commit], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const database = storage.database;
 
-        // insert a kept row, then one breaking each check
-        await database.insert(commit).values(KEPT);
-        const broken = [
-            { hash: "A".repeat(40) },
-            { hash: "a".repeat(41) },
-            { label: "xn" },
-            { path: "src" },
-            { path: "/src_" },
-            { manifest: null },
-            { state: "failed" },
-            { expiresAt: 1 },
-        ];
-        const refused = await Promise.all(
-            broken.map(async (change, index) =>
-                database
-                    .insert(commit)
-                    .values({ ...KEPT, ...change, id: `b${index}` })
-                    .then(
-                        () => "kept",
-                        (error: unknown) => (error instanceof Error ? error.message : "thrown"),
-                    ),
-            ),
-        );
+    // insert a valid row, then one breaking each check
+    await database.insert(commit).values(KEPT);
+    const broken = [
+        { hash: "A".repeat(40) },
+        { hash: "a".repeat(41) },
+        { label: "xn" },
+        { path: "src" },
+        { path: "/src_" },
+        { manifest: null },
+        { state: "failed" },
+        { expiresAt: 1 },
+    ];
+    const refused = await Promise.all(
+        broken.map(async (change, index) =>
+            database
+                .insert(commit)
+                .values({ ...KEPT, ...change, id: `b${index}` })
+                .then(
+                    () => "kept",
+                    (error: unknown) => (error instanceof Error ? error.message : "thrown"),
+                ),
+        ),
+    );
 
-        expect(refused).toEqual(broken.map(() => "a record fails a declared check"));
-    },
-);
+    expect(refused).toEqual(broken.map(() => "a record fails a declared check"));
+});

@@ -84,7 +84,7 @@ function triggerName(dependent: DependentDescription): string {
     return quote(boundedName(`${dependent.table}__${dependent.source}_${dependent.key}`));
 }
 
-/** The triggers keeping dependents consistent. */
+/** The triggers that maintain dependents. */
 export const dependentTriggers: Triggers = {
     install: (state, dialect, namespace) =>
         (state.dependents ?? []).flatMap((dependent) => install(dependent, dialect, namespace)),

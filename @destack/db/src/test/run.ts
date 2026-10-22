@@ -3,6 +3,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import postgres from "postgres";
+import type { TestProject } from "@destack/test";
+import type { Dialect } from "../dialect/dialect.ts";
+import { TestDatabase } from "./database.ts";
 import { ImageIndex } from "./template.ts";
 
 export type { ImageIndex } from "./template.ts";
@@ -14,18 +17,19 @@ const INDEX = "images.json";
 export const TestRun = {
     /** Write a module's templates once per run and provide their images, as a run's setup. */
     setup(module: URL) {
-        return async (project: {
-            readonly provide: (key: "templates", value: ImageIndex) => void;
-        }): Promise<() => Promise<void>> => {
-            const run = await TestRun.write(module);
+        return async (project: TestProject): Promise<() => Promise<void>> => {
+            const run = await TestRun.write(module, TestDatabase.target(project));
             project.provide("templates", run.images);
 
             return run.remove;
         };
     },
 
-    /** Write a module's templates in a child with the runtime's module resolution. */
-    async write(module: URL): Promise<{
+    /** Write a module's templates for a database in a child process. */
+    async write(
+        module: URL,
+        dialect: Dialect,
+    ): Promise<{
         readonly images: ImageIndex;
         readonly index: string;
         readonly remove: () => Promise<void>;
@@ -34,7 +38,7 @@ export const TestRun = {
         const directory = await mkdtemp(join(tmpdir(), "destack-run-"));
         const id = crypto.randomUUID().replaceAll("-", "").slice(0, 16);
         const writer = fileURLToPath(new URL("./write.ts", import.meta.url));
-        const child = Bun.spawn([process.execPath, writer, module.href, directory, id], {
+        const child = Bun.spawn([process.execPath, writer, module.href, directory, id, dialect], {
             stdout: "inherit",
             stderr: "pipe",
         });
@@ -42,7 +46,7 @@ export const TestRun = {
 
         // remove the run's images once it ends, or at once after a failed write
         const remove = async () => {
-            await TestRun.drop(id);
+            await TestRun.drop(id, dialect);
             await rm(directory, { recursive: true, force: true });
         };
         if (code !== 0) {
@@ -64,15 +68,14 @@ export const TestRun = {
     },
 
     /** Drop the PostgreSQL schemas of a run's template images. */
-    async drop(id: string): Promise<void> {
-        // leave a run without PostgreSQL
-        const address = process.env["DESTACK_TEST_POSTGRES"] ?? "";
-        if (address === "") {
+    async drop(id: string, dialect: Dialect): Promise<void> {
+        // leave a SQLite run's images to its directory
+        if (dialect === "sqlite") {
             return;
         }
 
         // drop each schema of the run
-        const session = postgres(address, { max: 1, fetch_types: false });
+        const session = postgres(TestDatabase.address(), { max: 1, fetch_types: false });
         const schemas = await session<{ name: string }[]>`
             SELECT nspname AS name FROM pg_namespace WHERE starts_with(nspname, ${`test_t${id}_`})`;
         for (const { name } of schemas) {

@@ -1,6 +1,6 @@
 import { asc, sql } from "../sql/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
-import { TEST_DIALECTS, TestDatabase } from "../test/database.ts";
+import { TestDatabase } from "../test/database.ts";
 import { defineTable, Table } from "../table/table.ts";
 import { bigint, boolean, integer, real, text } from "../table/column.ts";
 import { Condition, type Comparable, type Scalar } from "./condition.ts";
@@ -160,47 +160,44 @@ function draw(seed: { value: number }, depth: number): Condition {
     }
 }
 
-test.for(TEST_DIALECTS)(
-    "decide random conditions alike in SQL and in memory on %s",
-    async (dialect) => {
-        const storage = await TestDatabase.create(dialect, [sample], { isMigrated: true });
-        onTestFinished(() => storage.close());
-        const database = storage.database;
+test("decide random conditions alike in SQL and in memory", async () => {
+    const storage = await TestDatabase.create([sample], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const database = storage.database;
 
-        // insert every combination of a few values, read from their JSON form
-        const seed = { value: 7 };
-        const rows = Array.from({ length: 60 }, (_, id) =>
-            Table.decode(
-                sample,
-                Object.fromEntries([
-                    ["id", id],
-                    ...Object.entries(VALUES).map(
-                        ([name, values]) => [name, pick(values, seed)] as const,
-                    ),
-                ]),
-            ),
-        );
-        const untyped: Table = sample;
-        await database.upsert(untyped, rows);
+    // insert every combination of a few values, read from their JSON form
+    const seed = { value: 7 };
+    const rows = Array.from({ length: 60 }, (_, id) =>
+        Table.decode(
+            sample,
+            Object.fromEntries([
+                ["id", id],
+                ...Object.entries(VALUES).map(
+                    ([name, values]) => [name, pick(values, seed)] as const,
+                ),
+            ]),
+        ),
+    );
+    const untyped: Table = sample;
+    await database.upsert(untyped, rows);
 
-        // match each condition in SQL and memory alike
-        for (let index = 0; index < CONDITIONS; index += 1) {
-            const drawn = draw(seed, 3);
-            const predicate = Condition.resolve(drawn, Namespace.fields(sample));
-            const selected = await database
-                .select({ id: sample.id })
-                .from(sample)
-                .where(Predicate.render(predicate, Predicate.bind(sample)))
-                .orderBy(asc(sample.id));
-            const match = Predicate.compile(predicate, sample);
-            const matched = rows.filter((row) => Predicate.matches(match, row));
-            expect([drawn, selected.map((row) => row.id)]).toEqual([
-                drawn,
-                matched.map((row) => row["id"]),
-            ]);
-        }
-    },
-);
+    // match each condition in SQL and memory alike
+    for (let index = 0; index < CONDITIONS; index += 1) {
+        const drawn = draw(seed, 3);
+        const predicate = Condition.resolve(drawn, Namespace.fields(sample));
+        const selected = await database
+            .select({ id: sample.id })
+            .from(sample)
+            .where(Predicate.render(predicate, Predicate.bind(sample)))
+            .orderBy(asc(sample.id));
+        const match = Predicate.compile(predicate, sample);
+        const matched = rows.filter((row) => Predicate.matches(match, row));
+        expect([drawn, selected.map((row) => row.id)]).toEqual([
+            drawn,
+            matched.map((row) => row["id"]),
+        ]);
+    }
+});
 
 test("escape a pattern's wildcards with a backslash, refusing an escape ending it", () => {
     // match literal wildcards and backslashes only where escaped
@@ -232,7 +229,7 @@ test("order text by code point, as UTF-8 bytes order it", () => {
 });
 
 test("refuse a descending character range, reading a mixed one as its characters", () => {
-    // refuse z-a, and read Z-a as Z, a and a hyphen
+    // refuse z-a, and read Z-a as Z and a with a hyphen
     const fields = Namespace.fields(sample);
     expect(() => Condition.resolve({ name: { characters: "z-a" } }, fields)).toThrow(
         new DatabaseError("INVALID_QUERY", "character range z-a descends"),
@@ -272,8 +269,8 @@ test("refuse conditions beyond a thousand terms", () => {
     );
 });
 
-test.for(TEST_DIALECTS)("match a thousand listed values in SQL on %s", async (dialect) => {
-    const storage = await TestDatabase.create(dialect, [sample], { isMigrated: true });
+test("match a thousand listed values in SQL", async () => {
+    const storage = await TestDatabase.create([sample], { isMigrated: true });
     onTestFinished(() => storage.close());
     await storage.database.insert(sample).values([
         { id: 1, count: 999 },

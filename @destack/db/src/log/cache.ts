@@ -1,10 +1,10 @@
 import { LogPosition } from "./position.ts";
 
-/** Reads of one kind, each kept at the log position it was read at, least recently used dropped. */
+/** Reads of one kind, each stored at its read's log position, least recently used dropped. */
 export class ReadCache<Value> {
-    /** The most weight the kept values have together. */
+    /** The most weight the stored values have together. */
     readonly #capacity: number;
-    /** The most weight one kept value has. */
+    /** The most weight one stored value has. */
     readonly #maximum: number;
     /** Weigh a value, such as by its rows. */
     readonly #weigh: (value: Value) => number;
@@ -12,10 +12,10 @@ export class ReadCache<Value> {
     readonly #values = new Map<string, Entry<Value> & { readonly weight: number }>();
     /** The reads running, by key. */
     readonly #reading = new Map<string, Entry<Promise<Value>>>();
-    /** The weight of the kept values. */
+    /** The weight of the stored values. */
     #weight = 0;
 
-    /** Keep values up to a total weight, each at most a maximum weight. */
+    /** Store values up to a total weight, each at most a maximum weight. */
     constructor(capacity: number, maximum: number, weigh: (value: Value) => number) {
         this.#capacity = capacity;
         this.#maximum = maximum;
@@ -24,7 +24,7 @@ export class ReadCache<Value> {
 
     /** Read a value at a position or later, from memory or once through a shared read. */
     get(key: string, read: () => Promise<Value>, position: LogPosition): Promise<Value> {
-        // answer a value kept at the position or later, marking it used last
+        // answer a value stored at the position or later, marking it used last
         const kept = this.#values.get(key);
         if (kept !== undefined && !LogPosition.isAfter(position, kept.position)) {
             this.#values.delete(key);
@@ -39,16 +39,16 @@ export class ReadCache<Value> {
             return running.value;
         }
 
-        // read anew, keeping the value unless a newer one is kept meanwhile
+        // read anew, storing the value unless a newer one arrives meanwhile
         const reading: Promise<Value> = read().then(
             (value) => {
-                // finish the running read, and keep its value unless a newer one is kept
+                // finish the running read, and store its value unless a newer one arrived
                 const newest = this.#values.get(key);
                 if (this.#reading.get(key)?.value === reading) {
                     this.#reading.delete(key);
                 }
                 if (newest === undefined || !LogPosition.isAfter(newest.position, position)) {
-                    this.#keep(key, value, position);
+                    this.#set(key, value, position);
                 }
 
                 return value;
@@ -65,16 +65,16 @@ export class ReadCache<Value> {
         return reading;
     }
 
-    /** Keep a read value, dropping the least recently used ones past the capacity. */
-    #keep(key: string, value: Value, position: LogPosition): void {
-        // replace the key's value, keeping none heavier than the maximum
+    /** Store a read value, dropping the least recently used ones past the capacity. */
+    #set(key: string, value: Value, position: LogPosition): void {
+        // replace the key's value, storing none heavier than the maximum
         this.#forget(key);
         const weight = this.#weigh(value);
         if (weight > this.#maximum) {
             return;
         }
 
-        // keep the value last, dropping the oldest past the capacity
+        // store the value last, dropping the oldest past the capacity
         this.#values.set(key, { value, position, weight });
         this.#weight += weight;
         for (const oldest of this.#values.keys()) {
@@ -85,7 +85,7 @@ export class ReadCache<Value> {
         }
     }
 
-    /** Drop a kept value and its weight. */
+    /** Drop a stored value and its weight. */
     #forget(key: string): void {
         const kept = this.#values.get(key);
         if (kept !== undefined) {

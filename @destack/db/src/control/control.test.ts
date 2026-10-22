@@ -65,7 +65,7 @@ function ignore(): void {}
 
 test("reconcile listed keys, keys changes name, keys due again, and failed keys after a backoff", async () => {
     using telemetry = TestTelemetry.register();
-    const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
+    const storage = await TestDatabase.create([job], { isMigrated: true });
     onTestFinished(() => storage.close());
     const database = storage.database;
     await database.insert(job).values({ id: "listed", scope: "space", runs: 1 });
@@ -121,7 +121,7 @@ test("reconcile listed keys, keys changes name, keys due again, and failed keys 
 });
 
 test("report a key whose peer answers unavailable only once it stays so past the window, and any other failure at once", async () => {
-    const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
+    const storage = await TestDatabase.create([job], { isMigrated: true });
     onTestFinished(() => storage.close());
 
     // leave "peer" unavailable until told otherwise, and fail "broken" once
@@ -173,7 +173,7 @@ test("report a key whose peer answers unavailable only once it stays so past the
 });
 
 test("retry a reconciliation a domain failure refuses as unavailable, such as a stale replica, until it succeeds, reporting nothing", async () => {
-    const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
+    const storage = await TestDatabase.create([job], { isMigrated: true });
     onTestFinished(() => storage.close());
 
     // refuse "stale" twice as access refuses a replica its home has not confirmed lately
@@ -221,7 +221,7 @@ test("retry a reconciliation a domain failure refuses as unavailable, such as a 
 });
 
 test("report a key function that fails on a change and reconcile every listed key in its place, following later changes", async () => {
-    const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
+    const storage = await TestDatabase.create([job], { isMigrated: true });
     onTestFinished(() => storage.close());
     const database = storage.database;
 
@@ -267,7 +267,7 @@ test("report a key function that fails on a change and reconcile every listed ke
 });
 
 test("list a controller of an unlogged table again after a commit to its table alone", async () => {
-    const storage = await TestDatabase.create("sqlite", [claim, ticket], { isMigrated: true });
+    const storage = await TestDatabase.create([claim, ticket], { isMigrated: true });
     onTestFinished(() => storage.close());
     const database = storage.database;
 
@@ -317,7 +317,7 @@ test("list a controller of an unlogged table again after a commit to its table a
 });
 
 test("list again after compaction only the controllers following the compacted tables, leaving a periodic one to its delay, and settle idle once relisted", async () => {
-    const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
+    const storage = await TestDatabase.create([job], { isMigrated: true });
     onTestFinished(() => storage.close());
     const database = storage.database;
 
@@ -382,7 +382,7 @@ test("list again after compaction only the controllers following the compacted t
 });
 
 test("reconcile keys up to a controller's concurrency, never one key twice at once", async () => {
-    const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
+    const storage = await TestDatabase.create([job], { isMigrated: true });
     onTestFinished(() => storage.close());
 
     // block each reconciliation until released
@@ -438,8 +438,8 @@ test("reconcile keys up to a controller's concurrency, never one key twice at on
     expect(most).toBe(2);
 });
 
-test("lease each key to one instance of several sharing a database, handing it over once the lease lapses", async () => {
-    const storage = await TestDatabase.create("sqlite", [job, lease], {
+test("lease each key to one instance of several sharing a database, handing it over once its holder stops", async () => {
+    const storage = await TestDatabase.create([job, lease], {
         isMigrated: true,
     });
     onTestFinished(() => storage.close());
@@ -482,15 +482,17 @@ test("lease each key to one instance of several sharing a database, handing it o
     // reconcile the key once on the lease holder
     await expect.poll(() => reconciled.length).toBe(1);
 
-    // stop the holder and let the other instance take the key
+    // stop the holder, then let the other instance take the released key afresh
     const leases = await storage.database.select({ holder: lease.holder }).from(lease);
-    (nth(leases, 0).holder === "first" ? first : second).abort();
+    const isFirst = nth(leases, 0).holder === "first";
+    (isFirst ? first : second).abort();
+    await nth(running, isFirst ? 0 : 1);
     clock.advance(200);
     await expect.poll(() => reconciled, { timeout: 2000 }).toEqual(["1", "1"]);
 });
 
 test("follow each listed key until its list drops it or the loop stops", async () => {
-    const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
+    const storage = await TestDatabase.create([job], { isMigrated: true });
     onTestFinished(() => storage.close());
     const database = storage.database;
     await database.insert(job).values([
@@ -539,7 +541,7 @@ test("follow each listed key until its list drops it or the loop stops", async (
 });
 
 test("list a following controller again only for a commit of a row its list read, past many it never read", async () => {
-    const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
+    const storage = await TestDatabase.create([job], { isMigrated: true });
     onTestFinished(() => storage.close());
     const database = storage.database;
 
@@ -601,7 +603,7 @@ test("list a following controller again only for a commit of a row its list read
 });
 
 test("report a follow that ends unasked and retry it after a backoff", async () => {
-    const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
+    const storage = await TestDatabase.create([job], { isMigrated: true });
     onTestFinished(() => storage.close());
     const database = storage.database;
     await database.insert(job).values({ id: "brief", scope: "space", runs: 1 });
@@ -640,7 +642,7 @@ test("report a follow that ends unasked and retry it after a backoff", async () 
 });
 
 test("retry a failing follow at once when its revision changes, else only after its backoff", async () => {
-    const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
+    const storage = await TestDatabase.create([job], { isMigrated: true });
     onTestFinished(() => storage.close());
     const database = storage.database;
     await database.insert(job).values({ id: "job", scope: "space", runs: 1 });
@@ -694,7 +696,7 @@ test("retry a failing follow at once when its revision changes, else only after 
 });
 
 test("start a failing follow at once once its list drops it and lists it again, forgetting its failures", async () => {
-    const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
+    const storage = await TestDatabase.create([job], { isMigrated: true });
     onTestFinished(() => storage.close());
     const database = storage.database;
     await database.insert(job).values({ id: "job", scope: "space", runs: 1 });
@@ -735,7 +737,7 @@ test("start a failing follow at once once its list drops it and lists it again, 
 });
 
 test("refuse a follower whose list never reads its watched tables through its view", async () => {
-    const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
+    const storage = await TestDatabase.create([job], { isMigrated: true });
     onTestFinished(() => storage.close());
 
     // list a fixed key while watching jobs
@@ -758,7 +760,7 @@ test("refuse a follower whose list never reads its watched tables through its vi
 });
 
 test("follow a key again once its list names it after it failed and was dropped", async () => {
-    const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
+    const storage = await TestDatabase.create([job], { isMigrated: true });
     onTestFinished(() => storage.close());
     const database = storage.database;
     await database.insert(job).values({ id: "flaky", scope: "space", runs: 1 });
@@ -803,7 +805,7 @@ test("follow a key again once its list names it after it failed and was dropped"
 });
 
 test("set the host's alarm at the earliest due or skipped key, clear it once nothing is due, and settle idle waiters, also after the loop stopped", async () => {
-    const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
+    const storage = await TestDatabase.create([job], { isMigrated: true });
     onTestFinished(() => storage.close());
 
     // look at "later" again after a moment and at "soon" never again
@@ -843,7 +845,7 @@ test("set the host's alarm at the earliest due or skipped key, clear it once not
     await loop.idle();
     const settled = [reconciled.toSorted(), alarms.length];
 
-    // clear the alarm once the clock reached "later" again and nothing is due
+    // clear the alarm once the clock passed "later" again and nothing is due
     clock.advance(50);
     await expect.poll(() => alarms.at(-1), { interval: 5 }).toBeNull();
     stopping.abort();
@@ -856,7 +858,7 @@ test("set the host's alarm at the earliest due or skipped key, clear it once not
 });
 
 test("settle idle only after reconciling the keys of every watched change committed before the call", async () => {
-    const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
+    const storage = await TestDatabase.create([job], { isMigrated: true });
     onTestFinished(() => storage.close());
     const database = storage.database;
     const reconciled: string[] = [];
@@ -890,12 +892,12 @@ test("settle idle only after reconciling the keys of every watched change commit
     expect(seen).toEqual([["first"], ["first", "second"], ["first", "second", "third"]]);
 });
 
-test("hold idle while the follow is still keying a watched change, and settle once its key ran", async () => {
-    const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
+test("stay idle while the follow is still keying a watched change, and settle once its key ran", async () => {
+    const storage = await TestDatabase.create([job], { isMigrated: true });
     onTestFinished(() => storage.close());
     const database = storage.database;
 
-    // hold the follow inside the keys of a change until released
+    // block the follow inside the keys of a change until released
     const reconciled: string[] = [];
     const keying = Promise.withResolvers<void>();
     const release = Promise.withResolvers<void>();
@@ -946,7 +948,7 @@ test("hold idle while the follow is still keying a watched change, and settle on
 });
 
 test("spend no statement on commits to tables no controller watches", async () => {
-    const storage = await TestDatabase.create("sqlite", [job, note], { isMigrated: true });
+    const storage = await TestDatabase.create([job, note], { isMigrated: true });
     onTestFinished(() => storage.close());
     const database = storage.database;
     const controller: Controller = {
@@ -965,7 +967,7 @@ test("spend no statement on commits to tables no controller watches", async () =
     });
     await loop.idle();
 
-    // commit notes one at a time, letting the loop see each, and count every statement
+    // commit notes one at a time for the loop to see, and count every statement
     const before = database.driver.state.statements;
     for (let index = 0; index < QUIET_TURNS; index++) {
         await database.insert(note).values({ id: `note-${index}`, scope: "space" });
@@ -975,7 +977,7 @@ test("spend no statement on commits to tables no controller watches", async () =
 });
 
 test("settle idle once the log moved past a quiet watched table, also after compacting its last change", async () => {
-    const storage = await TestDatabase.create("sqlite", [job, note], { isMigrated: true });
+    const storage = await TestDatabase.create([job, note], { isMigrated: true });
     onTestFinished(() => storage.close());
     const database = storage.database;
     const controller: Controller = {
@@ -1007,7 +1009,7 @@ test("settle idle once the log moved past a quiet watched table, also after comp
 });
 
 test("settle idle only after the key of a watched change committed while the alarm was being set", async () => {
-    const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
+    const storage = await TestDatabase.create([job], { isMigrated: true });
     onTestFinished(() => storage.close());
     const database = storage.database;
 
@@ -1030,7 +1032,7 @@ test("settle idle only after the key of a watched change committed while the ala
         },
     };
 
-    // commit a watched change while the alarm for "later" is set, holding it until the follow keyed it
+    // commit a watched change while the alarm for "later" is set, blocked until the follow keyed it
     let isChanged = false;
     const alarm = {
         setAlarm: async () => {
@@ -1062,7 +1064,7 @@ test("settle idle only after the key of a watched change committed while the ala
 });
 
 test("reconcile a key named due while the worker's alarm is set, before it sleeps", async () => {
-    const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
+    const storage = await TestDatabase.create([job], { isMigrated: true });
     onTestFinished(() => storage.close());
 
     // mark "late" due while the worker's alarm is set at "first"
@@ -1107,7 +1109,7 @@ test("reconcile a key named due while the worker's alarm is set, before it sleep
 });
 
 test("settle an alarm at its deadline while a follow runs, leave the alarm due, and resume the follow from its recorded position after eviction", async () => {
-    const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
+    const storage = await TestDatabase.create([job], { isMigrated: true });
     onTestFinished(() => storage.close());
     const database = storage.database;
     await database.insert(job).values({ id: "copy", scope: "space", runs: 0 });
@@ -1155,7 +1157,8 @@ test("settle an alarm at its deadline while a follow runs, leave the alarm due, 
     };
     const evicted = start();
 
-    // settle the alarm at its deadline with the follow running
+    // settle the alarm at its deadline once the follow runs
+    await expect.poll(() => follows).toBe(1);
     await evicted.loop.idle(Date.now() + 20);
     const settled = Date.now();
     const isDue = alarms.length === 1 && nth(alarms, 0) <= settled;

@@ -38,7 +38,7 @@ export class Index {
         predicate?: Condition,
         isNullsNotDistinct = false,
     ) {
-        // keep the index definition
+        // store the index definition
         this.name = name;
         this.isUnique = isUnique;
         this.columns = columns;
@@ -128,7 +128,7 @@ export class ForeignKey {
             throw new TypeError("a foreign key must reference columns of one table");
         }
 
-        // keep the columns and actions
+        // store the columns and actions
         this.name = definition.name;
         this.columns = definition.columns;
         this.foreignColumns = definition.foreignColumns;

@@ -10,14 +10,14 @@ import { Table } from "../table/table.ts";
 import { connectPostgres } from "./connection.ts";
 import { PostgresConnector } from "./connector.ts";
 
-/** Keep databases in one PostgreSQL cluster database, one schema per database resource. */
+/** Store databases in one PostgreSQL cluster database, one schema per database resource. */
 export class PostgresDatabaseHost implements DatabaseHost {
     /** The provider code of PostgreSQL databases. */
     readonly provider = "postgresql";
     /** The connector to the cluster database, as a role able to create and drop schemas. */
     readonly connector: PostgresConnector;
 
-    /** Keep databases in the cluster database a PostgreSQL URL selects. */
+    /** Store databases in the cluster database a PostgreSQL URL selects. */
     constructor(cluster: URL) {
         this.connector = new PostgresConnector(cluster);
     }
@@ -40,7 +40,7 @@ export class PostgresDatabaseHost implements DatabaseHost {
         return { reference: record.id };
     }
 
-    /** Count the bytes a database keeps: its schema's tables with their indexes and TOAST. */
+    /** Count a database's bytes: its schema's tables with their indexes and TOAST. */
     async bytes(reference: string): Promise<number> {
         // sum the total size of each table in the schema, refusing a missing schema
         await using connection = await this.#connect(reference);

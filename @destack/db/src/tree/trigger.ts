@@ -118,7 +118,7 @@ function insertPaths(tree: TreeDescription): string {
             AND descendant = NEW.${quote(tree.parent)};`;
 }
 
-/** Keep paths within a moved subtree and replace the external ones. */
+/** Rewrite paths within a moved subtree and replace the external ones. */
 function movePaths(tree: TreeDescription): string {
     // derive the identifiers
     const closure = quote(tree.ancestors);
@@ -244,7 +244,7 @@ function remove(tree: TreeDescription, dialect: Dialect): string[] {
     return statements;
 }
 
-/** The triggers keeping tree indexes. */
+/** The triggers that maintain tree indexes. */
 export const treeTriggers: Triggers = {
     install: (state, dialect) => (state.tree ? install(state.tree, dialect) : []),
     remove: (state, dialect) => (state.tree ? remove(state.tree, dialect) : []),

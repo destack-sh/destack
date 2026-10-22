@@ -20,7 +20,7 @@ export function describeDatabase(database: Database): DatabaseDescription {
 
 /** Plan a database's table changes between releases in every dialect, the steps both share once. */
 export const compareDatabase: Comparator = (before, after) => {
-    // read both releases' databases, whose table states carry their own releases
+    // read both releases' databases, whose table states record their releases
     const earlier = DatabaseDescription.parse(before.description);
     const later = DatabaseDescription.parse(after.description);
 
@@ -50,7 +50,7 @@ export const compareDatabase: Comparator = (before, after) => {
                 : error;
         }
 
-        // keep each step once across dialects
+        // list each step once across dialects
         for (const { action, risk, target, detail } of plan.steps) {
             const addressed = Address.join(database, target);
             const key = JSON.stringify([action, addressed, detail]);

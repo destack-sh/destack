@@ -14,7 +14,7 @@ const listColumns = {
     largest: integer("largest"),
 };
 
-/** Lists keeping aggregates of their items. */
+/** Lists with aggregates of their items. */
 export const list = defineTable("aggregate_list", listColumns);
 
 /** The columns of an item. */

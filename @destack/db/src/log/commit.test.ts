@@ -1,7 +1,7 @@
 import { nth, present, schema } from "@destack/schema";
 import { expect, onTestFinished, refusal, test, vi } from "@destack/test";
 import { asc, eq, sql } from "../sql/index.ts";
-import { TEST_DIALECTS, TestDatabase } from "../test/database.ts";
+import { TestDatabase, type TestDatabaseOptions } from "../test/database.ts";
 import { defineTable, TABLE } from "../table/table.ts";
 import { integer, json, text } from "../table/column.ts";
 import { unique, uniqueIndex } from "../table/constraint.ts";
@@ -63,23 +63,23 @@ const token = defineTable(
         id: text("id").primaryKey(),
         /** The folder the token lives in. */
         scope: text("scope").notNull(),
-        /** The secret, kept out of the log. */
+        /** The secret, left out of the log. */
         secret: text("secret").notNull().sensitive(),
     },
     { log: {} },
 );
 
-/** Pins a person keeps, unique by the person and the place they pin. */
-const pin = defineTable(
+/** A person's bookmarks, unique by the person and the place. */
+const bookmark = defineTable(
     "commit_pin",
     {
-        /** The pin's key. */
+        /** The bookmark's key. */
         id: text("id").primaryKey(),
-        /** The board the pin lives in. */
+        /** The board the bookmark lives in. */
         scope: text("scope").notNull(),
         /** The person pinning. */
         person: text("person").notNull(),
-        /** The pinned place. */
+        /** The bookmarked place. */
         place: json("place", schema.object({ x: schema.number(), y: schema.number() })).notNull(),
     },
     { log: {}, constraints: (entry) => [unique("commit_pin_place").on(entry.person, entry.place)] },
@@ -99,7 +99,7 @@ const member = defineTable(
     { log: { isShared: true } },
 );
 
-/** Roles of folders, kept in the log's history, whose reads transactions share. */
+/** Roles of folders, in the log's history, whose reads transactions share. */
 const role = defineTable(
     "commit_role",
     {
@@ -128,8 +128,8 @@ function unitTable(name: string) {
 }
 
 /** Open a database with three tasks, two in the inbox and one archived. */
-async function open(dialect: (typeof TEST_DIALECTS)[number]) {
-    const storage = await TestDatabase.create(dialect, [task], { isMigrated: true });
+async function open(options: Pick<TestDatabaseOptions, "dialect"> = {}) {
+    const storage = await TestDatabase.create([task], { ...options, isMigrated: true });
     onTestFinished(() => storage.close());
     const database = storage.database;
     await database.insert(task).values([
@@ -146,80 +146,77 @@ async function tasks(database: Awaited<ReturnType<typeof open>>["database"]) {
     return database.select().from(task).orderBy(asc(task.id));
 }
 
-test.each(TEST_DIALECTS)(
-    "commit a transaction's changes, seeing its own writes through its overlay, keeping each row's first and last image and leaving rows it put back unchanged on %s",
-    async (dialect) => {
-        const { database, base } = await open(dialect);
+test("commit a transaction's changes, seeing its writes through its overlay, recording each row's first and last image and leaving rows it put back unchanged", async () => {
+    const { database, base } = await open();
 
-        // read and write through the transaction's view
-        const reads = new ReadSet();
-        const changes = new ChangeSet();
-        const view = database.log.at(base).recording(reads);
-        const first = present(await view.read(task).findFirst({ where: { id: "a" } }), "task a");
-        changes.write({
-            table: task,
-            before: first,
-            after: { id: "a", scope: "inbox", priority: 5 },
-        });
-        changes.write({
-            table: task,
-            before: { id: "a", scope: "inbox", priority: 5 },
-            after: { id: "a", scope: "inbox", priority: 6 },
-        });
-        changes.write({
-            table: task,
-            before: null,
-            after: { id: "d", scope: "inbox", priority: 4 },
-        });
-        const second = present(await view.read(task).findFirst({ where: { id: "b" } }), "task b");
-        changes.write({
-            table: task,
-            before: second,
-            after: { id: "b", scope: "inbox", priority: 9 },
-        });
-        changes.write({
-            table: task,
-            before: { id: "b", scope: "inbox", priority: 9 },
-            after: second,
-        });
-        const seen = await view
-            .layer(changes.overlay())
-            .read(task)
-            .findMany({ where: { scope: "inbox" } });
+    // read and write through the transaction's view
+    const reads = new ReadSet();
+    const changes = new ChangeSet();
+    const view = database.log.at(base).recording(reads);
+    const first = present(await view.read(task).findFirst({ where: { id: "a" } }), "task a");
+    changes.write({
+        table: task,
+        before: first,
+        after: { id: "a", scope: "inbox", priority: 5 },
+    });
+    changes.write({
+        table: task,
+        before: { id: "a", scope: "inbox", priority: 5 },
+        after: { id: "a", scope: "inbox", priority: 6 },
+    });
+    changes.write({
+        table: task,
+        before: null,
+        after: { id: "d", scope: "inbox", priority: 4 },
+    });
+    const second = present(await view.read(task).findFirst({ where: { id: "b" } }), "task b");
+    changes.write({
+        table: task,
+        before: second,
+        after: { id: "b", scope: "inbox", priority: 9 },
+    });
+    changes.write({
+        table: task,
+        before: { id: "b", scope: "inbox", priority: 9 },
+        after: second,
+    });
+    const seen = await view
+        .layer(changes.overlay())
+        .read(task)
+        .findMany({ where: { scope: "inbox" } });
 
-        // commit, keeping only the changed rows
-        await changes.commit(database, base, reads, async () => {});
-        expect({
-            seen: seen
-                .map((row) => [row.id, row.priority])
-                .toSorted((left, right) => String(left[0]).localeCompare(String(right[0]))),
-            changes: changes.changes.map((change) => [
-                change.before?.["priority"] ?? null,
-                change.after?.["priority"] ?? null,
-            ]),
-            committed: (await tasks(database)).map((row) => [row.id, row.priority]),
-        }).toEqual({
-            seen: [
-                ["a", 6],
-                ["b", 2],
-                ["d", 4],
-            ],
-            changes: [
-                [1, 6],
-                [null, 4],
-            ],
-            committed: [
-                ["a", 6],
-                ["b", 2],
-                ["c", 3],
-                ["d", 4],
-            ],
-        });
-    },
-);
+    // commit, writing only the changed rows
+    await changes.commit(database, base, reads, async () => {});
+    expect({
+        seen: seen
+            .map((row) => [row.id, row.priority])
+            .toSorted((left, right) => String(left[0]).localeCompare(String(right[0]))),
+        changes: changes.changes.map((change) => [
+            change.before?.["priority"] ?? null,
+            change.after?.["priority"] ?? null,
+        ]),
+        committed: (await tasks(database)).map((row) => [row.id, row.priority]),
+    }).toEqual({
+        seen: [
+            ["a", 6],
+            ["b", 2],
+            ["d", 4],
+        ],
+        changes: [
+            [1, 6],
+            [null, 4],
+        ],
+        committed: [
+            ["a", 6],
+            ["b", 2],
+            ["c", 3],
+            ["d", 4],
+        ],
+    });
+});
 
 test("touch a merged read set with a change of either set's reads", async () => {
-    const { database, base } = await open("sqlite");
+    const { database, base } = await open();
 
     // read one task by key and scan the archive into two sets, then merge the second into the first
     const merged = new ReadSet();
@@ -236,7 +233,7 @@ test("touch a merged read set with a change of either set's reads", async () => 
         .findMany({ where: { scope: "archive" } });
     merged.add(archived);
 
-    // change the read task, add to the archive and to the inbox, reading the changes
+    // change the read task and add to the archive and the inbox, reading the changes
     await database.update(task).set({ priority: 9 }).where(eq(task.id, "a"));
     await database.insert(task).values({ id: "f", scope: "archive", priority: 1 });
     await database.insert(task).values({ id: "g", scope: "inbox", priority: 1 });
@@ -261,111 +258,102 @@ test("count each write of a change set to some tables, two of one row among them
     });
 });
 
-test.each(TEST_DIALECTS)(
-    "refuse a transaction another commit raced on a row it read or a row its scan selects, and commit one whose reads no commit touched on %s",
-    async (dialect) => {
-        const { database, base } = await open(dialect);
+test("refuse a transaction another commit raced on a row it read or a row its scan selects, and commit one whose reads no commit touched", async () => {
+    const { database, base } = await open();
 
-        // read one row by key, scan the inbox, and read the archive apart
-        const byKey = new ReadSet();
-        await database.log
-            .at(base)
-            .recording(byKey)
-            .read(task)
-            .findFirst({ where: { id: "a" } });
-        const byScan = new ReadSet();
-        await database.log
-            .at(base)
-            .recording(byScan)
-            .read(task)
-            .findMany({ where: { scope: "inbox" } });
-        const apart = new ReadSet();
-        await database.log
-            .at(base)
-            .recording(apart)
-            .read(task)
-            .findMany({ where: { scope: "archive" } });
+    // read one row by key, scan the inbox, and read the archive apart
+    const byKey = new ReadSet();
+    await database.log
+        .at(base)
+        .recording(byKey)
+        .read(task)
+        .findFirst({ where: { id: "a" } });
+    const byScan = new ReadSet();
+    await database.log
+        .at(base)
+        .recording(byScan)
+        .read(task)
+        .findMany({ where: { scope: "inbox" } });
+    const apart = new ReadSet();
+    await database.log
+        .at(base)
+        .recording(apart)
+        .read(task)
+        .findMany({ where: { scope: "archive" } });
 
-        // change a task and add one to the inbox after the base, as other commits do
-        await database.update(task).set({ priority: 7 }).where(eq(task.id, "a"));
-        await database.insert(task).values({ id: "e", scope: "inbox", priority: 1 });
-        const write = () => {
-            const changes = new ChangeSet();
-            changes.write({
-                table: task,
-                before: null,
-                after: { id: "z", scope: "archive", priority: 0 },
-            });
-
-            return changes;
-        };
-
-        // refuse the two mutations whose reads those commits touched, and commit the third
-        expect([
-            await refusal(write().commit(database, base, byKey, async () => {})),
-            await refusal(write().commit(database, base, byScan, async () => {})),
-            await write()
-                .commit(database, base, apart, async () => {})
-                .then(() => "committed"),
-        ]).toEqual([
-            ["CONCURRENT_UPDATE", "another commit changed what the transaction read"],
-            ["CONCURRENT_UPDATE", "another commit changed what the transaction read"],
-            "committed",
-        ]);
-    },
-);
-
-test.each(TEST_DIALECTS)(
-    "read a transaction's rows with its own writes in order up to a limit, count them, and commit its records beside its changes on %s",
-    async (dialect) => {
-        const { database } = await open(dialect);
-
-        // write through the transaction and read the inbox with its writes
-        const transaction = await Transaction.open(database);
-        const first = present(
-            await transaction.read(task).findFirst({ where: { id: "a" } }),
-            "task a",
-        );
-        await transaction.write({
-            table: task,
-            before: first,
-            after: { id: "a", scope: "archive", priority: 1 },
-        });
-        await transaction.write({
+    // change a task and add one to the inbox after the base, as other commits do
+    await database.update(task).set({ priority: 7 }).where(eq(task.id, "a"));
+    await database.insert(task).values({ id: "e", scope: "inbox", priority: 1 });
+    const write = () => {
+        const changes = new ChangeSet();
+        changes.write({
             table: task,
             before: null,
-            after: { id: "d", scope: "inbox", priority: 9 },
+            after: { id: "z", scope: "archive", priority: 0 },
         });
-        const inbox = await transaction
-            .read(task)
-            .findMany({ where: { scope: "inbox" }, orderBy: { priority: "desc" }, limit: 2 });
-        const archived = await transaction.count(task, { scope: "archive" });
 
-        // commit with a record written once beside the changes
-        transaction.record(async (recording) => {
-            await recording.insert(task).values({ id: "r", scope: "records", priority: 0 });
-        });
-        await transaction.commit();
-        expect({
-            inbox: inbox.map((row) => row.id),
-            archived,
-            committed: (await tasks(database)).map((row) => [row.id, row.scope]),
-        }).toEqual({
-            inbox: ["d", "b"],
-            archived: 2,
-            committed: [
-                ["a", "archive"],
-                ["b", "inbox"],
-                ["c", "archive"],
-                ["d", "inbox"],
-                ["r", "records"],
-            ],
-        });
-    },
-);
+        return changes;
+    };
 
-test("keep only logged columns in a transaction's images and its view, committed or written", async () => {
-    const storage = await TestDatabase.create("sqlite", [token], { isMigrated: true });
+    // refuse the two mutations whose reads those commits touched, and commit the third
+    expect([
+        await refusal(write().commit(database, base, byKey, async () => {})),
+        await refusal(write().commit(database, base, byScan, async () => {})),
+        await write()
+            .commit(database, base, apart, async () => {})
+            .then(() => "committed"),
+    ]).toEqual([
+        ["CONCURRENT_UPDATE", "another commit changed what the transaction read"],
+        ["CONCURRENT_UPDATE", "another commit changed what the transaction read"],
+        "committed",
+    ]);
+});
+
+test("read a transaction's rows with its writes in order up to a limit, count them, and commit its records beside its changes", async () => {
+    const { database } = await open();
+
+    // write through the transaction and read the inbox with its writes
+    const transaction = await Transaction.open(database);
+    const first = present(await transaction.read(task).findFirst({ where: { id: "a" } }), "task a");
+    await transaction.write({
+        table: task,
+        before: first,
+        after: { id: "a", scope: "archive", priority: 1 },
+    });
+    await transaction.write({
+        table: task,
+        before: null,
+        after: { id: "d", scope: "inbox", priority: 9 },
+    });
+    const inbox = await transaction
+        .read(task)
+        .findMany({ where: { scope: "inbox" }, orderBy: { priority: "desc" }, limit: 2 });
+    const archived = await transaction.count(task, { scope: "archive" });
+
+    // commit with a record written once beside the changes
+    transaction.record(async (recording) => {
+        await recording.insert(task).values({ id: "r", scope: "records", priority: 0 });
+    });
+    await transaction.commit();
+    expect({
+        inbox: inbox.map((row) => row.id),
+        archived,
+        committed: (await tasks(database)).map((row) => [row.id, row.scope]),
+    }).toEqual({
+        inbox: ["d", "b"],
+        archived: 2,
+        committed: [
+            ["a", "archive"],
+            ["b", "inbox"],
+            ["c", "archive"],
+            ["d", "inbox"],
+            ["r", "records"],
+        ],
+    });
+});
+
+test("show only logged columns in a transaction's images and its view, committed or written", async () => {
+    const storage = await TestDatabase.create([token], { isMigrated: true });
     onTestFinished(() => storage.close());
     await storage.database.insert(token).values({ id: "a", scope: "inbox", secret: "first" });
 
@@ -404,8 +392,8 @@ test("keep only logged columns in a transaction's images and its view, committed
     });
 });
 
-test("drop a failed step's writes and records as a savepoint does, keeping the writes before it", async () => {
-    const { database } = await open("sqlite");
+test("drop a failed step's writes and records as a savepoint does, leaving the writes before it", async () => {
+    const { database } = await open();
 
     // write once, then fail a step that writes and records
     const transaction = await Transaction.open(database);
@@ -435,100 +423,95 @@ test("drop a failed step's writes and records as a savepoint does, keeping the w
     });
 });
 
-test.each(TEST_DIALECTS)(
-    "refuse a write sharing a unique key with a committed row, the transaction's own or its batch, nulls being equal and archived rows outside the key, on %s",
-    async (dialect) => {
-        const storage = await TestDatabase.create(dialect, [label], { isMigrated: true });
-        onTestFinished(() => storage.close());
-        const database = storage.database;
-        await database.insert(label).values([
-            { id: "a", scope: "board", folder: null, name: "red", archivedAt: null },
-            { id: "b", scope: "board", folder: null, name: "blue", archivedAt: 1 },
-        ]);
+test("refuse a write sharing a unique key with a committed row, the transaction's or its batch's, nulls being equal and archived rows outside the key", async () => {
+    const storage = await TestDatabase.create([label], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const database = storage.database;
+    await database.insert(label).values([
+        { id: "a", scope: "board", folder: null, name: "red", archivedAt: null },
+        { id: "b", scope: "board", folder: null, name: "blue", archivedAt: 1 },
+    ]);
 
-        // write labels clashing with a committed one, an own write and a key, and ones outside the key
-        const transaction = await Transaction.open(database);
-        const write = (row: { id: string; folder: string | null; name: string }) =>
-            transaction
-                .write({
+    // write labels clashing with committed, written and key values, and ones outside the key
+    const transaction = await Transaction.open(database);
+    const write = (row: { id: string; folder: string | null; name: string }) =>
+        transaction
+            .write({
+                table: label,
+                before: null,
+                after: { ...row, scope: "board", archivedAt: null },
+            })
+            .then(() => "written");
+    const written = [
+        await refusal(write({ id: "c", folder: null, name: "red" })),
+        await write({ id: "d", folder: null, name: "blue" }),
+        await refusal(write({ id: "e", folder: null, name: "blue" })),
+        await refusal(write({ id: "a", folder: "inbox", name: "green" })),
+        await write({ id: "f", folder: "inbox", name: "red" }),
+    ];
+
+    // write a batch whose rows clash, then one moving a key from one row to another
+    const row = (id: string, name: string) => ({
+        table: label,
+        before: null,
+        after: { id, scope: "board", folder: "done", name, archivedAt: null },
+    });
+    const batches = [
+        await refusal(transaction.write(row("g", "pink"), row("h", "pink")).then(() => "written")),
+        await transaction
+            .write(
+                {
                     table: label,
-                    before: null,
-                    after: { ...row, scope: "board", archivedAt: null },
-                })
-                .then(() => "written");
-        const written = [
-            await refusal(write({ id: "c", folder: null, name: "red" })),
-            await write({ id: "d", folder: null, name: "blue" }),
-            await refusal(write({ id: "e", folder: null, name: "blue" })),
-            await refusal(write({ id: "a", folder: "inbox", name: "green" })),
-            await write({ id: "f", folder: "inbox", name: "red" }),
-        ];
-
-        // write a batch whose rows clash, then one moving a key from one row to another
-        const row = (id: string, name: string) => ({
-            table: label,
-            before: null,
-            after: { id, scope: "board", folder: "done", name, archivedAt: null },
-        });
-        const batches = [
-            await refusal(
-                transaction.write(row("g", "pink"), row("h", "pink")).then(() => "written"),
-            ),
-            await transaction
-                .write(
-                    {
-                        table: label,
-                        before: {
-                            id: "d",
-                            scope: "board",
-                            folder: null,
-                            name: "blue",
-                            archivedAt: null,
-                        },
-                        after: {
-                            id: "d",
-                            scope: "board",
-                            folder: null,
-                            name: "teal",
-                            archivedAt: null,
-                        },
+                    before: {
+                        id: "d",
+                        scope: "board",
+                        folder: null,
+                        name: "blue",
+                        archivedAt: null,
                     },
-                    { ...row("i", "blue"), after: { ...row("i", "blue").after, folder: null } },
-                )
-                .then(() => "written"),
-        ];
-        await transaction.commit();
+                    after: {
+                        id: "d",
+                        scope: "board",
+                        folder: null,
+                        name: "teal",
+                        archivedAt: null,
+                    },
+                },
+                { ...row("i", "blue"), after: { ...row("i", "blue").after, folder: null } },
+            )
+            .then(() => "written"),
+    ];
+    await transaction.commit();
 
-        // keep the writes outside every key
-        expect({
-            written,
-            batches,
-            committed: (await database.select().from(label).orderBy(asc(label.id))).map((each) => [
-                each.id,
-                each.name,
-            ]),
-        }).toEqual({
-            batches: [["DUPLICATE", "a record with the same unique key exists"], "written"],
-            written: [
-                ["DUPLICATE", "a record with the same unique key exists"],
-                "written",
-                ["DUPLICATE", "a record with the same unique key exists"],
-                ["DUPLICATE", "a record with the same unique key exists"],
-                "written",
-            ],
-            committed: [
-                ["a", "red"],
-                ["b", "blue"],
-                ["d", "teal"],
-                ["f", "red"],
-                ["i", "blue"],
-            ],
-        });
-    },
-);
+    // write outside every key
+    expect({
+        written,
+        batches,
+        committed: (await database.select().from(label).orderBy(asc(label.id))).map((each) => [
+            each.id,
+            each.name,
+        ]),
+    }).toEqual({
+        batches: [["DUPLICATE", "a record with the same unique key exists"], "written"],
+        written: [
+            ["DUPLICATE", "a record with the same unique key exists"],
+            "written",
+            ["DUPLICATE", "a record with the same unique key exists"],
+            ["DUPLICATE", "a record with the same unique key exists"],
+            "written",
+        ],
+        committed: [
+            ["a", "red"],
+            ["b", "blue"],
+            ["d", "teal"],
+            ["f", "red"],
+            ["i", "blue"],
+        ],
+    });
+});
 
 test("rehearse writes over a transaction's rows, answering the rows they change, and drop them after", async () => {
-    const { database } = await open("sqlite");
+    const { database } = await open();
 
     // write once, then rehearse a change of that row and of another
     const transaction = await Transaction.open(database);
@@ -578,15 +561,15 @@ test("rehearse writes over a transaction's rows, answering the rows they change,
 });
 
 test("refuse a write sharing a unique key that includes a JSON column, comparing its JSON values", async () => {
-    const storage = await TestDatabase.create("sqlite", [pin], { isMigrated: true });
+    const storage = await TestDatabase.create([bookmark], { isMigrated: true });
     onTestFinished(() => storage.close());
     const transaction = await Transaction.open(storage.database);
 
-    // pin a place, then the same place again and another
+    // bookmark a place, then the same place again and another
     const write = (id: string, place: { x: number; y: number }) =>
         transaction
             .write({
-                table: pin,
+                table: bookmark,
                 before: null,
                 after: { id, scope: "board", person: "ada", place },
             })
@@ -598,67 +581,61 @@ test("refuse a write sharing a unique key that includes a JSON column, comparing
     ]).toEqual(["written", ["DUPLICATE", "a record with the same unique key exists"], "written"]);
 });
 
-test.each(TEST_DIALECTS)(
-    "refuse a write sharing a stored row's unique JSON key in another key order, on %s",
-    async (dialect) => {
-        // store a pinned place as the database keeps its JSON
-        const storage = await TestDatabase.create(dialect, [pin], { isMigrated: true });
-        onTestFinished(() => storage.close());
-        await storage.database.insert(pin).values({
-            id: "a",
-            scope: "board",
-            person: "ada",
-            place: { x: 1, y: 2 },
-        });
+test("refuse a write sharing a stored row's unique JSON key in another key order", async () => {
+    // store a bookmarked place as the database stores its JSON
+    const storage = await TestDatabase.create([bookmark], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    await storage.database.insert(bookmark).values({
+        id: "a",
+        scope: "board",
+        person: "ada",
+        place: { x: 1, y: 2 },
+    });
 
-        // pin the same place with its keys in the other order
-        const transaction = await Transaction.open(storage.database);
-        const written = transaction.write({
-            table: pin,
+    // bookmark the same place with its keys in the other order
+    const transaction = await Transaction.open(storage.database);
+    const written = transaction.write({
+        table: bookmark,
+        before: null,
+        after: { id: "b", scope: "board", person: "ada", place: { y: 2, x: 1 } },
+    });
+
+    expect(await refusal(written)).toEqual([
+        "DUPLICATE",
+        "a record with the same unique key exists",
+    ]);
+});
+
+test("refuse a unique key a commit after the transaction's base took as a lost race, which a run repeats to see the key taken", async () => {
+    const storage = await TestDatabase.create([label], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+
+    // start a transaction, then let another commit take the label's name
+    const late = await Transaction.open(database);
+    await Transaction.run(database, async (transaction) => {
+        await transaction.write({
+            table: label,
             before: null,
-            after: { id: "b", scope: "board", person: "ada", place: { y: 2, x: 1 } },
+            after: { id: "a", scope: "board", folder: null, name: "urgent", archivedAt: null },
         });
+    });
 
-        expect(await refusal(written)).toEqual([
-            "DUPLICATE",
-            "a record with the same unique key exists",
-        ]);
-    },
-);
-
-test.each(TEST_DIALECTS)(
-    "refuse a unique key a commit after the transaction's base took as a lost race, which a run repeats to see the key taken, on %s",
-    async (dialect) => {
-        const storage = await TestDatabase.create(dialect, [label], { isMigrated: true });
-        onTestFinished(() => storage.close());
-        const { database } = storage;
-
-        // start a transaction, then let another commit take the label's name
-        const late = await Transaction.open(database);
-        await Transaction.run(database, async (transaction) => {
-            await transaction.write({
-                table: label,
-                before: null,
-                after: { id: "a", scope: "board", folder: null, name: "urgent", archivedAt: null },
-            });
+    // refuse the late transaction's name as a lost race, then plainly in a run after the commit
+    const write = (transaction: Transaction) =>
+        transaction.write({
+            table: label,
+            before: null,
+            after: { id: "b", scope: "board", folder: null, name: "urgent", archivedAt: null },
         });
-
-        // refuse the late transaction's same name as a lost race, and refuse it plainly once a run starts after the commit
-        const write = (transaction: Transaction) =>
-            transaction.write({
-                table: label,
-                before: null,
-                after: { id: "b", scope: "board", folder: null, name: "urgent", archivedAt: null },
-            });
-        expect([
-            await refusal(write(late)),
-            await refusal(Transaction.run(database, (transaction) => write(transaction))),
-        ]).toEqual([
-            ["CONCURRENT_UPDATE", "another commit changed what the transaction read"],
-            ["DUPLICATE", "a record with the same unique key exists"],
-        ]);
-    },
-);
+    expect([
+        await refusal(write(late)),
+        await refusal(Transaction.run(database, (transaction) => write(transaction))),
+    ]).toEqual([
+        ["CONCURRENT_UPDATE", "another commit changed what the transaction read"],
+        ["DUPLICATE", "a record with the same unique key exists"],
+    ]);
+});
 
 /** Entries with slugs unique across them, optional details and a count. */
 const entry = defineTable(
@@ -683,216 +660,199 @@ function entryRow(id: string, slug: string, seen: number, note?: string) {
     return { id, scope: "board", slug, details: note === undefined ? null : { note }, seen };
 }
 
-test.each(TEST_DIALECTS)(
-    "commit runs of inserts, plain updates and deletes in a few statements on %s, shifting unique slugs in write order",
-    async (dialect) => {
-        const storage = await TestDatabase.create(dialect, [entry], { isMigrated: true });
-        onTestFinished(() => storage.close());
-        const { database } = storage;
-        const commit = async (write: (changes: ChangeSet) => void) => {
-            const changes = new ChangeSet();
-            write(changes);
-            const before = database.driver.state.statements;
-            await changes.commit(
-                database,
-                await database.log.position(),
-                new ReadSet(),
-                async () => {},
-            );
-
-            return database.driver.state.statements - before;
-        };
-
-        // insert four entries, then update them, one clearing its details beside the count
-        const written = [
-            entryRow("a", "x", 0, "first"),
-            entryRow("b", "y", 0),
-            entryRow("c", "z", 0),
-            entryRow("d", "q", 0),
-        ];
-        const inserting = await commit((changes) => {
-            for (const after of written) {
-                changes.write({ table: entry, before: null, after });
-            }
-        });
-        const updating = await commit((changes) => {
-            for (const before of written) {
-                changes.write({
-                    table: entry,
-                    before,
-                    after: { ...before, seen: 1, details: null },
-                });
-            }
-        });
-
-        // shift the slugs along a chain in write order, then delete two entries
-        const seen = (id: string, slug: string) => entryRow(id, slug, 1);
-        await commit((changes) => {
-            changes.write({ table: entry, before: seen("c", "z"), after: seen("c", "w") });
-            changes.write({ table: entry, before: seen("b", "y"), after: seen("b", "z") });
-            changes.write({ table: entry, before: seen("a", "x"), after: seen("a", "y") });
-        });
-        const deleting = await commit((changes) => {
-            changes.write({ table: entry, before: seen("a", "y"), after: null });
-            changes.write({ table: entry, before: seen("d", "q"), after: null });
-        });
-
-        // keep the shifted slugs, real nulls for cleared details, and a statement per group of rows
-        const extra = dialect === "postgresql" ? 1 : 0;
-        const rows = await database.select().from(entry).orderBy(asc(entry.id));
-        const cleared = await database.all(
-            sql`SELECT count(*) AS count FROM ${entry} WHERE ${entry.details} IS NULL`,
-        );
-        expect({
-            rows: rows.map((each) => [each.id, each.slug, each.seen, each.details]),
-            cleared: Number(cleared[0]?.["count"]),
-            statements: { inserting, updating, deleting },
-        }).toEqual({
-            rows: [
-                ["b", "z", 1, null],
-                ["c", "w", 1, null],
-            ],
-            cleared: 2,
-            statements: { inserting: 3 + extra, updating: 4 + extra, deleting: 3 + extra },
-        });
-    },
-);
-
-test.each(TEST_DIALECTS)(
-    "read a committed row once per transaction, and see the transaction's own write of it after on %s",
-    async (dialect) => {
-        const { database } = await open(dialect);
-
-        // read one task twice, write it, then read it again
-        const transaction = await Transaction.open(database);
+test("commit runs of inserts, plain updates and deletes in a few statements, shifting unique slugs in write order", async () => {
+    const storage = await TestDatabase.create([entry], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    const commit = async (write: (changes: ChangeSet) => void) => {
+        const changes = new ChangeSet();
+        write(changes);
         const before = database.driver.state.statements;
-        const first = present(
-            await transaction.read(task).findFirst({ where: { id: "a" } }),
-            "task a",
+        await changes.commit(
+            database,
+            await database.log.position(),
+            new ReadSet(),
+            async () => {},
         );
-        const second = await transaction.read(task).findFirst({ where: { id: "a" } });
-        const reads = database.driver.state.statements - before;
-        const written = { id: "a", scope: "inbox", priority: 7 };
-        await transaction.write({ table: task, before: first, after: written });
-        const third = await transaction.read(task).findFirst({ where: { id: "a" } });
 
-        // spend one statement on the first read alone, the write showing over it
-        expect({ reads, first, second, third }).toEqual({
-            reads: 1,
-            first: { id: "a", scope: "inbox", priority: 1 },
-            second: { id: "a", scope: "inbox", priority: 1 },
-            third: written,
-        });
-    },
-);
+        return database.driver.state.statements - before;
+    };
 
-test.each(TEST_DIALECTS)(
-    "read each writing transaction's own identity as its log entries keep it, a rolled back one leaving none behind, on %s",
-    async (dialect) => {
-        const { database } = await open(dialect);
-
-        // write in a transaction, roll one back, and write in another, reading each identity
-        const write = (id: string) =>
-            database.transaction(async (writing) => {
-                await writing.insert(task).values({ id, scope: "inbox", priority: 4 });
-
-                return writing.log.transaction();
+    // insert four entries, then update them, one clearing its details beside the count
+    const written = [
+        entryRow("a", "x", 0, "first"),
+        entryRow("b", "y", 0),
+        entryRow("c", "z", 0),
+        entryRow("d", "q", 0),
+    ];
+    const inserting = await commit((changes) => {
+        for (const after of written) {
+            changes.write({ table: entry, before: null, after });
+        }
+    });
+    const updating = await commit((changes) => {
+        for (const before of written) {
+            changes.write({
+                table: entry,
+                before,
+                after: { ...before, seen: 1, details: null },
             });
-        const first = await write("d");
-        const refused = await database
-            .transaction(async (writing) => {
-                await writing.insert(task).values({ id: "e", scope: "inbox", priority: 5 });
+        }
+    });
+
+    // shift the slugs along a chain in write order, then delete two entries
+    const seen = (id: string, slug: string) => entryRow(id, slug, 1);
+    await commit((changes) => {
+        changes.write({ table: entry, before: seen("c", "z"), after: seen("c", "w") });
+        changes.write({ table: entry, before: seen("b", "y"), after: seen("b", "z") });
+        changes.write({ table: entry, before: seen("a", "x"), after: seen("a", "y") });
+    });
+    const deleting = await commit((changes) => {
+        changes.write({ table: entry, before: seen("a", "y"), after: null });
+        changes.write({ table: entry, before: seen("d", "q"), after: null });
+    });
+
+    // write the shifted slugs and real nulls, with a statement per group of rows
+    const extra = TestDatabase.target() === "postgresql" ? 1 : 0;
+    const rows = await database.select().from(entry).orderBy(asc(entry.id));
+    const cleared = await database.all(
+        sql`SELECT count(*) AS count FROM ${entry} WHERE ${entry.details} IS NULL`,
+    );
+    expect({
+        rows: rows.map((each) => [each.id, each.slug, each.seen, each.details]),
+        cleared: Number(cleared[0]?.["count"]),
+        statements: { inserting, updating, deleting },
+    }).toEqual({
+        rows: [
+            ["b", "z", 1, null],
+            ["c", "w", 1, null],
+        ],
+        cleared: 2,
+        statements: { inserting: 3 + extra, updating: 4 + extra, deleting: 3 + extra },
+    });
+});
+
+test("read a committed row once per transaction, and see the transaction's write of it after", async () => {
+    const { database } = await open();
+
+    // read one task twice, write it, then read it again
+    const transaction = await Transaction.open(database);
+    const before = database.driver.state.statements;
+    const first = present(await transaction.read(task).findFirst({ where: { id: "a" } }), "task a");
+    const second = await transaction.read(task).findFirst({ where: { id: "a" } });
+    const reads = database.driver.state.statements - before;
+    const written = { id: "a", scope: "inbox", priority: 7 };
+    await transaction.write({ table: task, before: first, after: written });
+    const third = await transaction.read(task).findFirst({ where: { id: "a" } });
+
+    // spend one statement on the first read alone, the write showing over it
+    expect({ reads, first, second, third }).toEqual({
+        reads: 1,
+        first: { id: "a", scope: "inbox", priority: 1 },
+        second: { id: "a", scope: "inbox", priority: 1 },
+        third: written,
+    });
+});
+
+test("read each writing transaction's identity as its log entries record it, a rolled back one leaving none behind", async () => {
+    const { database } = await open();
+
+    // write in two transactions with one rollback between, reading each identity
+    const write = (id: string) =>
+        database.transaction(async (writing) => {
+            await writing.insert(task).values({ id, scope: "inbox", priority: 4 });
+
+            return writing.log.transaction();
+        });
+    const first = await write("d");
+    const refused = await database
+        .transaction(async (writing) => {
+            await writing.insert(task).values({ id: "e", scope: "inbox", priority: 5 });
+            throw new TypeError("roll back");
+        })
+        .catch((error: unknown) => error);
+    const second = await write("f");
+
+    // record each identity on its entries, the two apart
+    const entries = await database.all(
+        sql`SELECT "transaction" AS id FROM ${sql.relation(LOG)} ORDER BY sequence DESC LIMIT 2`,
+    );
+    expect({
+        refused,
+        isApart: first !== second,
+        entries: entries.map((row) => row["id"]).toReversed(),
+    }).toEqual({
+        refused: new TypeError("roll back"),
+        isApart: true,
+        entries: [first, second],
+    });
+});
+
+test("stamp no identity for a transaction that only reads, and the one its entries record for a writer", async () => {
+    const { database, base } = await open();
+    const changes = async () =>
+        (await database.all(sql`SELECT total_changes() AS changes`))[0]?.["changes"];
+
+    // read in a transaction, with SQLite's change count around it and PostgreSQL's id in it
+    const before = TestDatabase.target() === "sqlite" ? await changes() : undefined;
+    const assigned = await database.transaction(async (transaction) => {
+        await transaction.select().from(task);
+        const [row] =
+            TestDatabase.target() === "postgresql"
+                ? await transaction.all(sql`SELECT pg_current_xact_id_if_assigned() AS id`)
+                : [{ id: null }];
+
+        return row?.["id"];
+    });
+    const after = TestDatabase.target() === "sqlite" ? await changes() : undefined;
+
+    // write in another, reading its identity after its write
+    const identity = await database.transaction(async (transaction) => {
+        await transaction.insert(task).values({ id: "g", scope: "inbox", priority: 6 });
+
+        return transaction.log.transaction();
+    });
+    const entries = await database.all(
+        sql`SELECT "transaction" AS id FROM ${sql.relation(LOG)} WHERE sequence > ${base.sequence}`,
+    );
+
+    // change no row and assign no id for the reader, and give the writer's entry its identity
+    expect({ assigned, isUnchanged: after === before, entries }).toEqual({
+        assigned: null,
+        isUnchanged: true,
+        entries: [{ id: identity }],
+    });
+});
+
+test("stamp a transaction again after a rolled back savepoint undid its first logged write", async () => {
+    const { database, base } = await open();
+
+    // write in a savepoint that rolls back, then write again in the same transaction
+    const identity = await database.transaction(async (transaction) => {
+        await transaction
+            .transaction(async (savepoint) => {
+                await savepoint.insert(task).values({ id: "h", scope: "inbox", priority: 7 });
                 throw new TypeError("roll back");
             })
-            .catch((error: unknown) => error);
-        const second = await write("f");
+            .catch(() => undefined);
+        await transaction.insert(task).values({ id: "i", scope: "inbox", priority: 8 });
 
-        // keep each identity on its own entry, the two apart
-        const entries = await database.all(
-            sql`SELECT "transaction" AS id FROM ${sql.relation(LOG)} ORDER BY sequence DESC LIMIT 2`,
-        );
-        expect({
-            refused,
-            isApart: first !== second,
-            entries: entries.map((row) => row["id"]).toReversed(),
-        }).toEqual({
-            refused: new TypeError("roll back"),
-            isApart: true,
-            entries: [first, second],
-        });
-    },
-);
+        return transaction.log.transaction();
+    });
 
-test.each(TEST_DIALECTS)(
-    "stamp no identity for a transaction that only reads, and the one its entries record for a writer, on %s",
-    async (dialect) => {
-        const { database, base } = await open(dialect);
-        const changes = async () =>
-            (await database.all(sql`SELECT total_changes() AS changes`))[0]?.["changes"];
+    // log the second write alone, under the transaction's identity
+    const entries = await database.all(
+        sql`SELECT "transaction" AS id FROM ${sql.relation(LOG)} WHERE sequence > ${base.sequence}`,
+    );
+    expect({ isStamped: identity !== undefined, entries }).toEqual({
+        isStamped: true,
+        entries: [{ id: identity }],
+    });
+});
 
-        // read in a transaction, with SQLite's change count around it and PostgreSQL's assigned id in it
-        const before = dialect === "sqlite" ? await changes() : undefined;
-        const assigned = await database.transaction(async (transaction) => {
-            await transaction.select().from(task);
-            const [row] =
-                dialect === "postgresql"
-                    ? await transaction.all(sql`SELECT pg_current_xact_id_if_assigned() AS id`)
-                    : [{ id: null }];
-
-            return row?.["id"];
-        });
-        const after = dialect === "sqlite" ? await changes() : undefined;
-
-        // write in another, reading its identity after its write
-        const identity = await database.transaction(async (transaction) => {
-            await transaction.insert(task).values({ id: "g", scope: "inbox", priority: 6 });
-
-            return transaction.log.transaction();
-        });
-        const entries = await database.all(
-            sql`SELECT "transaction" AS id FROM ${sql.relation(LOG)} WHERE sequence > ${base.sequence}`,
-        );
-
-        // change no row and assign no id for the reader, and give the writer's entry its identity
-        expect({ assigned, isUnchanged: after === before, entries }).toEqual({
-            assigned: null,
-            isUnchanged: true,
-            entries: [{ id: identity }],
-        });
-    },
-);
-
-test.each(TEST_DIALECTS)(
-    "stamp a transaction again after a rolled back savepoint undid its first logged write, on %s",
-    async (dialect) => {
-        const { database, base } = await open(dialect);
-
-        // write in a savepoint that rolls back, then write again in the same transaction
-        const identity = await database.transaction(async (transaction) => {
-            await transaction
-                .transaction(async (savepoint) => {
-                    await savepoint.insert(task).values({ id: "h", scope: "inbox", priority: 7 });
-                    throw new TypeError("roll back");
-                })
-                .catch(() => undefined);
-            await transaction.insert(task).values({ id: "i", scope: "inbox", priority: 8 });
-
-            return transaction.log.transaction();
-        });
-
-        // log the second write alone, under the transaction's identity
-        const entries = await database.all(
-            sql`SELECT "transaction" AS id FROM ${sql.relation(LOG)} WHERE sequence > ${base.sequence}`,
-        );
-        expect({ isStamped: identity !== undefined, entries }).toEqual({
-            isStamped: true,
-            entries: [{ id: identity }],
-        });
-    },
-);
-
-test("keep each of many interleaved writers' entries under one identity while readers stamp nothing", async () => {
-    const { database } = await open("sqlite");
+test("record each of many interleaved writers' entries under one identity while readers stamp nothing", async () => {
+    // count SQLite's changes per statement, which only SQLite reports
+    const { database } = await open({ dialect: "sqlite" });
     const changes = async () =>
         Number((await database.all(sql`SELECT total_changes() AS changes`))[0]?.["changes"]);
 
@@ -923,7 +883,7 @@ test("keep each of many interleaved writers' entries under one identity while re
         sizes.set(row["id"], (sizes.get(row["id"]) ?? 0) + 1);
     }
 
-    // change six rows per writer and none per reader: two rows, their log entries and the marker's two
+    // change six rows per writer and none per reader
     expect({ written, writers: sizes.size, sizes: new Set(sizes.values()) }).toEqual({
         written: STRESS_TRANSACTIONS * 6,
         writers: STRESS_TRANSACTIONS,
@@ -938,251 +898,230 @@ const unit = defineTable(
     { predefined: [{ id: "metre", name: "Metre" }] },
 );
 
-test.each(TEST_DIALECTS)(
-    "refuse writing a predefined row, and write other rows of its table, on %s",
-    async (dialect) => {
-        const storage = await TestDatabase.create(dialect, [unit], { isMigrated: true });
-        onTestFinished(() => storage.close());
-        const { database } = storage;
+test("refuse writing a predefined row, and write other rows of its table", async () => {
+    const storage = await TestDatabase.create([unit], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const { database } = storage;
 
-        // refuse changing the predefined row, and insert another
-        const write = (after: { readonly id: string; readonly name: string }) =>
-            Transaction.run(database, (transaction) =>
-                transaction.write({ table: unit, before: null, after }),
-            );
-        const refused = await refusal(write({ id: "metre", name: "Meter" }));
-        await write({ id: "foot", name: "Foot" });
-        expect({
-            refused,
-            rows: await database.select().from(unit).orderBy(asc(unit.id)),
-        }).toEqual({
-            refused: [
-                "INVALID_RECORD",
-                `cannot write predefined row ["${unit[TABLE].sqlName}","metre"] of unit`,
-            ],
-            rows: [
-                { id: "foot", name: "Foot" },
-                { id: "metre", name: "Metre" },
-            ],
-        });
-    },
-);
-
-test.for(TEST_DIALECTS)(
-    "share reads of a shared table among transactions until a commit writes it, each seeing its own writes, on %s",
-    async (dialect) => {
-        // store two members and a task
-        const storage = await TestDatabase.create(dialect, [member, task], { isMigrated: true });
-        onTestFinished(() => storage.close());
-        const { database } = storage;
-        const ada = { id: "ada", scope: "s", role: "owner" };
-        const bob = { id: "bob", scope: "s", role: "reader" };
-        const carol = { id: "carol", scope: "s", role: "reader" };
-        await database.insert(member).values([ada, bob]);
-        await database.insert(task).values({ id: "a", scope: "inbox", priority: 1 });
-        const counted = async (read: () => Promise<readonly unknown[]>) => {
-            const before = database.driver.state.statements;
-            const rows = await read();
-
-            return { rows: rows.length, statements: database.driver.state.statements - before };
-        };
-        const members = (transaction: Transaction) =>
-            transaction
-                .view()
-                .read(member)
-                .findMany({ where: { scope: "s" } });
-        const inbox = () => Transaction.reading(database).view().read(task).findMany({});
-
-        // read the members twice at one version, and the unshared tasks twice
-        const first = await counted(() => members(Transaction.reading(database)));
-        const second = await counted(() => members(Transaction.reading(database)));
-        const unshared = [await counted(inbox), await counted(inbox)];
-
-        // commit a member, seen by its own transaction, then read the members anew
-        const own = await Transaction.run(database, async (transaction) => {
-            await members(transaction);
-            await transaction.write({ table: member, before: null, after: carol });
-
-            return (await members(transaction)).map((row) => row.id).toSorted();
-        });
-        const third = await counted(() => members(Transaction.reading(database)));
-
-        // read the version alone while the members stand
-        expect({ first, second, unshared, own, third }).toEqual({
-            first: { rows: 2, statements: 2 },
-            second: { rows: 2, statements: 1 },
-            unshared: [
-                { rows: 1, statements: 1 },
-                { rows: 1, statements: 1 },
-            ],
-            own: ["ada", "bob", "carol"],
-            third: { rows: 3, statements: 2 },
-        });
-    },
-);
-
-test.for(TEST_DIALECTS)(
-    "read a shared table's committed rows anew once compaction removed their log entries, on %s",
-    async (dialect) => {
-        // store a compacted member and a role kept in history
-        const storage = await TestDatabase.create(dialect, [member, role], { isMigrated: true });
-        onTestFinished(() => storage.close());
-        const { database } = storage;
-        const compact = () => database.log.compact(Date.now() + 1000, Date.now());
-        const members = async () =>
-            (await Transaction.reading(database).view().read(member).findMany({}))
-                .map((row) => row.id)
-                .toSorted();
-        await database.insert(member).values({ id: "ada", scope: "s", role: "owner" });
-        await compact();
-        await database.insert(role).values({ id: "owner", scope: "s" });
-        const before = await members();
-
-        // add a member and compact its entry away
-        await database.insert(member).values({ id: "bob", scope: "s", role: "reader" });
-        await compact();
-
-        // see the added member past the compaction
-        expect({ before, after: await members() }).toEqual({
-            before: ["ada"],
-            after: ["ada", "bob"],
-        });
-    },
-);
-
-test.for(TEST_DIALECTS)(
-    "read a shared table's predefined rows anew once a migration changes them, on %s",
-    async (dialect) => {
-        // share a read of the predefined unit, migrating at one frozen millisecond
-        const before = unitTable("Metre");
-        const storage = await TestDatabase.create(dialect, [before]);
-        onTestFinished(() => storage.close());
-        const { database } = storage;
-        const frozen = vi.spyOn(Date, "now").mockReturnValue(Date.now());
-        onTestFinished(() => frozen.mockRestore());
-        await database.migrate([before]);
-        const names = async () =>
-            (await Transaction.reading(database).view().read(before).findMany({})).map(
-                (row) => row.name,
-            );
-        const shared = await names();
-
-        // rename the predefined unit through two migrations in one millisecond, reading after each
-        const applied = async () =>
-            (await database.all(sql`SELECT applied_at FROM ${sql.relation(STATE)}`)).map((row) =>
-                Number(row["applied_at"]),
-            );
-        const versions = [await applied()];
-        await database.migrate([unitTable("Meter")]);
-        const renamed = await names();
-        versions.push(await applied());
-        await database.migrate([unitTable("Metre")]);
-        versions.push(await applied());
-
-        // see each rename past the cached read, as every apply moves the table's version
-        expect({
-            shared,
-            renamed,
-            restored: await names(),
-            moves: versions
-                .slice(1)
-                .map((version, index) => nth(version, 0) - nth(nth(versions, index), 0)),
-        }).toEqual({ shared: ["Metre"], renamed: ["Meter"], restored: ["Metre"], moves: [1, 1] });
-    },
-);
-
-test.for(TEST_DIALECTS)(
-    "see every member committed before a shared read starts, while writers and readers interleave, on %s",
-    async (dialect) => {
-        // commit members one at a time into four scopes, counting each scope's commits finished
-        const storage = await TestDatabase.create(dialect, [member], { isMigrated: true });
-        onTestFinished(() => storage.close());
-        const { database } = storage;
-        const finished = [0, 0, 0, 0];
-        const scopeOf = (index: number) => index % finished.length;
-        const write = async (index: number) => {
-            const scope = scopeOf(index);
-            await database
-                .insert(member)
-                .values({ id: `m${String(index)}`, scope: `s${String(scope)}`, role: "reader" });
-            finished[scope] = nth(finished, scope) + 1;
-        };
-
-        // read the scope each commit writes, few enough members to share, beside the commit
-        const read = async (scope: number) => {
-            const before = nth(finished, scope);
-            const rows = await Transaction.reading(database)
-                .view()
-                .read(member)
-                .findMany({ where: { scope: `s${String(scope)}` } });
-
-            return rows.length >= before;
-        };
-        const reads: boolean[] = [];
-        for (let index = 0; index < STRESS_MEMBERS; index++) {
-            const [isCurrent] = await Promise.all([read(scopeOf(index)), write(index)]);
-            reads.push(isCurrent);
-        }
-
-        // see at least every finished commit in every read, and every member at the end
-        expect({
-            stale: reads.filter((isCurrent) => !isCurrent).length,
-            members: (await database.select().from(member)).length,
-        }).toEqual({ stale: 0, members: STRESS_MEMBERS });
-    },
-);
-
-test.for(TEST_DIALECTS)(
-    "read the shared tables' version again after it failed, through the same transaction, on %s",
-    async (dialect) => {
-        // fail a shared read before the tables and the log exist
-        const storage = await TestDatabase.create(dialect, [member]);
-        onTestFinished(() => storage.close());
-        const { database } = storage;
-        const transaction = Transaction.reading(database);
-        const members = () => transaction.view().read(member).findMany({});
-        const failed = await members().then(
-            () => "read",
-            () => "failed",
+    // refuse changing the predefined row, and insert another
+    const write = (after: { readonly id: string; readonly name: string }) =>
+        Transaction.run(database, (transaction) =>
+            transaction.write({ table: unit, before: null, after }),
         );
+    const refused = await refusal(write({ id: "metre", name: "Meter" }));
+    await write({ id: "foot", name: "Foot" });
+    expect({
+        refused,
+        rows: await database.select().from(unit).orderBy(asc(unit.id)),
+    }).toEqual({
+        refused: [
+            "INVALID_RECORD",
+            `cannot write predefined row ["${unit[TABLE].sqlName}","metre"] of unit`,
+        ],
+        rows: [
+            { id: "foot", name: "Foot" },
+            { id: "metre", name: "Metre" },
+        ],
+    });
+});
 
-        // read through the same transaction once migrated
-        await database.migrate([member]);
-        await database.insert(member).values({ id: "ada", scope: "s", role: "owner" });
-        expect({ failed, read: (await members()).map((row) => row.id) }).toEqual({
-            failed: "failed",
-            read: ["ada"],
-        });
-    },
-);
+test("share reads of a shared table among transactions until a commit writes it, each seeing its writes", async () => {
+    // store two members and a task
+    const storage = await TestDatabase.create([member, task], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    const ada = { id: "ada", scope: "s", role: "owner" };
+    const bob = { id: "bob", scope: "s", role: "reader" };
+    const carol = { id: "carol", scope: "s", role: "reader" };
+    await database.insert(member).values([ada, bob]);
+    await database.insert(task).values({ id: "a", scope: "inbox", priority: 1 });
+    const counted = async (read: () => Promise<readonly unknown[]>) => {
+        const before = database.driver.state.statements;
+        const rows = await read();
 
-test.for(TEST_DIALECTS)(
-    "keep a shared read across commits writing other shared tables, reading anew once its own table changes, on %s",
-    async (dialect) => {
-        // store a member and a role, both shared
-        const storage = await TestDatabase.create(dialect, [member, role], { isMigrated: true });
-        onTestFinished(() => storage.close());
-        const { database } = storage;
-        await database.insert(member).values({ id: "ada", scope: "s", role: "owner" });
-        const counted = async () => {
-            const before = database.driver.state.statements;
-            await Transaction.reading(database).view().read(member).findMany({});
+        return { rows: rows.length, statements: database.driver.state.statements - before };
+    };
+    const members = (transaction: Transaction) =>
+        transaction
+            .view()
+            .read(member)
+            .findMany({ where: { scope: "s" } });
+    const inbox = () => Transaction.reading(database).view().read(task).findMany({});
 
-            return database.driver.state.statements - before;
-        };
-        const first = await counted();
+    // read the members twice at one version, and the unshared tasks twice
+    const first = await counted(() => members(Transaction.reading(database)));
+    const second = await counted(() => members(Transaction.reading(database)));
+    const unshared = [await counted(inbox), await counted(inbox)];
 
-        // write a role, then a member
-        await database.insert(role).values({ id: "owner", scope: "s" });
-        const afterRole = await counted();
-        await database.insert(member).values({ id: "bob", scope: "s", role: "reader" });
-        const afterMember = await counted();
+    // commit a member, seen by its transaction, then read the members anew
+    const mine = await Transaction.run(database, async (transaction) => {
+        await members(transaction);
+        await transaction.write({ table: member, before: null, after: carol });
 
-        // read the members anew after the member alone
-        expect({ first, afterRole, afterMember }).toEqual({
-            first: 2,
-            afterRole: 1,
-            afterMember: 2,
-        });
-    },
-);
+        return (await members(transaction)).map((row) => row.id).toSorted();
+    });
+    const third = await counted(() => members(Transaction.reading(database)));
+
+    // read the version alone while the members stand
+    expect({ first, second, unshared, mine, third }).toEqual({
+        first: { rows: 2, statements: 2 },
+        second: { rows: 2, statements: 1 },
+        unshared: [
+            { rows: 1, statements: 1 },
+            { rows: 1, statements: 1 },
+        ],
+        mine: ["ada", "bob", "carol"],
+        third: { rows: 3, statements: 2 },
+    });
+});
+
+test("read a shared table's committed rows anew once compaction removed their log entries", async () => {
+    // store a compacted member and a role in history
+    const storage = await TestDatabase.create([member, role], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    const compact = () => database.log.compact(Date.now() + 1000, Date.now());
+    const members = async () =>
+        (await Transaction.reading(database).view().read(member).findMany({}))
+            .map((row) => row.id)
+            .toSorted();
+    await database.insert(member).values({ id: "ada", scope: "s", role: "owner" });
+    await compact();
+    await database.insert(role).values({ id: "owner", scope: "s" });
+    const before = await members();
+
+    // add a member and compact its entry away
+    await database.insert(member).values({ id: "bob", scope: "s", role: "reader" });
+    await compact();
+
+    // see the added member past the compaction
+    expect({ before, after: await members() }).toEqual({
+        before: ["ada"],
+        after: ["ada", "bob"],
+    });
+});
+
+test("read a shared table's predefined rows anew once a migration changes them", async () => {
+    // share a read of the predefined unit, migrating at one frozen millisecond
+    const before = unitTable("Metre");
+    const storage = await TestDatabase.create([before]);
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    const frozen = vi.spyOn(Date, "now").mockReturnValue(Date.now());
+    onTestFinished(() => frozen.mockRestore());
+    await database.migrate([before]);
+    const names = async () =>
+        (await Transaction.reading(database).view().read(before).findMany({})).map(
+            (row) => row.name,
+        );
+    const shared = await names();
+
+    // rename the predefined unit through two migrations in one millisecond, reading after each
+    const applied = async () =>
+        (await database.all(sql`SELECT applied_at FROM ${sql.relation(STATE)}`)).map((row) =>
+            Number(row["applied_at"]),
+        );
+    const versions = [await applied()];
+    await database.migrate([unitTable("Meter")]);
+    const renamed = await names();
+    versions.push(await applied());
+    await database.migrate([unitTable("Metre")]);
+    versions.push(await applied());
+
+    // see each rename past the cached read, as every apply moves the table's version
+    expect({
+        shared,
+        renamed,
+        restored: await names(),
+        moves: versions
+            .slice(1)
+            .map((version, index) => nth(version, 0) - nth(nth(versions, index), 0)),
+    }).toEqual({ shared: ["Metre"], renamed: ["Meter"], restored: ["Metre"], moves: [1, 1] });
+});
+
+test("see every member committed before a shared read starts, while writers and readers interleave", async () => {
+    // commit members one at a time into four scopes, counting each scope's commits finished
+    const storage = await TestDatabase.create([member], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    const finished = [0, 0, 0, 0];
+    const scopeOf = (index: number) => index % finished.length;
+    const write = async (index: number) => {
+        const scope = scopeOf(index);
+        await database
+            .insert(member)
+            .values({ id: `m${String(index)}`, scope: `s${String(scope)}`, role: "reader" });
+        finished[scope] = nth(finished, scope) + 1;
+    };
+
+    // read the scope each commit writes beside the commit, with members to share
+    const read = async (scope: number) => {
+        const before = nth(finished, scope);
+        const rows = await Transaction.reading(database)
+            .view()
+            .read(member)
+            .findMany({ where: { scope: `s${String(scope)}` } });
+
+        return rows.length >= before;
+    };
+    const reads: boolean[] = [];
+    for (let index = 0; index < STRESS_MEMBERS; index++) {
+        const [isCurrent] = await Promise.all([read(scopeOf(index)), write(index)]);
+        reads.push(isCurrent);
+    }
+
+    // see at least every finished commit in every read, and every member at the end
+    expect({
+        stale: reads.filter((isCurrent) => !isCurrent).length,
+        members: (await database.select().from(member)).length,
+    }).toEqual({ stale: 0, members: STRESS_MEMBERS });
+});
+
+test("read the shared tables' version again after it failed, through the same transaction", async () => {
+    // fail a shared read before the tables and the log exist
+    const storage = await TestDatabase.create([member]);
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    const transaction = Transaction.reading(database);
+    const members = () => transaction.view().read(member).findMany({});
+    const failed = await members().then(
+        () => "read",
+        () => "failed",
+    );
+
+    // read through the same transaction once migrated
+    await database.migrate([member]);
+    await database.insert(member).values({ id: "ada", scope: "s", role: "owner" });
+    expect({ failed, read: (await members()).map((row) => row.id) }).toEqual({
+        failed: "failed",
+        read: ["ada"],
+    });
+});
+
+test("share a read across commits writing other shared tables, reading anew once its table changes", async () => {
+    // store a member and a role, both shared
+    const storage = await TestDatabase.create([member, role], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    await database.insert(member).values({ id: "ada", scope: "s", role: "owner" });
+    const counted = async () => {
+        const before = database.driver.state.statements;
+        await Transaction.reading(database).view().read(member).findMany({});
+
+        return database.driver.state.statements - before;
+    };
+    const first = await counted();
+
+    // write a role, then a member
+    await database.insert(role).values({ id: "owner", scope: "s" });
+    const afterRole = await counted();
+    await database.insert(member).values({ id: "bob", scope: "s", role: "reader" });
+    const afterMember = await counted();
+
+    // read the members anew after the member alone
+    expect({ first, afterRole, afterMember }).toEqual({
+        first: 2,
+        afterRole: 1,
+        afterMember: 2,
+    });
+});

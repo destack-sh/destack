@@ -31,7 +31,7 @@ export const TableState = schema.object({
     log: ChangeDescription.exactOptional(),
     /** The ancestor index maintained over the table, absent without a tree. */
     tree: TreeDescription.exactOptional(),
-    /** The aggregates of this table's rows that other tables keep. */
+    /** The aggregates of this table's rows that other tables store. */
     aggregates: schema.array(AggregateDescription).exactOptional(),
     /** The rows of other tables referencing this table's rows. */
     dependents: schema.array(DependentDescription).exactOptional(),
@@ -48,7 +48,7 @@ export const TableState = schema.object({
             columns: schema.record(schema.string(), schema.string()),
         })
         .exactOptional(),
-    /** The renamed columns kept equal to their previous columns. */
+    /** The renamed columns equal to their previous columns. */
     bridges: schema
         .array(
             schema.object({
@@ -97,7 +97,7 @@ export type DatabaseState = schema.Infer<typeof DatabaseState>;
 export interface DeclareOptions {
     /** Whether the whole database is a replica, without foreign keys and tree indexes. */
     readonly isReplica?: boolean;
-    /** The SQL names of replicated tables, which keep no unique constraints or foreign keys. */
+    /** The SQL names of replicated tables, which have no unique constraints or foreign keys. */
     readonly replicated?: ReadonlySet<string>;
     /** The package whose tables to describe, the others' only placing them, every table without. */
     readonly package?: PackageId;
@@ -160,7 +160,7 @@ export function coversState(applied: TableState, declared: TableState): boolean 
             canonicalize(entry),
         ]),
     );
-    const hasParts = [...declared.table.constraints, ...declared.table.indexes].every(
+    const hasConstraints = [...declared.table.constraints, ...declared.table.indexes].every(
         (entry) => entries.get(entry.name) === canonicalize(entry),
     );
 
@@ -168,7 +168,7 @@ export function coversState(applied: TableState, declared: TableState): boolean 
     const logged = new Set(applied.log?.columns ?? []);
     const hasLog = (declared.log?.columns ?? []).every((column) => logged.has(column));
 
-    return hasColumns && hasParts && hasLog;
+    return hasColumns && hasConstraints && hasLog;
 }
 
 /** Describe declared tables in one dialect. */
@@ -177,21 +177,21 @@ export function declareState(
     dialect: Dialect,
     options: DeclareOptions = {},
 ): TableState[] {
-    // keep foreign keys to tables this database has and leave other references logical
+    // add foreign keys to tables this database has and leave other references logical
     const isReplica = options.isReplica === true;
     const declared = isReplica ? tables : expandTrees(tables);
     const local = new Set(isReplica ? [] : declared.map((table) => table[TABLE].sqlName));
     const replicated = options.replicated ?? new Set<string>();
-    const owned =
+    const included =
         options.package === undefined
             ? declared
             : declared.filter((table) => table[TABLE].package.id === options.package);
 
     // attach each aggregate of a described table to it, a replica's too
     const named = new Set(declared.map((table) => table[TABLE].sqlName));
-    const aggregates = describeAggregates(owned, named, isReplica);
+    const aggregates = describeAggregates(included, named, isReplica);
 
-    return owned.map((table) => {
+    return included.map((table) => {
         // describe the table with its log and tree
         const definition = table[TABLE];
         const log = describeLog(table);
@@ -203,7 +203,7 @@ export function declareState(
         const dependents = isReplica ? [] : describeDependents(table, tables, isReplicated);
         const aggregated = aggregates.get(definition.sqlName);
 
-        // leave a replicated table's uniqueness and references to its owning package
+        // leave a replicated table's uniqueness and references to the package that declares it
         const described = withinDatabase(describeTable(table, dialect), local, replicated);
         const kept = replicated.has(definition.sqlName) ? asReplicated(described) : described;
 
@@ -224,7 +224,7 @@ export function declareState(
     });
 }
 
-/** Qualify a state's relations with a namespace, keeping the SQL name its log records. */
+/** Qualify a state's relations with a namespace, preserving the SQL name its log records. */
 export function namespaceState(state: TableState, namespace: string | undefined): TableState {
     return namespace === undefined
         ? state
@@ -233,7 +233,7 @@ export function namespaceState(state: TableState, namespace: string | undefined)
 
 /** Read a namespaced state's relations without their namespace, as its declaration had them. */
 export function localState(state: TableState, namespace: string | undefined): TableState {
-    // keep a database of its own as it is
+    // return a separate database's state as it is
     if (namespace === undefined) {
         return state;
     }
@@ -394,7 +394,7 @@ async function readName(database: DatabaseConnection): Promise<string> {
 
 /** Record the applied state of one table, its applied time past the previous one on every apply. */
 export function writeState(state: TableState, appliedAt: number, namespace?: string): string {
-    // keep the conversions, so a rebuilt release runs only the ones it adds
+    // store the conversions, so a rebuilt release runs only the ones it adds
     const encoded = literal(JSON.stringify(state));
     const table = quote(relation(STATE, namespace));
 
@@ -556,7 +556,7 @@ function describeDependents(
     tables: readonly Table[],
     isReplicated: boolean,
 ): DependentDescription[] {
-    // keep a replicated table's dependents this database has, its owner cascading the others
+    // take a replicated table's dependents this database has, its declarer cascading the others
     const definition = table[TABLE];
     const kept = definition.dependents.filter(
         (dependent) => !isReplicated || tables.includes(dependent.from()),
@@ -603,7 +603,7 @@ function asReplica(table: Table, described: TableDescription): TableDescription 
     };
 }
 
-/** Keep a table's foreign keys to the database's own tables, leaving replica references logical. */
+/** Select a table's foreign keys to the database's tables, leaving replica references logical. */
 function withinDatabase(
     table: TableDescription,
     local: ReadonlySet<string>,
@@ -619,7 +619,7 @@ function withinDatabase(
     };
 }
 
-/** Describe a replicated table as kept: unique keys as plain indexes, no foreign keys. */
+/** Describe a replicated table as stored: unique keys as plain indexes, no foreign keys. */
 function asReplicated(table: TableDescription): TableDescription {
     // turn unique constraints into plain indexes over the same columns
     const unique = table.constraints.flatMap((constraint) =>

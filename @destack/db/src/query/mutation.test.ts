@@ -1,13 +1,13 @@
 import { eq, gt } from "../sql/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
-import { TEST_DIALECTS, TestDatabase } from "../test/database.ts";
+import { TestDatabase } from "../test/database.ts";
 import { defineTable } from "../table/table.ts";
 import { integer, json, text } from "../table/column.ts";
 import { schema } from "@destack/schema";
 
 /** Counters by owner and name. */
 const counter = defineTable("mutation_counter", {
-    /** The owning principal. */
+    /** The owner principal. */
     owner: text("owner").primaryKey(),
     /** The counter's name within its owner. */
     name: text("name").primaryKey(),
@@ -15,8 +15,8 @@ const counter = defineTable("mutation_counter", {
     value: integer("value").notNull(),
 });
 
-test.for(TEST_DIALECTS)("return exactly the rows each mutation changed on %s", async (dialect) => {
-    const storage = await TestDatabase.create(dialect, [counter], { isMigrated: true });
+test("return exactly the rows each mutation changed", async () => {
+    const storage = await TestDatabase.create([counter], { isMigrated: true });
     onTestFinished(() => storage.close());
     const database = storage.database;
 
@@ -91,72 +91,63 @@ const label = defineTable("mutation_label", {
     color: text("color").notNull().default("grey"),
 });
 
-test.for(TEST_DIALECTS)(
-    "insert the same shape twice in one transaction, taking defaults for values left undefined, on %s",
-    async (dialect) => {
-        const storage = await TestDatabase.create(dialect, [label], { isMigrated: true });
-        onTestFinished(() => storage.close());
+test("insert the same shape twice in one transaction, taking defaults for values left undefined", async () => {
+    const storage = await TestDatabase.create([label], { isMigrated: true });
+    onTestFinished(() => storage.close());
 
-        // insert two labels, the second without a color
-        const inserted = await storage.database.transaction(async (transaction) => [
-            await transaction.insert(label).values({ id: "a", color: "red" }).returning(),
-            await transaction.insert(label).values({ id: "b", color: "blue" }).returning(),
-            await transaction.insert(label).values({ id: "c", color: undefined }).returning(),
-        ]);
-        expect(inserted).toEqual([
-            [{ id: "a", color: "red" }],
-            [{ id: "b", color: "blue" }],
-            [{ id: "c", color: "grey" }],
-        ]);
-    },
-);
+    // insert two labels, the second without a color
+    const inserted = await storage.database.transaction(async (transaction) => [
+        await transaction.insert(label).values({ id: "a", color: "red" }).returning(),
+        await transaction.insert(label).values({ id: "b", color: "blue" }).returning(),
+        await transaction.insert(label).values({ id: "c", color: undefined }).returning(),
+    ]);
+    expect(inserted).toEqual([
+        [{ id: "a", color: "red" }],
+        [{ id: "b", color: "blue" }],
+        [{ id: "c", color: "grey" }],
+    ]);
+});
 
 /** Retentions with a JSON default that is a plain string. */
 const retention = defineTable("mutation_retention", {
     /** The retention's key. */
     id: text("id").primaryKey(),
-    /** What the retention keeps. */
-    keep: json(
-        "keep",
+    /** How long the retention lasts. */
+    period: json(
+        "period",
         schema.union([schema.literal("forever"), schema.object({ days: schema.number() })]),
     )
         .notNull()
         .default("forever"),
 });
 
-test.for(TEST_DIALECTS)(
-    "take a JSON default that is a plain string, encoded as JSON, on %s",
-    async (dialect) => {
-        const storage = await TestDatabase.create(dialect, [retention], { isMigrated: true });
-        onTestFinished(() => storage.close());
+test("take a JSON default that is a plain string, encoded as JSON", async () => {
+    const storage = await TestDatabase.create([retention], { isMigrated: true });
+    onTestFinished(() => storage.close());
 
-        // insert one retention with a window and one taking the default
-        await storage.database
-            .insert(retention)
-            .values([{ id: "a", keep: { days: 1 } }, { id: "b" }]);
-        expect(await storage.database.select().from(retention).orderBy(retention.id)).toEqual([
-            { id: "a", keep: { days: 1 } },
-            { id: "b", keep: "forever" },
-        ]);
-    },
-);
+    // insert one retention with a window and one taking the default
+    await storage.database
+        .insert(retention)
+        .values([{ id: "a", period: { days: 1 } }, { id: "b" }]);
+    expect(await storage.database.select().from(retention).orderBy(retention.id)).toEqual([
+        { id: "a", period: { days: 1 } },
+        { id: "b", period: "forever" },
+    ]);
+});
 
-test.for(TEST_DIALECTS)(
-    "refuse inserting and updating properties of no column on %s",
-    async (dialect) => {
-        const storage = await TestDatabase.create(dialect, [counter], { isMigrated: true });
-        onTestFinished(() => storage.close());
-        const database = storage.database;
-        const stray = { owner: "ada", name: "a", value: 1, count: 2 };
-        const changes = { value: 2, count: 2 };
+test("refuse inserting and updating properties of no column", async () => {
+    const storage = await TestDatabase.create([counter], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const database = storage.database;
+    const stray = { owner: "ada", name: "a", value: 1, count: 2 };
+    const changes = { value: 2, count: 2 };
 
-        // refuse the stray property in either write, writing nothing
-        await expect(database.insert(counter).values(stray)).rejects.toThrow(
-            "mutation_counter has no column count",
-        );
-        await expect(
-            database.update(counter).set(changes).where(eq(counter.owner, "ada")),
-        ).rejects.toThrow("mutation_counter has no column count");
-        expect(await database.select().from(counter)).toEqual([]);
-    },
-);
+    // refuse the stray property in either write, writing nothing
+    await expect(database.insert(counter).values(stray)).rejects.toThrow(
+        "mutation_counter has no column count",
+    );
+    await expect(
+        database.update(counter).set(changes).where(eq(counter.owner, "ada")),
+    ).rejects.toThrow("mutation_counter has no column count");
+    expect(await database.select().from(counter)).toEqual([]);
+});

@@ -6,7 +6,7 @@ const TURN_WAIT_MILLISECONDS = 30_000;
 
 /** The statements of a SQLite connection or one of its transactions. */
 export interface SqliteQueryClient {
-    /** Read every row as an array of values, integers exact where the engine keeps them. */
+    /** Read every row as an array of values, integers exact where the engine stores them. */
     readonly values: (sql: string, parameters: readonly DriverValue[]) => Promise<unknown[][]>;
     /** Read every row by column name. */
     readonly all: (sql: string, parameters: readonly DriverValue[]) => Promise<unknown[]>;
@@ -76,13 +76,13 @@ export class SqliteWorkQueue {
     #waited<Value>(turn: Promise<unknown>, work: () => Promise<Value>): Promise<Value> {
         // wait for the earlier work or the end of the wait, whichever comes first
         let timer: ReturnType<typeof setTimeout> | undefined;
-        const reached = new Promise<boolean>((resolve) => {
+        const settled = new Promise<boolean>((resolve) => {
             timer = setTimeout(() => resolve(false), this.#wait);
             void turn.then(() => resolve(true));
         });
 
         // run the work in its turn, or refuse it
-        return reached.then((isTurn) => {
+        return settled.then((isTurn) => {
             clearTimeout(timer);
             if (!isTurn) {
                 throw new DatabaseError(
@@ -112,7 +112,7 @@ export const SqliteSavepoint = {
 
             return result;
         } catch (error) {
-            // keep both failures when the savepoint cannot be restored
+            // report both failures when the savepoint cannot be restored
             try {
                 await client.run(`ROLLBACK TO SAVEPOINT ${name}`, []);
                 await client.run(`RELEASE SAVEPOINT ${name}`, []);

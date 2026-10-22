@@ -36,7 +36,7 @@ export type FindOptions<
     Cardinality extends "one" | "many" = "many",
     Computed extends Extras = Extras,
 > = {
-    /** The fields each result keeps: only those set true, or all but those set false. */
+    /** The fields each result includes: only those set true, or all but those set false. */
     readonly columns?: { readonly [Name in keyof Entity["value"]]?: boolean };
     /** Values computed from each row's fields and relations, read like fields. */
     readonly extras?: Computed;

@@ -1,6 +1,5 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { TEST_DIALECTS, TestDatabase } from "../test/database.ts";
-import type { Dialect } from "../dialect/dialect.ts";
+import { TestDatabase } from "../test/database.ts";
 import { boolean, integer, text } from "../table/column.ts";
 import { defineTable } from "../table/table.ts";
 import { defineDatabase } from "../declare/database.ts";
@@ -77,7 +76,7 @@ const relations = defineRelations({ project, task, tag, taskTag, page }, (relate
     },
 }));
 
-/** The database keeping the tables and their relations. */
+/** The database with the tables and their relations. */
 const database = defineDatabase({
     name: "work",
     tables: [project, task, tag, taskTag, page],
@@ -85,8 +84,8 @@ const database = defineDatabase({
 });
 
 /** Open the database with two projects, five tasks, two tags and a page forest. */
-async function open(dialect: Dialect) {
-    const opened = await TestDatabase.create(dialect, database, { isMigrated: true });
+async function open() {
+    const opened = await TestDatabase.create(database, { isMigrated: true });
     onTestFinished(() => opened.close());
     const connection = opened.database;
     await connection.insert(project).values([
@@ -118,92 +117,83 @@ async function open(dialect: Dialect) {
     return connection;
 }
 
-test.for(TEST_DIALECTS)(
-    "include each project's first tasks by rank, each task's project or null, and each task's tags through their join table on %s",
-    async (dialect) => {
-        const connection = await open(dialect);
+test("include each project's first tasks by rank, each task's project or null, and each task's tags through their join table", async () => {
+    const connection = await open();
 
-        // limit each project's tasks separately, in rank order
-        expect(
-            await connection.query.project.findMany({
-                columns: { name: true },
-                orderBy: { name: "asc" },
-                with: { tasks: { columns: { title: true }, orderBy: { rank: "asc" }, limit: 2 } },
-            }),
-        ).toEqual([
-            { name: "Garden", tasks: [{ title: "Plant" }, { title: "Dig" }] },
-            { name: "House", tasks: [{ title: "Paint" }] },
-        ]);
+    // limit each project's tasks separately, in rank order
+    expect(
+        await connection.query.project.findMany({
+            columns: { name: true },
+            orderBy: { name: "asc" },
+            with: { tasks: { columns: { title: true }, orderBy: { rank: "asc" }, limit: 2 } },
+        }),
+    ).toEqual([
+        { name: "Garden", tasks: [{ title: "Plant" }, { title: "Dig" }] },
+        { name: "House", tasks: [{ title: "Paint" }] },
+    ]);
 
-        // read a task without a project as null, and tags through the join table
-        expect(
-            await connection.query.task.findMany({
-                columns: { title: true },
-                where: { rank: 1 },
-                orderBy: { title: "asc" },
-                with: { project: { columns: { name: true } }, tags: { columns: { label: true } } },
-            }),
-        ).toEqual([
-            { title: "Paint", project: { name: "House" }, tags: [] },
-            { title: "Plant", project: { name: "Garden" }, tags: [{ label: "outdoor" }] },
-            { title: "Rest", project: null, tags: [] },
-        ]);
-    },
-);
+    // read a task without a project as null, and tags through the join table
+    expect(
+        await connection.query.task.findMany({
+            columns: { title: true },
+            where: { rank: 1 },
+            orderBy: { title: "asc" },
+            with: { project: { columns: { name: true } }, tags: { columns: { label: true } } },
+        }),
+    ).toEqual([
+        { title: "Paint", project: { name: "House" }, tags: [] },
+        { title: "Plant", project: { name: "Garden" }, tags: [{ label: "outdoor" }] },
+        { title: "Rest", project: null, tags: [] },
+    ]);
+});
 
-test.for(TEST_DIALECTS)(
-    "select rows by their relations, and count and look up through relations, a relation's condition included, on %s",
-    async (dialect) => {
-        const connection = await open(dialect);
+test("select rows by their relations, and count and look up through relations, a relation's condition included", async () => {
+    const connection = await open();
 
-        // select the projects with an open task, counting their open tasks
-        expect(
-            await connection.query.project.findMany({
-                columns: { name: true },
-                where: { open: true },
-                extras: { pending: { kind: "rollup", function: "count", via: "open", where: {} } },
-            }),
-        ).toEqual([{ name: "Garden", pending: 2 }]);
+    // select the projects with an open task, counting their open tasks
+    expect(
+        await connection.query.project.findMany({
+            columns: { name: true },
+            where: { open: true },
+            extras: { pending: { kind: "rollup", function: "count", via: "open", where: {} } },
+        }),
+    ).toEqual([{ name: "Garden", pending: 2 }]);
 
-        // select the tagged tasks, reading each task's project name
-        expect(
-            await connection.query.task.findMany({
-                columns: { title: true },
-                where: { tags: { label: "outdoor" } },
-                orderBy: { title: "asc" },
-                extras: { projectName: { kind: "lookup", via: "project", column: "name" } },
-            }),
-        ).toEqual([
-            { title: "Dig", projectName: "Garden" },
-            { title: "Plant", projectName: "Garden" },
-        ]);
-    },
-);
+    // select the tagged tasks, reading each task's project name
+    expect(
+        await connection.query.task.findMany({
+            columns: { title: true },
+            where: { tags: { label: "outdoor" } },
+            orderBy: { title: "asc" },
+            extras: { projectName: { kind: "lookup", via: "project", column: "name" } },
+        }),
+    ).toEqual([
+        { title: "Dig", projectName: "Garden" },
+        { title: "Plant", projectName: "Garden" },
+    ]);
+});
 
-test.for(TEST_DIALECTS)(
-    "include a tree's descendants and ancestors through its index, each node without itself, on %s",
-    async (dialect) => {
-        const connection = await open(dialect);
+test("include a tree's descendants and ancestors through its index, each node without itself", async () => {
+    const connection = await open();
 
-        // read every node below and above each node
-        const pages = await connection.query.page.findMany({
-            columns: { id: true },
-            orderBy: { id: "asc" },
-            with: {
-                descendants: { columns: { id: true }, orderBy: { id: "asc" } },
-                ancestors: { columns: { id: true }, orderBy: { id: "asc" } },
-            },
-        });
-        expect(pages).toEqual([
-            { id: "a", descendants: [{ id: "b" }, { id: "c" }], ancestors: [] },
-            { id: "b", descendants: [{ id: "c" }], ancestors: [{ id: "a" }] },
-            { id: "c", descendants: [], ancestors: [{ id: "a" }, { id: "b" }] },
-        ]);
-    },
-);
+    // read every node below and above each node
+    const pages = await connection.query.page.findMany({
+        columns: { id: true },
+        orderBy: { id: "asc" },
+        with: {
+            descendants: { columns: { id: true }, orderBy: { id: "asc" } },
+            ancestors: { columns: { id: true }, orderBy: { id: "asc" } },
+        },
+    });
+    expect(pages).toEqual([
+        { id: "a", descendants: [{ id: "b" }, { id: "c" }], ancestors: [] },
+        { id: "b", descendants: [{ id: "c" }], ancestors: [{ id: "a" }] },
+        { id: "c", descendants: [], ancestors: [{ id: "a" }, { id: "b" }] },
+    ]);
+});
 
 test("read the first row by order, and none when no row meets the condition", async () => {
-    const connection = await open("sqlite");
+    const connection = await open();
 
     // read the first and a missing row
     expect([

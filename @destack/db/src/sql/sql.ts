@@ -7,7 +7,7 @@ export interface SQLWrapper {
     readonly getSQL: () => SQL;
 }
 
-/** One part of a fragment: raw text or a value the renderer resolves. */
+/** One chunk of a fragment: raw text or a value the renderer resolves. */
 export type Chunk =
     | string
     | Parameter
@@ -28,7 +28,7 @@ export type Decoder<Value> =
 export class SQL<Value = unknown> implements SQLWrapper {
     /** The computed value type. */
     declare readonly _: { readonly value: Value };
-    /** The parts in order. */
+    /** The chunks in order. */
     readonly chunks: readonly Chunk[];
     /** How a selection decodes the value, when it is not the driver value. */
     readonly decoder: Decoder<Value> | undefined;
@@ -49,9 +49,9 @@ export class SQL<Value = unknown> implements SQLWrapper {
         return new SQL(this.chunks, decoder);
     }
 
-    /** Decode a selected driver value, keeping it as the driver returns it without a decoder. */
+    /** Decode a selected driver value, returning it as the driver returns it without a decoder. */
     decode(value: unknown, dialect: Dialect): unknown {
-        // keep the driver value
+        // return the driver value
         const decoder = this.decoder;
         if (decoder === undefined) {
             return value;

@@ -42,7 +42,7 @@ async function until(check: () => boolean): Promise<void> {
     }
 }
 
-test("send messages between the parties of one path, and keep the channel once its serving party leaves", async () => {
+test("send messages between the parties of one path, and continue the channel once its serving party leaves", async () => {
     // join two parties: the first serves the socket, the second connects to it
     const directory = await mkdtemp(join(tmpdir(), "destack-socket-"));
     onTestFinished(() => rm(directory, { recursive: true, force: true }));
@@ -56,7 +56,7 @@ test("send messages between the parties of one path, and keep the channel once i
     first.channel.notify({ kind: "commit", from: "first" });
     await until(() => first.received.length === 1 && second.received.length === 1);
 
-    // let the second serve once the first leaves, resuming its listener, and reach a third
+    // let the second serve once the first leaves, then send to a third
     first.stop();
     await until(() => second.joins() === 2);
     const third = await party(path);

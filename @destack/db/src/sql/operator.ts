@@ -205,9 +205,9 @@ function compare(left: SQLWrapper, operator: string, right: unknown): SQL<boolea
     return sql<boolean>`${left} ${sql.raw(operator)} ${bind(left, right)}`;
 }
 
-/** Bind a value through the operand's column, keeping fragments as they are. */
+/** Bind a value through the operand's column, leaving fragments as they are. */
 function bind(operand: SQLWrapper, value: unknown): SQLWrapper {
-    // keep fragments, bind values through the operand's column
+    // leave fragments as they are, bind values through the operand's column
     if (isSQLWrapper(value)) {
         return value;
     }

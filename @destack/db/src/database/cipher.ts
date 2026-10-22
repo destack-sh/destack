@@ -12,7 +12,7 @@ const SEALED_PREFIX = "v1.";
 /** The bytes of a random nonce, which AES-GCM-SIV also survives repeating (RFC 8452). */
 const NONCE_BYTES = 12;
 
-/** The dialect whose text-stored value forms a sealed value keeps, as sealed columns store text. */
+/** The dialect of a sealed value's text form, as sealed columns store text. */
 export const SEALED_DIALECT: Dialect = "sqlite";
 
 /** The values a driver takes for a sealed column, stored as their JSON text. */
@@ -40,7 +40,7 @@ export class ColumnCipher {
 
     /** Seal a column's driver value as text bound to the column. */
     seal(value: unknown, column: string, sealing: Sealing): string {
-        // write the value as JSON and encrypt it under a fresh or a fixed nonce and the column's context
+        // encrypt the value's JSON under a fresh or fixed nonce and the column's context
         const plaintext = new TextEncoder().encode(JSON.stringify(SealedValue.parse(value)));
         const nonce =
             sealing === "random"

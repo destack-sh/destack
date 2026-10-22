@@ -19,7 +19,7 @@ const COLLATION = "pg_c_utf8";
 /** What PostgreSQL splits text into words at: any run of characters but letters and digits. */
 const SEPARATOR = "[^[:alnum:]]+";
 
-/** The SQLite FTS5 tokenizer: Unicode words, case-folded, their diacritics kept. */
+/** The SQLite FTS5 tokenizer: Unicode words, case-folded, with their diacritics. */
 const TOKENIZER = "unicode61 remove_diacritics 0";
 
 /** The most keys one SQLite statement deletes or inserts, within SQLite's parameter limit. */
@@ -37,7 +37,7 @@ export class FullTextIndex {
     readonly properties: readonly string[];
     /** The SQL names of the searched columns, in index order. */
     readonly columns: readonly string[];
-    /** The SQL name of the table keeping the index, an alias's source. */
+    /** The SQL name of the table that stores the index, an alias's source. */
     readonly table: string;
 
     /** Search some text columns of a table. */
@@ -67,7 +67,7 @@ export class FullTextIndex {
             return [`CREATE INDEX ${index} ON ${table} USING gin ((${document}))`];
         }
 
-        // keep the columns in an FTS5 table keyed as the log keys rows, filled from the table
+        // update the columns in an FTS5 table keyed as the log keys rows, filled from the table
         const key = keyOf(state);
         const listed = columns.map((column) => quote(column)).join(", ");
 
@@ -110,8 +110,8 @@ export class FullTextIndex {
         });
     }
 
-    /** Keep the full-text rows of a SQLite transaction's changed searched rows, from its log. */
-    static async keep(
+    /** Update the full-text rows of a SQLite transaction's changed searched rows, from its log. */
+    static async update(
         session: Session,
         searched: ReadonlyMap<string, Table>,
         namespace?: string,

@@ -21,7 +21,7 @@ test("run queued work in arrival order, one piece at a time", async () => {
 });
 
 test("refuse work whose turn does not come within the wait", async () => {
-    // hold the connection, as a transaction whose own code queues a statement outside it does
+    // occupy the connection, as a transaction does whose code queues a statement outside it
     const queue = new SqliteWorkQueue(1);
     const held = Promise.withResolvers<void>();
     const holding = queue.run(() => held.promise);

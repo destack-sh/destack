@@ -132,7 +132,7 @@ class SocketChannel implements Channel<unknown> {
         // meet at the path's files in the person's runtime directory
         const files = channelFiles(this.#path, await runtimeDirectory());
         while (true) {
-            // serve the socket while holding the lock
+            // serve the socket while the lock is taken
             const lock = await FileLock.tryAcquire(files.lock);
             if (lock !== undefined) {
                 await this.#serve(files.socket, lock);
@@ -172,7 +172,7 @@ class SocketChannel implements Channel<unknown> {
             server.listen(socket, () => resolve());
         });
 
-        // fail the listeners once serving fails, and never keep the process alive
+        // fail the listeners once serving fails, and never stop the process from exiting
         server.removeAllListeners("error");
         server.on("error", (error) => this.#fail(error));
         server.unref();
@@ -238,7 +238,7 @@ class SocketChannel implements Channel<unknown> {
 
     /** Read a connection's lines. */
     #read(socket: Socket, receive: (line: string) => void): void {
-        // split the stream at newlines, keeping a partial line for the next chunk
+        // split the stream at newlines, buffering a partial line for the next chunk
         let buffered = "";
         socket.setEncoding("utf8");
         socket.on("data", (chunk: string) => {

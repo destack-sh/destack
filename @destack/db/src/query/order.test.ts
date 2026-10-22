@@ -1,6 +1,6 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import type { JsonValue } from "@destack/schema";
-import { TEST_DIALECTS, TestDatabase } from "../test/database.ts";
+import { TestDatabase } from "../test/database.ts";
 import { defineTable, Table } from "../table/table.ts";
 import { boolean, integer, text } from "../table/column.ts";
 import { Order, type OrderKey } from "./order.ts";
@@ -47,12 +47,12 @@ function pick<Value>(values: readonly Value[], seed: { value: number }): Value {
     return picked;
 }
 
-test.for(TEST_DIALECTS)("sort and page rows alike in SQL and in memory on %s", async (dialect) => {
-    const storage = await TestDatabase.create(dialect, [sample], { isMigrated: true });
+test("sort and page rows alike in SQL and in memory", async () => {
+    const storage = await TestDatabase.create([sample], { isMigrated: true });
     onTestFinished(() => storage.close());
     const database = storage.database;
 
-    // insert rows that tie often
+    // insert rows that often sort equal
     const seed = { value: 11 };
     const rows = Array.from({ length: 50 }, (_, id) =>
         Table.decode(
@@ -76,7 +76,7 @@ test.for(TEST_DIALECTS)("sort and page rows alike in SQL and in memory on %s", a
         }));
         const order = Order.complete(keys, sample);
         const sorted = rows.toSorted((left, right) => Order.rows(order, left, right));
-        const boundary = pick(sorted, seed);
+        const cursor = pick(sorted, seed);
 
         // match the SQL order and page
         const selected = await database
@@ -86,9 +86,9 @@ test.for(TEST_DIALECTS)("sort and page rows alike in SQL and in memory on %s", a
         const following = await database
             .select({ id: sample.id })
             .from(sample)
-            .where(Order.after(order, sample, boundary))
+            .where(Order.after(order, sample, cursor))
             .orderBy(...Order.render(order, sample));
-        const after = sorted.slice(sorted.indexOf(boundary) + 1);
+        const after = sorted.slice(sorted.indexOf(cursor) + 1);
         expect([order, selected.map((row) => row.id), following.map((row) => row.id)]).toEqual([
             order,
             sorted.map((row) => row["id"]),

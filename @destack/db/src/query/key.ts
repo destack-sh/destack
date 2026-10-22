@@ -125,7 +125,7 @@ export const Key = {
 
     /** Report whether a row is one of its table's predefined rows, by key. */
     isPredefined(table: Table, row: Key): boolean {
-        // skip naming the key of a table without predefined rows
+        // skip keying a table without predefined rows
         const { predefined } = table[TABLE];
         if (predefined.length === 0) {
             return false;

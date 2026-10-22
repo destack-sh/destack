@@ -1,3 +1,4 @@
+import { TestDatabase } from "../test/database.ts";
 import postgres from "postgres";
 import { v7 } from "uuid";
 import { Plan, ResourceId } from "@destack/resource";
@@ -10,14 +11,11 @@ import { databaseProvider } from "../provider/provider.ts";
 import { text } from "../table/column.ts";
 import { defineTable, TABLE } from "../table/table.ts";
 import { MemoryContentStore } from "@destack/resource/test";
-import { TEST_DIALECTS } from "../test/database.ts";
 import { connectPostgres, reportNotice } from "./connection.ts";
 import { PostgresDatabaseHost } from "./host.ts";
 
-/** The test server's address, absent where the test dialects leave PostgreSQL out. */
-const ADDRESS = TEST_DIALECTS.includes("postgresql")
-    ? process.env["DESTACK_TEST_POSTGRES"]
-    : undefined;
+/** Whether the test's project runs against PostgreSQL, which these tests need. */
+const isPostgresql = TestDatabase.target() === "postgresql";
 
 /** Notes with a title. */
 const note = defineTable("note", { id: text("id").primaryKey(), title: text("title") });
@@ -37,13 +35,8 @@ function outcome(connecting: Promise<DatabaseConnection & AsyncDisposable>): Pro
     );
 }
 
-/** Keep databases in the test server, dropping some records' schemas after the test. */
-function openHost(address: string | undefined, ids: readonly ResourceId[]): PostgresDatabaseHost {
-    // require the test server
-    if (address === undefined) {
-        throw new Error("the test server has no address");
-    }
-
+/** Store databases in the test server, dropping some records' schemas after the test. */
+function openHost(address: string, ids: readonly ResourceId[]): PostgresDatabaseHost {
     // drop the schemas a failed test leaves behind
     onTestFinished(async () => {
         const administration = postgres(address, { max: 1, onnotice: reportNotice });
@@ -67,12 +60,12 @@ function recordOf(id: ResourceId) {
     };
 }
 
-test.skipIf(ADDRESS === undefined)(
-    "provision a PostgreSQL schema twice keeping its log, plan and apply it, connect a workload to it once applied, count its bytes, and destroy it",
+test.skipIf(!isPostgresql)(
+    "provision a PostgreSQL schema twice with the same log, plan and apply it, connect a workload to it once applied, count its bytes, and destroy it",
     async () => {
         // provide databases in the test server
         const id = ResourceId.parse(`resource-${v7()}`);
-        const host = openHost(ADDRESS, [id]);
+        const host = openHost(TestDatabase.address(), [id]);
         const provider = databaseProvider(host, "database");
         const record = recordOf(id);
         const bound = (reference: string) => ({
@@ -82,7 +75,7 @@ test.skipIf(ADDRESS === undefined)(
             reference,
         });
 
-        // provision the schema twice, reading its log's epoch after each, and refuse connecting before its tables apply
+        // provision the schema twice, and refuse connecting before its tables apply
         const qualified = note[TABLE].sqlName;
         const epoch = async (schemaName: string) => {
             await using connection = await connectPostgres(host.connector.url(schemaName));
@@ -123,7 +116,7 @@ test.skipIf(ADDRESS === undefined)(
         expect({
             reference,
             again: again.reference,
-            isLogKept: epochs[0] === epochs[1],
+            isLogUnchanged: epochs[0] === epochs[1],
             early,
             steps: plan.steps,
             stale,
@@ -133,7 +126,7 @@ test.skipIf(ADDRESS === undefined)(
         }).toEqual({
             reference: id,
             again: id,
-            isLogKept: true,
+            isLogUnchanged: true,
             early: `database notes has not applied ${qualified}`,
             steps: [
                 {
@@ -154,12 +147,12 @@ test.skipIf(ADDRESS === undefined)(
     },
 );
 
-test.skipIf(ADDRESS === undefined)(
+test.skipIf(!isPostgresql)(
     "snapshot a PostgreSQL database's rows and restore them into another",
     async () => {
         // provision and apply the notes on two schemas
         const ids = [ResourceId.parse(`resource-${v7()}`), ResourceId.parse(`resource-${v7()}`)];
-        const host = openHost(ADDRESS, ids);
+        const host = openHost(TestDatabase.address(), ids);
         const desired = [notes.state()];
         const [source, target] = await Promise.all(
             ids.map(async (id) => {

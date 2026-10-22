@@ -2,7 +2,7 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { text } from "../table/column.ts";
 import { uniqueIndex } from "../table/constraint.ts";
 import { defineTable, TABLE } from "../table/table.ts";
-import { TEST_DIALECTS, TestDatabase } from "../test/database.ts";
+import { TestDatabase } from "../test/database.ts";
 import { classifyError, DatabaseError } from "./error.ts";
 
 /** Labels of folders, each name once per folder. */
@@ -25,39 +25,36 @@ test("classify driver failures and leave domain errors that wrap them alone", ()
         code: "23505",
     });
 
-    // a domain error explaining the same failure its own way
+    // a domain error explaining the same failure differently
     const domain = new Error("package version was already published", { cause: driver });
 
-    // classify the driver failure, and keep the domain error as thrown
+    // classify the driver failure, and rethrow the domain error as thrown
     const classified = [classifyError(driver), classifyError(domain)];
     expect(
         classified.map((error) => (error instanceof DatabaseError ? error.code : error)),
     ).toEqual(["DUPLICATE", domain]);
 });
 
-test.for(TEST_DIALECTS)(
-    "read the table and key columns a duplicate violates on %s",
-    async (dialect) => {
-        // insert two labels of one folder under one name
-        const storage = await TestDatabase.create(dialect, [label], { isMigrated: true });
-        onTestFinished(() => storage.close());
-        await storage.database.insert(label).values({ id: "l1", folder: "inbox", name: "red" });
-        const failure = await storage.database
-            .insert(label)
-            .values({ id: "l2", folder: "inbox", name: "red" })
-            .then(
-                () => undefined,
-                (error: unknown) => error,
-            );
+test("read the table and key columns a duplicate violates", async () => {
+    // insert two labels of one folder under one name
+    const storage = await TestDatabase.create([label], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    await storage.database.insert(label).values({ id: "l1", folder: "inbox", name: "red" });
+    const failure = await storage.database
+        .insert(label)
+        .values({ id: "l2", folder: "inbox", name: "red" })
+        .then(
+            () => undefined,
+            (error: unknown) => error,
+        );
 
-        // read the violated key by its SQL names
-        const table = label[TABLE].sqlName;
-        expect(failure instanceof DatabaseError ? [failure.code, failure.key] : failure).toEqual([
-            "DUPLICATE",
-            { table, columns: ["folder", "name"] },
-        ]);
-    },
-);
+    // read the violated key by its SQL names
+    const table = label[TABLE].sqlName;
+    expect(failure instanceof DatabaseError ? [failure.code, failure.key] : failure).toEqual([
+        "DUPLICATE",
+        { table, columns: ["folder", "name"] },
+    ]);
+});
 
 test("read the unique key a duplicate violates from SQLite's message, a namespaced one included, and PostgreSQL's detail, absent for an index or expression", () => {
     const postgres = Object.assign(new Error("duplicate key value violates unique constraint"), {

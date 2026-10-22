@@ -26,17 +26,17 @@ const ObjectRows = schema.object({
     rows: schema.array(schema.record(schema.string(), SQLValue)),
 });
 
-/** Reads of a database another Durable Object keeps, one request per statement. */
+/** Reads of a database another Durable Object stores, one request per statement. */
 export class DurableObjectReader implements SqliteConnectionClient {
-    /** The object keeping the database. */
+    /** The object that stores the database. */
     readonly #object: DurableObjectStub;
 
-    /** Read through the object keeping the database. */
+    /** Read through the object that stores the database. */
     constructor(object: DurableObjectStub) {
         this.#object = object;
     }
 
-    /** Connect read-only to the database another object keeps, in a namespace of it when given. */
+    /** Connect read-only to another object's database, in a namespace of it when given. */
     static connect(object: DurableObjectStub, tables: readonly Table[], namespace?: string) {
         return new SqliteDatabase(
             new DurableObjectReader(object),
@@ -80,14 +80,14 @@ export class DurableObjectReader implements SqliteConnectionClient {
         return Promise.reject(DurableObjectReader.#refusal());
     }
 
-    /** Refuse a transaction, which reads across requests cannot keep. */
+    /** Refuse a transaction, which reads across requests cannot span. */
     transactionAsync<Value>(_operation: (client: SqliteQueryClient) => Promise<Value>) {
         const refuse = () => Promise.reject<Value>(DurableObjectReader.#refusal());
 
         return { deferred: refuse, immediate: refuse, exclusive: refuse };
     }
 
-    /** Release nothing: the object keeps the database. */
+    /** Release nothing: the object stores the database. */
     async close(): Promise<void> {}
 
     /** Send a read to the object, returning its answer's body and refusing one it fails. */

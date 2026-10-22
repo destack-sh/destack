@@ -1,7 +1,7 @@
 import type { Channel } from "../channel/index.ts";
 import { DatabaseError } from "../error/error.ts";
 
-/** Reach every party of a channel within one origin, such as the tabs and workers of a browser. */
+/** Send to every party of a channel within one origin, such as a browser's tabs and workers. */
 export function broadcastChannel(name: string): Channel<unknown> {
     const broadcast = new BroadcastChannel(name);
 

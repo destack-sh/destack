@@ -4,7 +4,7 @@ import { type Select, TABLE, type Table } from "../table/table.ts";
 import type { DatabaseDriver } from "../database/driver.ts";
 import { Projection, type Selection, type SelectionResult } from "./selection.ts";
 
-/** How a join keeps unmatched rows: inner keeps none, left keeps the source's. */
+/** How a join treats unmatched rows: inner drops them, left includes the source's. */
 type JoinKind = "inner" | "left";
 
 /** A joined table and its condition. */
@@ -205,40 +205,40 @@ export class SelectQuery<
     #sql(projection: Projection): SQL {
         // select the fields from the source
         const state = this.state;
-        const parts: SQL[] = [
+        const clauses: SQL[] = [
             sql`SELECT ${sql.raw(state.isDistinct ? "DISTINCT " : "")}${projection.sql()} FROM ${from(state.source)}`,
         ];
 
         // join, filter, group and order
         for (const join of state.joins) {
-            parts.push(
+            clauses.push(
                 sql` ${sql.raw(join.kind === "inner" ? "INNER JOIN" : "LEFT JOIN")} ${from(join.table)} ON ${join.on}`,
             );
         }
         if (state.where !== undefined) {
-            parts.push(sql` WHERE ${state.where}`);
+            clauses.push(sql` WHERE ${state.where}`);
         }
         if (state.groups.length > 0) {
-            parts.push(sql` GROUP BY ${sql.join(state.groups, sql.raw(", "))}`);
+            clauses.push(sql` GROUP BY ${sql.join(state.groups, sql.raw(", "))}`);
         }
         if (state.having !== undefined) {
-            parts.push(sql` HAVING ${state.having}`);
+            clauses.push(sql` HAVING ${state.having}`);
         }
         if (state.order.length > 0) {
-            parts.push(sql` ORDER BY ${sql.join(state.order, sql.raw(", "))}`);
+            clauses.push(sql` ORDER BY ${sql.join(state.order, sql.raw(", "))}`);
         }
 
         // limit and skip, SQLite requiring a limit before an offset
         if (state.limit !== undefined) {
-            parts.push(sql` LIMIT ${state.limit}`);
+            clauses.push(sql` LIMIT ${state.limit}`);
         } else if (state.offset !== undefined && state.driver.dialect === "sqlite") {
-            parts.push(sql` LIMIT -1`);
+            clauses.push(sql` LIMIT -1`);
         }
         if (state.offset !== undefined) {
-            parts.push(sql` OFFSET ${state.offset}`);
+            clauses.push(sql` OFFSET ${state.offset}`);
         }
 
-        return sql.join(parts);
+        return sql.join(clauses);
     }
 }
 

@@ -7,8 +7,7 @@ import { qualify } from "../table/namespace.ts";
 import { defineDatabase } from "../declare/database.ts";
 import { mergeStates } from "./merge.ts";
 import { applyPlan } from "./apply.ts";
-import { TEST_DIALECTS, TestDatabase } from "../test/database.ts";
-import type { Dialect } from "../dialect/dialect.ts";
+import { TestDatabase } from "../test/database.ts";
 import { declareState, STATE } from "./state.ts";
 import type { TablePlan } from "./plan.ts";
 import { Expression } from "../expression/expression.ts";
@@ -33,7 +32,7 @@ const document = defineTable("document", {
         .references(() => folderTwo.id),
 });
 
-/** Another package's release, declaring its own documents' attachments. */
+/** Another package's release, declaring its documents' attachments. */
 const ATTACHMENT_RELEASE = {
     package: Package.parse({
         id: "package-01996ab0-0000-7000-8000-0000000000f1",
@@ -144,7 +143,7 @@ const taskUnfilled = defineTable("task", {
     owner: text("owner").notNull(),
 });
 
-/** Units with the predefined rows every database keeps, in a logged table. */
+/** Units with the predefined rows every database has, in a logged table. */
 const unit = defineTable(
     "unit",
     {
@@ -164,8 +163,8 @@ const unit = defineTable(
 );
 
 /** Open an empty test database. */
-async function open(dialect: Dialect, tables: readonly Table[]) {
-    const storage = await TestDatabase.create(dialect, tables);
+async function open(tables: readonly Table[]) {
+    const storage = await TestDatabase.create(tables);
     onTestFinished(() => storage.close());
 
     return storage.database;
@@ -181,167 +180,151 @@ function release(tables: readonly Table[]) {
     return defineDatabase({ name: "main", tables });
 }
 
-test.for(TEST_DIALECTS)(
-    "create declared tables once and plan nothing afterwards on %s",
-    async (dialect) => {
-        const database = await open(dialect, [taskOne]);
+test("create declared tables once and plan nothing afterwards", async () => {
+    const database = await open([taskOne]);
 
-        // create the table, then find the database current
-        const plan = await database.migrate([taskOne]);
-        expect(review(plan)).toEqual([`safe create table/${table(taskOne)}: create table`]);
-        expect(review(await database.plan({ declared: declareState([taskOne], dialect) }))).toEqual(
-            [],
-        );
-    },
-);
+    // create the table, then find the database current
+    const plan = await database.migrate([taskOne]);
+    expect(review(plan)).toEqual([`safe create table/${table(taskOne)}: create table`]);
+    expect(
+        review(await database.plan({ declared: declareState([taskOne], TestDatabase.target()) })),
+    ).toEqual([]);
+});
 
-test.for(TEST_DIALECTS)(
-    "keep a table's predefined rows in a fresh database, unlogged, and plan nothing afterwards on %s",
-    async (dialect) => {
-        const database = await open(dialect, [unit]);
+test("write a table's predefined rows in a fresh database, unlogged, and plan nothing afterwards", async () => {
+    const database = await open([unit]);
 
-        // create the table and upsert its predefined rows
-        const plan = await database.migrate([unit]);
-        expect(review(plan)).toEqual([
-            `safe create table/${table(unit)}: create table`,
-            `safe update table/${table(unit)}/predefined: keep 2 predefined rows`,
-        ]);
-        expect(await database.select().from(unit).orderBy(unit.id)).toEqual([
-            { id: "kilometre", scope: "si", name: "Kilometre", factor: 1000, aliases: ["km"] },
-            { id: "metre", scope: "si", name: "Metre", factor: 1, aliases: ["m"] },
-        ]);
+    // create the table and upsert its predefined rows
+    const plan = await database.migrate([unit]);
+    expect(review(plan)).toEqual([
+        `safe create table/${table(unit)}: create table`,
+        `safe update table/${table(unit)}/predefined: keep 2 predefined rows`,
+    ]);
+    expect(await database.select().from(unit).orderBy(unit.id)).toEqual([
+        { id: "kilometre", scope: "si", name: "Kilometre", factor: 1000, aliases: ["km"] },
+        { id: "metre", scope: "si", name: "Metre", factor: 1, aliases: ["m"] },
+    ]);
 
-        // log only rows written after, and plan nothing once migrated
-        await database
-            .insert(unit)
-            .values({ id: "mile", scope: "imperial", name: "Mile", factor: 1609, aliases: ["mi"] });
-        const changes = await database.log.read({ tables: [unit], after: 0 });
-        expect(changes.changes.map((change) => change.key)).toEqual([{ id: "mile" }]);
-        expect(review(await database.plan({ declared: declareState([unit], dialect) }))).toEqual(
-            [],
-        );
-    },
-);
+    // log only rows written after, and plan nothing once migrated
+    await database
+        .insert(unit)
+        .values({ id: "mile", scope: "imperial", name: "Mile", factor: 1609, aliases: ["mi"] });
+    const changes = await database.log.read({ tables: [unit], after: 0 });
+    expect(changes.changes.map((change) => change.key)).toEqual([{ id: "mile" }]);
+    expect(
+        review(await database.plan({ declared: declareState([unit], TestDatabase.target()) })),
+    ).toEqual([]);
+});
 
-test.for(TEST_DIALECTS)(
-    "keep the applied tables a migration leaves out when asked, and drop them otherwise on %s",
-    async (dialect) => {
-        const database = await open(dialect, []);
-        await database.migrate([labelPlain, taskOne]);
+test("retain the applied tables a migration leaves out when asked, and drop them otherwise", async () => {
+    const database = await open([]);
+    await database.migrate([labelPlain, taskOne]);
 
-        // change the labels and keep the tasks
-        const kept = await database.migrate([labelUnique], { others: "keep" });
-        expect(review(kept)).toEqual([
-            dialect === "sqlite"
-                ? `fallible replace table/${table(labelUnique)}: rebuild table: constraints`
-                : `fallible create table/${table(labelUnique)}/constraint/${table(labelUnique)}_code_unique: add constraint ${table(labelUnique)}_code_unique`,
-        ]);
-        expect(await database.unapplied([taskOne, labelUnique])).toEqual([]);
+    // change the labels and retain the tasks
+    const kept = await database.migrate([labelUnique], { others: "retain" });
+    expect(review(kept)).toEqual([
+        TestDatabase.target() === "sqlite"
+            ? `fallible replace table/${table(labelUnique)}: rebuild table: constraints`
+            : `fallible create table/${table(labelUnique)}/constraint/${table(labelUnique)}_code_unique: add constraint ${table(labelUnique)}_code_unique`,
+    ]);
+    expect(await database.unapplied([taskOne, labelUnique])).toEqual([]);
 
-        // drop the tasks a migration leaves out by default
-        const dropped = await database.migrate([labelUnique]);
-        expect(review(dropped)).toEqual([`destructive delete table/${table(taskOne)}: drop table`]);
-    },
-);
+    // drop the tasks a migration leaves out by default
+    const dropped = await database.migrate([labelUnique]);
+    expect(review(dropped)).toEqual([`destructive delete table/${table(taskOne)}: drop table`]);
+});
 
-test.for(TEST_DIALECTS)(
-    "rename, drop, add and index columns while keeping rows on %s",
-    async (dialect) => {
-        const database = await open(dialect, [taskTwo]);
-        await database.migrate([taskOne]);
-        await database.run(
-            sql`INSERT INTO ${sql.identifier(table(taskOne))} (id, scope, name, urgent, note) VALUES ('a', 'inbox', 'Plan', 1, 'old')`,
-        );
+test("rename, drop, add and index columns while preserving rows", async () => {
+    const database = await open([taskTwo]);
+    await database.migrate([taskOne]);
+    await database.run(
+        sql`INSERT INTO ${sql.identifier(table(taskOne))} (id, scope, name, urgent, note) VALUES ('a', 'inbox', 'Plan', 1, 'old')`,
+    );
 
-        // classify the rename, addition and dropped note
-        const plan = await database.plan({ declared: declareState([taskTwo], dialect) });
-        expect(review(plan)).toEqual(
-            dialect === "sqlite"
-                ? [
-                      `backward-incompatible rename table/${table(taskTwo)}/column/title: rename column name to title`,
-                      `destructive replace table/${table(taskTwo)}: rebuild table: add due_at, drop note`,
-                  ]
-                : [
-                      `backward-incompatible rename table/${table(taskTwo)}/column/title: rename column name to title`,
-                      `safe create table/${table(taskTwo)}/column/due_at: add column due_at`,
-                      `destructive delete table/${table(taskTwo)}/column/note: drop column note`,
-                      `safe create table/${table(taskTwo)}/index/${indexName(taskTwo, "task_due")}: create index ${indexName(taskTwo, "task_due")}`,
-                  ],
-        );
+    // classify the rename, addition and dropped note
+    const plan = await database.plan({ declared: declareState([taskTwo], TestDatabase.target()) });
+    expect(review(plan)).toEqual(
+        TestDatabase.target() === "sqlite"
+            ? [
+                  `backward-incompatible rename table/${table(taskTwo)}/column/title: rename column name to title`,
+                  `destructive replace table/${table(taskTwo)}: rebuild table: add due_at, drop note`,
+              ]
+            : [
+                  `backward-incompatible rename table/${table(taskTwo)}/column/title: rename column name to title`,
+                  `safe create table/${table(taskTwo)}/column/due_at: add column due_at`,
+                  `destructive delete table/${table(taskTwo)}/column/note: drop column note`,
+                  `safe create table/${table(taskTwo)}/index/${indexName(taskTwo, "task_due")}: create index ${indexName(taskTwo, "task_due")}`,
+              ],
+    );
 
-        // keep the row under the renamed column
-        await applyPlan(database, plan);
-        expect(await database.select().from(taskTwo)).toEqual([
-            { id: "a", scope: "inbox", title: "Plan", urgent: 1, dueAt: null },
-        ]);
-        expect(review(await database.plan({ declared: declareState([taskTwo], dialect) }))).toEqual(
-            [],
-        );
-    },
-);
+    // move the row's value to the renamed column
+    await applyPlan(database, plan);
+    expect(await database.select().from(taskTwo)).toEqual([
+        { id: "a", scope: "inbox", title: "Plan", urgent: 1, dueAt: null },
+    ]);
+    expect(
+        review(await database.plan({ declared: declareState([taskTwo], TestDatabase.target()) })),
+    ).toEqual([]);
+});
 
-test.for(TEST_DIALECTS)(
-    "convert rows to a new release and log the converted values on %s",
-    async (dialect) => {
-        const database = await open(dialect, [taskThree]);
-        await database.migrate([taskTwo]);
-        await database.run(
-            sql`INSERT INTO ${sql.identifier(table(taskTwo))} (id, scope, title, urgent, due_at) VALUES ('a', 'inbox', 'Plan', 1, NULL), ('b', 'inbox', 'Ship', 0, 5)`,
-        );
-        const before = (await database.log.position()).sequence;
+test("convert rows to a new release and log the converted values", async () => {
+    const database = await open([taskThree]);
+    await database.migrate([taskTwo]);
+    await database.run(
+        sql`INSERT INTO ${sql.identifier(table(taskTwo))} (id, scope, title, urgent, due_at) VALUES ('a', 'inbox', 'Plan', 1, NULL), ('b', 'inbox', 'Ship', 0, 5)`,
+    );
+    const before = (await database.log.position()).sequence;
 
-        // convert every row by the next release's conversion
-        const plan = await database.migrate([taskThree]);
-        expect(review(plan)).toEqual([
-            `safe create table/${table(taskThree)}/column/priority: add column priority`,
-            `fallible convert table/${table(taskThree)}: convert rows to 2026.10.0`,
-        ]);
-        expect(await database.select().from(taskThree).orderBy(taskThree.id)).toEqual([
-            { id: "a", scope: "inbox", title: "Plan", urgent: 1, priority: "high", dueAt: null },
-            { id: "b", scope: "inbox", title: "Ship", urgent: 0, priority: "normal", dueAt: 5 },
-        ]);
+    // convert every row by the next release's conversion
+    const plan = await database.migrate([taskThree]);
+    expect(review(plan)).toEqual([
+        `safe create table/${table(taskThree)}/column/priority: add column priority`,
+        `fallible convert table/${table(taskThree)}: convert rows to 2026.10.0`,
+    ]);
+    expect(await database.select().from(taskThree).orderBy(taskThree.id)).toEqual([
+        { id: "a", scope: "inbox", title: "Plan", urgent: 1, priority: "high", dueAt: null },
+        { id: "b", scope: "inbox", title: "Ship", urgent: 0, priority: "normal", dueAt: 5 },
+    ]);
 
-        // log the conversion's update
-        const changes = await database.log.read({ tables: [taskThree], after: before });
-        expect(
-            changes.changes.map((change) => [
-                change.operation,
-                change.key,
-                Change.before(change)?.priority,
-                Change.after(change)?.priority,
-            ]),
-        ).toEqual([["update", { id: "a" }, "normal", "high"]]);
-    },
-);
+    // log the conversion's update
+    const changes = await database.log.read({ tables: [taskThree], after: before });
+    expect(
+        changes.changes.map((change) => [
+            change.operation,
+            change.key,
+            Change.before(change)?.priority,
+            Change.after(change)?.priority,
+        ]),
+    ).toEqual([["update", { id: "a" }, "normal", "high"]]);
+});
 
-test.for(TEST_DIALECTS)(
-    "name what the declarations must fix instead of planning on %s",
-    async (dialect) => {
-        const database = await open(dialect, [taskUnfilled]);
-        await database.migrate([taskOne]);
-        await database.run(
-            sql`INSERT INTO ${sql.identifier(table(taskOne))} (id, scope, name, urgent) VALUES ('t', 's', 'Plan', 0)`,
-        );
-        await database.run(sql`CREATE TABLE ${sql.identifier(table(labelPlain))} (id TEXT)`);
+test("name what the declarations must fix instead of planning", async () => {
+    const database = await open([taskUnfilled]);
+    await database.migrate([taskOne]);
+    await database.run(
+        sql`INSERT INTO ${sql.identifier(table(taskOne))} (id, scope, name, urgent) VALUES ('t', 's', 'Plan', 0)`,
+    );
+    await database.run(sql`CREATE TABLE ${sql.identifier(table(labelPlain))} (id TEXT)`);
 
-        // report the column no task row fills and the unmanaged table
-        await expect(
-            database.plan({ declared: declareState([taskUnfilled, labelPlain], dialect) }),
-        ).rejects.toMatchObject({
-            name: "PlanError",
-            problems: [
-                {
-                    target: `table/${table(taskUnfilled)}`,
-                    detail: "declare a default for the required column owner",
-                },
-                {
-                    target: `table/${table(labelPlain)}`,
-                    detail: "table exists without applied state",
-                },
-            ],
-        });
-    },
-);
+    // report the column no task row fills and the unmanaged table
+    await expect(
+        database.plan({
+            declared: declareState([taskUnfilled, labelPlain], TestDatabase.target()),
+        }),
+    ).rejects.toMatchObject({
+        name: "PlanError",
+        problems: [
+            {
+                target: `table/${table(taskUnfilled)}`,
+                detail: "declare a default for the required column owner",
+            },
+            {
+                target: `table/${table(labelPlain)}`,
+                detail: "table exists without applied state",
+            },
+        ],
+    });
+});
 
 /** Preferences whose mode takes three values. */
 const preferenceOne = defineTable("preference", {
@@ -386,43 +369,42 @@ const preferenceConverted = defineTable(
     NEXT_RELEASE,
 );
 
-test.for(TEST_DIALECTS)(
-    "widen column values freely and narrow them only by a conversion on %s",
-    async (dialect) => {
-        const database = await open(dialect, [preferenceConverted]);
-        await database.migrate([preferenceOne]);
-        await database.run(
-            sql`INSERT INTO ${sql.identifier(table(preferenceOne))} (id, mode) VALUES ('a', '"emacs"'), ('b', '"vim"')`,
-        );
+test("widen column values freely and narrow them only by a conversion", async () => {
+    const database = await open([preferenceConverted]);
+    await database.migrate([preferenceOne]);
+    await database.run(
+        sql`INSERT INTO ${sql.identifier(table(preferenceOne))} (id, mode) VALUES ('a', '"emacs"'), ('b', '"vim"')`,
+    );
 
-        // accept the widened mode, refuse the unconverted narrowing, and convert the declared one
-        const wide = await database.plan({ declared: declareState([preferenceWide], dialect) });
-        expect(review(wide)).toEqual([
-            `safe update table/${table(preferenceWide)}/column/mode: wider values`,
-        ]);
-        await expect(
-            database.plan({ declared: declareState([preferenceNarrow], dialect) }),
-        ).rejects.toMatchObject({
-            name: "PlanError",
-            problems: [
-                {
-                    target: `table/${table(preferenceNarrow)}/column/mode`,
-                    detail: "declare a conversion for 2026.10.0",
-                },
-            ],
-        });
-        const converted = await database.migrate([preferenceConverted]);
-        expect(review(converted)).toEqual([
-            `fallible convert table/${table(preferenceConverted)}: convert rows to 2026.10.0`,
-        ]);
-        expect(
-            await database.select().from(preferenceConverted).orderBy(preferenceConverted.id),
-        ).toEqual([
-            { id: "a", mode: "standard" },
-            { id: "b", mode: "vim" },
-        ]);
-    },
-);
+    // accept the widened mode, refuse the unconverted narrowing and convert the declared one
+    const wide = await database.plan({
+        declared: declareState([preferenceWide], TestDatabase.target()),
+    });
+    expect(review(wide)).toEqual([
+        `safe update table/${table(preferenceWide)}/column/mode: wider values`,
+    ]);
+    await expect(
+        database.plan({ declared: declareState([preferenceNarrow], TestDatabase.target()) }),
+    ).rejects.toMatchObject({
+        name: "PlanError",
+        problems: [
+            {
+                target: `table/${table(preferenceNarrow)}/column/mode`,
+                detail: "declare a conversion for 2026.10.0",
+            },
+        ],
+    });
+    const converted = await database.migrate([preferenceConverted]);
+    expect(review(converted)).toEqual([
+        `fallible convert table/${table(preferenceConverted)}: convert rows to 2026.10.0`,
+    ]);
+    expect(
+        await database.select().from(preferenceConverted).orderBy(preferenceConverted.id),
+    ).toEqual([
+        { id: "a", mode: "standard" },
+        { id: "b", mode: "vim" },
+    ]);
+});
 
 /** Layouts whose settings name a theme. */
 const layoutOne = defineTable("layout", {
@@ -444,32 +426,29 @@ const layoutSized = defineTable(
     NEXT_RELEASE,
 );
 
-test.for(TEST_DIALECTS)(
-    "refuse requiring a key stored values lack without a conversion, reading rows as stored, on %s",
-    async (dialect) => {
-        const database = await open(dialect, [layoutSized]);
-        await database.migrate([layoutOne]);
-        await database.run(
-            sql`INSERT INTO ${sql.identifier(table(layoutOne))} (id, settings) VALUES ('a', '{"theme":"dark"}')`,
-        );
+test("refuse requiring a key stored values lack without a conversion, reading rows as stored", async () => {
+    const database = await open([layoutSized]);
+    await database.migrate([layoutOne]);
+    await database.run(
+        sql`INSERT INTO ${sql.identifier(table(layoutOne))} (id, settings) VALUES ('a', '{"theme":"dark"}')`,
+    );
 
-        // refuse the key every stored row lacks, and read a row exactly as stored
-        await expect(
-            database.plan({ declared: declareState([layoutSized], dialect) }),
-        ).rejects.toMatchObject({
-            name: "PlanError",
-            problems: [
-                {
-                    target: `table/${table(layoutSized)}/column/settings`,
-                    detail: "declare a conversion for 2026.10.0",
-                },
-            ],
-        });
-        expect(await database.select().from(layoutOne)).toEqual([
-            { id: "a", settings: { theme: "dark" } },
-        ]);
-    },
-);
+    // refuse the key every stored row lacks, and read a row exactly as stored
+    await expect(
+        database.plan({ declared: declareState([layoutSized], TestDatabase.target()) }),
+    ).rejects.toMatchObject({
+        name: "PlanError",
+        problems: [
+            {
+                target: `table/${table(layoutSized)}/column/settings`,
+                detail: "declare a conversion for 2026.10.0",
+            },
+        ],
+    });
+    expect(await database.select().from(layoutOne)).toEqual([
+        { id: "a", settings: { theme: "dark" } },
+    ]);
+});
 
 /** Preferences in the next release, whose conversion writes a mode the column refuses. */
 const preferenceMisconverted = defineTable(
@@ -489,28 +468,25 @@ const preferenceMisconverted = defineTable(
     NEXT_RELEASE,
 );
 
-test.for(TEST_DIALECTS)(
-    "refuse a conversion writing a value its column refuses, keeping the rows as they were, on %s",
-    async (dialect) => {
-        const database = await open(dialect, [preferenceMisconverted]);
-        await database.migrate([preferenceOne]);
-        await database.run(
-            sql`INSERT INTO ${sql.identifier(table(preferenceOne))} (id, mode) VALUES ('a', '"emacs"')`,
-        );
+test("refuse a conversion writing a value its column refuses, leaving the rows as they were", async () => {
+    const database = await open([preferenceMisconverted]);
+    await database.migrate([preferenceOne]);
+    await database.run(
+        sql`INSERT INTO ${sql.identifier(table(preferenceOne))} (id, mode) VALUES ('a', '"emacs"')`,
+    );
 
-        // refuse the conversion loudly and roll it back
-        await expect(database.migrate([preferenceMisconverted])).rejects.toMatchObject({
-            code: "MIGRATION_FAILED",
-            message: `conversion writes a value that ${table(preferenceMisconverted)}.mode refuses: ✖ Invalid option: expected one of "standard"|"vim"`,
-        });
-        expect(
-            await database.execute(
-                sql`SELECT mode FROM ${sql.identifier(table(preferenceOne))}`,
-                schema.object({ mode: schema.unknown() }),
-            ),
-        ).toEqual([{ mode: dialect === "sqlite" ? '"emacs"' : "emacs" }]);
-    },
-);
+    // refuse the conversion loudly and roll it back
+    await expect(database.migrate([preferenceMisconverted])).rejects.toMatchObject({
+        code: "MIGRATION_FAILED",
+        message: `conversion writes a value that ${table(preferenceMisconverted)}.mode refuses: ✖ Invalid option: expected one of "standard"|"vim"`,
+    });
+    expect(
+        await database.execute(
+            sql`SELECT mode FROM ${sql.identifier(table(preferenceOne))}`,
+            schema.object({ mode: schema.unknown() }),
+        ),
+    ).toEqual([{ mode: TestDatabase.target() === "sqlite" ? '"emacs"' : "emacs" }]);
+});
 
 /** Preferences rebuilt within the first release, converting the emacs mode it drops. */
 const preferenceRebuilt = defineTable(
@@ -529,32 +505,27 @@ const preferenceRebuilt = defineTable(
     },
 );
 
-test.for(TEST_DIALECTS)(
-    "convert rows by the conversion a rebuilt release adds, once, on %s",
-    async (dialect) => {
-        const database = await open(dialect, [preferenceRebuilt]);
-        await database.migrate([preferenceOne]);
-        await database.run(
-            sql`INSERT INTO ${sql.identifier(table(preferenceOne))} (id, mode) VALUES ('a', '"emacs"'), ('b', '"vim"')`,
-        );
+test("convert rows by the conversion a rebuilt release adds, once", async () => {
+    const database = await open([preferenceRebuilt]);
+    await database.migrate([preferenceOne]);
+    await database.run(
+        sql`INSERT INTO ${sql.identifier(table(preferenceOne))} (id, mode) VALUES ('a', '"emacs"'), ('b', '"vim"')`,
+    );
 
-        // convert the rows the earlier build wrote, then find the database current
-        const converted = await database.migrate([preferenceRebuilt]);
-        const again = await database.migrate([preferenceRebuilt]);
-        expect({ converted: review(converted), again: review(again) }).toEqual({
-            converted: [
-                `fallible convert table/${table(preferenceRebuilt)}: convert rows to ${preferenceOne[TABLE].package.version}`,
-            ],
-            again: [],
-        });
-        expect(
-            await database.select().from(preferenceRebuilt).orderBy(preferenceRebuilt.id),
-        ).toEqual([
-            { id: "a", mode: "standard" },
-            { id: "b", mode: "vim" },
-        ]);
-    },
-);
+    // convert the rows the earlier build wrote, then find the database current
+    const converted = await database.migrate([preferenceRebuilt]);
+    const again = await database.migrate([preferenceRebuilt]);
+    expect({ converted: review(converted), again: review(again) }).toEqual({
+        converted: [
+            `fallible convert table/${table(preferenceRebuilt)}: convert rows to ${preferenceOne[TABLE].package.version}`,
+        ],
+        again: [],
+    });
+    expect(await database.select().from(preferenceRebuilt).orderBy(preferenceRebuilt.id)).toEqual([
+        { id: "a", mode: "standard" },
+        { id: "b", mode: "vim" },
+    ]);
+});
 
 /** Preferences in the next release, narrowing the mode and requiring a theme without a default. */
 const preferenceStrict = defineTable(
@@ -568,43 +539,40 @@ const preferenceStrict = defineTable(
     NEXT_RELEASE,
 );
 
-test.for(TEST_DIALECTS)(
-    "narrow values and require a new column without a default only over a table without rows, on %s",
-    async (dialect) => {
-        // change an empty table freely
-        const empty = await open(dialect, [preferenceStrict]);
-        await empty.migrate([preferenceOne]);
-        const changed = await empty.migrate([preferenceStrict]);
+test("narrow values and require a new column without a default only over a table without rows", async () => {
+    // change an empty table freely
+    const empty = await open([preferenceStrict]);
+    await empty.migrate([preferenceOne]);
+    const changed = await empty.migrate([preferenceStrict]);
 
-        // refuse the same change over a row
-        const filled = await open(dialect, [preferenceStrict]);
-        await filled.migrate([preferenceOne]);
-        await filled.run(
-            sql`INSERT INTO ${sql.identifier(table(preferenceOne))} (id, mode) VALUES ('a', '"emacs"')`,
-        );
-        const refused = await filled.migrate([preferenceStrict]).then(
-            () => [],
-            (error: PlanError) => error.problems,
-        );
-        expect({ changed: review(changed), refused }).toEqual({
-            changed: [
-                dialect === "sqlite"
-                    ? `safe replace table/${table(preferenceStrict)}: rebuild table: add theme`
-                    : `safe create table/${table(preferenceStrict)}/column/theme: add column theme`,
-            ],
-            refused: [
-                {
-                    target: `table/${table(preferenceStrict)}`,
-                    detail: "declare a default for the required column theme",
-                },
-                {
-                    target: `table/${table(preferenceStrict)}/column/mode`,
-                    detail: "declare a conversion for 2026.10.0",
-                },
-            ],
-        });
-    },
-);
+    // refuse the same change over a row
+    const filled = await open([preferenceStrict]);
+    await filled.migrate([preferenceOne]);
+    await filled.run(
+        sql`INSERT INTO ${sql.identifier(table(preferenceOne))} (id, mode) VALUES ('a', '"emacs"')`,
+    );
+    const refused = await filled.migrate([preferenceStrict]).then(
+        () => [],
+        (error: PlanError) => error.problems,
+    );
+    expect({ changed: review(changed), refused }).toEqual({
+        changed: [
+            TestDatabase.target() === "sqlite"
+                ? `safe replace table/${table(preferenceStrict)}: rebuild table: add theme`
+                : `safe create table/${table(preferenceStrict)}/column/theme: add column theme`,
+        ],
+        refused: [
+            {
+                target: `table/${table(preferenceStrict)}`,
+                detail: "declare a default for the required column theme",
+            },
+            {
+                target: `table/${table(preferenceStrict)}/column/mode`,
+                detail: "declare a conversion for 2026.10.0",
+            },
+        ],
+    });
+});
 
 /** Themes the next release adds. */
 const themeTable = defineTable("theme", { id: text("id").primaryKey() }, {}, NEXT_RELEASE);
@@ -629,48 +597,50 @@ const preferenceThemed = defineTable(
     NEXT_RELEASE,
 );
 
-test.for(TEST_DIALECTS)(
-    "roll back without contracting what a newer release added, and refuse tables the older release cannot read, on %s",
-    async (dialect) => {
-        // apply the next release adding a theme column and a theme table, then roll back to the first
-        const database = await open(dialect, [preferenceOne]);
-        await database.migrate([preferenceThemed, themeTable]);
-        const rolledBack = await database.migrate([preferenceOne]);
+test("roll back without contracting what a newer release added, and refuse tables the older release cannot read", async () => {
+    // apply the next release adding a theme column and a theme table, then roll back to the first
+    const database = await open([preferenceOne]);
+    await database.migrate([preferenceThemed, themeTable]);
+    const rolledBack = await database.migrate([preferenceOne]);
 
-        // refuse rolling back across a renamed table, which would create it again empty
-        const moved = await open(dialect, [folderOne]);
-        await moved.migrate([directoryTable]);
-        const renamed = await moved.migrate([folderOne]).then(
-            () => [],
-            (error: PlanError) => error.problems,
-        );
+    // refuse rolling back across a renamed table, which would create it again empty
+    const moved = await open([folderOne]);
+    await moved.migrate([directoryTable]);
+    const renamed = await moved.migrate([folderOne]).then(
+        () => [],
+        (error: PlanError) => error.problems,
+    );
 
-        // refuse rolling back across widened mode values the first release cannot read
-        const widened = await open(dialect, [preferenceOne]);
-        await widened.migrate([preferenceWide]);
-        const refused = await widened.migrate([preferenceOne]).then(
-            () => [],
-            (error: PlanError) => error.problems,
-        );
+    // refuse rolling back across widened mode values the first release cannot read
+    const widened = await open([preferenceOne]);
+    await widened.migrate([preferenceWide]);
+    const refused = await widened.migrate([preferenceOne]).then(
+        () => [],
+        (error: PlanError) => error.problems,
+    );
 
-        // keep the theme column and table, since dropping them would lose them on the next upgrade
-        expect({ rolledBack: review(rolledBack), refused, renamed }).toEqual({
-            rolledBack: [],
-            refused: [
-                {
-                    target: `table/${table(preferenceOne)}`,
-                    detail: `rollback to 2026.9.0 cannot read the table as ${NEXT_RELEASE.package.version} applied it`,
-                },
-            ],
-            renamed: [
-                {
-                    target: `table/${table(folderOne)}`,
-                    detail: `rollback to 2026.9.0 cannot read the table ${NEXT_RELEASE.package.version} renamed to ${table(directoryTable)}`,
-                },
-            ],
-        });
-    },
-);
+    // retain the theme column and table, since dropping them would lose them on the next upgrade
+    expect({ rolledBack: review(rolledBack), refused, renamed }).toEqual({
+        rolledBack: [],
+        refused: [
+            {
+                target: `table/${table(preferenceOne)}`,
+                detail: `rollback to 2026.9.0 cannot read the table as ${NEXT_RELEASE.package.version} applied it`,
+            },
+        ],
+        renamed: [
+            {
+                target: `table/${table(folderOne)}`,
+                detail: `rollback to 2026.9.0 cannot read the table ${NEXT_RELEASE.package.version} renamed to ${table(directoryTable)}`,
+            },
+        ],
+    });
+});
+
+/** Declare the state of a database of some tables in the project's database. */
+function stateOf(tables: readonly Table[]) {
+    return defineDatabase({ name: "main", tables }).state().tables[TestDatabase.target()];
+}
 
 /** Read a table's SQL name. */
 function table(declaration: Table): string {
@@ -682,56 +652,52 @@ function indexName(declaration: Table, name: string): string {
     return qualify(declaration[TABLE].package, name);
 }
 
-test.for(TEST_DIALECTS)(
-    "rebuild a table other tables reference, keeping their rows, on %s",
-    async (dialect) => {
-        const database = await open(dialect, [folderOne, document]);
-        await database.migrate([folderOne, document]);
-        await database.run(
-            sql`INSERT INTO ${sql.identifier(table(folderOne))} (id, extra) VALUES ('f', 'x')`,
-        );
-        await database.run(
-            sql`INSERT INTO ${sql.identifier(table(document))} (id, folder_id) VALUES ('d', 'f')`,
-        );
+test("rebuild a table other tables reference, preserving their rows", async () => {
+    const database = await open([folderOne, document]);
+    await database.migrate([folderOne, document]);
+    await database.run(
+        sql`INSERT INTO ${sql.identifier(table(folderOne))} (id, extra) VALUES ('f', 'x')`,
+    );
+    await database.run(
+        sql`INSERT INTO ${sql.identifier(table(document))} (id, folder_id) VALUES ('d', 'f')`,
+    );
 
-        // drop the referenced column and keep the reference valid
-        await database.migrate([folderTwo, document]);
-        expect(
-            await database.all(sql`SELECT id, folder_id FROM ${sql.identifier(table(document))}`),
-        ).toEqual([{ id: "d", folder_id: "f" }]);
-        expect(await database.all(sql`SELECT id FROM ${sql.identifier(table(folderTwo))}`)).toEqual(
-            [{ id: "f" }],
-        );
-    },
-);
+    // drop the referenced column and leave the reference valid
+    await database.migrate([folderTwo, document]);
+    expect(
+        await database.all(sql`SELECT id, folder_id FROM ${sql.identifier(table(document))}`),
+    ).toEqual([{ id: "d", folder_id: "f" }]);
+    expect(await database.all(sql`SELECT id FROM ${sql.identifier(table(folderTwo))}`)).toEqual([
+        { id: "f" },
+    ]);
+});
 
-test.for(TEST_DIALECTS)(
-    "report a failing migration statement as a failed migration on %s",
-    async (dialect) => {
-        const database = await open(dialect, [labelPlain]);
-        await database.migrate([labelPlain]);
-        const name = sql.identifier(table(labelPlain));
-        await database.run(sql`INSERT INTO ${name} (id, code) VALUES ('a', 'x'), ('b', 'x')`);
+test("report a failing migration statement as a failed migration", async () => {
+    const database = await open([labelPlain]);
+    await database.migrate([labelPlain]);
+    const name = sql.identifier(table(labelPlain));
+    await database.run(sql`INSERT INTO ${name} (id, code) VALUES ('a', 'x'), ('b', 'x')`);
 
-        // fail to make duplicate codes unique and keep the state
-        await expect(database.migrate([labelUnique])).rejects.toMatchObject({
-            code: "MIGRATION_FAILED",
-        });
-        expect(await database.all(sql`SELECT id FROM ${name} ORDER BY id`)).toEqual([
-            { id: "a" },
-            { id: "b" },
-        ]);
-    },
-);
+    // fail to make duplicate codes unique and leave the state unchanged
+    await expect(database.migrate([labelUnique])).rejects.toMatchObject({
+        code: "MIGRATION_FAILED",
+    });
+    expect(await database.all(sql`SELECT id FROM ${name} ORDER BY id`)).toEqual([
+        { id: "a" },
+        { id: "b" },
+    ]);
+});
 
-test.for(TEST_DIALECTS)("make a column unique and enforce it on %s", async (dialect) => {
-    const database = await open(dialect, [labelPlain]);
+test("make a column unique and enforce it", async () => {
+    const database = await open([labelPlain]);
     await database.migrate([labelPlain]);
 
     // add the unique constraint
-    const plan = await database.plan({ declared: declareState([labelUnique], dialect) });
+    const plan = await database.plan({
+        declared: declareState([labelUnique], TestDatabase.target()),
+    });
     expect(review(plan)).toEqual(
-        dialect === "sqlite"
+        TestDatabase.target() === "sqlite"
             ? [`fallible replace table/${table(labelUnique)}: rebuild table: constraints`]
             : [
                   `fallible create table/${table(labelUnique)}/constraint/${table(labelUnique)}_code_unique: add constraint ${table(labelUnique)}_code_unique`,
@@ -740,9 +706,11 @@ test.for(TEST_DIALECTS)("make a column unique and enforce it on %s", async (dial
     await applyPlan(database, plan);
 
     // plan nothing more
-    expect(review(await database.plan({ declared: declareState([labelUnique], dialect) }))).toEqual(
-        [],
-    );
+    expect(
+        review(
+            await database.plan({ declared: declareState([labelUnique], TestDatabase.target()) }),
+        ),
+    ).toEqual([]);
     const name = sql.identifier(table(labelUnique));
     await database.run(
         sql`INSERT INTO ${name} (id, code) VALUES ('a', 'x'), ('b', 'x') ON CONFLICT DO NOTHING`,
@@ -750,260 +718,231 @@ test.for(TEST_DIALECTS)("make a column unique and enforce it on %s", async (dial
     expect(await database.all(sql`SELECT id, code FROM ${name}`)).toEqual([{ id: "a", code: "x" }]);
 });
 
-test.for(TEST_DIALECTS)(
-    "plan the union of declarations sharing a database on %s",
-    async (dialect) => {
-        const database = await open(dialect, [taskOne]);
-        const state = (tables: readonly Table[]) =>
-            defineDatabase({ name: "main", tables }).state().tables[dialect];
+test("plan the union of declarations sharing a database", async () => {
+    const database = await open([taskOne]);
 
-        // create a shared table once
-        const plan = await database.plan(mergeStates([state([taskOne]), state([taskOne])]));
-        expect(review(plan)).toEqual([`safe create table/${table(taskOne)}: create table`]);
-        await applyPlan(database, plan);
+    // create a shared table once
+    const plan = await database.plan(mergeStates([stateOf([taskOne]), stateOf([taskOne])]));
+    expect(review(plan)).toEqual([`safe create table/${table(taskOne)}: create table`]);
+    await applyPlan(database, plan);
 
-        // refuse conflicting column types
-        await expect(
-            database.plan(mergeStates([state([taskOne]), state([taskText])])),
-        ).rejects.toMatchObject({
-            name: "PlanError",
-            problems: [
-                { target: `table/${table(taskOne)}`, detail: "releases disagree on column urgent" },
+    // refuse conflicting column types
+    await expect(
+        database.plan(mergeStates([stateOf([taskOne]), stateOf([taskText])])),
+    ).rejects.toMatchObject({
+        name: "PlanError",
+        problems: [
+            { target: `table/${table(taskOne)}`, detail: "releases disagree on column urgent" },
+        ],
+    });
+});
+
+test("expand for two running releases, bridge a renamed column, then contract", async () => {
+    const database = await open([taskOne]);
+    await database.migrate([taskOne]);
+    await database.run(
+        sql`INSERT INTO ${sql.identifier(table(taskOne))} (id, scope, name, urgent, note) VALUES ('a', 'inbox', 'Plan', 1, 'old')`,
+    );
+
+    // expand the table for both releases and bridge the renamed column
+    const expand = await database.plan(mergeStates([stateOf([taskOne]), stateOf([taskTwo])]));
+    expect(review(expand)).toEqual(
+        TestDatabase.target() === "sqlite"
+            ? [
+                  `safe replace table/${table(taskTwo)}: rebuild table: add title, add due_at, change name`,
+                  `fallible convert table/${table(taskTwo)}/column/title: copy name into title`,
+              ]
+            : [
+                  `safe create table/${table(taskTwo)}/column/title: add column title`,
+                  `safe create table/${table(taskTwo)}/column/due_at: add column due_at`,
+                  `safe update table/${table(taskTwo)}/column/name: change column name`,
+                  `safe create table/${table(taskTwo)}/index/${indexName(taskTwo, "task_due")}: create index ${indexName(taskTwo, "task_due")}`,
+                  `fallible convert table/${table(taskTwo)}/column/title: copy name into title`,
+              ],
+    );
+    expect(
+        review(await database.plan(mergeStates([stateOf([taskTwo]), stateOf([taskOne])]))),
+    ).toEqual(review(expand));
+    await applyPlan(database, expand);
+
+    // connect both releases
+    expect(await release([taskOne]).check(database)).toEqual([]);
+    expect(await release([taskTwo]).check(database)).toEqual([]);
+
+    // make both names equal
+    const name = sql.identifier(table(taskOne));
+    await database.run(
+        sql`INSERT INTO ${name} (id, scope, name, urgent) VALUES ('b', 'inbox', 'Old', 0)`,
+    );
+    await database.run(
+        sql`INSERT INTO ${name} (id, scope, title, urgent) VALUES ('c', 'inbox', 'New', 0)`,
+    );
+    await database.run(sql`UPDATE ${name} SET title = 'Plan again' WHERE id = 'a'`);
+    expect(await database.all(sql`SELECT id, name, title FROM ${name} ORDER BY id`)).toEqual([
+        { id: "a", name: "Plan again", title: "Plan again" },
+        { id: "b", name: "Old", title: "Old" },
+        { id: "c", name: "New", title: "New" },
+    ]);
+
+    // drop the old release's columns
+    const contract = await database.plan(mergeStates([stateOf([taskTwo])]));
+    expect(review(contract)).toEqual(
+        TestDatabase.target() === "sqlite"
+            ? [
+                  `destructive replace table/${table(taskTwo)}: rebuild table: drop name, drop note, change title`,
+              ]
+            : [
+                  `destructive delete table/${table(taskTwo)}/column/name: drop column name`,
+                  `destructive delete table/${table(taskTwo)}/column/note: drop column note`,
+                  `fallible update table/${table(taskTwo)}/column/title: change column title`,
+              ],
+    );
+    await applyPlan(database, contract);
+    expect(await release([taskOne]).check(database)).toEqual([table(taskOne)]);
+    expect(await release([taskTwo]).check(database)).toEqual([]);
+    expect(await database.all(sql`SELECT id, title FROM ${name} ORDER BY id`)).toEqual([
+        { id: "a", title: "Plan again" },
+        { id: "b", title: "Old" },
+        { id: "c", title: "New" },
+    ]);
+});
+
+test("name declared tables a database has not applied", async () => {
+    const database = await open([taskOne]);
+    const declared = defineDatabase({
+        name: "main",
+        tables: [taskOne],
+    });
+
+    // report the missing table until applied
+    expect(await declared.check(database)).toEqual([table(taskOne)]);
+    await database.migrate([taskOne]);
+    expect(await declared.check(database)).toEqual([]);
+});
+
+test("add foreign keys to local tables and leave references elsewhere logical", async () => {
+    // describe documents with and without their folders in the same database
+    const keys = (tables: readonly Table[]) =>
+        declareState(tables, TestDatabase.target())
+            .filter((state) => state.table.name === document[TABLE].sqlName)
+            .flatMap((state) => state.table.constraints)
+            .filter((constraint) => constraint.kind === "foreignKey")
+            .map((constraint) => [constraint.kind, constraint.columns, constraint.table]);
+
+    // migrate a database with documents but without their folders
+    const storage = await TestDatabase.create(
+        defineDatabase({ name: "documents", tables: [document] }),
+        { isMigrated: true },
+    );
+    onTestFinished(() => storage.close());
+    await storage.database.insert(document).values({ id: "d1", folderId: "elsewhere" });
+
+    expect([keys([folderTwo, document]), keys([document])]).toEqual([
+        [["foreignKey", ["folder_id"], folderTwo[TABLE].sqlName]],
+        [],
+    ]);
+});
+
+test("let replicas leave out the sensitive columns their log never records", () => {
+    // declare a required secret beside a required name
+    const credential = defineTable("credential", {
+        id: text("id").primaryKey(),
+        name: text("name").notNull(),
+        secret: text("secret").notNull().sensitive(),
+    });
+    const nullable = (isReplica: boolean) =>
+        declareState([credential], TestDatabase.target(), { isReplica }).flatMap((state) =>
+            state.table.columns.map((column) => [column.name, column.nullable]),
+        );
+
+    // require the secret where it is stored, and make it optional in a replica
+    expect([nullable(false), nullable(true)]).toEqual([
+        [
+            ["id", false],
+            ["name", false],
+            ["secret", false],
+        ],
+        [
+            ["id", false],
+            ["name", false],
+            ["secret", true],
+        ],
+    ]);
+});
+
+test("declare a replicated table without its unique constraints or the foreign keys to it", () => {
+    // declare a list whose items reference it, both replicated by a reader
+    const list = defineTable(
+        "list",
+        { id: text("id").primaryKey(), name: text("name").notNull() },
+        { constraints: (columns) => [uniqueIndex("list_name").on(columns.name)] },
+    );
+    const item = defineTable("item", {
+        id: text("id").primaryKey(),
+        listId: text("list_id")
+            .notNull()
+            .references(() => list.id, { onDelete: "cascade" }),
+    });
+    const shape = (replicated: readonly string[]) =>
+        declareState([list, item], TestDatabase.target(), { replicated: new Set(replicated) }).map(
+            (state) => [
+                state.table.name,
+                state.table.constraints.map((constraint) => constraint.kind),
+                state.table.indexes.map((described) => [described.name, described.unique]),
             ],
-        });
-    },
-);
-
-test.for(TEST_DIALECTS)(
-    "expand for two running releases, bridge a renamed column, then contract on %s",
-    async (dialect) => {
-        const database = await open(dialect, [taskOne]);
-        const state = (tables: readonly Table[]) =>
-            defineDatabase({ name: "main", tables }).state().tables[dialect];
-        await database.migrate([taskOne]);
-        await database.run(
-            sql`INSERT INTO ${sql.identifier(table(taskOne))} (id, scope, name, urgent, note) VALUES ('a', 'inbox', 'Plan', 1, 'old')`,
         );
 
-        // expand the table for both releases and bridge the renamed column
-        const expand = await database.plan(mergeStates([state([taskOne]), state([taskTwo])]));
-        expect(review(expand)).toEqual(
-            dialect === "sqlite"
-                ? [
-                      `safe replace table/${table(taskTwo)}: rebuild table: add title, add due_at, change name`,
-                      `fallible convert table/${table(taskTwo)}/column/title: copy name into title`,
-                  ]
-                : [
-                      `safe create table/${table(taskTwo)}/column/title: add column title`,
-                      `safe create table/${table(taskTwo)}/column/due_at: add column due_at`,
-                      `safe update table/${table(taskTwo)}/column/name: change column name`,
-                      `safe create table/${table(taskTwo)}/index/${indexName(taskTwo, "task_due")}: create index ${indexName(taskTwo, "task_due")}`,
-                      `fallible convert table/${table(taskTwo)}/column/title: copy name into title`,
-                  ],
-        );
-        expect(
-            review(await database.plan(mergeStates([state([taskTwo]), state([taskOne])]))),
-        ).toEqual(review(expand));
-        await applyPlan(database, expand);
+    // add the declarer's keys and leave a replica's to its package, under SQLite's key check
+    const [lists, items] = [list[TABLE].sqlName, item[TABLE].sqlName];
+    const checks = TestDatabase.target() === "sqlite" ? ["check"] : [];
+    expect([shape([]), shape([lists])]).toEqual([
+        [
+            [lists, ["primaryKey", ...checks], [[`${lists}_name`, true]]],
+            [items, ["primaryKey", "foreignKey", ...checks], []],
+        ],
+        [
+            [lists, ["primaryKey", ...checks], [[`${lists}_name`, false]]],
+            [items, ["primaryKey", ...checks], []],
+        ],
+    ]);
+});
 
-        // connect both releases
-        expect(await release([taskOne]).check(database)).toEqual([]);
-        expect(await release([taskTwo]).check(database)).toEqual([]);
+test("refuse an applied state in a format this release no longer reads, listing its table and database", async () => {
+    // apply the tasks, then store their state with columns no release reads
+    const database = await open([taskOne]);
+    await database.migrate([taskOne]);
+    const [stored] = await database.execute(
+        sql`SELECT state FROM ${sql.relation(STATE)}`,
+        schema.object({ state: schema.string() }),
+    );
+    const state = schema
+        .looseObject({ table: schema.looseObject({}) })
+        .parse(JSON.parse(present(stored, "the stored state").state));
+    const old = { ...state, table: { ...state.table, columns: "restrict" } };
+    await database.run(sql`UPDATE ${sql.relation(STATE)} SET state = ${JSON.stringify(old)}`);
 
-        // keep both names equal
-        const name = sql.identifier(table(taskOne));
-        await database.run(
-            sql`INSERT INTO ${name} (id, scope, name, urgent) VALUES ('b', 'inbox', 'Old', 0)`,
-        );
-        await database.run(
-            sql`INSERT INTO ${name} (id, scope, title, urgent) VALUES ('c', 'inbox', 'New', 0)`,
-        );
-        await database.run(sql`UPDATE ${name} SET title = 'Plan again' WHERE id = 'a'`);
-        expect(await database.all(sql`SELECT id, name, title FROM ${name} ORDER BY id`)).toEqual([
-            { id: "a", name: "Plan again", title: "Plan again" },
-            { id: "b", name: "Old", title: "Old" },
-            { id: "c", name: "New", title: "New" },
-        ]);
+    // read the server's database and schema the state lives in
+    const [server] =
+        TestDatabase.target() === "sqlite"
+            ? [{ name: "sqlite" }]
+            : await database.execute(
+                  sql`SELECT current_database() || '.' || current_schema() AS name`,
+                  schema.object({ name: schema.string() }),
+              );
 
-        // drop the old release's columns
-        const contract = await database.plan(mergeStates([state([taskTwo])]));
-        expect(review(contract)).toEqual(
-            dialect === "sqlite"
-                ? [
-                      `destructive replace table/${table(taskTwo)}: rebuild table: drop name, drop note, change title`,
-                  ]
-                : [
-                      `destructive delete table/${table(taskTwo)}/column/name: drop column name`,
-                      `destructive delete table/${table(taskTwo)}/column/note: drop column note`,
-                      `fallible update table/${table(taskTwo)}/column/title: change column title`,
-                  ],
-        );
-        await applyPlan(database, contract);
-        expect(await release([taskOne]).check(database)).toEqual([table(taskOne)]);
-        expect(await release([taskTwo]).check(database)).toEqual([]);
-        expect(await database.all(sql`SELECT id, title FROM ${name} ORDER BY id`)).toEqual([
-            { id: "a", title: "Plan again" },
-            { id: "b", title: "Old" },
-            { id: "c", title: "New" },
-        ]);
-    },
-);
+    // report the table and the database
+    await expect(database.unapplied([taskOne])).rejects.toMatchObject({
+        code: "INVALID_MIGRATION",
+        message: `the applied state of table ${table(taskOne)} in database ${present(server, "the database").name} has an unknown format: ✖ Invalid input: expected array, received string\n  → at table.columns`,
+    });
+});
 
-test.for(TEST_DIALECTS)(
-    "name declared tables a database has not applied on %s",
-    async (dialect) => {
-        const database = await open(dialect, [taskOne]);
-        const declared = defineDatabase({
-            name: "main",
-            tables: [taskOne],
-        });
-
-        // report the missing table until applied
-        expect(await declared.check(database)).toEqual([table(taskOne)]);
-        await database.migrate([taskOne]);
-        expect(await declared.check(database)).toEqual([]);
-    },
-);
-
-test.each(TEST_DIALECTS)(
-    "keep foreign keys to local tables and leave references elsewhere logical on %s",
-    async (dialect) => {
-        // describe documents with and without their folders in the same database
-        const keys = (tables: readonly Table[]) =>
-            declareState(tables, dialect)
-                .filter((state) => state.table.name === document[TABLE].sqlName)
-                .flatMap((state) => state.table.constraints)
-                .filter((constraint) => constraint.kind === "foreignKey")
-                .map((constraint) => [constraint.kind, constraint.columns, constraint.table]);
-
-        // migrate a database with documents but without their folders
-        const storage = await TestDatabase.create(
-            dialect,
-            defineDatabase({ name: "documents", tables: [document] }),
-            { isMigrated: true },
-        );
-        onTestFinished(() => storage.close());
-        await storage.database.insert(document).values({ id: "d1", folderId: "elsewhere" });
-
-        expect([keys([folderTwo, document]), keys([document])]).toEqual([
-            [["foreignKey", ["folder_id"], folderTwo[TABLE].sqlName]],
-            [],
-        ]);
-    },
-);
-
-test.each(TEST_DIALECTS)(
-    "let replicas leave out the sensitive columns their log never carries on %s",
-    (dialect) => {
-        // declare a required secret beside a required name
-        const credential = defineTable("credential", {
-            id: text("id").primaryKey(),
-            name: text("name").notNull(),
-            secret: text("secret").notNull().sensitive(),
-        });
-        const nullable = (isReplica: boolean) =>
-            declareState([credential], dialect, { isReplica }).flatMap((state) =>
-                state.table.columns.map((column) => [column.name, column.nullable]),
-            );
-
-        // keep the secret required where it is stored, and optional in a replica
-        expect([nullable(false), nullable(true)]).toEqual([
-            [
-                ["id", false],
-                ["name", false],
-                ["secret", false],
-            ],
-            [
-                ["id", false],
-                ["name", false],
-                ["secret", true],
-            ],
-        ]);
-    },
-);
-
-test.each(TEST_DIALECTS)(
-    "declare a replicated table without its unique constraints or the foreign keys to it, on %s",
-    (dialect) => {
-        // declare an owned list whose items reference it, both replicated by a reader
-        const list = defineTable(
-            "list",
-            { id: text("id").primaryKey(), name: text("name").notNull() },
-            { constraints: (columns) => [uniqueIndex("list_name").on(columns.name)] },
-        );
-        const item = defineTable("item", {
-            id: text("id").primaryKey(),
-            listId: text("list_id")
-                .notNull()
-                .references(() => list.id, { onDelete: "cascade" }),
-        });
-        const shape = (replicated: readonly string[]) =>
-            declareState([list, item], dialect, { replicated: new Set(replicated) }).map(
-                (state) => [
-                    state.table.name,
-                    state.table.constraints.map((constraint) => constraint.kind),
-                    state.table.indexes.map((described) => [described.name, described.unique]),
-                ],
-            );
-
-        // keep the owner's keys, and leave a replica's to its owning package, SQLite checking its primary key is not null besides
-        const [lists, items] = [list[TABLE].sqlName, item[TABLE].sqlName];
-        const checks = dialect === "sqlite" ? ["check"] : [];
-        expect([shape([]), shape([lists])]).toEqual([
-            [
-                [lists, ["primaryKey", ...checks], [[`${lists}_name`, true]]],
-                [items, ["primaryKey", "foreignKey", ...checks], []],
-            ],
-            [
-                [lists, ["primaryKey", ...checks], [[`${lists}_name`, false]]],
-                [items, ["primaryKey", ...checks], []],
-            ],
-        ]);
-    },
-);
-
-test.for(TEST_DIALECTS)(
-    "refuse an applied state in a format this release no longer reads, naming its table and database on %s",
-    async (dialect) => {
-        // apply the tasks, then store their state with columns no release reads
-        const database = await open(dialect, [taskOne]);
-        await database.migrate([taskOne]);
-        const [stored] = await database.execute(
-            sql`SELECT state FROM ${sql.relation(STATE)}`,
-            schema.object({ state: schema.string() }),
-        );
-        const state = schema
-            .looseObject({ table: schema.looseObject({}) })
-            .parse(JSON.parse(present(stored, "the stored state").state));
-        const old = { ...state, table: { ...state.table, columns: "restrict" } };
-        await database.run(sql`UPDATE ${sql.relation(STATE)} SET state = ${JSON.stringify(old)}`);
-
-        // read the server's database and schema the state lives in
-        const [server] =
-            dialect === "sqlite"
-                ? [{ name: "sqlite" }]
-                : await database.execute(
-                      sql`SELECT current_database() || '.' || current_schema() AS name`,
-                      schema.object({ name: schema.string() }),
-                  );
-
-        // report the table and the database
-        await expect(database.unapplied([taskOne])).rejects.toMatchObject({
-            code: "INVALID_MIGRATION",
-            message: `the applied state of table ${table(taskOne)} in database ${present(server, "the database").name} has an unknown format: ✖ Invalid input: expected array, received string\n  → at table.columns`,
-        });
-    },
-);
-
-test.for(TEST_DIALECTS)(
-    "describe one package's tables as the whole database describes them on %s",
-    async (dialect) => {
-        // describe the attachments placed beside the documents they reference
-        const tables = [folderTwo, document, attachment];
-        const owner = attachment[TABLE].package.id;
-        const whole = declareState(tables, dialect);
-        expect(declareState(tables, dialect, { package: owner })).toEqual(
-            whole.filter((state) => state.package.id === owner),
-        );
-    },
-);
+test("describe one package's tables as the whole database describes them", async () => {
+    // describe the attachments placed beside the documents they reference
+    const tables = [folderTwo, document, attachment];
+    const owner = attachment[TABLE].package.id;
+    const whole = declareState(tables, TestDatabase.target());
+    expect(declareState(tables, TestDatabase.target(), { package: owner })).toEqual(
+        whole.filter((state) => state.package.id === owner),
+    );
+});

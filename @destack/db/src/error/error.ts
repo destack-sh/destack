@@ -40,7 +40,7 @@ export class DatabaseError extends Error implements DomainError {
         message: string,
         options?: ErrorOptions & { readonly key?: DatabaseError["key"] },
     ) {
-        // keep the code and the violated key beside the message and cause
+        // store the code and the violated key beside the message and cause
         super(message, options);
         this.name = "DatabaseError";
         this.code = code;
@@ -49,19 +49,19 @@ export class DatabaseError extends Error implements DomainError {
 
     /** Read the key a driver's duplicate failure violates, absent if the driver gives none. */
     static violated(error: Error): DatabaseError["key"] {
-        // read SQLite's "UNIQUE constraint failed: table.column, …", a namespaced table as "namespace.table.column"
+        // read SQLite's "UNIQUE constraint failed" message, with namespaced tables
         const failed = /^UNIQUE constraint failed: (.+)$/u.exec(error.message)?.[1];
         if (failed !== undefined) {
             const named = failed.split(", ").map((entry) => entry.split("."));
-            const tables = new Set(named.map((parts) => parts.at(-2)));
+            const tables = new Set(named.map((path) => path.at(-2)));
             const [table] = tables;
 
             return tables.size === 1 && table !== undefined
-                ? { table, columns: named.map((parts) => parts.at(-1) ?? "") }
+                ? { table, columns: named.map((path) => path.at(-1) ?? "") }
                 : undefined;
         }
 
-        // read PostgreSQL's table and "Key (column, column)=(…) already exists.", none for an expression key
+        // read PostgreSQL's table and key detail, none for an expression key
         const table = "table_name" in error ? error.table_name : undefined;
         const detail = "detail" in error ? error.detail : undefined;
         const keys =
@@ -85,7 +85,7 @@ export function assertNever(value: never): never {
 
 /** Classify a failed statement as a conflict, duplicate, broken reference or failed check. */
 export function classifyError(error: unknown): unknown {
-    // keep classified and non-driver failures
+    // return classified and non-driver failures as they are
     if (error instanceof DatabaseError || !(error instanceof Error)) {
         return error;
     }

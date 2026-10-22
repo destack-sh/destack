@@ -28,13 +28,13 @@ export interface FilterOptions {
     readonly fields?: ReadonlySet<string>;
     /** The values `@name` stands for, such as `@me` for the person. */
     readonly values?: Readonly<Record<string, Comparable>>;
-    /** Convert a field's literal, such as a date for a time field, keeping it when absent. */
+    /** Convert a field's literal, such as a date for a time field, leaving it when absent. */
     readonly convert?: (path: readonly string[], literal: Comparable) => Comparable;
     /** Whether a dotted name walks relations, by default, or is one field like an attribute. */
     readonly isRelational?: boolean;
 }
 
-/** Filters in AIP-160's syntax with SQL's precedence, read into conditions. */
+/** Filters in AIP-160's filter language with SQL's precedence, read into conditions. */
 export const Filter = {
     /** Read a filter into a condition. */
     parse(filter: string, options: FilterOptions = {}): JsonCondition {
@@ -93,13 +93,13 @@ class FilterReader {
             conjunctions.push(this.#conjunction());
         }
 
-        // keep a single conjunction as it is
+        // return a single conjunction as it is
         const [only] = conjunctions;
 
         return conjunctions.length === 1 && only !== undefined ? only : { OR: conjunctions };
     }
 
-    /** Read terms joined by `AND` or adjacent, which all hold. */
+    /** Read terms joined by `AND` or adjacent, which must all match. */
     #conjunction(): JsonCondition {
         // read each term after an AND or beside the previous one
         const terms = [this.#term()];
@@ -110,7 +110,7 @@ class FilterReader {
             terms.push(this.#term());
         }
 
-        // keep a single term as it is
+        // return a single term as it is
         const [only] = terms;
 
         return terms.length === 1 && only !== undefined ? only : { AND: terms };
@@ -129,13 +129,13 @@ class FilterReader {
         // read a parenthesized expression
         if (token?.kind === "open") {
             this.#position++;
-            const inner = this.#expression();
+            const grouped = this.#expression();
             if (this.#tokens[this.#position]?.kind !== "close") {
                 throw this.#refuse("expected )", this.#offset());
             }
             this.#position++;
 
-            return inner;
+            return grouped;
         }
 
         return this.#restriction();
@@ -152,7 +152,7 @@ class FilterReader {
         const [name] = path;
         if (
             name === undefined ||
-            path.some((part) => part === "") ||
+            path.some((segment) => segment === "") ||
             (this.#options.fields !== undefined && !this.#options.fields.has(name))
         ) {
             throw this.#refuse(`unknown field ${field.text}`, field.start);
@@ -352,7 +352,7 @@ function nest(path: readonly string[], entry: Comparable | JsonCondition): JsonC
 function namesOf(condition: JsonCondition): Set<string> {
     const names = new Set<string>();
     for (const [name, entry] of Object.entries(condition)) {
-        // descend into combinations and keep the other names
+        // descend into combinations and leave the other names
         if (name === "AND" || name === "OR" || name === "NOT") {
             const combined = Array.isArray(entry) ? entry : [entry];
             for (const each of combined.filter(Condition.is)) {

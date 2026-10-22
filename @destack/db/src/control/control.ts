@@ -155,6 +155,8 @@ export class ControlLoop {
     #busy: number | undefined;
     /** The callers waiting until no key is due now or reconciling. */
     #idle: (() => void)[] = [];
+    /** Whether the database's log hears other writers' commits, which settling idle waits for. */
+    #isHearing = false;
     /** Whether every controller was listed once since the loop started. */
     #isListed = false;
     /** The log sequence the follow consumed, moved forward by the follow and by idle checks. */
@@ -228,16 +230,19 @@ export class ControlLoop {
         // stop every loop once one fails
         const failed = new AbortController();
         const running = AbortSignal.any([signal, failed.signal]);
-        const stopping = (part: Promise<void>) =>
-            part.catch((error: unknown) => {
+        const stopping = (loop: Promise<void>) =>
+            loop.catch((error: unknown) => {
                 failed.abort(error);
                 throw error;
             });
         try {
             await Promise.all(
-                [this.#follow(running), this.#listUnlogged(running), this.#work(running)].map(
-                    stopping,
-                ),
+                [
+                    this.#hear(running),
+                    this.#follow(running),
+                    this.#listUnlogged(running),
+                    this.#work(running),
+                ].map(stopping),
             );
         }
         // release this instance's leases and settle the idle waiters
@@ -296,6 +301,13 @@ export class ControlLoop {
         this.#wake();
     }
 
+    /** Wait until the log hears other writers' commits, failing the loop as listening fails. */
+    async #hear(signal: AbortSignal): Promise<void> {
+        await Promise.race([this.database.log.listening(), until(signal)]);
+        this.#isHearing = !signal.aborted;
+        this.#wake();
+    }
+
     /** List every controller and follow the watched logged tables. */
     async #follow(signal: AbortSignal): Promise<void> {
         const tables = this.#watched;
@@ -325,7 +337,7 @@ export class ControlLoop {
                             watched.includes(change.table),
                         );
 
-                        // list a following controller again once a change touches what its list read
+                        // list a following controller again once a change touches its list's reads
                         if (controller.mode === "follow") {
                             const reads = found(this.#reads, controller);
                             if (changes.some((change) => reads.touches(change))) {
@@ -390,7 +402,7 @@ export class ControlLoop {
         }
     }
 
-    /** List a controller's keys, keeping what a follower's list read, which it must watch. */
+    /** List a controller's keys, recording what a follower's list read, which it must watch. */
     async #list(controller: Controller, delta?: Delta): Promise<readonly string[]> {
         // list a reconciling controller through a plain live view
         if (controller.mode !== "follow") {
@@ -501,7 +513,8 @@ export class ControlLoop {
             return true;
         }
 
-        // read one watched change past the cursor, asking the follow to list again past a compaction
+        // read one watched change past the cursor, for the follow running as the read starts
+        const relisting = this.#relisting;
         try {
             const page = await this.database.log.read({
                 tables: this.#watched,
@@ -515,9 +528,9 @@ export class ControlLoop {
 
             return isFollowed;
         } catch (error) {
-            // list again behind a compaction, else fail
+            // ask that follow to list again behind a compaction, a later one having listed
             if (error instanceof DatabaseError && error.code === "CHANGES_COMPACTED") {
-                this.#relisting.abort();
+                relisting.abort();
 
                 return false;
             }
@@ -550,6 +563,7 @@ export class ControlLoop {
                     this.#idle.length > 0 &&
                     this.#isListed &&
                     this.#reconciling.size === 0 &&
+                    this.#isHearing &&
                     (await this.#isFollowed()) &&
                     !this.#woken.signal.aborted
                 ) {
@@ -655,7 +669,7 @@ export class ControlLoop {
                     return stopped.aborted ? undefined : 0;
                 }
 
-                // trace each reconciliation as its own root span
+                // trace each reconciliation as a separate root span
                 const attributes = { "destack.controller": controller.name, "destack.key": key };
 
                 return span("controller.reconcile", attributes, () =>
@@ -777,7 +791,7 @@ export class ControlLoop {
                 () => false,
             )
         ) {
-            // lose the lease once another holds it or renewing fails
+            // lose the lease once another takes it or renewing fails
             try {
                 const renewed = await acquire();
                 if (renewed.kind === "busy") {

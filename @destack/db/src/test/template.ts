@@ -62,7 +62,7 @@ export class TestTemplate<
         readonly value: schema.Schema<Value>;
         readonly write: (storage: TestDatabase<Models>, directory: string) => Promise<Value>;
     }) {
-        // keep the fields
+        // store the fields
         this.name = fields.name;
         this.tables = fields.tables;
         this.dialects = fields.dialects;

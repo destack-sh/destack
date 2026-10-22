@@ -244,38 +244,38 @@ export class MutationQuery<
 
     /** Write the mutation as SQL. */
     #sql(): SQL {
-        // write the statement in parts
+        // write the statement in clauses
         const state = this.state;
         const table = state.table;
-        const parts: SQL[] = [];
+        const clauses: SQL[] = [];
 
-        // insert every written column, defaulting the columns a record leaves out and refusing properties of no column
+        // insert every written column, with defaults for the rest, refusing properties of no column
         if (state.operation === "insert") {
-            parts.push(insertSQL(table, state.records));
+            clauses.push(insertSQL(table, state.records));
         }
         // update the matching rows
         else if (state.operation === "update") {
-            parts.push(sql`UPDATE ${table} SET ${assignments(table, state.changes)}`);
+            clauses.push(sql`UPDATE ${table} SET ${assignments(table, state.changes)}`);
         }
         // delete the matching rows
         else {
-            parts.push(sql`DELETE FROM ${table}`);
+            clauses.push(sql`DELETE FROM ${table}`);
         }
         if (state.where !== undefined) {
-            parts.push(sql` WHERE ${state.where}`);
+            clauses.push(sql` WHERE ${state.where}`);
         }
 
         // skip or update conflicting rows
         if (state.conflict !== undefined) {
-            parts.push(conflictSQL(table, state.conflict));
+            clauses.push(conflictSQL(table, state.conflict));
         }
 
         // return the changed rows' fields
         if (state.returning !== undefined) {
-            parts.push(sql` RETURNING ${new Projection(unqualified(state.returning)).sql()}`);
+            clauses.push(sql` RETURNING ${new Projection(unqualified(state.returning)).sql()}`);
         }
 
-        return sql.join(parts);
+        return sql.join(clauses);
     }
 }
 
@@ -355,14 +355,14 @@ function assignments(table: Table, changes: WriteRecord): SQL {
 
 /** Write a value: fragments and placeholders as is, missing as default, others bound. */
 function valueOf(column: Column, value: unknown): SQLWrapper {
-    // keep fragments and placeholders
+    // leave fragments and placeholders as they are
     if (isSQLWrapper(value)) {
         return value;
     } else if (value instanceof Placeholder) {
         return new SQL([value]);
     }
 
-    // validate a written value once, as it enters the database, and bind it
+    // validate a written value once as it enters the database, and bind it
     if (value !== undefined && value !== null) {
         return new SQL([new Parameter(column.definition.schema.parse(value), column)]);
     }

@@ -56,7 +56,7 @@ export const SqliteScript = {
             index = end;
         }
 
-        // keep a last statement without its closing semicolon
+        // add a last statement without its closing semicolon
         const rest = script.slice(start).trim();
         if (rest.length > 0 && state !== 0 && state !== START) {
             statements.push(rest);

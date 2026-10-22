@@ -40,6 +40,14 @@
         "postgres": "3.4.9",
         "uuid": "14.0.2"
     },
+    "peerDependencies": {
+        "@destack/test": "workspace:*"
+    },
+    "peerDependenciesMeta": {
+        "@destack/test": {
+            "optional": true
+        }
+    },
     "devDependencies": {
         "@destack/test": "workspace:*",
         "esbuild": "~0.28.1",

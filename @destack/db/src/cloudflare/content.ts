@@ -6,14 +6,14 @@ import type { DurableObjectStub } from "./host.ts";
 /** The path of an object's content pages by digest for its operations, like OCI blobs. */
 export const CONTENT_PATH = "/.destack/content";
 
-/** The content pages another Durable Object keeps for one operation. */
+/** The content pages another Durable Object stores for one operation. */
 export class DurableObjectContentStore implements Pick<ContentStore, "read" | "write"> {
-    /** The object keeping the pages. */
+    /** The object that stores the pages. */
     readonly #object: DurableObjectStub;
     /** The operation's credential, proving each request. */
     readonly #authorization: string;
 
-    /** Read and write the pages an object keeps, with an operation's credential. */
+    /** Read and write an object's pages, with an operation's credential. */
     constructor(object: DurableObjectStub, authorization: string) {
         this.#object = object;
         this.#authorization = authorization;
@@ -29,7 +29,7 @@ export class DurableObjectContentStore implements Pick<ContentStore, "read" | "w
         yield* response.body;
     }
 
-    /** Keep a page under its digest and return it, refusing bytes of an unexpected digest. */
+    /** Store a page under its digest and return it, refusing bytes of an unexpected digest. */
     async write(body: AsyncIterable<Uint8Array>, expected?: Digest): Promise<Digest> {
         // gather and hash the page
         const page = await gathered(body);
@@ -38,7 +38,7 @@ export class DurableObjectContentStore implements Pick<ContentStore, "read" | "w
             throw new DatabaseError("INVALID_RECORD", `content ${expected} hashes to ${digest}`);
         }
 
-        // keep it under its digest
+        // store it under its digest
         await this.#send(digest, "PUT", page);
 
         return digest;

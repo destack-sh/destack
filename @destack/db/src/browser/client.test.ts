@@ -25,7 +25,7 @@ test("declare, log and query tables on SQLite WebAssembly through a channel, as 
         id: "a",
         title: "First",
         scope: "inbox",
-        summary: null,
+        subtitle: null,
         views: 9_007_199_254_740_993n,
         labels: ["draft"],
         editedAt: 1790244000123,

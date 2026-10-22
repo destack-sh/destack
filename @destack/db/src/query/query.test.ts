@@ -1,6 +1,6 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import * as schemas from "@destack/schema";
-import { TEST_DIALECTS, TestDatabase } from "../test/database.ts";
+import { TestDatabase } from "../test/database.ts";
 import {
     bigint,
     binary,
@@ -34,7 +34,7 @@ const sample = defineTable("sample", {
     content: binary("content").notNull(),
     /** A whole number beyond double precision. */
     views: bigint("views").notNull(),
-    /** A decimal kept exact. */
+    /** An exact decimal. */
     price: numeric("price").notNull(),
     /** An instant. */
     editedAt: integer("edited_at").notNull(),
@@ -73,27 +73,27 @@ const row = {
 };
 
 /** Open a migrated test database. */
-async function open(dialect: (typeof TEST_DIALECTS)[number]) {
-    const storage = await TestDatabase.create(dialect, [sample, tag], { isMigrated: true });
+async function open() {
+    const storage = await TestDatabase.create([sample, tag], { isMigrated: true });
     onTestFinished(() => storage.close());
 
     return storage.database;
 }
 
-test.for(TEST_DIALECTS)("read back every column kind as written on %s", async (dialect) => {
-    const database = await open(dialect);
+test("read back every column kind as written", async () => {
+    const database = await open();
     await database.insert(sample).values(row);
 
     expect(await database.select().from(sample)).toEqual([row]);
 });
 
-test.for(TEST_DIALECTS)("key joined rows by their table names on %s", async (dialect) => {
-    const database = await open(dialect);
+test("key joined rows by their table names", async () => {
+    const database = await open();
     const second = SampleId.parse("sample-01996ab0-0000-7000-8000-000000000002");
     await database.insert(sample).values([row, { ...row, id: second }]);
     await database.insert(tag).values({ id: "t", sampleId: row.id, label: "draft" });
 
-    // join each sample with its tags and keep untagged samples
+    // join each sample with its tags and include untagged samples
     const rows = await database
         .select({ id: sample.id, tag })
         .from(sample)
@@ -105,27 +105,24 @@ test.for(TEST_DIALECTS)("key joined rows by their table names on %s", async (dia
     ]);
 });
 
-test.for(TEST_DIALECTS)(
-    "group rows by a selected expression's name, its bound values bound once per use, on %s",
-    async (dialect) => {
-        const database = await open(dialect);
-        const second = SampleId.parse("sample-01996ab0-0000-7000-8000-000000000002");
-        const third = SampleId.parse("sample-01996ab0-0000-7000-8000-000000000003");
-        await database
-            .insert(sample)
-            .values([row, { ...row, id: second }, { ...row, id: third, kind: "plain" }]);
+test("group rows by a selected expression's name, its bound values bound once per use", async () => {
+    const database = await open();
+    const second = SampleId.parse("sample-01996ab0-0000-7000-8000-000000000002");
+    const third = SampleId.parse("sample-01996ab0-0000-7000-8000-000000000003");
+    await database
+        .insert(sample)
+        .values([row, { ...row, id: second }, { ...row, id: third, kind: "plain" }]);
 
-        // group by a parameterized expression named in the selection
-        const prefixed = sql`${"kind:"} || ${sample.kind}`.as("prefixed");
-        const rows = await database
-            .select({ prefixed, samples: count() })
-            .from(sample)
-            .groupBy(sql.identifier("prefixed"))
-            .orderBy(asc(sql.identifier("prefixed")));
+    // group by a parameterized expression named in the selection
+    const prefixed = sql`${"kind:"} || ${sample.kind}`.as("prefixed");
+    const rows = await database
+        .select({ prefixed, samples: count() })
+        .from(sample)
+        .groupBy(sql.identifier("prefixed"))
+        .orderBy(asc(sql.identifier("prefixed")));
 
-        expect(rows).toEqual([
-            { prefixed: "kind:plain", samples: 1 },
-            { prefixed: "kind:rich", samples: 2 },
-        ]);
-    },
-);
+    expect(rows).toEqual([
+        { prefixed: "kind:plain", samples: 1 },
+        { prefixed: "kind:rich", samples: 2 },
+    ]);
+});

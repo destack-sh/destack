@@ -22,7 +22,7 @@ import type { Dialect } from "../dialect/dialect.ts";
 /** The name of a ranked read's rank column. */
 const RANK = "destack_rank";
 
-/** The head columns a tuple read selects before each row's own. */
+/** The head columns a tuple read selects before each row's columns. */
 const HEAD_COLUMNS = ["epoch", "logged", "horizon"] as const;
 
 /** A read of the first matching rows in an order. */
@@ -110,7 +110,7 @@ export class Snapshot {
         overlay?: Overlay,
         reads?: ReadSet,
     ) {
-        // keep the database, the position, how earlier and overlaid rows read, and what records the reads
+        // store the database, the position, the earlier and overlaid reads, and the read recorder
         this.database = database;
         this.position = position;
         this.#rewind = rewind ?? database.log.rewind();
@@ -188,7 +188,7 @@ export class Snapshot {
         const { rows, sequence } = await this.#read(table, render(predicate, table));
         const images = await this.#since(table, sequence);
 
-        // keep unchanged rows and matching images
+        // collect unchanged rows and matching images
         const match = Predicate.compile(predicate, table);
         const kept =
             images.size === 0 ? rows : rows.filter((row) => !images.has(Key.name(table, row)));
@@ -247,7 +247,7 @@ export class Snapshot {
             .map((values) => decodeValues(selected, values.slice(offset), dialect));
         const images = await this.#since(table, sequence);
 
-        // keep unchanged rows and matching images
+        // collect unchanged rows and matching images
         const wanted = new Set(tuples.map((tuple) => JSON.stringify(tuple)));
         const match = (row: Row) =>
             wanted.has(JSON.stringify(columns.map((column) => jsonOf(table, column, row))));
@@ -319,7 +319,7 @@ export class Snapshot {
         const predicate = Condition.resolve(query.where, Namespace.fields(table, namespace));
         const relations = query.relations;
         let changed = -1;
-        let reached = this.position?.sequence;
+        let seen = this.position?.sequence;
         const overlay = (await this.#overlay?.(table)) ?? new Map<string, Row | null>();
         const images = new Map(overlay);
         let unsettled = new Map(overlay);
@@ -332,7 +332,7 @@ export class Snapshot {
 
             // take the rows as they are when live
             const position = this.position;
-            if (position === undefined || reached === undefined) {
+            if (position === undefined || seen === undefined) {
                 break;
             }
 
@@ -342,17 +342,17 @@ export class Snapshot {
                 table,
                 images,
                 relations,
-                reached,
+                seen,
                 sequence,
                 position.sequence,
             );
-            reached = Math.max(reached, sequence);
+            seen = Math.max(seen, sequence);
         }
 
         // overlay the matching visible images
         const kept = await this.#merge(table, rows, unsettled, query, order, predicate);
 
-        // sort each window and keep its first rows
+        // sort each window and take its first rows
         const windows = windowsOf(table, kept, partition);
 
         return windows.map((window) =>
@@ -389,12 +389,12 @@ export class Snapshot {
         table: Table,
         images: Map<string, Row | null>,
         relations: RelationView | undefined,
-        reached: number,
+        seen: number,
         sequence: number,
         position: number,
     ): Promise<Map<string, Row | null>> {
         // extend the images past the earlier read
-        for (const [name, image] of await this.#rewind(table, reached, sequence)) {
+        for (const [name, image] of await this.#rewind(table, seen, sequence)) {
             if (!images.has(name)) {
                 images.set(name, image);
             }
@@ -424,7 +424,7 @@ export class Snapshot {
         order: Order,
         predicate: Predicate,
     ): Promise<Row[]> {
-        // keep the current rows no image replaces
+        // take the current rows no image replaces
         const { visible, relations } = query;
         const namespace = query.namespace ?? { extras: {} };
         const match = Predicate.compile(predicate, table);
@@ -535,7 +535,7 @@ export class Snapshot {
         const ranked = sql`SELECT ${projection.sql()}, ${rank} AS ${sql.identifier(RANK)} FROM ${table}
             WHERE ${and(inArray(column, partition.values), selection)}`;
 
-        // keep each partition's first rows
+        // take each partition's first rows
         const statement =
             limit === undefined
                 ? ranked
@@ -613,7 +613,7 @@ export class Snapshot {
             return images;
         }
 
-        // undo the transaction's own writes
+        // undo the transaction's writes
         const undone = new Map(images);
         for (const change of await this.database.log.written([table])) {
             const name = Key.name(table, change.key);
@@ -706,7 +706,7 @@ function tupleRead(
     const name = `tuple:${dialect}:${isPositioned ? "head" : "live"}:${columns.join(",")}`;
 
     return table[TABLE].statement(name, () => {
-        // join each tuple to its rows, keeping a head row for an empty tuple at a position
+        // join each tuple to its rows, with a head row for an empty tuple at a position
         const loggedColumns = Object.values(table[TABLE].logged);
         const head = sql.join(
             HEAD_COLUMNS.map((column) => sql`head.${sql.identifier(column)}`),
@@ -753,7 +753,7 @@ function decodeValues(
 
 /** Split rows into the windows of a partition's values, or one window without a partition. */
 function windowsOf(table: Table, rows: readonly Row[], partition: Partition | undefined): Row[][] {
-    // keep every row in one window
+    // put every row in one window
     if (partition === undefined) {
         return [[...rows]];
     }

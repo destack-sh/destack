@@ -1,3 +1,4 @@
+import { TestDatabase } from "../test/database.ts";
 import postgres from "postgres";
 import { ResourceId } from "@destack/resource";
 import { expect, onTestFinished, test } from "@destack/test";
@@ -7,12 +8,9 @@ import { text } from "../table/column.ts";
 import { defineTable } from "../table/table.ts";
 import { connectPostgres } from "./connection.ts";
 import { PostgresConnector } from "./connector.ts";
-import { TEST_DIALECTS } from "../test/database.ts";
 
-/** The test server's address, absent where the test dialects leave PostgreSQL out. */
-const ADDRESS = TEST_DIALECTS.includes("postgresql")
-    ? process.env["DESTACK_TEST_POSTGRES"]
-    : undefined;
+/** Whether the test's project runs against PostgreSQL, which these tests need. */
+const isPostgresql = TestDatabase.target() === "postgresql";
 
 /** Notes with a title. */
 const note = defineTable("note", { id: text("id").primaryKey(), title: text("title") });
@@ -20,21 +18,19 @@ const note = defineTable("note", { id: text("id").primaryKey(), title: text("tit
 /** The database with the notes. */
 const notes = defineDatabase({ name: "notes", tables: [note] });
 
-test.skipIf(ADDRESS === undefined)(
+test.skipIf(!isPostgresql)(
     "refuse an unmigrated PostgreSQL database, then open the migrated one as its sole writer",
     async () => {
-        // keep the notes in a schema dropped after the test
-        if (ADDRESS === undefined) {
-            throw new Error("the test server has no address");
-        }
-        const administration = postgres(ADDRESS, { max: 1 });
+        // store the notes in a schema dropped after the test
+        const address = TestDatabase.address();
+        const administration = postgres(address, { max: 1 });
         const name = `test_${crypto.randomUUID().replaceAll("-", "")}`;
         await administration.unsafe(`CREATE SCHEMA "${name}"`);
         onTestFinished(async () => {
             await administration.unsafe(`DROP SCHEMA "${name}" CASCADE`);
             await administration.end();
         });
-        const connector = new PostgresConnector(new URL(ADDRESS));
+        const connector = new PostgresConnector(new URL(address));
         const binding = {
             resource: ResourceId.parse("resource-01996ab0-0000-7000-8000-000000000001"),
             kind: "database",

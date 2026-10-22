@@ -16,10 +16,10 @@ import { Order } from "../query/order.ts";
 import type { Row } from "../table/row.ts";
 import { TABLE, Table } from "../table/table.ts";
 
-/** The rows one read of a snapshot takes: 1000 rows of about 500 B keep a read near 500 kB. */
+/** The rows one read of a snapshot takes: 1000 rows of about 500 B make a read near 500 kB. */
 const SNAPSHOT_READ_ROWS = 1000;
 
-/** The shift keeping a row hash's high 10 bits, which end a page when zero. */
+/** The shift that leaves a row hash's high 10 bits, which end a page when zero. */
 const PAGE_BOUNDARY_SHIFT = 22;
 
 /** The most rows of a page that no row ends sooner: 8192, missed once in e^8 pages. */
@@ -119,14 +119,14 @@ export const DatabaseHandle = {
         store: Pick<ContentStore, "write">,
         rewrite?: RowRewrite,
     ): Promise<Digest> {
-        // read each table's rows in pages whose ends their rows' content decides, in one read transaction
+        // read each table's rows in content-defined pages, in one read transaction
         const tables: Record<string, Digest[]> = {};
         await handle.database.transaction(
             async (transaction) => {
                 for (const table of handle.database.tables) {
                     const pages: Digest[] = [];
                     for await (const rows of pagesOf(transaction, table)) {
-                        // rewrite the page's rows and keep the page under its digest
+                        // rewrite the page's rows and store the page under its digest
                         const rewritten =
                             rewrite === undefined
                                 ? rows
@@ -155,14 +155,14 @@ export const DatabaseHandle = {
         const manifest = await readManifest(store, digest);
         const held = base === undefined ? { tables: {} } : await readManifest(store, base);
 
-        // replace the rows of each table's pages the base kept and the snapshot does not, in one transaction checking references at its end
+        // replace the rows of pages the snapshot lacks, checking references at commit
         await handle.database.transaction(
             async (transaction) => {
                 for (const table of handle.database.tables) {
                     // take out the rows of the pages that left
                     const pages = manifest.tables[table[TABLE].sqlName] ?? [];
-                    const kept = held.tables[table[TABLE].sqlName] ?? [];
-                    for (const page of kept.filter((entry) => !pages.includes(entry))) {
+                    const previous = held.tables[table[TABLE].sqlName] ?? [];
+                    for (const page of previous.filter((entry) => !pages.includes(entry))) {
                         const rows = await readPage(store, table, page);
                         if (rows.length > 0) {
                             await transaction.remove(table, rows);
@@ -170,7 +170,7 @@ export const DatabaseHandle = {
                     }
 
                     // insert the rows of the pages that arrived
-                    for (const page of pages.filter((entry) => !kept.includes(entry))) {
+                    for (const page of pages.filter((entry) => !previous.includes(entry))) {
                         const decoded = await readPage(store, table, page);
                         const rows =
                             rewrite === undefined
@@ -231,7 +231,7 @@ async function* pagesOf(database: DatabaseConnection, table: Table): AsyncGenera
             .limit(SNAPSHOT_READ_ROWS);
         last = rows.length === SNAPSHOT_READ_ROWS ? rows.at(-1) : undefined;
 
-        // end a page after a boundary row or at its most rows
+        // end a page after a page's last row or at its most rows
         for (const row of rows) {
             page.push(row);
             const hash = fnv(canonicalize(table[TABLE].encode(row)));
@@ -277,12 +277,12 @@ async function readPage(
     return encoded.map((row: JsonObject) => Table.decode(table, row));
 }
 
-/** Keep text in a store under its digest. */
+/** Store text under its digest. */
 function write(store: Pick<ContentStore, "write">, text: string): Promise<Digest> {
     return store.write(chunked(new TextEncoder().encode(text)));
 }
 
-/** Read the text a store keeps under a digest. */
+/** Read the text stored under a digest. */
 async function read(store: Pick<ContentStore, "read">, digest: Digest): Promise<string> {
     // decode the chunks as one text
     const decoder = new TextDecoder();

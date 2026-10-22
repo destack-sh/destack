@@ -36,7 +36,7 @@ async function start(): Promise<Miniflare> {
 test("migrate, write and read a Durable Object's SQLite storage, rolling back only a failed nested transaction", async () => {
     const worker = await start();
 
-    // keep the written and the outer rows, without the inner one
+    // commit the written and the outer rows, without the nested one
     const response = await worker.dispatchFetch("https://notes.test/");
     expect([response.status, await response.json()]).toEqual([
         200,
@@ -47,10 +47,10 @@ test("migrate, write and read a Durable Object's SQLite storage, rolling back on
     ]);
 });
 
-test("keep two databases of one declaration in a Durable Object's storage, each namespace with its own rows, log and plan", async () => {
+test("store two databases of one declaration in a Durable Object's storage, each namespace with separate rows, log and plan", async () => {
     const worker = await start();
 
-    // read each namespace's own row, its own logged insert in its own scope, and a plan dropping only its own table
+    // read each namespace's row and logged insert, and a plan dropping only its table
     const response = await worker.dispatchFetch("https://notes.test/namespaces");
     expect([response.status, await response.json()]).toEqual([
         200,
@@ -65,7 +65,7 @@ test("keep two databases of one declaration in a Durable Object's storage, each 
 test("provision, plan, apply, measure and destroy a workload's database in a Durable Object, opening it through the workload's connector", async () => {
     const worker = await start();
 
-    // name the database in its object, create its table, keep the written row, count the object's bytes and drop every relation
+    // set up the database in its object, then write, measure and drop its relations
     const response = await worker.dispatchFetch("https://notes.test/host");
     expect([response.status, await response.json()]).toEqual([
         200,
@@ -84,7 +84,7 @@ test("provision, plan, apply, measure and destroy a workload's database in a Dur
 test("write and read rows in statements binding more values than a Durable Object's storage takes at once, or integers it cannot bind", async () => {
     const worker = await start();
 
-    // keep 80 rows written in one statement of 160 values and read in one of 80, quotes and markers in their text intact, and 2^62 exactly
+    // write 80 rows in one statement of 160 values and read them back intact in one
     const response = await worker.dispatchFetch("https://notes.test/parameters");
     expect([response.status, await response.json()]).toEqual([
         200,
@@ -92,10 +92,10 @@ test("write and read rows in statements binding more values than a Durable Objec
     ]);
 });
 
-test("refuse a transaction's client kept past it, even while a later transaction is open", async () => {
+test("refuse a transaction's client used past it, even while a later transaction is open", async () => {
     const worker = await start();
 
-    // keep only the later transaction's write
+    // commit only the later transaction's write
     const response = await worker.dispatchFetch("https://notes.test/leaked");
     expect([response.status, await response.json()]).toEqual([
         200,
@@ -112,7 +112,7 @@ test("refuse a transaction's client kept past it, even while a later transaction
 test("count the rows a Durable Object's statements read and write, each in the one measure following them", async () => {
     const worker = await start();
 
-    // count the insert's rows as workerd counts them, its key index entries included, the three notes read back, and nothing after
+    // count the insert's rows with key index entries, then the three notes read back
     const response = await worker.dispatchFetch("https://notes.test/rows");
     expect([response.status, await response.json()]).toEqual([
         200,
@@ -130,7 +130,7 @@ test("count the rows a Durable Object's statements read and write, each in the o
 test("read another object's database through its reader, refusing other operations and undoing a statement that writes", async () => {
     const worker = await start();
 
-    // read one note and the file by its exact size and bytes, a namespace's note, refuse a measure, and keep both notes after the refused delete
+    // read a note, a file and a namespace's note, and refuse a measure and a delete
     const response = await worker.dispatchFetch("https://notes.test/reader");
     expect([response.status, await response.json()]).toEqual([
         200,

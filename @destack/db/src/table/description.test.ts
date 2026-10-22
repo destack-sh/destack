@@ -6,7 +6,7 @@ import { index, unique } from "./constraint.ts";
 import { describeTable } from "./description.ts";
 import { declareState } from "../migration/state.ts";
 import { present, schema } from "@destack/schema";
-import { TEST_CIPHER, TEST_DIALECTS, TestDatabase } from "../test/database.ts";
+import { TEST_CIPHER, TestDatabase } from "../test/database.ts";
 import { DatabaseError } from "../error/error.ts";
 
 /** Lamps with an enumerated state. */
@@ -27,7 +27,7 @@ const light = defineTable(
         scope: text("scope").notNull(),
         /** When the light was switched last, in UTC epoch milliseconds. */
         switchedAt: integer("switched_at"),
-        /** The wiring key, kept out of the log. */
+        /** The wiring key, left out of the log. */
         wiringKey: text("wiring_key").sensitive(),
     },
     { log: {} },
@@ -43,8 +43,8 @@ const shelf = defineTable("describe_shelf", {
     layout: json("layout", schema.record(schema.string(), schema.number())).notNull().default({}),
 });
 
-test.for(TEST_DIALECTS)("fill JSON columns with their declared defaults on %s", async (dialect) => {
-    const storage = await TestDatabase.create(dialect, [shelf], { isMigrated: true });
+test("fill JSON columns with their declared defaults", async () => {
+    const storage = await TestDatabase.create([shelf], { isMigrated: true });
     onTestFinished(() => storage.close());
 
     // insert through raw SQL to use the database defaults
@@ -56,63 +56,57 @@ test.for(TEST_DIALECTS)("fill JSON columns with their declared defaults on %s", 
     ]);
 });
 
-test.for(TEST_DIALECTS)(
-    "refuse a value outside an enum column's values in the database itself on %s",
-    async (dialect) => {
-        const storage = await TestDatabase.create(dialect, [lamp], { isMigrated: true });
-        onTestFinished(() => storage.close());
+test("refuse a value outside an enum column's values in the database itself", async () => {
+    const storage = await TestDatabase.create([lamp], { isMigrated: true });
+    onTestFinished(() => storage.close());
 
-        // accept each declared value and none
-        await storage.database.insert(lamp).values([
-            { id: "a", state: "on" },
-            { id: "b", state: null },
-        ]);
-        await expect(
-            storage.database.all(
-                sql`INSERT INTO ${sql.identifier(lamp[TABLE].sqlName)} (id, state) VALUES ('c', 'dim')`,
-            ),
-        ).rejects.toThrow(new DatabaseError("INVALID_RECORD", "a record fails a declared check"));
-        expect((await storage.database.select().from(lamp)).length).toBe(2);
-    },
-);
+    // accept each declared value and none
+    await storage.database.insert(lamp).values([
+        { id: "a", state: "on" },
+        { id: "b", state: null },
+    ]);
+    await expect(
+        storage.database.all(
+            sql`INSERT INTO ${sql.identifier(lamp[TABLE].sqlName)} (id, state) VALUES ('c', 'dim')`,
+        ),
+    ).rejects.toThrow(new DatabaseError("INVALID_RECORD", "a record fails a declared check"));
+    expect((await storage.database.select().from(lamp)).length).toBe(2);
+});
 
-test.for(TEST_DIALECTS)(
-    "rebuild a declared table from its state under its properties, reading the rows it writes on %s",
-    async (dialect) => {
-        const storage = await TestDatabase.create(dialect, [light], { isMigrated: true });
-        onTestFinished(() => storage.close());
-        await storage.database.insert(light).values({
-            id: "a",
-            scope: "space-1",
-            switchedAt: 1_790_000_000_000,
-            wiringKey: "secret",
-        });
+test("rebuild a declared table from its state under its properties, reading the rows it writes", async () => {
+    const storage = await TestDatabase.create([light], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    await storage.database.insert(light).values({
+        id: "a",
+        scope: "space-1",
+        switchedAt: 1_790_000_000_000,
+        wiringKey: "secret",
+    });
 
-        // rebuild the table from its state, naming the switch time by its property
-        const [state] = declareState([light], dialect);
-        const rebuilt = Table.describe(present(state, "the light's state"), {
-            switched_at: "switchedAt",
-            wiring_key: "wiringKey",
-        });
+    // rebuild the table from its state, with the switch time under its property name
+    const [state] = declareState([light], TestDatabase.target());
+    const rebuilt = Table.describe(present(state, "the light's state"), {
+        switched_at: "switchedAt",
+        wiring_key: "wiringKey",
+    });
 
-        // describe its columns as the declared ones, and read its rows by property
-        const [copied] = await storage.database.select().from(rebuilt);
-        expect([
-            describeTable(rebuilt, dialect).columns,
-            Object.keys(rebuilt[TABLE].logged),
-            { ...copied, wiringKey: undefined },
-        ]).toEqual([
-            describeTable(light, dialect).columns,
-            ["id", "scope", "switchedAt"],
-            { id: "a", scope: "space-1", switchedAt: 1_790_000_000_000, wiringKey: undefined },
-        ]);
+    // describe its columns as the declared ones, and read its rows by property
+    const [copied] = await storage.database.select().from(rebuilt);
+    expect([
+        describeTable(rebuilt, TestDatabase.target()).columns,
+        Object.keys(rebuilt[TABLE].logged),
+        { ...copied, wiringKey: undefined },
+    ]).toEqual([
+        describeTable(light, TestDatabase.target()).columns,
+        ["id", "scope", "switchedAt"],
+        { id: "a", scope: "space-1", switchedAt: 1_790_000_000_000, wiringKey: undefined },
+    ]);
 
-        // carry the unlogged column's sealed text as it is, which the database's cipher opens
-        expect(TEST_CIPHER.open(present(copied, "the copied row")["wiringKey"], "wiring_key")).toBe(
-            "secret",
-        );
-    },
-);
+    // copy the unlogged column's sealed text as it is, which the database's cipher opens
+    expect(TEST_CIPHER.open(present(copied, "the copied row")["wiringKey"], "wiring_key")).toBe(
+        "secret",
+    );
+});
 
 test("refuse a table whose unique constraint and index share a name", () => {
     // declare a unique constraint and an index under one name

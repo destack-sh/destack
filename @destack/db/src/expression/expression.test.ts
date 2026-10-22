@@ -1,6 +1,6 @@
 import { asc } from "../sql/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
-import { TEST_DIALECTS, TestDatabase } from "../test/database.ts";
+import { TestDatabase } from "../test/database.ts";
 import { defineTable } from "../table/table.ts";
 import type { JsonValue } from "@destack/schema";
 import { integer, json, real, text } from "../table/column.ts";
@@ -38,6 +38,18 @@ const VALUES = {
     ratio: [-0.5, 0, 0.1, 3.25, null],
     name: ["a", "é", "", null],
 } as const;
+
+/** Read a JSON result back as a value, as SQLite returns it as text. */
+function read(value: unknown): unknown {
+    // parse SQLite's JSON text, and take PostgreSQL's values as they are
+    if (TestDatabase.target() === "sqlite" && typeof value === "string") {
+        const parsed: unknown = JSON.parse(value);
+
+        return parsed;
+    }
+
+    return value;
+}
 
 /** Draw a seeded pseudo-random number. */
 function random(seed: { value: number }): number {
@@ -77,38 +89,35 @@ function draw(seed: { value: number }, depth: number): Expression {
     return Expression.coalesce(draw(seed, depth - 1), draw(seed, depth - 1));
 }
 
-test.for(TEST_DIALECTS)(
-    "compute random expressions alike in SQL and in memory on %s",
-    async (dialect) => {
-        const storage = await TestDatabase.create(dialect, [sample], { isMigrated: true });
-        onTestFinished(() => storage.close());
+test("compute random expressions alike in SQL and in memory", async () => {
+    const storage = await TestDatabase.create([sample], { isMigrated: true });
+    onTestFinished(() => storage.close());
 
-        // insert random rows
-        const seed = { value: 11 };
-        const rows = Array.from({ length: 30 }, (_, id) => ({
-            id,
-            count: pick(VALUES.count, seed),
-            ratio: pick(VALUES.ratio, seed),
-            name: pick(VALUES.name, seed),
-        }));
-        await storage.database.insert(sample).values(rows);
+    // insert random rows
+    const seed = { value: 11 };
+    const rows = Array.from({ length: 30 }, (_, id) => ({
+        id,
+        count: pick(VALUES.count, seed),
+        ratio: pick(VALUES.ratio, seed),
+        name: pick(VALUES.name, seed),
+    }));
+    await storage.database.insert(sample).values(rows);
 
-        // compute each expression in SQL and memory alike
-        for (let index = 0; index < EXPRESSIONS; index += 1) {
-            const drawn = draw(seed, 3);
-            Expression.require(drawn, sample);
-            const selected = await storage.database
-                .select({ value: Expression.render(drawn, sample) })
-                .from(sample)
-                .orderBy(asc(sample.id));
-            const computed = rows.map((row) => Expression.evaluate(drawn, row));
-            expect([drawn, selected.map((row) => row.value)]).toEqual([drawn, computed]);
-        }
-    },
-);
+    // compute each expression in SQL and memory alike
+    for (let index = 0; index < EXPRESSIONS; index += 1) {
+        const drawn = draw(seed, 3);
+        Expression.require(drawn, sample);
+        const selected = await storage.database
+            .select({ value: Expression.render(drawn, sample) })
+            .from(sample)
+            .orderBy(asc(sample.id));
+        const computed = rows.map((row) => Expression.evaluate(drawn, row));
+        expect([drawn, selected.map((row) => row.value)]).toEqual([drawn, computed]);
+    }
+});
 
-test.for(TEST_DIALECTS)("take the first present text on %s", async (dialect) => {
-    const storage = await TestDatabase.create(dialect, [sample], { isMigrated: true });
+test("take the first present text", async () => {
+    const storage = await TestDatabase.create([sample], { isMigrated: true });
     onTestFinished(() => storage.close());
     await storage.database.insert(sample).values([
         { id: 1, name: "a" },
@@ -125,29 +134,26 @@ test.for(TEST_DIALECTS)("take the first present text on %s", async (dialect) => 
     expect(selected).toEqual([{ value: "a" }, { value: "none" }]);
 });
 
-test.for(TEST_DIALECTS)(
-    "read the text before a separator alike in SQL and in memory on %s",
-    async (dialect) => {
-        const storage = await TestDatabase.create(dialect, [sample], { isMigrated: true });
-        onTestFinished(() => storage.close());
-        const names = ["ada@example.com", "a@b@c", "@example.com", "ada", "", null];
-        const rows = names.map((name, id) => ({ id, name }));
-        await storage.database.insert(sample).values(rows);
+test("read the text before a separator alike in SQL and in memory", async () => {
+    const storage = await TestDatabase.create([sample], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const names = ["ada@example.com", "a@b@c", "@example.com", "ada", "", null];
+    const rows = names.map((name, id) => ({ id, name }));
+    await storage.database.insert(sample).values(rows);
 
-        // cut at the first separator, keeping text without one whole
-        const expression = Expression.before(Expression.column("name"), "@");
-        Expression.require(expression, sample);
-        const selected = await storage.database
-            .select({ value: Expression.render(expression, sample) })
-            .from(sample)
-            .orderBy(asc(sample.id));
-        const computed = rows.map((row) => Expression.evaluate(expression, row));
-        expect([selected.map((row) => row.value), computed]).toEqual([
-            ["ada", "a", "", "ada", "", null],
-            ["ada", "a", "", "ada", "", null],
-        ]);
-    },
-);
+    // cut at the first separator, leaving text without one whole
+    const expression = Expression.before(Expression.column("name"), "@");
+    Expression.require(expression, sample);
+    const selected = await storage.database
+        .select({ value: Expression.render(expression, sample) })
+        .from(sample)
+        .orderBy(asc(sample.id));
+    const computed = rows.map((row) => Expression.evaluate(expression, row));
+    expect([selected.map((row) => row.value), computed]).toEqual([
+        ["ada", "a", "", "ada", "", null],
+        ["ada", "a", "", "ada", "", null],
+    ]);
+});
 
 /** JSON documents covering objects, arrays, scalars, nesting and absence. */
 const DOCUMENTS: readonly { readonly data: JsonValue; readonly mode: string | null }[] = [
@@ -172,7 +178,7 @@ const JSON_EXPRESSIONS: readonly Expression[] = [
             Expression.scalar(Expression.path(Expression.column("data"), "editor", "mode"), "text"),
         ),
         size: Expression.path(Expression.column("data"), "editor", "size"),
-        pinned: Expression.json(false),
+        starred: Expression.json(false),
         tags: Expression.json(["b", { nested: true }]),
     }),
     Expression.case(
@@ -190,36 +196,24 @@ const JSON_EXPRESSIONS: readonly Expression[] = [
     Expression.object({ document: Expression.column("data"), mode: Expression.column("mode") }),
 ];
 
-test.for(TEST_DIALECTS)(
-    "compute JSON expressions alike in SQL and in memory on %s",
-    async (dialect) => {
-        const storage = await TestDatabase.create(dialect, [documents], { isMigrated: true });
-        onTestFinished(() => storage.close());
-        const rows = DOCUMENTS.map((document, id) => ({ id, ...document }));
-        await storage.database.insert(documents).values(rows);
+test("compute JSON expressions alike in SQL and in memory", async () => {
+    const storage = await TestDatabase.create([documents], { isMigrated: true });
+    onTestFinished(() => storage.close());
+    const rows = DOCUMENTS.map((document, id) => ({ id, ...document }));
+    await storage.database.insert(documents).values(rows);
 
-        // compare each expression's SQL results, JSON read back as values, with its memory results
-        const read = (value: unknown): unknown => {
-            if (dialect === "sqlite" && typeof value === "string") {
-                const parsed: unknown = JSON.parse(value);
-
-                return parsed;
-            }
-
-            return value;
-        };
-        for (const expression of JSON_EXPRESSIONS) {
-            const isJson = Expression.kind(expression, documents) === "json";
-            const selected = await storage.database
-                .select({ value: Expression.render(expression, documents) })
-                .from(documents)
-                .orderBy(asc(documents.id));
-            const values = selected.map((row) => (isJson ? read(row.value) : row.value));
-            const computed = rows.map((row) => Expression.evaluate(expression, row));
-            expect([expression, values]).toEqual([expression, computed]);
-        }
-    },
-);
+    // compare each expression's SQL results, JSON read back, with its memory results
+    for (const expression of JSON_EXPRESSIONS) {
+        const isJson = Expression.kind(expression, documents) === "json";
+        const selected = await storage.database
+            .select({ value: Expression.render(expression, documents) })
+            .from(documents)
+            .orderBy(asc(documents.id));
+        const values = selected.map((row) => (isJson ? read(row.value) : row.value));
+        const computed = rows.map((row) => Expression.evaluate(expression, row));
+        expect([expression, values]).toEqual([expression, computed]);
+    }
+});
 
 test("upgrade partial records through each later release, leaving fields computed from absent fields absent", () => {
     // rename title to name in 2026.9.0, and default a new limit in 2026.10.0
@@ -232,7 +226,7 @@ test("upgrade partial records through each later release, leaving fields compute
     const convert = (record: Record<string, JsonValue>, from: string) =>
         Expression.upgrade(conversions, record, from, "2026.10.0");
 
-    // convert a full record, a partial one, an explicit null, and a record of the latest release
+    // convert full, partial and null records, and a record of the latest release
     expect([
         convert({ title: "Plan" }, "2026.8.0"),
         convert({ id: "a" }, "2026.8.0"),

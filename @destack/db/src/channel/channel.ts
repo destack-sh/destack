@@ -18,6 +18,8 @@ export const Commit = schema.object({
     kind: schema.literal("commit"),
     /** The SQL names of the written tables, every declared table when the writer cannot know. */
     tables: schema.array(schema.string()),
+    /** The log sequence the commit ends at, absent where its writer announces it unnumbered. */
+    sequence: schema.number().int().exactOptional(),
 });
 /** A commit announced on a database's channel. */
 export type Commit = schema.Infer<typeof Commit>;
@@ -53,13 +55,13 @@ export function channelHub<Payload>(): () => Channel<Payload> {
     const listeners = new Set<(message: Payload) => void>();
 
     return () => {
-        const own = new Set<(message: Payload) => void>();
+        const local = new Set<(message: Payload) => void>();
 
         return {
             notify: (message) => {
                 // deliver to every other party
                 for (const listener of listeners) {
-                    if (!own.has(listener)) {
+                    if (!local.has(listener)) {
                         queueMicrotask(() => listener(structuredClone(message)));
                     }
                 }
@@ -67,12 +69,12 @@ export function channelHub<Payload>(): () => Channel<Payload> {
             listen: (receive, resume) => {
                 // deliver each later message
                 listeners.add(receive);
-                own.add(receive);
+                local.add(receive);
                 resume?.();
 
                 return () => {
                     listeners.delete(receive);
-                    own.delete(receive);
+                    local.delete(receive);
                 };
             },
         };

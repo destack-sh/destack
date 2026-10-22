@@ -27,7 +27,7 @@ const job = defineTable("controller_bench_job", {
 test("run timers between the reconciliations of a synchronous database, one key per turn", async ({
     annotate,
 }) => {
-    const storage = await TestDatabase.create("sqlite", [job], { isMigrated: true });
+    const storage = await TestDatabase.create([job], { dialect: "sqlite", isMigrated: true });
     onTestFinished(() => storage.close());
     const database = storage.database;
     await database
@@ -80,7 +80,7 @@ test("run timers between the reconciliations of a synchronous database, one key 
     stopping.abort();
     await running;
 
-    // tick between every two reconciliations but the first two, which share the turn the listing woke
+    // tick between reconciliations after the first two, which share the turn the listing woke
     const reconciled = events.flatMap((event, index) => (event === "reconcile" ? [index] : []));
     const interleaved = reconciled
         .slice(1)

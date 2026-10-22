@@ -74,7 +74,7 @@ export interface RelationColumn {
 /** A relation joining its rows by a key or through a join table. */
 type RelationJoin = Relation & { readonly on: KeyPath | JunctionPath };
 
-/** The rows a relational read keeps of a table along a path, every row when absent. */
+/** The rows a relational read includes of a table along a path, every row when absent. */
 export type Filter = (table: Table, path: Path) => SQL | undefined;
 
 /** A database's relations by table, and the tables relational reads use. */
@@ -88,7 +88,7 @@ export class Relations<
     /** The relations of each table, by name. */
     readonly #tables: ReadonlyMap<Table, Readonly<Record<string, Relation>>>;
 
-    /** Keep the relations of each table, and the tables relational reads use. */
+    /** Store the relations of each table, and the tables relational reads use. */
     constructor(
         relations: ReadonlyMap<Table, Readonly<Record<string, Relation>>> = new Map(),
         tables: Readonly<Record<string, Table>> = {},
@@ -129,7 +129,7 @@ export class Relations<
 
     /** Combine relations of several schemas, refusing a table's relation named twice. */
     static merge(...schemas: readonly Relations[]): Relations {
-        // keep each named table once, and each table's relations under distinct names
+        // add each named table once, and each table's relations under distinct names
         const tables = new Map<Table, Record<string, Relation>>();
         const named: Record<string, Table> = {};
         for (const relations of schemas) {
@@ -167,10 +167,10 @@ class Subquery {
     readonly #relations: Relations;
     /** The table whose rows the subqueries correlate to. */
     readonly #table: Table;
-    /** The rows the read keeps of each table along a path. */
+    /** The rows the read includes of each table along a path. */
     readonly #filter: Filter;
 
-    /** Read a table's related rows through the relations, keeping the filter's rows. */
+    /** Read a table's related rows through the relations, within the filter's rows. */
     constructor(relations: Relations, table: Table, filter: Filter) {
         this.#relations = relations;
         this.#table = table;
@@ -304,9 +304,9 @@ class Subquery {
         }
     }
 
-    /** Render the related rows the filter keeps, meeting the relation's condition and another. */
+    /** Render the filter's related rows, meeting the relation's and another condition. */
     #related(relation: Relation, where: Condition): SQL {
-        // meet both conditions in the related table's namespace, on the rows the filter keeps
+        // meet both conditions in the related table's namespace, on the rows the filter includes
         const condition = relation.where === undefined ? where : { AND: [relation.where, where] };
         const namespace = this.#relations.namespace(relation.table, {}, this.#filter);
         const rendered = Condition.render(condition, relation.table, namespace);
@@ -314,7 +314,7 @@ class Subquery {
         return sql`${rendered} AND ${this.#filter(relation.table, relation.on) ?? sql`true`}`;
     }
 
-    /** Render the join rows the filter keeps. */
+    /** Render the join rows the filter includes. */
     #through(path: JunctionPath): SQL {
         return this.#filter(path.table, path) ?? sql`true`;
     }

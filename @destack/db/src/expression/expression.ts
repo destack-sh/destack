@@ -81,7 +81,7 @@ export type Rollup = schema.Infer<typeof Rollup>;
 
 /** The related rows an expression reads. */
 export interface RelationReader {
-    /** Read a column of the related row, as rows hold it. */
+    /** Read a column of the related row, as rows store it. */
     readonly lookup: (via: string, column: string) => ColumnValue;
     /** Measure the related rows meeting a condition. */
     readonly rollup: (
@@ -152,7 +152,7 @@ const expressionSchema: schema.Schema<Expression> = schema.lazy(() =>
             kind: schema.literal("path"),
             /** The JSON value. */
             of: expressionSchema,
-            /** The object keys leading to the inner value. */
+            /** The object keys leading to the nested value. */
             keys: schema.array(schema.string().min(1)).min(1),
         }),
         schema.object({
@@ -700,8 +700,8 @@ function renderPath(expression: ExpressionOf<"path">, table: Table, namespace: N
 function renderObject(expression: ExpressionOf<"object">, table: Table, namespace: Namespace): SQL {
     // pair each key with its value as JSON
     const pairs = Object.entries(expression.fields).map(([key, value]) => {
-        const inner = requireKind(kindOf(value, table, namespace));
-        const rendered = renderAs(value, inner === "null" ? "text" : inner, table, namespace);
+        const kind = requireKind(kindOf(value, table, namespace));
+        const rendered = renderAs(value, kind === "null" ? "text" : kind, table, namespace);
 
         return sql`CAST(${key} AS TEXT), ${rendered}`;
     });
@@ -720,8 +720,8 @@ function renderCase(
     namespace: Namespace,
 ): SQL {
     // compare scalars only
-    const inner = requireKind(kindOf(expression.of, table, namespace));
-    if (inner === "json") {
+    const scalar = requireKind(kindOf(expression.of, table, namespace));
+    if (scalar === "json") {
         throw new DatabaseError(
             "INVALID_QUERY",
             "expression compares JSON in a case; read a scalar of it",
@@ -729,7 +729,7 @@ function renderCase(
     }
 
     // compare the value with each listed one by the listed one's kind
-    const compared = inner === "null" ? "text" : inner;
+    const compared = scalar === "null" ? "text" : scalar;
     const of = renderAs(expression.of, compared, table, namespace);
     const branches = expression.cases.map(
         (entry) =>
@@ -969,7 +969,7 @@ function float(value: SQL): SQL {
     });
 }
 
-/** Read a column value an expression computes over, kept to JSON by its requirements. */
+/** Read a column value an expression computes over, narrowed to JSON by its requirements. */
 function jsonOf(value: ColumnValue | undefined, name: string): JsonValue {
     if (value instanceof Uint8Array || typeof value === "bigint") {
         throw new DatabaseError(

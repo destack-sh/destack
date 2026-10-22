@@ -5,14 +5,14 @@ import { post, remark } from "../dependent/test/fixture.ts";
 import { TABLE } from "../table/index.ts";
 import { declareState } from "./state.ts";
 
-/** A package owning none of the fixture's tables. */
+/** A package that declares none of the fixture's tables. */
 const OTHER = PackageId.parse("package-01996ab0-0000-7000-8000-0000000000e1");
 
 test("describe the aggregates of the described tables alone, a replica's too, requiring their tables by name", () => {
     // place another package's aggregated table without describing its aggregates
     const placed = declareState([item], "sqlite", { package: OTHER });
 
-    // describe a replica's aggregates, which its predictions keep
+    // describe a replica's aggregates, which its predictions maintain
     const replicated = declareState([item, list], "sqlite", { isReplica: true }).map((state) =>
         (state.aggregates ?? []).map((aggregate) => aggregate.column),
     );

@@ -44,7 +44,7 @@ export const SearchText = {
         return query.every((prefix) => words.some((word) => word.startsWith(prefix)));
     },
 
-    /** List a word's runs of three characters, which a segment's gram filter keeps. */
+    /** List a word's runs of three characters, which a segment's gram filter matches. */
     grams(word: string): string[] {
         const characters = Array.from(GRAPHEMES.segment(word), (piece) => piece.segment);
 

@@ -100,6 +100,12 @@
         "@destack/test": "workspace:*",
         "@types/node": "26.6.1",
       },
+      "peerDependencies": {
+        "@destack/test": "workspace:*",
+      },
+      "optionalPeers": [
+        "@destack/test",
+      ],
     },
     "@destack/bucket": {
       "name": "@destack/bucket",
@@ -262,6 +268,18 @@
         "@types/bun": "1.4.2",
         "uuid": "14.0.2",
       },
+      "peerDependencies": {
+        "@destack/event": "workspace:*",
+        "@destack/resource": "workspace:*",
+        "@destack/stack": "workspace:*",
+        "@destack/test": "workspace:*",
+      },
+      "optionalPeers": [
+        "@destack/event",
+        "@destack/resource",
+        "@destack/stack",
+        "@destack/test",
+      ],
     },
     "@destack/db": {
       "name": "@destack/db",
@@ -285,6 +303,12 @@
         "esbuild": "~0.28.1",
         "miniflare": "4.20260730.0",
       },
+      "peerDependencies": {
+        "@destack/test": "workspace:*",
+      },
+      "optionalPeers": [
+        "@destack/test",
+      ],
     },
     "@destack/desktop": {
       "name": "@destack/desktop",
@@ -346,7 +370,6 @@
       "name": "@destack/event",
       "version": "2026.9.0",
       "dependencies": {
-        "@destack/access": "workspace:*",
         "@destack/bucket": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/environment": "workspace:*",
@@ -394,6 +417,12 @@
         "@types/bun": "1.4.2",
         "uuid": "14.0.2",
       },
+      "peerDependencies": {
+        "@destack/environment": "workspace:*",
+      },
+      "optionalPeers": [
+        "@destack/environment",
+      ],
     },
     "@destack/forge": {
       "name": "@destack/forge",
@@ -627,6 +656,14 @@
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.2",
       },
+      "peerDependencies": {
+        "@destack/environment": "workspace:*",
+        "@destack/test": "workspace:*",
+      },
+      "optionalPeers": [
+        "@destack/environment",
+        "@destack/test",
+      ],
     },
     "@destack/object": {
       "name": "@destack/object",
@@ -867,6 +904,12 @@
         "miniflare": "4.20260730.0",
         "uuid": "14.0.2",
       },
+      "peerDependencies": {
+        "@destack/test": "workspace:*",
+      },
+      "optionalPeers": [
+        "@destack/test",
+      ],
     },
     "@destack/style": {
       "name": "@destack/style",
@@ -1047,6 +1090,14 @@
         "@destack/event": "workspace:*",
         "@destack/test": "workspace:*",
       },
+      "peerDependencies": {
+        "@destack/environment": "workspace:*",
+        "@destack/event": "workspace:*",
+      },
+      "optionalPeers": [
+        "@destack/environment",
+        "@destack/event",
+      ],
     },
     "@destack/view": {
       "name": "@destack/view",
@@ -1245,8 +1296,6 @@
         "@fontsource/ibm-plex-sans-condensed": "5.3.0",
         "@fontsource/limelight": "5.3.0",
         "@platform/brand": "workspace:*",
-        "@platform/pricing": "workspace:*",
-        "@platform/release": "workspace:*",
         "@types/hast": "3.0.5",
         "@types/mdast": "4.0.4",
         "lowlight": "3.3.0",
@@ -1261,6 +1310,7 @@
       "devDependencies": {
         "@destack/build": "workspace:*",
         "@destack/check": "workspace:*",
+        "@platform/pricing": "workspace:*",
         "highlight.js": "11.11.1",
         "vite": "8.3.0",
         "wrangler": "4.134.0",

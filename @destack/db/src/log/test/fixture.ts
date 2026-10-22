@@ -12,8 +12,8 @@ export const note = defineTable(
         title: text("title").notNull(),
         /** The folder the note lives in. */
         scope: text("scope").notNull(),
-        /** An optional summary. */
-        summary: text("summary"),
+        /** An optional subtitle. */
+        subtitle: text("subtitle"),
         /** An exact counter beyond the safe integer range. */
         views: bigint("views").notNull(),
         /** Structured labels. */
@@ -26,7 +26,7 @@ export const note = defineTable(
     { log: {} },
 );
 
-/** Note revisions whose changes are kept forever. */
+/** Note revisions whose changes the log retains forever. */
 export const revision = defineTable(
     "revision",
     {

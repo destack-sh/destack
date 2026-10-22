@@ -23,7 +23,7 @@ import { DurableObjectContentStore } from "./content.ts";
 /** The provider code of databases in Durable Objects' SQLite storage. */
 export const DURABLE_OBJECT_PROVIDER = "durable-object";
 
-/** The path below which an object answers operations on the databases it keeps. */
+/** The path below which an object answers operations on its databases. */
 export const DATABASE_PATH = "/.destack/database";
 
 /** A database resource as an operation refers to it. */
@@ -38,7 +38,7 @@ const DatabaseRecord = schema.object({
     reference: schema.string().min(1).nullable(),
 });
 
-/** An operation on the databases an object keeps, as another object sends it. */
+/** An operation on an object's databases, as another object sends it. */
 const DurableObjectDatabaseOperation = schema.discriminatedUnion("operation", [
     schema.object({
         /** Create the database's namespace and log, or confirm them. */
@@ -101,7 +101,7 @@ const DurableObjectDatabaseOperation = schema.discriminatedUnion("operation", [
         rows: schema.enum(["values", "objects"]),
     }),
 ]);
-/** An operation on the databases an object keeps, as another object sends it. */
+/** An operation on an object's databases, as another object sends it. */
 export type DurableObjectDatabaseOperation = schema.Infer<typeof DurableObjectDatabaseOperation>;
 
 /** The bytes of an object's databases, and the rows they read and wrote since last measured. */
@@ -145,7 +145,7 @@ export class StorageTransaction {
     }
 }
 
-/** Keep databases in one Durable Object's SQLite storage, each in its resource's namespace. */
+/** Store databases in one Durable Object's SQLite storage, each in its resource's namespace. */
 export class DurableObjectDatabaseHost implements DatabaseHost {
     /** The provider code of databases in Durable Objects. */
     readonly provider = DURABLE_OBJECT_PROVIDER;
@@ -156,7 +156,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
     /** The rows the databases read and wrote since the last measure. */
     #rows = { rowsRead: 0, rowsWritten: 0 };
 
-    /** Keep databases in an object's storage. */
+    /** Store databases in an object's storage. */
     constructor(storage: DurableObjectStorage) {
         this.storage = storage;
     }
@@ -238,7 +238,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
         await this.drop(DurableObjectDatabaseHost.namespace(ResourceRecord.reference(record)));
     }
 
-    /** Drop every relation of a namespace, such as a database kept only while an instance runs. */
+    /** Drop a namespace's relations, such as a database living only while an instance runs. */
     async drop(namespace: string): Promise<void> {
         // read and drop each relation behind the storage's queue
         await this.queue.run(async () => {
@@ -419,7 +419,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
     }
 }
 
-/** A Durable Object's stub, through which requests reach the object. */
+/** A Durable Object's stub, which sends requests to the object. */
 export interface DurableObjectStub {
     /** Send the object a request. */
     readonly fetch: (request: Request) => Promise<Response>;
@@ -430,7 +430,7 @@ export type Jurisdiction = "eu" | "us" | "local";
 
 /** The jurisdictions a namespace narrows to. */
 export const Jurisdiction = {
-    /** Narrow a namespace to the objects a jurisdiction keeps, the whole namespace locally. */
+    /** Narrow a namespace to a jurisdiction's objects, the whole namespace locally. */
     narrow(namespace: DurableObjectNamespace, jurisdiction: Jurisdiction): DurableObjectNamespace {
         return jurisdiction === "local" ? namespace : namespace.jurisdiction(jurisdiction);
     },
@@ -442,26 +442,26 @@ export interface DurableObjectNamespace {
     readonly idFromName: (name: string) => unknown;
     /** Get an object's stub, hinting where a new one starts. */
     readonly get: (id: unknown, options?: { readonly locationHint?: string }) => DurableObjectStub;
-    /** Narrow the namespace to the objects kept in a jurisdiction. */
+    /** Narrow the namespace to the objects in a jurisdiction. */
     readonly jurisdiction: (name: Exclude<Jurisdiction, "local">) => DurableObjectNamespace;
 }
 
-/** The bindings of a database's object: the partition objects keeping its copies' content. */
+/** The bindings of a database's object: the partition objects that store its copies' content. */
 export interface DurableObjectDatabaseBindings {
-    /** The partitions' objects, a space's own keyed by its space. */
+    /** The partitions' objects, a space's keyed by its space. */
     readonly PARTITION: DurableObjectNamespace;
-    /** The jurisdiction keeping the partitions' objects. */
+    /** The jurisdiction that stores the partitions' objects. */
     readonly DESTACK_JURISDICTION: Jurisdiction;
 }
 
 /** A Durable Object answering operations on its databases. */
 export class DurableObjectDatabase {
-    /** The databases the object keeps. */
+    /** The object's databases. */
     readonly host: DurableObjectDatabaseHost;
     /** The partitions' objects, in their jurisdiction. */
     readonly #partitions: DurableObjectNamespace;
 
-    /** Keep databases in the object's storage, with partition objects from Worker bindings. */
+    /** Store databases in the object's storage, with partition objects from Worker bindings. */
     constructor(
         state: { readonly storage: DurableObjectStorage },
         bindings: DurableObjectDatabaseBindings,
@@ -470,7 +470,7 @@ export class DurableObjectDatabase {
         this.#partitions = Jurisdiction.narrow(bindings.PARTITION, bindings.DESTACK_JURISDICTION);
     }
 
-    /** Answer an operation on a kept database, copying through its partition's object. */
+    /** Answer an operation on a stored database, copying through its partition's object. */
     fetch(request: Request): Promise<Response> {
         return this.host.answer(request, (scope) =>
             this.#partitions.get(this.#partitions.idFromName(scope)),
@@ -489,7 +489,7 @@ function encoded(row: unknown): SQLValue[] | Record<string, SQLValue> {
           );
 }
 
-/** Keep the plan fields its reviewers see, which its digest covers. */
+/** Select the plan fields its reviewers see, which its digest covers. */
 function reviewed(plan: Plan): Plan {
     const { steps, deferred } = plan;
 

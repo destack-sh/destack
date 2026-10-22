@@ -10,7 +10,7 @@ import { boundedName, relation } from "../table/namespace.ts";
 /** The longest suffix an aggregate trigger name takes. */
 const SUFFIX = "_maintain";
 
-/** Generate the triggers keeping an aggregate current. */
+/** Generate the triggers that maintain an aggregate. */
 function install(aggregate: AggregateDescription, dialect: Dialect, namespace?: string): string[] {
     // build the trigger names and the replica guard
     const prefix = triggerPrefix(aggregate);
@@ -31,7 +31,7 @@ function install(aggregate: AggregateDescription, dialect: Dialect, namespace?: 
                 END`,
         ];
     }
-    // keep them through one PostgreSQL function
+    // maintain them through one PostgreSQL function
     else if (dialect === "postgresql") {
         return [
             `CREATE OR REPLACE FUNCTION ${quote(`${prefix}_maintain`)}() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
@@ -140,7 +140,7 @@ function changed(aggregate: AggregateDescription, operator: "IS NOT" | "IS DISTI
         .join(" OR ");
 }
 
-/** The triggers keeping aggregates current. */
+/** The triggers that maintain aggregates. */
 export const aggregateTriggers: Triggers = {
     install: (state, dialect, namespace) =>
         (state.aggregates ?? []).flatMap((aggregate) => install(aggregate, dialect, namespace)),

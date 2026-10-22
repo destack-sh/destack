@@ -41,7 +41,7 @@ import { ModelQueryBuilder, type Queries } from "../query/find.ts";
 import type { Model } from "../query/model.ts";
 import type { Row } from "../table/row.ts";
 
-/** The rows each read cache keeps: 1 MB of 0.5 KB rows and 4 MB of 2 KB keys, 10 MB for two. */
+/** The rows each read cache stores: 1 MB of 0.5 KB rows and 4 MB of 2 KB keys, 10 MB for two. */
 const CACHED_ROWS = 2048;
 
 /** The most rows one cached read has, as a resolve reads a few dozen. */
@@ -67,7 +67,7 @@ export class DatabaseConnection<
 
     /** Bind a driver to the declared tables and relations. */
     constructor(driver: DatabaseDriver, tables: readonly Table[], relations: Relations<Models>) {
-        // keep the driver's state beside the declaration
+        // store the driver's state beside the declaration
         this.state = driver.state;
         this.driver = driver;
         this.tables = tables;
@@ -116,7 +116,7 @@ export class DatabaseConnection<
         return open(name);
     }
 
-    /** Decide whether the database keeps a table's rows as a replica, as its declaration lists. */
+    /** Decide whether the database stores a table's rows as a replica, as its declaration lists. */
     replicates(table: Table): boolean {
         return this.state.replicated.has(table[TABLE].sqlName);
     }
@@ -193,7 +193,7 @@ export class DatabaseConnection<
         // insert each batch
         const size = Math.floor(PARAMETER_BUDGET / written.length);
         for (let start = 0; start < rows.length; start += size) {
-            // keep the stored row when only the key is written, or when an append-only table keeps it unchanged
+            // leave the stored row when only the key or an unchanged append-only row is written
             const insert = this.insert(table).values(rows.slice(start, start + size));
             if (Object.keys(set).length === 0 || definition.isAppendOnly) {
                 await insert.onConflictDoNothing();
@@ -301,10 +301,10 @@ export class DatabaseConnection<
     async migrate(
         tables: readonly Table[],
         options: DeclareOptions & {
-            /** The states kept beside the tables, such as a resource's desired ones. */
+            /** The states stored beside the tables, such as a resource's desired ones. */
             readonly states?: readonly (readonly TableState[])[];
             /** What happens to the applied tables neither the tables nor the states declare. */
-            readonly others?: "keep" | "drop";
+            readonly others?: "retain" | "drop";
         } = {},
     ): Promise<TablePlan> {
         // declare the tables, its replicated tables as replicas
@@ -313,17 +313,17 @@ export class DatabaseConnection<
             ...options,
         });
 
-        // keep the other applied tables as they are when asked, as their declarations had them
+        // retain the other applied tables as they are when asked, as their declarations had them
         const { namespace } = this.state;
         const names = new Set(declared.map((entry) => namespaceState(entry, namespace).table.name));
         const others =
-            options.others === "keep"
+            options.others === "retain"
                 ? (await readState(this))
                       .filter((applied) => !names.has(applied.table.name))
                       .map((applied) => localState(applied, namespace))
                 : [];
 
-        // plan the declared tables beside the given states and the kept tables, then apply the plan
+        // plan the declared, given and retained tables, then apply the plan
         const plan = await this.plan(mergeStates([...(options.states ?? []), others, declared]));
         await this.apply(plan);
 
@@ -372,7 +372,7 @@ export class DatabaseConnection<
         await applyPlan(this, plan);
     }
 
-    /** Commit a callback, or roll back on failure or its own rollback, then resolve undefined. */
+    /** Commit a callback, or roll back on failure or on its rollback, then resolve undefined. */
     async transaction<Value>(
         operation: (transaction: DatabaseConnection<Models>) => Promise<Value>,
         options: TransactionOptions = {},
@@ -404,7 +404,7 @@ export class DatabaseConnection<
                               )
                             : undefined;
 
-                    // give the outermost transaction its log identity, stamped at its first logged write
+                    // give the outermost transaction its log identity, stamped at its first write
                     const identity =
                         this.driver.transaction?.identity ??
                         new TransactionIdentity(session, this.state);
@@ -447,7 +447,7 @@ export class DatabaseConnection<
             }
         }
 
-        // forget the writes of an attempt that lost, then announce the written tables once committed
+        // forget a lost attempt's writes, then announce the written tables once committed
         return Transaction.retry(() => {
             written.clear();
 
@@ -507,11 +507,11 @@ export class ConnectionState {
     readonly commits: CommitWatch;
     /** Open a channel of a name to the database's other connections, absent for a sole writer. */
     readonly openChannel: ((name: string) => Channel<unknown>) | undefined;
-    /** The database's namespace in a shared SQLite store, absent for a database of its own. */
+    /** The database's namespace in a shared SQLite store, absent for a separate database. */
     readonly namespace: string | undefined;
-    /** The searched tables whose full-text rows SQLite writes keep, by SQL name. */
+    /** The searched tables whose full-text rows SQLite writes update, by SQL name. */
     readonly searched: ReadonlyMap<string, Table>;
-    /** The SQL names of the tables without change triggers: unlogged ones and the log's own. */
+    /** The SQL names of the tables without change triggers: unlogged ones and the log's tables. */
     readonly unlogged: ReadonlySet<string>;
     /** The SQL names of the tables whose reads transactions share through the read caches. */
     readonly shared: ReadonlySet<string>;
@@ -529,7 +529,7 @@ export class ConnectionState {
     );
     /** The cipher of sensitive columns, absent until the database is keyed. */
     cipher: ColumnCipher | undefined = undefined;
-    /** Whether the database keeps a log. */
+    /** Whether the database has a log. */
     isLogged = false;
     /** The submitted statements and transactions. */
     operations = 0;
@@ -542,7 +542,7 @@ export class ConnectionState {
 
     /** Create the state of a new connection over declared tables. */
     constructor(options: ConnectionOptions) {
-        // keep the channels, the namespace and what writes to the declared tables change
+        // store the channels, the namespace and what writes to the declared tables change
         const { openChannel, tables } = options;
         this.locality = options.locality;
         this.replicated = options.replicated;
@@ -673,13 +673,13 @@ function listCascades(tables: readonly Table[], dialect: Dialect): Map<string, r
     // close each table's links
     const cascades = new Map<string, readonly string[]>();
     for (const name of direct.keys()) {
-        const reached = new Set([name]);
-        for (const next of reached) {
+        const closure = new Set([name]);
+        for (const next of closure) {
             for (const changed of direct.get(next) ?? []) {
-                reached.add(changed);
+                closure.add(changed);
             }
         }
-        cascades.set(name, [...reached]);
+        cascades.set(name, [...closure]);
     }
 
     return cascades;

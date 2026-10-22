@@ -17,7 +17,7 @@ import type { Model } from "../query/model.ts";
 
 /** A database's resource settings. */
 export const DatabaseSpec = schema.object({
-    /** The SQL names of the tables the database replicates from their owning package. */
+    /** The SQL names of the tables the database replicates from the package that declares them. */
     replicated: schema.array(schema.string().min(1)),
 });
 /** A database's resource settings. */
@@ -52,11 +52,11 @@ export class Database<
     DatabaseConnection<Models>,
     schema.Infer<typeof DatabaseKind.description>
 > {
-    /** The tables of the database, its own and replicated ones, without foreign keys to others. */
+    /** The database's declared and replicated tables, without foreign keys to others. */
     readonly tables: readonly Table[];
     /** The relations of the tables, which relational reads follow. */
     readonly relations: Relations<Models>;
-    /** The SQL names of the tables the database replicates from their owning package. */
+    /** The SQL names of the tables the database replicates from the package that declares them. */
     readonly replicated: ReadonlySet<string>;
     /** The required tables' description, described on first read. */
     #state: DatabaseState | undefined;
@@ -68,7 +68,7 @@ export class Database<
         tables: readonly Table[],
         relations: Relations<Models>,
     ) {
-        // keep the tables, their relations and the replicated tables' names
+        // store the tables, their relations and the replicated tables' names
         super(owner, description);
         this.tables = tables;
         this.relations = relations;
@@ -82,7 +82,7 @@ export class Database<
         return connectors;
     }
 
-    /** Decide whether the database keeps a table's rows as a replica. */
+    /** Decide whether the database stores a table's rows as a replica. */
     replicates(table: Table): boolean {
         return this.replicated.has(table[TABLE].sqlName);
     }
@@ -111,19 +111,19 @@ export interface DatabaseDefinition<
 > {
     /** The package-local database name. */
     readonly name: string;
-    /** The tables the database owns, referencing tables kept elsewhere without foreign keys. */
+    /** The database's declared tables, referencing tables stored elsewhere without foreign keys. */
     readonly tables: readonly Table[];
-    /** The tables the database replicates from their owning package, filled by follows. */
+    /** The tables the database replicates from their declaring package, filled by follows. */
     readonly replicated?: readonly Table[];
     /** The relations of the tables. */
     readonly relations?: Relations<Models>;
 }
 
-/** Declare a database of the tables it owns and those it replicates from their owning package. */
+/** Declare a database of its tables and those it replicates from their declaring package. */
 export function defineDatabase<
     Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
 >(definition: DatabaseDefinition<Models>, module?: ModuleMetadata): Database<Models> {
-    // reject duplicate SQL names within and across the owned and replicated tables
+    // reject duplicate SQL names within and across the declared and replicated tables
     const owner = ModuleMetadata.require(module, "defineDatabase").package;
     const names = new Map<string, Table>();
     const replicated = expandTrees(definition.replicated ?? []);

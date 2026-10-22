@@ -33,7 +33,7 @@ export class TransactionState {
         try {
             result = await operation();
         } catch (error) {
-            // settle the queries and keep unreported failures
+            // settle the queries and collect unreported failures
             this.close();
             await Promise.all(this.#pending);
 

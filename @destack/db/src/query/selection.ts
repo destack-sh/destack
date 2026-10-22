@@ -106,7 +106,7 @@ export class Projection<Selected extends Selection = Selection> {
 /** Collect a selection's fields in property order into a group shape. */
 function group(selection: Selection, fields: (Column | SQL | Alias)[]): Group {
     const entries = Object.entries(selection).map(([property, field]): [string, Leaf | Group] => {
-        // keep a selected value at the next position
+        // place a selected value at the next position
         if (field instanceof Column || field instanceof SQL || field instanceof Alias) {
             fields.push(field);
 

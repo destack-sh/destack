@@ -265,7 +265,7 @@ class Join {
 
     /** Join through a table's column with each row's parent. */
     constructor(from: SQL | undefined, table: Table, name: string, column: Column) {
-        // keep the join and the parent column
+        // project the join and the parent column
         this.from = from;
         this.table = table;
         this.name = name;
@@ -349,10 +349,10 @@ async function read(
         await include(connection, relations, table, reads, name, selected);
     }
 
-    // keep the selected columns, every extra and every include
+    // project the selected columns, every extra and every include
     return reads.map((entry) => ({
         ...entry,
-        row: keep(entry.row, table, options.columns),
+        row: project(entry.row, table, options.columns),
     }));
 }
 
@@ -396,7 +396,7 @@ async function include(
 
 /** Read a relation's rows by a nested read's options, meeting the relation's condition too. */
 function related(relation: Relation, options: FindOptions): FindOptions {
-    // keep the read's condition
+    // project the read's condition
     if (relation.where === undefined) {
         return options;
     }
@@ -439,7 +439,7 @@ function parentValue(parent: Parent, entry: Read): Comparable | undefined {
     return Comparable.parse(parent.column.definition.toJson(value));
 }
 
-/** Read the tree a table keeps, failing for a table without one. */
+/** Read a table's tree, failing for a table without one. */
 function treeOf(table: Table) {
     const tree = table[TABLE].tree;
     if (tree === undefined) {
@@ -449,18 +449,18 @@ function treeOf(table: Table) {
     return tree;
 }
 
-/** Keep a row's selected columns, with everything beyond the table's columns. */
-function keep(
+/** Project a row's selected columns, with everything beyond the table's columns. */
+function project(
     row: Record<string, unknown>,
     table: Table,
     selection: Readonly<Record<string, boolean | undefined>> | undefined,
 ): Record<string, unknown> {
-    // keep every column without a selection
+    // project every column without a selection
     if (selection === undefined) {
         return row;
     }
 
-    // keep the columns set true, or all but those set false
+    // project the columns set true, or all but those set false
     const columns = table[TABLE].columns;
     const isPicked = Object.values(selection).includes(true);
     const isRetained = (name: string) =>

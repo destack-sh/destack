@@ -1,6 +1,7 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { TEST_DIALECTS, TestDatabase } from "./database.ts";
+import { Dialect } from "../dialect/dialect.ts";
+import { TestDatabase } from "./database.ts";
 import { ImageIndex, TestTemplate } from "./template.ts";
 
 /** Write the images of the templates a module lists into a run's directory, with their index. */
@@ -8,11 +9,13 @@ async function write(
     module: string | undefined,
     directory: string | undefined,
     id: string | undefined,
+    target: string | undefined,
 ): Promise<void> {
-    // require the module listing the templates, the run's directory and the run's id
+    // require the template module, the run's directory, its id and its database
     if (module === undefined || directory === undefined || id === undefined) {
         throw new TypeError("write the templates of a module into a run's directory under its id");
     }
+    const dialect = Dialect.parse(target);
 
     // require the module to list templates
     const imported: unknown = await import(module);
@@ -24,18 +27,15 @@ async function write(
         throw new TypeError(`${module} lists no templates`);
     }
 
-    // drop expired schemas, then write each template's image in each test dialect
-    if (TEST_DIALECTS.includes("postgresql")) {
+    // drop expired schemas, then write each template's image in the run's database
+    if (dialect === "postgresql") {
         await TestDatabase.sweep();
     }
     const images: Record<string, Record<string, unknown>> = {};
-    for (const template of templates) {
-        for (const dialect of TEST_DIALECTS.filter(
-            (each) => template.dialects?.includes(each) ?? true,
-        )) {
-            const image = await TestDatabase.image(template, dialect, { id, directory });
-            images[template.name] = { ...images[template.name], [dialect]: image };
-        }
+    for (const template of templates.filter((each) => each.dialects?.includes(dialect) ?? true)) {
+        images[template.name] = {
+            [dialect]: await TestDatabase.image(template, dialect, { id, directory }),
+        };
     }
 
     // leave the index for the run's setup
@@ -43,4 +43,4 @@ async function write(
 }
 
 // write the templates of the module the run's setup names
-await write(process.argv[2], process.argv[3], process.argv[4]);
+await write(process.argv[2], process.argv[3], process.argv[4], process.argv[5]);

@@ -40,16 +40,16 @@ const file = defineTable(
     MODULE,
 );
 
-/** The size of the file the reader reads, the largest integer a double keeps exact. */
+/** The size of the file the reader reads, the largest integer a double represents exactly. */
 const FILE_SIZE = 2n ** 53n - 1n;
 
-/** A file size past the integers a number keeps exact, 2^62. */
+/** A file size past the integers a number represents exactly, 2^62. */
 const LARGE_SIZE = 2n ** 62n;
 
 /** The bytes of the file the reader reads. */
 const FILE_CONTENT = new Uint8Array([0, 1, 254, 255]);
 
-/** Entries each namespaced database logs in the database's own scope. */
+/** Entries each namespaced database logs in the database's scope. */
 const entry = defineTable(
     "entry",
     { id: text("id").primaryKey(), title: text("title").notNull() },
@@ -60,7 +60,7 @@ const entry = defineTable(
 /** The database of entries a workload declares. */
 export const entries = defineDatabase({ name: "entries", tables: [entry] }, MODULE);
 
-/** The database resource the object keeps for a workload. */
+/** The database resource the object stores for a workload. */
 const RECORD = {
     id: ResourceId.parse("database-01996ab0-0000-7000-8000-00000000d002"),
     scope: "space-1",
@@ -73,12 +73,12 @@ const UNKEPT = () => ({
     fetch: () => Promise.reject(new TypeError("the scenario has no content")),
 });
 
-/** A Durable Object keeping notes in its SQLite storage through a Destack connection. */
+/** A Durable Object that stores notes in its SQLite storage through a Destack connection. */
 export class Notes {
-    /** The databases the object keeps in its storage. */
+    /** The databases the object stores in its storage. */
     readonly databases: DurableObjectDatabaseHost;
 
-    /** Keep the object's databases in its storage. */
+    /** Store the object's databases in its storage. */
     constructor(state: { readonly storage: DurableObjectStorage }) {
         this.databases = new DurableObjectDatabaseHost(state.storage);
     }
@@ -105,9 +105,9 @@ export class Notes {
         return await this.notes();
     }
 
-    /** Write in a transaction, then refuse its client kept past it while another runs. */
+    /** Write in a transaction, then refuse its client used past it while another runs. */
     async leaked(): Promise<Response> {
-        // keep the client of a committed transaction
+        // return the client of a committed transaction
         const database = this.databases.connect([note]);
         await database.migrate([note]);
         const kept = await database.transaction(async (transaction) => {
@@ -116,7 +116,7 @@ export class Notes {
             return transaction;
         });
 
-        // refuse the kept client while a later transaction is open, which keeps only its own write
+        // refuse the stale client while a later transaction is open, which commits only its write
         const refused = await database.transaction(async (transaction) => {
             await transaction.insert(note).values({ id: "b", title: "Later" });
 
@@ -156,7 +156,7 @@ export class Notes {
             )
             .orderBy(note.id);
 
-        // write a file whose size a number cannot keep exact, and read the stored integer as text
+        // write a file whose size a number cannot store exactly, and read the integer as text
         await database.insert(file).values({ id: "g", size: LARGE_SIZE, content: FILE_CONTENT });
         const [stored] = this.databases.storage.sql
             .exec(`SELECT CAST(size AS TEXT) AS size FROM "${file[TABLE].sqlName}"`)
@@ -248,7 +248,7 @@ export class Notes {
 
     /** Read notes and a file through a reader of this object's database, refusing a write. */
     async reader(): Promise<Response> {
-        // keep two notes and a file
+        // write two notes and a file
         const database = this.databases.connect([note, file]);
         await database.migrate([note, file]);
         await database.insert(note).values(["a", "b"].map((id) => ({ id, title: `Note ${id}` })));
@@ -267,7 +267,7 @@ export class Notes {
             .from(file)
             .where(and(eq(file.size, FILE_SIZE), eq(file.content, FILE_CONTENT)));
 
-        // keep a note in a namespace of the object, and read it through a reader of that namespace
+        // write a note in a namespace of the object, and read it through a reader of that namespace
         const spaced = this.databases.connect([note], { namespace: "space-2" });
         await spaced.migrate([note]);
         await spaced.insert(note).values({ id: "n", title: "Spaced" });
@@ -307,9 +307,9 @@ export class Notes {
         });
     }
 
-    /** Keep two databases of one declaration in the storage, each with namespace and log. */
+    /** Store two databases of one declaration in the storage, each with namespace and log. */
     async namespaces(): Promise<Response> {
-        // migrate the same table in two namespaces, each logged in its own scope
+        // migrate the same table in two namespaces, each logged in its scope
         const databases = [
             this.databases.connect([entry], { namespace: "first" }),
             this.databases.connect([entry], { namespace: "second" }),
@@ -341,13 +341,13 @@ export class Notes {
         await database.migrate([note]);
         await database.insert(note).values({ id: "a", title: "Kept" });
 
-        // keep the outer write when a nested transaction fails
-        await database.transaction(async (outer) => {
-            await outer.insert(note).values({ id: "b", title: "Outer" });
-            await outer
-                .transaction(async (inner) => {
-                    await inner.insert(note).values({ id: "c", title: "Undone" });
-                    throw new Error("undo the inner write");
+        // commit the transaction's write when a nested transaction fails
+        await database.transaction(async (transaction) => {
+            await transaction.insert(note).values({ id: "b", title: "Outer" });
+            await transaction
+                .transaction(async (nested) => {
+                    await nested.insert(note).values({ id: "c", title: "Undone" });
+                    throw new Error("undo the nested write");
                 })
                 .catch(() => undefined);
         });

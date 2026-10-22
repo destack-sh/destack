@@ -26,7 +26,7 @@ const READ = /^\s*(?:SELECT|WITH)\b/iu;
 /** A verb that writes, as a main statement, a common table's body or a row lock. */
 const WRITING = /\b(?:INSERT|UPDATE|DELETE)\b|\bREPLACE\s+INTO\b/iu;
 
-/** A statement's quoted parts: string literals and quoted identifiers. */
+/** A statement's quoted spans: string literals and quoted identifiers. */
 const QUOTED = /'(?:[^']|'')*'|"(?:[^"]|"")*"/gu;
 
 /** A statement's text and positional parameters, some of them filled by name when it runs. */
@@ -133,7 +133,7 @@ export function fill(
 interface Target {
     /** The SQL dialect. */
     readonly dialect: Dialect;
-    /** The database's namespace in a shared store, absent for a database of its own. */
+    /** The database's namespace in a shared store, absent for a separate database. */
     readonly namespace: string | undefined;
     /** The cipher sealing sensitive columns' values, absent for a database without them. */
     readonly cipher: ColumnCipher | undefined;
@@ -162,7 +162,7 @@ function renderColumn(column: Column, target: Target): string {
 /** Render one chunk, binding or writing its values. */
 function renderChunk(chunk: Chunk, target: Target): string {
     const dialect = target.dialect;
-    // keep raw text
+    // write raw text as it is
     if (typeof chunk === "string") {
         return chunk;
     }
@@ -196,14 +196,14 @@ function renderChunk(chunk: Chunk, target: Target): string {
     else if (Column.is(chunk)) {
         return renderColumn(chunk, target);
     }
-    // render an alias by its own name, and a table within the database's namespace
+    // render an alias by its name, and a table within the database's namespace
     else if (chunk instanceof Table) {
         const { source, sqlName } = chunk[TABLE];
         target.tables?.add((source ?? chunk)[TABLE].sqlName);
 
         return quote(source === undefined ? relation(sqlName, target.namespace) : sqlName);
     }
-    // render a fragment's parts
+    // render a fragment's chunks
     else if (chunk instanceof SQL) {
         return renderChunk(chunk.chunks, target);
     }
