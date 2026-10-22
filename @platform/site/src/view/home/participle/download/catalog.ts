@@ -1,4 +1,36 @@
-import { Catalog, type CatalogDownload } from "@platform/release/catalog";
+import { schema } from "@destack/schema";
+
+/** One public archive or installer in the download catalog. */
+const CatalogDownload = schema.object({
+    /** Calendar version reported by the installed programs. */
+    version: schema.string(),
+    /** Immutable HTTPS artifact URL. */
+    url: schema.string(),
+    /** Lowercase SHA-256 artifact digest. */
+    sha256: schema.string(),
+    /** Exact archive length in bytes. */
+    size: schema.number(),
+});
+
+/** One public archive or installer in the download catalog. */
+type CatalogDownload = schema.Infer<typeof CatalogDownload>;
+
+// NOTE #Architecture: mirrors @platform/release's Catalog so the site skips release's build closure
+/** The public download choices of one signed release. */
+const Catalog = schema.object({
+    /** Calendar version shared by every download. */
+    version: schema.string(),
+    /** Platform-specific archives and installers, by target or installer name. */
+    downloads: schema.record(
+        schema.string(),
+        schema.object({
+            /** Complete archive consumed by the authenticated updater. */
+            archive: CatalogDownload.exactOptional(),
+            /** Native installers keyed by their file format. */
+            installers: schema.partialRecord(schema.enum(["dmg"]), CatalogDownload),
+        }),
+    ),
+});
 
 /** The platform name of each published desktop distribution target. */
 const LABELS = {
