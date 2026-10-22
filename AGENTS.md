@@ -306,10 +306,11 @@ Keep state minimal and explicit:
 - **WS02** Functions SHOULD be pure, taking context explicitly, usually as the last argument.
 - **WS03** Fields and dependencies SHOULD be few.
 - **WS04** Fewer state combinations is better, less entropy is better. 
+- **WS05** Stronger types with lower entropy (less optionals, strong enums, newtypes, etc.) SHOULD be preferred over "wider"  types.
 
 Minimise and model indirect state:
 - **WS10** Indirect state (global, static, etc.) SHOULD be minimised and is generally considered evil by default and ALL global state new and pre-existing MUST be reported (this includes those inside classes or similar such constructs, *any* hidden side channel state).
-- **WS11** General effect state (time, file system, network, etc.) SHOULD use the platform idiomatic mechanism and MAY be encapsulated in an indirection. 
+- **WS11** General effect state (time, file system, network, etc.) SHOULD use the platform idiomatic mechanism and MAY be encapsulated in an indirection.
 
 Name intermediate values:
 - **WS20** Trivial operations such as unary operators MAY skip temporary variables.
