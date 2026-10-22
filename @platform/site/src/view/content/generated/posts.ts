@@ -46,7 +46,7 @@ export type TableOfContentsEntry = {
 export const blogIndex = {
     markdownRoute: "/blog/index.md",
     textRoute: "/blog/index.txt",
-    tokens: 24,
+    tokens: 25,
 };
 
 /** The generated blog posts. */
@@ -54,7 +54,7 @@ export const posts = [
     {
         author: "Florian",
         contentRoute:
-            "/_content/tree/036238cd7c5057c41036dcabd705302ba5d26aa6d976b6ac020d403982fb9112.json",
+            "/_content/tree/d022fd6f324a46fff2d37cc263be815f8a6b8b6951ffff2feddfb354ca0baa6a.json",
         cover: {
             image: {
                 src: "/_content/assets/9f1ff7f1d24e2f62.jpg",
@@ -186,7 +186,7 @@ export const posts = [
         markdownRoute: "/blog/introducing-destack.md",
         route: "/blog/introducing-destack/",
         slug: "introducing-destack",
-        subtitle: "The open, complete, hackable stack for personal software.",
+        subtitle: "The open, standardised, hackable stack for personal software.",
         tableOfContents: [
             { depth: 1, id: "higher-order-programming", text: "Higher Order Programming" },
             { depth: 1, id: "the-software-engine", text: "The Software Engine" },
@@ -194,7 +194,7 @@ export const posts = [
         ],
         textRoute: "/blog/introducing-destack.txt",
         title: "Introducing Destack",
-        tokens: 2746,
+        tokens: 2751,
     },
 ] as const satisfies readonly Post[];
 

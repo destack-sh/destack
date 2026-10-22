@@ -1,4 +1,4 @@
-import { buildPackage, PackageBuild, readDependencies } from "@destack/build";
+import { CompilerPool, LocalPackageStore, PackageBuild, Workspace } from "@destack/build";
 import { DevelopmentServer, type MetadataOptions, type WebOptions } from "@destack/web/build";
 import { cp, mkdir, readFile, rm } from "node:fs/promises";
 import process from "node:process";
@@ -51,11 +51,12 @@ export async function run(command: string | undefined): Promise<void> {
     }
     // publish only the browser output, keeping inspection and source files private
     else if (command === "build") {
-        await using build = await buildPackage({
-            directory,
-            outputs: { website: application },
-            dependencies: await readDependencies(directory),
-        });
+        await using store = await LocalPackageStore.checkout(directory, "development");
+        await using compilers = await CompilerPool.open(store);
+        const workspace = await Workspace.open(directory, compilers);
+        await using build = await workspace.build({ outputs: { website: application } });
+
+        // write the package, then copy its browser output to the public directory
         const output = join(directory, ".output");
         await rm(output, { recursive: true, force: true });
         await mkdir(output, { recursive: true });

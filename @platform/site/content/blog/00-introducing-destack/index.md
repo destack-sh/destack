@@ -1,16 +1,16 @@
 ---
 title: "Introducing Destack"
-subtitle: "The open, complete, hackable stack for personal software."
+subtitle: "The open, standardised, hackable stack for personal software."
 date: "2026-10-24"
 author: "Florian"
 ---
 
 > [!ABSTRACT]
-> Destack is a software engine for building and deploying application software - like Unreal Engine, but for general purpose software.
-> Think GitHub + NPM + Convex + Vercel + Sentry, with all the boilerplate complete: auth, migrations, multiplayer, permissions, workflows, telemetry, and infra.
->
-> Integrate your agents into programmable first-party apps, and then remix your own custom apps on one trusted foundation.
-> Destack is built around one hackable "platform core" with open formats and standards, so integration and migration are just one prompt.
+> Destack is an open-source software engine for general purpose application software, just like Unity and Unreal are engines for games.
+> Think GitHub + NPM + Convex + Vercel + Sentry with all the boring decisions already made: auth, schemas, migrations, multiplayer, permissions, workflows, telemetry.
+> 
+> The Destack comprises both the platform core for building malleable software _and_ standardised apps representing classic SaaS (think Notion, Linear, Miro).
+> Everything built on Destack is fully standardised and integrated by default, and thus fully hackable and programmable by your agents.
 >
 > [Skip to The Destack](#the-destack)
 
@@ -28,12 +28,12 @@ Now, the technical debt accumulated over decades of organic software growth is c
 Probabilistic computing is finally here, and we _could_ infuse intelligence into all software, but we're stuck on an opaque stack that rejects integration and modification at every layer.
 Instead, we got "APIs" and now "MCPs".
 
+The familiar features that make modern software modern - cloud-based, multiplayer, multi-vendor, multi-stack - also make it hostile to agents.
+Fragmenting context and siloing control as thoroughly across the old stack is exactly the opposite of what personalised, malleable, intelligence-infused software needs. 
+
 > To put it quite bluntly: as long as there were no machines, programming was no problem at all; when we had a few weak computers, programming became a mild problem, and now we have gigantic computers, programming has become an equally gigantic problem.
 >
 > — Edsger Dijkstra, *The Humble Programmer* (1972)
-
-The familiar features that make modern software "modern" - SaaS, multiplayer, multi-vendor, multi-cloud, heterogeneity - also make it hostile to agents.
-Fragmenting context and siloing control as thoroughly as the old stack does is exactly the opposite of what personalised, malleable, intelligence-infused software needs. 
 
 Half a century after the last software crisis, the computing stack is once again buckling under the weight, volume and speed of a more powerful machine.
 Once again, we get to retrace from the beginning, reconsider what programming even means, and reshape what 21st-century software should look like.
@@ -53,7 +53,8 @@ We used to solve software-shaped problems with artisanal next-character-predicti
 
 Indeed, there was programming before code, there is programming after code - and programming _alongside_ code already has rich prior art!
 Game developers have iterated on multimodal software production over decades:
-early game development was a schlep where only a tiny guild of brilliant nerds managed to produce presentable commercial games.
+early game development was a schlep! 
+Only a tiny guild of brilliant nerds managed to produce presentable commercial games.
 
 To build a game, _everyone_ had to write their own graphics, networking, scripting, asset pipelines, editors - a whole engine for every game, on top of the actual game!
 Then, we figured out how to package the hard bits into reusable components, and those into complete, higher-level packages we call "game engines".
@@ -62,7 +63,7 @@ Then, we figured out how to package the hard bits into reusable components, and 
 [150 Extra Engineers, 1951](https://commons.wikimedia.org/wiki/File:IBM_150_Extra_Engineers_1951.jpg) — IBM.
 
 Crucially, modern game engines go _far_ beyond traditional "software frameworks" like Django or Rails or some blend of cloud services. 
-The best game engines are integrated software platforms: a runtime, an editor, tools, VCS integrations, netcode, a deployment platform, and myriad affordances for prototyping, iterating, refining, and shipping games.
+The best game engines are integrated software platforms: a runtime, an editor, tools, packaging, netcode, a deployment platform, and myriad affordances for prototyping, iterating, refining, and shipping games.
 
 Like most new abstractions, game engines _initially_ didn't provide quite the same level of control as their underlying substrate.
 Over time, however, building with a game engine became so much more productive that it enabled a new scale of project, and empowered a new type of contributor - designers, writers, and artists could now contribute _directly_.
