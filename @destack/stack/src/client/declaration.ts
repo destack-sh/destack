@@ -14,7 +14,7 @@ export interface Declaration {
 
 /** Reads of the declarations a space's installations apply. */
 export const Declaration = {
-    /** Read the declarations of some kinds each enabled, applied installation of a space declares. */
+    /** Read the declarations of some kinds a space's enabled, applied installations declare. */
     async read(
         stack: StackClient,
         spaceId: Identifier<"space">,
