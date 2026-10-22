@@ -6,7 +6,7 @@ import { PermissionReference } from "../declare/policy.ts";
 export const Decision = schema.object({
     /** Whether the caller has the permission. */
     isAllowed: schema.boolean(),
-    /** The next time the decision may change on its own, absent if only access changes can. */
+    /** The next time the decision may change by itself, absent if only access changes can. */
     until: schema.number().int().exactOptional(),
 });
 /** Whether a caller has a permission on one object, and until when. */

@@ -128,7 +128,7 @@ export function readersOf(reference: string, field: string): AccessExpression {
     };
 }
 
-/** Permit the principals inside a scope, its enclosed scopes, and the scope's own principal. */
+/** Permit the principals inside a scope, its enclosed scopes, and the scope's principal. */
 export function contained(...principals: readonly Policy[]): AccessExpression {
     return principals.length === 0
         ? { kind: "contained" }
@@ -141,7 +141,7 @@ export function contained(...principals: readonly Policy[]): AccessExpression {
           };
 }
 
-/** Permit the principal the object represents, acting on its own row. */
+/** Permit the principal the object represents, acting on its row. */
 export function self(): AccessExpression {
     return { kind: "self" };
 }

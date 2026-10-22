@@ -30,7 +30,7 @@ export const TOKEN_LIFETIME_MILLISECONDS = 60000;
 export const MACHINE_KEY = "machine-key";
 /** The credential kind of an installation's key. */
 export const INSTALLATION_KEY = "installation-key";
-/** The credential kind of a token that a space's own key signs. */
+/** The credential kind of a token that a space's key signs. */
 export const SPACE_KEY = "space-key";
 
 /** The schema of the verified identity an access token signs. */
@@ -287,9 +287,9 @@ export const TokenIssuerAuthority = {
     },
 };
 
-/** Read a token's client: none for the sender's own key, else a user's client. */
+/** Read a token's client: none for the sender's key, else a user's client. */
 function clientOf(token: AccessToken): { readonly client?: Identifier<"client"> } | undefined {
-    // take the sender's own key, the last delegate or else the subject, else require a client
+    // take the sender's key, the last delegate or else the subject, else require a client
     const sender = token.act?.at(-1)?.id ?? token.sub;
     const client = schema.identifier("client").safeParse(token.client_id);
     if (token.client_id === sender) {
@@ -303,10 +303,10 @@ function clientOf(token: AccessToken): { readonly client?: Identifier<"client"> 
 
 /** Require a space key's claims to assert only the space or its installations. */
 function requireSpaceSubjects(space: string, caller: Caller, subjects: readonly Subject[]): void {
-    const isOwn = (subject: Subject) =>
+    const isSpaceSubject = (subject: Subject) =>
         (principal.space.is(subject) && subject.id === space) ||
         (principal.installation.is(subject) && subject.scope === space);
-    if (caller.contacts.length > 0 || caller.actors.length > 0 || !subjects.every(isOwn)) {
+    if (caller.contacts.length > 0 || caller.actors.length > 0 || !subjects.every(isSpaceSubject)) {
         throw new AccessError("UNAUTHORIZED", "token exceeds issuer authority");
     }
 }

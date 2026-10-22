@@ -36,7 +36,7 @@ export const accessInvitation = defineTable(
         roleId: identifier("role_id", "role").references(() => accessRole.id, {
             onDelete: "cascade",
         }),
-        /** The package of the principal who invited, absent for the system's own invitations. */
+        /** The package of the principal who invited, absent for the system's invitations. */
         inviterPackageId: identifier("inviter_package_id", "package"),
         /** The type of the principal who invited. */
         inviterType: text("inviter_type"),

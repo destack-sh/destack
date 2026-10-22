@@ -44,16 +44,20 @@ test("prefer a policy representing a principal and refuse two policies for one t
     );
 });
 
-test("grant relations through the policy's grant permission unless they name another or none", () => {
+test("grant relations through the policy's grant permission unless they declare another or none", () => {
     // declare a shared folder with system-related owners and root ownership
     const folder = new Policy(module1.package, {
         name: "folder",
         relations: {
             member: { subjects: [principal.user] },
-            root: { subjects: [principal.user], grantedBy: "own" },
+            root: { subjects: [principal.user], grantedBy: "administer" },
             owner: { subjects: [principal.user], grantedBy: null },
         },
-        permissions: { share: relation("member"), own: relation("root"), read: relation("owner") },
+        permissions: {
+            share: relation("member"),
+            administer: relation("root"),
+            read: relation("owner"),
+        },
         grantedBy: "share",
     });
 
@@ -62,7 +66,7 @@ test("grant relations through the policy's grant permission unless they name ano
         Object.entries(folder.definition.relations).map(([name, entry]) => [name, entry.grantedBy]),
     ).toEqual([
         ["member", "share"],
-        ["root", "own"],
+        ["root", "administer"],
         ["owner", undefined],
     ]);
 });

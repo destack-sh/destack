@@ -1,6 +1,6 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { asc, defineTable, Transaction, text, defineDatabase } from "@destack/db";
-import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
+import { TestDatabase } from "@destack/db/test";
 import {
     accessTables,
     Authorization,
@@ -37,7 +37,7 @@ const photo = new Policy(module1.package, {
     contributes: [{ policy: remark, relation: "parent" }],
 });
 
-/** The rows of an owned host type. */
+/** The rows of a host type with an owner. */
 function hostTable(name: string) {
     return defineTable(name, {
         id: text("id").primaryKey(),
@@ -59,7 +59,7 @@ const remarks = defineTable("attachment_remark", {
     parentId: text("parent_id").notNull(),
 });
 
-/** Map an owned host type onto its rows. */
+/** Map a host type with an owner onto its rows. */
 function hostMapping(policy: Policy, table: typeof articles): TableMapping {
     return {
         policy,
@@ -94,102 +94,98 @@ const mappings: TableMapping[] = [
     },
 ];
 
-test.for(TEST_DIALECTS)(
-    "allow a remark exactly when the caller may read its parent, of whichever type it is, on %s",
-    async (dialect) => {
-        const storage = await TestDatabase.create(
-            dialect,
-            defineDatabase({
-                name: "attachment",
-                tables: [...accessTables, articles, photos, remarks],
-            }),
-            { isMigrated: true },
-        );
-        onTestFinished(() => storage.close());
-        const { database } = storage;
-        const authorizer = new Authorizer([article, photo, remark], mappings);
+test("allow a remark exactly when the caller may read its parent, of whichever type it is", async () => {
+    const storage = await TestDatabase.create(
+        defineDatabase({
+            name: "attachment",
+            tables: [...accessTables, articles, photos, remarks],
+        }),
+        { isMigrated: true },
+    );
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    const authorizer = new Authorizer([article, photo, remark], mappings);
 
-        // give alice an article and a photo, bob an article, and remark on each
-        await database.insert(articles).values([
-            { id: "a1", scope: "personal", owner: "alice" },
-            { id: "a2", scope: "personal", owner: "bob" },
-        ]);
-        await database.insert(photos).values([{ id: "p1", scope: "personal", owner: "alice" }]);
-        const packageId = module1.package.id;
-        await database.insert(remarks).values([
-            {
-                id: "r1",
-                scope: "personal",
-                parentPackageId: packageId,
-                parentType: "article",
-                parentId: "a1",
-            },
-            {
-                id: "r2",
-                scope: "personal",
-                parentPackageId: packageId,
-                parentType: "photo",
-                parentId: "p1",
-            },
-            {
-                id: "r3",
-                scope: "personal",
-                parentPackageId: packageId,
-                parentType: "article",
-                parentId: "a2",
-            },
-            {
-                id: "r4",
-                scope: "personal",
-                parentPackageId: packageId,
-                parentType: "photo",
-                parentId: "a1",
-            },
-        ]);
+    // give alice an article and a photo, bob an article, and remark on each
+    await database.insert(articles).values([
+        { id: "a1", scope: "personal", owner: "alice" },
+        { id: "a2", scope: "personal", owner: "bob" },
+    ]);
+    await database.insert(photos).values([{ id: "p1", scope: "personal", owner: "alice" }]);
+    const packageId = module1.package.id;
+    await database.insert(remarks).values([
+        {
+            id: "r1",
+            scope: "personal",
+            parentPackageId: packageId,
+            parentType: "article",
+            parentId: "a1",
+        },
+        {
+            id: "r2",
+            scope: "personal",
+            parentPackageId: packageId,
+            parentType: "photo",
+            parentId: "p1",
+        },
+        {
+            id: "r3",
+            scope: "personal",
+            parentPackageId: packageId,
+            parentType: "article",
+            parentId: "a2",
+        },
+        {
+            id: "r4",
+            scope: "personal",
+            parentPackageId: packageId,
+            parentType: "photo",
+            parentId: "a1",
+        },
+    ]);
 
-        // decide each remark in memory and by query
-        const alice: AccessContext = {
-            grants: [],
-            subject: principal.user.reference("universe", "alice"),
-            actors: [],
-            groups: [],
-            contacts: [],
-            linkSecrets: [],
-            now: 1000,
-            attributes: {},
-        };
-        const authorization = new Authorization(
-            authorizer,
-            await Transaction.open(database),
-            () => alice,
+    // decide each remark in memory and by query
+    const alice: AccessContext = {
+        grants: [],
+        subject: principal.user.reference("universe", "alice"),
+        actors: [],
+        groups: [],
+        contacts: [],
+        linkSecrets: [],
+        now: 1000,
+        attributes: {},
+    };
+    const authorization = new Authorization(
+        authorizer,
+        await Transaction.open(database),
+        () => alice,
+    );
+    const decided = [];
+    for (const id of ["r1", "r2", "r3", "r4"]) {
+        const decision = await authorization.check(
+            remark.permission("read"),
+            remark.reference("personal", id),
         );
-        const decided = [];
-        for (const id of ["r1", "r2", "r3", "r4"]) {
-            const decision = await authorization.check(
+        decided.push([id, decision.isAllowed]);
+    }
+    const queried = await database
+        .select({ id: remarks.id })
+        .from(remarks)
+        .where(
+            authorization.authorizer.where(
                 remark.permission("read"),
-                remark.reference("personal", id),
-            );
-            decided.push([id, decision.isAllowed]);
-        }
-        const queried = await database
-            .select({ id: remarks.id })
-            .from(remarks)
-            .where(
-                authorization.authorizer.where(
-                    remark.permission("read"),
-                    await authorization.in("personal"),
-                    remarks,
-                ),
-            )
-            .orderBy(asc(remarks.id));
+                await authorization.in("personal"),
+                remarks,
+            ),
+        )
+        .orderBy(asc(remarks.id));
 
-        // allow the remarks on her own article and photo, never bob's article or a photo that does not exist
-        expect(decided).toEqual([
-            ["r1", true],
-            ["r2", true],
-            ["r3", false],
-            ["r4", false],
-        ]);
-        expect(queried.map((row) => row.id)).toEqual(["r1", "r2"]);
-    },
-);
+    // allow the remarks on her article and photo, never bob's article or a photo that does not exist
+    expect(decided).toEqual([
+        ["r1", true],
+        ["r2", true],
+        ["r3", false],
+        ["r4", false],
+    ]);
+    expect(queried.map((row) => row.id)).toEqual(["r1", "r2"]);
+});

@@ -1,6 +1,5 @@
-import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
+import { TestDatabase } from "@destack/db/test";
 import type { Subject } from "@destack/sync";
-import { nth } from "@destack/schema";
 import { fixtureDatabase, item, mappings, node, policies, rows } from "./fixture.ts";
 import {
     ACCESS_PACKAGE_ID,
@@ -16,9 +15,9 @@ import {
 const CREDENTIAL_MILLISECONDS = 60_000;
 
 /** Open a migrated database, PostgreSQL if configured, with two users and no rows. */
-export async function openDatabase(dialect = nth(TEST_DIALECTS, -1)) {
+export async function openDatabase() {
     // open the database and authorize its objects
-    const test = await TestDatabase.create(dialect, fixtureDatabase, { isMigrated: true });
+    const test = await TestDatabase.create(fixtureDatabase, { isMigrated: true });
     const { database } = test;
     const authorizer = new Authorizer(policies, mappings);
 
@@ -45,9 +44,9 @@ export async function openDatabase(dialect = nth(TEST_DIALECTS, -1)) {
 }
 
 /** Open a migrated application database, PostgreSQL if configured, with its notes and one grant. */
-export async function openFixture(dialect = nth(TEST_DIALECTS, -1)) {
+export async function openFixture() {
     // populate the database and grant bob one note
-    const opened = await openDatabase(dialect);
+    const opened = await openDatabase();
     const { database, authorizer, alice } = opened;
     await database.insert(item).values(rows);
     await Authorization.run(

@@ -186,7 +186,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         disconnected.authenticate(request, issuedAt * 1000, spaceId),
     ).rejects.toMatchObject({ code: "KEYS_UNAVAILABLE" });
 
-    // carry workload identity, delegates and their grants through signing and verification
+    // sign and verify workload identity, delegates and their grants
     const actor: Subject = principal.installation.reference(spaceId, "software-example");
     const deploymentId = schema
         .identifier("deployment")
@@ -336,7 +336,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         localVerifier.authenticate(request, issuedAt * 1000, spaceId),
     ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
 
-    // accept only the space's own deployed software
+    // accept only the space's deployed software
     const workload = {
         caller: Caller.of(actor),
         credential: {
@@ -362,7 +362,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         code: "UNAUTHORIZED",
     });
 
-    // accept the installation its own key authenticated without a deployment
+    // accept the installation its key authenticated without a deployment
     const keyed = {
         ...withoutDeployments,
         credential: {
@@ -416,7 +416,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
     ]);
 });
 
-test("issue the universe a token of its own key, verified without a separate client", async () => {
+test("issue the universe a token of its key, verified without a separate client", async () => {
     // sign as the universe's authority
     const keys = await generateKeyPair("ES256");
     const publicKey = { ...(await exportJWK(keys.publicKey)), kid: "current", alg: "ES256" };

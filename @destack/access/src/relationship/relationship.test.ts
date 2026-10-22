@@ -2,7 +2,6 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { type ObjectReference, Subject } from "@destack/sync";
 import { nth } from "@destack/schema";
 import { Snapshot, asc, eq } from "@destack/db";
-import { TEST_DIALECTS } from "@destack/db/test";
 import {
     ACCESS_MAPPINGS,
     accessInvitation,
@@ -21,322 +20,305 @@ import {
 import { mappings, node, policies } from "../test/fixture.ts";
 import { openFixture } from "../test/database.ts";
 
-test.for(TEST_DIALECTS)(
-    "show an object's relationships to its readers, a concealed relation's only to its subject and whoever may grant it, on %s",
-    async (dialect) => {
-        // open the fixture, where alice owns node b and granted bob editing it
-        const fixture = await openFixture(dialect);
-        onTestFinished(() => fixture.close());
-        const authorizer = new Authorizer(policies, [...mappings, ...ACCESS_MAPPINGS]);
-        const carol: AccessContext = {
-            ...fixture.alice,
-            subject: principal.user.reference("universe", "carol"),
-            groups: [],
-        };
+test("show an object's relationships to its readers, a concealed relation's only to its subject and whoever may grant it", async () => {
+    // open the fixture, where alice is the owner of node b and granted bob editing it
+    const fixture = await openFixture();
+    onTestFinished(() => fixture.close());
+    const authorizer = new Authorizer(policies, [...mappings, ...ACCESS_MAPPINGS]);
+    const carol: AccessContext = {
+        ...fixture.alice,
+        subject: principal.user.reference("universe", "carol"),
+        groups: [],
+    };
 
-        // list the relationships each caller may read
-        const visible = async (context: AccessContext) => {
-            const access = await authorizer.resolve(
-                Snapshot.live(fixture.database),
-                "personal",
-                context,
-            );
-            const rows = await fixture.database
+    // list the relationships each caller may read
+    const visible = async (context: AccessContext) => {
+        const access = await authorizer.resolve(
+            Snapshot.live(fixture.database),
+            "personal",
+            context,
+        );
+        const rows = await fixture.database
+            .select({
+                objectId: accessRelationship.objectId,
+                subjectId: accessRelationship.subjectId,
+            })
+            .from(accessRelationship)
+            .where(authorizer.where(relationship.permission("read"), access, accessRelationship))
+            .orderBy(asc(accessRelationship.id));
+
+        return rows.map((row) => `${row.objectId}:${row.subjectId}`);
+    };
+
+    // show the grant to its grantor and its subject, and to no one else
+    expect(await visible(fixture.alice)).toEqual(["b:bob"]);
+    expect(await visible(fixture.bob)).toEqual(["b:bob"]);
+    expect(await visible(carol)).toEqual([]);
+
+    // let carol read node b, and alice add dave as its concealed auditor
+    const sharing = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
+        Authorization.run(authorizer, fixture.database, () => fixture.alice, call);
+    const object = node.reference("personal", "b");
+    await sharing((authorization) =>
+        Relationship.grant(
+            {
+                object,
+                relation: "viewer",
+                subject: principal.user.reference("universe", "carol"),
+            },
+            authorization,
+        ),
+    );
+    await sharing((authorization) =>
+        Relationship.grant(
+            {
+                object,
+                relation: "auditor",
+                subject: principal.user.reference("universe", "dave"),
+            },
+            authorization,
+        ),
+    );
+    const dave: AccessContext = {
+        ...fixture.alice,
+        subject: principal.user.reference("universe", "dave"),
+        groups: [],
+    };
+
+    // show every relationship to the reader, the auditor to its granter and itself only
+    expect(await visible(carol)).toEqual(["b:bob", "b:carol"]);
+    expect(await visible(fixture.bob)).toEqual(["b:bob", "b:carol"]);
+    expect(await visible(fixture.alice)).toEqual(["b:bob", "b:carol", "b:dave"]);
+    expect(await visible(dave)).toEqual(["b:bob", "b:carol", "b:dave"]);
+});
+
+test("show an invitation to its inviting principal, its addressee and whoever may grant on its object", async () => {
+    // open the fixture, where alice is the owner of node b and granted bob editing it
+    const fixture = await openFixture();
+    onTestFinished(() => fixture.close());
+    const authorizer = new Authorizer(policies, [...mappings, ...ACCESS_MAPPINGS]);
+    const as = (id: string): AccessContext => ({
+        ...fixture.alice,
+        subject: principal.user.reference("universe", id),
+        groups: [],
+    });
+
+    // let carol ask to view node b, and alice offer dave viewing it
+    const object = node.reference("personal", "b");
+    await Authorization.run(
+        authorizer,
+        fixture.database,
+        () => as("carol"),
+        (authorization) =>
+            Invitation.create(
+                {
+                    relationship: {
+                        object,
+                        relation: "viewer",
+                        subject: principal.user.reference("universe", "carol"),
+                    },
+                },
+                authorization,
+            ),
+    );
+    await Authorization.run(
+        authorizer,
+        fixture.database,
+        () => fixture.alice,
+        (authorization) =>
+            Invitation.create(
+                {
+                    relationship: {
+                        object,
+                        relation: "viewer",
+                        subject: principal.user.reference("universe", "dave"),
+                    },
+                },
+                authorization,
+            ),
+    );
+
+    // list the invitations each caller may read, by inviting principal and addressee
+    const visible = async (context: AccessContext) => {
+        const access = await authorizer.resolve(
+            Snapshot.live(fixture.database),
+            "personal",
+            context,
+        );
+        const rows = await fixture.database
+            .select({
+                inviter: accessInvitation.inviterId,
+                addressee: accessInvitation.subjectId,
+            })
+            .from(accessInvitation)
+            .where(authorizer.where(invitation.permission("read"), access, accessInvitation))
+            .orderBy(asc(accessInvitation.id));
+
+        return rows.map((row) => `${row.inviter}>${row.addressee}`);
+    };
+
+    // show both to alice as grantor, and each other caller only its relationships
+    const [carol, dave, alice] = ["carol", "dave", "alice"];
+    expect(await visible(fixture.alice)).toEqual([`${carol}>${carol}`, `${alice}>${dave}`]);
+    expect(await visible(as("carol"))).toEqual([`${carol}>${carol}`]);
+    expect(await visible(as("dave"))).toEqual([`${alice}>${dave}`]);
+    expect(await visible(fixture.bob)).toEqual([]);
+});
+
+test("read the invitations on an object to one addressee, leaving out other addressees and objects", async () => {
+    // let alice offer dave viewing node b
+    const fixture = await openFixture();
+    onTestFinished(() => fixture.close());
+    const object = node.reference("personal", "b");
+    const dave = principal.user.reference("universe", "dave");
+    await Authorization.run(
+        fixture.authorizer,
+        fixture.database,
+        () => fixture.alice,
+        (authorization) =>
+            Invitation.create(
+                {
+                    relationship: { object, relation: "viewer", subject: dave },
+                },
+                authorization,
+            ),
+    );
+
+    // read only the offer to dave, none to bob and none to dave on node a
+    const snapshot = Snapshot.live(fixture.database);
+    const read = async (on: ObjectReference, addressee: Subject) =>
+        (await Invitation.readOn(snapshot, on, addressee)).map((offer) => [
+            offer.status,
+            offer.relationship.object.id,
+            offer.relationship.subject.id,
+            offer.inviter?.id,
+        ]);
+    expect([
+        await read(object, dave),
+        await read(object, principal.user.reference("universe", "bob")),
+        await read(node.reference("personal", "a"), dave),
+    ]).toEqual([[["pending", "b", "dave", "alice"]], [], []]);
+});
+
+test("replace a subject's relationships through a relation with exactly the wanted objects as a grantor, refusing anyone else", async () => {
+    // open the fixture, where bob edits node b
+    const fixture = await openFixture();
+    onTestFinished(() => fixture.close());
+    const worker = principal.installation.reference("personal", "worker");
+    const selection = {
+        scope: "personal",
+        objects: [{ packageId: node.definition.packageId, type: node.name }],
+        relation: "editor",
+        subject: worker,
+    };
+    const first = node.reference("personal", "a");
+    const second = node.reference("personal", "b");
+    const third = node.reference("personal", "c");
+    const owner = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
+        Authorization.run(fixture.authorizer, fixture.database, () => fixture.alice, call);
+    const wanting = (...objects: ObjectReference[]) =>
+        objects.map((object) => ({ object, relation: "editor", subject: worker }));
+    const related = async () =>
+        (
+            await fixture.database
                 .select({
                     objectId: accessRelationship.objectId,
                     subjectId: accessRelationship.subjectId,
                 })
                 .from(accessRelationship)
-                .where(
-                    authorizer.where(relationship.permission("read"), access, accessRelationship),
-                )
-                .orderBy(asc(accessRelationship.id));
+                .where(eq(accessRelationship.relation, "editor"))
+                .orderBy(asc(accessRelationship.objectId), asc(accessRelationship.subjectId))
+        ).map((row) => `${row.objectId}:${row.subjectId}`);
 
-            return rows.map((row) => `${row.objectId}:${row.subjectId}`);
-        };
+    // relate the worker to a and b next to bob's grant
+    await owner((authorization) =>
+        Relationship.replace(selection, wanting(first, second), authorization),
+    );
+    expect(await related()).toEqual(["a:worker", "b:bob", "b:worker"]);
 
-        // show the grant to its grantor and its subject, and to no one else
-        expect(await visible(fixture.alice)).toEqual(["b:bob"]);
-        expect(await visible(fixture.bob)).toEqual(["b:bob"]);
-        expect(await visible(carol)).toEqual([]);
+    // move the worker from a to c without touching b's relationship or bob's grant
+    const [stored] = await fixture.database
+        .select({ id: accessRelationship.id })
+        .from(accessRelationship)
+        .where(eq(accessRelationship.objectId, "b"))
+        .orderBy(asc(accessRelationship.subjectId))
+        .limit(1)
+        .offset(1);
+    if (stored === undefined) {
+        throw new Error("node b has no worker relationship");
+    }
+    await owner((authorization) =>
+        Relationship.replace(selection, wanting(second, third), authorization),
+    );
+    const [unchanged] = await fixture.database
+        .select({ id: accessRelationship.id })
+        .from(accessRelationship)
+        .where(eq(accessRelationship.id, stored.id));
+    expect([await related(), unchanged]).toEqual([["b:bob", "b:worker", "c:worker"], stored]);
 
-        // let carol read node b, and alice add dave as its concealed auditor
-        const sharing = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
-            Authorization.run(authorizer, fixture.database, () => fixture.alice, call);
-        const object = node.reference("personal", "b");
-        await sharing((authorization) =>
-            Relationship.grant(
-                {
-                    object,
-                    relation: "viewer",
-                    subject: principal.user.reference("universe", "carol"),
-                },
-                authorization,
-            ),
-        );
-        await sharing((authorization) =>
-            Relationship.grant(
-                {
-                    object,
-                    relation: "auditor",
-                    subject: principal.user.reference("universe", "dave"),
-                },
-                authorization,
-            ),
-        );
-        const dave: AccessContext = {
-            ...fixture.alice,
-            subject: principal.user.reference("universe", "dave"),
-            groups: [],
-        };
+    // remove every relationship of the worker
+    await owner((authorization) => Relationship.replace(selection, wanting(), authorization));
+    expect(await related()).toEqual(["b:bob"]);
 
-        // show every relationship to the reader, the auditor to its granter and itself only
-        expect(await visible(carol)).toEqual(["b:bob", "b:carol"]);
-        expect(await visible(fixture.bob)).toEqual(["b:bob", "b:carol"]);
-        expect(await visible(fixture.alice)).toEqual(["b:bob", "b:carol", "b:dave"]);
-        expect(await visible(dave)).toEqual(["b:bob", "b:carol", "b:dave"]);
-    },
-);
-
-test.for(TEST_DIALECTS)(
-    "show an invitation to its inviting principal, its addressee and whoever may grant on its object on %s",
-    async (dialect) => {
-        // open the fixture, where alice owns node b and granted bob editing it
-        const fixture = await openFixture(dialect);
-        onTestFinished(() => fixture.close());
-        const authorizer = new Authorizer(policies, [...mappings, ...ACCESS_MAPPINGS]);
-        const as = (id: string): AccessContext => ({
-            ...fixture.alice,
-            subject: principal.user.reference("universe", id),
-            groups: [],
-        });
-
-        // let carol ask to view node b, and alice offer dave viewing it
-        const object = node.reference("personal", "b");
-        await Authorization.run(
-            authorizer,
-            fixture.database,
-            () => as("carol"),
-            (authorization) =>
-                Invitation.create(
-                    {
-                        relationship: {
-                            object,
-                            relation: "viewer",
-                            subject: principal.user.reference("universe", "carol"),
-                        },
-                    },
-                    authorization,
-                ),
-        );
-        await Authorization.run(
-            authorizer,
-            fixture.database,
-            () => fixture.alice,
-            (authorization) =>
-                Invitation.create(
-                    {
-                        relationship: {
-                            object,
-                            relation: "viewer",
-                            subject: principal.user.reference("universe", "dave"),
-                        },
-                    },
-                    authorization,
-                ),
-        );
-
-        // list the invitations each caller may read, by inviting principal and addressee
-        const visible = async (context: AccessContext) => {
-            const access = await authorizer.resolve(
-                Snapshot.live(fixture.database),
-                "personal",
-                context,
-            );
-            const rows = await fixture.database
-                .select({
-                    inviter: accessInvitation.inviterId,
-                    addressee: accessInvitation.subjectId,
-                })
-                .from(accessInvitation)
-                .where(authorizer.where(invitation.permission("read"), access, accessInvitation))
-                .orderBy(asc(accessInvitation.id));
-
-            return rows.map((row) => `${row.inviter}>${row.addressee}`);
-        };
-
-        // show both to alice as grantor, and each other caller only its own
-        const [carol, dave, alice] = ["carol", "dave", "alice"];
-        expect(await visible(fixture.alice)).toEqual([`${carol}>${carol}`, `${alice}>${dave}`]);
-        expect(await visible(as("carol"))).toEqual([`${carol}>${carol}`]);
-        expect(await visible(as("dave"))).toEqual([`${alice}>${dave}`]);
-        expect(await visible(fixture.bob)).toEqual([]);
-    },
-);
-
-test.for(TEST_DIALECTS)(
-    "read the invitations on an object to one addressee, leaving out other addressees and objects, on %s",
-    async (dialect) => {
-        // let alice offer dave viewing node b
-        const fixture = await openFixture(dialect);
-        onTestFinished(() => fixture.close());
-        const object = node.reference("personal", "b");
-        const dave = principal.user.reference("universe", "dave");
-        await Authorization.run(
+    // refuse bob, who edits b without sharing it
+    await expect(
+        Authorization.run(
             fixture.authorizer,
             fixture.database,
-            () => fixture.alice,
-            (authorization) =>
-                Invitation.create(
-                    {
-                        relationship: { object, relation: "viewer", subject: dave },
-                    },
-                    authorization,
-                ),
-        );
+            () => fixture.bob,
+            (authorization) => Relationship.replace(selection, wanting(second), authorization),
+        ),
+    ).rejects.toMatchObject({ code: "FORBIDDEN", message: "permission denied: share" });
+});
 
-        // read only the offer to dave, none to bob and none to dave on node a
-        const snapshot = Snapshot.live(fixture.database);
-        const read = async (on: ObjectReference, addressee: Subject) =>
-            (await Invitation.readOn(snapshot, on, addressee)).map((offer) => [
-                offer.status,
-                offer.relationship.object.id,
-                offer.relationship.subject.id,
-                offer.inviter?.id,
-            ]);
-        expect([
-            await read(object, dave),
-            await read(object, principal.user.reference("universe", "bob")),
-            await read(node.reference("personal", "a"), dave),
-        ]).toEqual([[["pending", "b", "dave", "alice"]], [], []]);
-    },
-);
+test("store the relationships a declaration manages under stable identifiers, change them through it, and refuse a caller revoking them outside it", async () => {
+    // open the fixture, where alice is the owner of every node
+    const fixture = await openFixture();
+    onTestFinished(() => fixture.close());
+    const owner = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
+        Authorization.run(fixture.authorizer, fixture.database, () => fixture.alice, call);
+    const manager = Manager.schema.parse({
+        installationId: "installation-01996ab0-0000-7000-8000-000000000001",
+        packageId: "package-01996ab0-0000-7000-8000-000000000002",
+        name: "editor",
+    });
+    const declaring = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
+        owner((authorization) => call(authorization.applying(manager)));
+    const selection = { scope: "personal" };
+    const managed = async () =>
+        (
+            await fixture.database
+                .select({ id: accessRelationship.id, objectId: accessRelationship.objectId })
+                .from(accessRelationship)
+                .where(eq(accessRelationship.managerName, "editor"))
+        ).map((row) => [row.objectId, row.id]);
 
-test.for(TEST_DIALECTS)(
-    "replace a subject's relationships through a relation with exactly the wanted objects as a grantor, refusing anyone else, on %s",
-    async (dialect) => {
-        // open the fixture, where bob edits node b
-        const fixture = await openFixture(dialect);
-        onTestFinished(() => fixture.close());
-        const worker = principal.installation.reference("personal", "worker");
-        const selection = {
-            scope: "personal",
-            objects: [{ packageId: node.definition.packageId, type: node.name }],
-            relation: "editor",
-            subject: worker,
-        };
-        const first = node.reference("personal", "a");
-        const second = node.reference("personal", "b");
-        const third = node.reference("personal", "c");
-        const owner = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
-            Authorization.run(fixture.authorizer, fixture.database, () => fixture.alice, call);
-        const wanting = (...objects: ObjectReference[]) =>
-            objects.map((object) => ({ object, relation: "editor", subject: worker }));
-        const related = async () =>
-            (
-                await fixture.database
-                    .select({
-                        objectId: accessRelationship.objectId,
-                        subjectId: accessRelationship.subjectId,
-                    })
-                    .from(accessRelationship)
-                    .where(eq(accessRelationship.relation, "editor"))
-                    .orderBy(asc(accessRelationship.objectId), asc(accessRelationship.subjectId))
-            ).map((row) => `${row.objectId}:${row.subjectId}`);
+    // store carol's managed grant on a twice under the same identifier
+    await declaring((authorization) =>
+        Relationship.replace(selection, [carolEditing("a")], authorization),
+    );
+    const first = await managed();
+    await declaring((authorization) =>
+        Relationship.replace(selection, [carolEditing("a")], authorization),
+    );
+    expect([first.length, nth(first, 0)[0], await managed()]).toEqual([1, "a", first]);
 
-        // relate the worker to a and b next to bob's grant
-        await owner((authorization) =>
-            Relationship.replace(selection, wanting(first, second), authorization),
-        );
-        expect(await related()).toEqual(["a:worker", "b:bob", "b:worker"]);
-
-        // move the worker from a to c without touching b's relationship or bob's grant
-        const [stored] = await fixture.database
-            .select({ id: accessRelationship.id })
-            .from(accessRelationship)
-            .where(eq(accessRelationship.objectId, "b"))
-            .orderBy(asc(accessRelationship.subjectId))
-            .limit(1)
-            .offset(1);
-        if (stored === undefined) {
-            throw new Error("node b has no worker relationship");
-        }
-        await owner((authorization) =>
-            Relationship.replace(selection, wanting(second, third), authorization),
-        );
-        const [unchanged] = await fixture.database
-            .select({ id: accessRelationship.id })
-            .from(accessRelationship)
-            .where(eq(accessRelationship.id, stored.id));
-        expect([await related(), unchanged]).toEqual([["b:bob", "b:worker", "c:worker"], stored]);
-
-        // remove every relationship of the worker
-        await owner((authorization) => Relationship.replace(selection, wanting(), authorization));
-        expect(await related()).toEqual(["b:bob"]);
-
-        // refuse bob, who edits b without sharing it
-        await expect(
-            Authorization.run(
-                fixture.authorizer,
-                fixture.database,
-                () => fixture.bob,
-                (authorization) => Relationship.replace(selection, wanting(second), authorization),
-            ),
-        ).rejects.toMatchObject({ code: "FORBIDDEN", message: "permission denied: share" });
-    },
-);
-
-test.for(TEST_DIALECTS)(
-    "store the relationships a declaration manages under stable identifiers, change them through it, and refuse a caller revoking them outside it, on %s",
-    async (dialect) => {
-        // open the fixture, where alice owns every node
-        const fixture = await openFixture(dialect);
-        onTestFinished(() => fixture.close());
-        const owner = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
-            Authorization.run(fixture.authorizer, fixture.database, () => fixture.alice, call);
-        const manager = Manager.schema.parse({
-            installationId: "installation-01996ab0-0000-7000-8000-000000000001",
-            packageId: "package-01996ab0-0000-7000-8000-000000000002",
-            name: "editor",
-        });
-        const declaring = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
-            owner((authorization) => call(authorization.applying(manager)));
-        const selection = { scope: "personal" };
-        const managed = async () =>
-            (
-                await fixture.database
-                    .select({ id: accessRelationship.id, objectId: accessRelationship.objectId })
-                    .from(accessRelationship)
-                    .where(eq(accessRelationship.managerName, "editor"))
-            ).map((row) => [row.objectId, row.id]);
-
-        // store carol's managed grant on a twice under the same identifier
-        await declaring((authorization) =>
-            Relationship.replace(selection, [carolEditing("a")], authorization),
-        );
-        const first = await managed();
-        await declaring((authorization) =>
-            Relationship.replace(selection, [carolEditing("a")], authorization),
-        );
-        expect([first.length, nth(first, 0)[0], await managed()]).toEqual([1, "a", first]);
-
-        // refuse alice revoking the managed grant herself, and move it through its declaration
-        const refusal = {
-            code: "CONFLICT",
-            message: "record is managed by its source declaration",
-        };
-        const id = nth(nth(first, 0), 1);
-        await expect(
-            owner((authorization) =>
-                Relationship.revoke(node.reference("personal", "a"), id, authorization),
-            ),
-        ).rejects.toMatchObject(refusal);
-        await declaring((authorization) =>
-            Relationship.replace(selection, [carolEditing("c")], authorization),
-        );
-        expect((await managed()).map(([objectId]) => objectId)).toEqual(["c"]);
-    },
-);
+    // refuse alice revoking the managed grant herself, and move it through its declaration
+    const refusal = {
+        code: "CONFLICT",
+        message: "record is managed by its source declaration",
+    };
+    const id = nth(nth(first, 0), 1);
+    await expect(
+        owner((authorization) =>
+            Relationship.revoke(node.reference("personal", "a"), id, authorization),
+        ),
+    ).rejects.toMatchObject(refusal);
+    await declaring((authorization) =>
+        Relationship.replace(selection, [carolEditing("c")], authorization),
+    );
+    expect((await managed()).map(([objectId]) => objectId)).toEqual(["c"]);
+});
 
 /** Request carol's editing of one personal node. */
 function carolEditing(id: string): RelationshipRequest {

@@ -60,7 +60,7 @@ export const PolicyDescription = schema.object({
     relations: schema.record(
         AccessName,
         schema.object({
-            /** The relation's own subject types, beside an open relation's contributed ones. */
+            /** The relation's declared subject types, beside an open relation's added ones. */
             subjects: schema.array(SubjectType),
             /** The permission whose holders grant and revoke the relation. */
             grantedBy: AccessName.exactOptional(),
@@ -70,7 +70,7 @@ export const PolicyDescription = schema.object({
             isScope: schema.literal(true).exactOptional(),
             /** Whether relationships show only to holders of the granting permission. */
             concealed: schema.literal(true).exactOptional(),
-            /** Whether the rows naming a deleted subject go with it. */
+            /** Whether the rows with a deleted subject go with it. */
             onDelete: schema.literal("cascade").exactOptional(),
         }),
     ),
@@ -95,7 +95,7 @@ export const PolicyDescription = schema.object({
     grantedBy: AccessName.exactOptional(),
     /** Permissions owner roles leave out, granted only by expressions and listing roles. */
     reserved: schema.array(AccessName).exactOptional(),
-    /** The permissions that apply only after the authentication each names. */
+    /** The permissions that apply only after the authentication each requires. */
     elevated: schema.record(AccessName, Elevation.schema).exactOptional(),
     /** Permissions that stay available while the scope is suspended. */
     administration: schema.array(AccessName).exactOptional(),

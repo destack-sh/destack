@@ -8,7 +8,7 @@ import {
     type Table,
     Snapshot,
 } from "@destack/db";
-import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
+import { TestDatabase } from "@destack/db/test";
 import { Scope } from "@destack/sync";
 import {
     accessTables,
@@ -71,7 +71,7 @@ const pieceTable = defineTable("example_piece", {
 });
 
 /** Map a type onto its table, with an owner in the universe. */
-function ownedMapping(policy: Policy, table: Table): TableMapping {
+function ownerMapping(policy: Policy, table: Table): TableMapping {
     return {
         policy,
         table,
@@ -84,8 +84,8 @@ function ownedMapping(policy: Policy, table: Table): TableMapping {
 
 /** Map each type onto its table. */
 const mappings: TableMapping[] = [
-    ownedMapping(page, pageTable),
-    ownedMapping(sheet, sheetTable),
+    ownerMapping(page, pageTable),
+    ownerMapping(sheet, sheetTable),
     {
         policy: piece,
         table: pieceTable,
@@ -127,72 +127,68 @@ async function restricted(
     };
 }
 
-test.each(TEST_DIALECTS)(
-    "allow a derived permission exactly where a grant allows its source, in memory and in SQL, on %s",
-    async (dialect) => {
-        const storage = await TestDatabase.create(
-            dialect,
-            [pageTable, sheetTable, pieceTable, ...accessTables],
-            { isMigrated: true },
-        );
-        onTestFinished(() => storage.close());
-        const database = storage.database;
-        const authorizer = new Authorizer([page, sheet, piece], mappings);
+test("allow a derived permission exactly where a grant allows its source, in memory and in SQL", async () => {
+    const storage = await TestDatabase.create(
+        [pageTable, sheetTable, pieceTable, ...accessTables],
+        { isMigrated: true },
+    );
+    onTestFinished(() => storage.close());
+    const database = storage.database;
+    const authorizer = new Authorizer([page, sheet, piece], mappings);
 
-        // insert two pages and a sheet of alice's, with one piece of text each
-        await database.insert(pageTable).values([
-            { id: "one", scope: "personal", owner: "alice" },
-            { id: "two", scope: "personal", owner: "alice" },
-        ]);
-        await database.insert(sheetTable).values({ id: "grid", scope: "personal", owner: "alice" });
-        await database.insert(pieceTable).values(
-            [
-                { id: "first", parentId: "one", parentType: "page" },
-                { id: "second", parentId: "two", parentType: "page" },
-                { id: "cell", parentId: "grid", parentType: "sheet" },
-            ].map((row) => ({ ...row, scope: "personal", parentPackageId: module1.package.id })),
-        );
+    // insert two pages and a sheet of alice's, with one piece of text each
+    await database.insert(pageTable).values([
+        { id: "one", scope: "personal", owner: "alice" },
+        { id: "two", scope: "personal", owner: "alice" },
+    ]);
+    await database.insert(sheetTable).values({ id: "grid", scope: "personal", owner: "alice" });
+    await database.insert(pieceTable).values(
+        [
+            { id: "first", parentId: "one", parentType: "page" },
+            { id: "second", parentId: "two", parentType: "page" },
+            { id: "cell", parentId: "grid", parentType: "sheet" },
+        ].map((row) => ({ ...row, scope: "personal", parentPackageId: module1.package.id })),
+    );
 
-        // grant alice's token one permission, on one object or the whole scope
-        const read = page.permission("read");
-        const everyPage = await restricted(database, "client-1", read, { scope: "personal" });
-        const onePage = await restricted(database, "client-2", read, {
-            scope: "personal",
-            objectId: "one",
-        });
-        const editing = await restricted(database, "client-3", page.permission("edit"), {
-            scope: "personal",
-        });
-        const elsewhere = await restricted(database, "client-4", read, { scope: "other" });
+    // grant alice's token one permission, on one object or the whole scope
+    const read = page.permission("read");
+    const everyPage = await restricted(database, "client-1", read, { scope: "personal" });
+    const onePage = await restricted(database, "client-2", read, {
+        scope: "personal",
+        objectId: "one",
+    });
+    const editing = await restricted(database, "client-3", page.permission("edit"), {
+        scope: "personal",
+    });
+    const elsewhere = await restricted(database, "client-4", read, { scope: "other" });
 
-        // allow pieces and page text as the pages' reading is allowed, and never a sheet's
-        const contexts = [everyPage, onePage, editing, elsewhere];
-        expect(
-            await Promise.all(
-                contexts.map((context) => decided(database, authorizer, context, "piece")),
-            ),
-        ).toEqual([
-            {
-                listed: ["first", "second"],
-                permitted: ["first", "second"],
-                checked: ["first", "second"],
-            },
-            { listed: ["first"], permitted: ["first"], checked: ["first"] },
-            { listed: [], permitted: [], checked: [] },
-            { listed: [], permitted: [], checked: [] },
-        ]);
-        expect(
-            await Promise.all(
-                contexts.map((context) => decided(database, authorizer, context, "page")),
-            ),
-        ).toEqual([
-            { listed: ["one", "two"], permitted: ["one", "two"], checked: ["one", "two"] },
-            { listed: ["one"], permitted: ["one"], checked: ["one"] },
-            { listed: [], permitted: [], checked: [] },
-            { listed: [], permitted: [], checked: [] },
-        ]);
-    },
-);
+    // allow pieces and page text as the pages' reading is allowed, and never a sheet's
+    const contexts = [everyPage, onePage, editing, elsewhere];
+    expect(
+        await Promise.all(
+            contexts.map((context) => decided(database, authorizer, context, "piece")),
+        ),
+    ).toEqual([
+        {
+            listed: ["first", "second"],
+            permitted: ["first", "second"],
+            checked: ["first", "second"],
+        },
+        { listed: ["first"], permitted: ["first"], checked: ["first"] },
+        { listed: [], permitted: [], checked: [] },
+        { listed: [], permitted: [], checked: [] },
+    ]);
+    expect(
+        await Promise.all(
+            contexts.map((context) => decided(database, authorizer, context, "page")),
+        ),
+    ).toEqual([
+        { listed: ["one", "two"], permitted: ["one", "two"], checked: ["one", "two"] },
+        { listed: ["one"], permitted: ["one"], checked: ["one"] },
+        { listed: [], permitted: [], checked: [] },
+        { listed: [], permitted: [], checked: [] },
+    ]);
+});
 
 /** Decide a derived permission per row: listed in SQL, permitted in SQL, checked in memory. */
 async function decided(
@@ -261,7 +257,7 @@ test("intersect two grants on the narrower object and method, taking either side
     ]);
 });
 
-test("allow every method of a type a grant ties to no method, else only its tied methods", () => {
+test("allow every method of a type a grant binds to no method, else only its bound methods", () => {
     const read = { packageId: module1.package.id, type: "page", name: "read", scope: "space-1" };
     const pages = { packageId: module1.package.id, type: "page" };
     const sheets = { packageId: module1.package.id, type: "sheet" };

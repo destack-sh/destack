@@ -243,7 +243,7 @@ export class Authorization {
         await this.#relate(object, creation);
     }
 
-    /** Forget a removed object's access here: relationships, a scope's row and own access. */
+    /** Forget a removed object's access here: relationships, a scope's row and its scope access. */
     async remove(object: ObjectReference): Promise<void> {
         // require the object's row here: a scope object's row lives in the scope containing it
         const isScope = this.authorizer.policy(object).definition.scope === true;
@@ -253,7 +253,7 @@ export class Authorization {
             isScope ? await Scope.object(view, object.scope) : object,
         );
 
-        // read the relationships on the object, and a scope's own access only at its home
+        // read the relationships on the object, and a scope's access only at its home
         const related = await this.transaction
             .read(accessRelationship)
             .findMany({ where: Relationship.objectColumns(object) });
@@ -354,9 +354,9 @@ export class Authorization {
         }
     }
 
-    /** Record a scope's row below its ancestors, in its own partition or its parent's. */
+    /** Record a scope's row below its ancestors, in the scope's partition or its parent's. */
     async #record(object: ObjectReference, ancestors: readonly string[]): Promise<void> {
-        // write the row in the scope's own partition or its parent's
+        // write the row in the scope's partition or its parent's
         const definition = this.authorizer.policy(object).definition;
         const partition =
             definition.partition === true

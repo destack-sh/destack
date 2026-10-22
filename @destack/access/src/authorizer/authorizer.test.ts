@@ -613,7 +613,7 @@ databaseTest(
         const { database, authorizer, alice, bob } = fixture;
         const assistant = principal.installation.reference("personal", "assistant");
 
-        // store alice's and bob's own scopes, where their grants live
+        // store alice's and bob's personal scopes, where their grants live
         await database.insert(Scope.table).values(
             ["alice", "bob"].map((id) =>
                 Table.complete(Scope.table, {
@@ -874,9 +874,9 @@ test("resolve the policy of an identifier by its prefix, refusing a prefix of no
 });
 
 test("follow a scope relation of several scope types to the nearest scope only, and refuse one of a plain type", () => {
-    // relate pins to the account or space they live in
-    const pin = pinPolicy([account, space]);
-    const authorizer = new Authorizer([...policies, pin], mappings);
+    // relate badges to the account or space they live in
+    const badge = badgePolicy([account, space]);
+    const authorizer = new Authorizer([...policies, badge], mappings);
     const reading = {
         kind: "through",
         relation: "scope",
@@ -887,14 +887,14 @@ test("follow a scope relation of several scope types to the nearest scope only, 
     // take the space below its account, the account alone, and refuse a group as a scope
     expect([
         authorizer
-            .enclosingTypes(pin, reading, [chainLink(space), chainLink(account)])
+            .enclosingTypes(badge, reading, [chainLink(space), chainLink(account)])
             .map((type) => type.type),
-        authorizer.enclosingTypes(pin, reading, [chainLink(account)]).map((type) => type.type),
+        authorizer.enclosingTypes(badge, reading, [chainLink(account)]).map((type) => type.type),
     ]).toEqual([["space"], ["account"]]);
-    expect(() => new Authorizer([...policies, pinPolicy([account, group])], mappings)).toThrow(
+    expect(() => new Authorizer([...policies, badgePolicy([account, group])], mappings)).toThrow(
         new AccessError(
             "INVALID_DECLARATION",
-            "pin.scope is a scope relation: it accepts scope types only",
+            "badge.scope is a scope relation: it accepts scope types only",
         ),
     );
 });
@@ -902,7 +902,7 @@ test("follow a scope relation of several scope types to the nearest scope only, 
 databaseTest("remove a space's delegated grants when the space goes", async ({ fixture }) => {
     const { database, authorizer, alice } = fixture;
 
-    // store alice's own scope, where her grants live
+    // store alice's personal scope, where her grants live
     await database.insert(Scope.table).values(
         Table.complete(Scope.table, {
             scope: "alice",
@@ -951,7 +951,7 @@ function editing(objectId: string) {
     return { ...node.permission("edit"), scope: "personal", objectId };
 }
 
-/** Reference a user's own scope. */
+/** Reference a user's personal scope. */
 function scopeOf(id: string) {
     return principal.user.reference(Scope.universe.id, id);
 }
@@ -1071,7 +1071,7 @@ databaseTest("evaluate more rows than one query may bind", async ({ fixture }) =
         copies,
     );
 
-    // permit editing every copy of the two unlocked cells alice owns
+    // permit editing every copy of the two unlocked cells of alice
     expect(permitted.permitted.size).toBe(copies.filter((copy) => copy.locked === 0).length);
 });
 
@@ -1096,10 +1096,10 @@ async function expectEditable(
     expect(selected.map((row) => row.id)).toEqual(expected);
 }
 
-/** Declare pins reading through the scope types they live in. */
-function pinPolicy(scopes: readonly Policy[]): Policy {
+/** Declare badges reading through the scope types they live in. */
+function badgePolicy(scopes: readonly Policy[]): Policy {
     return new Policy(module1.package, {
-        name: "pin",
+        name: "badge",
         relations: { scope: { subjects: [...scopes], grantedBy: null, isScope: true } },
         permissions: { read: through("scope", "read") },
     });
@@ -1202,7 +1202,7 @@ databaseTest(
 );
 
 test("refuse universe subject sets that nest without end", () => {
-    // declare teams kept at the universe whose members may be teams
+    // declare teams stored at the universe whose members may be teams
     const team = new Policy(module1.package, {
         name: "crew",
         relations: { member: { subjects: [principal.user, "crew#member"] } },
@@ -1212,7 +1212,7 @@ test("refuse universe subject sets that nest without end", () => {
     const declare = () =>
         new Authorizer([team], [{ policy: team, table, id: "id", attributes: {}, relations: {} }]);
 
-    // refuse the declaration, naming the cycle
+    // refuse the declaration, listing the cycle
     expect(declare).toThrow(
         new AccessError(
             "INVALID_DECLARATION",

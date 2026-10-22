@@ -22,7 +22,7 @@ export class AccessFixture {
     /** Record a scope object below its containing scopes, as its home's access replica does. */
     async replicateScope(
         scope: ObjectReference,
-        partition: "parent" | "own" = "parent",
+        partition: "parent" | "self" = "parent",
     ): Promise<void> {
         // read the ancestry and partition of the containing scope
         const [parent] =
@@ -43,7 +43,7 @@ export class AccessFixture {
         await this.database.insert(Scope.table).values({
             scope: scope.id,
             parent: scope.scope,
-            partition: partition === "own" ? scope.id : parent.partition,
+            partition: partition === "self" ? scope.id : parent.partition,
             packageId: scope.packageId,
             type: scope.type,
             ancestors: scope.scope === Scope.universe.id ? [] : [scope.scope, ...parent.ancestors],
@@ -99,7 +99,7 @@ export class AccessFixture {
         return id;
     }
 
-    /** Grant a delegate some of a principal's authority in its own scope, as its home does. */
+    /** Grant a delegate some of a principal's authority in its scope, as its home does. */
     async replicateGrant(
         delegator: Subject,
         delegate: Subject,

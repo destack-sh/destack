@@ -8,7 +8,7 @@ const ActingCaller = Caller.schema.pick({ subject: true, grants: true });
 
 /** The exchange of an installation's token for its caller's (RFC 8693). */
 export const Exchange = {
-    /** The header naming the caller an instance's call asks its host's egress to act as. */
+    /** The header with the caller an instance's call asks its host's egress to act as. */
     header: "Destack-Exchange",
 
     /** Read the caller a served call's calls act as: a delegated subject, or a person calling. */
@@ -31,7 +31,7 @@ export const Exchange = {
         return caller === undefined ? {} : { [Exchange.header]: JSON.stringify(caller) };
     },
 
-    /** Read the caller a call asks the egress to act as, absent for the installation's own call. */
+    /** Read the caller a call asks the egress to act as, absent for an installation as itself. */
     asking(request: Request): Pick<Caller, "subject" | "grants"> | undefined {
         // ask nothing without the header
         const header = request.headers.get(Exchange.header);

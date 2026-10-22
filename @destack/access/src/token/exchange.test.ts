@@ -11,8 +11,8 @@ const installation = principal.installation.reference("space-home", "installatio
 /** The grant the installation acts under. */
 const grant = { id: Identifier.create("grant"), scope: person.id };
 
-test("ask the egress to act as a served person, or as a subject under the grants its delegates carry, and as nothing else", () => {
-    // read the contexts of a person's call, a delegated call, an installation's own call and none
+test("ask the egress to act as a served person, or as a subject under the grants its delegates include, and as nothing else", () => {
+    // read the contexts of a person's call, a delegated call, an installation's call and none
     const contexts = {
         person: Exchange.of(called({ subject: person })),
         delegated: Exchange.of(

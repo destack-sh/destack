@@ -1,5 +1,5 @@
 import { defineDatabase, defineTable, Snapshot, asc, text } from "@destack/db";
-import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
+import { TestDatabase } from "@destack/db/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { Scope, type ObjectReference, type Subject } from "@destack/sync";
 import { v7 } from "uuid";
@@ -38,7 +38,7 @@ const asset = new Policy(module4.package, {
     permissions: { read: through("holder", "read") },
 });
 
-/** The assets' mapping, owned through their holder wherever the holder lives. */
+/** The assets' mapping, with their holder as owner wherever the holder lives. */
 const assetMapping: TableMapping = {
     policy: asset,
     table: assetTable,
@@ -65,23 +65,22 @@ const unrelated = account.reference(Scope.universe.id, "account-2");
 const home = space.reference("account-3", "home");
 
 /** Open a database storing assets of a space in another account's home, scopes replicated. */
-async function openOwned() {
+async function openWithOwner() {
     // migrate the access tables beside the scopes and the assets
     const storage = await TestDatabase.create(
-        TEST_DIALECTS[TEST_DIALECTS.length - 1] ?? "sqlite",
         defineDatabase({ name: "main", tables: [...fixtureTables, assetTable] }),
         { isMigrated: true },
     );
     onTestFinished(() => storage.close());
     const { database } = storage;
 
-    // replicate the accounts, the holder and the home, and store the holder and an asset it holds
+    // replicate the accounts, the holder and the home, and store the holder and an asset of it
     const replicas = new AccessFixture(database);
     for (const scope of [holding, unrelated, account.reference(Scope.universe.id, "account-3")]) {
         await replicas.replicateScope(scope);
     }
     await replicas.replicateScope(holder);
-    await replicas.replicateScope(home, "own");
+    await replicas.replicateScope(home, "self");
     await database.insert(spaceTable).values({ id: holder.id, account: holder.scope });
     await database.insert(assetTable).values({ id: "asset-1", scope: home.id, holder: holder.id });
 
@@ -153,8 +152,8 @@ async function openOwned() {
     return { readable, reader, bind, replicas };
 }
 
-test("cover an owned row with the roles bound on its owner and on the scopes enclosing the owner, in SQL and in grant trees", async () => {
-    const { readable, reader } = await openOwned();
+test("cover a row with the roles bound on its owner and on the scopes enclosing the owner, in SQL and in grant trees", async () => {
+    const { readable, reader } = await openWithOwner();
     const none = { selected: [], checked: [] };
     const covered = { selected: ["asset-1"], checked: ["asset-1"] };
 
@@ -174,8 +173,8 @@ test("cover an owned row with the roles bound on its owner and on the scopes enc
     });
 });
 
-test("cover an owned row with a role bound on the account enclosing its owner", async () => {
-    const { readable, reader } = await openOwned();
+test("cover a row with a role bound on the account enclosing its owner", async () => {
+    const { readable, reader } = await openWithOwner();
 
     // read the asset through a role defined and bound on the holder's account
     await reader(holding);
@@ -183,13 +182,13 @@ test("cover an owned row with a role bound on the account enclosing its owner", 
 });
 
 test("grant nothing through a role bound on an owner when a scope outside the owner's chain defines it", async () => {
-    const { readable, reader, bind, replicas } = await openOwned();
+    const { readable, reader, bind, replicas } = await openWithOwner();
 
     // define a reader in an unrelated account, then bind it on the holder
     await replicas.replicateScope(space.reference("account-2", "elsewhere"));
     const foreign = await reader(space.reference("account-2", "elsewhere"));
     await bind(holder, foreign);
 
-    // hide the asset, since the role binds only within its own scope's chain
+    // hide the asset, since the role binds only within its scope's chain
     expect(await readable()).toEqual({ selected: [], checked: [] });
 });

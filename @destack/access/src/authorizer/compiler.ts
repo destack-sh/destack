@@ -104,7 +104,7 @@ export class Compiler {
             );
         }
 
-        // select the rows of the scope, and the scope's own row in the scope containing it
+        // select the rows of the scope, and the scope's row in the scope containing it
         const object = access.scopeObject(mapping);
         const scope = TableMapping.scopeColumn(table, mapping);
         const located =
@@ -133,7 +133,7 @@ export class Compiler {
                 return this.#bound(permission, mapping, row, compilation);
             }
 
-            // evaluate the target's own permission where the credential allows it
+            // evaluate the target's permission where the credential allows it
             const allowed = this.#restricted(
                 permission,
                 TableMapping.column(row, mapping.id),
@@ -289,7 +289,7 @@ export class Compiler {
         );
     }
 
-    /** Match a binding on the row, an owning ancestor, or a scope enclosing the query's scope. */
+    /** Match a binding on the row, an owner ancestor, or a scope enclosing the query's scope. */
     #covers(
         binding: RelationshipColumnMap,
         mapping: TableMapping,
@@ -319,7 +319,7 @@ export class Compiler {
                 WHERE ${ancestor.scope} = ${scope} AND ${ancestor.descendant} = ${id} AND ${ancestor.ancestor} = ${binding.objectId}
             ))`);
         }
-        // climb to the owning parent and match it and its own ancestors
+        // climb to the owner parent and match it and its ancestors
         else if (mapping.parent !== undefined) {
             const subject = this.#authorizer.onlySubject(mapping.policy, mapping.parent);
             const target = this.#authorizer.requireMapping(subject);
@@ -332,16 +332,18 @@ export class Compiler {
             )`);
         }
 
-        // match the owner, its own coverage and the scopes enclosing it
+        // match the owner, the owner's coverage and the scopes enclosing it
         if (mapping.owner !== undefined) {
-            covering.push(this.#owned(binding, mapping, source, mapping.owner, compilation));
+            covering.push(
+                this.#ownerCovering(binding, mapping, source, mapping.owner, compilation),
+            );
         }
 
         return sql`(${sql.join(covering, sql` OR `)})`;
     }
 
     /** Match a binding on a row's owner, covering the owner, or on a scope enclosing the owner. */
-    #owned(
+    #ownerCovering(
         binding: RelationshipColumnMap,
         mapping: TableMapping,
         source: Table,
@@ -488,7 +490,7 @@ export class Compiler {
             return sql`false`;
         }
 
-        // match a scope's row by its own containment set, a global scope's also by its universe reference
+        // match a scope's row by its containment set, a global scope's also by its universe reference
         const definition = mapping.policy.definition;
         if (definition.scope === true) {
             const set = (scope: SubjectColumns["scope"]) =>
@@ -499,11 +501,11 @@ export class Compiler {
                     id: TableMapping.column(source, mapping.id),
                     relation: sql`${CONTAINED}`,
                 });
-            const own = set(TableMapping.scopeColumn(source, mapping));
+            const scoped = set(TableMapping.scopeColumn(source, mapping));
 
             return definition.isGlobal === true
-                ? sql`(${own} OR ${set(sql`${Scope.universe.id}`)})`
-                : own;
+                ? sql`(${scoped} OR ${set(sql`${Scope.universe.id}`)})`
+                : scoped;
         }
 
         // match another row living in the resolved scope by that scope's containment set
@@ -569,7 +571,7 @@ export class Compiler {
         source: Table,
         compilation: Compilation,
     ): SQL {
-        // compile each granting type's grant permission against its own alias of the referenced row
+        // compile each granting type's grant permission against a new alias of the referenced row
         const columns = TableMapping.reference(mapping, reference);
         const branches = this.#authorizer.mappings().flatMap((target) => {
             // skip a type nothing grants
@@ -606,11 +608,11 @@ export class Compiler {
         source: Table,
         compilation: Compilation,
     ): SQL {
-        // compile each type's visibility against its own alias of the referenced row
+        // compile each type's visibility against a separate alias of the referenced row
         const columns = TableMapping.reference(mapping, expression.reference);
         const related = TableMapping.column(source, expression.relation);
         const branches = this.#authorizer.mappings().flatMap((target) => {
-            // skip the row's own type, whose rows relate other objects
+            // skip the row's type, whose rows relate other objects
             if (target.policy === mapping.policy) {
                 return [];
             }
@@ -675,7 +677,7 @@ export class Compiler {
         );
         const definition = mapping.policy.definition;
 
-        // match the relation sets the authority holds
+        // match the relation sets of the authority
         const isHolding = compilation.authority.subjects.some(
             (subject) =>
                 subject.relation === name &&
@@ -774,7 +776,7 @@ export class Compiler {
         const relation = this.#authorizer.relation(mapping.policy, expression.relation);
 
         return relation.subjects.map((subject) => {
-            // alias the related type's table for its own correlated permission
+            // alias the related type's table for its correlated permission
             const target = this.#authorizer.requireMapping(subject);
             const parent = alias(target.table, `access_parent_${compilation.aliases.next++}`);
             const predicate = this.#permission(

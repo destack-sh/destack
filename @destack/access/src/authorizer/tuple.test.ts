@@ -1,8 +1,8 @@
+import { TestDatabase } from "@destack/db/test";
 import { nth, schema } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { Scope, type Subject } from "@destack/sync";
 import { Snapshot, and, asc, eq, sql } from "@destack/db";
-import { TEST_DIALECTS } from "@destack/db/test";
 import {
     Relationship,
     accessRelationship,
@@ -69,389 +69,389 @@ function linkSecretOf(linkSecret: string | null) {
     return linkSecret === null ? {} : { linkSecret };
 }
 
-test.for(TEST_DIALECTS)(
-    "decide in memory exactly as the permission queries do, for objects and the relationships they share, for random access models on %s",
-    async (dialect) => {
-        const fixture = await openFixture(dialect);
-        onTestFinished(() => fixture.close());
-        const { database } = fixture;
-        const snapshot = Snapshot.live(database);
+test("decide in memory exactly as the permission queries do, for objects and the relationships they share, for random access models", async () => {
+    const fixture = await openFixture();
+    onTestFinished(() => fixture.close());
+    const { database } = fixture;
+    const snapshot = Snapshot.live(database);
 
-        // cover roles on ancestors through the tree, as well as without it
-        const authorizers = [
-            fixture.authorizer,
-            new Authorizer(
-                policies,
-                mappings.map((mapping) =>
-                    mapping.policy === node ? { ...mapping, parent: "parent" } : mapping,
-                ),
+    // cover roles on ancestors through the tree, as well as without it
+    const authorizers = [
+        fixture.authorizer,
+        new Authorizer(
+            policies,
+            mappings.map((mapping) =>
+                mapping.policy === node ? { ...mapping, parent: "parent" } : mapping,
             ),
-        ];
+        ),
+    ];
 
-        // define a role that reads and edits nodes and reads cells across types
-        const roleId = schema.identifier("role").parse("role-01996ab0-0000-7000-8000-000000000101");
-        await database.insert(accessRole).values({
-            id: roleId,
-            createdAt: 1,
-            updatedAt: 1,
+    // define a role that reads and edits nodes and reads cells across types
+    const roleId = schema.identifier("role").parse("role-01996ab0-0000-7000-8000-000000000101");
+    await database.insert(accessRole).values({
+        id: roleId,
+        createdAt: 1,
+        updatedAt: 1,
+        scope: "personal",
+        name: "editor",
+        description: "Edits nodes",
+    });
+    const granted = [node.permission("read"), node.permission("edit"), cell.permission("read")];
+    for (const [position, permission] of granted.entries()) {
+        await database.insert(accessRolePermission).values({
+            id: schema
+                .identifier("role-permission")
+                .parse(`role-permission-01996ab0-0000-7000-8000-00000000020${position}`),
+            roleId,
             scope: "personal",
-            name: "editor",
-            description: "Edits nodes",
+            ...permission,
         });
-        const granted = [node.permission("read"), node.permission("edit"), cell.permission("read")];
-        for (const [position, permission] of granted.entries()) {
-            await database.insert(accessRolePermission).values({
-                id: schema
-                    .identifier("role-permission")
-                    .parse(`role-permission-01996ab0-0000-7000-8000-00000000020${position}`),
-                roleId,
-                scope: "personal",
-                ...permission,
-            });
-        }
-        await database.insert(teamTable).values({ id: "t1", scope: "personal", member: "bob" });
+    }
+    await database.insert(teamTable).values({ id: "t1", scope: "personal", member: "bob" });
 
-        // relate subjects through every relation shape, with and without a share link
-        const subjects: Subject[] = [
-            user("bob"),
-            user("carol"),
-            { ...principal.user.reference("*", "*") },
-            { ...group.reference("personal", "g1"), relation: "member" },
-            { ...team.reference("personal", "t1"), relation: "member" },
-            anyone.reference("*", "*"),
-        ];
-        const linkSecrets: (string | null)[] = [null, null, "c".repeat(64)];
+    // relate subjects through every relation shape, with and without a share link
+    const subjects: Subject[] = [
+        user("bob"),
+        user("carol"),
+        { ...principal.user.reference("*", "*") },
+        { ...group.reference("personal", "g1"), relation: "member" },
+        { ...team.reference("personal", "t1"), relation: "member" },
+        anyone.reference("*", "*"),
+    ];
+    const linkSecrets: (string | null)[] = [null, null, "c".repeat(64)];
 
-        // call with the request attributes the policies' conditions read
-        const attributes = {
-            "first-row": 1,
-            "last-row": 2,
-            "first-column": 1,
-            "last-column": 2,
-            team: 1,
-            phase: "edit",
-        };
+    // call with the request attributes the policies' conditions read
+    const attributes = {
+        "first-row": 1,
+        "last-row": 2,
+        "first-column": 1,
+        "last-column": 2,
+        team: 1,
+        phase: "edit",
+    };
 
-        // call as users, members, anonymous callers, presenters of link secrets and actors under grants
-        const agent = principal.installation.reference("personal", "agent");
-        const client = principal.client.reference(Scope.universe.id, "client-bob");
-        const granting = new AccessFixture(database);
-        const toAgent = await granting.replicateGrant(
-            user("bob"),
-            agent,
-            [{ ...node.permission("edit"), scope: "personal" }],
-            1,
-        );
-        const toClient = await granting.replicateGrant(
-            user("bob"),
-            client,
-            [{ ...node.permission("read"), scope: "personal", objectId: "b" }],
-            1,
-        );
-        const contexts: AccessContext[] = [
-            {
-                grants: [],
-                subject: user("alice"),
-                groups: [],
-                now: NOW,
-                attributes,
-                actors: [],
-                contacts: [],
-                linkSecrets: [],
+    // call as users, members, anonymous callers, presenters of link secrets and actors under grants
+    const agent = principal.installation.reference("personal", "agent");
+    const client = principal.client.reference(Scope.universe.id, "client-bob");
+    const granting = new AccessFixture(database);
+    const toAgent = await granting.replicateGrant(
+        user("bob"),
+        agent,
+        [{ ...node.permission("edit"), scope: "personal" }],
+        1,
+    );
+    const toClient = await granting.replicateGrant(
+        user("bob"),
+        client,
+        [{ ...node.permission("read"), scope: "personal", objectId: "b" }],
+        1,
+    );
+    const contexts: AccessContext[] = [
+        {
+            grants: [],
+            subject: user("alice"),
+            groups: [],
+            now: NOW,
+            attributes,
+            actors: [],
+            contacts: [],
+            linkSecrets: [],
+        },
+        {
+            grants: [],
+            subject: user("bob"),
+            groups: [],
+            now: NOW,
+            attributes,
+            actors: [],
+            contacts: [],
+            linkSecrets: [],
+        },
+        {
+            grants: [],
+            subject: user("carol"),
+            groups: [],
+            now: NOW,
+            attributes,
+            actors: [],
+            contacts: [],
+            linkSecrets: [],
+        },
+        {
+            grants: [],
+            subject: ANONYMOUS,
+            groups: [],
+            now: NOW,
+            attributes,
+            actors: [],
+            contacts: [],
+            linkSecrets: [],
+        },
+        {
+            grants: [],
+            subject: ANONYMOUS,
+            groups: [],
+            now: NOW,
+            attributes,
+            actors: [],
+            contacts: [],
+            linkSecrets: ["c".repeat(64)],
+        },
+        {
+            grants: [],
+            subject: user("bob"),
+            groups: [],
+            now: NOW,
+            attributes,
+            request: "request-1",
+            credential: {
+                ...sessionCredential("1", NOW),
+                assurance: { level: 2, authenticatedAt: NOW - 50 },
             },
-            {
-                grants: [],
-                subject: user("bob"),
-                groups: [],
-                now: NOW,
-                attributes,
-                actors: [],
-                contacts: [],
-                linkSecrets: [],
-            },
-            {
-                grants: [],
-                subject: user("carol"),
-                groups: [],
-                now: NOW,
-                attributes,
-                actors: [],
-                contacts: [],
-                linkSecrets: [],
-            },
-            {
-                grants: [],
-                subject: ANONYMOUS,
-                groups: [],
-                now: NOW,
-                attributes,
-                actors: [],
-                contacts: [],
-                linkSecrets: [],
-            },
-            {
-                grants: [],
-                subject: ANONYMOUS,
-                groups: [],
-                now: NOW,
-                attributes,
-                actors: [],
-                contacts: [],
-                linkSecrets: ["c".repeat(64)],
-            },
-            {
-                grants: [],
-                subject: user("bob"),
-                groups: [],
-                now: NOW,
-                attributes,
-                request: "request-1",
-                credential: {
-                    ...sessionCredential("1", NOW),
-                    assurance: { level: 2, authenticatedAt: NOW - 50 },
+            actors: [],
+            contacts: [],
+            linkSecrets: [],
+        },
+        {
+            groups: [],
+            subject: user("bob"),
+            actors: [agent],
+            grants: [{ id: toAgent, scope: "bob" }],
+            now: NOW,
+            attributes,
+            contacts: [],
+            linkSecrets: [],
+        },
+        {
+            groups: [],
+            subject: user("bob"),
+            actors: [client],
+            now: NOW,
+            attributes,
+            grants: [{ id: toClient, scope: "bob" }],
+            contacts: [],
+            linkSecrets: [],
+        },
+    ];
+    const permissions: PermissionReference[] = [
+        ...(["read", "edit", "share", "edit-descendant"] as const).map((name) =>
+            node.permission(name),
+        ),
+        cell.permission("read"),
+        cell.permission("edit"),
+        entity.permission("edit"),
+    ];
+
+    // compare each random model's grants with the permission queries, counting the allowed rows
+    let allowedRows = 0;
+    let shared = 0;
+    for (let model = 0; model < MODELS; model++) {
+        const draw = random(model + 1);
+        const pick = <Value>(values: readonly Value[]) =>
+            nth(values, Math.floor(draw() * values.length));
+        await database.delete(accessRelationship);
+
+        // relate random subjects to random nodes, groups and roles in one insert, skipping repeated tuples
+        const related = Array.from({ length: 10 }, (_, position) => {
+            const isBinding = draw() < 0.25;
+            const isMembership = !isBinding && draw() < 0.2;
+
+            return Relationship.encode(
+                {
+                    id: `relationship-01996ab0-0000-7000-8000-0000000003${String(position).padStart(2, "0")}`,
+                    object: isMembership
+                        ? group.reference("personal", "g1")
+                        : node.reference("personal", pick(["a", "b", "c"])),
+                    ...(isBinding
+                        ? { role: roleId }
+                        : {
+                              relation: isMembership
+                                  ? "member"
+                                  : pick(["viewer", "editor", "subtree-editor"]),
+                          }),
+                    subject: isMembership
+                        ? pick([user("bob"), user("carol"), agent])
+                        : pick(subjects),
+                    ...lifetime(pick([1, 1, 1, NOW + 1]), pick([null, null, NOW, NOW + 1000])),
+                    ...(isMembership ? {} : linkSecretOf(pick(linkSecrets))),
                 },
-                actors: [],
-                contacts: [],
-                linkSecrets: [],
-            },
-            {
-                groups: [],
-                subject: user("bob"),
-                actors: [agent],
-                grants: [{ id: toAgent, scope: "bob" }],
-                now: NOW,
-                attributes,
-                contacts: [],
-                linkSecrets: [],
-            },
-            {
-                groups: [],
-                subject: user("bob"),
-                actors: [client],
-                now: NOW,
-                attributes,
-                grants: [{ id: toClient, scope: "bob" }],
-                contacts: [],
-                linkSecrets: [],
-            },
-        ];
-        const permissions: PermissionReference[] = [
-            ...(["read", "edit", "share", "edit-descendant"] as const).map((name) =>
-                node.permission(name),
-            ),
-            cell.permission("read"),
-            cell.permission("edit"),
-            entity.permission("edit"),
-        ];
+                "personal",
+            );
+        });
+        await database.insert(accessRelationship).values(related).onConflictDoNothing();
 
-        // compare each random model's grants with the permission queries, counting the allowed rows
-        let allowedRows = 0;
-        let shared = 0;
-        for (let model = 0; model < MODELS; model++) {
-            const draw = random(model + 1);
-            const pick = <Value>(values: readonly Value[]) =>
-                nth(values, Math.floor(draw() * values.length));
-            await database.delete(accessRelationship);
+        // allow through grants what the queries allow, for each caller at once, permission and authorizer
+        for (const authorizer of authorizers) {
+            const counts = await Promise.all(
+                contexts.map(async (context) => {
+                    let count = 0;
+                    const access = await authorizer.resolve(snapshot, "personal", context);
+                    const rows = await database
+                        .select()
+                        .from(item)
+                        .where(eq(item.scope, "personal"))
+                        .orderBy(asc(item.id));
+                    const reader = authorizer.reader(snapshot, access.scopes);
+                    for (const permission of permissions) {
+                        const queried = (
+                            await database
+                                .select({ id: item.id })
+                                .from(item)
+                                .where(authorizer.where(permission, access))
+                                .orderBy(asc(item.id))
+                        ).map((row) => row.id);
+                        const { permitted } = await authorizer.checkRows(
+                            snapshot,
+                            permission,
+                            access,
+                            rows,
+                            reader,
+                        );
+                        const allowed = rows
+                            .filter((_row, position) => permitted.has(position))
+                            .map((row) => row.id);
 
-            // relate random subjects to random nodes, groups and roles in one insert, skipping repeated tuples
-            const related = Array.from({ length: 10 }, (_, position) => {
-                const isBinding = draw() < 0.25;
-                const isMembership = !isBinding && draw() < 0.2;
+                        count += allowed.length;
+                        expect({ model, context, permission, allowed }).toEqual({
+                            model,
+                            context,
+                            permission,
+                            allowed: queried,
+                        });
 
-                return Relationship.encode(
-                    {
-                        id: `relationship-01996ab0-0000-7000-8000-0000000003${String(position).padStart(2, "0")}`,
-                        object: isMembership
-                            ? group.reference("personal", "g1")
-                            : node.reference("personal", pick(["a", "b", "c"])),
-                        ...(isBinding
-                            ? { role: roleId }
-                            : {
-                                  relation: isMembership
-                                      ? "member"
-                                      : pick(["viewer", "editor", "subtree-editor"]),
-                              }),
-                        subject: isMembership
-                            ? pick([user("bob"), user("carol"), agent])
-                            : pick(subjects),
-                        ...lifetime(pick([1, 1, 1, NOW + 1]), pick([null, null, NOW, NOW + 1000])),
-                        ...(isMembership ? {} : linkSecretOf(pick(linkSecrets))),
-                    },
-                    "personal",
-                );
-            });
-            await database.insert(accessRelationship).values(related).onConflictDoNothing();
+                        // decide each object by key in memory as the listing query allows it, one node permission per model
+                        if (
+                            TestDatabase.target() === "sqlite" &&
+                            permission === permissions[model % 4]
+                        ) {
+                            const decided = [];
+                            for (const row of rows) {
+                                const target = node.reference("personal", row.id);
+                                const decision = await authorizer.check(
+                                    snapshot,
+                                    permission,
+                                    target,
+                                    access,
+                                    reader,
+                                );
+                                if (decision.isAllowed) {
+                                    decided.push(row.id);
+                                }
 
-            // allow through grants what the queries allow, for each caller at once, permission and authorizer
-            for (const authorizer of authorizers) {
-                const counts = await Promise.all(
-                    contexts.map(async (context) => {
-                        let count = 0;
-                        const access = await authorizer.resolve(snapshot, "personal", context);
-                        const rows = await database
-                            .select()
-                            .from(item)
-                            .where(eq(item.scope, "personal"))
-                            .orderBy(asc(item.id));
-                        const reader = authorizer.reader(snapshot, access.scopes);
-                        for (const permission of permissions) {
-                            const queried = (
-                                await database
-                                    .select({ id: item.id })
-                                    .from(item)
-                                    .where(authorizer.where(permission, access))
-                                    .orderBy(asc(item.id))
-                            ).map((row) => row.id);
-                            const { permitted } = await authorizer.checkRows(
-                                snapshot,
-                                permission,
-                                access,
-                                rows,
-                                reader,
-                            );
-                            const allowed = rows
-                                .filter((_row, position) => permitted.has(position))
-                                .map((row) => row.id);
+                                // decide a permission of another type from roles bound on or above the node
+                                const across = cell.permission("read");
+                                const crossed = await authorizer.check(
+                                    snapshot,
+                                    across,
+                                    target,
+                                    access,
+                                    reader,
+                                );
+                                const permitting = nth(
+                                    await database.execute(
+                                        sql`SELECT CASE WHEN ${authorizer.permits(across, target, access)} THEN 1 ELSE 0 END AS permitted`,
+                                        schema.object({
+                                            permitted: schema.union([
+                                                schema.number(),
+                                                schema.string(),
+                                                schema.bigint(),
+                                            ]),
+                                        }),
+                                    ),
+                                    0,
+                                );
+                                expect({
+                                    model,
+                                    context,
+                                    row: row.id,
+                                    across: crossed.isAllowed,
+                                }).toEqual({
+                                    model,
+                                    context,
+                                    row: row.id,
+                                    across: Number(permitting.permitted) === 1,
+                                });
 
-                            count += allowed.length;
-                            expect({ model, context, permission, allowed }).toEqual({
-                                model,
-                                context,
-                                permission,
-                                allowed: queried,
-                            });
-
-                            // decide each object by key in memory as the listing query allows it, one node permission per model
-                            if (dialect === "sqlite" && permission === permissions[model % 4]) {
-                                const decided = [];
-                                for (const row of rows) {
-                                    const target = node.reference("personal", row.id);
-                                    const decision = await authorizer.check(
+                                // check each decision just before its expiry
+                                if (decision.until !== undefined) {
+                                    const before = { ...context, now: decision.until - 1 };
+                                    const later = await authorizer.resolve(
                                         snapshot,
-                                        permission,
-                                        target,
-                                        access,
-                                        reader,
+                                        "personal",
+                                        before,
                                     );
-                                    if (decision.isAllowed) {
-                                        decided.push(row.id);
-                                    }
-
-                                    // decide a permission of another type from roles bound on or above the node
-                                    const across = cell.permission("read");
-                                    const crossed = await authorizer.check(
-                                        snapshot,
-                                        across,
-                                        target,
-                                        access,
-                                        reader,
-                                    );
-                                    const permitting = nth(
-                                        await database.execute(
-                                            sql`SELECT CASE WHEN ${authorizer.permits(across, target, access)} THEN 1 ELSE 0 END AS permitted`,
-                                            schema.object({
-                                                permitted: schema.union([
-                                                    schema.number(),
-                                                    schema.string(),
-                                                    schema.bigint(),
-                                                ]),
-                                            }),
-                                        ),
-                                        0,
-                                    );
+                                    const [earlier] = await database
+                                        .select({ id: item.id })
+                                        .from(item)
+                                        .where(
+                                            and(
+                                                eq(item.id, row.id),
+                                                authorizer.where(permission, later),
+                                            ),
+                                        );
                                     expect({
                                         model,
                                         context,
+                                        permission,
                                         row: row.id,
-                                        across: crossed.isAllowed,
+                                        until: earlier !== undefined,
                                     }).toEqual({
                                         model,
                                         context,
+                                        permission,
                                         row: row.id,
-                                        across: Number(permitting.permitted) === 1,
+                                        until: decision.isAllowed,
                                     });
-
-                                    // hold each decision until its expiry, as the query decides it just before then
-                                    if (decision.until !== undefined) {
-                                        const before = { ...context, now: decision.until - 1 };
-                                        const later = await authorizer.resolve(
-                                            snapshot,
-                                            "personal",
-                                            before,
-                                        );
-                                        const [earlier] = await database
-                                            .select({ id: item.id })
-                                            .from(item)
-                                            .where(
-                                                and(
-                                                    eq(item.id, row.id),
-                                                    authorizer.where(permission, later),
-                                                ),
-                                            );
-                                        expect({
-                                            model,
-                                            context,
-                                            permission,
-                                            row: row.id,
-                                            until: earlier !== undefined,
-                                        }).toEqual({
-                                            model,
-                                            context,
-                                            permission,
-                                            row: row.id,
-                                            until: decision.isAllowed,
-                                        });
-                                    }
                                 }
-                                expect({ model, context, permission, decided }).toEqual({
-                                    model,
-                                    context,
-                                    permission,
-                                    decided: queried,
-                                });
                             }
+                            expect({ model, context, permission, decided }).toEqual({
+                                model,
+                                context,
+                                permission,
+                                decided: queried,
+                            });
                         }
+                    }
 
-                        // decide reading the relationships in memory as their query does, through what each shares
-                        const read = relationship.permission("read");
-                        const stored = await database
-                            .select()
+                    // decide reading the relationships in memory as their query does, through what each shares
+                    const read = relationship.permission("read");
+                    const stored = await database
+                        .select()
+                        .from(accessRelationship)
+                        .orderBy(asc(accessRelationship.id));
+                    const queriedRelationships = (
+                        await database
+                            .select({ id: accessRelationship.id })
                             .from(accessRelationship)
-                            .orderBy(asc(accessRelationship.id));
-                        const queriedRelationships = (
-                            await database
-                                .select({ id: accessRelationship.id })
-                                .from(accessRelationship)
-                                .where(authorizer.where(read, access, accessRelationship))
-                                .orderBy(asc(accessRelationship.id))
-                        ).map((row) => row.id);
-                        const readable = await authorizer.checkRows(
-                            snapshot,
-                            read,
-                            access,
-                            stored,
-                            reader,
-                        );
-                        expect({
-                            model,
-                            context,
-                            relationships: stored
-                                .filter((_row, position) => readable.permitted.has(position))
-                                .map((row) => row.id),
-                        }).toEqual({ model, context, relationships: queriedRelationships });
+                            .where(authorizer.where(read, access, accessRelationship))
+                            .orderBy(asc(accessRelationship.id))
+                    ).map((row) => row.id);
+                    const readable = await authorizer.checkRows(
+                        snapshot,
+                        read,
+                        access,
+                        stored,
+                        reader,
+                    );
+                    expect({
+                        model,
+                        context,
+                        relationships: stored
+                            .filter((_row, position) => readable.permitted.has(position))
+                            .map((row) => row.id),
+                    }).toEqual({ model, context, relationships: queriedRelationships });
 
-                        return { count, shared: readable.permitted.size };
-                    }),
-                );
-                allowedRows += counts.reduce((total, counted) => total + counted.count, 0);
-                shared += counts.reduce((total, counted) => total + counted.shared, 0);
-            }
+                    return { count, shared: readable.permitted.size };
+                }),
+            );
+            allowedRows += counts.reduce((total, counted) => total + counted.count, 0);
+            shared += counts.reduce((total, counted) => total + counted.shared, 0);
         }
+    }
 
-        // allow enough rows that the models exercise the grants
-        expect([allowedRows > 100, shared > 0]).toEqual([true, true]);
-    },
-);
+    // allow enough rows that the models exercise the grants
+    expect([allowedRows > 100, shared > 0]).toEqual([true, true]);
+});
 
 test("read an intersection's grants as the superset its decisions change with", async () => {
     const fixture = await openFixture();

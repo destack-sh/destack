@@ -28,7 +28,7 @@ export type Grant = Select<typeof accessGrant>;
 
 /** A grant: its token claim, and its liveness for a caller. */
 export const Grant = {
-    /** Read the claim a token carries for a grant. */
+    /** Read the claim a token includes for a grant. */
     claim(grant: Grant): GrantClaim {
         return { id: grant.id, scope: grant.scope };
     },
@@ -137,7 +137,7 @@ export const Grant = {
         return grant;
     },
 
-    /** Grant a delegate part of the caller's authority in its scope, replacing an earlier grant. */
+    /** Grant a delegate some of the caller's authority in its scope, replacing an earlier grant. */
     async create(
         scope: ObjectReference,
         request: GrantRequest,
@@ -146,7 +146,7 @@ export const Grant = {
         // write only the grants of a local scope
         await authorization.authorizer.requireLocal(authorization.transaction, scope);
 
-        // grant only a principal's own authority, in its own scope
+        // grant only a principal's authority, in its scope
         const context = authorization.context();
         const delegator = Caller.principal(context);
         if (delegator === undefined || Caller.isDelegated(context) || delegator.id !== scope.id) {

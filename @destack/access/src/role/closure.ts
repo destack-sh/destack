@@ -1,7 +1,7 @@
 import { PermissionReference } from "../declare/policy.ts";
 import { Role } from "./role.ts";
 
-/** What a role grants: all but reserved permissions, or its own and included roles' ones. */
+/** What a role grants: all but reserved permissions, or those of it and its included roles. */
 export interface RoleGrant {
     /** Whether the role is the owner role or includes it, granting all but reserved permissions. */
     readonly isOwner: boolean;

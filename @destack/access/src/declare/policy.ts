@@ -325,7 +325,7 @@ export interface RelationInput {
     readonly isScope?: true;
     /** Whether the relation's relationships show only to holders of the permission granting it. */
     readonly concealed?: true;
-    /** Whether the rows naming a deleted subject go with it, as SQL's ON DELETE CASCADE. */
+    /** Whether the rows with a deleted subject go with it, as SQL's ON DELETE CASCADE. */
     readonly onDelete?: "cascade";
 }
 
@@ -361,7 +361,7 @@ interface PolicyFields<Name extends string, Kind extends string> {
     readonly relations?: Readonly<Record<string, RelationInput>>;
     /** Named permission expressions. */
     readonly permissions: Readonly<Record<Name, AccessExpression>>;
-    /** The permission to bind roles on an object and grant relations without their own. */
+    /** The permission to bind roles on an object and grant relations without a separate one. */
     readonly grantedBy?: NoInfer<Name>;
     /** The permission whose holders see the objects' relationships, `read` by default. */
     readonly relationships?: { readonly read: NoInfer<Name> };

@@ -68,10 +68,14 @@ export const account = new Policy(module4.package, {
         root: { subjects: [principal.user], grantedBy: null },
         resident: { subjects: [region.members("server")] },
     },
-    permissions: { ...OBJECT_PERMISSIONS, own: relation("root"), serve: relation("resident") },
+    permissions: {
+        ...OBJECT_PERMISSIONS,
+        administer: relation("root"),
+        serve: relation("resident"),
+    },
     grantedBy: "share",
-    reserved: ["own"],
-    elevated: { delete: RECENT, own: RECENT },
+    reserved: ["administer"],
+    elevated: { delete: RECENT, administer: RECENT },
     scope: true,
 });
 

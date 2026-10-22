@@ -172,7 +172,7 @@ export const Relationship = {
         );
     },
 
-    /** Read an object's relationships through a relation or role, held by one subject, or both. */
+    /** Read an object's relationships through a relation or role, of one subject, or both. */
     async readOn(
         reader: Pick<Snapshot, "read">,
         object: ObjectReference,

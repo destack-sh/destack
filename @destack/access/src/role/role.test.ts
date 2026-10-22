@@ -231,11 +231,11 @@ test("ignore roles defined outside the object's scope chain", async () => {
 test("bind roles on enclosing scopes and compose roles through includes", async () => {
     const { database, readable, defineRole, relate } = await openRoleFixture();
 
-    // place the personal scope inside the account its members own
+    // place the personal scope inside the account of its members
     const access = new AccessFixture(database);
     await access.replicateScope(account.reference("universe", "account-1"));
     await access.bindOwner(account.reference("universe", "account-1"), carolMembership, 1);
-    await access.replicateScope(space.reference("account-1", "personal"), "own");
+    await access.replicateScope(space.reference("account-1", "personal"), "self");
 
     // bind an editor role including the reader role on the account
     const reader = await defineRole(1, [node.permission("read")], "account-1");
@@ -451,7 +451,7 @@ test("bind only roles whose permissions the granting caller has", async () => {
 test("let owners have everything in their scope, make owners, and never remove the last one", async () => {
     const { database, readable, alice } = await openRoleFixture();
 
-    // create the personal space in its home database, owned by carol: she reads every note in it
+    // create the personal space in its home database, carol as owner: she reads every note in it
     const home = new Authorizer(policies, homeMappings);
     const place = space.reference("universe", "personal");
     await database.insert(spaceTable).values({ id: "personal", account: "universe" });
@@ -588,18 +588,18 @@ test("let owners have everything in their scope, make owners, and never remove t
     ).rejects.toMatchObject({ code: "CONFLICT" });
 });
 
-test("create a scope without owners of its own, which the owners of its account own", async () => {
+test("create a scope without separate owners, whose account's owners are its owners", async () => {
     const { database } = await openRoleFixture();
 
-    // create carol's account and a space in it without its own owner
+    // create carol's account and a space in it without a separate owner
     const home = new Authorizer(policies, homeMappings);
     const asCarol = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
         Authorization.run(home, database, () => carol, call);
-    const owned = account.reference("universe", "account-1");
+    const created = account.reference("universe", "account-1");
     const place = space.reference("account-1", "shared");
     await database.insert(accountTable).values({ id: "account-1", scope: "universe" });
     await database.insert(spaceTable).values({ id: "shared", account: "account-1" });
-    await asCarol((authorization) => authorization.create(owned, { owner: carol.subject }));
+    await asCarol((authorization) => authorization.create(created, { owner: carol.subject }));
     await asCarol((authorization) => authorization.create(place, {}));
 
     // let carol have everything in the space through her account
@@ -644,7 +644,7 @@ test("list the spaces an account contains to the account's owner", async () => {
         ["space-2", "account-1"],
         ["space-3", "account-2"],
     ] as const) {
-        await new AccessFixture(database).replicateScope(space.reference(owner, id), "own");
+        await new AccessFixture(database).replicateScope(space.reference(owner, id), "self");
         await database.insert(spaceTable).values({ id, account: owner });
     }
 
@@ -746,8 +746,8 @@ test("refuse an offer whose inviting principal lost the authority to grant it", 
     });
 });
 
-/** Open the role fixture with carol owning the personal space in its home database. */
-async function openOwnedSpace() {
+/** Open the role fixture with carol as owner of the personal space in its home database. */
+async function openSpaceWithOwner() {
     const fixture = await openRoleFixture();
     const home = new Authorizer(policies, homeMappings);
     const place = space.reference("universe", "personal");
@@ -770,7 +770,7 @@ async function openOwnedSpace() {
 }
 
 test("upsert a role by name, replace its purpose and permissions, then upsert it identically without a write", async () => {
-    const { database, place, owner } = await openOwnedSpace();
+    const { database, place, owner } = await openSpaceWithOwner();
     const read = { packageId: node.definition.packageId, type: node.name, name: "read" };
     const update = { ...read, name: "update" };
 
@@ -809,7 +809,7 @@ test("upsert a role by name, replace its purpose and permissions, then upsert it
 });
 
 test("replace an inherent role's permissions with the declared ones, leaving the rows of the ones it grants already", async () => {
-    const { database, place } = await openOwnedSpace();
+    const { database, place } = await openSpaceWithOwner();
     const read = { packageId: node.definition.packageId, type: node.name, name: "read" };
     const update = { ...read, name: "update" };
     const remove = { ...read, name: "delete" };
@@ -855,7 +855,7 @@ test("replace an inherent role's permissions with the declared ones, leaving the
 });
 
 test("assign a role to one subject alone, revoking the previous subject and leaving an identical binding", async () => {
-    const { database, place, owner } = await openOwnedSpace();
+    const { database, place, owner } = await openSpaceWithOwner();
     const reader = await owner(1000, (authorization) =>
         Role.upsert(
             place,
@@ -897,7 +897,7 @@ test("assign a role to one subject alone, revoking the previous subject and leav
 });
 
 test("refuse upserting and assigning roles to a caller without the permissions", async () => {
-    const { place, home, database, alice, owner } = await openOwnedSpace();
+    const { place, home, database, alice, owner } = await openSpaceWithOwner();
     const reader = await owner(1000, (authorization) =>
         Role.upsert(
             place,

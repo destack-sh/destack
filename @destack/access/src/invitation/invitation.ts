@@ -32,7 +32,7 @@ export const InvitationRelationship = schema.union([
 /** A relationship an invitation offers or asks for. */
 export type InvitationRelationship = schema.Infer<typeof InvitationRelationship>;
 
-/** How long an invitation stays acceptable without its own expiry: seven days, in milliseconds. */
+/** How long an invitation stays acceptable without an expiry: seven days, in milliseconds. */
 export const INVITATION_LIFETIME_MILLISECONDS = 7 * 24 * 60 * 60 * 1000;
 
 /** The most invitations per page: a screen of pending invitations of a few hundred bytes. */
@@ -44,7 +44,7 @@ const invitationSchema = schema.object({
     id: schema.string().min(1),
     /** The relationship accepting the invitation creates. */
     relationship: InvitationRelationship,
-    /** The principal who invited, absent for the system's own invitations. */
+    /** The principal who invited, absent for the system's invitations. */
     inviter: Subject.nullable(),
     /** Why the inviting principal offers or asks for the relationship. */
     purpose: schema.string().min(1).exactOptional(),

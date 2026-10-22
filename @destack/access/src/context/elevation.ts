@@ -12,7 +12,7 @@ const elevationSchema = schema.object({
     maxAge: schema.number().int().positive(),
 });
 
-/** The authentication of a sensitive permission: an assurance level reached recently enough. */
+/** The authentication of a sensitive permission: an assurance level achieved recently enough. */
 export type Elevation = schema.Infer<typeof elevationSchema>;
 
 /** The schema of a step-up challenge: assurance level, and elevation age if set (RFC 9470). */

@@ -9,7 +9,7 @@ export type GrantMode = (typeof GRANT_MODES)[number];
 
 /** The schema of a grant permission: a permission in a scope, on an object or through a method. */
 const grantPermissionSchema = PermissionReference.extend({
-    /** The scope the permission applies in, absent for every scope the delegator reaches. */
+    /** The scope the permission applies in, absent for every scope of the delegator. */
     scope: schema.string().min(1).exactOptional(),
     /** The one object the permission applies to, absent for every object of the scope. */
     objectId: schema.string().min(1).exactOptional(),
@@ -88,7 +88,7 @@ export const GrantPermission = {
                         GrantPermission.overlaps(entry.method, other.method),
                 )
                 .map((other) => {
-                    // keep the narrower of each selection, and approval when either side asks for it
+                    // take the narrower of each selection, and approval when either side asks for it
                     const scope = entry.scope ?? other.scope;
                     const objectId = entry.objectId ?? other.objectId;
                     const method = entry.method ?? other.method;
@@ -154,7 +154,7 @@ export const GrantPermission = {
         );
     },
 
-    /** Report whether an entry names a permission in a scope, whatever its mode. */
+    /** Report whether an entry has a permission in a scope, whatever its mode. */
     covers(entry: GrantPermission, permission: PermissionReference, scope: string): boolean {
         return (
             entry.packageId === permission.packageId &&

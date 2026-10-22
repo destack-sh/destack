@@ -25,7 +25,7 @@ const contactSchema = schema.object({
         .max(320)
         .regex(/^[^A-Z]+$/u),
 });
-/** A way to reach someone outside Destack that they prove control of. */
+/** A way to contact someone outside Destack that they prove control of. */
 export type Contact = schema.Infer<typeof contactSchema>;
 
 /** A way to contact someone outside Destack, with proven control, after Matrix's 3PIDs. */
@@ -201,7 +201,7 @@ export const Caller = {
     /** The schema of a verified caller. */
     schema: callerSchema,
 
-    /** The caller of a principal running its own code, proven by its server's key. */
+    /** The caller of a principal running its code, proven by its server's key. */
     of(subject: Subject): Caller {
         return { subject, actors: [], groups: [], contacts: [], grants: [] };
     },
@@ -288,7 +288,7 @@ export const Caller = {
 
 /** What the authorizer decides on: a verified caller with what its request presented, at a time. */
 export interface AccessContext extends Caller {
-    /** The credential the request presented, absent for a principal running its own code. */
+    /** The credential the request presented, absent for a principal running its code. */
     readonly credential?: Credential;
     /** The digests of the link secrets the request presented. */
     readonly linkSecrets: readonly string[];
@@ -309,7 +309,7 @@ export const AccessContext = {
         caller: Caller,
         now: number,
         presented: {
-            /** The credential the request presented, absent for a principal's own code. */
+            /** The credential the request presented, absent for a principal's code. */
             readonly credential?: Credential | undefined;
             /** The digests of the link secrets the request presented. */
             readonly linkSecrets?: readonly string[];
@@ -332,7 +332,7 @@ export const AccessContext = {
         };
     },
 
-    /** Read how strongly the caller authenticated, a key's strength for its own code. */
+    /** Read how strongly the caller authenticated, a key's strength for a principal's code. */
     assurance(
         context: Pick<AccessContext, "subject" | "credential" | "now">,
     ): AuthenticationAssurance | undefined {
@@ -343,7 +343,7 @@ export const AccessContext = {
               : { level: KEY_ASSURANCE, authenticatedAt: context.now };
     },
 
-    /** Report whether a context's caller is remote, unlike a principal running its own code. */
+    /** Report whether a context's caller is remote, unlike a principal running its code. */
     isRemote(context: Pick<AccessContext, "subject" | "credential">): boolean {
         return context.credential !== undefined || Caller.isAnonymous(context);
     },

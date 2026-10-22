@@ -38,7 +38,7 @@ test("grant a permission set in its scopes, the home's in each home scope and th
     ]);
 });
 
-test("accept a package's request of each delegator's own scopes, refusing a scope that delegator cannot lend", () => {
+test("accept a package's request of each delegator's scopes, refusing a scope that delegator cannot lend", () => {
     // request the space's lendable scopes for the installation and a user's for the user
     const packageId = NOTES;
     const read = (type: string) => [{ packageId, type, name: "read" }];

@@ -1,6 +1,5 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { Snapshot } from "@destack/db";
-import { TEST_DIALECTS } from "@destack/db/test";
 import {
     anyone,
     Authorizer,
@@ -32,51 +31,42 @@ const publicSpace = new Policy(module4.package, {
     partition: true,
 });
 
-test.for(TEST_DIALECTS)(
-    "allow any signed-in user's read of a public space whose home stores its own row, on %s",
-    async (dialect) => {
-        // store an account and its public space, its own row and its scope row, in the space's home
-        const fixture = await openFixture(dialect);
-        onTestFinished(() => fixture.close());
-        const { database } = fixture;
-        const mappings: TableMapping[] = homeMappings.map((mapping) =>
-            mapping.policy === space ? { ...mapping, policy: publicSpace } : mapping,
-        );
-        const authorizer = new Authorizer(
-            policies.map((policy) => (policy === space ? publicSpace : policy)),
-            mappings,
-        );
-        const home = publicSpace.reference("account-1", "personal");
-        await database.insert(accountTable).values({ id: "account-1", scope: "universe" });
-        await database.insert(spaceTable).values({ id: "personal", account: "account-1" });
-        const access = new AccessFixture(database);
-        await access.replicateScope(account.reference("universe", "account-1"));
-        await access.replicateScope(home, "own");
+test("allow any signed-in user's read of a public space whose home stores its row", async () => {
+    // store an account and its public space, the space's row and its scope row, in the space's home
+    const fixture = await openFixture();
+    onTestFinished(() => fixture.close());
+    const { database } = fixture;
+    const mappings: TableMapping[] = homeMappings.map((mapping) =>
+        mapping.policy === space ? { ...mapping, policy: publicSpace } : mapping,
+    );
+    const authorizer = new Authorizer(
+        policies.map((policy) => (policy === space ? publicSpace : policy)),
+        mappings,
+    );
+    const home = publicSpace.reference("account-1", "personal");
+    await database.insert(accountTable).values({ id: "account-1", scope: "universe" });
+    await database.insert(spaceTable).values({ id: "personal", account: "account-1" });
+    const access = new AccessFixture(database);
+    await access.replicateScope(account.reference("universe", "account-1"));
+    await access.replicateScope(home, "self");
 
-        // show the space to anyone from the start
-        await access.replicateRelationship(
-            "personal",
-            home,
-            "public",
-            anyone.reference("*", "*"),
-            0,
-        );
+    // show the space to anyone from the start
+    await access.replicateRelationship("personal", home, "public", anyone.reference("*", "*"), 0);
 
-        // let a stranger who signed in read it in its own scope
-        const snapshot = Snapshot.live(database);
-        const stranger = await authorizer.resolve(snapshot, "personal", {
-            grants: [],
-            subject: principal.user.reference("universe", "erin"),
-            actors: [],
-            groups: [],
-            contacts: [],
-            linkSecrets: [],
-            credential: sessionCredential("erin", 1000),
-            now: 1000,
-            attributes: {},
-        });
-        expect(
-            await authorizer.check(snapshot, publicSpace.permission("read"), home, stranger),
-        ).toEqual({ isAllowed: true });
-    },
-);
+    // let a stranger who signed in read it in their scope
+    const snapshot = Snapshot.live(database);
+    const stranger = await authorizer.resolve(snapshot, "personal", {
+        grants: [],
+        subject: principal.user.reference("universe", "erin"),
+        actors: [],
+        groups: [],
+        contacts: [],
+        linkSecrets: [],
+        credential: sessionCredential("erin", 1000),
+        now: 1000,
+        attributes: {},
+    });
+    expect(
+        await authorizer.check(snapshot, publicSpace.permission("read"), home, stranger),
+    ).toEqual({ isAllowed: true });
+});

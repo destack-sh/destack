@@ -146,7 +146,7 @@ function asserted(
     now: number,
     expiresAt: number,
 ): Authentication {
-    // take the key's own machine, space or installation, or an installation its space signs for
+    // take the key's machine, space or installation, or an installation its space signs for
     const subject = assertedSubject(key, sub);
     const isMachine = principal.machine.is(subject);
     const isSpace = principal.space.is(subject);
@@ -168,7 +168,7 @@ function asserted(
 
 /** Read the principal an assertion's subject claim asserts under a key, refusing another. */
 function assertedSubject(key: AssertionKey, sub: string): Subject {
-    // take the key's own machine, space or installation
+    // take the key's machine, space or installation
     const { subject } = key;
     const installation = schema.identifier("installation").safeParse(sub);
     if (

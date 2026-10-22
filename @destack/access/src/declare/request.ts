@@ -16,7 +16,7 @@ const permissionSetSchema = schema
         account: schema.array(Permission).exactOptional(),
         /** The permissions on the universe's objects, such as users and clients. */
         universe: schema.array(Permission).exactOptional(),
-        /** The permissions in a user's home: their own scope and their home space. */
+        /** The permissions in a user's home: their personal scope and their home space. */
         home: schema.array(Permission).exactOptional(),
     })
     .strict();
@@ -33,7 +33,7 @@ export const PermissionSet = Object.assign(permissionSetSchema, {
         },
     ): GrantPermission[] {
         return PermissionScope.options.flatMap((name) => {
-            // grant the universe's permissions in every scope the delegator reaches
+            // grant the universe's permissions in every scope of the delegator
             if (name === "universe") {
                 return (set.universe ?? []).map((permission) => ({ ...permission }));
             }

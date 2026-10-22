@@ -23,7 +23,7 @@ import {
 import { openFixture, userSubject } from "../test/database.ts";
 import { AccessFixture } from "../test/access.ts";
 
-test("record each scope in its own partition where its type partitions, else in its parent's", async () => {
+test("record each scope in its partition where its type partitions, else in its parent's", async () => {
     // create an account in the universe and a partitioning space in it
     const home = await openFixture();
     onTestFinished(() => home.close());
@@ -50,7 +50,7 @@ test("record each scope in its own partition where its type partitions, else in 
         }),
     );
 
-    // read the space in its own partition and the account in the universe's
+    // read the space in its partition and the account in the universe's
     const chain = await Scope.chain(Snapshot.live(home.database), "personal");
     expect(chain.map((link) => [link.object.id, link.partition])).toEqual([
         ["personal", "personal"],
@@ -59,7 +59,7 @@ test("record each scope in its own partition where its type partitions, else in 
     ]);
 });
 
-test("store a space's own access in its partition, its home, refusing it where its row was created, which removes only the space's row", async () => {
+test("store a space's access in its partition, its home, refusing it where its row was created, which removes only the space's row", async () => {
     // open the universe's partition, with an account and a space created in it
     const universe = await openFixture();
     onTestFinished(() => universe.close());
@@ -106,7 +106,7 @@ test("store a space's own access in its partition, its home, refusing it where i
         ),
     );
 
-    // record the space in its own partition below the account, its owners bound there alone
+    // record the space in its partition below the account, its owners bound there alone
     const chain = await Scope.chain(Snapshot.live(partition.database), "personal");
     expect({
         granted: granted.subject,
@@ -141,7 +141,7 @@ test("store a space's own access in its partition, its home, refusing it where i
         ),
     );
 
-    // remove the space where its row was created: its scope row goes, its own access stays at its home
+    // remove the space where its row was created: its scope row goes, its access stays at its home
     await owner((authorization) => authorization.remove(personal));
     expect({
         universe: await Scope.read(Snapshot.live(universe.database), ["personal"]),
@@ -150,7 +150,7 @@ test("store a space's own access in its partition, its home, refusing it where i
 });
 
 test("forget a removed scope's relationships, roles, invitations and row, and reuse its identifier", async () => {
-    // store an account owned by alice with a role bound to bob and an invitation for carol
+    // store an account of alice with a role bound to bob and an invitation for carol
     const universe = await openFixture();
     onTestFinished(() => universe.close());
     const owner = <Value>(call: (authorization: Authorization) => Promise<Value>) =>

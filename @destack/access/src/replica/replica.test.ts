@@ -53,7 +53,7 @@ const carol: AccessContext = {
     linkSecrets: [],
 };
 
-/** Build a scope's own chain replica for an authorizer's database, with its subscription. */
+/** Build a scope's chain replica for an authorizer's database, with its subscription. */
 function chainOf(authorizer: Authorizer, scope: string, target = scope) {
     const name = `${CHAIN_PUBLICATION}:${target}`;
     const local = scope === target ? authorizer.local : [];
@@ -79,7 +79,7 @@ function chainOf(authorizer: Authorizer, scope: string, target = scope) {
 }
 
 test("relay an account's access through the space's database into an app's, and follow its revocation", async () => {
-    // open the universe's database with accounts and spaces, the space's own, and an app's with notes
+    // open the universe's database with accounts and spaces, the space's, and an app's with notes
     const global = await openDatabase();
     const regional = await openDatabase();
     const app = await openFixture();
@@ -90,7 +90,7 @@ test("relay an account's access through the space's database into an app's, and 
     const spaces = new Authorizer(policies, mappings);
     const notes = app.authorizer;
 
-    // create the account owned by alice, with a reader role bound to its members
+    // create the account of alice, with a reader role bound to its members
     await global.database.insert(accountTable).values({ id: "account-1", scope: "universe" });
     const object = account.reference("universe", "account-1");
     const owner = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
@@ -168,7 +168,7 @@ test("relay an account's access through the space's database into an app's, and 
         code: "STALE",
     });
 
-    // relay the revocation: carol reads nothing, and the app's replica reflects the account's own position
+    // relay the revocation: carol reads nothing, and the app's replica reflects the account's position
     await relay();
     expect(await readable(carol)).toEqual([]);
     const origins = await Replica.origins(app.database, CHAIN_PUBLICATION, ["account-1"]);
@@ -197,17 +197,19 @@ test("relay an account's access through the space's database into an app's, and 
         ),
     );
 
-    // read the app's own relationships, about its notes, through a fresh snapshot of the space's replica
+    // read the app's relationships, about its notes, through a fresh snapshot of the space's replica
     await replicate(app.database, chainOf(notes, "personal"), spaceFeed, "snapshot");
-    const own = await app.database
+    const local = await app.database
         .select({ type: accessRelationship.objectType, objectId: accessRelationship.objectId })
         .from(accessRelationship)
         .orderBy(asc(accessRelationship.objectType));
-    expect(own.filter((row) => row.type === node.name)).toEqual([{ type: "node", objectId: "b" }]);
+    expect(local.filter((row) => row.type === node.name)).toEqual([
+        { type: "node", objectId: "b" },
+    ]);
 });
 
-test("write a home's own access at the home as it is born, beside the chain it replicates, and none where its creator stores its row", async () => {
-    // create an account and its space owned by alice in the universe, which stores the space's row alone
+test("write a home's access at the home as it is born, beside the chain it replicates, and none where its creator stores its row", async () => {
+    // create an account and its space of alice in the universe, which stores the space's row alone
     const global = await openDatabase();
     const home = await openDatabase();
     onTestFinished(async () => {
@@ -284,7 +286,7 @@ async function bound(database: DatabaseConnection) {
     return rows.map((row) => [row.roleId, row.subjectId]);
 }
 
-/** Apply a source's feed to a replica until it reaches the source's head. */
+/** Apply a source's feed to a replica until it arrives at the source's head. */
 async function replicate(
     database: DatabaseConnection,
     chain: { readonly replica: Replica; readonly subscription: Subscription },

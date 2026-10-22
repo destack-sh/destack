@@ -59,7 +59,7 @@ export interface TableMapping {
     readonly references?: Readonly<Record<string, ReferenceColumns>>;
     /** Engine-maintained ancestor indexes for explicitly transitive relations. */
     readonly trees?: Readonly<Record<string, Tree>>;
-    /** The relation to the owning parent, whose role bindings cover this object. */
+    /** The relation to the owner parent, whose role bindings cover this object. */
     readonly parent?: string;
 }
 
@@ -212,7 +212,7 @@ export const TableMapping = {
         }
     },
 
-    /** Require the owning parent to be a field relation of one subject type. */
+    /** Require the owner parent to be a field relation of one subject type. */
     validateParent(authorizer: Authorizer, mapping: TableMapping): void {
         // refuse a parent stored as relationships
         if (mapping.parent !== undefined && !mapping.relations[mapping.parent]) {
@@ -263,7 +263,7 @@ export const TableMapping = {
         within: string,
         ids: readonly string[],
     ): Promise<Row[]> {
-        // read the rows by identifier, and scopes through their own reader of the universe
+        // read the rows by identifier, and scopes through their reader of the universe
         const definition = mapping.policy.definition;
         const rows: Row[] =
             mapping.table === Scope.table
@@ -356,7 +356,7 @@ export const TableMapping = {
 
     /** Resolve a mapped application column without interpolating caller SQL. */
     column(table: Table, name: string): Column {
-        // accept only the table's own columns
+        // accept only the table's columns
         const found = Object.hasOwn(table[TABLE].columns, name)
             ? table[TABLE].columns[name]
             : undefined;

@@ -23,7 +23,7 @@ import type { Gate } from "./decision.ts";
 import { Authorizer } from "./authorizer.ts";
 import { type FieldRelation, TableMapping } from "./mapping.ts";
 
-/** The permission key that lists the owning roles, granting every unreserved permission. */
+/** The permission key that lists the owner roles, granting every unreserved permission. */
 export const OWNING = "*";
 
 /** A caller's access in one scope: authority, scope chain, roles along it and validity time. */
@@ -104,7 +104,7 @@ export class Access {
         const roles = new Map<string, string[]>();
         const owning: string[] = [];
         for (const [role, grant] of resolved.grants) {
-            // list an owning role apart
+            // list an owner role apart
             if (grant.isOwner) {
                 owning.push(role);
             }
@@ -204,7 +204,7 @@ export class Access {
         });
     }
 
-    /** List the caller's represented subjects: its own, its contacts', and their scopes' sets. */
+    /** List the caller's represented subjects: itself, its contacts, and their scopes' sets. */
     static async #represented(
         snapshot: Snapshot,
         context: AccessContext,
@@ -406,7 +406,7 @@ export class Access {
             moments.push(...held.map((row) => TupleCondition.until(row, context)));
 
             // continue from each relationship's set and the permission sets it decides
-            const reached = [
+            const next = [
                 ...related.flatMap((row) => {
                     // refuse a role binding among the memberships
                     if (row.relation === null) {
@@ -421,7 +421,7 @@ export class Access {
                 }),
                 ...fielded.flat(),
             ];
-            frontier = Access.#expand(reached, expanded, authorizer, chain);
+            frontier = Access.#expand(next, expanded, authorizer, chain);
         }
 
         return {
@@ -476,14 +476,14 @@ export class Access {
 
     /** Add unseen subjects to an expansion with their sets on enclosed scopes, returning them. */
     static #expand(
-        reached: readonly Subject[],
+        subjects: readonly Subject[],
         expanded: Map<string, Subject>,
         authorizer: Pick<Authorizer, "enclosed">,
         chain: readonly ObjectReference[],
     ): Subject[] {
         // walk the subjects and their sets in order
         const added: Subject[] = [];
-        const pending = [...reached];
+        const pending = [...subjects];
         for (const subject of pending) {
             // take each subject not seen before, in order
             const key = Subject.key(subject);
@@ -526,7 +526,7 @@ export class Access {
         readonly binding: string;
         readonly permission: PermissionReference | null;
     }): boolean {
-        // find the role among the owning roles, or among those granting the permission
+        // find the role among the owner roles, or among those granting the permission
         const confined = this.#confined.get(role.id);
         const isGranting =
             role.permission === null
@@ -536,7 +536,7 @@ export class Access {
         return isGranting && (confined === undefined || confined.has(role.binding));
     }
 
-    /** Report whether a role grants a permission, or owns every unreserved one. */
+    /** Report whether a role grants a permission, or is an owner role with every unreserved one. */
     #grants(permission: PermissionReference, roleId: string): boolean {
         const listed = this.#roles.get(PermissionReference.key(permission)) ?? [];
         const isOwning = !this.isReserved(permission) && this.#owning.includes(roleId);
@@ -623,7 +623,7 @@ export class Access {
         ]);
     }
 
-    /** Read the scope's own object from its containing scope, when a mapping has its type. */
+    /** Read the scope's object from its containing scope, when a mapping has its type. */
     scopeObject(mapping: TableMapping): ObjectReference | undefined {
         // match the containing scope's object by the mapped type
         const object = this.scopes[0];

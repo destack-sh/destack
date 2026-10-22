@@ -26,7 +26,7 @@ export const accessTables: readonly Table[] = [
     ...replicaTables,
 ];
 
-/** The mappings of access's own tables. */
+/** The mappings of access's tables. */
 export const ACCESS_MAPPINGS: readonly TableMapping[] = [
     { policy: role, table: accessRole, id: "id", scope: "scope", attributes: {}, relations: {} },
     {

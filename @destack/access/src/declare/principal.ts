@@ -3,15 +3,15 @@ import { Scope, SYNC_PACKAGE, type Subject } from "@destack/sync";
 import { grantersOf, none, relation, readersOf, union } from "./expression.ts";
 import { Policy } from "./policy.ts";
 
-/** The package declaring access's own types. */
+/** The package declaring access's types. */
 const OWNER = import.meta.destack.package;
 
-/** The identity of the package declaring access's own types. */
+/** The identity of the package declaring access's types. */
 export const ACCESS_PACKAGE_ID = OWNER.id;
 
 /** The kinds of principal: people, machines, clients, devices, software and groups. */
 export const principal = {
-    /** A person, identified globally, and the scope with their own objects. */
+    /** A person, identified globally, and the scope with their objects. */
     user: new Policy(OWNER, { name: "user", permissions: {}, scope: true, isGlobal: true }),
     /** A machine running spaces, identified globally, and the scope of its local operations. */
     machine: new Policy(OWNER, { name: "machine", permissions: {}, scope: true, isGlobal: true }),
@@ -21,7 +21,7 @@ export const principal = {
     device: new Policy(OWNER, { name: "device", permissions: {}, scope: true, isGlobal: true }),
     /** An application installed into a space: the principal of software. */
     installation: new Policy(OWNER, { name: "installation", permissions: {} }),
-    /** A space, which signs with its own key and stores replicas for itself. */
+    /** A space, which signs with its key and stores replicas for itself. */
     space: new Policy(OWNER, { name: "space", permissions: {}, isGlobal: true }),
     /** A way to contact someone outside Destack with proven control, such as an email. */
     contact: new Policy(OWNER, { name: "contact", permissions: {} }),
@@ -126,7 +126,7 @@ export const grant = new Policy(OWNER, {
     },
 });
 
-/** The policies of access's own types in every access model. */
+/** The policies of access's types in every access model. */
 export const INTRINSIC_POLICIES: readonly Policy[] = [
     universe,
     principal.user,

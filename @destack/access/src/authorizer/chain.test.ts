@@ -56,11 +56,11 @@ const SPACE = "personal";
 /** The chain of the space: the first account and the universe. */
 const CHAIN = [SPACE, "account-0", Scope.universe.id];
 
-/** The outside scopes of a target's own chain: none. */
+/** The outside scopes of a target's chain: none. */
 const OWN = { via: [], between: [] } as const;
 
 test("replicate a space's chain up to the universe, with the policies each scope hands down, and follow a grant", async () => {
-    // insert an account and its space, both owned by alice, in the home database
+    // insert an account and its space, both of alice, in the home database
     const home = await openDatabase();
     const app = await openFixture();
     onTestFinished(async () => {
@@ -139,7 +139,7 @@ test("replicate a space's chain up to the universe, with the policies each scope
 test("replicate at the universe the relationships of the chain's objects alone, and the grants to the target from every scope", () => {
     // build the universe's chain replica of a space and of an outside follower
     const authorizer = new Authorizer(policies, homeMappings);
-    const own = authorizer.replicateChain(
+    const scoped = authorizer.replicateChain(
         { name: `${CHAIN_PUBLICATION}:personal`, scope: Scope.universe.id, target: "personal" },
         { scopes: ["personal", "account-1", "universe"], local: [], types: [], ...OWN },
     );
@@ -155,9 +155,9 @@ test("replicate at the universe the relationships of the chain's objects alone, 
     // read the chain objects' universe relationships, and the target's grants on its chain
     expect([
         [
-            own.tables.includes(accessGrant),
-            own.where.get(accessRelationship),
-            own.where.get(accessGrant),
+            scoped.tables.includes(accessGrant),
+            scoped.where.get(accessRelationship),
+            scoped.where.get(accessGrant),
         ],
         [outside.tables.includes(accessGrant), outside.where.get(accessRelationship)],
     ]).toEqual([
@@ -191,7 +191,7 @@ test("replicate the chains of the accounts a follower outside them replicates in
         await Promise.all([home.close(), app.close()]);
     });
 
-    // store two accounts owned by alice with one member each in the home database
+    // store two accounts of alice with one member each in the home database
     const authorizer = new Authorizer(policies, homeMappings);
     const owner = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
         Authorization.run(
@@ -251,7 +251,7 @@ test("replicate the chains of the accounts a follower outside them replicates in
     ]);
 });
 
-test("replicate a scope object's own row from wherever it lives, and only from a source storing its type", () => {
+test("replicate a scope object's row from wherever it lives, and only from a source storing its type", () => {
     // build the account's chain replica of its type and policies, at every source
     const storing = new Authorizer(policies, homeMappings);
     const relating = new Authorizer(policies, homeMappings, {
@@ -264,12 +264,12 @@ test("replicate a scope object's own row from wherever it lives, and only from a
             { name: CHAIN_PUBLICATION, scope: "account-1", target: "personal" },
             { scopes: ["personal", "account-1", "universe"], local: [], types: [type], ...OWN },
         );
-    const own = chained(storing, account.typeReference);
+    const chain = chained(storing, account.typeReference);
 
     // replicate the account's row everywhere, and policy rows from their source alone
     expect([
-        own.where.get(accountTable),
-        own.everywhere.has(accountTable),
+        chain.where.get(accountTable),
+        chain.everywhere.has(accountTable),
         chained(storing, policy.typeReference).tables.includes(policyTable),
         chained(relating, policy.typeReference).tables.includes(policyTable),
     ]).toEqual([{ id: { in: ["account-1"] } }, true, true, false]);
@@ -438,7 +438,7 @@ test("revoke a region's server from the account it resides in at once in the spa
         .where(eq(accessRelationship.subjectId, ada.id));
     await world.follow(Scope.universe.id);
 
-    // refuse her in the replica, which keeps no relationship of hers
+    // refuse her in the replica, which stores no relationship of hers
     expect([
         before,
         await serves(world.app, ada),
@@ -447,7 +447,7 @@ test("revoke a region's server from the account it resides in at once in the spa
 });
 
 test("replicate the universe's relationships of a space's chain alone, beside thousands of other regions and accounts", async () => {
-    // keep 2,000 other regions with a server and 2,000 other accounts with a member at the home
+    // store 2,000 other regions with a server and 2,000 other accounts with a member at the home
     const world = await openWorld(
         () => 0,
         async (fixture) => {
@@ -481,7 +481,7 @@ test("replicate the universe's relationships of a space's chain alone, beside th
                 ),
             ]);
 
-            // relate the people otherwise, whom the chain names directly, and its regions otherwise
+            // relate the people otherwise, whom the chain lists directly, and its regions otherwise
             const unnamed = [
                 ...PEOPLE.map((person) => ({
                     object: person,
@@ -517,7 +517,7 @@ test("replicate the universe's relationships of a space's chain alone, beside th
         },
     );
 
-    // keep the relationships of the chain and of the objects whose sets it names, of over 4,000
+    // replicate the relationships of the chain and of the objects whose sets it lists, over 4,000
     const stored = await relationshipsOf(world.home.database);
     const chained = stored.filter((row) => CHAIN.includes(row.objectId));
     const sets = new Set(
@@ -530,9 +530,9 @@ test("replicate the universe's relationships of a space's chain alone, beside th
             CHAIN.includes(row.objectId) ||
             sets.has(ObjectReference.key(ObjectReference.at("object", row))),
     );
-    const kept = await relationshipsOf(world.app.database);
+    const remaining = await relationshipsOf(world.app.database);
     expect([
-        kept.map((row) => row.id),
+        remaining.map((row) => row.id),
         stored.length > 4000,
         sets.size > 0,
         expected.length < 40,
@@ -543,7 +543,7 @@ test("replicate the universe's relationships of a space's chain alone, beside th
 interface World {
     /** The home database deciding everything. */
     readonly home: Side;
-    /** The space's own database, replicating the chain above it. */
+    /** The space's database, replicating the chain above it. */
     readonly app: Side;
     /** Follow one scope of the space's chain to the home's head. */
     readonly follow: (scope: string) => Promise<void>;
@@ -571,7 +571,7 @@ async function openWorld(
     const access = new AccessFixture(home.database);
     await populate(access);
 
-    // keep two regions, each person serving one as its machine or home with a generated chance
+    // store two regions, each person serving one as its machine or home with a generated chance
     for (const index of [0, 1]) {
         const id = `region-${index}`;
         await home.database.insert(regionTable).values({ id });
@@ -587,7 +587,7 @@ async function openWorld(
         }
     }
 
-    // keep two accounts in generated regions with generated members, the space in the first
+    // store two accounts in generated regions with generated members, the space in the first
     for (const index of [0, 1]) {
         const id = `account-${index}`;
         const object = account.reference(Scope.universe.id, id);
@@ -609,9 +609,9 @@ async function openWorld(
         }
     }
     await home.database.insert(spaceTable).values({ id: SPACE, account: "account-0" });
-    await access.replicateScope(space.reference("account-0", SPACE), "own");
+    await access.replicateScope(space.reference("account-0", SPACE), "self");
 
-    // follow the space's chain above it, then record the space as its own home
+    // follow the space's chain above it, then record the space as its home
     const authorizer = new Authorizer(policies, homeMappings);
     const feed = new Feed(home.database, [...accessTables, policyTable], { clock: Clock.system });
     const followScope = (scope: string) =>
@@ -620,7 +620,7 @@ async function openWorld(
     await followScope(Scope.universe.id);
     await new AccessFixture(app.database).replicateScope(
         space.reference("account-0", SPACE),
-        "own",
+        "self",
     );
 
     return {
@@ -648,7 +648,7 @@ async function serves(side: Side, person: Subject): Promise<boolean> {
     return decided.isAllowed;
 }
 
-/** Read the relationships of a subject a database keeps. */
+/** Read the relationships of a subject a database stores. */
 async function relationships(database: DatabaseConnection, subject: Subject): Promise<unknown[]> {
     return database
         .select()

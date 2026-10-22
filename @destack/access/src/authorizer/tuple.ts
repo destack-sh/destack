@@ -125,7 +125,7 @@ export class TupleReader {
         this.#scopes = scopes;
     }
 
-    /** Decide an enclosed scope's rows by that scope's own chain, nearest first. */
+    /** Decide an enclosed scope's rows by that scope's chain, nearest first. */
     cover(scopes: readonly ObjectReference[]): void {
         const [nearest] = scopes;
         if (nearest !== undefined) {
@@ -180,7 +180,7 @@ export class TupleReader {
         // read the rows' relationships and ancestry in bulk
         await this.#prefetch(mapping, rows);
 
-        // collect each row's tree, through the permission's expression on rows of its own type
+        // collect each row's tree, through the permission's expression on rows of the row's type
         const isSameType = mapping.policy === this.#authorizer.policy(permission);
         const trail = { arrows: [], path: [] };
 
@@ -203,7 +203,7 @@ export class TupleReader {
             scope: within,
             id,
         });
-        const reached: ObjectReference[] = [];
+        const related: ObjectReference[] = [];
         for (const [scope, within] of Map.groupBy(rows, (row) =>
             TableMapping.scope(mapping, row),
         )) {
@@ -224,7 +224,7 @@ export class TupleReader {
                     );
                 }
             }
-            reached.push(
+            related.push(
                 ...[...new Set([...ids, ...ancestors])].map((id) => typed(id, scope)),
                 ...this.#chain(scope),
             );
@@ -232,7 +232,7 @@ export class TupleReader {
 
         // read in one query the relationships of the rows, their ancestors, and their scope chains
         const objects = [
-            ...new Map(reached.map((object) => [ObjectReference.key(object), object])).values(),
+            ...new Map(related.map((object) => [ObjectReference.key(object), object])).values(),
         ].filter((object) => !this.#read.has(ObjectReference.key(object)));
         const byObject = new Map<string, Select<typeof accessRelationship>[]>(
             objects.map((object) => [ObjectReference.key(object), []]),
@@ -817,18 +817,22 @@ export class TupleReader {
         }));
     }
 
-    /** Read role bindings on the row, its ancestors or owning parent's chain, and its owner. */
+    /** Read role bindings on the row, its ancestors or owner parent's chain, and its owner. */
     async #covering(mapping: TableMapping, row: Row): Promise<RoleBinding[]> {
-        const [placed, owned] = await Promise.all([
+        const [placed, bound] = await Promise.all([
             this.#placed(mapping, row),
-            mapping.owner === undefined ? [] : this.#owned(mapping, mapping.owner, row),
+            mapping.owner === undefined ? [] : this.#ownerBindings(mapping, mapping.owner, row),
         ]);
 
-        return [...placed, ...owned];
+        return [...placed, ...bound];
     }
 
     /** Read the role bindings covering a row relation's owner, and on its enclosing scopes. */
-    async #owned(mapping: TableMapping, relation: string, row: Row): Promise<RoleBinding[]> {
+    async #ownerBindings(
+        mapping: TableMapping,
+        relation: string,
+        row: Row,
+    ): Promise<RoleBinding[]> {
         // find the owner the relation's field refers to, none for an unset field
         const subject = this.#authorizer.onlySubject(mapping.policy, relation);
         const target = this.#authorizer.requireMapping(subject);
@@ -879,7 +883,7 @@ export class TupleReader {
         return read;
     }
 
-    /** Read the role bindings on the row, its tree ancestors, or its owning parent's chain. */
+    /** Read the role bindings on the row, its tree ancestors, or its owner parent's chain. */
     async #placed(mapping: TableMapping, row: Row): Promise<RoleBinding[]> {
         // read the bindings on the row
         const definition = mapping.policy.definition;
@@ -909,7 +913,7 @@ export class TupleReader {
                 ...above.flat().filter((relationship) => Relationship.isBinding(relationship)),
             ];
         }
-        // read the bindings covering the owning parent
+        // read the bindings covering the owner parent
         else if (parent !== undefined) {
             const subject = this.#authorizer.onlySubject(mapping.policy, parent);
             const target = this.#authorizer.requireMapping(subject);
@@ -941,7 +945,7 @@ export class TupleReader {
         return bindings.flat().filter((relationship) => Relationship.isBinding(relationship));
     }
 
-    /** Read the chain deciding a scope's rows: its own when covered, the reader's otherwise. */
+    /** Read the chain deciding a scope's rows: the scope's when covered, the reader's otherwise. */
     #chain(scope: string): readonly ObjectReference[] {
         return this.#chains.get(scope) ?? this.#scopes;
     }

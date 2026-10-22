@@ -1,7 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { asc, type DatabaseConnection, Snapshot } from "@destack/db";
 import type { ObjectReference, Subject } from "@destack/sync";
-import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
+import { TestDatabase } from "@destack/db/test";
 import { Relationship } from "../relationship/relationship.ts";
 import { accessRelationship } from "../relationship/table.ts";
 import { AccessFixture } from "../test/access.ts";
@@ -19,7 +19,7 @@ import {
     Caller,
 } from "../index.ts";
 
-/** Organisations, with editors and viewers whose permissions hold everywhere below them. */
+/** Organisations, with editors and viewers whose permissions apply everywhere below them. */
 const org = new Policy(module1.package, {
     name: "org",
     relations: { editor: { subjects: [principal.user] }, viewer: { subjects: [principal.user] } },
@@ -45,7 +45,7 @@ const folder = new Policy(module1.package, {
     scope: true,
 });
 
-/** Documents in a folder, owned by their owner field and inheriting the folder's permissions. */
+/** Documents in a folder, with an owner field and the folder's permissions. */
 const document = new Policy(module1.package, {
     name: "doc",
     relations: {
@@ -112,73 +112,70 @@ function documentRow(id: string) {
     };
 }
 
-test.for(TEST_DIALECTS)(
-    "inherit a scope's relations onto the objects it encloses, through every scope above it, on %s",
-    async (dialect) => {
-        // store a folder in an organisation, and three documents owned by someone else in it
-        const storage = await TestDatabase.create(dialect, fixtureDatabase, {
-            isMigrated: true,
-        });
-        onTestFinished(() => storage.close());
-        const { database } = storage;
-        const acme = org.reference("universe", "acme");
-        const plans = folder.reference("acme", "plans");
-        const replicas = new AccessFixture(database);
-        await replicas.replicateScope(acme);
-        await replicas.replicateScope(plans);
-        await database.insert(item).values(["a", "b", "c"].map((id) => documentRow(id)));
+test("inherit a scope's relations onto the objects it encloses, through every scope above it", async () => {
+    // store a folder in an organisation, and three documents of someone else in it
+    const storage = await TestDatabase.create(fixtureDatabase, {
+        isMigrated: true,
+    });
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    const acme = org.reference("universe", "acme");
+    const plans = folder.reference("acme", "plans");
+    const replicas = new AccessFixture(database);
+    await replicas.replicateScope(acme);
+    await replicas.replicateScope(plans);
+    await database.insert(item).values(["a", "b", "c"].map((id) => documentRow(id)));
 
-        // make carol an editor of the organisation, dave a viewer of the folder, and erin nothing
-        await relate(database, acme, "editor", people.carol);
-        await relate(database, plans, "viewer", people.dave);
-        const authorizer = new Authorizer([org, folder, document], [mapping]);
+    // make carol an editor of the organisation, dave a viewer of the folder, and erin nothing
+    await relate(database, acme, "editor", people.carol);
+    await relate(database, plans, "viewer", people.dave);
+    const authorizer = new Authorizer([org, folder, document], [mapping]);
 
-        // list the documents each reads and edits, in SQL and in memory alike
-        const allowed = async (person: keyof typeof people, name: "read" | "edit") => {
-            const context: AccessContext = {
-                grants: [],
-                subject: people[person],
-                groups: [],
-                now: 1000,
-                attributes: {},
-                actors: [],
-                contacts: [],
-                linkSecrets: [],
-            };
-            const access = await authorizer.resolve(Snapshot.live(database), "plans", context);
-            const listed = (
-                await database
-                    .select({ id: item.id })
-                    .from(item)
-                    .where(authorizer.where(document.permission(name), access))
-                    .orderBy(asc(item.id))
-            ).map((row) => row.id);
-            const checked = (
-                await authorizer.check(
-                    Snapshot.live(database),
-                    document.permission(name),
-                    document.reference("plans", "a"),
-                    access,
-                )
-            ).isAllowed;
-
-            return [listed, checked];
+    // list the documents each reads and edits, in SQL and in memory alike
+    const allowed = async (person: keyof typeof people, name: "read" | "edit") => {
+        const context: AccessContext = {
+            grants: [],
+            subject: people[person],
+            groups: [],
+            now: 1000,
+            attributes: {},
+            actors: [],
+            contacts: [],
+            linkSecrets: [],
         };
-        expect([
-            await allowed("carol", "read"),
-            await allowed("carol", "edit"),
-            await allowed("dave", "read"),
-            await allowed("dave", "edit"),
-            await allowed("erin", "read"),
-        ]).toEqual([
-            [["a", "b", "c"], true],
-            [["a", "b", "c"], true],
-            [["a", "b", "c"], true],
-            [[], false],
-            [[], false],
-        ]);
-    },
-);
+        const access = await authorizer.resolve(Snapshot.live(database), "plans", context);
+        const listed = (
+            await database
+                .select({ id: item.id })
+                .from(item)
+                .where(authorizer.where(document.permission(name), access))
+                .orderBy(asc(item.id))
+        ).map((row) => row.id);
+        const checked = (
+            await authorizer.check(
+                Snapshot.live(database),
+                document.permission(name),
+                document.reference("plans", "a"),
+                access,
+            )
+        ).isAllowed;
+
+        return [listed, checked];
+    };
+    expect([
+        await allowed("carol", "read"),
+        await allowed("carol", "edit"),
+        await allowed("dave", "read"),
+        await allowed("dave", "edit"),
+        await allowed("erin", "read"),
+    ]).toEqual([
+        [["a", "b", "c"], true],
+        [["a", "b", "c"], true],
+        [["a", "b", "c"], true],
+        [[], false],
+        [[], false],
+    ]);
+});
 
 test("refuse a permission read through an enclosing scope that its chain's relationships cannot decide", () => {
     // read a folder permission of viewers who are also editors, beyond a union of relationships
@@ -205,241 +202,229 @@ test("refuse a permission read through an enclosing scope that its chain's relat
     );
 });
 
-test.for(TEST_DIALECTS)(
-    "share an object with everyone with a permission on another, as its relations decide it, on %s",
-    async (dialect) => {
-        // store a team with its viewers and editors as readers, and a note shared with its readers
-        const storage = await TestDatabase.create(dialect, fixtureDatabase, {
-            isMigrated: true,
-        });
-        onTestFinished(() => storage.close());
-        const { database } = storage;
-        const team = new Policy(module1.package, {
-            name: "crew",
-            relations: {
-                editor: { subjects: [principal.user] },
-                viewer: { subjects: [principal.user] },
-            },
-            permissions: { read: union(relation("viewer"), relation("editor")) },
-        });
-        const note = new Policy(module1.package, {
-            name: "memo",
-            relations: { reader: { subjects: [team.members("read")] } },
-            permissions: { read: relation("reader") },
-        });
-        const authorizer = new Authorizer(
-            [team, note],
-            [{ ...mapping, policy: note, relations: {} }],
-        );
-        await new AccessFixture(database).replicateScope(org.reference("universe", "plans"));
-        await database.insert(item).values({
-            id: "a",
-            scope: "plans",
-            owner: "frank",
-            parent: null,
-            row: 0,
-            column: 0,
-            locked: 0,
-            team: 0,
-            protected: 0,
-        });
-        const crew = team.reference("plans", "core");
-        await relate(database, crew, "editor", people.carol);
-        await relate(database, crew, "viewer", people.dave);
-        await relate(database, note.reference("plans", "a"), "reader", {
-            ...crew,
-            relation: "read",
-        });
+test("share an object with everyone with a permission on another, as its relations decide it", async () => {
+    // store a team with its viewers and editors as readers, and a note shared with its readers
+    const storage = await TestDatabase.create(fixtureDatabase, {
+        isMigrated: true,
+    });
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    const team = new Policy(module1.package, {
+        name: "crew",
+        relations: {
+            editor: { subjects: [principal.user] },
+            viewer: { subjects: [principal.user] },
+        },
+        permissions: { read: union(relation("viewer"), relation("editor")) },
+    });
+    const note = new Policy(module1.package, {
+        name: "memo",
+        relations: { reader: { subjects: [team.members("read")] } },
+        permissions: { read: relation("reader") },
+    });
+    const authorizer = new Authorizer([team, note], [{ ...mapping, policy: note, relations: {} }]);
+    await new AccessFixture(database).replicateScope(org.reference("universe", "plans"));
+    await database.insert(item).values({
+        id: "a",
+        scope: "plans",
+        owner: "frank",
+        parent: null,
+        row: 0,
+        column: 0,
+        locked: 0,
+        team: 0,
+        protected: 0,
+    });
+    const crew = team.reference("plans", "core");
+    await relate(database, crew, "editor", people.carol);
+    await relate(database, crew, "viewer", people.dave);
+    await relate(database, note.reference("plans", "a"), "reader", {
+        ...crew,
+        relation: "read",
+    });
 
-        // let the team's editor and viewer read the note, and nobody else, in SQL and in memory alike
-        const reads = async (person: keyof typeof people) => {
-            const context: AccessContext = {
-                grants: [],
-                subject: people[person],
-                actors: [],
-                groups: [],
-                contacts: [],
-                linkSecrets: [],
-                now: 1000,
-                attributes: {},
-            };
-            const access = await authorizer.resolve(Snapshot.live(database), "plans", context);
-            const listed = (
-                await database
-                    .select({ id: item.id })
-                    .from(item)
-                    .where(authorizer.where(note.permission("read"), access))
-            ).map((row) => row.id);
-            const checked = (
-                await authorizer.check(
-                    Snapshot.live(database),
-                    note.permission("read"),
-                    note.reference("plans", "a"),
-                    access,
-                )
-            ).isAllowed;
-
-            return [listed, checked];
+    // let the team's editor and viewer read the note, and nobody else, in SQL and in memory alike
+    const reads = async (person: keyof typeof people) => {
+        const context: AccessContext = {
+            grants: [],
+            subject: people[person],
+            actors: [],
+            groups: [],
+            contacts: [],
+            linkSecrets: [],
+            now: 1000,
+            attributes: {},
         };
-        expect([await reads("carol"), await reads("dave"), await reads("erin")]).toEqual([
-            [["a"], true],
-            [["a"], true],
-            [[], false],
-        ]);
-    },
-);
+        const access = await authorizer.resolve(Snapshot.live(database), "plans", context);
+        const listed = (
+            await database
+                .select({ id: item.id })
+                .from(item)
+                .where(authorizer.where(note.permission("read"), access))
+        ).map((row) => row.id);
+        const checked = (
+            await authorizer.check(
+                Snapshot.live(database),
+                note.permission("read"),
+                note.reference("plans", "a"),
+                access,
+            )
+        ).isAllowed;
 
-test.for(TEST_DIALECTS)(
-    "share an object with a scope's readers, including those of the scopes enclosing it, on %s",
-    async (dialect) => {
-        // store a document in a folder of an organisation, shared with the folder's readers
-        const storage = await TestDatabase.create(dialect, fixtureDatabase, {
-            isMigrated: true,
-        });
-        onTestFinished(() => storage.close());
-        const { database } = storage;
-        const shared = new Policy(module1.package, {
-            name: "memo",
-            relations: { reader: { subjects: [folder.members("read")] } },
-            permissions: { read: relation("reader") },
-        });
-        const authorizer = new Authorizer(
-            [org, folder, shared],
-            [{ ...mapping, policy: shared, relations: {} }],
-        );
-        const acme = org.reference("universe", "acme");
-        const plans = folder.reference("acme", "plans");
-        const replicas = new AccessFixture(database);
-        await replicas.replicateScope(acme);
-        await replicas.replicateScope(plans);
-        await database.insert(item).values({
-            id: "a",
-            scope: "plans",
-            owner: "frank",
-            parent: null,
-            row: 0,
-            column: 0,
-            locked: 0,
-            team: 0,
-            protected: 0,
-        });
-        await relate(database, acme, "editor", people.carol);
-        await relate(database, plans, "viewer", people.dave);
-        await relate(database, shared.reference("plans", "a"), "reader", {
-            ...plans,
-            relation: "read",
-        });
+        return [listed, checked];
+    };
+    expect([await reads("carol"), await reads("dave"), await reads("erin")]).toEqual([
+        [["a"], true],
+        [["a"], true],
+        [[], false],
+    ]);
+});
 
-        // let the organisation's editor and the folder's viewer read the document, and nobody else, in SQL and in memory alike
-        const reads = async (person: keyof typeof people) => {
-            const context = AccessContext.of(Caller.of(people[person]), 1000);
-            const access = await authorizer.resolve(Snapshot.live(database), "plans", context);
-            const listed = (
-                await database
-                    .select({ id: item.id })
-                    .from(item)
-                    .where(authorizer.where(shared.permission("read"), access))
-            ).map((row) => row.id);
-            const checked = (
-                await authorizer.check(
-                    Snapshot.live(database),
-                    shared.permission("read"),
-                    shared.reference("plans", "a"),
-                    access,
-                )
-            ).isAllowed;
+test("share an object with a scope's readers, including those of the scopes enclosing it", async () => {
+    // store a document in a folder of an organisation, shared with the folder's readers
+    const storage = await TestDatabase.create(fixtureDatabase, {
+        isMigrated: true,
+    });
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    const shared = new Policy(module1.package, {
+        name: "memo",
+        relations: { reader: { subjects: [folder.members("read")] } },
+        permissions: { read: relation("reader") },
+    });
+    const authorizer = new Authorizer(
+        [org, folder, shared],
+        [{ ...mapping, policy: shared, relations: {} }],
+    );
+    const acme = org.reference("universe", "acme");
+    const plans = folder.reference("acme", "plans");
+    const replicas = new AccessFixture(database);
+    await replicas.replicateScope(acme);
+    await replicas.replicateScope(plans);
+    await database.insert(item).values({
+        id: "a",
+        scope: "plans",
+        owner: "frank",
+        parent: null,
+        row: 0,
+        column: 0,
+        locked: 0,
+        team: 0,
+        protected: 0,
+    });
+    await relate(database, acme, "editor", people.carol);
+    await relate(database, plans, "viewer", people.dave);
+    await relate(database, shared.reference("plans", "a"), "reader", {
+        ...plans,
+        relation: "read",
+    });
 
-            // decide the same row from the organisation, descending into the folder
-            const above = await authorizer.resolve(Snapshot.live(database), "acme", context);
-            const below = await above.descend(Snapshot.live(database), ["plans"]);
-            const descended = await authorizer.checkRows(
+    // let the organisation's editor and the folder's viewer read the document, and nobody else, in SQL and in memory alike
+    const reads = async (person: keyof typeof people) => {
+        const context = AccessContext.of(Caller.of(people[person]), 1000);
+        const access = await authorizer.resolve(Snapshot.live(database), "plans", context);
+        const listed = (
+            await database
+                .select({ id: item.id })
+                .from(item)
+                .where(authorizer.where(shared.permission("read"), access))
+        ).map((row) => row.id);
+        const checked = (
+            await authorizer.check(
                 Snapshot.live(database),
                 shared.permission("read"),
-                above,
-                [{ id: "a", scope: "plans" }],
-                undefined,
-                below,
-            );
+                shared.reference("plans", "a"),
+                access,
+            )
+        ).isAllowed;
 
-            return [listed, checked, descended.permitted.has(0)];
-        };
-        expect([await reads("carol"), await reads("dave"), await reads("erin")]).toEqual([
-            [["a"], true, true],
-            [["a"], true, true],
-            [[], false, false],
-        ]);
-    },
-);
+        // decide the same row from the organisation, descending into the folder
+        const above = await authorizer.resolve(Snapshot.live(database), "acme", context);
+        const below = await above.descend(Snapshot.live(database), ["plans"]);
+        const descended = await authorizer.checkRows(
+            Snapshot.live(database),
+            shared.permission("read"),
+            above,
+            [{ id: "a", scope: "plans" }],
+            undefined,
+            below,
+        );
 
-test.for(TEST_DIALECTS)(
-    "read a permission through each object's scope, granting nothing where the scope type lacks the permission, on %s",
-    async (dialect) => {
-        // store notes in a shop serving its workers and in a club declaring no serving
-        const storage = await TestDatabase.create(dialect, fixtureDatabase, {
-            isMigrated: true,
-        });
-        onTestFinished(() => storage.close());
-        const { database } = storage;
-        const shop = new Policy(module1.package, {
-            name: "shop",
-            relations: { worker: { subjects: [principal.user] } },
-            permissions: { serve: relation("worker") },
-            scope: true,
-        });
-        const club = new Policy(module1.package, {
-            name: "club",
-            relations: { worker: { subjects: [principal.user] } },
-            permissions: { read: relation("worker") },
-            scope: true,
-        });
-        const note = new Policy(module1.package, {
-            name: "note",
-            relations: {
-                owner: { subjects: [principal.user], grantedBy: null },
-                scope: { subjects: [], isScope: true },
-            },
-            permissions: { read: union(relation("owner"), through("scope", "serve")) },
-        });
-        const corner = shop.reference("universe", "corner");
-        const chess = club.reference("universe", "chess");
-        const replicas = new AccessFixture(database);
-        await replicas.replicateScope(corner);
-        await replicas.replicateScope(chess);
-        await database.insert(item).values([
-            { ...documentRow("a"), scope: "corner" },
-            { ...documentRow("b"), scope: "chess" },
-        ]);
+        return [listed, checked, descended.permitted.has(0)];
+    };
+    expect([await reads("carol"), await reads("dave"), await reads("erin")]).toEqual([
+        [["a"], true, true],
+        [["a"], true, true],
+        [[], false, false],
+    ]);
+});
 
-        // make dave a worker of both
-        await relate(database, corner, "worker", people.dave);
-        await relate(database, chess, "worker", people.dave);
-        const authorizer = new Authorizer([shop, club, note], [{ ...mapping, policy: note }]);
+test("read a permission through each object's scope, granting nothing where the scope type lacks the permission", async () => {
+    // store notes in a shop serving its workers and in a club declaring no serving
+    const storage = await TestDatabase.create(fixtureDatabase, {
+        isMigrated: true,
+    });
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    const shop = new Policy(module1.package, {
+        name: "shop",
+        relations: { worker: { subjects: [principal.user] } },
+        permissions: { serve: relation("worker") },
+        scope: true,
+    });
+    const club = new Policy(module1.package, {
+        name: "club",
+        relations: { worker: { subjects: [principal.user] } },
+        permissions: { read: relation("worker") },
+        scope: true,
+    });
+    const note = new Policy(module1.package, {
+        name: "note",
+        relations: {
+            owner: { subjects: [principal.user], grantedBy: null },
+            scope: { subjects: [], isScope: true },
+        },
+        permissions: { read: union(relation("owner"), through("scope", "serve")) },
+    });
+    const corner = shop.reference("universe", "corner");
+    const chess = club.reference("universe", "chess");
+    const replicas = new AccessFixture(database);
+    await replicas.replicateScope(corner);
+    await replicas.replicateScope(chess);
+    await database.insert(item).values([
+        { ...documentRow("a"), scope: "corner" },
+        { ...documentRow("b"), scope: "chess" },
+    ]);
 
-        // list and check the notes dave reads in each scope, in SQL and in memory alike
-        const reads = async (scope: string, id: string) => {
-            const context = AccessContext.of(Caller.of(people.dave), 1000);
-            const access = await authorizer.resolve(Snapshot.live(database), scope, context);
-            const listed = (
-                await database
-                    .select({ id: item.id })
-                    .from(item)
-                    .where(authorizer.where(note.permission("read"), access))
-                    .orderBy(asc(item.id))
-            ).map((row) => row.id);
-            const checked = (
-                await authorizer.check(
-                    Snapshot.live(database),
-                    note.permission("read"),
-                    note.reference(scope, id),
-                    access,
-                )
-            ).isAllowed;
+    // make dave a worker of both
+    await relate(database, corner, "worker", people.dave);
+    await relate(database, chess, "worker", people.dave);
+    const authorizer = new Authorizer([shop, club, note], [{ ...mapping, policy: note }]);
 
-            return [listed, checked];
-        };
-        expect([await reads("corner", "a"), await reads("chess", "b")]).toEqual([
-            [["a"], true],
-            [[], false],
-        ]);
-    },
-);
+    // list and check the notes dave reads in each scope, in SQL and in memory alike
+    const reads = async (scope: string, id: string) => {
+        const context = AccessContext.of(Caller.of(people.dave), 1000);
+        const access = await authorizer.resolve(Snapshot.live(database), scope, context);
+        const listed = (
+            await database
+                .select({ id: item.id })
+                .from(item)
+                .where(authorizer.where(note.permission("read"), access))
+                .orderBy(asc(item.id))
+        ).map((row) => row.id);
+        const checked = (
+            await authorizer.check(
+                Snapshot.live(database),
+                note.permission("read"),
+                note.reference(scope, id),
+                access,
+            )
+        ).isAllowed;
+
+        return [listed, checked];
+    };
+    expect([await reads("corner", "a"), await reads("chess", "b")]).toEqual([
+        [["a"], true],
+        [[], false],
+    ]);
+});
