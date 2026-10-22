@@ -15,7 +15,7 @@ const DefaultExport = schema.looseObject({ default: schema.unknown() });
 
 test("place npm units with the peers the packages beside them provide, failing a missing peer once it loads", async () => {
     // install a renderer whose peer is a core package, and a list depending on a store whose peer it is
-    const { root, pins } = await writeStore({
+    const { root, locked } = await writeStore({
         renderer: {
             manifest: { main: "index.js", peerDependencies: { core: "1.0.0" } },
             files: { "index.js": 'module.exports = "rendered with " + require("core");\n' },
@@ -35,7 +35,7 @@ test("place npm units with the peers the packages beside them provide, failing a
         },
     });
     await using store = await LocalPackageStore.temporary();
-    const installation = new NpmInstallation(pins, store, CONTEXT);
+    const installation = new NpmInstallation(locked, store, CONTEXT);
     const build = async (name: string) =>
         await installation.store(await installation.open(copy(root, name)), convertHere);
     const [renderer, core, lists] = [

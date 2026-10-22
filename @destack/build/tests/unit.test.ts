@@ -9,7 +9,7 @@ import { PackageStore } from "../src/store/index.ts";
 import { LocalPackageStore } from "../src/store/local.ts";
 import { countObjects, exported, importBuilt, property } from "./fixture.ts";
 
-/** One module output per unit, its dependencies kept external. */
+/** One module output per unit, its dependencies external. */
 const OUTPUTS = { bun: { kind: "module", runtime: "bun" } } as const;
 
 /** The library unit's package name, as the application requires it. */

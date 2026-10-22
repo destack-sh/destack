@@ -27,7 +27,7 @@ export class ModuleClosure {
     /** The identity of each module: a source's package, path and digest, or an npm release. */
     readonly modules: ReadonlyMap<string, string>;
 
-    /** Keep the identities of a closure's modules. */
+    /** Store the identities of a closure's modules. */
     private constructor(modules: ReadonlyMap<string, string>) {
         this.modules = modules;
     }

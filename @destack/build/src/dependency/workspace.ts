@@ -35,11 +35,11 @@ interface WorkspaceUnit {
     readonly npm: ReadonlyMap<string, string>;
 }
 
-/** A unit's stored build, with the npm releases its own npm dependencies reach. */
+/** A unit's stored build, with the npm releases its npm dependencies require. */
 interface StoredUnit {
     /** The unit's stored build. */
     readonly build: DependencyBuild;
-    /** The npm releases its own npm dependencies reach, by `name@version`. */
+    /** The npm releases its npm dependencies require, by `name@version`. */
     readonly releases: Readonly<Record<string, NpmDependency>>;
 }
 
@@ -77,10 +77,10 @@ export class Workspace {
     readonly #toolchain: Digest;
     /** The files of the git checkout enclosing the workspace, which the units' keys read. */
     readonly #checkout: Checkout;
-    /** The npm packages the lockfile pins, each stored once as a unit. */
+    /** The npm packages the lockfile locks, each stored once as a unit. */
     readonly #npm: NpmInstallation;
 
-    /** Hold a closure's units in build order, the root last, with what their keys read. */
+    /** Store a closure's units in build order, the root last, with what their keys read. */
     private constructor(
         units: readonly WorkspaceUnit[],
         compilers: WorkspaceCompilers,
@@ -89,13 +89,13 @@ export class Workspace {
         checkout: Checkout,
         npm: NpmInstallation,
     ) {
-        // keep the units and the compilers
+        // store the units and the compilers
         this.units = units;
         this.root = nth(units, units.length - 1);
         this.#named = new Map(units.map((unit) => [unit.name, unit]));
         this.#compilers = compilers;
 
-        // keep what the units' keys read
+        // store what the units' keys read
         this.#identities = identities;
         this.#toolchain = toolchain;
         this.#checkout = checkout;
@@ -131,7 +131,7 @@ export class Workspace {
         const walk = { locator: new PackageLocator(), members, units, visiting: new Set<string>() };
         await Workspace.#visit(await realpath(directory), walk);
 
-        // read the toolchain, the checkout and the npm pins the units' keys read
+        // read the toolchain, the checkout and the locked npm releases the units' keys read
         const identities = Identities.of({});
         const toolchain = await identifyToolchain(identities);
         const checkout = await Checkout.list(workspace);
@@ -187,7 +187,7 @@ export class Workspace {
             else if (resolved !== undefined && isMember && isDestack) {
                 requires.push((await Workspace.#visit(resolved, walk)).name);
             }
-            // keep an npm package from outside the workspace, stored as npm units
+            // take an npm package from outside the workspace, stored as npm units
             else if (resolved !== undefined && !isMember && !isDestack) {
                 npm.set(dependency, resolved);
             }
@@ -210,7 +210,7 @@ export class Workspace {
 
     /** Build the root on its dependencies' builds with the given outputs, reusing stored units. */
     async build(request: WorkspaceBuildOptions): Promise<PackageBuild> {
-        // build the root's dependency units, the root's commit its own
+        // build the root's dependency units, the root's commit separate
         const { signal, timeout, versions, history } = request;
         const shared = {
             ...(signal === undefined ? {} : { signal }),
@@ -321,14 +321,14 @@ export class Workspace {
         started: ReadonlyMap<string, Promise<StoredUnit>>,
         shared: WorkspaceUnitOptions,
     ): Promise<StoredUnit> {
-        // wait for the units it reaches, then resolve its dependencies on their builds
-        const reached = new Map<string, StoredUnit>();
-        for (const name of this.#reach(unit)) {
-            reached.set(name, await found(started, name));
+        // wait for the units it requires, then resolve its dependencies on their builds
+        const required = new Map<string, StoredUnit>();
+        for (const name of this.#requirements(unit)) {
+            required.set(name, await found(started, name));
         }
-        const { dependencies, releases } = await this.#resolve(unit, reached);
+        const { dependencies, releases } = await this.#resolve(unit, required);
 
-        // build every output the unit ships, its dependencies kept external but in a browser output
+        // build every output the unit ships, its dependencies external but in a browser output
         const outputs = outputsOf(unit.packageJson);
         const options = this.#options(unit, { ...shared, outputs }, dependencies);
         const key = await this.#key(unit, options);
@@ -344,21 +344,21 @@ export class Workspace {
     }
 
     /** List the units a unit requires, and theirs, each once. */
-    #reach(unit: WorkspaceUnit): ReadonlySet<string> {
+    #requirements(unit: WorkspaceUnit): ReadonlySet<string> {
         // walk the requirements once each
-        const reached = new Set<string>();
+        const closure = new Set<string>();
         const pending = [...unit.requires];
         for (let name = pending.pop(); name !== undefined; name = pending.pop()) {
-            if (!reached.has(name)) {
-                reached.add(name);
+            if (!closure.has(name)) {
+                closure.add(name);
                 pending.push(...found(this.#named, name).requires);
             }
         }
 
-        return reached;
+        return closure;
     }
 
-    /** Resolve a unit's dependencies on the stored units it reaches, with its npm releases. */
+    /** Resolve a unit's dependencies on the stored units it requires, with its npm releases. */
     async #resolve(
         unit: WorkspaceUnit,
         stored: ReadonlyMap<string, StoredUnit>,
@@ -366,21 +366,21 @@ export class Workspace {
         readonly dependencies: Record<string, DependencyResolution>;
         readonly releases: Record<string, NpmDependency>;
     }> {
-        // take the builds of the units it reaches, as kinds may come from any, with their npm releases
+        // take the builds of the units it requires, as kinds may come from any, with their npm releases
         const dependencies: Record<string, DependencyResolution> = {};
-        for (const name of this.#reach(unit)) {
-            const reached = found(stored, name);
-            dependencies[name] = reached.build;
-            Object.assign(dependencies, reached.releases);
+        for (const name of this.#requirements(unit)) {
+            const requirement = found(stored, name);
+            dependencies[name] = requirement.build;
+            Object.assign(dependencies, requirement.releases);
         }
 
-        // store its own npm dependencies, by the names it imports them by and by release
+        // store its npm dependencies, by the names it imports them by and by release
         const { named, releases } = await this.#storeNpm(unit);
 
         return { dependencies: { ...dependencies, ...releases, ...named }, releases };
     }
 
-    /** Store the npm units a unit's npm dependencies reach, by import name and by release. */
+    /** Store the npm units a unit's npm dependencies require, by import name and by release. */
     async #storeNpm(unit: WorkspaceUnit): Promise<{
         readonly named: Record<string, NpmDependency>;
         readonly releases: Record<string, NpmDependency>;
@@ -395,17 +395,17 @@ export class Workspace {
             const opened = await this.#npm.open(directory);
             named[name] = await this.#npm.store(opened, convert);
 
-            // record every unit it reaches by release
-            for (const reached of opened.closure()) {
-                const { name: released, version } = reached.release.package;
-                releases[`${released}@${version}`] = await this.#npm.store(reached, convert);
+            // record every unit it requires by release
+            for (const entry of opened.closure()) {
+                const { name: released, version } = entry.release.package;
+                releases[`${released}@${version}`] = await this.#npm.store(entry, convert);
             }
         }
 
         return { named, releases };
     }
 
-    /** Build options of a unit on its dependencies, with its own version and history. */
+    /** Build options of a unit on its dependencies, with its version and history. */
     #options(
         unit: WorkspaceUnit,
         request: WorkspaceBuildOptions,

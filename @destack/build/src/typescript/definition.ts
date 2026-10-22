@@ -34,7 +34,7 @@ const DECLARE_MODULE = "@destack/package/declare";
 export interface DefinitionSite {
     /** The literal name. */
     readonly name: string;
-    /** The exported constant holding the declaration. */
+    /** The exported constant with the declaration. */
     readonly symbol: string;
     /** The defining call's range in its module. */
     readonly source: SourceRange;
@@ -71,7 +71,7 @@ export const DefinitionDeclaration = {
             calls.map((call) => call.expression),
         );
 
-        // keep the constructor's calls at exported module constants
+        // take the constructor's calls at exported module constants
         const definitions: DefinitionDeclaration[] = [];
         for (const [index, call] of calls.entries()) {
             const callee = callees[index];
@@ -109,7 +109,7 @@ export class DefinitionFields {
             throw this.#error("an object literal");
         }
         for (const property of literal.properties) {
-            // keep named fields, and leave methods such as render to the runtime
+            // take named fields, and leave methods such as render to the runtime
             if (isPropertyAssignment(property) && isFieldName(property.name)) {
                 this.#fields.set(property.name.text, property.initializer);
             } else if (!isMethodDeclaration(property)) {
@@ -300,7 +300,7 @@ async function constructorBindings(
 
 /** Collect a module's calls. */
 function collectCalls(source: SourceFile): CallExpression[] {
-    // walk the module breadth first, keeping every call
+    // walk the module breadth first, collecting every call
     const calls: CallExpression[] = [];
     const pending: Node[] = [...source.statements];
     for (const node of pending) {
@@ -349,7 +349,7 @@ async function locateConstant(
     return declaration.name.text;
 }
 
-/** Report whether a property name is one a literal field can carry. */
+/** Report whether a literal field can have a property name. */
 function isFieldName(name: Node): name is Node & { readonly text: string } {
     return isIdentifier(name) || isStringLiteral(name);
 }

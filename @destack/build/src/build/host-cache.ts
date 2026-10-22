@@ -3,7 +3,7 @@ import type { TransformCache } from "@destack/package/build";
 import { BuildError } from "../error/index.ts";
 import { type CacheRequest, type CacheResponse, writeMessage } from "./message.ts";
 
-/** The build's cache as the compiler reaches it, through requests its host answers. */
+/** The build's cache as the compiler sees it, through requests its host answers. */
 export class HostCache implements TransformCache {
     /** The stream the compiler's requests go out on. */
     readonly #output: Writable;
@@ -25,12 +25,12 @@ export class HostCache implements TransformCache {
         this.#next = 0;
     }
 
-    /** Read the bytes kept under a key, absent on a miss. */
+    /** Read the bytes stored under a key, absent on a miss. */
     async read(key: string): Promise<Uint8Array<ArrayBuffer> | undefined> {
         return (await this.#ask((id) => ({ kind: "read", id, key }))) ?? undefined;
     }
 
-    /** Keep bytes under a key for later builds. */
+    /** Store bytes under a key for later builds. */
     async write(key: string, bytes: Uint8Array<ArrayBuffer>): Promise<void> {
         await this.#ask((id) => ({ kind: "write", id, key, bytes }));
     }

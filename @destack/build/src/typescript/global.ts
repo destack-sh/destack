@@ -59,7 +59,7 @@ export async function collectGlobals(
     const symbols = await project.checker.getSymbolAtLocation(identifiers);
     const globals: GlobalReference[] = [];
     for (const [index, node] of identifiers.entries()) {
-        // keep globals the runtime declares, leaving properties, imports and package declarations
+        // take globals the runtime declares, leaving properties, imports and package declarations
         const symbol = symbols[index];
         if (!symbol || !(symbol.flags & GLOBAL_SYMBOL) || symbol.flags & SymbolFlags.Alias) {
             continue;

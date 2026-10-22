@@ -42,11 +42,11 @@ export async function loadExtensions(
     tree: DependencyTree,
 ): Promise<LoadedExtension[]> {
     // take the package itself, then its listed extensions and its runtime dependency closure
-    const own = packageJson.package.name;
+    const root = packageJson.package.name;
     const listed = packageJson.definition.extensions ?? [];
     const locator = new PackageLocator();
     const packages = new Map<string, { directory: string; definition: PackageDefinition }>([
-        [own, { directory, definition: packageJson.definition }],
+        [root, { directory, definition: packageJson.definition }],
     ]);
     const required = PackageJson.runtimeDependencies(packageJson);
     const pending = [...new Set([...required, ...listed])].map((name) => ({
@@ -92,7 +92,7 @@ export async function loadExtensions(
     if (unbuilt !== undefined) {
         throw new BuildError(
             "BUILD_FAILED",
-            `${own} lists ${unbuilt}, which declares no build extension`,
+            `${root} lists ${unbuilt}, which declares no build extension`,
         );
     }
 

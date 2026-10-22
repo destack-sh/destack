@@ -32,14 +32,14 @@ export class PackageBuild implements AsyncDisposable {
     /** The requested outputs the build reused from a cache instead of compiling them. */
     readonly reused: readonly string[];
 
-    /** Keep a build directory's reader, its ownership and the outputs it reused. */
+    /** Store a build directory's reader, whether it removes it and the outputs it reused. */
     constructor(
         reader: BuildReader,
         directory: string,
         ownership: "temporary" | "retained",
         reused: readonly string[] = [],
     ) {
-        // keep the reader with its manifest, the directory and how the build owns it
+        // store the reader with its manifest, the directory and whether the build removes it
         this.reader = reader;
         this.manifest = reader.manifest;
         this.directory = directory;
@@ -47,7 +47,7 @@ export class PackageBuild implements AsyncDisposable {
         this.reused = reused;
     }
 
-    /** Remove only temporary results owned by this instance. */
+    /** Remove only this instance's temporary results. */
     async [Symbol.asyncDispose](): Promise<void> {
         if (this.ownership === "temporary") {
             await rm(this.directory, { recursive: true, force: true });
@@ -228,7 +228,7 @@ export type ModuleOptions = schema.Infer<typeof ModuleOptions>;
 
 /** Inputs to a package build. */
 export interface PackageBuildOptions {
-    /** The source package directory, kept unchanged for the duration of this build. */
+    /** The source package directory, unchanged for the duration of this build. */
     directory: string;
     /** Named module outputs, and outputs of kinds the dependency closure's extensions compile. */
     outputs: Readonly<Record<string, ModuleOptions | OutputRequest>>;

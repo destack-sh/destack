@@ -46,11 +46,11 @@ export type NpmConverter = (request: NpmConversionRequest) => Promise<{
 /** An npm dependency taken by its unit's build. */
 export type NpmDependency = Extract<DependencyRelease, { readonly kind: "npm" }>;
 
-/** The npm packages a lockfile pins, each opened and stored once as a unit. */
+/** The npm packages a lockfile locks, each opened and stored once as a unit. */
 export class NpmInstallation {
-    /** The npm releases the lockfile pins, by `name@version`. */
-    readonly pins: Readonly<Record<string, NpmRelease>>;
-    /** The store keeping the units' builds. */
+    /** The npm releases the lockfile locks, by `name@version`. */
+    readonly locked: Readonly<Record<string, NpmRelease>>;
+    /** The store of the units' builds. */
     readonly #store: PackageStore;
     /** The identity of the toolchain building the units, which their keys include. */
     readonly #toolchain: Digest;
@@ -61,13 +61,13 @@ export class NpmInstallation {
     /** The last open, after which the next one runs, so concurrent units open each copy once. */
     #opening: Promise<unknown> = Promise.resolve();
 
-    /** Keep the pins, and the store and toolchain the units build with. */
+    /** Store the locked releases, and the store and toolchain the units build with. */
     constructor(
-        pins: Readonly<Record<string, NpmRelease>>,
+        locked: Readonly<Record<string, NpmRelease>>,
         store: PackageStore,
         toolchain: Digest,
     ) {
-        this.pins = pins;
+        this.locked = locked;
         this.#store = store;
         this.#toolchain = toolchain;
     }
@@ -91,14 +91,14 @@ export class NpmInstallation {
             throw new BuildError("BUILD_FAILED", `npm dependency cycle through ${directory}`);
         }
 
-        // pin the release by its installed name and version
+        // lock the release by its installed name and version
         const manifest = Manifest.parse(
             JSON.parse(await readFile(join(directory, "package.json"), "utf8")),
         );
         const key = `${manifest.name}@${manifest.version}`;
-        const release = this.pins[key];
+        const release = this.locked[key];
         if (release === undefined) {
-            throw new BuildError("BUILD_FAILED", `the lockfile pins no ${key}`);
+            throw new BuildError("BUILD_FAILED", `the lockfile has no ${key}`);
         }
 
         // open each installed package it requires, leaving its peers to the tree it sits in
@@ -180,7 +180,7 @@ export class NpmInstallation {
 
 /** An npm package installed in the workspace's Bun store, built as one unit for server runtimes. */
 export class NpmUnit {
-    /** The release the lockfile pins. */
+    /** The release the lockfile locks. */
     readonly release: NpmRelease;
     /** The installed copy in Bun's store. */
     readonly directory: string;
@@ -189,33 +189,33 @@ export class NpmUnit {
     /** The peers it declares, which the tree it sits in provides. */
     readonly peers: ReadonlySet<string>;
 
-    /** Keep an installed package's release, copy, dependencies and peers. */
+    /** Store an installed package's release, copy, dependencies and peers. */
     constructor(
         release: NpmRelease,
         directory: string,
         dependencies: ReadonlyMap<string, NpmUnit>,
         peers: ReadonlySet<string>,
     ) {
-        // keep the release, its copy and its requirements
+        // store the release, its copy and its requirements
         this.release = release;
         this.directory = directory;
         this.dependencies = dependencies;
         this.peers = peers;
     }
 
-    /** List this unit and every unit it reaches, each once. */
+    /** List this unit and every unit it requires, each once. */
     closure(): NpmUnit[] {
         // walk the dependencies once each
-        const reached = new Set<NpmUnit>();
+        const units = new Set<NpmUnit>();
         const pending: NpmUnit[] = [this];
         for (let unit = pending.pop(); unit !== undefined; unit = pending.pop()) {
-            if (!reached.has(unit)) {
-                reached.add(unit);
+            if (!units.has(unit)) {
+                units.add(unit);
                 pending.push(...unit.dependencies.values());
             }
         }
 
-        return [...reached];
+        return [...units];
     }
 
     /** Build the unit in memory: Bun's output as installed, workerd's converted to ESM. */
@@ -291,7 +291,7 @@ export class NpmUnit {
         return new BuildReader(manifest, async (path) => new Blob([found(written, path)]).stream());
     }
 
-    /** Read every file of an installed copy by its path, leaving its own node_modules out. */
+    /** Read every file of an installed copy by its path, leaving the copy's node_modules out. */
     static async files(directory: string): Promise<Map<string, Uint8Array<ArrayBuffer>>> {
         // list each file, links followed, in path order
         const entries = await readdir(directory, { recursive: true, withFileTypes: true });
@@ -304,7 +304,7 @@ export class NpmUnit {
             .filter(({ path }) => !path.split(sep).includes("node_modules"));
         const paths = listed.map(({ path }) => path.split(sep).join("/")).toSorted();
 
-        // refuse a link to a folder, whose files a recursive listing never reaches
+        // refuse a link to a folder, whose files a recursive listing never lists
         const links = listed.filter((entry) => entry.isLink).map((entry) => entry.path);
         const linked = await Promise.all(links.map((path) => stat(join(directory, path))));
         const folder = links.find((_path, index) => nth(linked, index).isDirectory());

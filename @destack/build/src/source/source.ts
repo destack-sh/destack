@@ -337,7 +337,7 @@ async function expandPatterns(
 ): Promise<Record<string, PackageExport>> {
     const expanded: Record<string, PackageExport> = {};
     for (const [name, entry] of Object.entries(exports)) {
-        // keep a concrete export
+        // take a concrete export
         if (!name.includes("*")) {
             expanded[name] = entry;
         }

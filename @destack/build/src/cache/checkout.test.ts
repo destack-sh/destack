@@ -58,20 +58,20 @@ test("key a package by the files git lists, reading linked files through their l
     await writeFile(join(directory, "src", "shared.ts"), "export const shared = 1;\n");
     const copied = await key();
 
-    // keep the key over ignored output and staging, change it for an untracked file, key a link by its target
+    // ignore output and staging, change the key for an untracked file, key a link by its target
     expect({
-        isIgnoredKept: ignored === initial,
-        isUntrackedKept: untracked === initial,
-        isStagedKept: staged === untracked,
-        isLinkKept: linked === untracked,
-        isStagedLinkKept: stagedLink === linked,
+        isIgnoredUnchanged: ignored === initial,
+        isUntrackedUnchanged: untracked === initial,
+        isStagedUnchanged: staged === untracked,
+        isLinkUnchanged: linked === untracked,
+        isStagedLinkUnchanged: stagedLink === linked,
         isLinkCopied: copied === linked,
     }).toEqual({
-        isIgnoredKept: true,
-        isUntrackedKept: false,
-        isStagedKept: true,
-        isLinkKept: false,
-        isStagedLinkKept: true,
+        isIgnoredUnchanged: true,
+        isUntrackedUnchanged: false,
+        isStagedUnchanged: true,
+        isLinkUnchanged: false,
+        isStagedLinkUnchanged: true,
         isLinkCopied: true,
     });
 });
@@ -80,29 +80,29 @@ test("list a checkout once and key each package by the git blobs below its direc
     // write two packages, one nested in the other, in one checkout, staging the outer module
     const root = await temporary("destack-checkout-packages-");
     const outer = join(root, "outer");
-    const inner = join(outer, "inner");
+    const nested = join(outer, "nested");
     await writeManifest(outer, "@example/outer");
-    await writeManifest(inner, "@example/inner");
+    await writeManifest(nested, "@example/nested");
     await writeFile(join(outer, "index.ts"), "export {};\n");
     await writeFile(join(root, "README.md"), "a workspace\n");
     git(root, "init", "--quiet");
     git(root, "add", "outer/index.ts");
 
     // key each package by its files' paths and git blob ids
-    const checkout = await Checkout.list(inner);
+    const checkout = await Checkout.list(nested);
     const blob = (path: string) => git(root, "hash-object", path);
     expect({
         root: checkout.root,
         outer: await checkout.identify(outer),
-        inner: await checkout.identify(inner),
+        nested: await checkout.identify(nested),
     }).toEqual({
         root,
         outer: await Digest.json([
             ["index.ts", blob("outer/index.ts")],
-            ["inner/package.json", blob("outer/inner/package.json")],
+            ["nested/package.json", blob("outer/nested/package.json")],
             ["package.json", blob("outer/package.json")],
         ]),
-        inner: await Digest.json([["package.json", blob("outer/inner/package.json")]]),
+        nested: await Digest.json([["package.json", blob("outer/nested/package.json")]]),
     });
 });
 

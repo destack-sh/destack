@@ -84,7 +84,7 @@ export const TypeScriptInspection = {
     read: inspectProject,
 };
 
-/** Inspect a project's modules to a depth, every symbol their exports reach at the index's. */
+/** Inspect a project's modules to a depth, every symbol their exports lead to at the index's. */
 async function inspectProject(
     project: Project,
     compiled: Pick<PackageSource, "directory" | "versions" | "entries">,
@@ -107,7 +107,7 @@ async function inspectProject(
             .map((file) => inspection.collect(file, authored.get(file), runtime.has(file))),
     );
 
-    // keep test modules' examples and scenarios to their runner, as only it can import them
+    // leave test modules' examples and scenarios to their runner, as only it can import them
     const tested = new Set(
         collected.flatMap((entry) => (entry.tests.length > 0 ? [entry.file] : [])),
     );
@@ -179,7 +179,7 @@ class ProjectInspection {
     readonly #exports = new Map<string, Promise<ExportTable>>();
     /** The modules each module's value star exports name, by the compiler's path. */
     readonly #stars = new Map<string, Promise<readonly SourceFile[]>>();
-    /** The modules whose star exports reach no cycle, by the compiler's path. */
+    /** The modules whose star exports lead to no cycle, by the compiler's path. */
     readonly #acyclic = new Set<string>();
     /** The compiler project. */
     readonly project: Project;
@@ -201,7 +201,7 @@ class ProjectInspection {
     readonly #pending = new Map<number, TypeScriptSymbol>();
     /** The reference of each located symbol. */
     readonly #locations = new Map<number, Promise<SymbolReference>>();
-    /** How much the inspection reads: what a build needs, or every symbol the exports reach. */
+    /** How much the inspection reads: what a build needs, or every symbol the exports lead to. */
     readonly depth: InspectionDepth;
 
     /** Start inspecting a project of a compiled package, completely or as a build describes it. */
@@ -210,7 +210,7 @@ class ProjectInspection {
         compiled: Pick<PackageSource, "directory" | "versions">,
         depth: InspectionDepth,
     ) {
-        // keep the project, the package's directory and its catalog, then inspect its symbols
+        // store the project, the package's directory and its catalog, then inspect its symbols
         this.project = project;
         this.root = compiled.directory;
         this.catalog = new ConstructorCatalog(compiled.versions);
@@ -357,20 +357,20 @@ class ProjectInspection {
         );
     }
 
-    /** Refuse value star exports that reach back into a module on the chain, as a cycle. */
+    /** Refuse value star exports that lead back into a module on the chain, as a cycle. */
     async #requireAcyclic(source: SourceFile, chain: readonly SourceFile[]): Promise<void> {
         // pass a module whose star exports were checked before
         if (this.#acyclic.has(source.path)) {
             return;
         }
 
-        // refuse a star export back into the chain, then check each target's own
+        // refuse a star export back into the chain, then check each target's exports
         for (const starred of await this.#starred(source)) {
-            const reached = chain.findIndex((each) => each.path === starred.path);
-            if (reached >= 0) {
-                // list the cycle from its first path, the same whichever module reached it
+            const start = chain.findIndex((each) => each.path === starred.path);
+            if (start >= 0) {
+                // list the cycle from its first path, the same from whichever module it starts
                 const cycle = chain
-                    .slice(reached)
+                    .slice(start)
                     .map((each) => relativePath(this.root, each.fileName));
                 const first = cycle.indexOf(
                     nth(
@@ -394,12 +394,12 @@ class ProjectInspection {
         const module = await checker.getSymbolAtLocation(source);
         const exported = module === undefined ? [] : await checker.getExportsOfModule(module);
 
-        // read the table of each module a star export names, which no cycle reaches
+        // read the table of each module a star export lists, which no cycle leads to
         const stars = await Promise.all(
             (await this.#starred(source)).map((starred) => this.exports(starred)),
         );
 
-        // keep each export with its original
+        // add each export with its original
         const entries = await Promise.all(
             exported.map(async (symbol) => {
                 // decide whether the export exists at runtime here or through a star export

@@ -157,8 +157,8 @@ test("store a build's files once by digest, read it after reopening, and refuse 
     );
 });
 
-test("sweep the builds retention drops, the files only they list and the cache entries naming them", async () => {
-    // store a kept build and a dropped one sharing the index module, each named by a cache key
+test("sweep the builds retention drops, the files only they list and the cache entries that list them", async () => {
+    // store a live build and a dropped one sharing the index module, each listed by a cache key
     const directory = await temporary();
     await using bucket = await LocalBucket.open(
         join(directory, "bucket"),
@@ -166,39 +166,39 @@ test("sweep the builds retention drops, the files only they list and the cache e
         Clock.system,
     );
     const store = new PackageStore(bucket);
-    const kept = await store.put(await written(SOURCES));
+    const live = await store.put(await written(SOURCES));
     const dropped = await store.put(
         await written({ ...SOURCES, "src/answer.ts": "export const answer = 43;\n" }),
     );
-    const keys = { kept: "a".repeat(64), dropped: "b".repeat(64) };
-    await store.cache(keys.kept, { kind: "build", manifest: kept });
+    const keys = { live: "a".repeat(64), dropped: "b".repeat(64) };
+    await store.cache(keys.live, { kind: "build", manifest: live });
     await store.cache(keys.dropped, { kind: "build", manifest: dropped });
     const before = await bucket.list();
 
     // spare everything stored since the moment, then mark and drop the build retention leaves out
-    await store.sweep(Retention.of([kept]), new Date(0), Retention.none, new Date(0));
+    await store.sweep(Retention.of([live]), new Date(0), Retention.none, new Date(0));
     expect((await bucket.list()).files.map((file) => file.key)).toEqual(
         before.files.map((file) => file.key),
     );
     const later = new Date(Date.now() + 1000);
-    await store.sweep(Retention.of([kept]), later, Retention.none, later);
-    await store.sweep(Retention.of([kept]), later, Retention.none, later, later);
+    await store.sweep(Retention.of([live]), later, Retention.none, later);
+    await store.sweep(Retention.of([live]), later, Retention.none, later, later);
 
-    // keep exactly the kept build's manifest, the files it lists and its cache entry
-    const reader = await store.contents(kept);
+    // retain exactly the live build's manifest, the files it lists and its cache entry
+    const reader = await store.contents(live);
     const files = await reader.distributed();
     expect((await bucket.list()).files.map((file) => file.key)).toEqual(
         [
-            `cache/${keys.kept}`,
+            `cache/${keys.live}`,
             ...new Set(files.map((file) => `files/${file.digest}`)),
-            `manifests/${kept}`,
+            `manifests/${live}`,
         ].toSorted(),
     );
     expect(await store.cached(keys.dropped)).toBeUndefined();
 });
 
-test("attach a code index to a build, keep it while the build is retained, and sweep it with the build", async () => {
-    // store two builds, each with its own code index attached
+test("attach a code index to a build, retain it with the build, and sweep it with the build", async () => {
+    // store two builds, each with a separate code index attached
     const directory = await temporary();
     await using bucket = await LocalBucket.open(
         join(directory, "bucket"),
@@ -215,38 +215,38 @@ test("attach a code index to a build, keep it while the build is retained, and s
 
         return { manifest, file };
     };
-    const kept = await attached(SOURCES, "[]");
+    const live = await attached(SOURCES, "[]");
     const dropped = await attached(
         { ...SOURCES, "src/answer.ts": "export const answer = 43;\n" },
         "[ ]",
     );
 
     // refuse a file the store lacks, and read each attached index back
-    const missing = { ...kept.file, digest: "c".repeat(64) };
-    await expect(store.attach(kept.manifest, missing)).rejects.toThrow(
-        `build ${kept.manifest} lists code.json, which was not uploaded`,
+    const missing = { ...live.file, digest: "c".repeat(64) };
+    await expect(store.attach(live.manifest, missing)).rejects.toThrow(
+        `build ${live.manifest} lists code.json, which was not uploaded`,
     );
     expect([
-        await store.referrer(kept.manifest, "code.json"),
+        await store.referrer(live.manifest, "code.json"),
         await store.referrer(dropped.manifest, "code.json"),
-        await store.referrer(kept.manifest, "other.json"),
-    ]).toEqual([kept.file, dropped.file, undefined]);
+        await store.referrer(live.manifest, "other.json"),
+    ]).toEqual([live.file, dropped.file, undefined]);
 
     // mark and drop the build retention leaves out, its index and its referrer with it
     const later = new Date(Date.now() + 1000);
-    await store.sweep(Retention.of([kept.manifest]), later, Retention.none, later);
-    await store.sweep(Retention.of([kept.manifest]), later, Retention.none, later, later);
-    const files = await (await store.contents(kept.manifest)).distributed();
+    await store.sweep(Retention.of([live.manifest]), later, Retention.none, later);
+    await store.sweep(Retention.of([live.manifest]), later, Retention.none, later, later);
+    const files = await (await store.contents(live.manifest)).distributed();
     expect(await listing(bucket)).toEqual(
         [
-            ...new Set([...files, kept.file].map((file) => `files/${file.digest}`)),
-            `manifests/${kept.manifest}`,
-            `referrers/${kept.manifest}/code.json`,
+            ...new Set([...files, live.file].map((file) => `files/${file.digest}`)),
+            `manifests/${live.manifest}`,
+            `referrers/${live.manifest}/code.json`,
         ].toSorted(),
     );
 });
 
-test("sweep an old unretained build but keep the files a recent build shares with it", async () => {
+test("sweep an old unretained build but retain the files a recent build shares with it", async () => {
     // store an old build, then a recent one sharing its index module
     const directory = await temporary();
     await using bucket = await LocalBucket.open(
@@ -262,17 +262,17 @@ test("sweep an old unretained build but keep the files a recent build shares wit
         await written({ ...SOURCES, "src/answer.ts": "export const answer = 43;\n" }),
     );
 
-    // mark and drop the old manifest alone, keeping every file the recent manifest lists
+    // mark and drop the old manifest alone, retaining every file the recent manifest lists
     const later = new Date(Date.now() + 1000);
     await store.sweep(Retention.none, moment, Retention.none, moment);
     await store.sweep(Retention.none, moment, Retention.none, later, later);
     const reader = await store.contents(recent);
     const files = await reader.distributed();
     expect({
-        isOldKept: await store.contains(old),
+        isOldStored: await store.contains(old),
         files: (await bucket.list()).files.map((file) => file.key),
     }).toEqual({
-        isOldKept: false,
+        isOldStored: false,
         files: [
             ...new Set(files.map((file) => `files/${file.digest}`)),
             `manifests/${recent}`,
@@ -308,7 +308,7 @@ test("open one reader per stored build, and forget a swept build's reader", asyn
     });
 });
 
-test("keep a leased build through sweeps until its lease expires, then mark and delete it", async () => {
+test("retain a leased build through sweeps until its lease expires, then mark and delete it", async () => {
     // store a build and lease it for two intervals
     const directory = await temporary();
     await using bucket = await LocalBucket.open(
@@ -323,7 +323,7 @@ test("keep a leased build through sweeps until its lease expires, then mark and 
     const at = (intervals: number) => new Date(start + intervals * INTERVAL);
     await store.lease(digest, at(2));
 
-    // keep the build unmarked within the lease, then mark it once the lease expires, and delete it an interval later
+    // leave the build unmarked within the lease, mark it once the lease expires, delete it an interval later
     const sweeps = [];
     for (const intervals of [0, 1, 3, 4]) {
         await store.sweep(Retention.none, at(0), Retention.none, at(intervals), at(intervals - 1));
@@ -353,7 +353,7 @@ test("delete an unretained old build only in the second sweep after a sweep mark
     await store.sweep(Retention.none, at(0), Retention.none, at(0), at(-1));
     const marks = await present(await bucket.get("marks"), "the marks").json();
 
-    // keep the build through a sweep within the interval, and delete it in the sweep after
+    // retain the build through a sweep within the interval, and delete it in the sweep after
     await store.sweep(Retention.none, at(0), Retention.none, at(0.5), at(-0.5));
     const within = await listing(bucket);
     await store.sweep(Retention.none, at(0), Retention.none, at(1), at(0.5));
@@ -364,7 +364,7 @@ test("delete an unretained old build only in the second sweep after a sweep mark
     });
 });
 
-test("keep a build retained between its mark and the next sweep, and clear its mark", async () => {
+test("retain a build a release retains between its mark and the next sweep, and clear its mark", async () => {
     // store a build, and mark it while unretained
     const directory = await temporary();
     await using bucket = await LocalBucket.open(
@@ -379,7 +379,7 @@ test("keep a build retained between its mark and the next sweep, and clear its m
     const at = (intervals: number) => new Date(start + intervals * INTERVAL);
     await store.sweep(Retention.none, at(0), Retention.none, at(0), at(-1));
 
-    // keep it unmarked once a release retains it
+    // leave it unmarked once a release retains it
     await store.sweep(Retention.of([digest]), at(0), Retention.none, at(1), at(0));
     expect(await listing(bucket)).toEqual(build);
 });
@@ -502,7 +502,7 @@ test("copy a served build into another store by its digest, fetching only the fi
     };
     const location = { manifest: digest, url: `https://packages.test/packages/${digest}/` };
 
-    // copy the build, then copy it again, which reads nothing once the store keeps it
+    // copy the build, then copy it again, which reads nothing once the store has it
     const before = await target.contains(digest);
     await target.copy(location, fetchPackage);
     const first = paths.splice(0);
@@ -531,16 +531,16 @@ test("copy a served build into another store by its digest, fetching only the fi
     });
 });
 
-test("push a kept build to a package target by its digest, uploading only the files it lacks", async () => {
-    // keep a build, and serve another store that accepts uploads
+test("push a stored build to a package target by its digest, uploading only the files it lacks", async () => {
+    // store a build, and serve another store that accepts uploads
     const directory = await temporary();
-    await using kept = await LocalBucket.open(join(directory, "kept"), "space-test", Clock.system);
+    await using live = await LocalBucket.open(join(directory, "live"), "space-test", Clock.system);
     await using received = await LocalBucket.open(
         join(directory, "received"),
         "space-test",
         Clock.system,
     );
-    const source = new PackageStore(kept);
+    const source = new PackageStore(live);
     const target = new PackageStore(received);
     const build = await written(SOURCES);
     const digest = await source.put(build);
@@ -574,15 +574,15 @@ test("push a kept build to a package target by its digest, uploading only the fi
 });
 
 test("refuse uploads lacking files, of other bytes, past the limit, or where nobody uploads", async () => {
-    // keep a build, and serve an empty store
+    // store a build, and serve an empty store
     const directory = await temporary();
-    await using kept = await LocalBucket.open(join(directory, "kept"), "space-test", Clock.system);
+    await using live = await LocalBucket.open(join(directory, "live"), "space-test", Clock.system);
     await using empty = await LocalBucket.open(
         join(directory, "empty"),
         "space-test",
         Clock.system,
     );
-    const source = new PackageStore(kept);
+    const source = new PackageStore(live);
     const digest = await source.put(await written(SOURCES));
     const receiving = new PackageStore(empty);
     const manifest = new Uint8Array(await (await source.manifest(digest)).arrayBuffer());
@@ -649,7 +649,7 @@ async function upload(
 }
 
 test("retain the union of every root's builds, and forget a root that retains nothing", async () => {
-    // store two builds, each retained by its own root
+    // store two builds, each retained by a separate root
     const directory = await temporary();
     await using bucket = await LocalBucket.open(
         join(directory, "bucket"),
@@ -681,11 +681,11 @@ test("sweep a store at most once per interval, once among concurrent sweeps, and
         Clock.system,
     );
     const store = new PackageStore(bucket);
-    const kept = await store.put(await written(SOURCES));
+    const live = await store.put(await written(SOURCES));
     const dropped = await store.put(
         await written({ ...SOURCES, "src/answer.ts": "export const answer = 0;\n" }),
     );
-    await store.root("space-a", new Set([kept]));
+    await store.root("space-a", new Set([live]));
     const start = Date.now() + 1000;
     const at = (intervals: number) => new Date(start + intervals * INTERVAL);
     const manifests = async () =>
@@ -718,18 +718,18 @@ test("sweep a store at most once per interval, once among concurrent sweeps, and
         retried: retried === undefined ? undefined : [...retried],
         left: await manifests(),
     }).toEqual({
-        claimed: [[kept]],
+        claimed: [[live]],
         lost: 1,
-        marked: [`manifests/${dropped}`, `manifests/${kept}`].toSorted(),
+        marked: [`manifests/${dropped}`, `manifests/${live}`].toSorted(),
         within: undefined,
         failed: ["SyntaxError", 'JSON Parse error: Unexpected identifier "corrupt"'],
-        retried: [kept],
-        left: [`manifests/${kept}`],
+        retried: [live],
+        left: [`manifests/${live}`],
     });
 });
 
-test("sweep many builds sharing a module, keeping exactly the retained ones and the files they list", async () => {
-    // store builds sharing the index module, each with its own answer, retaining the first half
+test("sweep many builds sharing a module, sparing exactly the retained ones and the files they list", async () => {
+    // store builds sharing the index module, each with a separate answer, retaining the first half
     const directory = await temporary();
     await using bucket = await LocalBucket.open(
         join(directory, "bucket"),
@@ -742,21 +742,21 @@ test("sweep many builds sharing a module, keeping exactly the retained ones and 
         const answer = `export const answer = ${String(index)};\n`;
         digests.push(await store.put(await written({ ...SOURCES, "src/answer.ts": answer })));
     }
-    const kept = digests.slice(0, STRESS_BUILDS / 2);
+    const live = digests.slice(0, STRESS_BUILDS / 2);
 
     // mark and drop the builds retention leaves out
     const later = new Date(Date.now() + 1000);
-    await store.sweep(Retention.of(kept), later, Retention.none, later);
-    await store.sweep(Retention.of(kept), later, Retention.none, later, later);
+    await store.sweep(Retention.of(live), later, Retention.none, later);
+    await store.sweep(Retention.of(live), later, Retention.none, later, later);
 
-    // keep exactly the kept manifests and the files they list
+    // retain exactly the live manifests and the files they list
     const files = await Promise.all(
-        kept.map(async (digest) => (await store.contents(digest)).distributed()),
+        live.map(async (digest) => (await store.contents(digest)).distributed()),
     );
     expect(await listing(bucket)).toEqual(
         [
             ...new Set(files.flat().map((file) => `files/${file.digest}`)),
-            ...kept.map((digest) => `manifests/${digest}`),
+            ...live.map((digest) => `manifests/${digest}`),
         ].toSorted(),
     );
 });

@@ -61,7 +61,7 @@ interface DescribedImport {
 /** A package containing modules, with the name and version its package.json declares. */
 type PackageLocation = Awaited<ReturnType<typeof modulePackage>>;
 
-/** The source package snapshot a build keeps of an unpublished dependency. */
+/** The source package snapshot a build stores of an unpublished dependency. */
 type SourceSnapshot = Extract<DependencyResolution, { kind: "source" }>;
 
 /** Package manifests reused by dependency resolution and output inspection. */
@@ -129,7 +129,7 @@ class DependencyRecorder {
         assets: ReadonlyMap<string, Uint8Array<ArrayBuffer>>,
         files: Map<string, Uint8Array<ArrayBuffer>>,
     ) {
-        // keep the compiled package, the releases and what the compilation fills
+        // store the compiled package, the releases and what the compilation fills
         this.project = project;
         this.resolver = new DependencyResolver(project.versions);
         this.resolutions = resolutions;
@@ -209,21 +209,21 @@ class DependencyRecorder {
         return owner.directory === target.directory && owner.directory !== this.project.directory;
     }
 
-    /** Give each project module the runtimes of the exports reaching it, the runtime for others. */
-    reach(imports: ReadonlyMap<string, ParsedImports>, runtime: Runtime): void {
+    /** Give each project module the runtimes of the exports importing it, else the runtime. */
+    propagate(imports: ReadonlyMap<string, ParsedImports>, runtime: Runtime): void {
         // seed each export's entry with the runtimes its export declares
         const { definition } = this.project.packageJson;
-        const reached = new Map<string, Set<Runtime>>();
+        const seen = new Map<string, Set<Runtime>>();
         const pending = Object.entries(this.project.exports).map(
             ([name, entry]) => [entry, PackageDefinition.runtimes(definition, name)] as const,
         );
 
         // add the runtimes each module gains to the project modules it imports
         for (const [id, runtimes] of pending) {
-            const known = reached.get(id) ?? new Set();
+            const known = seen.get(id) ?? new Set();
             const added = runtimes.filter((candidate) => !known.has(candidate));
             if (added.length > 0) {
-                reached.set(id, new Set([...known, ...added]));
+                seen.set(id, new Set([...known, ...added]));
                 const imported = imports.get(id);
                 const next = [
                     ...(imported?.importedIds ?? []),
@@ -233,10 +233,10 @@ class DependencyRecorder {
             }
         }
 
-        // record the reached runtimes on the project's source modules
+        // record the seen runtimes on the project's source modules
         for (const [id, recorded] of this.locations) {
             if (recorded.kind === "source" && recorded.package === undefined) {
-                const runtimes = reached.get(id);
+                const runtimes = seen.get(id);
                 this.locations.set(id, {
                     ...recorded,
                     runtimes: runtimes === undefined ? [runtime] : [...runtimes],
@@ -264,7 +264,7 @@ class DependencyRecorder {
         }
     }
 
-    /** Record a bundle's asset from an original file, keeping a directory asset in a snapshot. */
+    /** Record a bundle's asset from an original file, with a directory asset in a snapshot. */
     async asset(root: string, original: string): Promise<void> {
         // leave an asset a virtual module emits, and refuse a missing file
         const segments = original.split("/");
@@ -363,7 +363,7 @@ class DependencyRecorder {
                 const bytes = new Uint8Array(await readFile(join(source.directory, name)));
                 addFile(created, await PackageFile.describe(name, "application/json", bytes));
             }
-            await this.#keepCatalogs(created, source.directory);
+            await this.#storeCatalogs(created, source.directory);
             snapshot = created;
         }
 
@@ -375,8 +375,8 @@ class DependencyRecorder {
         return snapshot;
     }
 
-    /** Keep an unpublished dependency's catalogs in its snapshot and in the build. */
-    async #keepCatalogs(snapshot: SourceSnapshot, directory: string): Promise<void> {
+    /** Store an unpublished dependency's catalogs in its snapshot and in the build. */
+    async #storeCatalogs(snapshot: SourceSnapshot, directory: string): Promise<void> {
         for (const [path, bytes] of await readCatalogs(directory, snapshot.package.id)) {
             addFile(snapshot, await PackageFile.describe(path, "application/json", bytes));
         }
@@ -409,7 +409,7 @@ class DependencyRecorder {
 
 /** Add a file to a source snapshot in path order once, refusing other bytes at its path. */
 function addFile(snapshot: SourceSnapshot, file: PackageFile): void {
-    // keep an equal file once, and refuse a file whose bytes changed during the build
+    // store an equal file once, and refuse a file whose bytes changed during the build
     const previous = snapshot.files.find((candidate) => candidate.path === file.path);
     if (previous !== undefined && previous.digest !== file.digest) {
         throw new BuildError("BUILD_FAILED", `dependency file changed during build: ${file.path}`);
@@ -490,7 +490,7 @@ export function dependencyPlugin(
             // identify retained directory assets alongside the dependency's source modules
             await recorder.bundled(root, bundle);
             if (runtime !== undefined) {
-                recorder.reach(imports, runtime);
+                recorder.propagate(imports, runtime);
             }
 
             // describe the compiled inputs and outputs
@@ -526,7 +526,7 @@ export function resolutionPlugin(
 ): Plugin {
     return {
         name: "destack-resolution",
-        // see each bare import before Vite's own resolver answers it
+        // see each bare import before Vite's resolver answers it
         enforce: "pre",
         resolveId: {
             filter: { id: { exclude: [/^(?:\.|\/|\0|#|virtual:|node:)/u] } },

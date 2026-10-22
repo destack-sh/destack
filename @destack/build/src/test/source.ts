@@ -12,25 +12,25 @@ import { LocalPackageStore } from "../store/local.ts";
 
 /** A package copied for one test, built on its workspace closure's stored units. */
 export class PackageCopy implements AsyncDisposable {
-    /** The temporary directory holding the copy, its builds and their trees. */
+    /** The temporary directory with the copy, its builds and their trees. */
     readonly directory: string;
     /** The copied package. */
     readonly source: string;
     /** The builds of the units it depends on, as its build takes them. */
     readonly dependencies: Readonly<Record<string, DependencyResolution>>;
-    /** The store keeping the units' builds. */
+    /** The store of the units' builds. */
     readonly store: LocalPackageStore;
     /** The compilers building the copy into the store. */
     readonly #compilers: WorkspaceCompilers;
 
-    /** Keep a copied package, its dependencies' builds and the compilers building it. */
+    /** Store a copied package, its dependencies' builds and the compilers building it. */
     private constructor(
         directory: string,
         source: string,
         dependencies: Readonly<Record<string, DependencyResolution>>,
         compilers: WorkspaceCompilers,
     ) {
-        // keep the copy, its dependencies and the compilers with their store
+        // store the copy, its dependencies and the compilers with their store
         this.directory = directory;
         this.source = source;
         this.dependencies = dependencies;

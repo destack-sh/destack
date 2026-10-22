@@ -31,7 +31,7 @@ async function written(text: string): Promise<BuildReader> {
     return new BuildReader(manifest, async (path) => new Blob([found(bytes, path)]).stream());
 }
 
-test("keep one store per toolchain, deleting other toolchains' idle stores and reusing its own", async () => {
+test("open one store per toolchain, deleting other toolchains' idle stores and reusing the current one", async () => {
     // write an idle store and an open one of other toolchains, beside a file a file manager left
     const directory = await mkdtemp(join(tmpdir(), "destack-test-stores-"));
     onTestFinished(() => rm(directory, { recursive: true }));
@@ -43,18 +43,18 @@ test("keep one store per toolchain, deleting other toolchains' idle stores and r
     // write an object into the toolchain's store, then reopen it
     {
         await using store = await LocalPackageStore.open(directory);
-        await store.bucket.put("marker", "kept");
+        await store.bucket.put("marker", "stored");
     }
     await using reopened = await LocalPackageStore.open(directory);
 
-    // keep the open store and the toolchain's own, which still has the object
+    // retain the open store and the toolchain's store, which still has the object
     const toolchain = await identifyToolchain(Identities.of({}));
     expect({
         stores: (await readdir(directory)).toSorted(),
         marker: await (await reopened.bucket.get("marker"))?.text(),
     }).toEqual({
         stores: [toolchain, ".DS_Store", "open", "stores.lock"].toSorted(),
-        marker: "kept",
+        marker: "stored",
     });
 });
 
@@ -74,7 +74,7 @@ test("share the toolchain's store between opens, each reading what the other wri
     }).toEqual({ first: "from first", second: "from second" });
 });
 
-test("keep a build's files while another process opens the store twice before its manifest", async () => {
+test("retain a build's files while another process opens the store twice before its manifest", async () => {
     // put the files of a build in flight, as a compiler stores them before the manifest
     const directory = await mkdtemp(join(tmpdir(), "destack-test-stores-"));
     onTestFinished(() => rm(directory, { recursive: true }));
@@ -91,14 +91,14 @@ test("keep a build's files while another process opens the store twice before it
         expect({ attempt, trees: opened.trees }).toEqual({ attempt, trees: building.trees });
     }
 
-    // keep every file the build put before its manifest
-    const kept = await Promise.all(
+    // retain every file the build put before its manifest
+    const stored = await Promise.all(
         files.map(async (file) => (await building.bucket.head(`files/${file.digest}`)) !== null),
     );
-    expect(kept).toEqual(files.map(() => true));
+    expect(stored).toEqual(files.map(() => true));
 });
 
-test("collect an unrooted build and its tree on the second idle open, keeping a rooted one", async () => {
+test("collect an unrooted build and its tree on the second idle open, retaining a rooted one", async () => {
     // store a rooted build and an unrooted one with its tree
     const directory = await mkdtemp(join(tmpdir(), "destack-test-stores-"));
     onTestFinished(() => rm(directory, { recursive: true }));

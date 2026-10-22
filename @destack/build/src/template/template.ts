@@ -338,7 +338,7 @@ export function replaceImports(
     });
     visitor.visit(parsed.program);
 
-    // apply edits from the end to keep parser offsets valid
+    // apply edits from the end, so parser offsets stay valid
     for (const reference of references.toSorted((left, right) => right.start - left.start)) {
         const name = DependencyName.of(reference.value);
         const replacement = dependencies[name];
@@ -353,7 +353,7 @@ export function replaceImports(
     return source;
 }
 
-/** Report whether a parsed package.json has a template's fields, keeping its key order. */
+/** Report whether a parsed package.json has a template's fields, preserving its key order. */
 function isTemplateManifest(value: unknown): value is TemplateManifest {
     return TemplateManifest.safeParse(value).success;
 }

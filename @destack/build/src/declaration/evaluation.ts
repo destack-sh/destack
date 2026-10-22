@@ -276,7 +276,7 @@ async function linkHost(specifier: string): Promise<SyntheticModule> {
     });
 }
 
-/** Keep dependencies external: Destack ones at their builds' modules, npm ones at their files. */
+/** Mark dependencies external: Destack ones at their builds' modules, npm ones at their files. */
 function treePlugin(tree: DependencyTree, runtime: Runtime): Plugin {
     return {
         name: "destack-dependency-builds",
@@ -368,7 +368,7 @@ function entryPlugin(source: string): Plugin {
     };
 }
 
-/** Describe one evaluated declaration with its terms and symbols, keeping its kind's comparison. */
+/** Describe one evaluated declaration with its terms and symbols, with its kind's comparison. */
 async function describeDeclaration(
     declaration: DeclarationExport,
     index: number,
@@ -402,7 +402,7 @@ async function describeDeclaration(
             ? Symbols.parse(Reflect.apply(symbolsOf, undefined, [declared]))
             : undefined;
 
-    // keep the kind's comparison and check each plan it returns
+    // take the kind's comparison and check each plan it returns
     const comparison = namespace.compare[index];
     if (typeof comparison === "function") {
         compare.set(
@@ -430,14 +430,14 @@ function requireDeclaringPackage(declaration: DeclarationExport, value: unknown)
     const stamped = Package.declaring(value);
     const owner = declaration.description.symbol.package;
 
-    // refuse a declaration naming no package
+    // refuse a declaration without a package
     if (stamped === undefined) {
         throw new BuildError(
             "INSPECTION_FAILED",
             `${declaration.export} declaration lacks its declaring package; stamp it in ${declaration.description.constructor.symbol.name}`,
         );
     }
-    // refuse a declaration naming another package
+    // refuse a declaration of another package
     else if (
         stamped.id !== owner.id ||
         stamped.name !== owner.name ||

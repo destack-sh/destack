@@ -10,7 +10,7 @@ import { type InspectionDepth, TypeScriptInspection } from "./module.ts";
 import { isAuthored } from "../source/dependency.ts";
 import type { PackageSource } from "../source/index.ts";
 
-/** This package's directory, whose dependencies hold the tools when running from a workspace. */
+/** This package's directory, whose dependencies include the tools when running from a workspace. */
 const PACKAGE = fileURLToPath(new URL("../..", import.meta.url));
 
 /** A compiler configuration as the compiler parses it. */

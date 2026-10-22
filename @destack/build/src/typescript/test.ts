@@ -143,7 +143,7 @@ function collectCalls(source: SourceFile): TestCall[] {
     const calls: TestCall[] = [];
     const pending: Node[] = [...source.statements];
     for (const node of pending) {
-        // visit every node, keeping outermost calls
+        // visit every node, collecting outermost calls
         node.forEachChild((child) => {
             pending.push(child);
         });

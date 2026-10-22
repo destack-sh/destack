@@ -32,8 +32,8 @@ async function thingNames(build: PackageBuild): Promise<unknown[]> {
 }
 
 test("evaluate package code without the host's environment, files or network", async () => {
-    // keep a host file outside the package and serve a host server
-    using server = Bun.serve({ port: 0, fetch: () => new Response("reached") });
+    // write a host file outside the package and serve a host server
+    using server = Bun.serve({ port: 0, fetch: () => new Response("answered") });
     const outside = await realpath(await mkdtemp(join(tmpdir(), "destack-build-sandbox-")));
     onTestFinished(() => rm(outside, { recursive: true }));
     const secret = join(outside, "secret.txt");
@@ -80,8 +80,8 @@ async function read(path: string): Promise<string> {
     ]);
 });
 
-test("reinspect edited declaration helpers in a retained compiler", async () => {
-    // name a thing through a helper module, and keep a noisy helper beside it
+test("reinspect edited modules a declaration imports in a retained compiler", async () => {
+    // declare a thing whose name a title module returns, and write a noisy module beside it
     const directory = await thingPackage(
         'import { defineThing } from "@example/owner";\nimport { title } from "./title.ts";\n\nexport const greeting = defineThing({ name: title() });\n',
     );
@@ -99,7 +99,7 @@ test("reinspect edited declaration helpers in a retained compiler", async () => 
         await (await Workspace.open(directory, compilers)).build({ outputs: OUTPUTS });
     await using first = await build();
 
-    // reload the edited helper, which writes to standard output, then restore it
+    // make the title call the noisy module, which writes to standard output, then restore it
     await writeFile(
         title,
         'import { noisy } from "./noisy.ts";\n\n/** Return the thing\'s name. */\nexport function title(): string {\n    return noisy("heading");\n}\n',
@@ -172,7 +172,7 @@ test("plan the upgrade from what a package published", async () => {
                     action: "delete",
                     target: "thing/greeting",
                     risk: "backward-incompatible",
-                    detail: "remove thing: earlier releases keep serving it",
+                    detail: "remove thing: earlier releases still serve it",
                 },
             ],
         },

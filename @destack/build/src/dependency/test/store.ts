@@ -16,14 +16,14 @@ export interface StoredPackage {
     readonly links?: readonly string[];
 }
 
-/** Write a Bun store of packages, each at `name@1.0.0`, answering the store's root and its pins. */
+/** Write a Bun store of packages, each at `name@1.0.0`, answering its root and locked releases. */
 export async function writeStore(
     packages: Readonly<Record<string, StoredPackage>>,
-): Promise<{ root: string; pins: Record<string, NpmRelease> }> {
+): Promise<{ root: string; locked: Record<string, NpmRelease> }> {
     // write each package's copy, then link its dependencies beside it as Bun's linker does
     const root = await realpath(await mkdtemp(join(tmpdir(), "destack-npm-")));
     onTestFinished(() => rm(root, { recursive: true }));
-    const pins: Record<string, NpmRelease> = {};
+    const locked: Record<string, NpmRelease> = {};
     for (const [name, stored] of Object.entries(packages)) {
         const directory = join(root, `${name}@1.0.0`, "node_modules", name);
         await mkdir(directory, { recursive: true });
@@ -41,14 +41,14 @@ export async function writeStore(
                 join(root, `${name}@1.0.0`, "node_modules", link),
             );
         }
-        pins[`${name}@1.0.0`] = {
+        locked[`${name}@1.0.0`] = {
             package: { name, version: "1.0.0" },
             registry: "https://registry.npmjs.org/",
             integrity: `sha512-${name}`,
         };
     }
 
-    return { root, pins };
+    return { root, locked };
 }
 
 /** Find a package's copy in a fixture store. */
@@ -58,7 +58,7 @@ export function copy(root: string, name: string): string {
 
 /** Convert an npm package in this process, as the compiler does. */
 export const convertHere: NpmConverter = async (request) => {
-    // convert into a directory of the test's own, then read the converted copy
+    // convert into a separate directory of the test, then read the converted copy
     const destination = await mkdtemp(join(tmpdir(), "destack-npm-convert-"));
     onTestFinished(() => rm(destination, { recursive: true }));
     const conversion = new NpmConversion(request.name, request.dependencies, request.peers);

@@ -54,7 +54,7 @@ export function directoryPlugin(
                         owner.directory,
                     );
 
-                    // emit the directory's files and keep the package's in the build
+                    // emit the directory's files and add the package's to the build
                     const entries = await readDirectory(source).catch((cause: unknown) => {
                         throw new BuildError(
                             "BUILD_FAILED",
@@ -128,7 +128,7 @@ async function emitDirectory(
     return `new URL(${JSON.stringify(anchor.parent)}, import.meta.ROLLUP_FILE_URL_${anchor.asset})`;
 }
 
-/** Keep a directory's files as sources and keep them at a package path in the build. */
+/** Add a directory's files as sources and at a package path in the build. */
 function retainEntries(
     entries: ReadonlyMap<string, Uint8Array<ArrayBuffer>>,
     source: string,

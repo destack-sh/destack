@@ -13,7 +13,7 @@ async function writeFiles(root: string, files: Readonly<Record<string, string>>)
     }
 }
 
-test("key an entry's closure by the sources it loads and the npm releases it reaches", async () => {
+test("key an entry's closure by the sources it loads and the npm releases it requires", async () => {
     // write an application importing a module and a linked workspace library, which imports an npm release
     const root = await realpath(await mkdtemp(join(tmpdir(), "destack-closure-")));
     onTestFinished(() => rm(root, { recursive: true }));
@@ -61,14 +61,14 @@ test("key an entry's closure by the sources it loads and the npm releases it rea
     });
     const release = await digest();
 
-    // keep the digest over unloaded modules and a release's bytes, change it for a loaded source and a release's version
+    // ignore unloaded modules and a release's bytes, change the digest for a loaded source and a version
     expect({
-        isUnloadedKept: unloaded === initial,
+        isUnloadedUnchanged: unloaded === initial,
         isSourceChanged: source !== unloaded,
         isReleaseChanged: release !== source,
         modules: [...(await ModuleClosure.read(join(root, "app", "entry.ts"))).modules.keys()],
     }).toEqual({
-        isUnloadedKept: true,
+        isUnloadedUnchanged: true,
         isSourceChanged: true,
         isReleaseChanged: true,
         modules: ["app/entry.ts", "app/used.ts", "dep@1.0.1", "lib/index.ts"],
@@ -80,7 +80,7 @@ test("key the toolchain by the compiler's modules, leaving the modules only its 
     const closure = await ModuleClosure.read(fileURLToPath(new URL("../main.ts", import.meta.url)));
     const modules = new Set(closure.modules.keys());
 
-    // keep the compiler and its conversion pass, and leave the local store and its bucket out
+    // include the compiler and its conversion pass, and leave the local store and its bucket out
     expect({
         worker: modules.has("@destack/build/src/build/worker.ts"),
         conversion: modules.has("@destack/build/src/compile/conversion.ts"),

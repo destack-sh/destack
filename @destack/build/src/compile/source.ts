@@ -36,7 +36,7 @@ export function sourcePlugin(
         load: {
             filter: { id: new RegExp(`^${RegExp.escape(directory.replaceAll("\\", "/"))}/`, "u") },
             async handler(id) {
-                // leave virtual modules and dependency files to their owning plugins
+                // leave virtual modules and dependency files to the plugins that load them
                 const path = modulePath(id);
                 const local = packageFile(directory, path);
                 if (local === undefined) {
@@ -88,7 +88,7 @@ function omitUrlSources(bundle: OutputBundle): void {
             throw new BuildError("BUILD_FAILED", `invalid source map: ${entry.fileName}`);
         }
 
-        // keep source indices and mappings intact for generated URL modules
+        // preserve source indices and mappings for generated URL modules
         for (const [index, source] of map.sources.entries()) {
             if (/\?(?:[^#]*&)?url(?:&|$)/u.test(source) && map.sourcesContent) {
                 map.sourcesContent[index] = null;
@@ -142,7 +142,7 @@ export function mapSource(
     return relativePath(dirname(output), location.path);
 }
 
-/** Report whether a value is a source map, keeping the parsed object and its key order. */
+/** Report whether a value is a source map, preserving the parsed object and its key order. */
 function isSourceMap(value: unknown): value is SourceMap {
     return SourceMap.safeParse(value).success;
 }

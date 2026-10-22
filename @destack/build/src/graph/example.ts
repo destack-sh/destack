@@ -18,7 +18,7 @@ export interface DescribedDeclaration {
 export class ExampleGraph {
     /** The examples of each module, by module path. */
     readonly #modules = new Map<string, DescribedDeclaration[]>();
-    /** The examples, by the moniker of the constant holding each. */
+    /** The examples, by the moniker of the constant with each. */
     readonly #constants = new Map<graph.Moniker, DescribedDeclaration>();
 
     /** Describe each example at its constant, showing its symbol and the declarations at it. */
@@ -77,7 +77,7 @@ export class ExampleGraph {
         return this.#modules.get(path) ?? [];
     }
 
-    /** Find the example a constant holds, absent for a constant holding none. */
+    /** Find the example of a constant, absent for a constant with none. */
     at(constant: graph.Moniker): DescribedDeclaration | undefined {
         return this.#constants.get(constant);
     }

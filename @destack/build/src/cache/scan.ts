@@ -30,7 +30,7 @@ export type ImportTarget =
     | { readonly kind: "module"; readonly file: string }
     /** A file only the bundler reads, such as a stylesheet, by absolute path. */
     | { readonly kind: "file"; readonly file: string }
-    /** A dependency, compiler library, builtin or virtual module, kept by its specifier. */
+    /** A dependency, compiler library, builtin or virtual module, by its specifier. */
     | { readonly kind: "external" };
 
 /** One of the package's modules: its bytes, its imports and the directories it reads. */
@@ -137,7 +137,7 @@ class SpecifierResolver {
         return { digest: await Digest.of(bytes), imports, directories };
     }
 
-    /** Map a subpath import to its conditions' absolute files, and keep other specifiers. */
+    /** Map a subpath import to its conditions' absolute files, and return other specifiers. */
     #mapped(specifier: string): readonly string[] {
         // map an exact subpath import
         const exact = this.#subpaths.get(specifier);
@@ -161,7 +161,7 @@ class SpecifierResolver {
 
     /** Resolve a specifier to a package module, another file it reads, or something external. */
     async #resolve(specifier: string, from: string): Promise<ImportTarget> {
-        // keep a bare specifier, a builtin or a dependency, external
+        // leave a bare specifier, a builtin or a dependency external
         const isRelative = specifier.startsWith("./") || specifier.startsWith("../");
         if (!isRelative && !specifier.startsWith("/")) {
             return { kind: "external" };
@@ -236,7 +236,7 @@ function isWithin(root: string, file: string): boolean {
 
 /** Write an absolute path relative to the generated configuration's directory or the package. */
 function relocate(value: string, directory: string, generated: string): string {
-    // keep values other than absolute paths
+    // return values other than absolute paths as they are
     const configured = relative(generated, value);
     if (!isAbsolute(value)) {
         return value;

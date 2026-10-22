@@ -33,7 +33,7 @@ async function writePackage(
 
 /** Write an application importing three linked dependencies, one undeclared, returning its root. */
 async function writeApplication(): Promise<string> {
-    // write a dependency for the server only, one the host pins to another release, and one undeclared
+    // write a dependency for the server only, one the host locks to another release, and one undeclared
     const root = await realpath(await mkdtemp(join(tmpdir(), "destack-build-resolution-")));
     const names = ["server", "pinned", "undeclared"];
     for (const [index, name] of names.entries()) {
@@ -53,7 +53,7 @@ async function writeApplication(): Promise<string> {
         );
     }
 
-    // write the application importing each from its own module
+    // write the application importing each from a separate module
     await writePackage(
         join(root, "application"),
         {
@@ -276,7 +276,7 @@ test("build a browser-safe export whose entry re-exports a sibling of a package 
     }
 });
 
-test("refuse star exports that reach back into a module, naming the cycle", async () => {
+test("refuse star exports that lead back into a module, listing the cycle", async () => {
     // write a package whose modules star-export each other
     const root = await realpath(await mkdtemp(join(tmpdir(), "destack-build-cycle-")));
     await writeFile(

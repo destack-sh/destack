@@ -19,7 +19,7 @@ const FOREIGN_PATTERN = /\.(?:svelte|vue|astro|css|scss|sass|less|styl)$/u;
 /** A bare specifier, which names another package or a runtime module and stays external. */
 const BARE_PATTERN = /^[^./\0#]/u;
 
-/** The directory the workerd pass writes rolldown's own helper modules into. */
+/** The directory the workerd pass writes rolldown's runtime helper modules into. */
 const HELPER_DIRECTORY = "_rolldown";
 
 /** The prefix of the module standing in for a require of a package or runtime module. */
@@ -71,7 +71,7 @@ export class NpmConversion {
     /** The peers it declares, which the tree it sits in provides. */
     readonly peers: ReadonlySet<string>;
 
-    /** Keep a package's name, dependencies and peers. */
+    /** Store a package's name, dependencies and peers. */
     constructor(name: string, dependencies: readonly string[], peers: readonly string[]) {
         this.name = name;
         this.dependencies = new Set(dependencies);
@@ -88,7 +88,7 @@ export class NpmConversion {
             await writeFile(join(root, path), bytes);
         }
 
-        // convert every module its entries reach in place
+        // convert every module its entries import, in place
         const modules = NpmConversion.#entries(files);
         const imported = new Set<string>();
         if (modules.length > 0) {
@@ -106,9 +106,9 @@ export class NpmConversion {
     #plugin(
         root: string,
         files: ReadonlyMap<string, Uint8Array<ArrayBuffer>>,
-        reached: Set<string>,
+        seen: Set<string>,
     ): Plugin {
-        // keep runtime modules, empty replaced ones, and take requires as Node's require(esm) does
+        // leave runtime modules, empty replaced ones, and take requires as Node's require(esm) does
         const hosts = new HostModules("workerd");
         const name = this.name;
         const known = new Set([name, ...this.dependencies, ...this.peers]);
@@ -116,7 +116,7 @@ export class NpmConversion {
         return {
             name: "destack-npm-workerd",
             resolveId: (specifier, importer, options) => {
-                // keep a relative import of a file JavaScript does not load, such as a component's source
+                // leave a relative import of a file JavaScript does not load, such as a component's source
                 if (specifier.startsWith(".") && FOREIGN_PATTERN.test(specifier)) {
                     return { id: specifier, external: true };
                 }
@@ -129,7 +129,7 @@ export class NpmConversion {
                     ? "external"
                     : hosts.classify(specifier, importer);
                 const imported = DependencyName.of(specifier);
-                // keep a runtime module, and empty one a `browser` field replaces
+                // leave a runtime module, and empty one a `browser` field replaces
                 if (resolution === "external" || resolution === "empty") {
                     const required = isRequire ? `${REQUIRE_PREFIX}${specifier}` : null;
 
@@ -141,13 +141,13 @@ export class NpmConversion {
                 else if ((resolution === "unavailable" || !known.has(imported)) && isRequire) {
                     return `${ABSENT_PREFIX}${specifier}`;
                 }
-                // keep an import of what workerd lacks, which fails once workerd loads the module
+                // leave an import of what workerd lacks, which fails once workerd loads the module
                 else if (resolution === "unavailable" || !known.has(imported)) {
                     return { id: specifier, external: true };
                 }
-                // keep an installed package or peer external, required through its stand-in
+                // mark an installed package or peer external, required through its stand-in
                 else {
-                    reached.add(imported);
+                    seen.add(imported);
 
                     return isRequire
                         ? `${REQUIRE_PREFIX}${specifier}`
@@ -289,7 +289,7 @@ export class NpmConversion {
             'export { exportedDefault as default, exported as "module.exports" };',
         ];
 
-        // export each name Node's lexer finds, following the package's own re-exports
+        // export each name Node's lexer finds, following the package's re-exports
         const path = id !== null && id.startsWith(`${root}${sep}`) ? relative(root, id) : undefined;
         const names =
             path === undefined
@@ -316,7 +316,7 @@ export class NpmConversion {
         }
         visited.add(path);
 
-        // take its own names, then the names of the package modules it re-exports
+        // take the module's names, then the names of the package modules it re-exports
         const lexed = lexer.parse(new TextDecoder().decode(source));
         const names = new Set(lexed.exports.filter((name) => !IMPLIED_EXPORTS.has(name)));
         for (const reexport of lexed.reexports.filter((each) => each.startsWith("."))) {
@@ -351,7 +351,7 @@ export class NpmConversion {
         files: ReadonlyMap<string, Uint8Array<ArrayBuffer>>,
         imported: Set<string>,
     ): Promise<ConvertedModule[]> {
-        // resolve imports as the bundled form did, keeping other packages external
+        // resolve imports as the bundled form did, leaving other packages external
         const bundle = await rolldown({
             input: modules.map((path) => join(root, path)),
             cwd: root,
@@ -367,7 +367,7 @@ export class NpmConversion {
             plugins: [this.#plugin(root, files, imported)],
         });
         try {
-            // key each module's file by its path, and the helpers below their own directory
+            // key each module's file by its path, and rolldown's runtime helpers below their directory
             const named = (id: string | null, name: string) =>
                 id !== null && id.startsWith(`${root}${sep}`)
                     ? relative(root, id)

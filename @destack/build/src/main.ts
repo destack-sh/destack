@@ -15,7 +15,7 @@ if (Toolchain.directory !== undefined) {
 // load package sources with their module metadata before the compiler loads rolldown
 await import("@destack/package/bun/preload");
 
-// keep the binding's path from the tools the compiler starts
+// remove the binding's path from the environment of the tools the compiler starts
 delete process.env["NAPI_RS_NATIVE_LIBRARY_PATH"];
 
 // answer the host's requests

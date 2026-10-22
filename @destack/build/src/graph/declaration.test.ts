@@ -116,7 +116,7 @@ test("derive the member symbols kinds list and resolve their relationships by ki
         ]),
     ]);
 
-    // keep the app's declarations with their members, and resolve edges in the build, the library's tag included
+    // store the app's declarations with their members, and resolve edges in the build, the library's tag too
     const described = (path: string) =>
         declarations
             .describe(path)

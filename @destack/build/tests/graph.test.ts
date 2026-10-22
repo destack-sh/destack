@@ -88,7 +88,7 @@ export const noteCardComplete = defineScenario({
 });
 `;
 
-/** A module keeping the loud look an example spreads. */
+/** A module with the loud look an example spreads. */
 const CARD_LOOK = `/** The look of a loud card. */
 export const LOUD_LOOK = { tone: "loud" } as const;
 `;
@@ -130,7 +130,7 @@ test.concurrent("reuse the graph file of each module an edit leaves unchanged", 
     );
     await using after = await input.build(library.request);
 
-    // keep the untouched module's file byte for byte, and change the edited module's file and the root
+    // leave the untouched module's file byte for byte, and change the edited module's file and the root
     const [first, second] = await Promise.all([before.reader.graph(), after.reader.graph()]);
     const index = await readFile(
         join(after.directory, `graph/${second.modules["src/index.ts"]}.json`),
@@ -183,7 +183,7 @@ describe("note", () => {
     );
     const registered = module.declarations.find((declaration) => declaration.kind === "test");
     expect({
-        // declare each test and suite at the module, which defines no symbols of its own
+        // declare each test and suite at the module, which defines no symbols
         symbols: indexed?.symbols,
         declarations: module.declarations.map(({ moniker, symbol, kind, name }) => ({
             moniker: local(moniker),
@@ -222,7 +222,7 @@ test.concurrent("declare each example showing its symbol with controls and the p
     await writeCards(input.source);
     await using build = await input.build(library.request);
 
-    // read the example module's declarations and edges, naming monikers within the package
+    // read the example module's declarations and edges, with monikers within the package
     const root = await build.reader.graph();
     const module = graph.Module.parse(
         JSON.parse(

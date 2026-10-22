@@ -31,7 +31,7 @@ const REFERRERS_PREFIX = "referrers/";
 /** The key of a sweep's marks: each dropped object's key to the instant a sweep marked it. */
 const MARKS_KEY = "marks";
 
-/** The key of the instant the last sweep began on its machine's clock, kept close by NTP. */
+/** The key of the instant the last sweep began on its machine's clock, close to others by NTP. */
 const SWEPT_KEY = "swept";
 
 /** The marks of the objects a sweep drops, by key. */
@@ -43,19 +43,19 @@ const ROOTS_PREFIX = "roots/";
 /** The manifests one root retains. */
 const Roots = schema.array(Digest);
 
-/** Decide which of some stored digests a sweep keeps, read in batches the bucket lists. */
+/** Decide which of some stored digests a sweep retains, read in batches the bucket lists. */
 export type Retention = (digests: readonly string[]) => Promise<ReadonlySet<string>>;
 
 /** The retentions of a sweep. */
 export const Retention = {
-    /** Keep the digests of a known set. */
-    of(kept: Iterable<string>): Retention {
-        const set = new Set(kept);
+    /** Retain the digests of a known set. */
+    of(retained: Iterable<string>): Retention {
+        const set = new Set(retained);
 
         return async (digests) => new Set(digests.filter((digest) => set.has(digest)));
     },
 
-    /** Keep none of the digests. */
+    /** Retain none of the digests. */
     none: (async () => new Set<string>()) satisfies Retention,
 };
 
@@ -83,7 +83,7 @@ export class PackageStore {
         return serveStore(this, mount, request, access);
     }
 
-    /** Name a build by the digest of its manifest, as a store keeps it. */
+    /** Identify a build by the digest of its manifest, as a store stores it. */
     static async digest(manifest: PackageManifest): Promise<Digest> {
         const bytes = encodeManifest(PackageManifest.parse(manifest));
 
@@ -113,18 +113,18 @@ export class PackageStore {
         return file.digest;
     }
 
-    /** Report whether the store keeps a build, whose manifest it stores after every file. */
+    /** Report whether the store has a build, whose manifest it stores after every file. */
     async contains(digest: string): Promise<boolean> {
         return (await this.bucket.head(`${MANIFESTS_PREFIX}${Digest.parse(digest)}`)) !== null;
     }
 
-    /** Copy a served build by manifest digest unless kept, fetching only missing files. */
+    /** Copy a served build by manifest digest unless stored, fetching only missing files. */
     async copy(
         location: PackageLocation,
         fetch: (input: URL, init: RequestInit) => Promise<Response>,
         signal?: AbortSignal,
     ): Promise<void> {
-        // keep a build the store has
+        // return a build the store has
         if (await this.contains(location.manifest)) {
             return;
         }
@@ -198,13 +198,13 @@ export class PackageStore {
         }
     }
 
-    /** Attach a stored file to a stored manifest as its referrer at a path, keeping a first one. */
+    /** Attach a stored file to a stored manifest as its referrer at a path, unless one exists. */
     async attach(subject: string, file: PackageFile): Promise<void> {
         // require the manifest and the file
         await this.head(subject);
         await this.#requireStored(subject, [file]);
 
-        // record the referrer, keeping the one another writer recorded first
+        // record the referrer, unless another writer recorded one first
         const key = PackageStore.#referrerKey(subject, file.path);
         await this.bucket
             .put(key, JSON.stringify(file), {
@@ -337,14 +337,14 @@ export class PackageStore {
         return building;
     }
 
-    /** Lease a manifest or file until a moment, keeping it and its listed files from sweeps. */
+    /** Lease a manifest or file until a moment, protecting it and its listed files from sweeps. */
     async lease(digest: string, until: Date): Promise<void> {
         await this.bucket.put(`leases/${Digest.parse(digest)}`, JSON.stringify(until.getTime()), {
             httpMetadata: { contentType: "application/json" },
         });
     }
 
-    /** Keep the manifests a root retains, such as a space's, replacing what it retained before. */
+    /** Set the manifests a root retains, such as a space's, replacing what it retained before. */
     async root(name: string, manifests: ReadonlySet<string>): Promise<void> {
         // forget a root that retains nothing
         const key = `${ROOTS_PREFIX}${name}`;
@@ -354,7 +354,7 @@ export class PackageStore {
             return;
         }
 
-        // keep the root's manifests
+        // write the root's manifests
         await this.bucket.put(key, JSON.stringify([...manifests].toSorted()), {
             httpMetadata: { contentType: "application/json" },
         });
@@ -384,7 +384,7 @@ export class PackageStore {
         return new Set([...roots.values()].flatMap((manifests) => [...manifests]));
     }
 
-    /** Report whether a lease keeps a manifest or file at a moment. */
+    /** Report whether a lease covers a manifest or file at a moment. */
     async leased(digest: string, at: Date): Promise<boolean> {
         const object = await this.bucket.get(`leases/${Digest.parse(digest)}`);
 
@@ -490,8 +490,8 @@ export class PackageStore {
         before: Date,
         files: Retention,
     ): Promise<Map<string, string>> {
-        // keep the manifests stored since the moment and those retention keeps, by batch
-        const kept = new Set<string>();
+        // retain the manifests stored since the moment and those retention lists, by batch
+        const live = new Set<string>();
         const candidates = new Map<string, string>();
         await this.#batches(MANIFESTS_PREFIX, async (batch) => {
             const old = batch
@@ -501,7 +501,7 @@ export class PackageStore {
             for (const file of batch) {
                 const digest = PackageStore.#digest(file);
                 if (file.uploaded >= before || retainedDigests.has(digest)) {
-                    kept.add(digest);
+                    live.add(digest);
                 } else {
                     candidates.set(file.key, digest);
                 }
@@ -511,13 +511,13 @@ export class PackageStore {
         // drop the referrers of dropped manifests
         for await (const file of this.#list(REFERRERS_PREFIX)) {
             const subject = nth(file.key.slice(REFERRERS_PREFIX.length).split("/"), 0);
-            if (!kept.has(subject)) {
+            if (!live.has(subject)) {
                 candidates.set(file.key, subject);
             }
         }
 
-        // keep the files of kept manifests, the retained files and the files stored since the moment
-        const listed = await this.#listedFiles(kept);
+        // retain the files of live manifests, the retained files and the files stored since the moment
+        const listed = await this.#listedFiles(live);
         await this.#batches(FILES_PREFIX, async (batch) => {
             const old = batch.filter(
                 (file) => file.uploaded < before && !listed.has(PackageStore.#digest(file)),
@@ -669,7 +669,7 @@ export class PackageStore {
         }
     }
 
-    /** Require the store to hold each file a build's manifest lists. */
+    /** Require the store to have each file a build's manifest lists. */
     async #requireStored(digest: string, files: readonly PackageFile[]): Promise<void> {
         for (const file of files) {
             if (!(await this.#has(PackageStore.fileKey(file.digest), file))) {
@@ -680,30 +680,30 @@ export class PackageStore {
         }
     }
 
-    /** Collect the digests of the files the retained manifests the store holds list or attach. */
+    /** Collect the digests of the files the store's retained manifests list or attach. */
     async #listedFiles(retained: ReadonlySet<string>): Promise<Set<string>> {
-        const kept = new Set<string>();
+        const referenced = new Set<string>();
         for (const digest of retained) {
             // skip a retained manifest the store lacks
             if ((await this.bucket.head(`${MANIFESTS_PREFIX}${Digest.parse(digest)}`)) === null) {
                 continue;
             }
 
-            // keep every file the manifest lists and every file attached to it
+            // retain every file the manifest lists and every file attached to it
             const reader = await this.contents(digest);
             for (const file of await reader.distributed()) {
-                kept.add(file.digest);
+                referenced.add(file.digest);
             }
             for await (const entry of this.#list(`${REFERRERS_PREFIX}${digest}/`)) {
                 // skip a referrer a concurrent sweep deleted since the listing
                 const object = await this.bucket.get(entry.key);
                 if (object !== null) {
-                    kept.add(PackageFile.parse(await object.json()).digest);
+                    referenced.add(PackageFile.parse(await object.json()).digest);
                 }
             }
         }
 
-        return kept;
+        return referenced;
     }
 
     /** Read the marks the last sweep left, by key. */
@@ -787,7 +787,7 @@ export class PackageStore {
         return true;
     }
 
-    /** Create an immutable checksum-verified object, or keep one another writer created first. */
+    /** Create an immutable checksum-verified object, or take one another writer created first. */
     async #put(key: string, body: BucketBody, file: PackageFile): Promise<void> {
         // create the object, or read the object another writer created first
         const stored = await this.bucket
@@ -807,7 +807,7 @@ export class PackageStore {
                 }
             });
 
-        // require the stored object to hold the file
+        // require the stored object to match the file
         if (!stored || !isStored(stored, file)) {
             throw new CallError("INTERNAL_SERVER_ERROR", {
                 message: `stored object differs: ${key}`,
@@ -831,12 +831,12 @@ export function encodeManifest(manifest: PackageManifest): Uint8Array<ArrayBuffe
     return new TextEncoder().encode(JSON.stringify(manifest));
 }
 
-/** Report whether a bucket object holds a file's exact size and digest. */
+/** Report whether a bucket object has a file's exact size and digest. */
 function isStored(object: BucketFile, file: PackageFile): boolean {
     return object.size === file.size && object.digest.toJSON().sha256 === file.digest;
 }
 
-/** Keep the first file of each digest. */
+/** Take the first file of each digest. */
 export function distinctFiles(list: readonly PackageFile[]): PackageFile[] {
     return [...new Map(list.map((file) => [file.digest, file])).values()];
 }
@@ -853,7 +853,7 @@ export async function inBatches(
     }
 }
 
-/** Refuse a file list naming the reserved manifest path or one path twice. */
+/** Refuse a file list with the reserved manifest path or one path twice. */
 function requireDistinctPaths(list: readonly PackageFile[]): void {
     const paths = new Set<string>();
     for (const file of list) {

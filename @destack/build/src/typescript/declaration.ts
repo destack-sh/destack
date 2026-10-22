@@ -409,7 +409,7 @@ function collectCalls(source: SourceFile, tests: readonly TestDeclaration[]): Ca
             continue;
         }
 
-        // visit the children and keep calls
+        // visit the children and collect calls
         node.forEachChild((child) => {
             pending.push(child);
         });

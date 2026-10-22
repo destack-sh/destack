@@ -84,7 +84,7 @@ export class OutputPass implements Pass {
         extensions: readonly BuildExtension[],
         cache: TransformCache,
     ) {
-        // keep the build's inputs and one inspection per output
+        // store the build's inputs and one inspection per output
         this.project = project;
         this.dependencies = dependencies;
         this.sources = sources;
@@ -230,7 +230,7 @@ export class OutputPass implements Pass {
         };
     }
 
-    /** Keep a generated file in the build. */
+    /** Add a generated file to the build. */
     file(path: string, bytes: Uint8Array<ArrayBuffer>): void {
         this.files.set(path, bytes);
     }
@@ -244,7 +244,7 @@ export class OutputPass implements Pass {
         this.paths.push(path);
     }
 
-    /** Keep a generated file's source map. */
+    /** Add a generated file's source map. */
     sourceMap(generated: string, map: string): void {
         this.sourceMaps.push({ generated, map });
     }

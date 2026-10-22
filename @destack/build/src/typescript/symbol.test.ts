@@ -78,7 +78,7 @@ test("describe a symbol by the package's declarations, leaving a linked dependen
 });
 
 test("describe a class's private members by the names their declarations write", async () => {
-    // write a package with a class keeping a private field and method
+    // write a package with a class with a private field and method
     const directory = await realpath(await mkdtemp(join(tmpdir(), "destack-private-")));
     try {
         await writeFile(

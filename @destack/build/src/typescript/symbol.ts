@@ -92,7 +92,7 @@ export class SymbolInspector {
         this.root = root;
     }
 
-    /** Resolve an alias to the symbol it names, keeping any other symbol. */
+    /** Resolve an alias to the symbol it refers to, returning any other symbol. */
     async original(symbol: TypeScriptSymbol): Promise<TypeScriptSymbol> {
         return symbol.flags & SymbolFlags.Alias
             ? await once(this.#aliases, symbol.id, () =>
@@ -209,7 +209,7 @@ export class SymbolInspector {
             }
         }
 
-        // keep each declared member once, leaving out generic parameters, signatures and constructors
+        // add each declared member once, leaving out generic parameters, signatures and constructors
         const seen = new Set<number>();
         const omitted = SymbolFlags.TypeParameter | SymbolFlags.Signature | SymbolFlags.Constructor;
 

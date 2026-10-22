@@ -25,17 +25,17 @@ export const leafExtension = {
 `;
 
 /** The leaf's extension, emitting a generated entry that imports the leaf. */
-const GLUE_EXTENSION = `/** Emit the generated glue as an entry of each compilation. */
+const BARREL_EXTENSION = `/** Emit the generated barrel as an entry of each compilation. */
 export const leafExtension = {
     compile: (compilation: { entry(name: string, id: string): void }) => {
-        compilation.entry("glue", "virtual:@fixture/leaf/glue");
+        compilation.entry("barrel", "virtual:@fixture/leaf/barrel");
 
         return [
             {
                 name: "@fixture/leaf",
-                resolveId: (id: string) => (id === "virtual:@fixture/leaf/glue" ? "\\0" + id : null),
+                resolveId: (id: string) => (id === "virtual:@fixture/leaf/barrel" ? "\\0" + id : null),
                 load: (id: string) =>
-                    id === "\\0virtual:@fixture/leaf/glue" ? 'export * from "@fixture/leaf";' : null,
+                    id === "\\0virtual:@fixture/leaf/barrel" ? 'export * from "@fixture/leaf";' : null,
             },
         ];
     },
@@ -242,8 +242,8 @@ test("compile a package through a listed extension and leave a development depen
     }
 });
 
-test("load a listed package's own extension without walking its dependencies, and build a listed member as a unit", async () => {
-    // write a tool requiring the leaf, declaring its own extension, which the site requires in development
+test("load a listed package's extension without walking its dependencies, and build a listed member as a unit", async () => {
+    // write a tool requiring the leaf and declaring an extension, which the site requires in development
     const root = await writeApplication();
     await writePackage(
         join(root, "tool"),
@@ -347,8 +347,8 @@ test("refuse what a module an extension generates imports until the package decl
     // let the leaf's listed extension, a development dependency, emit a generated entry importing the leaf
     const root = await writeApplication();
     const directory = join(root, "application");
-    await writeFile(join(root, "leaf", "src", "build.ts"), GLUE_EXTENSION);
-    await writeFile(join(root, "leaf", "src", "index.ts"), 'export const glued = "glued";\n');
+    await writeFile(join(root, "leaf", "src", "build.ts"), BARREL_EXTENSION);
+    await writeFile(join(root, "leaf", "src", "index.ts"), 'export const exported = "exported";\n');
     await declare(directory, "devDependencies", "@fixture/leaf");
     await listExtensions(directory, ["@fixture/leaf"]);
     await link(root, "application", "leaf");
@@ -364,7 +364,7 @@ test("refuse what a module an extension generates imports until the package decl
         await expect(compiler.build(request)).rejects.toMatchObject({
             code: "BUILD_FAILED",
             message:
-                "undeclared runtime dependency: @fixture/leaf, imported by \0virtual:@fixture/leaf/glue",
+                "undeclared runtime dependency: @fixture/leaf, imported by \0virtual:@fixture/leaf/barrel",
         });
 
         // build the application on the leaf's build once it declares the leaf at runtime
@@ -385,8 +385,11 @@ test("refuse what a module an extension generates imports until the package decl
         await PackageBuild.write(build.reader, destination);
         const tree = await DependencyTree.materialize(store, [leaf], join(root, "builds"));
         await tree.link(join(destination, "node_modules"));
-        const glue = present(build.manifest.outputs["bun"]?.exports["glue"], "the glue entry");
-        expect({ ...(await import(join(destination, glue))) }).toEqual({ glued: "glued" });
+        const barrel = present(
+            build.manifest.outputs["bun"]?.exports["barrel"],
+            "the barrel entry",
+        );
+        expect({ ...(await import(join(destination, barrel))) }).toEqual({ exported: "exported" });
     } finally {
         await rm(root, { recursive: true });
     }

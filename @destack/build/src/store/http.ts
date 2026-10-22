@@ -3,7 +3,7 @@ import { PackagePath, type PackageFile } from "@destack/package/file";
 import { CallError } from "@destack/object";
 import { PackageStore } from "./store.ts";
 
-/** The most bytes one upload holds: 64 MiB, which bounds its memory. */
+/** The most bytes one upload has: 64 MiB, which bounds its memory. */
 const MAX_UPLOAD_BYTES = 64 * 1024 * 1024;
 
 /** The host's decision on reading and uploading stored builds. */
@@ -67,7 +67,7 @@ async function write(
     const target = UploadTarget.parse(path);
     await access.upload(request, target?.scope);
 
-    // tell whether a file is held
+    // tell whether the store has a file
     if (request.method === "HEAD") {
         const held =
             target?.kind === "file"

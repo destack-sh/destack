@@ -140,7 +140,7 @@ export class Identities {
 
     /** Identify a release by name and version, and a source package by manifests and sources. */
     async #read(directory: string): Promise<PackageIdentity> {
-        // key a Destack dependency by its build's manifest, which records its own dependencies
+        // key a Destack dependency by its build's manifest, which records its dependencies
         const manifest = await readManifest(directory);
         const build = this.#builds.get(manifest.name);
         if (build !== undefined) {

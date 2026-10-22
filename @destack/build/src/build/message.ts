@@ -102,7 +102,7 @@ export const BuildRequest = schema.discriminatedUnion("kind", [
     }),
     schema.object({
         kind: schema.literal("build"),
-        /** The directory the build writes into, holding the files of the reused outputs. */
+        /** The directory the build writes into, with the files of the reused outputs. */
         destination: schema.string(),
         /** The build's options. */
         options: RequestedBuild,
@@ -139,17 +139,17 @@ export type BuildRequest = schema.Infer<typeof BuildRequest>;
 /** A transform's cache access the compiler asks its host for while it builds. */
 export const CacheRequest = schema.discriminatedUnion("kind", [
     schema.object({
-        /** Read the bytes kept under a key. */
+        /** Read the bytes stored under a key. */
         kind: schema.literal("read"),
-        /** The request's number, which the answer carries. */
+        /** The request's number, which the answer repeats. */
         id: schema.number().int(),
         /** The key. */
         key: Digest,
     }),
     schema.object({
-        /** Keep bytes under a key. */
+        /** Store bytes under a key. */
         kind: schema.literal("write"),
-        /** The request's number, which the answer carries. */
+        /** The request's number, which the answer repeats. */
         id: schema.number().int(),
         /** The key. */
         key: Digest,

@@ -11,7 +11,7 @@ export class PackageClient {
     /** Send a request to the server. */
     readonly #fetch: (request: Request) => Promise<Response>;
 
-    /** Reach a package server at a URL through a fetch. */
+    /** Call a package server at a URL through a fetch. */
     constructor(url: string, fetch: (request: Request) => Promise<Response>) {
         this.url = url.endsWith("/") ? url : `${url}/`;
         this.#fetch = fetch;
@@ -22,7 +22,7 @@ export class PackageClient {
         // upload each distinct file the server lacks
         const files = distinctFiles(await build.distributed());
         await inBatches(files, signal, async (file) => {
-            // ask whether the server holds the file
+            // ask whether the server has the file
             const target = `${this.url}files/${file.digest}`;
             const held = await this.#fetch(new Request(target, { method: "HEAD" }));
 

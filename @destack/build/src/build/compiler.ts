@@ -148,7 +148,7 @@ export class Compiler implements AsyncDisposable {
         compiler: CompilerCommand,
         sandbox: Sandbox,
     ) {
-        // keep the workspace, the store and the compiler's files
+        // store the workspace, the store and the compiler's files
         this.workspace = workspace;
         this.store = store;
         this.#temporary = temporary;
@@ -188,7 +188,7 @@ export class Compiler implements AsyncDisposable {
 
     /** Start the compiler again after a failed one. */
     async #restart(): Promise<void> {
-        // start the next compiler, keeping the failure of the stopped one should it not start
+        // start the next compiler, recording the failure of the stopped one should it not start
         const sandbox = await spawn(this.workspace, this.#temporary, this.#read, this.#compiler);
 
         // reset the failure and diagnostics, then watch the next compiler
@@ -276,7 +276,7 @@ export class Compiler implements AsyncDisposable {
         }
     }
 
-    /** Read or keep a transform's file in the store. */
+    /** Read or write a transform's file in the store. */
     async #answer(sandbox: Sandbox, request: CacheRequest): Promise<void> {
         // read the file a key caches, a miss without an entry
         const { store } = this;
@@ -285,7 +285,7 @@ export class Compiler implements AsyncDisposable {
             const entry = await store.cached(request.key);
             bytes = entry?.kind === "file" ? await store.file(entry.file) : null;
         }
-        // keep the file under its key once stored
+        // return the file under its key once stored
         else {
             const path = `${TRANSFORM_DIRECTORY}/${request.key}`;
             const file = await PackageFile.describe(
@@ -469,7 +469,7 @@ export class Compiler implements AsyncDisposable {
     /** Convert an installed npm package for workerd inside the compiler, answering its files. */
     convert(request: NpmConversionRequest): ReturnType<NpmConverter> {
         return this.#serially(async () => {
-            // convert into a directory of the compiler's own, then read the converted copy
+            // convert into a separate directory of the compiler, then read the converted copy
             const destination = await mkdtemp(join(this.#temporary, "npm-"));
             try {
                 const response = await this.#request({

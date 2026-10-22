@@ -49,7 +49,7 @@ const MaterializedExports = schema.record(
     schema.record(schema.string().min(1), schema.string().min(1)),
 );
 
-/** The package.json a build ships, its exports naming authored sources. */
+/** The package.json a build ships, its exports pointing at authored sources. */
 const AuthoredPackage = RuntimeRequirements.extend({
     exports: schema.record(
         schema.string().min(1),
@@ -152,7 +152,7 @@ export class DependencyTree {
                 ),
             );
 
-            // keep a build an earlier materialization moved into place, else place it
+            // use a build an earlier materialization moved into place, else place it
             const root = join(directory, dependency.manifest);
             directories[dependency.package.name] = join(
                 root,
@@ -222,7 +222,7 @@ export class DependencyTree {
             await symlink(placed, link, "junction");
         }
 
-        // export its outputs' modules and its authored sources' types from its own package.json
+        // export its outputs' modules and its authored sources' types from its package.json
         const outputs = Object.values(reader.manifest.outputs);
         const exports = DependencyTree.#exportsOf(outputs, authored.exports);
         const packageJson = { ...authored, type: "module", exports };
@@ -268,7 +268,7 @@ export class DependencyTree {
         authored: schema.Infer<typeof AuthoredPackage>,
         named: ReadonlySet<string>,
     ): Map<string, string> {
-        // take the npm units its outputs record, at their pinned versions
+        // take the npm units its outputs record, at their locked versions
         const owner = dependency.package.name;
         const linked = new Map<string, string | undefined>();
         for (const [name, release] of Object.entries(recorded)) {
@@ -317,7 +317,7 @@ export class DependencyTree {
             ),
         );
 
-        // find a package as its owner's source installs it, else as the store keeps the release
+        // find a package as its owner's source installs it, else as the store has the release
         return (owner, name, release, isRequired) =>
             DependencyTree.#linked(sources.get(owner), name) ??
             DependencyTree.#installedIf(installed, entries, release, isRequired);
@@ -393,7 +393,7 @@ export class DependencyTree {
         scope: ReadonlyMap<string, NpmDependency>,
         placing: ReadonlySet<string>,
     ): Promise<string> {
-        // keep a unit placed before or being placed, its peers taken from the packages beside it
+        // use a unit placed before or being placed, its peers taken from the packages beside it
         const name = dependency.package.name;
         const { root, peers } = await DependencyTree.#npmRoot(
             store,

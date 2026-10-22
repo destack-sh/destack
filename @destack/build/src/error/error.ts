@@ -43,9 +43,9 @@ export class BuildError extends Error implements DomainError {
         return { code: CALL_CODES[this.code], message: this.message };
     }
 
-    /** Report any failure as a build failure, keeping a build failure as it is. */
+    /** Report any failure as a build failure, returning a build failure as it is. */
     static from(cause: unknown): BuildError {
-        // keep build failures as they are
+        // return build failures as they are
         if (cause instanceof BuildError) {
             return cause;
         }
@@ -53,7 +53,7 @@ export class BuildError extends Error implements DomainError {
         return BuildError.fromBundle(cause);
     }
 
-    /** Report a failed bundle by its error messages, keeping the bundler's error as cause. */
+    /** Report a failed bundle by its error messages, with the bundler's error as cause. */
     static fromBundle(error: unknown): BuildError {
         // read the errors a Rolldown bundle failure aggregates
         const errors = BundleErrors.safeParse(

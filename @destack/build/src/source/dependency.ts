@@ -61,7 +61,7 @@ export async function modulePackage(
     throw new BuildError("BUILD_FAILED", `no package declaration for module: ${directory}`);
 }
 
-/** Read the npm releases the nearest Bun lockfile pins, by release and by import name. */
+/** Read the npm releases the nearest Bun lockfile locks, by release and by import name. */
 export async function readDependencies(
     directory: string,
     lockfile?: BunLockfile,
@@ -97,7 +97,7 @@ export async function readDependencies(
     return dependencies;
 }
 
-/** Read every npm release a lockfile pins, by `name@version`. */
+/** Read every npm release a lockfile locks, by `name@version`. */
 export function readLockedReleases(lockfile: BunLockfile): Record<string, NpmRelease> {
     // combine registry locations with locked release integrity
     const releases: Record<string, NpmRelease> = {};

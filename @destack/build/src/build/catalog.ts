@@ -4,7 +4,7 @@ import { Catalog } from "@destack/locale";
 import type { PackageId } from "@destack/package";
 import { BuildError, isMissing } from "../error/index.ts";
 
-/** The directory of a package keeping its catalogs. */
+/** The directory of a package that stores its catalogs. */
 const CATALOG_DIRECTORY = "locale";
 
 /** Read a package's catalogs by path, refusing other files, packages or misnamed catalogs. */
@@ -16,7 +16,7 @@ export async function readCatalogs(
     const names = await listDirectory(join(directory, CATALOG_DIRECTORY));
     const catalogs = new Map<string, Uint8Array<ArrayBuffer>>();
     for (const name of names.toSorted()) {
-        // require a catalog file of the package's own messages
+        // require a catalog file of the package's messages
         const path = `${CATALOG_DIRECTORY}/${name}`;
         if (!Catalog.isPath(path)) {
             throw new BuildError("BUILD_FAILED", `not a catalog: ${path}`);

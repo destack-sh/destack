@@ -51,10 +51,10 @@ test.concurrent("relocate the library build and call its exports, refusing corru
     expect(module.createNote("A note")).toEqual({ title: "A note", complete: false });
 });
 
-test.concurrent("ship a package's own catalogs in its build, refusing a misnamed one and another package's", async ({
+test.concurrent("ship a package's catalogs in its build, refusing a misnamed one and another package's", async ({
     expect,
 }) => {
-    // write a German catalog of the library's own messages
+    // write a German catalog of the library's messages
     await using input = await Fixture.open("library");
     const owner = PackageDefinition.read(
         await readFile(join(input.source, "destack.json"), "utf8"),

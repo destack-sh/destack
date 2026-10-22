@@ -371,7 +371,7 @@ while (!(await Bun.file(${JSON.stringify(release)}).exists())) {
         store,
     });
 
-    // keep closing an hour past the end of its input, then close once it exits
+    // stay open an hour past the end of its input, then close once it exits
     try {
         vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
         let isClosed = false;
@@ -396,7 +396,7 @@ while (!(await Bun.file(${JSON.stringify(release)}).exists())) {
 test("compile a package with the build extension it declares", async () => {
     const directory = await realpath(await mkdtemp(join(tmpdir(), "destack-build-extension-")));
     try {
-        // write a package whose module reads a constant only its own extension writes in
+        // write a package whose module reads a constant only its extension writes in
         const files: Record<string, string> = {
             "bun.lock": JSON.stringify({ lockfileVersion: 1, workspaces: {}, packages: {} }),
             "destack.json": JSON.stringify({
@@ -463,14 +463,18 @@ test("compile a package with the build extension it declares", async () => {
 
 test("refuse a workerd output importing an npm unit that workerd cannot load", async () => {
     // store an npm unit of a native addon, which has no workerd output
-    const { root, pins } = await writeStore({
+    const { root, locked } = await writeStore({
         native: {
             manifest: { main: "index.js" },
             files: { "index.js": "module.exports = 1;\n", "addon.node": "" },
         },
     });
     await using store = await LocalPackageStore.temporary();
-    const installation = new NpmInstallation(pins, store, await Digest.json({ test: "toolchain" }));
+    const installation = new NpmInstallation(
+        locked,
+        store,
+        await Digest.json({ test: "toolchain" }),
+    );
     const native = await installation.store(
         await installation.open(copy(root, "native")),
         convertHere,
@@ -505,7 +509,7 @@ test("refuse a workerd output importing an npm unit that workerd cannot load", a
     }
     await cp(copy(root, "native"), join(directory, "node_modules", "native"), { recursive: true });
 
-    // refuse its build before the store keeps it
+    // refuse its build before the store stores it
     const stored = await countObjects(store);
     await using builder = await Compiler.start(directory, { store });
     const built = builder.build({

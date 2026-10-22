@@ -79,7 +79,7 @@ interface Enclosing {
     readonly source: SourceRange;
 }
 
-/** The edges of one module, each kept once. */
+/** The edges of one module, each once. */
 class Edges {
     /** The edges by their serialization. */
     readonly #edges = new Map<string, graph.Edge>();
@@ -154,18 +154,24 @@ export function describeCode(
 }
 
 /** Join two outputs' descriptions of one module. */
-export function joinModules(kept: ModuleDescription, other: ModuleDescription): ModuleDescription {
+export function joinModules(
+    module: ModuleDescription,
+    other: ModuleDescription,
+): ModuleDescription {
     // require the same source bytes, which give both outputs the same symbols and exports
-    if (kept.source.digest !== other.source.digest) {
-        throw new BuildError("BUILD_FAILED", `module ${kept.path} was inspected from two sources`);
+    if (module.source.digest !== other.source.digest) {
+        throw new BuildError(
+            "BUILD_FAILED",
+            `module ${module.path} was inspected from two sources`,
+        );
     }
 
-    // keep each runtime's imports, globals and errors once
+    // take each runtime's imports, globals and errors once
     return {
-        ...kept,
-        imports: distinct([...kept.imports, ...other.imports]),
-        globals: distinct([...kept.globals, ...other.globals]),
-        errors: distinct([...kept.errors, ...other.errors]),
+        ...module,
+        imports: distinct([...module.imports, ...other.imports]),
+        globals: distinct([...module.globals, ...other.globals]),
+        errors: distinct([...module.errors, ...other.errors]),
     };
 }
 
@@ -278,7 +284,7 @@ class ModuleSymbols {
         const isExported = this.exported.has(self);
 
         // describe the symbol and the edges of its types and heritage
-        this.#keep({
+        this.#record({
             moniker: self,
             kind: kindOf(symbol.declarations, `${module.path}#${symbol.name}`),
             source: first(symbol.declarations).source,
@@ -326,7 +332,7 @@ class ModuleSymbols {
             name: symbol.name,
             member: member.name,
         });
-        this.#keep({
+        this.#record({
             moniker: nested,
             kind: kindOf(member.declarations, `${self}.${member.name}`),
             source: first(member.declarations).source,
@@ -345,8 +351,8 @@ class ModuleSymbols {
         }
     }
 
-    /** Keep the first description of a symbol the checker describes as member and symbol. */
-    #keep(symbol: graph.Symbol): void {
+    /** Record the first description of a symbol the checker describes as member and symbol. */
+    #record(symbol: graph.Symbol): void {
         if (!this.#symbols.has(symbol.moniker)) {
             this.#symbols.set(symbol.moniker, symbol);
         }
@@ -426,9 +432,9 @@ function nameOf(source: Package, reference: SymbolReference): graph.Moniker | un
     return isAnonymous(name) ? undefined : monikerOf(source, reference);
 }
 
-/** Report whether a symbol is one of the package's own outside its test modules. */
+/** Report whether a symbol is the package's, outside its test modules. */
 function isCovered(source: Package, tested: TestGraph, symbol: graph.Moniker): boolean {
-    // keep the package's own symbols
+    // take the package's symbols
     const prefix = `${source.id}/`;
     if (!symbol.startsWith(prefix)) {
         return false;
@@ -442,7 +448,7 @@ function isCovered(source: Package, tested: TestGraph, symbol: graph.Moniker): b
 
 /** Report whether a qualified name has an internal compiler symbol, such as `__function`. */
 function isAnonymous(name: string): boolean {
-    return name.split(".").some((part) => INTERNAL_NAMES.has(part));
+    return name.split(".").some((segment) => INTERNAL_NAMES.has(segment));
 }
 
 /** Read the symbol kind of a symbol's first declaration. */
@@ -587,10 +593,10 @@ function enclose(symbols: readonly Enclosing[], range: SourceRange): graph.Monik
             symbol.source.file === range.file &&
             symbol.source.start <= range.start &&
             range.end <= symbol.source.end;
-        const isInner =
+        const isNarrower =
             found === undefined ||
             symbol.source.end - symbol.source.start < found.source.end - found.source.start;
-        if (isInside && isInner) {
+        if (isInside && isNarrower) {
             found = symbol;
         }
     }
@@ -598,7 +604,7 @@ function enclose(symbols: readonly Enclosing[], range: SourceRange): graph.Monik
     return found?.moniker;
 }
 
-/** Keep each value once by its canonical JSON, in first-seen order. */
+/** List each value once by its canonical JSON, in first-seen order. */
 function distinct<Value>(values: readonly Value[]): Value[] {
     return [...new Map(values.map((value) => [canonicalize(value), value])).values()];
 }

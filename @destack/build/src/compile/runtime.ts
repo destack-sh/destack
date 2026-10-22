@@ -291,7 +291,7 @@ export async function checkRuntime(
             throw new BuildError("BUILD_FAILED", `unresolved runtime imports: ${input.path}`);
         }
 
-        // collect the package's own globals, those in functions by the runtimes their module ships to
+        // collect the package's globals, those in functions by the runtimes their module ships to
         if (input.package === undefined) {
             const runtimes = input.runtimes ?? [runtime];
             const key = runtimes.toSorted().join(" ");

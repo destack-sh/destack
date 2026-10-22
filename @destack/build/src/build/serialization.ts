@@ -56,7 +56,7 @@ function checkValue(value: unknown, path: string, ancestors: Set<object>): void 
     ancestors.delete(value);
 }
 
-/** Check one own property of an inspection object or array, skipping absent optional fields. */
+/** Check one property of an inspection object or array, skipping absent optional fields. */
 function checkProperty(
     key: string,
     property: PropertyDescriptor,

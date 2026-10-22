@@ -53,7 +53,7 @@ test("construct a thing", () => {
         await writeFile(join(directory, "src/app.test.ts"), source);
         const after = await inspect();
 
-        // keep the one declaration and add only the statically collected test
+        // list the one declaration and add only the statically collected test
         expect(description.parse(after.descriptions)).toEqual({
             declarations: original.declarations,
             tests: [

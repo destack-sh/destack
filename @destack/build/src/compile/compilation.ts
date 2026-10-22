@@ -45,7 +45,7 @@ import { dependencyPlugin, modulePath, type ModuleSource } from "./dependency.ts
 import { directoryPlugin } from "./asset.ts";
 import { transformPlugins } from "./extension.ts";
 
-/** The helpers the compiler's transforms import for lowered syntax, bundled into each build. */
+/** The runtime the compiler's transforms import for lowered code, bundled into each build. */
 const TRANSFORM_HELPERS = "@oxc-project/runtime";
 
 /** The files and descriptions one compiled output adds to its build. */
@@ -113,7 +113,7 @@ export class OutputCompilation implements Compilation {
         isLent: boolean,
         cache: TransformCache,
     ) {
-        // keep the output's settings, package and inspection
+        // store the output's settings, package and inspection
         this.name = name;
         this.options = options;
         this.project = project;
@@ -460,7 +460,7 @@ export class OutputCompilation implements Compilation {
                 }
             }
 
-            // keep a chunk's source map
+            // take a chunk's source map
             if (entry.type === "chunk" && entry.sourcemapFileName !== null) {
                 compiled.sourceMaps.push({
                     generated: path,
@@ -528,14 +528,14 @@ export class OutputCompilation implements Compilation {
         };
     }
 
-    /** Keep host modules and registry releases external, refusing undeclared dependencies. */
+    /** Mark host modules and registry releases external, refusing undeclared dependencies. */
     #isExternal(
         specifier: string,
         importer: string | undefined,
         dependencies: Readonly<Record<string, DependencyResolution>>,
         output: PackageOutput,
     ): boolean {
-        // keep host modules the runtime supplies, and bundle the empty module for replaced ones
+        // mark host modules the runtime supplies external, and bundle the empty module for replaced ones
         const host = this.#hosts.resolve(specifier, importer);
         if (host !== undefined) {
             return host === "external";
@@ -546,7 +546,7 @@ export class OutputCompilation implements Compilation {
             return false;
         }
 
-        // bundle a declared dependency, or keep its registry release external
+        // bundle a declared dependency, or mark its registry release external
         return this.#isExternalRelease(
             DependencyName.of(specifier),
             importer,
@@ -585,7 +585,7 @@ export class OutputCompilation implements Compilation {
         );
     }
 
-    /** Require a declared dependency, keeping its registry release external unless bundled. */
+    /** Require a declared dependency, leaving its registry release external unless bundled. */
     #isExternalRelease(
         dependency: string,
         importer: string | undefined,
@@ -602,7 +602,7 @@ export class OutputCompilation implements Compilation {
             );
         }
 
-        // bundle it into a browser output, or keep its release external
+        // bundle it into a browser output, or mark its release external
         if (this.#isBundling) {
             return false;
         }

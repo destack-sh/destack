@@ -56,7 +56,7 @@ test("expand a pattern export into the modules its target matches, nested ones i
         await writeFile(join(directory, "src", path), "export {};\n");
     }
 
-    // open it, naming each matched module by the text the wildcard stands for
+    // open it, keying each matched module by the text the wildcard stands for
     await using source = await PackageSource.open({
         directory,
         runtime: "bun",

@@ -4,7 +4,7 @@ import { locateWorkspace } from "@destack/check/workspace";
 import { Compiler, CompilerCommand } from "./compiler.ts";
 import type { LocalPackageStore } from "../store/local.ts";
 
-/** The warm compilers a machine keeps at once: 4, each a TypeScript program of a few hundred MB. */
+/** The warm compilers a machine runs at once: 4, each a TypeScript program of a few hundred MB. */
 const MAX_WARM_COMPILERS = 4;
 
 /** How long an unused compiler stays warm: fifteen minutes, since a cold start costs seconds. */
@@ -16,7 +16,7 @@ interface Warm {
     readonly compiler: Promise<Compiler>;
     /** The workspace whose packages it builds. */
     readonly workspace: string;
-    /** The package directory it last served, whose state it keeps warm. */
+    /** The package directory it last served, whose state stays warm. */
     directory: string;
     /** Whether a lease uses it now. */
     isBusy: boolean;
@@ -53,7 +53,7 @@ export class CompilerPool implements AsyncDisposable {
     /** The failures of compilers closing with no lease to answer, thrown on disposal. */
     readonly #failures: unknown[] = [];
 
-    /** Keep compilers started with a command into a store. */
+    /** Store compilers started with a command into a store. */
     private constructor(store: LocalPackageStore, command: CompilerCommand) {
         this.store = store;
         this.#command = command;
@@ -113,7 +113,7 @@ export class CompilerPool implements AsyncDisposable {
     /** Pick a waiter's compiler: the package's, a new one, the workspace's oldest idle, or none. */
     #pick(waiter: Waiter): Warm | undefined {
         // find the package's compiler, and the idle ones by their last use
-        const own = this.#warm.find((warm) => warm.directory === waiter.directory);
+        const matching = this.#warm.find((warm) => warm.directory === waiter.directory);
         const idle = this.#warm
             .filter((warm) => !warm.isBusy)
             .toSorted((left, right) => left.use - right.use);
@@ -121,9 +121,9 @@ export class CompilerPool implements AsyncDisposable {
         const other = idle.find((warm) => warm.workspace !== waiter.workspace);
         const isFull = this.#warm.length + this.#closing >= MAX_WARM_COMPILERS;
 
-        // take the package's compiler once idle, which keeps its state warm
-        if (own !== undefined) {
-            return own.isBusy ? undefined : own;
+        // take the package's compiler once idle, whose state is warm
+        if (matching !== undefined) {
+            return matching.isBusy ? undefined : matching;
         }
         // start one below the cap
         else if (!isFull) {
@@ -200,7 +200,7 @@ export class CompilerPool implements AsyncDisposable {
         await Promise.all(idle.map((warm) => this.#dispose(warm)));
     }
 
-    /** Close a forgotten compiler, keeping a failure no lease answers, then serve the waiters. */
+    /** Close a forgotten compiler, recording a failure no lease answers, then serve the waiters. */
     async #dispose(warm: Warm): Promise<void> {
         this.#closing++;
         try {

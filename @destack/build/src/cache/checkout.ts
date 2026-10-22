@@ -13,7 +13,7 @@ const run = promisify(execFile);
 /** The most bytes a checkout's listing may print, 64 MiB: a million paths of 64 bytes. */
 const LISTING_BYTES = 64 * 1024 * 1024;
 
-/** The mode git stores a symbolic link with, whose blob holds the link's target path. */
+/** The mode git stores a symbolic link with, whose blob stores the link's target path. */
 const LINK_MODE = "120000";
 
 /** The hash functions of git's object formats. */
@@ -28,7 +28,7 @@ export class Checkout {
     /** The hash function of the checkout's object format. */
     readonly #format: schema.Infer<typeof ObjectFormat>;
 
-    /** Keep a checkout's root, its listed files and its object format. */
+    /** Store a checkout's root, its listed files and its object format. */
     private constructor(
         root: string,
         files: ReadonlyMap<string, string | undefined>,
@@ -55,7 +55,7 @@ export class Checkout {
         ]);
         const files = new Map<string, string | undefined>();
         for (const entry of Checkout.#entries(stored)) {
-            // keep a regular file's blob, reading a link through to its target
+            // take a regular file's blob, reading a link through to its target
             const [mode, blob] = entry.slice(0, entry.indexOf("\t")).split(" ");
             files.set(entry.slice(entry.indexOf("\t") + 1), mode === LINK_MODE ? undefined : blob);
         }

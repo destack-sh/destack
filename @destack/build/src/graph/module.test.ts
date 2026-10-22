@@ -39,7 +39,7 @@ test("join a module each runtime inspects into one description, refusing other s
     const bun = described(digest, "./bun.ts", "Bun");
     const browser = described(digest, "./browser.ts", "window");
 
-    // keep the shared import once and each runtime's import and global
+    // list the shared import once and each runtime's import and global
     expect(joinModules(bun, browser)).toEqual({
         ...bun,
         imports: [...bun.imports, browser.imports[1]],

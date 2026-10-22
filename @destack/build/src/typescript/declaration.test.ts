@@ -20,7 +20,7 @@ const packages = {
 const GREETING =
     'import { defineGreeting } from "@example/other";\n\nexport const greeting = defineGreeting({ name: "greeting" });\n';
 
-/** Write a workspace whose app declares a greeting, as its own kind and the owner's kind. */
+/** Write a workspace whose app declares a greeting, as the app's kind and the owner's kind. */
 async function writeWorkspace(directory: string, owner: string, app = GREETING): Promise<void> {
     // write each package's constructor, the function describing a declaration by its name, and the function reading a greeting as a thing
     const describe =
@@ -90,7 +90,7 @@ async function writeWorkspace(directory: string, owner: string, app = GREETING):
     expect(Bun.spawnSync(["git", "init", "--quiet", directory]).exitCode).toBe(0);
 }
 
-test("describe one declaration as every kind its constructor lists, each owned by the package declaring the kind", async () => {
+test("describe one declaration as every kind its constructor lists, each under the package declaring the kind", async () => {
     // inspect the app's greeting
     const directory = await mkdtemp(join(tmpdir(), "destack-kinds-"));
     try {
@@ -197,7 +197,7 @@ test("describe a module's default-exported declaration under the default export"
             })
             .parse(inspection.descriptions);
 
-        // describe the greeting once as its own kind and once as the owner's, its symbol the module's default export
+        // describe the greeting once as the app's kind and once as the owner's, its symbol the default export
         expect(
             declarations.map((declaration) => [
                 declaration.kind,

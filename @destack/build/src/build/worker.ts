@@ -67,7 +67,7 @@ import {
 import { Console } from "node:console";
 import { PRIMARY_RUNTIMES } from "@destack/package/runtime";
 
-/** This package's directory, whose dependencies hold the tools when running from a workspace. */
+/** This package's directory, whose dependencies include the tools when running from a workspace. */
 const PACKAGE = fileURLToPath(new URL("../..", import.meta.url));
 
 /** An output a build compiles: a module output, or one output of a kind's pass. */
@@ -105,7 +105,7 @@ interface InspectedOutput {
     readonly evaluation: Evaluation;
 }
 
-/** The compiler inside the sandbox, keeping the last requested package's state across requests. */
+/** The compiler inside the sandbox, retaining the last package's state across requests. */
 export class CompilerWorker implements AsyncDisposable {
     /** The native TypeScript compiler of the last requested package. */
     #typescript: TypeScriptCompiler | undefined;
@@ -117,19 +117,19 @@ export class CompilerWorker implements AsyncDisposable {
     readonly #sources = new Map<string, { declaration: string; source: PackageSource }>();
     /** The identity of the toolchain this process runs, read once. */
     #toolchain: Promise<Digest> | undefined;
-    /** The identity of each loaded extension's package, read once as the process keeps its code. */
+    /** The identity of each loaded extension's package, read once as the process caches code. */
     readonly #extensions = new Map<string, Promise<Digest>>();
 
     /** Switch to a package's native compiler, closing the others' compiler and configurations. */
     async #switch(directory: string): Promise<TypeScriptCompiler> {
-        // keep the compiler of the package the last request named
-        const kept = this.#typescript;
-        if (kept?.directory === directory) {
-            return kept;
+        // reuse the compiler of the package the last request listed
+        const current = this.#typescript;
+        if (current?.directory === directory) {
+            return current;
         }
 
         // close the last package's compiler and the other packages' configurations
-        await kept?.[Symbol.asyncDispose]();
+        await current?.[Symbol.asyncDispose]();
         for (const [key, { source }] of this.#sources) {
             if (source.directory !== directory) {
                 await source[Symbol.asyncDispose]();
@@ -416,7 +416,7 @@ export class CompilerWorker implements AsyncDisposable {
                 }
             });
 
-        // keep its own declaration files
+        // take its declaration files
         const directory = await realpath(options.directory);
 
         return (configured?.files ?? [])
@@ -504,7 +504,7 @@ export class CompilerWorker implements AsyncDisposable {
         return { imports, keys };
     }
 
-    /** Identify an extension's package once, as the process keeps the first imported extension. */
+    /** Identify an extension's package once, as the process caches the first imported extension. */
     #identify(loaded: LoadedExtension, identities: Identities): Promise<Digest> {
         let identity = this.#extensions.get(loaded.directory);
         if (identity === undefined) {
@@ -615,7 +615,7 @@ export class CompilerWorker implements AsyncDisposable {
             const request = output.pass?.name ?? name;
             const reused = Object.hasOwn(reuse, request) ? reuse[request] : undefined;
 
-            // keep a request compiled or reused before
+            // return a request compiled or reused before
             if (requests.has(request)) {
                 continue;
             }
@@ -664,7 +664,7 @@ export class CompilerWorker implements AsyncDisposable {
         return { outputs, sourceMaps, cached };
     }
 
-    /** Compile a module output with the extensions' plugins and keep its files. */
+    /** Compile a module output with the extensions' plugins and write its files. */
     async #module(
         name: string,
         output: PlannedOutput,
@@ -674,14 +674,14 @@ export class CompilerWorker implements AsyncDisposable {
         files: BuildDirectory,
         cache: TransformCache,
     ): Promise<CachedOutput> {
-        // compile the output and keep its files
+        // compile the output and write its files
         const compilation = createCompilation(name, output, inspected, extensions, cache);
         const compiled = await compilation.compile(
             options.dependencies,
             files.retained,
             files.directory,
         );
-        await keep(compiled.files, compiled.paths, files);
+        await writeFiles(compiled.files, compiled.paths, files);
 
         return {
             outputs: { [name]: { output: compiled.output, description: compiled.inspection } },
@@ -690,7 +690,7 @@ export class CompilerWorker implements AsyncDisposable {
         };
     }
 
-    /** Compile the outputs of one kind's request in a separate pass and keep their files. */
+    /** Compile the outputs of one kind's request in a separate pass and write their files. */
     async #pass(
         request: NonNullable<PlannedOutput["pass"]>,
         options: RequestedBuild,
@@ -720,7 +720,7 @@ export class CompilerWorker implements AsyncDisposable {
             cache,
         );
 
-        // compile the outputs and keep their files
+        // compile the outputs and write their files
         let described: Readonly<Record<string, PackageOutput>>;
         try {
             described = await request.kind.compile(
@@ -732,7 +732,7 @@ export class CompilerWorker implements AsyncDisposable {
         } catch (cause) {
             throw BuildError.from(cause);
         }
-        await keep(pass.files, pass.paths, files);
+        await writeFiles(pass.files, pass.paths, files);
 
         // describe each output by the kind's manifest output and the pass's module graph
         const outputs: CachedOutput["outputs"] = {};
@@ -774,10 +774,10 @@ export class CompilerWorker implements AsyncDisposable {
                 resolved[key] = joinResolutions(key, resolved[key], dependency);
             }
 
-            // join each module's descriptions and keep every evaluated declaration for the graph
+            // join each module's descriptions and collect every evaluated declaration for the graph
             retainGraphInputs(entry, modules, evaluated);
 
-            // keep each test, example and scenario once across outputs
+            // list each test, example and scenario once across outputs
             for (const test of entry.inspection.tests) {
                 tests.retain(test);
             }
@@ -888,7 +888,7 @@ export class CompilerWorker implements AsyncDisposable {
     }
 }
 
-/** Join each module's descriptions across outputs and keep each output's declarations. */
+/** Join each module's descriptions across outputs and collect each output's declarations. */
 function retainGraphInputs(
     inspected: InspectedOutput,
     modules: Map<string, ModuleDescription>,
@@ -896,8 +896,8 @@ function retainGraphInputs(
 ): void {
     // join a module each runtime inspects into one description
     for (const module of inspected.inspection.modules) {
-        const kept = modules.get(module.path);
-        modules.set(module.path, kept === undefined ? module : joinModules(kept, module));
+        const previous = modules.get(module.path);
+        modules.set(module.path, previous === undefined ? module : joinModules(previous, module));
     }
     for (const declaration of inspected.evaluation.declarations) {
         evaluated.add(declaration);
@@ -912,7 +912,7 @@ function sourcePackage(inspected: ReadonlyMap<string, InspectedOutput>): Package
 
 /** Read a source's package.json as released: as authored, or at the release's version. */
 async function releasedManifest(project: PackageSource): Promise<Uint8Array<ArrayBuffer>> {
-    // keep the authored bytes of the version they name
+    // take the authored bytes of the version they list
     const authored = await readFile(resolve(project.directory, "package.json"), "utf8");
     const manifest = schema.jsonObject().parse(JSON.parse(authored));
     const { version } = project.packageJson.package;
@@ -956,14 +956,14 @@ async function recordReused(
     }
 }
 
-/** Values shared by index across outputs, each distinct value kept once. */
+/** Values shared by index across outputs, each distinct value once. */
 class SharedValues<Value> {
     /** The distinct values, in order of first appearance. */
     readonly values: Value[] = [];
     /** The index of each value, by its serialization. */
     readonly #indices = new Map<string, number>();
 
-    /** Keep a value once, returning its index. */
+    /** Add a value once, returning its index. */
     retain(value: Value): number {
         // reuse the index of an equal value
         const key = stringifyInspection(value);
@@ -972,7 +972,7 @@ class SharedValues<Value> {
             return existing;
         }
 
-        // keep a new value
+        // add a new value
         const index = this.values.length;
         this.values.push(value);
         this.#indices.set(key, index);
@@ -1109,7 +1109,7 @@ async function retain(
 }
 
 /** Write a compilation's generated files, and record the files its compiler wrote. */
-async function keep(
+async function writeFiles(
     generated: ReadonlyMap<string, Uint8Array<ArrayBuffer>>,
     paths: readonly string[],
     files: BuildDirectory,
@@ -1221,7 +1221,7 @@ function joinResolutions(
     previous: DependencyResolution | undefined,
     next: DependencyResolution,
 ): DependencyResolution {
-    // keep the first resolution and accept an equal one
+    // take the first resolution and accept an equal one
     if (previous === undefined || JSON.stringify(previous) === JSON.stringify(next)) {
         return next;
     }
@@ -1262,7 +1262,7 @@ async function findPackage(name: string, locator: PackageLocator): Promise<Packa
     return owner.metadata.package;
 }
 
-/** Describe a failure for the host, keeping a build failure's code, its cause and its stack. */
+/** Describe a failure for the host, with a build failure's code, its cause and its stack. */
 function describeFailure(error: unknown): Extract<BuildResponse, { error: object }>["error"] {
     // describe a thrown value that is no error by its text
     if (!(error instanceof Error)) {
@@ -1277,7 +1277,7 @@ function describeFailure(error: unknown): Extract<BuildResponse, { error: object
     };
 }
 
-/** Keep a failure's cause as the message carries it, its text when it cannot be cloned. */
+/** Serialize a failure's cause for the message, its text when it cannot be cloned. */
 function cloneableCause(cause: unknown): unknown {
     try {
         return structuredClone(cause);

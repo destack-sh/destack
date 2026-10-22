@@ -27,7 +27,7 @@ export class DeclarationGraph {
     readonly #edges = new Map<string, graph.Edge[]>();
     /** The package's declarations, by the symbol declaring them. */
     readonly #symbols = new Map<graph.Moniker, graph.Moniker[]>();
-    /** Every declaration and member the build holds, by package, kind and name. */
+    /** Every declaration and member the build has, by package, kind and name. */
     readonly #referents = new Map<string, Referent[]>();
 
     /** Locate every declaration and derive the package's declarations and edges. */
@@ -60,7 +60,7 @@ export class DeclarationGraph {
             }
         }
 
-        // keep the package's declarations and members with the edges their relationships draw
+        // store the package's declarations and members with the edges their relationships draw
         for (const entry of located.values()) {
             if (entry.declaration.symbol.package.id === source.id) {
                 this.#derive(entry);
@@ -91,7 +91,7 @@ export class DeclarationGraph {
         this.#referents.set(key, [...(this.#referents.get(key) ?? []), referent]);
     }
 
-    /** Keep a package declaration with its members, resolving their relationship edges. */
+    /** Store a package declaration with its members, resolving their relationship edges. */
     #derive(entry: Located): void {
         // resolve each relationship of the declaration and the members it derives
         const { declaration, described, members } = entry;
@@ -111,20 +111,20 @@ export class DeclarationGraph {
             }
         }
 
-        // keep the declarations and edges with the declaring module
+        // store the declarations and edges with the declaring module
         const path = declaration.symbol.symbol.module;
         const declarations = [described, ...members.values()];
         this.#declarations.set(path, [...(this.#declarations.get(path) ?? []), ...declarations]);
         this.#edges.set(path, [...(this.#edges.get(path) ?? []), ...edges]);
-        for (const kept of declarations) {
-            this.#symbols.set(kept.symbol, [
-                ...(this.#symbols.get(kept.symbol) ?? []),
-                kept.moniker,
+        for (const stored of declarations) {
+            this.#symbols.set(stored.symbol, [
+                ...(this.#symbols.get(stored.symbol) ?? []),
+                stored.moniker,
             ]);
         }
     }
 
-    /** Name every declaration or member a reference matches, none when the build holds none. */
+    /** List every declaration or member a reference matches, none when the build has none. */
     #resolve(reference: graph.Target, packageId: string): graph.Moniker[] {
         // match the kind and name in the reference's package, then the declaration a member belongs to
         const key = `${reference.packageId ?? packageId} ${reference.kind} ${reference.name}`;
