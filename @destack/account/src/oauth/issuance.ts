@@ -20,7 +20,7 @@ const SECOND_MILLISECONDS = 1000;
 /** The provider's default lifetime of a token without a person, in seconds. */
 const MACHINE_TOKEN_SECONDS = 3600;
 
-/** The access tokens the token endpoint issues: Better Auth's, carrying the Destack claims. */
+/** The access tokens the token endpoint issues: Better Auth's, with the Destack claims. */
 export const Issuance = {
     /** Build the Destack claims of an authentication within the universe's authority. */
     claims(authentication: Authentication) {
@@ -66,7 +66,7 @@ export const Issuance = {
             throw Issuance.refusal("invalid_grant", "a user's token needs a client");
         }
 
-        // name the person the token represents, refusing one Better Auth does not know
+        // find the person the token represents, refusing one Better Auth does not know
         const person = isPerson
             ? await input.ctx.context.internalAdapter.findUserById(subject.id)
             : undefined;
@@ -100,7 +100,7 @@ export const Issuance = {
             readonly now: number;
             /** The lifetimes of the packages' tokens, a minute when absent. */
             readonly lifetimes: ReadonlyMap<PackageId, number>;
-            /** The universe's issuer, which its tokens carry. */
+            /** The universe's issuer, which its tokens include. */
             readonly issuer: string;
             /** Sign claims with the universe's active key, as the provider signs its tokens. */
             readonly sign: (

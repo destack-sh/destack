@@ -5,7 +5,7 @@ import { AccountHandle } from "../address/handle.ts";
 import { DisplayName } from "../object/display-name.ts";
 import { ResidencyCode } from "../object/residency.ts";
 
-/** The Better Auth route a mailed sign-in link opens, carrying the sign-up in its query. */
+/** The Better Auth route a mailed sign-in link opens, with the sign-up in its query. */
 const LINK_PATH = "/magic-link/verify";
 
 /** The schema of the time zone and locale a person stores. */

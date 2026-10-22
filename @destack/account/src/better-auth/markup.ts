@@ -33,7 +33,7 @@ const TIME_ZONES = Intl.supportedValuesOf("timeZone");
 
 /** The headers of every page: HTML that runs the time zone script alone and refuses framing. */
 const HEADERS = Digest.of(TIME_ZONE_SCRIPT).then((digest) => {
-    // admit the time zone script by its hash
+    // allow the time zone script by its hash
     const script = `'sha256-${Uint8Array.fromHex(digest).toBase64()}'`;
 
     return {
@@ -113,7 +113,7 @@ export function timeZoneField(): Markup {
         <input type="hidden" name="timeZone" />`;
 }
 
-/** Answer a page in the pages' own language. */
+/** Answer a page in the language of the pages. */
 export async function render(
     title: string,
     main: Markup,

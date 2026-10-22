@@ -28,7 +28,7 @@ export const TokenResponse = Object.assign(
         expires_at: schema.number().int(),
         /** The refresh token, granted for offline access. */
         refresh_token: schema.string().min(1).exactOptional(),
-        /** The ID token naming the signed-in person, granted with the openid scope. */
+        /** The ID token identifying the signed-in person, granted with the openid scope. */
         id_token: schema.string().min(1).exactOptional(),
     }),
     {
@@ -45,7 +45,7 @@ export const TokenResponse = Object.assign(
 
         /** Read a token endpoint's refusal as a call error by its status, with its OAuth error. */
         async refusal(response: Response): Promise<CallError<string, unknown>> {
-            // fail as a bad gateway on an answer RFC 6749 gives no OAuth error, such as its own failure
+            // fail as a bad gateway on an answer without an RFC 6749 error, such as a failure
             const code = REFUSALS.get(response.status);
             if (code === undefined) {
                 return new CallError("BAD_GATEWAY", {

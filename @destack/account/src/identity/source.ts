@@ -24,12 +24,12 @@ const SECOND_MILLISECONDS = 1000;
 /** How long an assertion a space signs lives: a minute, one token request and its retries. */
 const ASSERTION_SECONDS = 60;
 
-/** The credential kind of a token the universe's own key signs for the universe. */
+/** The credential kind of a token the universe's key signs for the universe. */
 const UNIVERSE_KEY = "universe-key";
 
 /** The universe, a space or one of its installations calling out with tokens its identity signs. */
 export class TokenSource {
-    /** The keystore keeping the identity's keys. */
+    /** The keystore that stores the identity's keys. */
     readonly keystore: IdentityKeystore;
     /** The connection reading the identity's keys. */
     readonly database: DatabaseConnection;
@@ -37,16 +37,16 @@ export class TokenSource {
     readonly subject: Subject;
     /** The identity whose keys sign: the universe, the space, or the installation's space. */
     readonly identity: string;
-    /** The universe's issuer, granting tokens for assertions and issuing the universe's own. */
+    /** The universe's issuer, granting tokens for assertions and issuing the universe's tokens. */
     readonly issuer: string;
     /** The fetch sending the calls. */
     readonly send: Fetch;
-    /** The issuer of the subject's own tokens, signed with its identity's key. */
+    /** The issuer of the subject's tokens, signed with its identity's key. */
     readonly #signing: TokenIssuer;
     /** The tokens the universe's issuer granted for the subject's assertions, by package. */
     readonly #granted = new TokenCache();
 
-    /** Call out as a subject whose identity's keys a keystore keeps. */
+    /** Call out as a subject whose identity's keys a keystore stores. */
     constructor(
         keystore: IdentityKeystore,
         database: DatabaseConnection,
@@ -122,11 +122,11 @@ export class TokenSource {
         );
     }
 
-    /** Exchange the subject's own token for a person's token of a package (RFC 8693). */
+    /** Exchange the subject's token for a person's token of a package (RFC 8693). */
     async exchange(audience: PackageId, bound: TokenBinding): Promise<ExchangedToken> {
-        const own = await this.grantedToken(accountPackage.id);
+        const accountToken = await this.grantedToken(accountPackage.id);
 
-        return new Issuer(this.issuer, this.send).exchange(own, audience, bound);
+        return new Issuer(this.issuer, this.send).exchange(accountToken, audience, bound);
     }
 
     /** Sign an assertion of the subject for a token endpoint (RFC 7523). */

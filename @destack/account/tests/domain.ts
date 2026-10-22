@@ -1,9 +1,9 @@
 import { type Authentication, Caller, principal } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { Account, account, claim, user, DomainChallenge } from "../src/object/index.ts";
-import type { DatabaseConnection, Dialect } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db";
 import type { EventStore } from "@destack/event";
-import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
+import { TestDatabase } from "@destack/db/test";
 import { ResourceContext } from "@destack/resource/context";
 import { Identifier } from "@destack/schema";
 import { createClient } from "@destack/object/client";
@@ -95,14 +95,9 @@ export class DomainFixture implements AsyncDisposable {
         this.records.set(challenge.name, [...published, challenge.value]);
     }
 
-    /** Open the migrated account database of each dialect for a file's scenarios. */
-    static async databases(): Promise<Map<Dialect, TestDatabase>> {
-        const opened = new Map<Dialect, TestDatabase>();
-        for (const dialect of TEST_DIALECTS) {
-            opened.set(dialect, await AccountFixture.storage(undefined, dialect));
-        }
-
-        return opened;
+    /** Open the migrated account database for a file's scenarios. */
+    static async database(): Promise<TestDatabase> {
+        return await AccountFixture.storage();
     }
 
     /** Record the users and their two accounts, and serve domains under a test's entitlements. */

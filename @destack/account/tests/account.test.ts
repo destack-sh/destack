@@ -186,7 +186,7 @@ test("exchange tokens acting as a user through lent authority or account adminis
 });
 
 /** Describe an impersonation in a space as the member, with its memberships and the acting user. */
-test("exchange a token acting as a member in the account's space, naming the member's memberships and the acting administrator", async () => {
+test("exchange a token acting as a member in the account's space, with the member's memberships and the acting administrator", async () => {
     await using fixture = await AccountFixture.open();
     const administrator = await fixture.person("administrator@example.com");
     const member = await fixture.person("member@example.com");
@@ -214,7 +214,7 @@ test("exchange a token acting as a member in the account's space, naming the mem
         .where(eq(session.table.userId, administrator.id));
     const signedIn = nth(sessions, 0);
 
-    // name the member, their memberships, the administrator's assurance and the administrator acting
+    // read the member, their memberships, the administrator's assurance and the administrator acting
     const claimed = claims(acting.accessToken);
     expect([claimed.space, claimed.act, claimed.caller]).toEqual([
         spaceId,
@@ -239,7 +239,7 @@ test("resolve the paying account: an organisation's payer for it and its account
     await using fixture = await AccountFixture.open();
     const founder = await fixture.person("founder@example.com");
 
-    // create an organisation paying through its own account, with a second account in it
+    // create an organisation paying through its account, with a second account in it
     const acme = await founder.client.organisation.create({
         requestId: RequestId.create(Date.now()),
         name: "Acme",
@@ -270,7 +270,7 @@ test("create accounts in an organisation, administered by its owner members", as
     const founder = await fixture.person("founder@example.com");
     const partner = await fixture.person("partner@example.com");
 
-    // create an organisation with its own account, and another account in it
+    // create an organisation with its account, and another account in it
     const acme = await founder.client.organisation.create({
         requestId: RequestId.create(Date.now()),
         name: "Acme",
@@ -377,13 +377,13 @@ test("show a person's public profile with their locale to anyone signed in, and 
     const stranger = await fixture.person("stranger@example.com");
 
     // read the owner as themselves and as a stranger
-    const own = await owner.client.user.get({ id: owner.id });
+    const self = await owner.client.user.get({ id: owner.id });
     const shown = await stranger.client.user.get({ id: owner.id });
     expect({
-        own: [own.name, own.email, own.locale],
+        self: [self.name, self.email, self.locale],
         shown: [shown.name, shown.email, shown.locale, shown.timeZone],
     }).toEqual({
-        own: ["owner@example.com", "owner@example.com", SIGN_UP.locale],
+        self: ["owner@example.com", "owner@example.com", SIGN_UP.locale],
         shown: ["owner@example.com", undefined, SIGN_UP.locale, undefined],
     });
 });

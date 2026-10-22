@@ -96,13 +96,13 @@ test("read and write the origins of spaces and branches under a domain, and noth
     ).toEqual(["personal--florian.destack.space", "feature-x---personal--florian.destack.space"]);
 });
 
-test("fit the longest names of each part in one DNS label, and refuse longer names and names that would start a punycode label", () => {
+test("fit the longest names in one DNS label each, and refuse longer names and names that would start a punycode label", () => {
     const longest = { name: "a".repeat(15), space: "b".repeat(20), handle: "c".repeat(24) };
     const machine = { machine: "d".repeat(37), handle: longest.handle };
     const hostname = InstallationOrigin.format(longest, DOMAINS.space);
     const server = MachineAddress.format(machine, DOMAINS.machine);
 
-    // read back both 63-character labels and refuse one more character in any part
+    // read back both 63-character labels and refuse one more character in any name
     expect([
         hostname.length - DOMAINS.space.length - 1,
         server.length - DOMAINS.machine.length - 1,
@@ -165,7 +165,7 @@ test("write a branch's label readable while it fits 63 characters, else by the d
 });
 
 test("read space addresses as one label, refusing other shapes, and write them back from their origins", () => {
-    // admit a space name and a handle joined by -- at their longest, and refuse every other shape
+    // accept a space name and a handle joined by -- at their longest, and refuse every other shape
     const longest = `${"c".repeat(20)}--${"d".repeat(24)}`;
     const addresses = [
         "personal--florian",

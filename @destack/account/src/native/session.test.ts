@@ -67,15 +67,15 @@ test("refresh a session's access token once for every caller at once, and anew o
         sessions.accessTokens(person).token("account", Date.now(), refresh),
         sessions.accessTokens(person).token("account", Date.now(), refresh),
     ]);
-    const kept = await sessions.accessTokens(person).token("account", Date.now(), refresh);
+    const cached = await sessions.accessTokens(person).token("account", Date.now(), refresh);
 
     // forget the session as signing out does, and refresh again for the next caller
     await sessions.forget(person);
     const renewed = await sessions.accessTokens(person).token("account", Date.now(), refresh);
 
-    expect({ tokens, kept, renewed, refreshed }).toEqual({
+    expect({ tokens, cached, renewed, refreshed }).toEqual({
         tokens: ["access-1", "access-1"],
-        kept: "access-1",
+        cached: "access-1",
         renewed: "access-2",
         refreshed: 2,
     });

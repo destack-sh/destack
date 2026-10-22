@@ -32,8 +32,8 @@ export type EntitlementResource = (typeof ENTITLEMENT_RESOURCES)[number];
 /** What a feature grants: access alone, a fixed value, or usage of meters up to a limit. */
 export const FEATURE_KINDS = ["boolean", "static", "metered"] as const;
 
-/** Where a space's work runs: shared or dedicated cloud machines, or its people's own. */
-export const Tenancy = schema.enum(["shared", "dedicated", "own"]);
+/** Where a space's work runs: shared or dedicated cloud machines, or its people's computers. */
+export const Tenancy = schema.enum(["shared", "dedicated", "local"]);
 /** Where a space's work runs. */
 export type Tenancy = schema.Infer<typeof Tenancy>;
 
@@ -67,7 +67,7 @@ export const entitlement = defineObject(
             resetAt: field.time().optional(),
             /** Where the usage of a metered feature stands against its limit and budget. */
             state: field.enum(USAGE_STATES).optional(),
-            /** The platform resource the feature allows, absent for a package's own feature. */
+            /** The platform resource the feature allows, absent for a package's feature. */
             resource: field.enum(ENTITLEMENT_RESOURCES).optional(),
         },
         permissions: {

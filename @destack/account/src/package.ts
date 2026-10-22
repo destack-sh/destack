@@ -27,11 +27,20 @@ import {
     user,
     userLogin,
 } from "./object/index.ts";
+import {
+    deviceAuthorization,
+    oauthAccessToken,
+    oauthClientAssertion,
+    oauthRefreshToken,
+    rateLimit,
+    verification,
+} from "./authentication/table.ts";
+import { identityKey } from "./identity/key.ts";
 
 /** The path the oauth adapter answers below the account package's mount. */
 export const OAUTH_PATH = "/oauth";
 
-/** The account package: its objects and its OAuth adapter. */
+/** The account package: its objects, its authentication records and its OAuth adapter. */
 export default definePackage({
     objects: {
         // people, their sign-ins and the programs they sign in through
@@ -68,5 +77,17 @@ export default definePackage({
         claim,
         entitlement,
     },
+    tables: [
+        // the authentication protocols' records
+        verification,
+        rateLimit,
+        deviceAuthorization,
+        oauthClientAssertion,
+        oauthRefreshToken,
+        oauthAccessToken,
+
+        // the universe's identity keys
+        identityKey,
+    ],
     adapters: { oauth: defineAdapter("oauth", { path: OAUTH_PATH }) },
 });

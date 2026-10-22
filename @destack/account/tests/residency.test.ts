@@ -162,7 +162,7 @@ test("read an account's residency home, the residencies' homes and the enabled s
     ]).toEqual([
         ...homes,
         ...homes,
-        // list the enabled shared machines alone, leaving out the drained one and the account's own
+        // list the enabled shared machines alone, without the drained one and the account's machine
         [],
         [{ machine: ids.usMachine, url: "https://us-east.machine.test/" }],
         "executed",
@@ -320,7 +320,7 @@ async function installed(fixture: AccountFixture, residencyId: ResidencyCode): P
     return { id: subject.id, subject, client: fixture.installation(subject) };
 }
 
-test("find the account selling a handle's packages to a residency home's buyers: the handle's own account, the home's platform account for the platform's handles, none otherwise", async () => {
+test("find the account selling a handle's packages to a residency home's buyers: the handle's account, the home's platform account for the platform's handles, none otherwise", async () => {
     // store the residencies' homes and a cloud machine asking
     await using fixture = await AccountFixture.open();
     const [europe, america] = [await fixture.home("eu"), await fixture.home("us")];

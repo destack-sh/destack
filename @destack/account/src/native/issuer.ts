@@ -413,7 +413,7 @@ export class Issuer {
             });
         }
 
-        // read the person from its claims, trusted as the token endpoint's own answer (OIDC Core 3.1.3.7)
+        // read the person from its claims, trusted as the token endpoint's answer (OIDC Core 3.1.3.7)
         const claims = new TextDecoder().decode(
             Uint8Array.fromBase64(payload, { alphabet: "base64url" }),
         );

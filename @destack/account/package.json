@@ -46,6 +46,14 @@
         "jose": "6.2.12",
         "uuid": "14.0.2"
     },
+    "peerDependencies": {
+        "@destack/test": "workspace:*"
+    },
+    "peerDependenciesMeta": {
+        "@destack/test": {
+            "optional": true
+        }
+    },
     "devDependencies": {
         "@destack/test": "workspace:*",
         "@types/node": "26.6.1"

@@ -54,13 +54,13 @@ export const user = defineObject(
         recoverable: { within: { days: 30 }, by: "delete" },
         relations: {
             self: { subjects: [principal.user] },
-            // the person's home space, acting for them in their own scope
+            // the person's home space, acting for them in their scope
             home: { subjects: [principal.space] },
             delegate: { subjects: [principal.user], grantedBy: "delegate" },
             public: { subjects: [anyone.all()] },
         },
         permissions: {
-            // anyone reads a person's public profile, their own private fields alone
+            // anyone reads a person's public profile, the person alone their private fields
             read: union(relation("self"), relation("public")),
             // the person's private fields
             self: relation("self"),
@@ -142,7 +142,7 @@ export const User = {
         };
     },
 
-    /** Read the user a subject key names, refusing another principal's key. */
+    /** Read the user of a subject key, refusing another principal's key. */
     identify(key: string): Identifier<"user"> {
         const subject = Subject.read(key);
         if (!principal.user.is(subject)) {

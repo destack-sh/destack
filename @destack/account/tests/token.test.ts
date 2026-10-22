@@ -72,7 +72,7 @@ test("issue a token client with its grant, act through it, and revoke both", asy
         revokedAt: null,
     });
 
-    // grant the token the permissions until its expiry, from the owner in their own scope
+    // grant the token the permissions until its expiry, from the owner in their scope
     const token = principal.client.reference(Scope.universe.id, issued.id);
     const grants = async () =>
         (await fixture.sessionClient(owner.session, objectPackage).grant.list({ scope: owner.id }))
@@ -101,7 +101,7 @@ test("issue a token client with its grant, act through it, and revoke both", asy
         encoded: bytes.toBase64({ alphabet: "base64url", omitPadding: true }),
     }).toEqual({ prefix: "dst_pat_", length: 32, encoded });
 
-    // exchange the token for the owner's tokens through it, carrying its grant by reference
+    // exchange the token for the owner's tokens through it, sending its grant by reference
     const exchange = (space?: Identifier<"space">) =>
         fixture.exchangeToken(credential.secret, PERSONAL_ACCESS_TOKEN_TYPE, {
             audience: space === undefined ? accountPackage.id : VAULT,

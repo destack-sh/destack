@@ -100,7 +100,7 @@ test("change an organisation's owners only as an owner, leaving at least one", a
     ]).toEqual([
         [
             `FORBIDDEN: only owners of ${organisationId} change its owners`,
-            "FORBIDDEN: permission denied: own",
+            "FORBIDDEN: permission denied: administer",
             "FORBIDDEN: permission denied: delete",
         ],
         `PRECONDITION_FAILED: ${organisationId} needs at least one owner`,

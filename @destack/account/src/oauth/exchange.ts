@@ -72,7 +72,7 @@ export interface ExchangeOptions {
     readonly database: DatabaseConnection;
     /** The policies expanding memberships. */
     readonly authorizer: Authorizer;
-    /** The universe's issuer, which the exchanged access tokens carry. */
+    /** The universe's issuer, which the exchanged access tokens include. */
     readonly issuer: string;
     /** The clock tokens are verified at. */
     readonly clock: Clock;
@@ -247,7 +247,7 @@ async function subjectOf(
         keys,
     });
 
-    // refuse a machine's own token, which it asks with its assertion
+    // refuse a token for the machine itself, which it asks with its assertion
     const verified = await verifier.verify(token, now);
     if (principal.machine.is(verified.caller.subject)) {
         throw new CallError("FORBIDDEN", {
@@ -268,7 +268,7 @@ class SpaceVerification {
     readonly transaction: DatabaseConnection;
     /** The time of the verification, in UTC epoch milliseconds. */
     readonly now: number;
-    /** The account owning the space, read on first use. */
+    /** The account the space belongs to, read on first use. */
     #owner: Promise<Account["id"]> | undefined;
 
     /** Describe callers for a space and receiving package at a time. */
@@ -291,7 +291,7 @@ class SpaceVerification {
         authorizer: Authorizer,
         subject: Subject = verified.caller.subject,
     ): Promise<Authentication> {
-        // select the account that owns the space, of which an installation acting as itself is one
+        // select the account the space belongs to, of which an installation acting as itself is one
         const { caller, credential } = verified;
         const acting = caller.subject;
         const accountId = await this.#account();
@@ -306,15 +306,15 @@ class SpaceVerification {
         const verifiedAt = this.now;
 
         // store what the acting caller proved and its actors only for itself, not for a person it acts as
-        const isOwn = subject === acting;
+        const isSelf = subject === acting;
 
         return {
             caller: {
                 subject,
-                actors: isOwn ? [...caller.actors] : [],
+                actors: isSelf ? [...caller.actors] : [],
                 groups: sets,
-                contacts: isOwn ? [...caller.contacts] : [],
-                grants: isOwn ? [...caller.grants] : [],
+                contacts: isSelf ? [...caller.contacts] : [],
+                grants: isSelf ? [...caller.grants] : [],
             },
             credential: {
                 kind: credential.kind,
@@ -325,7 +325,7 @@ class SpaceVerification {
                 verifiedAt,
                 expiresAt: Math.min(credential.expiresAt, verifiedAt + TOKEN_LIFETIME_MILLISECONDS),
                 ...(credential.assurance === undefined ? {} : { assurance: credential.assurance }),
-                ...(isOwn && credential.deployments !== undefined
+                ...(isSelf && credential.deployments !== undefined
                     ? { deployments: [...credential.deployments] }
                     : {}),
             },
@@ -458,14 +458,14 @@ class SpaceVerification {
         }
     }
 
-    /** Read the live account that owns the space, once per verification. */
+    /** Read the live account the space belongs to, once per verification. */
     #account(): Promise<Account["id"]> {
         this.#owner ??= this.#readAccount();
 
         return this.#owner;
     }
 
-    /** Read the live account that owns the space. */
+    /** Read the live account the space belongs to. */
     async #readAccount(): Promise<Account["id"]> {
         // locate the space's placement and require its account
         const [placement] = await Placement.find(Snapshot.live(this.transaction), [this.spaceId]);
@@ -537,7 +537,7 @@ async function readGrants(
     isInstallation: boolean,
     now: number,
 ): Promise<Grant[]> {
-    // require a person's named chain to the calling installation
+    // require a person's chain of the given grants to the calling installation
     const snapshot = Snapshot.live(transaction);
     if (isInstallation && input.subject !== undefined && input.grants !== undefined) {
         return requireChain(snapshot, input.grants, input.subject, caller.subject, now);
@@ -566,11 +566,11 @@ async function readGrants(
 
         return [Grant.require(only, only.id, parties, now)];
     }
-    // read the caller's own chain to a delegate, as the caller acting as itself
+    // read the caller's chain to a delegate, as the caller acting as itself
     else if (input.grants !== undefined) {
         if (Caller.isDelegated(caller)) {
             throw new CallError("FORBIDDEN", {
-                message: "a delegate acts under its own grants alone",
+                message: "a delegate acts under its grants alone",
             });
         }
 
@@ -595,8 +595,8 @@ async function requireChain(
         const from =
             index === 0 ? delegator : ObjectReference.at("delegate", nth(chain, index - 1));
         const last = index === ids.length - 1 ? delegate : undefined;
-        const own = grant === undefined ? from : ObjectReference.at("delegate", grant);
-        chain.push(Grant.require(grant, id, { delegator: from, delegate: last ?? own }, now));
+        const start = grant === undefined ? from : ObjectReference.at("delegate", grant);
+        chain.push(Grant.require(grant, id, { delegator: from, delegate: last ?? start }, now));
     }
 
     return chain;

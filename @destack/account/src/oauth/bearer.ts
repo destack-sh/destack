@@ -44,7 +44,7 @@ export interface BearerOptions {
     readonly clock: Clock;
     /** The lifetimes of the packages' tokens, a minute when absent. */
     readonly lifetimes: ReadonlyMap<PackageId, number>;
-    /** The universe's issuer, which its tokens carry. */
+    /** The universe's issuer, which its tokens include. */
     readonly issuer: string;
     /** Sign claims with the universe's active key, as the provider signs its tokens. */
     readonly sign: (claims: JWTPayload, header: { readonly typ: string }) => Promise<string>;
@@ -93,11 +93,11 @@ export function bearerGrant(options: BearerOptions): OAuthExtensionGrantHandler 
                 refuse,
             );
         }
-        // bind an installation to its own space alone
+        // bind an installation to its space alone
         else if (spaceId !== undefined && asserted.subject.scope !== spaceId) {
             throw Issuance.refusal(
                 "invalid_grant",
-                `${asserted.subject.id} acts in its own space alone`,
+                `${asserted.subject.id} acts in its space alone`,
             );
         }
 
@@ -122,7 +122,7 @@ function refuse(error: unknown): never {
     throw Issuance.grantRefusal(error);
 }
 
-/** Read the key an assertion's issuer signs with: a machine's own, or a space's identity key. */
+/** Read the key an assertion's issuer signs with: a machine's key, or a space's identity key. */
 function assertionKey(
     database: DatabaseConnection,
     thumbprint: string,

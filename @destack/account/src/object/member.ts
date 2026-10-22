@@ -63,7 +63,7 @@ export const Member = {
 
         // require the organisation's ownership
         const target = organisation.reference(Scope.universe.id, context.scope);
-        const decision = await context.check(organisation.permission("own"), target);
+        const decision = await context.check(organisation.permission("administer"), target);
         if (!decision.isAllowed) {
             throw new CallError("FORBIDDEN", {
                 message: `only owners of ${context.scope} change its owners`,

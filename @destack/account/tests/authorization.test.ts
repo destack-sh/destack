@@ -219,7 +219,7 @@ test("decide account access for its root, members, group members and installatio
 });
 
 test("let a person's home follow on their behalf and read their contact from the user row alone, and no other space", async () => {
-    // store a person whose row names their home, without any relationship to it
+    // store a person whose row has their home, without any relationship to it
     const opened = await AccountFixture.storage();
     const database = opened.database;
     const time = Date.now();

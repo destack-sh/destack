@@ -82,7 +82,7 @@ export const oauthClient = defineObject(
             referenceId: field.string().optional(),
             /** Whether this trusted client bypasses the consent prompt. */
             skipConsent: field.boolean().optional(),
-            /** Whether the client supports ending sessions. */
+            /** Whether the client may end sessions. */
             enableEndSession: field.boolean().optional(),
             /** Whether code exchange requires PKCE. */
             requirePKCE: field.boolean().optional(),

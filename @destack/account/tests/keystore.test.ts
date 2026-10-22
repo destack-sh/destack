@@ -32,7 +32,7 @@ function kid(token: string): string | undefined {
 
 /** Open an account database with a machine serving spaces and a keystore of their identities. */
 async function openKeystore(clock: Clock) {
-    const storage = await AccountFixture.storage(undefined, "sqlite");
+    const storage = await AccountFixture.storage();
     onTestFinished(() => storage.close());
     const { registry, place } = await TestIdentityRegistry.open(
         storage.database,
@@ -88,7 +88,7 @@ test("rekey an identity once a move completes, so the keys its source stored nei
     const { database, place, keystore, registry } = await openKeystore(
         new VirtualClock(Date.now()),
     );
-    const source = await AccountFixture.storage(undefined, "sqlite");
+    const source = await AccountFixture.storage();
     onTestFinished(() => source.close());
     const subject = await place();
     await keystore.generate(database, subject);
@@ -184,7 +184,7 @@ test("derive one key per space and label, the same after a move rewraps the spac
     const clock = new VirtualClock(Date.now());
     const opened = await openKeystore(clock);
     const source = opened.database;
-    const targetStorage = await AccountFixture.storage(undefined, "sqlite");
+    const targetStorage = await AccountFixture.storage();
     onTestFinished(() => targetStorage.close());
     const target = targetStorage.database;
     const sourceKeystore = new IdentityKeystore(
@@ -231,8 +231,8 @@ test("derive one key per space and label, the same after a move rewraps the spac
 });
 
 test("send a request as the universe bound to the space it goes to, which a verifier of the universe's keys accepts for that space alone", async () => {
-    // start the universe's identity in its own registry
-    const storage = await AccountFixture.storage(undefined, "sqlite");
+    // start the universe's identity in its registry
+    const storage = await AccountFixture.storage();
     onTestFinished(() => storage.close());
     const { database } = storage;
     const clock = new VirtualClock(Date.now());
@@ -286,7 +286,7 @@ test("send a request as the universe bound to the space it goes to, which a veri
     });
 });
 
-/** Serve the universe's identity registry as the universe, which may start its own identity. */
+/** Serve the universe's identity registry as the universe, which may start its identity. */
 async function universeRegistry(database: DatabaseConnection, clock: Clock) {
     // let the universe start and extend identities, as the platform role does
     const self = universe.reference(Scope.universe.id, Scope.universe.id);

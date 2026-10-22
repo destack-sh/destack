@@ -4,7 +4,7 @@ import type { PackageId } from "@destack/package";
 import { createLocalJWKSet } from "jose";
 import { Scope } from "@destack/sync";
 import type { Select, Snapshot } from "@destack/db";
-import { defineObject, defineShape, field } from "@destack/object";
+import { defineObject, field } from "@destack/object";
 import { IdentityOperation, KeySet, PublicKey } from "@destack/identity";
 import { Key } from "./key.ts";
 import { Digest, schema } from "@destack/schema";
@@ -93,19 +93,11 @@ export const operation = defineObject(
 /** An identity operation as its table stores it. */
 export type Operation = Select<typeof operation.table>;
 
-/** The identities and their logs, replicated to verify what the universe and spaces sign. */
-export const identityShape = defineShape({
-    name: "identity",
-    parameters: schema.object({}),
-    objects: [identity, operation],
-    queries: () => [identity.query({ scopes: "every" }), operation.query({ scopes: "every" })],
-});
-
 /** What a token is verified against: the receiving package, issuer, space and time. */
 export interface Verification {
     /** The package receiving the call. */
     readonly audience: PackageId;
-    /** The universe's issuer, which its tokens carry. */
+    /** The universe's issuer, which its tokens include. */
     readonly universe: string;
     /** The space the call targets, absent for a call outside any one space. */
     readonly scope?: string;
@@ -125,7 +117,7 @@ export const Identity = {
 
     /** Read an identity's state from its latest operation in force, absent before its first. */
     current(log: readonly Pick<Operation, "operation" | "digest" | "isNullified">[]) {
-        // read the latest operation in force, which carries the identity's whole key state
+        // read the latest operation in force, which records the identity's whole key state
         const latest = log.findLast((entry) => !entry.isNullified);
         if (latest === undefined) {
             return undefined;
@@ -189,7 +181,7 @@ export const Identity = {
         return authentication;
     },
 
-    /** Verify a token by its issuer's identity keys: the universe's, or a space's own. */
+    /** Verify a token by its issuer's identity keys: the universe's, or a space's. */
     async verify(
         snapshot: Snapshot,
         token: string,

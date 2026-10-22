@@ -14,7 +14,7 @@ export function implementSpace(stacks: Readonly<Record<SpaceKind, StackSource>>)
     return space.implement({
         methods: {
             create: {
-                // let the space own itself, written at its home as it is born
+                // make the space the owner of itself, written at its home as it is born
                 creation: (_call, created) =>
                     Space.creation({ id: schema.identifier("space").parse(created.id) }),
                 handle: (context, next) => create(context, next, stacks),
@@ -74,7 +74,7 @@ async function pickMachine(
 ): Promise<Identifier<"machine">> {
     // place it on the given machine the account may use
     if (machineId !== undefined) {
-        return Placement.requireAdmitted(context, { scope: accountId }, machineId);
+        return Placement.requireMachine(context, { scope: accountId }, machineId);
     }
 
     // place it on the enabled shared machine of the account's residency scoring highest for it

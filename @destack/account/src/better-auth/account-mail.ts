@@ -41,7 +41,7 @@ export const CODE_PURPOSES = {
 
 /** The emails an account receives: a sign-in link, or a one-use code. */
 export const AccountMail = {
-    /** Compose the email carrying a sign-in link. */
+    /** Compose the email with a sign-in link. */
     link(url: string): MailContent {
         return {
             subject: "Sign in to Destack",
@@ -52,7 +52,7 @@ export const AccountMail = {
         };
     },
 
-    /** Compose the email carrying a one-use code. */
+    /** Compose the email with a one-use code. */
     code(otp: string, type: keyof typeof CODE_PURPOSES): MailContent {
         return {
             subject: "Your Destack code",

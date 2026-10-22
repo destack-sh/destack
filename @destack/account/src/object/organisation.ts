@@ -40,7 +40,7 @@ const InvitationInput = schema.object({
     invitationId: schema.identifier("invitation"),
 });
 
-/** An organisation that owns accounts and has members in its roles. */
+/** An organisation with accounts, and members in its roles. */
 export const organisation = defineObject(
     {
         name: "organisation",
@@ -60,7 +60,7 @@ export const organisation = defineObject(
         recoverable: { within: { days: 30 }, by: "delete" },
         relations: {
             // relate each active member's user by its role, and the machines publishing as the platform
-            owner: { ...SEATS, grantedBy: "own" },
+            owner: { ...SEATS, grantedBy: "administer" },
             admin: {
                 subjects: [principal.user, residency.members("machine")],
                 grantedBy: "manage",
@@ -82,15 +82,15 @@ export const organisation = defineObject(
             view: union(relation("owner"), relation("admin"), relation("member")),
             manage: union(relation("owner"), relation("admin")),
             bill: union(relation("owner"), relation("billing")),
-            own: relation("owner"),
+            administer: relation("owner"),
             list: union(permission("read"), relation("resident")),
             replicate: relation("resident"),
             update: permission("manage"),
-            delete: permission("own"),
+            delete: permission("administer"),
             place: none(),
         },
-        reserved: ["own", "replicate", "place"],
-        elevated: { delete: sudo, own: sudo },
+        reserved: ["administer", "replicate", "place"],
+        elevated: { delete: sudo, administer: sudo },
     },
     (method) => ({
         list: method.list("list"),
@@ -101,14 +101,14 @@ export const organisation = defineObject(
                 handle: AccountHandle,
                 /** The jurisdiction the organisation's account stores data in. */
                 residencyId: ResidencyCode,
-                /** The stack the home of the organisation's account carries, none when absent. */
+                /** The stack the home of the organisation's account runs, none when absent. */
                 stack: StackSource.exactOptional(),
             }),
             isPredicted: false,
         }),
         update: method.update("update", { fields: ["name", "image", "kind", "payer"] }),
 
-        // change invitations under the invitation's own access
+        // change invitations under the invitation's access
         invite: method.mutation({
             permission: "manage",
             target: "id",

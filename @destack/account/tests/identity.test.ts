@@ -386,11 +386,11 @@ test("grant a machine tokens for the spaces it serves, receives or works in, and
     // enroll an account's machine and a cloud machine and place a space on each
     const laptop = await accounts.enroll(ids.account);
     const cloud = await accounts.enroll(accounts.platform, { residencyId: "eu" });
-    const own = Identifier.create("space");
+    const movedId = Identifier.create("space");
     const served = Identifier.create("space");
     const elsewhere = Identifier.create("space");
-    const owned = { id: own, scope: ids.account, machine: laptop.machineId, epoch: 1 };
-    await TestDirectory.place(accounts.database, owned);
+    const placement = { id: movedId, scope: ids.account, machine: laptop.machineId, epoch: 1 };
+    await TestDirectory.place(accounts.database, placement);
     const placed = { id: served, scope: ids.account, machine: cloud.machineId, epoch: 1 };
     await TestDirectory.place(accounts.database, placed);
 
@@ -400,7 +400,7 @@ test("grant a machine tokens for the spaces it serves, receives or works in, and
     const refused = [
         await grantIn(laptop, served),
         await grantIn(cloud, elsewhere),
-        await grantIn(cloud, own),
+        await grantIn(cloud, movedId),
     ];
 
     // grant a token in a space giving the machine work, until the space withdraws it
@@ -410,15 +410,15 @@ test("grant a machine tokens for the spaces it serves, receives or works in, and
     const withdrawn = await grantIn(laptop, served);
 
     // grant a token in a space moving to the machine
-    await TestDirectory.place(accounts.database, owned, {
+    await TestDirectory.place(accounts.database, placement, {
         target: cloud.machineId,
         transferId: Identifier.create("transfer"),
     });
     expect([
-        await grantIn(laptop, own),
+        await grantIn(laptop, movedId),
         await grantIn(cloud, served),
         refused,
-        await grantIn(cloud, own),
+        await grantIn(cloud, movedId),
         [assigned, withdrawn],
     ]).toEqual([
         "executed",
@@ -426,7 +426,7 @@ test("grant a machine tokens for the spaces it serves, receives or works in, and
         [
             `invalid_grant: ${served} is served and received elsewhere`,
             `invalid_grant: ${elsewhere} is served and received elsewhere`,
-            `invalid_grant: ${own} is served and received elsewhere`,
+            `invalid_grant: ${movedId} is served and received elsewhere`,
         ],
         "executed",
         ["executed", `invalid_grant: ${served} is served and received elsewhere`],

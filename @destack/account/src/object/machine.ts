@@ -33,7 +33,7 @@ const CLOUD_COLUMNS = ["residencyId", "providerCode", "location"] as const;
 /** The sizes of an account's dedicated cloud machines, smallest first. */
 export const MACHINE_SIZES = ["small", "medium", "large", "xlarge"] as const;
 
-/** A machine's name within its account: a DNS label with single inner hyphens, other than `xn`. */
+/** A machine's name within its account: a DNS label with single hyphens inside, other than `xn`. */
 export const MachineName = Label.schema(MACHINE_NAME_LENGTH);
 
 /** A machine's key and the proof that the machine has its private half. */
@@ -64,9 +64,9 @@ export const EndpointRelay = schema.object({
 /** The relay serving a machine's tunnel. */
 export type EndpointRelay = schema.Infer<typeof EndpointRelay>;
 
-/** The fields of a person's own computer: its operating system and hardware. */
+/** The fields of a person's computer: its operating system and hardware. */
 const PersonalMachine = schema.object({
-    /** A person's own computer. */
+    /** A person's computer. */
     kind: schema.literal("personal"),
     /** The operating system. */
     platform: Platform,
@@ -106,7 +106,7 @@ export const machine = defineObject(
         fields: {
             /** The name within the account. */
             name: field.string(MachineName),
-            /** Whether the machine is a person's own computer or a provider's cloud machine. */
+            /** Whether the machine is a person's computer or a provider's cloud machine. */
             kind: field.enum(["personal", "cloud"]),
 
             // the fields of a personal machine, null for a cloud machine
@@ -324,7 +324,7 @@ export const Machine = {
         return name;
     },
 
-    /** Read the machine key an assertion names by its thumbprint, while it authenticates. */
+    /** Read the machine key an assertion identifies by its thumbprint, while it authenticates. */
     async assertionKey(
         snapshot: Snapshot,
         thumbprint: string,

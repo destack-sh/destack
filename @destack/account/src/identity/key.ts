@@ -24,6 +24,6 @@ export const identityKey = defineTable("identity_key", {
     rotation: text("rotation").notNull(),
     /** The public half of the process's rotation key. */
     rotationKey: json("rotation_key", PublicKey).notNull(),
-    /** The identity's root secret its own keys derive from, as 32 encrypted random bytes. */
+    /** The identity's root secret its keys derive from, as 32 encrypted random bytes. */
     root: text("root").notNull(),
 });

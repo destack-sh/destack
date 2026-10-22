@@ -82,7 +82,7 @@ const UNIVERSE_ROLE = {
         residency.permission("operate"),
         account.permission("place"),
         organisation.permission("place"),
-        organisation.permission("own"),
+        organisation.permission("administer"),
         machine.permission("rotate"),
         machine.permission("publish"),
         identity.permission("start"),
@@ -112,7 +112,7 @@ export const PlatformDefinition = schema.object({
     reserved: schema.array(AccountHandle),
     /** The handles the organisation publishes under, each an account in its residency. */
     publishers: schema.array(AccountHandle),
-    /** The handle of the organisation's own account in the platform's residency. */
+    /** The handle of the organisation's account in the platform's residency. */
     handle: AccountHandle,
     /** The cloud machines serving the residencies. */
     machines: schema.array(
@@ -137,7 +137,7 @@ export const PlatformDefinition = schema.object({
 /** The organisation operating the universe as it declares it. */
 export type PlatformDefinition = schema.Infer<typeof PlatformDefinition>;
 
-/** A step applying part of the platform's definition, again without effect once applied. */
+/** A step applying a piece of the platform's definition, again without effect once applied. */
 export interface PlatformStep {
     /** The step's name, unique among the steps. */
     readonly name: string;
@@ -147,7 +147,7 @@ export interface PlatformStep {
 
 /** The universe's inherent role. */
 export const UniverseRole = {
-    /** Own the universe as the universe with the role its own code needs: the one trust root. */
+    /** Bind the universe as its owner with the role its code needs: the one trust root. */
     async trust(objects: Pick<ObjectStore, "database" | "principal">, now: number): Promise<void> {
         const { database, principal: universe } = objects;
         await Transaction.run(database, async (transaction) => {
@@ -156,7 +156,7 @@ export const UniverseRole = {
         });
     },
 
-    /** Find the organisation whose owners hold the operator role, absent before the first start. */
+    /** Find the organisation whose owners have the operator role, absent before the first start. */
     async operating(
         reader: Pick<Snapshot, "read">,
     ): Promise<Identifier<"organisation"> | undefined> {
@@ -285,9 +285,9 @@ export class Platform {
         );
     }
 
-    /** Create the operating organisation with its own account once, as the universe. */
+    /** Create the operating organisation with its account once, as the universe. */
     async upsertOrganisation(store: PlatformStore, now: number): Promise<void> {
-        // take the organisation its handle names, created once
+        // take the organisation with its handle, created once
         const organisationId =
             (await this.#claimedOrganisation(store)) ??
             (await this.#createOrganisation(store, now));
@@ -304,7 +304,7 @@ export class Platform {
         });
     }
 
-    /** Find the organisation owning the operating account's handle, refusing any other owner. */
+    /** Find the organisation with the operating account's handle, refusing any other owner. */
     async #claimedOrganisation(
         store: PlatformStore,
     ): Promise<Identifier<"organisation"> | undefined> {
@@ -324,7 +324,7 @@ export class Platform {
             return undefined;
         }
 
-        // refuse a handle another kind of scope holds
+        // refuse a handle another kind of scope has
         const owner = schema.identifier("organisation").safeParse(claimed.scope);
         if (!owner.success) {
             throw new CallError("CONFLICT", {
@@ -335,7 +335,7 @@ export class Platform {
         return owner.data;
     }
 
-    /** Create the operating organisation as the universe, claiming its handle on its own. */
+    /** Create the operating organisation as the universe, claiming its handle by itself. */
     async #createOrganisation(
         store: PlatformStore,
         now: number,
@@ -503,7 +503,7 @@ export class Platform {
         const contact = Contact.subject(Contact.email(this.definition.operator));
         const invitations = await Invitation.readOn(Snapshot.live(store.database), object, contact);
 
-        // keep an accepted or pending invitation
+        // stop at an accepted or pending invitation
         const isInvited = invitations.some(
             (row) => row.status === "accepted" || (row.status === "pending" && row.expiresAt > now),
         );

@@ -25,3 +25,4 @@ export * from "./space.ts";
 export * from "./stack-source.ts";
 export * from "./identity.ts";
 export * from "./endpoint.ts";
+export * from "./shape.ts";

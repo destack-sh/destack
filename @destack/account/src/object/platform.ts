@@ -1,6 +1,6 @@
 import { schema } from "@destack/schema";
 
-/** The operating systems, as User-Agent Client Hints name them in `Sec-CH-UA-Platform`. */
+/** The operating systems, as User-Agent Client Hints list them in `Sec-CH-UA-Platform`. */
 export const PLATFORMS = [
     "Android",
     "Chrome OS",

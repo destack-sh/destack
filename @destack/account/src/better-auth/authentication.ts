@@ -34,7 +34,7 @@ export const AccountAuthentication = {
             readonly now: number;
         },
     ): Promise<Authentication | undefined> {
-        // leave a request without a bearer token to the protocol it speaks, such as a client's own credentials
+        // leave a request without a bearer token to the protocol it speaks, such as a client's credentials
         const authorization = request.headers.get("authorization");
         if (authorization === null || !/^bearer /iu.test(authorization)) {
             return undefined;

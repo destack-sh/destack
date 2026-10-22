@@ -116,7 +116,7 @@ export const SpaceAddress = Object.assign(
             return `${origin.space}${NAME_SEPARATOR}${origin.handle}`;
         },
 
-        /** Read the origin of the space an address names. */
+        /** Read the origin of the space of an address. */
         origin(address: SpaceAddress): SpaceOrigin {
             return present(
                 readSpace(address.split(NAME_SEPARATOR_PATTERN)),
@@ -206,7 +206,7 @@ export const InstallationOrigin = {
 
     /** Read the installation origin of a request under a domain. */
     of(request: Request, domain: string): InstallationOrigin | undefined {
-        // read the forwarded host, else the request's own
+        // read the forwarded host, else the request's host
         const forwarded = FORWARDED_HOST.exec(request.headers.get("forwarded") ?? "")?.[1];
         const host = new URL(`http://${forwarded ?? new URL(request.url).host}`).hostname;
 
@@ -287,7 +287,7 @@ function splitLabel(
     return separator < 0 ? { names } : { before: label.slice(0, separator), names };
 }
 
-/** Digest a part of a label too long for 63 characters. */
+/** Digest a label piece too long for 63 characters. */
 function labelDigest(text: string): string {
     // fold each UTF-8 byte into the hash
     let hash = FNV_OFFSET_BASIS;

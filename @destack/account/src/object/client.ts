@@ -75,7 +75,7 @@ export const client = defineObject(
             revokedAt: field.time().optional(),
         },
         permissions: {
-            // the person's own, through roles on their scope
+            // the person's clients, through roles on their scope
             read: none(),
             list: none(),
             create: none(),

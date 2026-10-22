@@ -22,7 +22,7 @@ export interface IdentityRegistry {
 
 /** The registries of identities. */
 export const IdentityRegistry = {
-    /** Store identities in the universe's own store, calling as the store's principal. */
+    /** Store identities in the universe's store, calling as the store's principal. */
     of(store: Pick<ObjectStore, "mutate" | "database" | "serving" | "clock">): IdentityRegistry {
         // call identity methods as the store's principal
         const call = async (calls: Parameters<ObjectStore["mutate"]>[1]["calls"]) => {

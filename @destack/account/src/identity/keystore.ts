@@ -167,7 +167,7 @@ export class IdentityKeystore {
         claims: JWTPayload,
         header?: { readonly typ?: string; readonly cty?: string },
     ): Promise<string> {
-        // sign with the active key, named by its thumbprint
+        // sign with the active key, identified by its thumbprint
         const active = this.#active((await this.#require(database, subject)).signingKeys);
         const kid = await PublicKey.thumbprint(active.publicKey);
 

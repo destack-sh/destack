@@ -87,7 +87,7 @@ test("find and resolve an address over the directory's rows, list an account's p
 });
 
 test("read a space's address in its account for those reading the account, an organisation account's members among them, and for nobody else", async () => {
-    // name a space in a person's and an organisation's account
+    // create a space in a person's and an organisation's account
     await using fixture = await AccountFixture.open();
     const owner = await fixture.person("owner@example.com");
     const personal = await fixture.createSpace(owner);
@@ -136,7 +136,6 @@ test("read a space's address in its account for those reading the account, an or
 test("locate each of many spaces placed on a machine in two statements, its placement and its machine's endpoint", async () => {
     // open a database of placements and endpoints
     const storage = await TestDatabase.create(
-        "sqlite",
         defineDatabase({ name: "directory", tables: [...placement.tables, ...endpoint.tables] }),
         { isMigrated: true },
     );
@@ -167,7 +166,7 @@ test("locate each of many spaces placed on a machine in two statements, its plac
         })),
     );
 
-    // locate each through a connection counting its own statements
+    // locate each through a connection counting its statements
     const reader = database.metered();
     const directory = new Directory(Snapshot.live(reader));
     const located = await Promise.all(spaces.map((id) => directory.locate(id, now)));

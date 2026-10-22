@@ -101,7 +101,7 @@ test("make the platform organisation's owners operators when an apply created it
     await database.delete(accessRelationship).where(eq(accessRelationship.roleId, roleId));
     await database.delete(accessRole).where(eq(accessRole.id, roleId));
 
-    // apply it again, binding the organisation its handle names
+    // apply it again, binding the organisation with its handle
     const second = await new Platform(PLATFORM, STACKS.residency).apply(
         fixture.objects,
         Date.now(),
@@ -298,7 +298,7 @@ test("invite a new operator as the platform's owner beside the first, and refuse
 });
 
 test("enroll a cloud machine serving a residency as an owner of the platform organisation, and refuse anyone else", async () => {
-    // give a stranger an account beside the platform the operator owns
+    // give a stranger an account beside the platform of the operator
     await using fixture = await AccountFixture.open();
     const stranger = await fixture.person("stranger@example.com");
     const { accountId } = await fixture.createSpace(stranger);

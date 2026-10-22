@@ -56,7 +56,7 @@ const Session = schema
     .looseObject({ user: schema.looseObject({ email: schema.string() }) })
     .nullable();
 
-/** An emailed sign-in: the address, the form that asked for it and the sign-up it carries. */
+/** An emailed sign-in: the address, the form that asked for it and the sign-up it includes. */
 interface EmailSignIn {
     /** The email the link or code goes to. */
     readonly email: string;
@@ -405,7 +405,7 @@ export class SignInPage {
             return this.#signUpForm(query, choice, alert(reason), status);
         }
 
-        // carry the sign-up in the emailed link or code
+        // send the sign-up in the emailed link or code
         const emailed: EmailSignIn = {
             email: choice.email,
             page: this.signUp,
@@ -826,7 +826,7 @@ export class SignInPage {
     }
 }
 
-/** Send the browser to the URL a Better Auth answer names, with the answer's cookies. */
+/** Send the browser to the URL of a Better Auth answer, with the answer's cookies. */
 async function follow(response: Response): Promise<Response> {
     const { url } = Redirection.parse(await response.json());
 

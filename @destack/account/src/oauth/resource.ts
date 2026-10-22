@@ -14,7 +14,7 @@ export const CLIENT_RESOURCE_MODEL = "oauthClientResource";
 export interface PackageResource {
     /** The resource's identifier, `urn:destack:package:<packageId>`. */
     readonly id: string;
-    /** The identifier its tokens carry as `aud`. */
+    /** The identifier its tokens include as `aud`. */
     readonly identifier: string;
     /** The name, the package's identifier. */
     readonly name: string;

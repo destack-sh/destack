@@ -14,7 +14,7 @@ const PAGES = new URL(ISSUER).pathname;
 /** The session cookie Better Auth sets. */
 const SESSION_COOKIE = "better-auth.session_token";
 
-/** The policy of every page, admitting the time zone script by its SHA-256 hash. */
+/** The policy of every page, allowing the time zone script by its SHA-256 hash. */
 const POLICY =
     "default-src 'none'; script-src 'sha256-eZ9dPUSZvzZuzsdc+Rt5v76cmD+uc20qSM6f7h4EPAs='; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'";
 
@@ -218,7 +218,7 @@ test("sign up on the sign-up page with a name in the posted time zone and the br
     );
     await browser.fetch(at(await fixture.links(), -1).url);
 
-    // sign up by a code in the pages' own language for a browser asking for none
+    // sign up by a code in the language of the pages for a browser asking for none
     const other = fixture.browser("*");
     const code = {
         email: "bob@example.com",

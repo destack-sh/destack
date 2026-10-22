@@ -141,7 +141,7 @@ export class BetterAuthAudit {
             return (
                 segments.length === path.length &&
                 zip(segments, path).every(
-                    ([segment, part]) => segment.startsWith(":") || segment === part,
+                    ([segment, expected]) => segment.startsWith(":") || segment === expected,
                 )
             );
         });

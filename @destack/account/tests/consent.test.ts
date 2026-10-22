@@ -10,7 +10,7 @@ import { ACCESS_TOKEN_TYPE } from "../src/oauth/index.ts";
 import accountPackage from "../src/package.ts";
 import { AccountFixture, outcome } from "../src/test/index.ts";
 
-test("let an installation act for a person exactly as the grant the person's own client created allows, until they revoke it", async () => {
+test("let an installation act for a person exactly as the grant the person's client created allows, until they revoke it", async () => {
     // store the owner's browser with a push subscription, and an installation of their space with an identity
     await using fixture = await AccountFixture.open();
     const owner = await fixture.person("owner@example.com");
@@ -38,7 +38,7 @@ test("let an installation act for a person exactly as the grant the person's own
         permissions: [{ ...client.permission("unsubscribe"), scope: owner.id }],
     });
 
-    // exchange the installation's own token for the owner's under a named or the only grant
+    // exchange the installation's token for the owner's under a named or the only grant
     const exchange = async (grants?: readonly string[]) =>
         fixture.exchangeToken(await fixture.installationToken(inbox), ACCESS_TOKEN_TYPE, {
             audience: accountPackage.id,
@@ -47,7 +47,7 @@ test("let an installation act for a person exactly as the grant the person's own
         });
     const acting = fixture.bearer((await exchange([granted.id])).accessToken);
 
-    // refuse a chain linking a grant the universe keeps no record of
+    // refuse a chain linking a grant the universe stores no record of
     const unknown = Identifier.create("grant");
     const unlinked = await outcome(exchange([granted.id, unknown]));
 

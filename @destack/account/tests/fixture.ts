@@ -14,7 +14,7 @@ export const DeviceGrant = schema.looseObject({
     device_code: schema.string(),
     /** The code the person confirms on the verification page. */
     user_code: schema.string(),
-    /** The verification page carrying the user code. */
+    /** The verification page with the user code. */
     verification_uri_complete: schema.string(),
 });
 

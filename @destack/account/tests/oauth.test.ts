@@ -5,7 +5,7 @@ import { Credential } from "../src/credential/credential.ts";
 import { user } from "../src/object/user.ts";
 import { client } from "../src/object/client.ts";
 import { nth, Identifier, present, schema } from "@destack/schema";
-import { deviceAuthorization } from "../src/stack/db.ts";
+import { deviceAuthorization, verification } from "../src/authentication/index.ts";
 import { outcome, AccountFixture, ISSUER, type Person } from "../src/test/index.ts";
 import {
     at,
@@ -19,7 +19,6 @@ import {
 } from "./fixture.ts";
 import { JWKS_PATH } from "../src/authentication/path.ts";
 import { EMAIL_CODE, JWT_BEARER, TOKEN_EXCHANGE } from "../src/oauth/index.ts";
-import { verification } from "../src/stack/index.ts";
 import { Pkce } from "@destack/access/token";
 import { PackageId } from "@destack/package";
 import accountPackage from "../src/package.ts";
@@ -58,11 +57,11 @@ const Discovery = schema.looseObject({
     jwks_uri: schema.string(),
     /** The device authorization endpoint. */
     device_authorization_endpoint: schema.string(),
-    /** The supported grant types. */
+    /** The grant types the server accepts. */
     grant_types_supported: schema.array(schema.string()),
-    /** The supported PKCE challenge methods. */
+    /** The PKCE challenge methods the server accepts. */
     code_challenge_methods_supported: schema.array(schema.string()),
-    /** The supported claims. */
+    /** The claims the server can issue. */
     claims_supported: schema.array(schema.string()),
 });
 
@@ -530,8 +529,8 @@ test("sign a device in as a new client through the browser once the person allow
     ]);
 });
 
-/** Carry the assurance of the session that approved a device's client in its tokens. */
-test("carry the second factor of the session approving a device's client in its tokens, and send a person asked to sign in again to the sign-in page", async () => {
+/** Include the assurance of the session that approved a device's client in its tokens. */
+test("include the second factor of the session approving a device's client in its tokens, and send a person asked to sign in again to the sign-in page", async () => {
     await using fixture = await AccountFixture.open();
     const owner = await fixture.signInWithLink("ada@example.com");
     await fixture.elevate(owner.id);
@@ -560,7 +559,7 @@ test("carry the second factor of the session approving a device's client in its 
         locationOf(await owner.browser.fetch(`/oauth2/authorize?${again}`)),
     );
 
-    // consent and redeem the code for tokens carrying the session's second factor
+    // consent and redeem the code for tokens with the session's second factor
     const consented = await owner.browser.fetch(
         `/consent${asked.search}`,
         new URLSearchParams({ action: "approve" }),
@@ -732,9 +731,9 @@ async function chooseProfile(person: Person): Promise<void> {
 }
 
 /** Decode one base64url part of a JSON Web Token as JSON. */
-function decode(part: string): unknown {
+function decode(segment: string): unknown {
     return JSON.parse(
-        new TextDecoder().decode(Uint8Array.fromBase64(part, { alphabet: "base64url" })),
+        new TextDecoder().decode(Uint8Array.fromBase64(segment, { alphabet: "base64url" })),
     );
 }
 

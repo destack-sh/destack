@@ -32,7 +32,7 @@ const CREDENTIAL_MILLISECONDS = 60 * 60 * 1000;
 export const TestDirectory = {
     /** Serve the universe's claims over a test's account database, claimed as the universe. */
     async claims(database: DatabaseConnection, clock: Clock): Promise<ClaimHome> {
-        // own the universe as its principal once
+        // bind the universe as its owner once
         const owner = universe.reference(Scope.universe.id, Scope.universe.id);
         await Transaction.run(database, (transaction) =>
             Role.bindOwner(transaction, Scope.universe, owner, clock.now()),
@@ -127,7 +127,7 @@ export const TestDirectory = {
             origin: { package: Package.of(accountPackage) },
         });
 
-        // own the universe as the universe, as the platform does, which relates runners to spaces
+        // bind the universe as its owner, as the platform does, which relates runners to spaces
         const universal = universe.reference(Scope.universe.id, Scope.universe.id);
         await Transaction.run(database, (transaction) =>
             Role.bindOwner(transaction, Scope.universe, universal, Date.now()),

@@ -6,7 +6,13 @@ import { RequestId, ObjectReference, Scope } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import { Directory } from "../src/address/index.ts";
 import { CallError } from "@destack/object";
-import { account, assignment, placement, Placement, placementShape } from "../src/object/index.ts";
+import {
+    account,
+    assignment,
+    directoryShape,
+    machineShape,
+    Placement,
+} from "../src/object/index.ts";
 import * as accountObject from "../src/object/index.ts";
 import { ACCESS_TOKEN_TYPE } from "../src/oauth/index.ts";
 import { sudo } from "../src/authentication/sudo.ts";
@@ -15,7 +21,7 @@ import { AccountFixture, type Actor, ISSUER, outcome } from "../src/test/index.t
 import { claimNames, firstPage, place } from "./fixture.ts";
 import { Claim, Claimant } from "@destack/object";
 
-test("place spaces where they are created, store names in them, let exactly a space replicate its own access, and refuse machines exchanging tokens or replicating access", async () => {
+test("place spaces where they are created, store names in them, let exactly a space replicate its access, and refuse machines exchanging tokens or replicating access", async () => {
     // store two machines and a cloud machine of the owner's account, and a machine and a cloud machine of another account
     await using fixture = await AccountFixture.open();
     const owner = await fixture.person("owner@example.com");
@@ -132,7 +138,7 @@ test("place spaces where they are created, store names in them, let exactly a sp
             .map((change) => [change.row["id"], change.concealed]),
     ).toEqual([[accountId, undefined]]);
 
-    // refuse exchanging a machine's own token, which it asks with its assertion
+    // refuse exchanging a token for the machine itself, which it asks with its assertion
     const accessToken = await identity.token(accountPackage.id, { url: ISSUER }, (request) =>
         fixture.fetch(request),
     );
@@ -225,16 +231,16 @@ test("place spaces where they are created, store names in them, let exactly a sp
         await move(local, 2, local.id),
         await move(cloud, 1, local.id),
         await move(cloud, 2, local.id),
-        await placements(local),
-        await placements(peer),
+        await peer.client.placement
+            .get({ accountId, id: laptop })
+            .then((moved) => [moved.machineId, moved.targetId]),
         await withdraw(peer, 2),
         await withdraw(cloud, 2),
     ]).toEqual([
         "FORBIDDEN: permission denied: move",
         `CONFLICT: ${laptop} is no longer placed at epoch 1`,
         "executed",
-        [[laptop, local.id]],
-        [],
+        [cloud.id, local.id],
         "FORBIDDEN: permission denied: move",
         "executed",
     ]);
@@ -352,7 +358,7 @@ test("remove a space's delegated grants when the space is finalized", async () =
     );
 });
 
-test("replicate a machine its own row with its status, and no other machine's", async () => {
+test("replicate a drained machine's status to every machine through the directory", async () => {
     // store two machines and drain the first as the owner
     await using fixture = await AccountFixture.open();
     const owner = await fixture.person("owner@example.com");
@@ -366,18 +372,27 @@ test("replicate a machine its own row with its status, and no other machine's", 
         requestId: RequestId.create(Date.now()),
     });
 
-    // replicate each machine its own row alone
-    expect([await machines(drained), await machines(other)]).toEqual([
-        [[drained.id, "draining"]],
-        [[other.id, "enabled"]],
-    ]);
+    // replicate both machines' statuses to each machine
+    const statuses = [
+        [drained.id, "draining"],
+        [other.id, "enabled"],
+    ];
+    const both = async (copier: Actor) =>
+        (await machines(copier)).filter(([id]) => id === drained.id || id === other.id);
+    expect([await both(drained), await both(other)]).toEqual([statuses, statuses]);
 });
 
-/** Read the machine rows a machine replicates, with their statuses. */
+/** Read the machine rows a machine replicates of the directory, with their statuses. */
 async function machines(copier: Actor): Promise<unknown[][]> {
-    const changes = await placementChanges(copier);
+    const controller = new AbortController();
+    const pages = await copier.client.store.stream(
+        directoryShape.subscription({ scope: Scope.universe.id }, copier.id),
+        { signal: controller.signal },
+    );
+    const page = await firstPage(pages);
+    controller.abort();
 
-    return changes
+    return page.changes
         .filter((change) => change.table === accountObject.machine.table[TABLE].sqlName)
         .map((change) => [change.row["id"], change.row["status"]]);
 }
@@ -461,35 +476,22 @@ async function replicas(machine: Actor, scope: string, spaceId?: string): Promis
     return outcome(replicated).finally(() => controller.abort());
 }
 
-/** Read the placements a machine replicates of the spaces it runs or receives, with targets. */
-async function placements(machine: Actor): Promise<unknown[][]> {
-    const changes = await placementChanges(machine);
-
-    return changes
-        .filter((change) => change.table === placement.table[TABLE].sqlName)
-        .map((change) => [change.row["id"], change.row["targetId"]]);
-}
-
 /** Read the spaces a machine replicates as giving it work. */
 async function assignments(machine: Actor): Promise<unknown[]> {
-    const changes = await placementChanges(machine);
-
-    return changes
-        .filter((change) => change.table === assignment.table[TABLE].sqlName)
-        .map((change) => change.row["placementId"]);
-}
-
-/** Read the first page of a machine's replica of its placements and work. */
-async function placementChanges(machine: Actor) {
     const controller = new AbortController();
     const pages = await machine.client.store.stream(
-        placementShape.subscription({ scope: Scope.universe.id, machine: machine.id }, machine.id),
+        machineShape.subscription(
+            { scope: Scope.universe.id, machine: schema.identifier("machine").parse(machine.id) },
+            machine.id,
+        ),
         { signal: controller.signal },
     );
     const page = await firstPage(pages);
     controller.abort();
 
-    return page.changes;
+    return page.changes
+        .filter((change) => change.table === assignment.table[TABLE].sqlName)
+        .map((change) => change.row["placementId"]);
 }
 
 test("publish a personal machine's URL as the machine alone, and read it as absent once its tunnel lapses", async () => {

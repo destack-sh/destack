@@ -8,7 +8,7 @@ import { Identifier, type JsonObject, present, schema } from "@destack/schema";
 import type { BetterAuthAuthenticator } from "../src/better-auth/authenticator.ts";
 import { parseEnvelope } from "better-auth/crypto";
 import { ActiveSession } from "../src/better-auth/active-session.ts";
-import { verification } from "../src/stack/index.ts";
+import { verification } from "../src/authentication/index.ts";
 
 import { PasskeyAuthenticator, authenticatorCode } from "./authenticator.ts";
 import { AccountFixture, Browser, ISSUER, ORIGIN, SIGN_UP } from "../src/test/index.ts";
@@ -73,7 +73,7 @@ test("sign in and revoke a session", async () => {
     const messages = await fixture.links();
     expect(messages.map(({ email }) => email)).toEqual(["florian@example.com"]);
 
-    // carry the sign-up in the link's query
+    // send the sign-up in the link's query
     const link = at(messages, 0).url;
     const query = new URL(link).searchParams;
     query.delete("token");
@@ -523,10 +523,10 @@ test("list and revoke a session over the account package", async () => {
 
     // revoke every other session of the user except the calling one
     const third = await fixture.signInWithLink("owner@example.com");
-    const own = CurrentSession.parse(await (await owner.browser.fetch("/get-session")).json());
+    const calling = CurrentSession.parse(await (await owner.browser.fetch("/get-session")).json());
     await owner.client.session.revokeOthers({
         userId: owner.id,
-        id: own.session.id,
+        id: calling.session.id,
         requestId: RequestId.create(Date.now()),
     });
     expect([
@@ -581,7 +581,7 @@ test("register a passkey and sign in with it", async () => {
     expect(active.authenticationMethod).toBe("webauthn");
 });
 
-/** Sign in through GitHub's and Google's OAuth callbacks, named by the profile else the sign-up. */
+/** Sign in through GitHub's and Google's OAuth callbacks, with a name from profile or sign-up. */
 test("sign in with github and google", async () => {
     await using fixture = await AccountFixture.open({
         signIn: {

@@ -11,14 +11,7 @@ import {
 } from "@destack/access";
 import { Scope, type ObjectReference, type Subject } from "@destack/sync";
 import { Snapshot, type Select, type RelationalQueryBuilder } from "@destack/db";
-import {
-    Claim,
-    claimTable,
-    defineObject,
-    defineShape,
-    field,
-    type MethodContext,
-} from "@destack/object";
+import { Claim, claimTable, defineObject, field, type MethodContext } from "@destack/object";
 import { Identifier, schema } from "@destack/schema";
 import { CallError } from "@destack/object";
 import { Label } from "../address/label.ts";
@@ -72,7 +65,7 @@ export const account = defineObject(
             bill: union(permission("manage"), through("organisation", "bill")),
             list: union(permission("read"), permission("serve")),
             replicate: union(contained(principal.space), relation("resident")),
-            // let the residency's servers, the account's home and the account's own machines serve it
+            // let the residency's servers, the account's home and the account's machines serve it
             serve: union(relation("resident"), relation("home"), contained(principal.machine)),
             // let the residency's platform installations claim names in the account
             claim: relation("claimant"),
@@ -80,14 +73,14 @@ export const account = defineObject(
             create: union(through("user", "self"), through("organisation", "manage")),
             update: permission("manage"),
             delete: permission("manage"),
-            own: permission("manage"),
+            administer: permission("manage"),
             impersonate: permission("manage"),
             verify: permission("manage"),
             place: none(),
         },
         shareable: {},
-        reserved: ["own", "replicate", "serve", "claim", "place"],
-        elevated: { delete: sudo, own: sudo, impersonate: sudo },
+        reserved: ["administer", "replicate", "serve", "claim", "place"],
+        elevated: { delete: sudo, administer: sudo, impersonate: sudo },
         constraints: {
             handle: { kind: "index", on: ["handle"] },
             scope: { kind: "index", on: ["scope"] },
@@ -117,24 +110,11 @@ export const account = defineObject(
 /** A persisted account record. */
 export type Account = Select<typeof account.table>;
 
-/** The shape replicating every account of a residency to its home, which serves them. */
-export const residentShape = defineShape({
-    name: "residents",
-    parameters: schema.object({
-        /** The residency whose accounts are replicated. */
-        residency: ResidencyCode,
-    }),
-    objects: [account],
-    queries: ({ residency: residencyId }) => [
-        account.query({ scopes: "every", where: { residencyId } }),
-    ],
-});
-
 /** The residency, relations and payers of accounts. */
 export const Account = {
     /** Read the account paying for a scope. */
     async payer(reader: Pick<Snapshot, "read">, scope: string): Promise<Identifier<"account">> {
-        // read an account's owning scope, or take the organisation itself
+        // read an account's owner scope, or take the organisation itself
         const accountId = schema.identifier("account").safeParse(scope);
         const owner = accountId.success
             ? (await reader.read(account.table).findFirst({ where: { id: accountId.data } }))?.scope
@@ -143,7 +123,7 @@ export const Account = {
             throw new CallError("NOT_FOUND", { message: `no account ${scope}` });
         }
 
-        // let an account its user owns pay for itself
+        // let a user's account pay for itself
         const organisationId = schema.identifier("organisation").safeParse(owner);
         if (accountId.success && !organisationId.success) {
             return accountId.data;
@@ -225,31 +205,31 @@ export const Account = {
             return (await Residency.require(reader, chosen)).id;
         }
 
-        // read the residency of the owning organisation's payer
+        // read the residency of the owner organisation's payer
         const owner = await Scope.object(reader, scope);
-        let owned: Pick<Account, "residencyId"> | null | undefined;
+        let paying: Pick<Account, "residencyId"> | null | undefined;
         if (organisation.is(owner)) {
             const id = schema.identifier("organisation").parse(owner.id);
-            const owning = await reader.read(organisation.table).findFirst({ where: { id } });
-            owned =
-                owning === undefined
+            const found = await reader.read(organisation.table).findFirst({ where: { id } });
+            paying =
+                found === undefined
                     ? undefined
-                    : await reader.read(account.table).findFirst({ where: { id: owning.payer } });
+                    : await reader.read(account.table).findFirst({ where: { id: found.payer } });
         }
-        // read the residency of the owning user's personal account
+        // read the residency of the owner's personal account
         else {
             const person = schema.identifier("user").parse(owner.id);
-            [owned] = await reader
+            [paying] = await reader
                 .read(account.table)
                 .findMany({ where: { scope: person, kind: "personal" } });
         }
 
         // refuse an owner without such an account
-        if (owned === null || owned === undefined) {
+        if (paying === null || paying === undefined) {
             throw new CallError("NOT_FOUND", { message: `no account owner ${owner.id}` });
         }
 
-        return owned.residencyId;
+        return paying.residencyId;
     },
 
     /** Locate the space serving an account's residency, refusing a residency without one yet. */

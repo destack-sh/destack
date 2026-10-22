@@ -390,7 +390,7 @@ function settings(
     audit: BetterAuthAudit,
     secrets: NonNullable<BetterAuthOptions["secrets"]>,
 ) {
-    // decide the users' own records through the user policy
+    // decide the users' records through the user policy
     const users = new Authorizer([user.policy], [user.mapping]);
 
     return {
@@ -611,7 +611,7 @@ function withProfile<Options extends { readonly mapProfileToUser?: unknown }>(
     id: string,
     options: Options,
 ) {
-    // refuse a mapping of the deployment's own
+    // refuse a profile mapping the deployment declares
     if (options.mapProfileToUser !== undefined) {
         throw new CallError("PRECONDITION_FAILED", {
             message: `the authenticator maps the profiles of provider ${id}`,

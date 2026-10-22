@@ -119,12 +119,12 @@ async function create(
     return row;
 }
 
-/** Change an organisation, refusing a payer outside its own accounts. */
+/** Change an organisation, refusing a payer outside its accounts. */
 async function update(
     context: MethodContextOf<typeof organisation, "update">,
     next: NextOf<typeof organisation, "update">,
 ): Promise<ResultOf<typeof organisation, "update">> {
-    // refuse a payer the organisation does not own
+    // refuse a payer outside the organisation's accounts
     const payer = context.input.payer;
     if (typeof payer === "string") {
         const row = await context.read(account).findFirst({ where: { id: payer } });

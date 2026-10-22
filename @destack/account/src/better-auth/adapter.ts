@@ -37,7 +37,7 @@ import {
     oauthRefreshToken,
     rateLimit,
     verification,
-} from "../stack/db.ts";
+} from "../authentication/table.ts";
 import { userLogin } from "../object/user-login.ts";
 import { passkey } from "../object/passkey.ts";
 import { session } from "../object/session.ts";
@@ -156,7 +156,7 @@ function reads(
 ): Pick<CustomAdapter, "findOne" | "findMany" | "count"> {
     return {
         async findOne({ model, where, select }) {
-            // answer a resource as the package it names
+            // answer a resource as the package it identifies
             if (model === RESOURCE_MODEL) {
                 const resource = PackageResource.of(identifierOf(where), lifetimes);
 
@@ -174,7 +174,7 @@ function reads(
             return row === undefined ? null : asRecord(row);
         },
         async findMany({ model, where, select, limit, offset, sortBy }) {
-            // answer the packages a resource lookup names, and no client-resource link
+            // answer the packages a resource lookup asks for, and no client-resource link
             if (model === RESOURCE_MODEL) {
                 const resource = PackageResource.of(identifierOf(where), lifetimes);
 
@@ -410,7 +410,7 @@ async function incrementRow(
     return row;
 }
 
-/** Insert a person that owns their scope. */
+/** Insert a person as the owner of their scope. */
 async function createUser(
     database: DatabaseConnection,
     users: Authorizer,
@@ -551,7 +551,7 @@ function identifierOf(where: CleanedWhere[] | undefined): string {
     return only.value;
 }
 
-/** Resolve a supported authentication table. */
+/** Resolve a known authentication table. */
 function table(name: string): Table {
     // refuse an unknown table
     const match = Object.hasOwn(TABLES, name) ? TABLES[name] : undefined;

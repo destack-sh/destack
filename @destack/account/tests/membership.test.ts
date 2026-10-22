@@ -3,7 +3,8 @@ import { AccessContext, accessTables, Caller, principal } from "@destack/access"
 import { AccessFixture } from "@destack/access/test";
 import { defineDatabase, Transaction, type DatabaseConnection, Snapshot } from "@destack/db";
 import { TestDatabase, reconciliation } from "@destack/db/test";
-import { callTables, FeedPublisher } from "@destack/object/test";
+import { FeedPublisher } from "@destack/object/test";
+import { tablesOf } from "@destack/object";
 import { implementPackage, ObjectStore } from "@destack/object/server";
 import { PackageHandle } from "@destack/object";
 import { Package } from "@destack/package";
@@ -30,8 +31,14 @@ const REPLICA_MILLISECONDS = 5000;
 /** The types whose rows and access a space's chain replica decides with. */
 const CHAIN_TYPES = [user, organisation, residency, account, space];
 
-/** The tables the universe publishes to the space: access, the chain's rows and the placement. */
-const PUBLISHED = [...accessTables, ...CHAIN_TYPES.map((type) => type.table), placement.table];
+/** The space's chain, handing down the types it decides with. */
+const CHAIN = Follow.chain(CHAIN_TYPES);
+
+/** The tables the universe publishes to the space: access and the rows the space follows. */
+const PUBLISHED = [
+    ...accessTables,
+    ...[...CHAIN_TYPES, ...spaceShape.objects].map((type) => type.table),
+];
 
 test("decide a space's access in the space from its row and the relationships on it, homed at the universe and replicated down live", async () => {
     // store alice's account with a space at the universe, and serve the space's replica of its chain
@@ -71,27 +78,29 @@ test("decide a space's access in the space from its row and the relationships on
 async function openSpace() {
     // store the universe's people, account and space
     const universeStorage = await TestDatabase.create(
-        "sqlite",
         defineDatabase({
             name: "account",
-            tables: [...callTables, ...CHAIN_TYPES.flatMap((type) => type.tables), placement.table],
+            ...tablesOf({ packages: [accountPackage], follows: [], tables: [] }),
         }),
         { isMigrated: true },
     );
-    const spaceStorage = await TestDatabase.create(
-        "sqlite",
-        defineDatabase({
-            name: "main",
-            tables: accessTables,
-            replicated: [...CHAIN_TYPES.map((type) => type.table), placement.table],
+    const universe = universeStorage.database;
+    const ids = await insertAccount(universe);
+
+    // store the space's rows and its chain as the space's follows bring them
+    const follows = [
+        CHAIN,
+        Follow.of(spaceShape, {
+            keys: [{ key: { scope: ids.accountId, space: ids.spaceId, machine: ids.machineId } }],
         }),
+    ];
+    const spaceStorage = await TestDatabase.create(
+        defineDatabase({ name: "main", ...tablesOf({ packages: [], follows, tables: [] }) }),
         { isMigrated: true },
     );
     onTestFinished(async () => {
         await Promise.all([universeStorage.close(), spaceStorage.close()]);
     });
-    const universe = universeStorage.database;
-    const ids = await insertAccount(universe);
 
     // serve the space's store, replicating the chain above the space from the universe
     const feed = new Feed(universe, PUBLISHED, { clock: Clock.system });
@@ -99,15 +108,7 @@ async function openSpace() {
         chain: async () => ({ kind: "home", parent: ids.accountId }),
         clock: Clock.system,
         principal: principal.space.reference(Scope.universe.id, ids.spaceId),
-        servers: [
-            implementPackage(PackageHandle.of(Package.of(accountPackage), {}), {
-                follows: [
-                    Follow.of(spaceShape, {
-                        keys: [{ key: { scope: ids.accountId, space: ids.spaceId } }],
-                    }),
-                ],
-            }),
-        ],
+        servers: [implementPackage(PackageHandle.of(Package.of(accountPackage), {}), { follows })],
         policies: CHAIN_TYPES,
         database: spaceStorage.database,
         uplink: {
@@ -121,18 +122,18 @@ async function openSpace() {
         origin: { package: Package.of(accountPackage) },
     });
 
-    // follow the chain, then give the space its own scope below the replicated account
+    // follow the chain, then give the space a separate scope below the replicated account
     const follow = await following(replica, universe);
     await follow();
     await new AccessFixture(spaceStorage.database).replicateScope(
         space.reference(ids.accountId, ids.spaceId),
-        "own",
+        "self",
     );
 
     return { ...ids, universe, replica, follow };
 }
 
-/** Insert alice, bob, carol and dave, and an account alice owns with one space, at the universe. */
+/** Insert alice, bob, carol and dave, and an account of alice with one space, at the universe. */
 async function insertAccount(universe: DatabaseConnection) {
     // insert the residency and the people
     const now = Date.now();
@@ -165,9 +166,10 @@ async function insertAccount(universe: DatabaseConnection) {
         dave: person(userIds.dave),
     };
 
-    // store alice's account and its space, alice owning the account
+    // store alice's account and its space, alice as the account's owner
     const accountId = Identifier.create("account");
     const spaceId = Identifier.create("space");
+    const machineId = Identifier.create("machine");
     const owner = userIds.alice;
     await universe.insert(account.table).values({
         id: accountId,
@@ -184,7 +186,7 @@ async function insertAccount(universe: DatabaseConnection) {
     await universe.insert(placement.table).values({
         id: spaceId,
         scope: accountId,
-        machineId: Identifier.create("machine"),
+        machineId,
         epoch: 1,
         ...times,
     });
@@ -193,7 +195,7 @@ async function insertAccount(universe: DatabaseConnection) {
     await access.replicateScope(account.reference(owner, accountId));
     await access.bindOwner(account.reference(owner, accountId), people.alice);
 
-    return { accountId, spaceId, people };
+    return { accountId, spaceId, machineId, people };
 }
 
 /** Follow a store's chain replicas, answering a wait until each caught up with the universe. */
@@ -227,7 +229,7 @@ async function following(
             followed.set(key, follower.reconcile(key, reconciliation(controller.signal)));
         }
 
-        // wait until each listed scope reached the universe's head
+        // wait until each listed scope arrives at the universe's head
         const scopes = new Set(
             keys.map((key) => present(key.split(" ")[1], `the scope of ${key}`)),
         );

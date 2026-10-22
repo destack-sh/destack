@@ -29,7 +29,7 @@ async function create(
         });
     }
 
-    // sign the first by its own rotation keys, a later one by the keys of the operation it follows
+    // sign the first by its rotation keys, a later one by the keys of the operation it follows
     const current = log.filter((entry) => !entry.isNullified);
     const previous = current.find((entry) => entry.digest === claims.previous);
     const priority = await signer(

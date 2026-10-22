@@ -1,11 +1,10 @@
 import { contained, none, principal, relation, through, union } from "@destack/access";
 import type { Snapshot } from "@destack/db";
-import { defineObject, defineShape, field } from "@destack/object";
+import { defineObject, field } from "@destack/object";
 import { Digest, Identifier, present, schema } from "@destack/schema";
 import { CallError } from "@destack/object";
 import { Scope } from "@destack/sync";
 import { account } from "./account.ts";
-import { endpoint } from "./endpoint.ts";
 import { machine } from "./machine.ts";
 
 /** Where a space runs: the machine serving its databases at an epoch. */
@@ -56,18 +55,18 @@ export const Placement = Object.assign(PlacementSchema, {
     },
 
     /** Require a standing machine of the space's account, or a shared machine of its residency. */
-    async requireAdmitted(
+    async requireMachine(
         reader: Pick<Snapshot, "read">,
         row: Pick<Placement, "scope">,
         target: Identifier<"machine">,
     ): Promise<Identifier<"machine">> {
-        // read the target, admitting only an enabled or draining unrevoked machine
+        // read the target, allowing only an enabled or draining unrevoked machine
         const found = await reader.read(machine.table).findFirst({ where: { id: target } });
         const isStanding =
             found !== undefined && found.revokedAt === null && found.status !== "disabled";
 
-        // admit a machine of the account, or a shared machine of the account's residency
-        const isOwn = isStanding && found.scope === row.scope;
+        // allow a machine of the account, or a shared machine of the account's residency
+        const isAccountMachine = isStanding && found.scope === row.scope;
         const isShared =
             isStanding &&
             found.scope === Scope.universe.id &&
@@ -76,7 +75,7 @@ export const Placement = Object.assign(PlacementSchema, {
                     await reader.read(account.table).findFirst({ where: { id: row.scope } }),
                     `the account ${row.scope}`,
                 ).residencyId;
-        if (!isOwn && !isShared) {
+        if (!isAccountMachine && !isShared) {
             throw new CallError("BAD_REQUEST", {
                 message: `${target} is no standing machine of the space's account nor of its residency`,
             });
@@ -161,7 +160,7 @@ export const placement = defineObject(
             transferId: field.string(schema.identifier("transfer")).optional(),
         },
         relations: {
-            // the placed space itself, under the placement's own identifier
+            // the placed space itself, under the placement's identifier
             self: { subjects: [principal.space], grantedBy: null },
         },
         permissions: {
@@ -257,19 +256,3 @@ export const assignment = defineObject(
         delete: method.delete("give", { isInternal: true }),
     }),
 );
-
-/** One machine's own row, endpoint, placements and assignments, replicated to it. */
-export const placementShape = defineShape({
-    name: "placement",
-    parameters: schema.object({ machine: schema.string().min(1) }),
-    objects: [machine, endpoint, placement, assignment],
-    queries: ({ machine: id }) => [
-        machine.query({ scopes: "every", where: { id } }),
-        endpoint.query({ scopes: "every", where: { id } }),
-        placement.query({
-            scopes: "every",
-            where: { OR: [{ machineId: id }, { targetId: id }] },
-        }),
-        assignment.query({ where: { machineId: id } }),
-    ],
-});

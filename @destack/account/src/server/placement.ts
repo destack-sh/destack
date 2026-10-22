@@ -42,7 +42,7 @@ async function move(
     // mark the move at the machine's epoch
     const { target } = context;
     Placement.requireServed(target, context.input.epoch);
-    await Placement.requireAdmitted(context, target, context.input.target);
+    await Placement.requireMachine(context, target, context.input.target);
 
     return context.update({ targetId: context.input.target, transferId: context.input.transferId });
 }

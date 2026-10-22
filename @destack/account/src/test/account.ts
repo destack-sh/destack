@@ -6,7 +6,7 @@ import {
     type Dialect,
     Snapshot,
 } from "@destack/db";
-import { type ImageIndex, TEST_DIALECTS, TestDatabase, TestTemplate } from "@destack/db/test";
+import { type ImageIndex, TestDatabase, TestTemplate } from "@destack/db/test";
 import {
     Replica,
     replicaPosition,
@@ -89,7 +89,7 @@ import { Clock } from "@destack/environment";
 /** The universe's origin. */
 export const ORIGIN = "http://localhost:3210";
 
-/** The URL the fixture's users, machines and installations reach the account package at. */
+/** The URL the fixture's users, machines and installations call the account package at. */
 export const ACCOUNTS_URL = PackageMount.url(ORIGIN, accountPackage.id);
 
 /** The universe's issuer: the account package's oauth adapter. */
@@ -104,10 +104,10 @@ export const SIGN_UP: Pick<SignUp, "timeZone" | "locale"> = {
     locale: "en",
 };
 
-/** The handle of the platform's own account, whose home serves its residency. */
+/** The handle of the platform's account, whose home serves its residency. */
 export const PLATFORM_HANDLE = "destack";
 
-/** The person owning the fixture's accounts. */
+/** The owner of the fixture's accounts. */
 const OWNER = schema.identifier("user").parse("user-01996ab0-0000-7000-8000-00000000000a");
 
 /** The identities the account package stores from its start. */
@@ -216,8 +216,6 @@ const Refusal = schema.looseObject({
 
 /** How a test serves the account package. */
 export interface AccountFixtureOptions {
-    /** The database dialect, the last test dialect by default. */
-    readonly dialect?: Dialect;
     /** Open the release declaring a setting value. */
     readonly openRelease?: (packageId: PackageId, version: string) => Promise<BuildReader>;
     /** The policies of other packages' types. */
@@ -226,6 +224,8 @@ export interface AccountFixtureOptions {
     readonly signIn?: Partial<BetterAuthAuthenticatorOptions>;
     /** The template images to copy from, the run's when absent. */
     readonly images?: ImageIndex;
+    /** The database the images are of, the test project's when absent. */
+    readonly dialect?: Dialect;
 }
 
 /** How a test serves the account package over its template's stacks and homes. */
@@ -252,7 +252,7 @@ export interface AccountTemplateOptions<World extends JsonValue> {
     readonly world: {
         /** What the world's copies share, as its JSON form crosses to the tests. */
         readonly value: schema.Schema<World>;
-        /** Write the world over the served fixture, keeping files in a run's directory. */
+        /** Write the world over the served fixture, storing files in a run's directory. */
         readonly write: (accounts: AccountFixture, directory: string) => Promise<World>;
     };
 }
@@ -305,7 +305,7 @@ export class AccountFixture implements AsyncDisposable {
     readonly callers: Map<string, Verification>;
     /** The published releases declaring settings, by package and version. */
     readonly releases: Map<string, Promise<BuildReader>>;
-    /** The platform's own account, whose home serves its residency. */
+    /** The platform's account, whose home serves its residency. */
     readonly platform: Identifier<"account">;
     /** Who serves the residencies' homes. */
     readonly homes: HomeServer;
@@ -325,7 +325,7 @@ export class AccountFixture implements AsyncDisposable {
         storage: TestDatabase,
         served: Served,
         state: {
-            /** The platform's own account. */
+            /** The platform's account. */
             readonly platform: Identifier<"account">;
             /** Who serves the residencies' homes. */
             readonly homes: HomeServer;
@@ -391,17 +391,13 @@ export class AccountFixture implements AsyncDisposable {
         });
     }
 
-    /** Write and serve the fixture's rows in a fresh database, as a simulation builds its own. */
+    /** Write and serve the fixture's rows in a fresh database, as a simulation builds one. */
     static async create(
         options: AccountFixtureOptions &
             Partial<Pick<AccountTemplateOptions<null>, "stacks" | "homes">> = {},
     ): Promise<AccountFixture> {
         // write the fixture's rows with the given stacks and homes, the defaults when absent
-        const storage = await TestDatabase.create(
-            options.dialect ?? present(TEST_DIALECTS.at(-1), "the last test dialect"),
-            accountDatabase,
-            { isMigrated: true },
-        );
+        const storage = await TestDatabase.create(accountDatabase, { isMigrated: true });
         const { stacks = STACKS, homes = "fixture", ...rest } = options;
         const served = { ...rest, stacks, homes };
         const keys = await AccountFixture.#write(storage, served);
@@ -426,11 +422,10 @@ export class AccountFixture implements AsyncDisposable {
         options: AccountFixtureOptions = {},
     ): Promise<{ readonly accounts: AccountFixture; readonly world: World }> {
         // copy the template, confirming its replicas as of now
-        const { storage, value } = await TestDatabase.copy(
-            options.dialect ?? present(TEST_DIALECTS.at(-1), "the last test dialect"),
-            template,
-            options.images,
-        );
+        const { storage, value } = await TestDatabase.copy(template, {
+            ...(options.images === undefined ? {} : { images: options.images }),
+            ...(options.dialect === undefined ? {} : { dialect: options.dialect }),
+        });
         await storage.database.update(replicaPosition).set({ confirmedAt: Date.now() });
 
         // serve it with the keys, stacks and homes the template's write ended with
@@ -445,11 +440,8 @@ export class AccountFixture implements AsyncDisposable {
     }
 
     /** Open a migrated account database with the universe's residencies. */
-    static async storage(
-        definition: Database = accountDatabase,
-        dialect: Dialect = present(TEST_DIALECTS.at(-1), "the last test dialect"),
-    ): Promise<TestDatabase> {
-        const storage = await TestDatabase.create(dialect, definition, { isMigrated: true });
+    static async storage(definition: Database = accountDatabase): Promise<TestDatabase> {
+        const storage = await TestDatabase.create(definition, { isMigrated: true });
         await AccountFixture.#insertResidencies(storage.database);
 
         return storage;
@@ -1044,7 +1036,7 @@ export class AccountFixture implements AsyncDisposable {
         }
     }
 
-    /** Keep a fixture over a storage the account package serves with some keys. */
+    /** Open a fixture over a storage the account package serves with some keys. */
     static async #over(
         storage: TestDatabase,
         served: Served,
@@ -1186,7 +1178,7 @@ export class AccountFixture implements AsyncDisposable {
         });
         const { packages } = store;
 
-        // own the universe as the universe, then store the platform before its identity
+        // bind the universe as its owner, then store the platform before its identity
         await UniverseRole.trust(store, clock.now());
         if (platform !== undefined) {
             await new Platform(platform, options.stacks.residency).apply(store, clock.now());
@@ -1490,7 +1482,7 @@ async function cloudMachine(
 
 /** The keys of the universe and the declared cloud machines, which each seed copy shares. */
 class AccountKeys {
-    /** The keychains' secrets, as an account template's value carries them. */
+    /** The keychains' secrets, as an account template's value stores them. */
     static readonly schema = schema.object({
         /** The universe keychain's secrets, by name. */
         universe: schema.record(schema.string(), schema.string()),
@@ -1514,7 +1506,7 @@ class AccountKeys {
         return new AccountKeys(new MemoryKeychain(), new Map());
     }
 
-    /** Open keychains holding the secrets of a template's value. */
+    /** Open keychains with the secrets of a template's value. */
     static of(value: AccountKeysValue): AccountKeys {
         const cloud = Object.entries(value.cloud).map(
             ([machineId, secrets]) =>
@@ -1527,7 +1519,7 @@ class AccountKeys {
         return new AccountKeys(AccountKeys.#keychain(value.universe), new Map(cloud));
     }
 
-    /** Read the keychains' secrets as a template's value carries them. */
+    /** Read the keychains' secrets as a template's value stores them. */
     value(): AccountKeysValue {
         return {
             universe: Object.fromEntries(this.universe.secrets),
@@ -1540,7 +1532,7 @@ class AccountKeys {
         };
     }
 
-    /** Open a keychain holding some secrets. */
+    /** Open a keychain with some secrets. */
     static #keychain(secrets: Readonly<Record<string, string>>): MemoryKeychain {
         const keychain = new MemoryKeychain();
         for (const [name, secret] of Object.entries(secrets)) {
@@ -1551,7 +1543,7 @@ class AccountKeys {
     }
 }
 
-/** The keychains' secrets, as an account template's value carries them. */
+/** The keychains' secrets, as an account template's value stores them. */
 type AccountKeysValue = schema.Infer<typeof AccountKeys.schema>;
 
 /** The account fixture's rows with the default stacks and the fixture's homes, which tests copy. */

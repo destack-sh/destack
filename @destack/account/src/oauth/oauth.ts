@@ -48,7 +48,7 @@ export interface OAuthExtensionOptions {
     readonly sign: (claims: JWTPayload, header: { readonly typ: string }) => Promise<string>;
 }
 
-/** Extend the provider with Destack's grants and the Destack claims of its own grants' tokens. */
+/** Extend the provider with Destack's grants and the Destack claims of its grants' tokens. */
 export function oauthExtension(options: OAuthExtensionOptions): OAuthProviderExtension {
     return {
         grants: {

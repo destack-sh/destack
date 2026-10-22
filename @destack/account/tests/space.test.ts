@@ -8,7 +8,7 @@ import { AccountFixture, ids, outcome } from "../src/test/index.ts";
 import { Claim } from "@destack/object";
 
 test("create a space placed in the same transaction on its account's residency cloud machine or a named machine of the account or residency, and refuse a taken name leaving no placement", async () => {
-    // let a person create spaces in their personal account, with a machine of their own enrolled in it
+    // let a person create spaces in their personal account, with their machine enrolled in it
     await using fixture = await AccountFixture.open();
     const owner = await fixture.person("owner@example.com");
     const laptop = await fixture.enroll(owner.account, { client: owner.client });
@@ -21,7 +21,7 @@ test("create a space placed in the same transaction on its account's residency c
             ...(machine === undefined ? {} : { machine }),
         });
 
-    // place one on the residency's cloud machine, one on the person's own machine and one on the named cloud machine
+    // place one on the residency's cloud machine, one on the person's machine and one on the named cloud machine
     const cloud = await create("work");
     const local = await create("notes", laptop.machineId);
     const shared = await create("shared", ids.machine);

@@ -48,7 +48,7 @@ export const login = defineObject({
 /** A login as devices store it. */
 export type LoginRow = Select<typeof login.table>;
 
-/** A person signed in on a computer, acting through the session the keychain keeps for them. */
+/** A person signed in on a computer, acting through the session the keychain stores for them. */
 export class Login {
     /** The login's row. */
     readonly row: LoginRow;
@@ -91,7 +91,7 @@ export class Login {
         return createClient(objectPackage, this.universe(objectPackage.id));
     }
 
-    /** Reach a package the universe serves at the person's issuer, such as settings. */
+    /** Connect to a package the universe serves at the person's issuer, such as settings. */
     universe(audience: PackageId): ClientOptions {
         return {
             url: PackageMount.url(new URL(this.issuer.url).origin, audience),
@@ -99,7 +99,7 @@ export class Login {
         };
     }
 
-    /** Find the person's own account, which they signed up with. */
+    /** Find the person's personal account, which they signed up with. */
     async account(): Promise<Identifier<"account">> {
         // list the person's accounts of kind personal
         const { items } = await this.accounts().account.list({
@@ -114,7 +114,7 @@ export class Login {
         return personal.id;
     }
 
-    /** Find the home space of the person's own account. */
+    /** Find the home space of the person's personal account. */
     async home(): Promise<Identifier<"space">> {
         return Account.home(await this.account());
     }
@@ -131,7 +131,7 @@ export class Login {
         });
     }
 
-    /** Reach the package of an installation of a space through its origin's proxy. */
+    /** Connect to the package of an installation of a space through its origin's proxy. */
     installation(origin: string, audience: PackageId, spaceId: Identifier<"space">): ClientOptions {
         return {
             url: `${origin}${PACKAGE_PATH}`,
@@ -163,7 +163,7 @@ export class Login {
         delegate: Subject,
         permissions: readonly GrantPermission[],
     ): Promise<GrantClaim | undefined> {
-        // list the person's grants to the delegate and keep the unexpiring one of exactly these permissions
+        // list the person's grants to the delegate and take the unexpiring one of exactly these permissions
         const items = await Array.fromAsync(
             ListPage.all(this.objects().grant.list, {
                 scope: this.subject.id,
@@ -171,19 +171,19 @@ export class Login {
             }),
         );
         const wanted = canonicalize(permissions);
-        const kept = items.find(
+        const existing = items.find(
             (grant) => grant.expiresAt === null && canonicalize(grant.permissions) === wanted,
         );
 
-        return kept === undefined ? undefined : { id: kept.id, scope: this.subject.id };
+        return existing === undefined ? undefined : { id: existing.id, scope: this.subject.id };
     }
 
     /** Grant a delegate exactly some permissions, reusing the person's unexpiring grant of them. */
     async grant(delegate: Subject, permissions: readonly GrantPermission[]): Promise<GrantClaim> {
         // reuse the person's unexpiring grant of exactly these permissions
-        const kept = await this.granted(delegate, permissions);
-        if (kept !== undefined) {
-            return kept;
+        const existing = await this.granted(delegate, permissions);
+        if (existing !== undefined) {
+            return existing;
         }
 
         // grant them otherwise

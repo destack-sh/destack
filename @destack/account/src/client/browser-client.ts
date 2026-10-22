@@ -81,10 +81,10 @@ export class BrowserClient {
     readonly #path: string;
     /** The origin whose host registers and binds the client. */
     readonly #origin: string;
-    /** The fetch reaching the host. */
+    /** The fetch that calls the host. */
     readonly #fetch: Fetch;
 
-    /** Read a browser's client from a store and reach its host at a path of an origin. */
+    /** Read a browser's client from a store and call its host at a path of an origin. */
     constructor(options: {
         /** The host path below which the host registers and binds the client. */
         readonly path: string;
@@ -92,10 +92,10 @@ export class BrowserClient {
         readonly store?: ClientStore;
         /** The origin whose host registers and binds the client, the page's by default. */
         readonly origin?: string;
-        /** The fetch reaching the host, the page's by default. */
+        /** The fetch that calls the host, the page's by default. */
         readonly fetch?: Fetch;
     }) {
-        // set the store, the host's path and origin, and the fetch reaching it
+        // set the store, the host's path and origin, and the fetch that calls it
         this.#path = options.path;
         this.#store = options.store ?? BrowserClient.indexedStore();
         this.#origin = options.origin ?? location.origin;
@@ -224,7 +224,7 @@ export class BrowserClient {
             return record;
         }
 
-        // register the client under its own identifier, then its key with a proof of possession
+        // register the client under its identifier, then its key with a proof of possession
         const { client } = KeyRegistration.pick({ client: true }).parse(
             await this.#post(this.#path, { ...registration, id: record.id }, CREATED),
         );

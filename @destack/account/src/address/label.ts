@@ -5,7 +5,7 @@ import { schema } from "@destack/schema";
 /** The characters of a label, as a character class: lowercase letters, digits and hyphens. */
 const CHARACTERS = "a-z0-9-";
 
-/** A name that composes into one DNS label: lowercase letters, digits and single inner hyphens. */
+/** A name that composes into one DNS label: lowercase letters, digits and lone inside hyphens. */
 export const Label = {
     /** Validate a label of at most a length. */
     schema(length: number) {

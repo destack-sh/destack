@@ -79,7 +79,7 @@ async function remove(
         : (await context.read(account).findMany({ where: { scope } })).map((row) => row.id);
     const rows = await context.read(hostname).findMany({ where: { scope: { in: accounts } } });
 
-    // refuse while any lie below the domain, naming them all
+    // refuse while any lie below the domain, listing them all
     const covered = rows
         .filter((row) => Domain.covers(name, row.name))
         .map((row) => row.name)

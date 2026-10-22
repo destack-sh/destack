@@ -35,7 +35,7 @@ export const key = defineObject(
         fields: {
             /** The public key. */
             publicKey: field.json(PublicKey),
-            /** The RFC 7638 JWK thumbprint naming the key in its holder's proofs and tokens. */
+            /** The RFC 7638 JWK thumbprint that identifies the key in proofs and tokens. */
             thumbprint: field.string(schema.string().min(1)),
             /** The time the holder proved possession of the private key. */
             verifiedAt: field.time(),
@@ -138,7 +138,7 @@ export const Key = {
             return;
         }
 
-        // require the key its thumbprint names to authenticate now: unrevoked, unexpired and unsuspended
+        // require the thumbprint's key to authenticate now: unrevoked, unexpired and unsuspended
         const standing = await reader.read(key.table).findMany({
             where: { AND: [{ thumbprint: credential.id }, Key.authenticates(now)] },
         });

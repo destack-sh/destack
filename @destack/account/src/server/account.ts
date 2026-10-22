@@ -23,7 +23,7 @@ export function implementAccount(stacks: Readonly<Record<SpaceKind, StackSource>
     });
 }
 
-/** Create an account with its owner's residency and its home space carrying its stack. */
+/** Create an account with its owner's residency and its home space running its stack. */
 async function create(
     context: MethodContextOf<typeof account, "create">,
     next: NextOf<typeof account, "create">,
@@ -48,7 +48,7 @@ async function create(
         }),
     ]);
 
-    // relate an owning organisation to the servers of the account's residency
+    // relate an owner organisation to the servers of the account's residency
     if (!isUser) {
         const organisationId = schema.identifier("organisation").parse(owner.id);
         await context.mutate(context.self, await residentCalls(context, organisationId));

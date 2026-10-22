@@ -8,7 +8,7 @@ import {
     type Snapshot,
 } from "@destack/db";
 import { placement } from "./placement.ts";
-import { defineObject, defineShape, field, type KeyFields, ObjectWatch } from "@destack/object";
+import { defineObject, field, type KeyFields, ObjectWatch } from "@destack/object";
 import { RISKS } from "@destack/resource";
 import { type Identifier, present, schema } from "@destack/schema";
 import { CallError } from "@destack/object";
@@ -92,7 +92,7 @@ export const space = defineObject(
     },
     (method) => ({
         list: method.list("list"),
-        // make a new space its own owner, since its code acts in it
+        // make a new space the owner of itself, since its code acts in it
         create: method.create("create", {
             fields: ["name", "title", "stack"],
             filled: ["stack"],
@@ -127,7 +127,7 @@ export const space = defineObject(
         }),
     }),
 ).implement({ methods: { rename: (call) => call.update({ name: call.input.name }) } });
-/** A space row in the space's own database. */
+/** A space row in the space's database. */
 export type Space = Select<typeof space.table>;
 
 /** The resources whose use sets a space's conditions. */
@@ -141,22 +141,22 @@ export const THROTTLED_RESOURCES = [
 
 /** The space checks, reads and replicates of a serving machine. */
 export const Space = {
-    /** Build the access a space's home writes at its birth: the space owns itself. */
+    /** Build the access a space's home writes at its birth: the space is the owner of itself. */
     creation(row: Pick<Space, "id">): Creation {
         return { owner: principal.space.reference(Scope.universe.id, row.id) };
     },
 
-    /** List the spaces of the accounts a payer pays for: its own, and its organisations'. */
+    /** List the spaces of the accounts a payer pays for: its accounts and its organisations'. */
     async paidBy(snapshot: Snapshot, payer: Identifier<"account">): Promise<Identifier<"space">[]> {
         // take the payer itself, and the accounts of the organisations it pays for
         const paid = await snapshot.read(organisation.table).findMany({ where: { payer } });
-        const owned =
+        const accounts =
             paid.length === 0
                 ? []
                 : await snapshot
                       .read(account.table)
                       .findMany({ where: { scope: { in: paid.map((row) => row.id) } } });
-        const accountIds = [payer, ...owned.map((row) => row.id)];
+        const accountIds = [payer, ...accounts.map((row) => row.id)];
 
         // list their spaces
         const rows = await snapshot
@@ -250,14 +250,3 @@ export const Space = {
         );
     },
 };
-
-/** One space's row and placement, replicated down to the space's own database. */
-export const spaceShape = defineShape({
-    name: "space",
-    parameters: schema.object({ space: schema.identifier("space") }),
-    objects: [space, placement],
-    queries: ({ space: id }) => [
-        space.query({ scopes: "every", where: { id } }),
-        placement.query({ scopes: "every", where: { id } }),
-    ],
-});
