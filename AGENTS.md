@@ -415,7 +415,7 @@ Document everything in plain sentences:
   ```
 
 Keep documentation to one line:
-- **WD10** Documentation SHOULD fit one line at the 100 character width.
+- **WD10** Documentation SHOULD fit one line at the 100 character width (but this is not a hard limit).
   In rare, complex cases multiline documentation MAY come after a blank line in a multiline doc comment.
 - **WD11** Documentation with more than one sentence MUST go multiline, with one sentence per line. (`destack/jsdoc-sentence`)
 - **WD12** Multiline documentation SHOULD use a header line, a blank line, then paragraph lines. (`destack/jsdoc-sentence`)
