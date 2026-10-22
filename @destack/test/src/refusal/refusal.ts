@@ -1,6 +1,6 @@
 import { schema } from "@destack/schema";
 
-/** An error carrying a code, as service, database and package errors do. */
+/** An error with a code, as service, database and package errors are. */
 const CodedError = schema.looseObject({
     /** The error's code. */
     code: schema.string(),
@@ -13,7 +13,7 @@ export function refusal(pending: Promise<unknown>): Promise<"done" | readonly [s
     return pending.then(
         () => "done" as const,
         (error: unknown) => {
-            // read the code and message the error carries
+            // read the error's code and message
             const coded = CodedError.safeParse(error);
 
             // rethrow an error without them, failing the test that awaits it

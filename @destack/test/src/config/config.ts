@@ -3,10 +3,15 @@ import { createHash } from "node:crypto";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import * as vitest from "vitest/config";
-import type { UserWorkspaceConfig, ViteUserConfig } from "vitest/config";
+import type {
+    TestProjectInlineConfiguration,
+    UserWorkspaceConfig,
+    ViteUserConfig,
+} from "vitest/config";
 import type { Plugin, PluginOption } from "vite";
 import { modulePlugin } from "@destack/package/vite";
 import { schema } from "@destack/schema";
+import type { TestMatrix } from "../project/index.ts";
 
 /** The shared test options: one module graph per worker, cached modules, and quick polls. */
 const TEST = { isolate: false, fsModuleCache: true } as const;
@@ -23,16 +28,39 @@ const Manifest = schema.looseObject({
 /** The build extension a destack.json declares, such as `./build#viewExtension`. */
 const Definition = schema.looseObject({ build: schema.string().exactOptional() });
 
+/** A test project, and the targets it runs against. */
+export type ProjectConfiguration = TestProjectInlineConfiguration & {
+    /** The values it runs against by kind, one project per combination. */
+    readonly targets?: TestMatrix;
+};
+
+/** A test configuration, its projects and the targets they run against. */
+export type TestConfiguration = Omit<ViteUserConfig, "test"> & {
+    /** The values its tests run against by kind, where its projects declare none. */
+    readonly targets?: TestMatrix;
+    /** The test options, whose projects may declare separate targets. */
+    readonly test?: Omit<NonNullable<ViteUserConfig["test"]>, "projects"> & {
+        /** The projects, each run once per combination of its targets. */
+        readonly projects?: readonly ProjectConfiguration[];
+    };
+};
+
 /** Define a test configuration whose package sources receive Destack module metadata. */
-export function defineConfiguration(configuration: ViteUserConfig): ViteUserConfig {
+export function defineConfiguration(configuration: TestConfiguration): ViteUserConfig {
+    // split off the targets, the projects and the global setup the projects run in the root's place
+    const { targets, test, ...rest } = configuration;
+    const { projects: declared, globalSetup, ...options } = test ?? {};
+    const setup = globalSetup === undefined ? {} : { globalSetup };
+    const projects = configuredProjects(declared, targets, setup);
+
     return vitest.defineConfig({
-        ...configuration,
-        test: { ...TEST, expect: POLL, ...configuration.test },
-        plugins: [
-            modulePlugin(),
-            cachePlugin(),
-            ...(configuration.plugins ?? []).map(withoutServer),
-        ],
+        ...rest,
+        test: {
+            ...TEST,
+            expect: POLL,
+            ...(projects === undefined ? { ...options, ...setup } : { ...options, projects }),
+        },
+        plugins: [modulePlugin(), cachePlugin(), ...(rest.plugins ?? []).map(withoutServer)],
     });
 }
 
@@ -67,7 +95,7 @@ export function scenarioPlugin(drivers: readonly DriverReference[]): Plugin {
         transform: {
             filter: { id: /\.scenario\.tsx?$/u },
             handler(code, id) {
-                // import the module itself, the runner and the driver types, then play what it exports
+                // import the module itself, the runner and the driver types, then play its exports
                 const self = JSON.stringify(`./${basename(id)}`);
                 const imported = drivers.map(
                     (driver, index) =>
@@ -96,12 +124,84 @@ async function withoutServer(
     if (Array.isArray(settled)) {
         return await Promise.all(settled.map(withoutServer));
     }
-    // keep disabled options as they are
+    // return disabled options as they are
     else if (settled === false || settled === null || settled === undefined) {
         return settled;
     }
 
     return { ...settled, configureServer: undefined };
+}
+
+/** List a configuration's projects, one per combination of targets, absent for the root alone. */
+function configuredProjects(
+    declared: readonly ProjectConfiguration[] | undefined,
+    targets: TestMatrix | undefined,
+    setup: Pick<NonNullable<TestProjectInlineConfiguration["test"]>, "globalSetup">,
+): TestProjectInlineConfiguration[] | undefined {
+    // run each declared project per combination, one extending the root with the root's setup
+    if (declared !== undefined) {
+        return declared.flatMap((project) =>
+            targetProjects(
+                project.extends === true
+                    ? { ...project, test: { ...setup, ...project.test } }
+                    : project,
+                targets,
+            ),
+        );
+    }
+    // run the whole configuration per combination of its targets
+    else if (targets !== undefined) {
+        return targetProjects({ extends: true, test: setup }, targets);
+    }
+    // run the root alone
+    else {
+        return undefined;
+    }
+}
+
+/** List a project once per combination of its targets, or the configuration's, named after them. */
+function targetProjects(
+    project: ProjectConfiguration,
+    declared: TestMatrix | undefined,
+): TestProjectInlineConfiguration[] {
+    // return a project without targets as it is
+    const { targets: local, ...config } = project;
+    const targets = local ?? declared;
+    if (targets === undefined) {
+        return [config];
+    }
+
+    // list every combination of the targets' values
+    const combinations = Object.entries(targets).reduce<Record<string, string>[]>(
+        (listed, [kind, values]) =>
+            listed.flatMap((combination) =>
+                values.map((value) => ({ ...combination, [kind]: value })),
+            ),
+        [{}],
+    );
+
+    // run each combination as a project, named after the project and its values
+    return combinations.map((combination) => {
+        // title it by the project's label and the values, with its color
+        const values = Object.values(combination).join(",");
+        const named = config.test?.name;
+        const name =
+            named === undefined
+                ? values
+                : typeof named === "object"
+                  ? { ...named, label: `${named.label}:${values}` }
+                  : `${named}:${values}`;
+
+        // provide the values to its tests
+        return {
+            ...config,
+            test: {
+                ...config.test,
+                name,
+                provide: { ...config.test?.provide, targets: combination },
+            },
+        };
+    });
 }
 
 /** Key cached module transforms by every package definition the module transform reads. */
@@ -129,7 +229,7 @@ function definitions(): string {
         workspaces = readWorkspaces(root);
     }
 
-    // read each package's destack.json and package.json, skipping dependencies and hidden directories
+    // read each package's destack.json and package.json, skipping dependencies and hidden folders
     const packages = globSync(
         workspaces.flatMap((pattern) => [
             `${pattern}/**/destack.json`,

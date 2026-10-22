@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 import { refusal } from "./refusal.ts";
 
-/** An error carrying a code, as call errors do. */
+/** An error with a code, as call errors are. */
 class CodedFailure extends Error {
     /** The failure's code. */
     readonly code = "NOT_FOUND";
