@@ -7,7 +7,6 @@ const board = definePublication({
     name: "board",
     parameters,
     audience: "reader",
-    isReadinessGate: true,
     replica,
 });
 const query: Query = {
@@ -30,7 +29,6 @@ const board = definePublication({
     name: "board",
     parameters: schema.object({ board: schema.string() }),
     audience: "reader",
-    isReadinessGate: true, // the subscriber serves only once it has the rows
     replica: ({ name, scope, parameters }) =>
         new Replica({
             name,

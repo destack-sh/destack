@@ -303,7 +303,7 @@ export class Aggregation extends Pipeline {
             run,
         );
 
-        // keep the member in its partitions
+        // retain the member in its partitions
         if (names.size === 0) {
             this.members.delete(key);
         } else if (member === undefined) {
@@ -367,7 +367,7 @@ export class Aggregation extends Pipeline {
         }
     }
 
-    /** Count one group again by value as of the run's position, keeping its values counted. */
+    /** Count one group again by value as of the run's position, with its values counted. */
     async #recount(group: Readonly<Record<string, Scalar>>, run: Run): Promise<void> {
         // measure the group in its partition
         const node = this.node;

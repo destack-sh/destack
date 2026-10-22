@@ -8,7 +8,7 @@ import type { Feed } from "./feed.ts";
 import { View } from "../dataflow/view.ts";
 import type { Clock } from "@destack/environment";
 
-/** One subscriber's queries over a feed, on their own behind the head and shared at the head. */
+/** One subscriber's queries over a feed, alone behind the head and shared at the head. */
 export class Stream {
     /** The feed the stream reads. */
     readonly #feed: Feed;
@@ -16,7 +16,7 @@ export class Stream {
     readonly #queries: Readonly<Record<string, Query>>;
     /** Who the stream serves. */
     readonly #audience: Audience;
-    /** The followed evaluation: its own, or a shared one. */
+    /** The followed evaluation: a separate one, or a shared one. */
     #evaluation: Evaluation;
     /** The shortest time between two pages at the head. */
     readonly #every: number | undefined;
@@ -36,7 +36,7 @@ export class Stream {
         audience: Audience,
         every?: number,
     ) {
-        // evaluate the queries on their own
+        // evaluate the queries alone
         this.#feed = feed;
         this.#every = every;
         this.#queries = queries;
@@ -66,7 +66,7 @@ export class Stream {
         }
     }
 
-    /** Report whether the stream reached an asked position it has not published one past. */
+    /** Report whether the stream arrived at an asked position it has not published one past. */
     #isAsked(published: number, position: LogPosition): boolean {
         const confirming = this.#confirming;
 
@@ -160,7 +160,7 @@ export class Stream {
             this.#evaluation = this.#feed.join(this.#evaluation, position);
             const decided = this.#evaluation.after(position);
 
-            // catch up on its own once the shared evaluation moved on
+            // catch up alone once the shared evaluation moved on
             if (decided === undefined) {
                 this.#alone();
                 await this.#audience.refresh();
@@ -178,8 +178,8 @@ export class Stream {
                 }
 
                 // wait for a commit or an ask, else publish the position at the feed's next beat
-                const reached = { log, epoch, sequence };
-                if (sequence === position.sequence && !this.#isAsked(published, reached)) {
+                const asked = { log, epoch, sequence };
+                if (sequence === position.sequence && !this.#isAsked(published, asked)) {
                     const beat = this.#feed.beating;
                     if (this.#feed.beats === this.#heard) {
                         const woken = AbortSignal.any([waking, beat, this.#asked.signal]);
@@ -207,7 +207,7 @@ export class Stream {
         }
     }
 
-    /** Send a snapshot at the latest position and what followed, returning the sequence reached. */
+    /** Send a snapshot at the latest position and what followed, returning the last sequence. */
     async *#snapshot(signal: AbortSignal): AsyncGenerator<Page, number> {
         // walk the queries before catching up
         const start = await this.#feed.database.log.position();
@@ -220,7 +220,7 @@ export class Stream {
         return yield* this.#catchUp(start, last, signal);
     }
 
-    /** Rebuild a resuming subscriber's state at its position, returning the sequence reached. */
+    /** Rebuild a resuming subscriber's state at its position, returning the last sequence. */
     async *#resume(after: LogPosition, signal: AbortSignal): AsyncGenerator<Page, number> {
         // rebuild the selected rows and windows and send every group
         this.#evaluation.forget(after);
@@ -290,19 +290,19 @@ export class Stream {
             sequence = next.value;
         }
 
-        // stop short of completing a page the changes never reached
+        // stop short of completing a page the changes never arrived at
         if (signal.aborted) {
             return sequence;
         }
 
         // complete the last page at the target
-        const reached = Math.max(sequence, target);
-        yield { ...last, complete: true, position: { ...position, sequence: reached } };
+        const final = Math.max(sequence, target);
+        yield { ...last, complete: true, position: { ...position, sequence: final } };
 
-        return reached;
+        return final;
     }
 
-    /** Leave a shared evaluation for one of the stream's own. */
+    /** Leave a shared evaluation for a separate one of the stream. */
     #alone(): void {
         if (this.#feed.isJoined(this.#evaluation)) {
             this.#feed.leave(this.#evaluation);
@@ -317,7 +317,7 @@ export class Stream {
         tables: readonly Table[],
         clock: Clock,
     ): AsyncGenerator<Page> {
-        // read the next page ahead, keeping its failure for the next take
+        // read the next page ahead, storing its failure for the next take
         let pending: Page | undefined;
         let published = Number.NEGATIVE_INFINITY;
         let next = Stream.#settle(pages.next());
@@ -401,7 +401,7 @@ export class Stream {
             }
         }
 
-        // keep each group's last values
+        // record each group's last values
         const results = new Map<string, ResultChange>();
         for (const result of [...(earlier.results ?? []), ...(later.results ?? [])]) {
             if (result.group === null) {

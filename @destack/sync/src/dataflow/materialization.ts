@@ -22,7 +22,7 @@ interface PartitionOrder {
     readonly sources: Map<string, Row>;
 }
 
-/** The entries a selection's last read built, kept so a read rebuilds only what changed. */
+/** The entries a selection's last read built, stored so a read rebuilds only what changed. */
 export class Materialization {
     /** The built entries, by row key. */
     readonly #built: Map<string, ResultRow>;
@@ -58,7 +58,7 @@ export class Materialization {
             return sorted;
         }
 
-        // keep the unchanged keys in their order and place each row that changed or arrived since
+        // leave the unchanged keys in their order and place each row that changed or arrived since
         const { sources } = ordered;
         const present = new Set(keys);
         const changed = keys.filter((key) => sources.get(key) !== rowOf(key));
@@ -82,7 +82,7 @@ export class Materialization {
         return order;
     }
 
-    /** Read a row's last groups of an aggregate include, so equal new groups keep identity. */
+    /** Read a row's last groups of an aggregate include, so equal new groups share identity. */
     previous(key: string, name: string): readonly AggregateRow[] | undefined {
         return this.#built.get(key)?.entry.measures[name];
     }
@@ -109,34 +109,34 @@ export class Materialization {
             return built.entry;
         }
 
-        // build the entry, keeping the last one when its values are equal
+        // build the entry, reusing the last one when its values are equal
         const entry: Item = {
             row: table[TABLE].conceal(source, hidden),
             with: Object.fromEntries(included),
             measures: Object.fromEntries(measured),
         };
-        const kept =
+        const reused =
             built !== undefined && Materialization.isSame(built.entry, entry) ? built.entry : entry;
-        this.#built.set(key, { source, hidden: joined, entry: kept });
+        this.#built.set(key, { source, hidden: joined, entry: reused });
 
-        return kept;
+        return reused;
     }
 
-    /** Keep a partition's entries, reusing the earlier list if entries and order are equal. */
+    /** Store a partition's entries, reusing the earlier list if entries and order are equal. */
     list(name: string, entries: readonly Item[]): readonly Item[] {
-        // keep the earlier list when it has the same entries in the same order
+        // reuse the earlier list when it has the same entries in the same order
         const listed = this.#listed.get(name);
         const isSame =
             listed !== undefined &&
             listed.length === entries.length &&
             entries.every((entry, index) => entry === listed[index]);
-        const kept = isSame ? listed : entries;
-        this.#listed.set(name, kept);
+        const stored = isSame ? listed : entries;
+        this.#listed.set(name, stored);
 
-        return kept;
+        return stored;
     }
 
-    /** Forget unselected rows and partitions, once fewer are selected than were kept. */
+    /** Forget unselected rows and partitions, once fewer are selected than were stored. */
     prune(members: ReadonlyMap<string, Member>, partitions: ReadonlyMap<string, Partition>): void {
         // forget the entries of rows no partition has
         if (this.#built.size > members.size) {

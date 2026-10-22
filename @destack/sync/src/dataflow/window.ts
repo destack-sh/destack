@@ -16,12 +16,12 @@ export class Window {
     readonly #rows: Map<string, Row>;
     /** The partition's join value, absent for a root. */
     readonly value: ColumnValue;
-    /** Whether the window keeps every candidate. */
+    /** Whether the window retains every candidate. */
     readonly isArranged: boolean;
     /** Whether no candidate follows the last known row. */
     #isExhaustive: boolean;
 
-    /** Order the rows of a partition and keep the first up to a limit. */
+    /** Order the rows of a partition and retain the first up to a limit. */
     constructor(
         compare: (left: Row, right: Row) => number,
         limit: number,
@@ -33,7 +33,7 @@ export class Window {
         this.#chunks = [];
         this.#rows = new Map<string, Row>();
 
-        // keep the order, limit and exhaustion
+        // store the order, limit and exhaustion
         this.#compare = compare;
         this.#limit = limit;
         this.value = value;

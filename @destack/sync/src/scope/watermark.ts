@@ -4,11 +4,11 @@ import { schema } from "@destack/schema";
 export const Watermark = schema.object({
     /** The scope whose database has the log. */
     scope: schema.string().min(1),
-    /** The log's identifier, which a restore keeps. */
+    /** The log's identifier, which a restore preserves. */
     log: schema.string().min(1),
     /** The log's epoch, renewed when the database is restored. */
     epoch: schema.string().min(1),
-    /** The log sequence reached within the epoch. */
+    /** The log sequence within the epoch. */
     sequence: schema.number().int().nonnegative(),
 });
 /** A position in one scope's log. */

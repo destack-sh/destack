@@ -16,7 +16,7 @@ import {
     type Table,
     uniqueIndex,
 } from "@destack/db";
-import { TEST_DIALECTS, TestDatabase } from "@destack/db/test";
+import { TestDatabase, type TestDatabaseOptions } from "@destack/db/test";
 import { replicaTables, type Replica } from "../replica/replica.ts";
 import type { Prediction } from "../prediction/prediction.ts";
 import type { Page } from "../query/page.ts";
@@ -33,8 +33,8 @@ export const note = defineTable(
         title: text("title").notNull(),
         /** The folder the note lives in. */
         scope: text("scope").notNull(),
-        /** An optional summary. */
-        summary: text("summary"),
+        /** An optional subtitle. */
+        subtitle: text("subtitle"),
         /** An exact counter beyond the safe integer range. */
         views: bigint("views").notNull(),
         /** Structured labels. */
@@ -253,12 +253,12 @@ export const relations = Relations.merge(
 /** The tables of each test database. */
 export const TABLES = [note, project, task, comment, tag, taskTag, page, ...replicaTables];
 
-/** Open a migrated test database, closed after the test or on close. */
+/** Open a migrated test database, of the project's database unless given, closed after the test. */
 export async function open(
-    dialect: (typeof TEST_DIALECTS)[number],
     tables: readonly Table[] = TABLES,
+    options: Pick<TestDatabaseOptions, "dialect"> = {},
 ): Promise<TestDatabase["database"]> {
-    const test = await TestDatabase.create(dialect, tables, { isMigrated: true });
+    const test = await TestDatabase.create(tables, { ...options, isMigrated: true });
     onTestFinished(() => test.close());
 
     return test.database;
@@ -266,10 +266,9 @@ export async function open(
 
 /** Open a migrated replica database without trees and references. */
 export async function openReplica(
-    dialect: (typeof TEST_DIALECTS)[number],
     tables: Database | readonly Table[] = TABLES,
 ): Promise<DatabaseConnection> {
-    const test = await TestDatabase.create(dialect, tables, { isMigrated: true, isReplica: true });
+    const test = await TestDatabase.create(tables, { isMigrated: true, isReplica: true });
     onTestFinished(() => test.close());
 
     return test.database;
@@ -280,7 +279,7 @@ export const first = {
     id: "a",
     title: "First",
     scope: "inbox",
-    summary: null,
+    subtitle: null,
     views: 9_007_199_254_740_993n,
     labels: ["draft"],
     editedAt: 1790244000123,

@@ -344,7 +344,7 @@ export const ROLLUPS: Readonly<Record<string, Query>> = {
     },
 };
 
-/** Queries of rows in the scopes selected rows are in: each project's own tags. */
+/** Queries of rows in the scopes selected rows are in: the tags of each project. */
 export const WITHIN: Readonly<Record<string, Query>> = {
     folders: {
         table: project,

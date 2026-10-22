@@ -29,11 +29,11 @@ export const EVERYONE: Audience = {
 export interface Audience {
     /** The tables whose changes decide visibility. */
     readonly watches: readonly Watch[];
-    /** Match the rows the subscriber may have, under a query's own permission too, or "memory". */
+    /** Match the rows the subscriber may have, under a query's permission too, or "memory". */
     readonly where: (table: Table, permission?: string) => SQL | "memory";
     /** The name of what the audience decides by, alike for audiences deciding alike. */
     readonly key: string;
-    /** Decide which rows the subscriber may have by index, under a query's own permission too. */
+    /** Decide which rows the subscriber may have by index, under a query's permission too. */
     readonly visible: (
         table: Table,
         rows: readonly Row[],
@@ -48,11 +48,11 @@ export interface Audience {
         rows: readonly Row[],
         position: LogPosition,
     ) => Promise<readonly (readonly string[])[]>;
-    /** Read when the decisions next change on their own. */
+    /** Read when the decisions next change by themselves. */
     readonly until: () => Promise<number | undefined>;
     /** Decide as of now once the `until` moment passed. */
     readonly refresh: () => Promise<void>;
-    /** Report whether a change may decide the visibility of rows beyond its own. */
+    /** Report whether a change may decide the visibility of rows beyond the changed row. */
     readonly decides: (change: Change) => Promise<boolean>;
 }
 

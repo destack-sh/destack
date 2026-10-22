@@ -4,7 +4,7 @@ import { SyncError } from "../error/index.ts";
 import type { ObjectReference } from "./reference.ts";
 import { scopeTable } from "./table.ts";
 
-/** The package declaring sync's own type: the universe. */
+/** The package declaring sync's type: the universe. */
 export const SYNC_PACKAGE = import.meta.destack.package;
 
 /** The identifier of the universe and its scope. */
@@ -35,7 +35,7 @@ const UNIVERSE_ROW: RowImage<typeof scopeTable> = {
     movedTo: null,
 };
 
-/** A scope's chain, storage cap and transfer fence, read from and written to its own row. */
+/** A scope's chain, storage cap and transfer fence, read from and written to its row. */
 export const Scope = {
     table: scopeTable,
     universe,
@@ -121,7 +121,7 @@ export const Scope = {
             current = current.parent === UNIVERSE_ID ? undefined : rows.get(current.parent);
         }
 
-        // end a chain reaching the top at the universe
+        // end a chain at the universe once it arrives at the top
         const isRooted = scope === UNIVERSE_ID || links.at(-1)?.parent === UNIVERSE_ID;
 
         return isRooted ? [...links, Scope.link(UNIVERSE_ROW)] : links;
@@ -139,7 +139,7 @@ export const Scope = {
         };
     },
 
-    /** Read a scope's own object and refuse an unknown scope. */
+    /** Read a scope's object and refuse an unknown scope. */
     async object(reader: Pick<Snapshot, "read">, id: string): Promise<ObjectReference> {
         const [link] = await Scope.chain(reader, id);
         if (link === undefined) {
@@ -164,7 +164,7 @@ export const Scope = {
         await Scope.change(transaction, scope, { fencedAt: now, movedTo: machine });
     },
 
-    /** Lift a scope's fence on the database now keeping it. */
+    /** Lift a scope's fence on the database that now stores it. */
     async unfence(transaction: Transaction, scope: string): Promise<void> {
         await Scope.change(transaction, scope, { fencedAt: null, movedTo: null });
     },

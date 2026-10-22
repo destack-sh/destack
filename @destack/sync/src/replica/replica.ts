@@ -59,10 +59,10 @@ import { Clock } from "@destack/environment";
 /** The staged pages a run's completion reads at once. */
 const STAGED_BATCH = 16;
 
-/** The kept keys a snapshot's completion reads at once. */
+/** The retained keys a snapshot's completion reads at once. */
 const PRUNE_BATCH = 1000;
 
-/** A group's values as a kept group's canonical JSON text has them. */
+/** A group's values as a retained group's canonical JSON text has them. */
 const GroupValues = schema.record(schema.string(), Scalar);
 
 /** A subscription as a replica records it: what it follows, without where it resumes. */
@@ -76,13 +76,13 @@ const SubscriptionRecord = Subscription.omit({
 /** A subscription as a replica records it. */
 export type SubscriptionRecord = schema.Infer<typeof SubscriptionRecord>;
 
-/** The replicas a database keeps: what each replicates and from which subscription. */
+/** The replicas a database stores: what each replicates and from which subscription. */
 export const replica = defineTable(
     "replica",
     {
         /** The replica's name. */
         name: text("name").primaryKey(),
-        /** The scope whose rows the replica keeps. */
+        /** The scope whose rows the replica stores. */
         scope: text("scope").primaryKey(),
         /** The scopes the replica reads, nearest first, absent until its source sends them. */
         scopes: json("scopes", schema.array(schema.string())),
@@ -104,7 +104,7 @@ export const replicaPosition = defineTable(
     {
         /** The replica's name. */
         name: text("name").primaryKey(),
-        /** The scope whose rows the replica keeps. */
+        /** The scope whose rows the replica stores. */
         scope: text("scope").primaryKey(),
         /** The source log, absent before the first complete snapshot. */
         log: text("log"),
@@ -132,7 +132,7 @@ export const replicaSubscription = defineTable(
     {
         /** The replica's name. */
         name: text("name").primaryKey(),
-        /** The scope whose rows the replica keeps. */
+        /** The scope whose rows the replica stores. */
         scope: text("scope").primaryKey(),
         /** The publication the replica follows. */
         publication: text("publication").notNull(),
@@ -191,7 +191,7 @@ export const replicaPage = defineTable("replica_page", {
     page: json("page", Page).notNull(),
 });
 
-/** The aggregate groups a replica keeps. */
+/** The aggregate groups a replica stores. */
 export const replicaResult = defineTable(
     "replica_result",
     {
@@ -221,7 +221,7 @@ export const replicaResult = defineTable(
     },
 );
 
-/** The keys of the rows each replica keeps on the follower, with the columns it hides on each. */
+/** The keys of the rows each replica stores on the follower, with the columns it hides on each. */
 export const replicaKey = defineTable(
     "replica_key",
     {
@@ -263,7 +263,7 @@ export const replicaTables: readonly Table[] = [
 export class Replica {
     /** The replica's name. */
     readonly name: string;
-    /** The scope whose rows the replica keeps. */
+    /** The scope whose rows the replica stores. */
     readonly scope: string;
     /** The replicated tables, parents first. */
     readonly tables: readonly Table[];
@@ -271,7 +271,7 @@ export class Replica {
     readonly where: ReadonlyMap<Table, Condition>;
     /** The scopes of each table whose rows live outside the replica's scope, or in several. */
     readonly scopes: ReadonlyMap<Table, readonly string[]>;
-    /** The tables whose rows are replicated from their own scope. */
+    /** The tables whose rows are replicated from each row's scope. */
     readonly everywhere: ReadonlySet<Table>;
     /** The parent tables of each cross-scope table: each row lives in a parent row's scope. */
     readonly within: ReadonlyMap<Table, readonly Table[]>;
@@ -279,9 +279,9 @@ export class Replica {
     readonly includes: ReadonlyMap<Table, NonNullable<QuerySelection["with"]>>;
     /** The relations of each table the includes follow, by name. */
     readonly relations: ReadonlyMap<Table, Readonly<Record<string, Relation>>>;
-    /** Whether the source may keep a replica itself, which the replica follows to its home. */
+    /** Whether the source may store a replica itself, which the replica follows to its home. */
     readonly isRelayed: boolean;
-    /** The scopes the replica reads beyond its own, sorted. */
+    /** The scopes the replica reads beyond its scope, sorted. */
     readonly reads: readonly string[];
     /** The replicated tables, by SQL name. */
     readonly #replicated: ReadonlyMap<string, Table>;
@@ -292,7 +292,7 @@ export class Replica {
     constructor(definition: {
         /** The replica's name. */
         readonly name: string;
-        /** The scope whose rows the replica keeps. */
+        /** The scope whose rows the replica stores. */
         readonly scope: string;
         /** The replicated tables, parents first. */
         readonly tables: readonly Table[];
@@ -300,7 +300,7 @@ export class Replica {
         readonly where?: ReadonlyMap<Table, Condition>;
         /** The scopes of each table with rows outside the replica's scope, none by default. */
         readonly scopes?: ReadonlyMap<Table, readonly string[]>;
-        /** The tables whose rows are replicated from their own scope, none by default. */
+        /** The tables whose rows are replicated from each row's scope, none by default. */
         readonly everywhere?: ReadonlySet<Table>;
         /** The parent tables of each table replicated across scopes, none by default. */
         readonly within?: ReadonlyMap<Table, readonly Table[]>;
@@ -308,10 +308,10 @@ export class Replica {
         readonly includes?: ReadonlyMap<Table, NonNullable<QuerySelection["with"]>>;
         /** The relations of each table the includes follow, none by default. */
         readonly relations?: ReadonlyMap<Table, Readonly<Record<string, Relation>>>;
-        /** Whether the source may keep a replica itself, true by default. */
+        /** Whether the source may store a replica itself, true by default. */
         readonly isRelayed?: boolean;
     }) {
-        // keep the identity
+        // store the identity
         this.name = definition.name;
         this.scope = definition.scope;
         this.tables = definition.tables;
@@ -325,7 +325,7 @@ export class Replica {
         this.#replicated = new Map(this.tables.map((table) => [table[TABLE].sqlName, table]));
         this.#layout = Log.layout(this.tables);
 
-        // list the scopes the replica reads beyond its own
+        // list the scopes the replica reads beyond its scope
         const reads = [...new Set([...this.scopes.values()].flat())]
             .filter((scope) => scope !== this.scope)
             .toSorted();
@@ -367,7 +367,7 @@ export class Replica {
                 ];
             });
 
-        // follow the source's own replica position when relayed
+        // follow the source's replica position when relayed
         if (this.isRelayed) {
             queries.push([
                 replicaPosition[TABLE].sqlName,
@@ -501,7 +501,7 @@ export class Replica {
         table: Table,
         rows: readonly Row[],
     ): Promise<void> {
-        // keep no bookkeeping in a database without replicas
+        // write no bookkeeping in a database without replicas
         if (!database.tables.includes(replicaKey) || rows.length === 0) {
             return;
         }
@@ -552,7 +552,9 @@ export class Replica {
 
         return [
             ...new Set(
-                records.filter((kept) => kept.tables.includes(sqlName)).map(({ scope }) => scope),
+                records
+                    .filter((record) => record.tables.includes(sqlName))
+                    .map(({ scope }) => scope),
             ),
         ];
     }
@@ -576,7 +578,7 @@ export class Replica {
         scope: string,
         table?: Table,
     ): Promise<boolean> {
-        // read the replicas of the scope with the tables they keep
+        // read the replicas of the scope with the tables they store
         const records = await snapshot.read(replica).findMany({ where: { scope } });
         const name = table?.[TABLE].sqlName;
 
@@ -602,14 +604,14 @@ export class Replica {
         );
     }
 
-    /** Report whether every replica including a scope and the required ones reached a position. */
+    /** Report whether each replica of a scope and the required ones arrived at a position. */
     static async isAt(
         database: DatabaseConnection,
         scope: string,
         position: LogPosition,
         required: readonly Pick<Subscription, "name" | "scope">[] = [],
     ): Promise<boolean> {
-        // read the replicas including the scope and the required ones, reaching nothing before both
+        // read the replicas including the scope and the required ones, arriving nowhere before both
         const including = await Replica.#recordsIncluding(database, [scope]);
         const records = await Promise.all(
             required.map((each) => Replica.#find(database, each.name, each.scope)),
@@ -620,7 +622,7 @@ export class Replica {
         }
 
         // require the position of each replica following the position's log, skipping other logs
-        const reached = [...including.map(({ record }) => record), ...recorded].flatMap(
+        const included = [...including.map(({ record }) => record), ...recorded].flatMap(
             (record) => {
                 const origin = Replica.#origin(record);
                 const isFollowing = origin === undefined || origin.position.log === position.log;
@@ -629,7 +631,7 @@ export class Replica {
             },
         );
 
-        return reached.length > 0 && reached.every(Boolean);
+        return included.length > 0 && included.every(Boolean);
     }
 
     /** List the replicas including a scope's rows, by name and the scope each replicates. */
@@ -659,16 +661,16 @@ export class Replica {
         );
     }
 
-    /** Read the origin the replica's record keeps, absent before it follows. */
+    /** Read the origin the replica's record stores, absent before it follows. */
     async #readOrigin(database: DatabaseConnection): Promise<Origin | undefined> {
         const record = await this.#record(database);
 
         return record === undefined ? undefined : Replica.#origin(record);
     }
 
-    /** Report whether a home position reached a position of its log, refusing an older history. */
+    /** Report whether a home position arrived at a position of its log, refusing older history. */
     static #isReached(origin: Origin | undefined, scope: string, position: LogPosition): boolean {
-        // reach nothing before following the position's log
+        // arrive nowhere before following the position's log
         if (origin === undefined || origin.position.log !== position.log) {
             return false;
         }
@@ -679,7 +681,7 @@ export class Replica {
                 `${scope} started a new epoch after the position`,
             );
         }
-        // reach the position within its epoch
+        // arrive at the position within its epoch
         else {
             return (
                 origin.position.epoch === position.epoch &&
@@ -688,7 +690,7 @@ export class Replica {
         }
     }
 
-    /** Report whether the database keeps the replica's record. */
+    /** Report whether the database stores the replica's record. */
     async isRecorded(snapshot: Snapshot): Promise<boolean> {
         return (
             (await snapshot
@@ -771,7 +773,7 @@ export class Replica {
             })
             .from(replica)
             .innerJoin(replicaPosition, POSITIONED);
-        // refuse a replica from the subscriber keeping one of the replica's tables, with rows or without yet
+        // refuse a replica from the subscriber storing one of the replica's tables, with rows or without yet
         const [cyclic] = records.flatMap((record) => {
             const shared = record.tables.find((table) => this.#replicated.has(table));
             const isFromOrigin = record.log === origin || record.originLog === origin;
@@ -801,9 +803,9 @@ export class Replica {
                 continue;
             }
 
-            // keep the replica its home confirmed first because a row stays while any replica includes it
-            const kept = origins.get(scope);
-            if (kept === undefined || origin.confirmedAt < kept.confirmedAt) {
+            // take the replica its home confirmed first because a row stays while any replica includes it
+            const known = origins.get(scope);
+            if (known === undefined || origin.confirmedAt < known.confirmedAt) {
                 origins.set(scope, origin);
             }
         }
@@ -816,7 +818,7 @@ export class Replica {
         database: DatabaseConnection,
         scopes: readonly string[],
     ): Promise<{ readonly scope: string; readonly record: ReplicaRecord }[]> {
-        // read the replicas recorded at the scopes, and those including the scopes' own rows
+        // read the replicas recorded at the scopes, and those including the scopes' rows
         const keys = new Map(scopes.map((scope) => [Key.name(scopeTable, { scope }), scope]));
         const rows = await database
             .select()
@@ -843,11 +845,11 @@ export class Replica {
             replica_key: included,
         } of rows) {
             const record = Replica.#merge(registration, position, subscription);
-            const kept = [
+            const listed = [
                 ...(scopes.includes(record.scope) ? [record.scope] : []),
                 ...(included === null ? [] : [found(keys, included.key)]),
             ];
-            for (const scope of kept) {
+            for (const scope of listed) {
                 pairs.set(`${scope} ${record.name} ${record.scope}`, { scope, record });
             }
         }
@@ -1041,7 +1043,7 @@ export class Replica {
                 const query = row["query"];
                 const group = row["group"];
                 if (typeof query !== "string" || typeof group !== "string") {
-                    throw new TypeError("a kept group lacks its query or values");
+                    throw new TypeError("a retained group lacks its query or values");
                 }
 
                 return { query, group: GroupValues.parse(JSON.parse(group)) };
@@ -1104,7 +1106,7 @@ export class Replica {
         return [...groups.values()].filter((group) => group.rows > 0);
     }
 
-    /** Keep the replicated rows as the database's own. */
+    /** Turn the replicated rows into the database's local rows. */
     async promote(transaction: Transaction): Promise<void> {
         // require a complete replica
         const key = { name: this.name, scope: this.scope };
@@ -1482,7 +1484,7 @@ export class Replica {
         // batch each table's writes
         const { batches, origin } = await this.#collect(page, delivered, open);
 
-        // take the removed rows out of the replica children first and write the kept rows parents first
+        // delete the removed rows children first and write the retained rows parents first
         const ordered = this.tables.flatMap((table): [Table, Batch][] => {
             const batch = batches.get(table);
 
@@ -1493,11 +1495,11 @@ export class Replica {
             await this.#exclude(transaction, table, keys);
         }
         for (const [table, batch] of ordered) {
-            await this.#writeKept(transaction, table, batch);
+            await this.#writeShown(transaction, table, batch);
         }
 
-        // keep the groups
-        await this.#keep(transaction, page.results ?? []);
+        // retain the groups
+        await this.#storeResults(transaction, page.results ?? []);
 
         return origin;
     }
@@ -1556,18 +1558,21 @@ export class Replica {
         return origin;
     }
 
-    /** Write a table's kept rows of one page and record them as included. */
-    async #writeKept(transaction: DatabaseConnection, table: Table, batch: Batch): Promise<void> {
-        // write the kept rows with hidden columns cleared and record them as included
+    /** Write a table's retained rows of one page and record them as included. */
+    async #writeShown(transaction: DatabaseConnection, table: Table, batch: Batch): Promise<void> {
+        // write the retained rows with hidden columns cleared and record them as included
         await transaction.upsert(
             table,
-            await this.#conceal(transaction, table, batch.kept, batch.hidden),
+            await this.#conceal(transaction, table, batch.shown, batch.hidden),
         );
-        await this.#include(transaction, table, batch.kept, batch.hidden);
+        await this.#include(transaction, table, batch.shown, batch.hidden);
     }
 
-    /** Keep or let go of groups, or of every group of a query, a batch of groups per statement. */
-    async #keep(transaction: DatabaseConnection, results: readonly ResultChange[]): Promise<void> {
+    /** Retain or let go of groups, or every group of a query, a batch of groups per statement. */
+    async #storeResults(
+        transaction: DatabaseConnection,
+        results: readonly ResultChange[],
+    ): Promise<void> {
         // collect each group's last change and let go of a whole query at once
         const groups = new Map<string, GroupWrite>();
         for (const result of results) {
@@ -1588,14 +1593,14 @@ export class Replica {
             else if (result.values === null) {
                 groups.set(JSON.stringify(key), { key, row: null });
             }
-            // refuse a kept group without a row count
+            // refuse a retained group without a row count
             else if (result.rows === undefined) {
                 throw new SyncError(
                     "INVALID_STREAM",
                     `page has a group of ${result.query} without its rows`,
                 );
             }
-            // keep the group's values
+            // write the group's values
             else {
                 const row = {
                     ...key,
@@ -1690,7 +1695,7 @@ export class Replica {
         } while (last !== undefined);
     }
 
-    /** Clear the columns the replica hides on some rows, keeping a column another replica shows. */
+    /** Clear the columns the replica hides on some rows, except a column another replica shows. */
     async #conceal(
         database: DatabaseConnection,
         table: Table,
@@ -1717,7 +1722,7 @@ export class Replica {
         );
 
         return zip(rows, hidden).map(([row, columns]) => {
-            // keep a hidden column as stored while another replica shows it
+            // leave a hidden column as stored while another replica shows it
             const name = Key.name(table, row);
             const elsewhere = others.get(name) ?? [];
             const values = columns.map((column): [string, ColumnValue] => [
@@ -1785,13 +1790,13 @@ export class Replica {
         table: Table,
         keys: readonly string[],
     ): Promise<void> {
-        // leave the predefined rows to the database, which keeps them identical everywhere
-        const owned = keys.filter((key) => !Key.isPredefined(table, Key.parse(table, key)));
+        // leave the predefined rows to the database, which stores them identical everywhere
+        const declared = keys.filter((key) => !Key.isPredefined(table, Key.parse(table, key)));
 
         // take the rows out of the replica
         const name = table[TABLE].sqlName;
-        for (let start = 0; start < owned.length; start += PRUNE_BATCH) {
-            const batch = owned.slice(start, start + PRUNE_BATCH);
+        for (let start = 0; start < declared.length; start += PRUNE_BATCH) {
+            const batch = declared.slice(start, start + PRUNE_BATCH);
             const selected = and(
                 this.#match(replicaKey),
                 eq(replicaKey.table, name),
@@ -1810,7 +1815,7 @@ export class Replica {
                 .map((key) => Key.parse(table, key));
             await database.remove(table, deleted);
 
-            // clear the columns only this replica showed on the rows the others keep
+            // clear the columns only this replica showed on the rows the others retain
             await Replica.#clearShown(database, table, shown, others);
         }
     }
@@ -1872,7 +1877,7 @@ export class Replica {
         delivered: ReadonlyMap<string, Set<string>> | undefined,
         open: ApplyOptions["open"],
     ): Promise<void> {
-        // leave a predefined row to the database, which keeps it identical everywhere
+        // leave a predefined row to the database, which stores it identical everywhere
         const decoded = Table.decode(table, change.row);
         if (Key.isPredefined(table, decoded)) {
             return;
@@ -1887,13 +1892,13 @@ export class Replica {
             found(delivered, change.table).add(Key.name(table, row));
         }
 
-        // add the row to the kept or removed ones
-        const batch = batches.get(table) ?? { kept: [], hidden: [], removed: [] };
+        // add the row to the retained or removed ones
+        const batch = batches.get(table) ?? { shown: [], hidden: [], removed: [] };
         batches.set(table, batch);
         if (change.operation === "delete") {
             batch.removed.push(row);
         } else {
-            batch.kept.push(row);
+            batch.shown.push(row);
             batch.hidden.push(change.concealed ?? []);
         }
     }
@@ -1907,7 +1912,7 @@ export class Replica {
         const entries = [...groups.values()];
         groups.clear();
 
-        // remove the let go groups and write the kept ones
+        // remove the let go groups and write the retained ones
         await transaction.remove(
             replicaResult,
             entries.flatMap(({ key, row }) => (row === null ? [key] : [])),
@@ -1935,7 +1940,7 @@ export class Replica {
         };
     }
 
-    /** Read the subscription a replica's subscription row keeps. */
+    /** Read the subscription a replica's subscription row stores. */
     static subscriptionOf(row: Select<typeof replicaSubscription>): SubscriptionRecord {
         // read the principal decided for, when one is
         const subject =
@@ -2056,13 +2061,13 @@ export class Replica {
             return undefined;
         }
 
-        // rebase onto a snapshot, a staged run, groups, a reached mutation or a predicted table
+        // rebase onto a snapshot, a staged run, groups, an included mutation or a predicted table
         const tables = new Set(page.changes.map((change) => change.table));
         const isRebased =
             run.isSnapshot ||
             run.staged > 0 ||
             (page.results ?? []).length > 0 ||
-            (await prediction.isReached(transaction, page.position)) ||
+            (await prediction.includes(transaction, page.position)) ||
             (tables.size > 0 && (await prediction.touches(transaction, tables)));
 
         return isRebased ? prediction : undefined;
@@ -2083,7 +2088,7 @@ export class Replica {
         );
     }
 
-    /** Clear the columns only a replica showed on rows that other replicas keep. */
+    /** Clear the columns only a replica showed on rows that other replicas retain. */
     static async #clearShown(
         database: DatabaseConnection,
         table: Table,
@@ -2157,7 +2162,7 @@ export class Replica {
         ];
     }
 
-    /** Write the home position a replica's rows reflect: relayed, its own, or the recorded one. */
+    /** Write the home position a replica's rows reflect: relayed, the replica's or the recorded. */
     static #originColumns(
         relayed: Origin | undefined,
         isHome: boolean,
@@ -2186,7 +2191,7 @@ export class Replica {
         else if (record === undefined) {
             throw new TypeError("a replica's page past its snapshot has no record");
         }
-        // keep the recorded position
+        // take the recorded position
         else {
             return {
                 originLog: record.originLog,
@@ -2228,9 +2233,9 @@ type GroupPrediction = Group & { rows: number };
 
 /** A table's staged writes of one page. */
 interface Batch {
-    /** The rows the replica keeps. */
-    readonly kept: Row[];
-    /** The columns the replica hides on each kept row. */
+    /** The rows the replica retains. */
+    readonly shown: Row[];
+    /** The columns the replica hides on each retained row. */
     readonly hidden: string[][];
     /** The rows the replica lets go. */
     readonly removed: Row[];
@@ -2240,7 +2245,7 @@ interface Batch {
 interface GroupWrite {
     /** The group's key. */
     readonly key: Key<typeof replicaResult>;
-    /** The group's kept row or null for a let go group. */
+    /** The group's retained row or null for a let go group. */
     readonly row: Insert<typeof replicaResult> | null;
 }
 
@@ -2297,6 +2302,6 @@ export interface ReplicaInspection {
     readonly confirmedAt?: number;
     /** The staged pages. */
     readonly staged: number;
-    /** The aggregate groups it keeps. */
+    /** The aggregate groups it retains. */
     readonly results: number;
 }

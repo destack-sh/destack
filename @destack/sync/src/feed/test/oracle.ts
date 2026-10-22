@@ -101,7 +101,7 @@ function select(
     partition: { readonly name: string; readonly value: ColumnValue } | undefined,
     evaluation: Evaluation,
 ): Row[] {
-    // keep the visible matching rows with their values
+    // take the visible matching rows with their values
     const table = query.table;
     const rows = candidates
         .map((row) => withExtras(query, row, scopes, evaluation))
@@ -132,7 +132,7 @@ function select(
         .toSorted((left, right) => Order.rows(order, left, right))
         .slice(0, query.limit);
     for (const row of selected) {
-        keep(table, row, evaluation);
+        retain(table, row, evaluation);
     }
     measureRelations(name, query, selected, scopes, evaluation);
     selectIncludes(name, query, selected, scopes, evaluation);
@@ -194,8 +194,12 @@ function aggregate(
     }
 }
 
-/** Keep a selected row with its hidden columns concealed. */
-function keep(table: Table, row: Row, evaluation: Pick<Evaluation, "audience" | "contents">): void {
+/** Store a selected row with its hidden columns concealed. */
+function retain(
+    table: Table,
+    row: Row,
+    evaluation: Pick<Evaluation, "audience" | "contents">,
+): void {
     const hidden = evaluation.audience.hidden(table, row);
     evaluation.contents.rows.set(Key.name(table, row), {
         ...table[TABLE].encode(loggedOf(table, row)),
@@ -253,8 +257,8 @@ function selectIncludes(
     for (const [child, selection] of FindOptions.includes(query)) {
         const include = includeOf(evaluation.relations.get(table, child), selection);
         for (const row of selected) {
-            // keep the join rows of a junction include
-            const reached = reach(
+            // take the join rows of a junction include
+            const traversed = traverse(
                 include,
                 table,
                 row,
@@ -263,7 +267,7 @@ function selectIncludes(
                 evaluation.audience,
             );
             const path = include.on;
-            for (const join of reached.joins) {
+            for (const join of traversed.joins) {
                 if (path.kind !== "junction") {
                     throw new TypeError(`include ${child} joins rows without a join table`);
                 }
@@ -278,17 +282,17 @@ function selectIncludes(
                 `${name}.${child}`,
                 include,
                 scopesOf(path, scopes),
-                reached.rows,
-                reached.partition,
+                traversed.rows,
+                traversed.partition,
                 evaluation,
             );
-            keepChains(table, include, row, members, scopes, evaluation);
+            retainChains(table, include, row, members, scopes, evaluation);
         }
     }
 }
 
-/** Keep the rows between a table row and each member of its limited or filtered tree include. */
-function keepChains(
+/** Store the rows between a table row and each member of its limited or filtered tree include. */
+function retainChains(
     table: Table,
     include: Level & { readonly on: Path },
     row: Row,
@@ -305,7 +309,7 @@ function keepChains(
         return;
     }
 
-    // keep each visible row strictly between the row and a member
+    // store each visible row strictly between the row and a member
     for (const member of members) {
         const [lower, upper] = path.kind === "descendants" ? [member, row] : [row, member];
         for (const between of chain(
@@ -317,7 +321,7 @@ function keepChains(
             evaluation.tables,
             evaluation.audience,
         )) {
-            keep(table, between, evaluation);
+            retain(table, between, evaluation);
         }
     }
 }
@@ -376,12 +380,12 @@ function meets(
         return true;
     }
     const exists = (via: string, where: Condition) => {
-        // find the related rows in the relation's own scopes
+        // find the related rows in the relation's scopes
         const include = relationOf(query, relations, via, where);
         const scope = "scope";
         const nested = scopesOf(include.on, scopes);
 
-        return reach(include, query.table, row, scopes, tables, audience).rows.some(
+        return traverse(include, query.table, row, scopes, tables, audience).rows.some(
             (related) =>
                 inScopes(nested, related[scope]) &&
                 audience.isVisible(include.table, related) &&
@@ -418,12 +422,12 @@ function relatedOf(
     tables: Rows,
     audience: ConditionAudience,
 ): Row[] {
-    // find the related rows in the relation's own scopes
+    // find the related rows in the relation's scopes
     const include = relationOf(query, relations, via, where);
     const scope = "scope";
     const nested = scopesOf(include.on, scopes);
 
-    return reach(include, query.table, row, scopes, tables, audience).rows.filter(
+    return traverse(include, query.table, row, scopes, tables, audience).rows.filter(
         (related) =>
             inScopes(nested, related[scope]) &&
             audience.isVisible(include.table, related) &&
@@ -585,7 +589,7 @@ function treeOf(
 ): Row[] {
     // find the key, guarding against cycles
     const key = keyColumnOf(table);
-    const reached: Row[] = [];
+    const tree: Row[] = [];
     const seen = new Set<unknown>([parent[key]]);
 
     // walk down level by level
@@ -600,7 +604,7 @@ function treeOf(
             for (const row of level) {
                 seen.add(row[key]);
             }
-            reached.push(...level);
+            tree.push(...level);
         }
     }
     // walk up to the root
@@ -613,16 +617,16 @@ function treeOf(
                 : tables.where(table, key, parentKey).find((row) => passes(row));
             if (current !== undefined) {
                 seen.add(current[key]);
-                reached.push(current);
+                tree.push(current);
             }
         }
     }
 
-    return reached;
+    return tree;
 }
 
 /** Read the rows an include's path joins to one parent row. */
-function reach(
+function traverse(
     include: Level & { readonly on: Path },
     table: Table,
     parent: Row,
@@ -669,11 +673,11 @@ function reach(
     }
 
     // follow the parent column down or up the tree
-    const reached = treeOf(path, table, parent, (row) => passes(table, row), tables);
+    const tree = treeOf(path, table, parent, (row) => passes(table, row), tables);
     const key = keyColumnOf(table);
 
     return {
-        rows: reached,
+        rows: tree,
         joins: [],
         partition: {
             name: path.kind === "descendants" ? "ancestor" : "descendant",
@@ -725,7 +729,7 @@ function measured(table: Table, measure: Measure, rows: readonly Row[]): Scalar 
     }
 }
 
-/** Keep a row's logged columns for pages. */
+/** Take a row's logged columns for pages. */
 function loggedOf(table: Table, row: Row): Row {
     return Object.fromEntries(
         Object.keys(table[TABLE].logged).flatMap((name) => {
@@ -743,7 +747,7 @@ class Rows {
     /** The rows by column value, by table and column. */
     readonly #indexes = new Map<Table, Map<string, Map<string, Row[]>>>();
 
-    /** Keep every row of some tables. */
+    /** Store every row of some tables. */
     constructor(rows: ReadonlyMap<Table, Row[]>) {
         this.#rows = rows;
     }
@@ -784,7 +788,7 @@ class Rows {
     }
 }
 
-/** List the tables a query reads: its own, its includes', and its followed relations'. */
+/** List the tables a query reads: the query's, its includes', and its followed relations'. */
 function tablesOf(query: Level, relations: Relations): Table[] {
     return [
         query.table,
@@ -828,14 +832,14 @@ function exactSum(values: readonly number[]): number {
     // round to 53 significant bits, half to even
     const bits = magnitude.toString(2).length;
     const dropped = BigInt(Math.max(0, bits - 53));
-    let kept = magnitude >> dropped;
-    const remainder = magnitude - (kept << dropped);
+    let rounded = magnitude >> dropped;
+    const remainder = magnitude - (rounded << dropped);
     const half = dropped === 0n ? 0n : 1n << (dropped - 1n);
-    if (dropped > 0n && (remainder > half || (remainder === half && (kept & 1n) === 1n))) {
-        kept += 1n;
+    if (dropped > 0n && (remainder > half || (remainder === half && (rounded & 1n) === 1n))) {
+        rounded += 1n;
     }
 
-    return sign * Number(kept) * 2 ** (Number(dropped) - Number(SCALE));
+    return sign * Number(rounded) * 2 ** (Number(dropped) - Number(SCALE));
 }
 
 /** Split a finite number into an integer mantissa and a power of two. */

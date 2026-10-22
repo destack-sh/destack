@@ -18,11 +18,11 @@ export class Selection extends Pipeline {
     #windowed: number;
     /** The windows that lost rows and wait for a refill. */
     readonly #refills: Set<string>;
-    /** The tree path whose members keep chains of the rows between. */
+    /** The tree path whose members retain chains of the rows between. */
     readonly #chaining: TreeJoin | undefined;
     /** The rows between each member and its partitions' selected rows, by member and partition. */
     readonly #chains: Map<string, Map<string, readonly Row[]>>;
-    /** How many chains keep each row, by key. */
+    /** How many chains retain each row, by key. */
     readonly #chained: Map<string, number>;
     /** The members whose chains the run moved. */
     readonly #rechains: Map<string, Row | null>;
@@ -286,7 +286,7 @@ export class Selection extends Pipeline {
         this.#assign(key, row, partitions, run);
     }
 
-    /** Release a row a window evicted from a partition, which an arranged window may keep apart. */
+    /** Release a row a window evicted from a partition, which an arranged window may set apart. */
     #evict(evictedKey: string | undefined, name: string, isArranged: boolean, run: Run): void {
         const evicted = evictedKey === undefined ? undefined : this.members.get(evictedKey);
         if (evictedKey !== undefined && evicted !== undefined) {
@@ -551,7 +551,7 @@ export class Selection extends Pipeline {
         chained: ReadonlyMap<string, ReadonlyMap<string, readonly Row[]>>,
         run: Run,
     ): void {
-        // take a present member's read chain or keep the known one
+        // take a present member's read chain or the known one
         const known = this.#chains.get(key);
         const next = new Map<string, readonly Row[]>();
         for (const name of this.members.get(key)?.partitions ?? NOWHERE) {
@@ -580,9 +580,9 @@ export class Selection extends Pipeline {
         }
     }
 
-    /** Count a row's chains up or down and keep it while any chain does. */
+    /** Count a row's chains up or down and retain it while any chain does. */
     #chain(row: Row, step: 1 | -1, run: Run): void {
-        // keep the row with its first chain and let go after its last
+        // retain the row with its first chain and let go after its last
         const node = this.node;
         const key = node.keyName(row);
         const count = (this.#chained.get(key) ?? 0) + step;

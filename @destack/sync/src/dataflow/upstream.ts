@@ -55,7 +55,7 @@ export class Trace implements Arrangement {
         this.#seen = new Map<Node, Map<string, string>>();
         this.#inputs = new Map<Node, Input>();
 
-        // keep what the replica knows of its source
+        // store what the replica knows of its source
         this.#upstream = upstream;
     }
 

@@ -54,14 +54,14 @@ export class Run {
         this.#visible = new Map<string | undefined, WeakMap<Row, boolean>>();
         this.#resolved = new Map<Filter, WeakMap<Row, Row>>();
 
-        // keep the view, the audience and the changes
+        // store the view, the audience and the changes
         this.view = view;
         this.#audience = audience;
         this.walk = walk;
         this.changes = changes;
     }
 
-    /** Decide many rows' visibility at once, under a query's own permission too. */
+    /** Decide many rows' visibility at once, under a query's permission too. */
     async decide(table: Table, rows: readonly Row[], permission?: string): Promise<void> {
         // ask the audience about the undecided rows in one call
         const deciding = Run.#under(this.#deciding, permission);
@@ -105,7 +105,7 @@ export class Run {
         return visible;
     }
 
-    /** Filter the visible rows of a table, under a query's own permission too. */
+    /** Filter the visible rows of a table, under a query's permission too. */
     async seen(table: Table, rows: readonly Row[], permission?: string): Promise<Row[]> {
         await this.decide(table, rows, permission);
 

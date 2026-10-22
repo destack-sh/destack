@@ -100,7 +100,7 @@ export const predictionTables = [mutation, layer, checkout] as const;
 
 /** The rows branches change on the server, as the client's replica has them. */
 export interface BranchSource {
-    /** The SQL names of the tables keeping branches and their rows. */
+    /** The SQL names of the tables that store branches and their rows. */
     readonly tables: readonly string[];
     /** Report whether a branch is open, as the replica has it. */
     readonly isOpen: (transaction: DatabaseConnection, branch: string) => Promise<boolean>;
@@ -145,7 +145,7 @@ export class Prediction {
         /** The rows branches change, absent for a client without branches. */
         readonly branches?: BranchSource;
     }) {
-        // keep the tables and how calls and branches predict
+        // store the tables and how calls and branches predict
         this.tables = new Map(definition.tables.map((table) => [table[TABLE].sqlName, table]));
         this.#predict = definition.predict;
         this.#reads = definition.reads;
@@ -238,11 +238,11 @@ export class Prediction {
     /** Settle the queue a completed page covers and predict the stack again over the replica. */
     async replay(
         transaction: DatabaseConnection,
-        reached?: { readonly position: LogPosition; readonly isSnapshot: boolean },
+        settled?: { readonly position: LogPosition; readonly isSnapshot: boolean },
     ): Promise<void> {
         // settle the queue
-        if (reached !== undefined) {
-            await this.#settle(transaction, reached.position, reached.isSnapshot);
+        if (settled !== undefined) {
+            await this.#settle(transaction, settled.position, settled.isSnapshot);
         }
 
         // show the main line once the checked-out branch closes
@@ -286,7 +286,7 @@ export class Prediction {
         position: number,
         after: number | undefined,
     ): Promise<void> {
-        let reached = after;
+        let cursor = after;
         for (const [index, entry] of layers.entries()) {
             // predict the layer
             const recorded = await this.#record(
@@ -303,11 +303,11 @@ export class Prediction {
                         result: undefined,
                     };
                 },
-                reached,
+                cursor,
             );
-            reached = recorded.sequence;
+            cursor = recorded.sequence;
 
-            // keep its changes and tables
+            // store its changes and tables
             await transaction.insert(layer).values({
                 key: entry.kind === "mutation" ? entry.mutation.id : entry.branch,
                 position: position + index,
@@ -343,7 +343,7 @@ export class Prediction {
         return JSON.stringify([...tables].toSorted());
     }
 
-    /** Run a prediction and read the changes it logged, with the sequence they reach. */
+    /** Run a prediction and read the changes it logged, with the sequence they arrive at. */
     async #record<Value>(
         transaction: DatabaseConnection,
         predict: (
@@ -365,7 +365,7 @@ export class Prediction {
 
         // run the prediction after the latest change
         const tables = [...this.tables.values()];
-        let sequence = after ?? (await transaction.log.reached()).sequence;
+        let sequence = after ?? (await transaction.log.current()).sequence;
         const { calls, result } = await predict(transaction);
 
         // read every logged change
@@ -522,15 +522,15 @@ export class Prediction {
         await database.update(mutation).set({ error }).where(eq(mutation.id, id));
     }
 
-    /** Report whether a position reaches an executed mutation's changes. */
-    async isReached(transaction: DatabaseConnection, position: LogPosition): Promise<boolean> {
-        const [reached] = await transaction
+    /** Report whether a position includes an executed mutation's changes. */
+    async includes(transaction: DatabaseConnection, position: LogPosition): Promise<boolean> {
+        const [recorded] = await transaction
             .select({ id: mutation.id })
             .from(mutation)
             .where(Prediction.#acknowledged(position))
             .limit(1);
 
-        return reached !== undefined;
+        return recorded !== undefined;
     }
 
     /** Drop executed mutations a replica's position covers, and push again what a snapshot lost. */
@@ -605,7 +605,7 @@ export class Prediction {
             row: definition.encode(row),
         };
 
-        // keep an update's row before
+        // record an update's row before
         if (change.operation !== "update") {
             return written;
         } else if (change.before === undefined) {
@@ -615,7 +615,7 @@ export class Prediction {
         return { ...written, before: definition.encode(change.before) };
     }
 
-    /** Match the executed mutations whose changes a position reaches. */
+    /** Match the executed mutations whose changes a position includes. */
     static #acknowledged(position: LogPosition): SQL | undefined {
         return and(
             isNull(mutation.error),

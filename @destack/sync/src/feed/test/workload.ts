@@ -28,7 +28,7 @@ export class Workload {
 
     /** Write rows of a few projects, many tasks and more comments. */
     constructor(random: Random, sizes = { projects: 4, tasks: 24, comments: 40 }) {
-        // name the rows the writes pick from
+        // list the rows the writes pick from
         this.#random = random;
         this.#projects = Array.from({ length: sizes.projects }, (_, index) => `p${index}`);
         this.#tasks = Array.from({ length: sizes.tasks }, (_, index) => `t${index}`);
@@ -177,7 +177,7 @@ export class Workload {
         }
     }
 
-    /** Write a tag in a folder or in a project's own scope. */
+    /** Write a tag in a folder or in a project's scope. */
     async #writeTag(
         database: DatabaseConnection,
         isDeleted: boolean,

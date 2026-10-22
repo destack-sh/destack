@@ -164,7 +164,7 @@ export abstract class Pipeline {
         const members = await this.input.members(values, run);
         const candidates = new Set(await this.filter.prepare(members.flat(), run));
 
-        // keep the candidates with their computed values
+        // retain the candidates with their computed values
         return members.map((rows) =>
             rows.filter((row) => candidates.has(row)).map((row) => this.filter.resolve(row, run)),
         );
@@ -192,7 +192,7 @@ export abstract class Pipeline {
             return read.map((rows) => rows.map((row) => this.filter.adopt(row)));
         }
 
-        // read through the paths and keep the candidates after each segment's row
+        // read through the paths and retain the candidates after each segment's row
         const matched = await this.matched(
             segments.map((segment) => segment.value),
             run,
@@ -258,7 +258,7 @@ export interface Context {
     readonly upstream: Upstream | undefined;
     /** The database read. */
     readonly database: DatabaseConnection;
-    /** Whether selections keep their rows. */
+    /** Whether selections store their rows. */
     readonly isMaterialized: boolean;
     /** The most rows one page of a snapshot reads. */
     readonly pageSize: number;
@@ -293,6 +293,6 @@ export interface Member {
     partitions: ReadonlySet<string>;
     /** The value keying each child's partition, in child order. */
     joins: readonly ColumnValue[];
-    /** The row with its computed values, kept when the dataflow materializes. */
+    /** The row with its computed values, stored when the dataflow materializes. */
     row?: Row;
 }

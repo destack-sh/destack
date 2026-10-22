@@ -41,7 +41,7 @@ const SELECTED_NUMBER = schema
 /** The sum of no values. */
 const EMPTY_SUM: Sum = { partials: [], count: 0 };
 
-/** One group's measures, kept current from the log sequence of its count. */
+/** One group's measures, current from the log sequence of its count. */
 export class Tally implements Result {
     /** The aggregate node. */
     readonly #node: Node;
@@ -247,7 +247,7 @@ export class Tally implements Result {
         this.#count += sign;
         this.#add(row, sign);
 
-        // keep each extreme from the counted values, or lose it without them
+        // take each extreme from the counted values, or lose it without them
         let isExact = true;
         for (const [name, measure] of Object.entries(this.#measures)) {
             if (measure.function !== "min" && measure.function !== "max") {
@@ -271,7 +271,7 @@ export class Tally implements Result {
             else if (sign < 0) {
                 isExact &&= order !== 0;
             }
-            // count the value in, keeping a new extreme
+            // count the value in, recording a new extreme
             else {
                 counts?.set(value, (counts.get(value) ?? 0) + 1);
                 if (order === undefined || (measure.function === "min" ? order < 0 : order > 0)) {
@@ -496,7 +496,7 @@ export class Tally implements Result {
             );
         }
 
-        // count each extreme measure's value and keep the extreme
+        // count each extreme measure's value and record the extreme
         for (const [index, [measureName, measure]] of extremes.entries()) {
             const value = Tally.#decoded(node, measure.column, row[`v${index}`], dialect);
             if (value === null) {
@@ -512,7 +512,7 @@ export class Tally implements Result {
         }
     }
 
-    /** Decode a selected measured value as the rows hold it: a column's by its column. */
+    /** Decode a selected measured value as the rows store it: a column's by its column. */
     static #decoded(node: Node, name: string, value: unknown, dialect: Dialect): DriverValue {
         return node.extras[name] === undefined && value !== null
             ? DriverValue.parse(node.column(name).definition.decode(value, dialect))

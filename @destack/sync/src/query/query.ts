@@ -5,11 +5,11 @@ import type { Aggregate, AggregateRow } from "./aggregate.ts";
 export interface QuerySelection extends FindOptions {
     /** The related rows each selected row includes, by relation: every row, or a selection. */
     readonly with?: { readonly [Name in string]?: true | QuerySelection };
-    /** The aggregates kept instead of rows. */
+    /** The aggregates stored instead of rows. */
     readonly aggregate?: Aggregate;
 }
 
-/** Rows of one logged table a subscriber keeps, with their included rows, or aggregates. */
+/** Rows of one logged table a subscriber stores, with their included rows, or aggregates. */
 export interface Query extends QuerySelection {
     /** The logged table. */
     readonly table: Table;
@@ -17,7 +17,7 @@ export interface Query extends QuerySelection {
     readonly scopes: readonly string[] | "every";
     /** The relations that `with`, `exists`, lookups and rollups follow. */
     readonly relations?: Relations;
-    /** The permission the subscriber also holds on each row, which the audience reads. */
+    /** The permission the subscriber also has on each row, which the audience reads. */
     readonly permission?: string;
 }
 
@@ -36,7 +36,7 @@ export function included(
     query: Query,
     name: string,
 ): { readonly relation: Relation; readonly query: Query } {
-    // name the relation by the root's schema that nested queries keep
+    // find the relation by the root's schema, which nested queries inherit
     const relations = query.relations ?? new Relations();
     const relation = relations.get(query.table, name);
     const selected = query.with?.[name];

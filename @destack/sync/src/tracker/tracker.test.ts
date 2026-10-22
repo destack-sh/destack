@@ -11,7 +11,7 @@ const HEARTBEAT = 5;
 /** The longest a test waits for another instance's rows, far above a few in-memory message hops. */
 const SETTLE_MILLISECONDS = 2000;
 
-/** Cursors of sessions on a board, kept in memory. */
+/** Cursors of sessions on a board, stored in memory. */
 const cursor = defineTable(
     "cursor",
     {
@@ -130,7 +130,7 @@ test("replicate which instance tracks an owner, released everywhere once its ins
     ]);
 });
 
-test("skip the instance's own messages a channel echoes back, as PostgreSQL's does", async () => {
+test("skip the messages a channel echoes back to their sender, as PostgreSQL's does", async () => {
     const join = channelHub<TrackerMessage>();
     const east = await open(join());
     const echo = join();
@@ -155,7 +155,7 @@ test("skip the instance's own messages a channel echoes back, as PostgreSQL's do
 
 /** Track the cursors of an in-memory database on a channel, by a stopped clock unless given one. */
 async function open(channel: Channel<unknown>, clock = new VirtualClock(0)): Promise<Tracker> {
-    const storage = await TestDatabase.create("sqlite", [cursor], { isMigrated: true });
+    const storage = await TestDatabase.create([cursor], { isMigrated: true });
     const tracker = new Tracker(storage.database, [cursor], channel, {
         clock,
         heartbeat: HEARTBEAT,
@@ -194,7 +194,7 @@ async function read(tracker: Tracker) {
     return tracker.database.select().from(cursor).orderBy(cursor.id);
 }
 
-/** Wait until an instance keeps some number of cursors. */
+/** Wait until an instance stores some number of cursors. */
 async function counted(tracker: Tracker, count: number): Promise<void> {
     await TestDatabase.settle(
         tracker.database,

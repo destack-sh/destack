@@ -84,7 +84,7 @@ export interface TrackerOptions {
     readonly clock: Clock;
 }
 
-/** Rows of tables kept in memory on every instance and removed with their owners. */
+/** Rows of tables stored in memory on every instance and removed with their owners. */
 export class Tracker {
     /** This instance's identifier. */
     readonly instance: string;
@@ -146,7 +146,7 @@ export class Tracker {
             }
         }
 
-        // keep the tables and announce this instance
+        // store the tables and announce this instance
         this.instance = options.instance ?? crypto.randomUUID();
         this.database = database;
         this.#tables = new Map(tables.map((table) => [table[TABLE].sqlName, table]));
@@ -171,7 +171,7 @@ export class Tracker {
         transaction: DatabaseConnection,
         ownerOf: (table: Table) => string,
     ): Promise<TrackerChange[]> {
-        // keep each row's last image
+        // record each row's last image
         const images = new Map<string, TrackerChange>();
         for (const change of await transaction.log.written([...this.#tables.values()])) {
             const key = Key.name(change.table, change.key);
@@ -194,7 +194,7 @@ export class Tracker {
             return;
         }
         for (const row of rows) {
-            this.#keep(row, this.instance);
+            this.#storeChange(row, this.instance);
         }
         this.#channel.notify({ kind: "write", instance: this.instance, rows: [...rows] });
     }
@@ -287,7 +287,7 @@ export class Tracker {
 
     /** Apply another instance's message. */
     async #receive(message: TrackerMessage): Promise<void> {
-        // skip this instance's own messages a channel echoes back
+        // skip the messages of this instance a channel echoes back
         if (message.instance === this.instance) {
             return;
         }
@@ -348,19 +348,19 @@ export class Tracker {
             }
         });
         for (const tracked of rows) {
-            this.#keep(tracked, instance);
+            this.#storeChange(tracked, instance);
         }
     }
 
-    /** Keep a row under its owner, or forget it once deleted. */
-    #keep(tracked: TrackerChange, instance: string): void {
+    /** Store a row under its owner, or forget it once deleted. */
+    #storeChange(tracked: TrackerChange, instance: string): void {
         // move the row from a previous owner
         const previous = this.#rows.get(tracked.key);
         if (previous !== undefined && previous !== tracked.owner) {
             this.#forget(previous, tracked.key);
         }
 
-        // forget a deleted row or keep a live one
+        // forget a deleted row or store a live one
         if (tracked.row === null) {
             this.#forget(tracked.owner, tracked.key);
         } else {

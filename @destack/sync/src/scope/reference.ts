@@ -3,7 +3,7 @@ import { schema } from "@destack/schema";
 /** The lowercase kebab case of declared type names. */
 const TYPE_NAME = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u;
 
-/** The parts of an object's key in order: package, type, scope and identifier. */
+/** The fields of an object's key in order: package, type, scope and identifier. */
 const OBJECT_KEY = schema.tuple([
     schema.string(),
     schema.string(),
@@ -39,10 +39,10 @@ export const ObjectReference = Object.assign(objectReference, {
         return objectReference.parse({ packageId, type, scope, id });
     },
 
-    /** Spread a reference, or its absence, into the columns keeping it under a field name. */
+    /** Spread a reference, or its absence, into the columns that store it under a field name. */
     columns: referenceColumns,
 
-    /** Read the reference a row keeps under a field name, refusing an absent one. */
+    /** Read the reference a row stores under a field name, refusing an absent one. */
     at<Name extends string>(
         name: Name,
         row: Readonly<
@@ -77,7 +77,7 @@ export const ObjectReference = Object.assign(objectReference, {
     },
 });
 
-/** The columns keeping an object reference under a field name. */
+/** The columns that store an object reference under a field name. */
 export type ReferenceColumns<Name extends string> = Readonly<
     Record<`${Name}PackageId`, ObjectReference["packageId"]> &
         Record<`${Name}Type` | `${Name}Scope` | `${Name}Id`, string>
@@ -88,13 +88,13 @@ export type AbsentColumns<Name extends string> = Readonly<
     Record<`${Name}PackageId` | `${Name}Type` | `${Name}Scope` | `${Name}Id`, null>
 >;
 
-/** Spread a reference, or its absence, into the columns keeping it under a field name. */
+/** Spread a reference, or its absence, into the columns that store it under a field name. */
 function referenceColumns<Name extends string, Reference extends ObjectReference | undefined>(
     name: Name,
     reference: Reference,
 ): Reference extends ObjectReference ? ReferenceColumns<Name> : AbsentColumns<Name>;
 /**
- * Spread a reference into the columns keeping it under a field name, typed by the signature above.
+ * Spread a reference into the columns that store it under a field name, typed as above.
  *
  * NOTE #Architecture: the one stated type of reference columns, whose keys a template computes.
  */

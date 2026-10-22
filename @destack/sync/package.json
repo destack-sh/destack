@@ -10,8 +10,8 @@
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",
-        "test": "bun --bun run vitest run --config vitest.config.ts --project unit",
-        "bench": "bun --bun run vitest run --config vitest.config.ts --project bench"
+        "test": "bun --bun run vitest run --config vitest.config.ts --project 'unit:*'",
+        "bench": "bun --bun run vitest run --config vitest.config.ts --project 'bench:*'"
     },
     "dependencies": {
         "@destack/db": "workspace:*",
@@ -20,6 +20,14 @@
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
         "uuid": "14.0.2"
+    },
+    "peerDependencies": {
+        "@destack/test": "workspace:*"
+    },
+    "peerDependenciesMeta": {
+        "@destack/test": {
+            "optional": true
+        }
     },
     "devDependencies": {
         "@destack/test": "workspace:*",

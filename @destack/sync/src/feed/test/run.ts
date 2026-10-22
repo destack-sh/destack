@@ -1,6 +1,5 @@
 import { expect, test } from "@destack/test";
-import { TEST_DIALECTS } from "@destack/db/test";
-import { Key, TABLE, type DatabaseConnection, type Dialect, type Table } from "@destack/db";
+import { Key, TABLE, type DatabaseConnection, type Table } from "@destack/db";
 import { Feed } from "../feed.ts";
 import type { Query } from "../../query/query.ts";
 import { Replica, replicaResult } from "../../replica/replica.ts";
@@ -56,25 +55,21 @@ export interface Run {
     readonly audience?: ConditionAudience;
 }
 
-/** Run each named run on every test dialect and match exactly what an oracle selects. */
+/** Run each named run and match exactly what an oracle selects. */
 export function followRuns(runs: Readonly<Record<string, Run>>): void {
-    test.for(
-        TEST_DIALECTS.flatMap((dialect) =>
-            Object.entries(runs).map(([name, run]) => [name, dialect, run] as const),
-        ),
-    )(
-        "keep exactly what %s selects through random writes on %s",
+    test.for(Object.entries(runs))(
+        "match exactly what %s selects through random writes",
         { timeout: RUN_MILLISECONDS },
-        ([, dialect, run]) => matchExactly(run, dialect),
+        ([, run]) => matchExactly(run),
     );
 }
 
-/** Run a run at scale on every test dialect. */
+/** Run a run at scale. */
 export function followAtScale(name: string, run: Run): void {
-    test.for(TEST_DIALECTS)(
-        `keep exactly what ${name} selects through random writes on %s`,
+    test(
+        `match exactly what ${name} selects through random writes`,
         { timeout: SCALE_RUN_MILLISECONDS },
-        (dialect) => matchExactly(run, dialect),
+        () => matchExactly(run),
     );
 }
 
@@ -91,9 +86,9 @@ export function seededRuns(
 }
 
 /** Follow a run's queries through random writes and match exactly what an oracle selects. */
-async function matchExactly(run: Run, dialect: Dialect): Promise<void> {
+async function matchExactly(run: Run): Promise<void> {
     // open the source and seed its rows
-    const source = await open(dialect);
+    const source = await open();
     const feed = new Feed(source, TABLES, {
         clock: Clock.system,
         ...(run.pageSize === undefined ? {} : { pageSize: run.pageSize }),
@@ -104,7 +99,7 @@ async function matchExactly(run: Run, dialect: Dialect): Promise<void> {
     }
 
     // follow the queries
-    const client = run.isReplicated === true ? await openReplica(dialect) : undefined;
+    const client = run.isReplicated === true ? await openReplica() : undefined;
     const replica = new Replica({ name: "replica", scope: "inbox", tables: TABLES });
     const audience = run.audience ?? AUDIENCE;
     const follower = new Follower(feed, run.queries, TABLES, {

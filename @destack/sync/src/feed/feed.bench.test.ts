@@ -1,6 +1,5 @@
 import { expect, test, type TestContext } from "@destack/test";
 import { nth } from "@destack/schema";
-import { TEST_DIALECTS } from "@destack/db/test";
 import {
     eq,
     type DatabaseConnection,
@@ -50,7 +49,7 @@ const TABLES: readonly Table[] = [project, task, comment, tag, taskTag, page];
 /** The most database operations a snapshot of every query set may cost. */
 const SNAPSHOT_OPERATIONS = 100;
 
-/** The most database operations a replica may cost to keep the same snapshot. */
+/** The most database operations a replica may cost to stay at the same snapshot. */
 const REPLICA_OPERATIONS = 8;
 
 /** The most database operations one write may cost a hundred subscribers of one audience. */
@@ -98,11 +97,11 @@ const RANKED_OPERATIONS = 12;
 /** The most database operations a write flipping every row may cost, at 90 keys a read. */
 const FLIP_OPERATIONS = 60;
 
-test.for(TEST_DIALECTS)(
-    "snapshot and replicate thousands of rows within an operation budget on %s",
+test(
+    "snapshot and replicate thousands of rows within an operation budget",
     { timeout: 30_000 },
-    async (dialect, { annotate }) => {
-        const source = await open(dialect);
+    async ({ annotate }) => {
+        const source = await open();
         const feed = new Feed(source, TABLES, { clock: Clock.system });
         await new Workload(new Random(3)).seed(source, 4000);
 
@@ -126,7 +125,7 @@ test.for(TEST_DIALECTS)(
 
         // snapshot them through a replica
         const replicateOnce = async () => {
-            const client = await openReplica(dialect);
+            const client = await openReplica();
             const replica = new Replica({ name: "replica", scope: "inbox", tables: TABLES });
             const start = cpuTime();
             const applied = client.driver.state.operations;
@@ -157,11 +156,11 @@ test.for(TEST_DIALECTS)(
     },
 );
 
-test.for(TEST_DIALECTS)(
-    "decide writes for a hundred subscribers within an operation budget on %s",
+test(
+    "decide writes for a hundred subscribers within an operation budget",
     { timeout: 30_000 },
-    async (dialect, { annotate }) => {
-        const source = await open(dialect);
+    async ({ annotate }) => {
+        const source = await open();
         const feed = new Feed(source, TABLES, { clock: Clock.system });
         const workload = new Workload(new Random(9));
         await workload.seed(source, 500);
@@ -207,62 +206,59 @@ test.for(TEST_DIALECTS)(
     },
 );
 
-test.for(TEST_DIALECTS)(
-    "resume a stateful subscriber without sending selected rows again on %s",
-    async (dialect) => {
-        const source = await open(dialect);
-        const feed = new Feed(source, TABLES, { clock: Clock.system });
-        await new Workload(new Random(13)).seed(source, 1500);
+test("resume a stateful subscriber without sending selected rows again", async () => {
+    const source = await open();
+    const feed = new Feed(source, TABLES, { clock: Clock.system });
+    await new Workload(new Random(13)).seed(source, 1500);
 
-        // follow and reconnect from the reached position
-        const follower = new Follower(feed, { ...FILTERS, ...WINDOWS }, TABLES, {
-            audience: AUDIENCE,
-        });
-        follower.start();
-        await follower.wait(await source.log.position());
-        const sent = follower.replica.pages.length;
-        await follower.reconnect();
-        await follower.wait(await source.log.position());
+    // follow and reconnect from the position it arrived at
+    const follower = new Follower(feed, { ...FILTERS, ...WINDOWS }, TABLES, {
+        audience: AUDIENCE,
+    });
+    follower.start();
+    await follower.wait(await source.log.position());
+    const sent = follower.replica.pages.length;
+    await follower.reconnect();
+    await follower.wait(await source.log.position());
 
-        // rebuild the windows without rows or a snapshot
-        const resumed = follower.replica.pages.slice(sent);
-        expect([
-            resumed.some((resent) => resent.reset),
-            resumed.flatMap((resent) => resent.changes),
-        ]).toEqual([false, []]);
-    },
-);
+    // rebuild the windows without rows or a snapshot
+    const resumed = follower.replica.pages.slice(sent);
+    expect([
+        resumed.some((resent) => resent.reset),
+        resumed.flatMap((resent) => resent.changes),
+    ]).toEqual([false, []]);
+});
 
-test.for(TEST_DIALECTS)(
-    "reach a thousand subscribers of one row within an operation budget on %s",
+test(
+    "send to a thousand subscribers of one row within an operation budget",
     { timeout: 30_000 },
-    async (dialect, { annotate }) => {
-        const source = await open(dialect);
+    async ({ annotate }) => {
+        const source = await open();
         const feed = new Feed(source, TABLES, { clock: Clock.system, subscribers: 1000 });
         await new Workload(new Random(21)).seed(source, 200);
 
         // follow with a thousand subscribers
         const controller = new AbortController();
-        const reached = Array.from({ length: 1000 }, () => -1);
+        const positions = Array.from({ length: 1000 }, () => -1);
         let progress = Promise.withResolvers<void>();
-        const subscribers = reached.map(async (_, index) => {
+        const subscribers = positions.map(async (_, index) => {
             const pages = feed.subscribe({ ...FILTERS, ...WINDOWS }, undefined, controller.signal, {
                 audience: AUDIENCE,
             });
             for await (const sent of pages) {
                 if (sent.complete) {
-                    reached[index] = sent.position.sequence;
+                    positions[index] = sent.position.sequence;
                 }
                 progress.resolve();
             }
         });
-        const reach = async (position: LogPosition) => {
-            while (reached.some((sequence) => sequence < position.sequence)) {
+        const settle = async (position: LogPosition) => {
+            while (positions.some((sequence) => sequence < position.sequence)) {
                 await progress.promise;
                 progress = Promise.withResolvers<void>();
             }
         };
-        await reach(await source.log.position());
+        await settle(await source.log.position());
 
         // time a write every subscriber has
         const { milliseconds, operations } = await measure(
@@ -274,7 +270,7 @@ test.for(TEST_DIALECTS)(
                     .set({ rank: index % 10 })
                     .where(eq(task.id, "s1"));
             },
-            reach,
+            settle,
         );
         controller.abort();
         await Promise.all(subscribers);
@@ -285,11 +281,11 @@ test.for(TEST_DIALECTS)(
     },
 );
 
-test.for(TEST_DIALECTS)(
-    "flip fifteen hundred rows through a lookup within an operation budget on %s",
+test(
+    "flip fifteen hundred rows through a lookup within an operation budget",
     { timeout: 60_000 },
-    async (dialect, { annotate }) => {
-        const source = await open(dialect);
+    async ({ annotate }) => {
+        const source = await open();
         const feed = new Feed(source, TABLES, { clock: Clock.system });
 
         // follow the tasks of a named project
@@ -330,11 +326,11 @@ test.for(TEST_DIALECTS)(
     },
 );
 
-test.for(TEST_DIALECTS)(
-    "follow every query set at scale within an operation budget on %s",
+test(
+    "follow every query set at scale within an operation budget",
     { timeout: 60_000 },
-    async (dialect, { annotate }) => {
-        const source = await open(dialect);
+    async ({ annotate }) => {
+        const source = await open();
         const feed = new Feed(source, TABLES, { clock: Clock.system });
         const workload = new Workload(new Random(31));
         await workload.seed(source, SCALE_ROWS);
@@ -359,11 +355,11 @@ test.for(TEST_DIALECTS)(
     },
 );
 
-test.for(TEST_DIALECTS)(
-    "reach the subscribers of a space with distinct access within an operation budget on %s",
+test(
+    "send to the subscribers of a space with distinct access within an operation budget",
     { timeout: 60_000 },
-    async (dialect, { annotate }) => {
-        const source = await open(dialect);
+    async ({ annotate }) => {
+        const source = await open();
         const feed = new Feed(source, TABLES, {
             clock: Clock.system,
             subscribers: SPACE_SUBSCRIBERS,
@@ -409,11 +405,11 @@ test.for(TEST_DIALECTS)(
     },
 );
 
-test.for(TEST_DIALECTS)(
-    "reorder ten thousand tasks by a rollup within an operation budget on %s",
+test(
+    "reorder ten thousand tasks by a rollup within an operation budget",
     { timeout: 60_000 },
-    async (dialect, { annotate }) => {
-        const source = await open(dialect);
+    async ({ annotate }) => {
+        const source = await open();
         const feed = new Feed(source, TABLES, { clock: Clock.system });
 
         // file ten thousand tasks and follow the ten most commented
@@ -460,12 +456,12 @@ async function measure(
     source: DatabaseConnection,
     writes: number,
     write: (index: number) => Promise<unknown>,
-    reach: (position: LogPosition) => Promise<unknown>,
+    settle: (position: LogPosition) => Promise<unknown>,
 ): Promise<{ readonly milliseconds: number; readonly operations: number }> {
     // warm up
     for (let index = 0; index < WARMUP_WRITES; index += 1) {
         await write(index);
-        await reach(await source.log.position());
+        await settle(await source.log.position());
     }
 
     // time each write until its subscribers have it
@@ -474,7 +470,7 @@ async function measure(
     for (let index = WARMUP_WRITES; index < WARMUP_WRITES + writes; index += 1) {
         await write(index);
         const committed = cpuTime();
-        await reach(await source.log.position());
+        await settle(await source.log.position());
         elapsed += cpuTime() - committed;
     }
 

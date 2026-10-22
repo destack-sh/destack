@@ -6,7 +6,7 @@ export const Outcome = schema.discriminatedUnion("kind", [
     schema.object({
         /** The call succeeded. */
         kind: schema.literal("success"),
-        /** The result a retry of the request replays, kept only while it may retry. */
+        /** The result a retry of the request replays, stored only while it may retry. */
         value: schema.json().exactOptional(),
     }),
     schema.object({

@@ -37,7 +37,7 @@ export class ConditionAudience implements Audience {
         > = new Map(),
         options: { readonly isInMemory?: boolean } = {},
     ) {
-        // keep and name the conditions
+        // store the conditions and their key
         this.#visible = visible;
         this.#concealed = concealed;
         this.#isInMemory = options.isInMemory ?? false;
@@ -82,7 +82,7 @@ export class ConditionAudience implements Audience {
         return undefined;
     }
 
-    /** Keep deciding as before. */
+    /** Continue deciding as before. */
     async refresh() {}
 
     /** Decide nothing beyond rows themselves. */

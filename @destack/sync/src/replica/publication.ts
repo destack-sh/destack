@@ -9,9 +9,9 @@ import type { Replica } from "./replica.ts";
 /** A publication's parameters in JSON form. */
 const PARAMETERS = schema.jsonObject();
 
-/** A follower's subscription to a publication over a scope, from the position it reached. */
+/** A follower's subscription to a publication over a scope, from the position it arrived at. */
 export const Subscription = schema.object({
-    /** The replica's name, shared with a relaying source's own replica. */
+    /** The replica's name, shared with a relaying source's replica. */
     name: schema.string().min(1),
     /** The publication the replica follows. */
     publication: schema.string().min(1),
@@ -23,7 +23,7 @@ export const Subscription = schema.object({
     subject: Subject.exactOptional(),
     /** The publication's parameters, which its declaration parses. */
     parameters: PARAMETERS,
-    /** The log position the replica reached, absent before its first snapshot. */
+    /** The log position the replica arrived at, absent before its first snapshot. */
     after: LogPosition.exactOptional(),
     /** The parameters the replica reflects at its position, if other than the subscribed. */
     previous: PARAMETERS.exactOptional(),
@@ -34,7 +34,7 @@ export const Subscription = schema.object({
     /** The position the follower waits for its source to confirm. */
     confirming: LogPosition.exactOptional(),
 });
-/** A follower's subscription to a publication over one scope, from the position it reached. */
+/** A follower's subscription to a publication over one scope, from the position it arrived at. */
 export type Subscription = schema.Infer<typeof Subscription>;
 
 /** Where a replica resumes its subscription, and the origin it follows as. */
@@ -51,8 +51,6 @@ export interface Publication {
     readonly name: string;
     /** Whose access decides the rows. */
     readonly audience: PublicationAudience;
-    /** Whether the replica must have a complete snapshot before its follower serves. */
-    readonly isReadinessGate: boolean;
     /** Build the replica a subscription follows. */
     readonly replica: (subscription: Subscription) => Replica;
 }
@@ -75,8 +73,6 @@ export function definePublication<Parameters extends object>(definition: {
     readonly parameters: schema.Schema<Parameters>;
     /** Whose access decides the rows. */
     readonly audience: PublicationAudience;
-    /** Whether the replica must have a complete snapshot before its follower serves. */
-    readonly isReadinessGate: boolean;
     /** Build the replica of a scope for parsed parameters. */
     readonly replica: (request: {
         readonly name: string;
@@ -88,7 +84,6 @@ export function definePublication<Parameters extends object>(definition: {
     return {
         name: definition.name,
         audience: definition.audience,
-        isReadinessGate: definition.isReadinessGate,
         replica: (request) =>
             definition.replica({
                 name: request.name,

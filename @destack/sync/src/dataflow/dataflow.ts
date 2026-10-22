@@ -26,10 +26,10 @@ import { PAGE_SIZE, Selection } from "./selection.ts";
 import { Sink } from "./sink.ts";
 import { Trace, type Upstream } from "./upstream.ts";
 
-/** The rows of an include without a partition, one shared list so equal reads keep identity. */
+/** The rows of an include without a partition, one shared list so equal reads share identity. */
 const NO_ROWS: readonly Item[] = Object.freeze([]);
 
-/** Queries compiled to one pipeline per node, kept current as of a log position. */
+/** Queries compiled to one pipeline per node, current as of a log position. */
 export class Dataflow implements Arrangement {
     /** The root nodes of the queries. */
     readonly roots: readonly Node[];
@@ -474,7 +474,7 @@ export class Dataflow implements Arrangement {
 
     /** Start measuring a run, returning the function that records its cost. */
     #measure(run: Run): () => void {
-        // note the operations the run's own reader submits, and the time
+        // note the operations the run's reader submits, and the time
         const reader = run.view.database.driver;
         const operations = reader.operations;
         const started = performance.now();
@@ -663,7 +663,7 @@ export class Dataflow implements Arrangement {
             readonly groups: (readonly AggregateRow[])[][];
         }[] = [];
         for (const [child, pipelined] of zip(node.children, pipeline.children)) {
-            // name each selected row's partition of the include
+            // list each selected row's partition of the include
             if (child.kind !== "include" || pipelined === undefined) {
                 continue;
             }
@@ -674,7 +674,7 @@ export class Dataflow implements Arrangement {
             if (pipelined instanceof Selection) {
                 included.push({ name, items: await this.#nestedItems(pipelined, partitions) });
             }
-            // keep equal groups as the last read had them
+            // reuse equal groups as the last read had them
             else {
                 const groups = Dataflow.#reuseEqualGroups(
                     child,
@@ -800,7 +800,7 @@ export class Dataflow implements Arrangement {
             throw new TypeError(`node ${node.name} has groups without an aggregate pipeline`);
         }
 
-        // keep the partition's groups in order
+        // order the partition's groups
         const partitionName = node.path === undefined ? undefined : node.link().partitionName;
 
         return groups
@@ -850,7 +850,7 @@ export class Dataflow implements Arrangement {
 
     /** Name a pipeline's kind as an inspection reports it. */
     static #pipelineKind(pipeline: Pipeline): DataflowInspection["pipelines"][number]["kind"] {
-        // name each pipeline class
+        // label each pipeline class
         if (pipeline instanceof Selection) {
             return "selection";
         } else if (pipeline instanceof Relation) {
@@ -879,9 +879,9 @@ export interface DataflowInspection {
     readonly pipelines: readonly {
         /** The node's path of names. */
         readonly node: string;
-        /** What the pipeline keeps. */
+        /** What the pipeline stores. */
         readonly kind: "selection" | "aggregation" | "relation" | "mirror";
-        /** How the node's rows reach their partitions. */
+        /** How the node's rows get to their partitions. */
         readonly path: string;
         /** The open partitions. */
         readonly partitions: number;

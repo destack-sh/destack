@@ -48,7 +48,7 @@ export class Node {
     readonly table: Table;
     /** The scopes the node's rows live in. */
     readonly scopes: Query["scopes"];
-    /** The permission the subscriber also holds on the rows, a root query's alone. */
+    /** The permission the subscriber also has on the rows, a root query's alone. */
     readonly permission: string | undefined;
     /** The logged columns, by property. */
     readonly columns: Readonly<Record<string, Column>>;
@@ -118,7 +118,7 @@ export class Node {
         this.#found = new Map<string, WeakMap<Condition, Node>>();
         this.#looks = new Set<string>();
 
-        // name relations by the root's schema and read every scope for rows joined by scope
+        // resolve relations by the root's schema and read every scope for rows joined by scope
         const table = query.table;
         this.schema =
             parent?.schema ??
@@ -135,7 +135,7 @@ export class Node {
             describeLog(table) === undefined ? table[TABLE].columns : table[TABLE].logged;
         this.key = table[TABLE].key;
 
-        // name the computed values and select the rows meeting the condition in the tree's scopes
+        // take the computed values and select the rows meeting the condition in the tree's scopes
         this.extras = query.extras ?? {};
         this.#requireUnshadowed();
         const condition = query.where ?? {};
@@ -502,7 +502,7 @@ export class Node {
         return values;
     }
 
-    /** Read the logged columns a row's place in the order is decided by, as a cursor keeps them. */
+    /** Read the logged columns that decide a row's place in the order, as a cursor stores them. */
     position(row: Row): Row {
         const values: Record<string, ColumnValue> = {};
         for (const { column } of this.order) {
@@ -847,7 +847,7 @@ export class Node {
             this.#requireLogged(new Set([path.to.key]));
             parent.#requireLogged(new Set([path.from.key]));
         }
-        // require the selected row's own table with one key column
+        // require the selected row's table with one key column
         else if (parent.table !== this.table || this.key.length !== 1) {
             throw new DatabaseError(
                 "INVALID_QUERY",
@@ -996,7 +996,7 @@ export class Node {
         // count each relation's rows and add what a use reads
         const uses = new Map<string, RelationMeasure>();
         const use = (via: string, related: Condition, measured?: [string, Measure]) => {
-            // keep one entry per relation and condition
+            // record one entry per relation and condition
             const key = JSON.stringify([via, related]);
             const entry = uses.get(key) ?? {
                 via,

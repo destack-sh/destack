@@ -39,14 +39,14 @@ export class View {
     /** The position shown. */
     readonly position: LogPosition;
 
-    /** Show a database as of a position, reading through a metered connection of its own. */
+    /** Show a database as of a position, reading through a separate metered connection. */
     constructor(
         database: DatabaseConnection,
         position: LogPosition,
         cache?: Cache,
         snapshot?: Snapshot,
     ) {
-        // read through the view's own metered connection, and earlier images through the cache
+        // read through the view's metered connection, and earlier images through the cache
         const reader = database.metered();
         this.database = reader;
         this.position = position;
@@ -60,7 +60,7 @@ export class View {
 
     /** Show a database as its open transaction reads it now. */
     static async latest(database: DatabaseConnection): Promise<View> {
-        return new View(database, await database.log.reached(), undefined, Snapshot.live(database));
+        return new View(database, await database.log.current(), undefined, Snapshot.live(database));
     }
 
     /** Show a database as a snapshot reads it, or as its open transaction reads it now. */
@@ -69,7 +69,7 @@ export class View {
             ? View.latest(database)
             : new View(
                   database,
-                  snapshot.position ?? (await database.log.reached()),
+                  snapshot.position ?? (await database.log.current()),
                   undefined,
                   snapshot,
               );
@@ -435,7 +435,7 @@ export class View {
         return json;
     }
 
-    /** Keep the present values. */
+    /** Filter the present values. */
     static #presentValues(
         values: readonly (ColumnValue | undefined)[],
     ): Exclude<ColumnValue, null>[] {
@@ -479,7 +479,7 @@ export class View {
         };
     }
 
-    /** Match the rows of a table an audience shows in SQL, under a query's own permission too. */
+    /** Match the rows of a table an audience shows in SQL, under a query's permission too. */
     static #visibleSQL(audience: Audience, table: Table, permission?: string): SQL {
         const where = audience.where(table, permission);
         if (where === "memory") {
@@ -493,14 +493,14 @@ export class View {
     }
 }
 
-/** Values computed once per log sequence and key, kept for a few recent sequences. */
+/** Values computed once per log sequence and key, stored for a few recent sequences. */
 export class Memo<Value> {
-    /** The most sequences kept. */
+    /** The most sequences stored. */
     readonly #sequences: number;
     /** The values by sequence and key. */
     readonly #values: Map<number, Map<string, Value>>;
 
-    /** Keep the values of some recent sequences. */
+    /** Store the values of some recent sequences. */
     constructor(sequences: number) {
         // start with empty state
         this.#values = new Map<number, Map<string, Value>>();
@@ -517,7 +517,7 @@ export class Memo<Value> {
             return known;
         }
 
-        // start the sequence's values and drop the oldest beyond the kept number
+        // start the sequence's values and drop the oldest beyond the stored number
         if (values === undefined) {
             values = new Map<string, Value>();
             this.#values.set(sequence, values);
@@ -582,7 +582,7 @@ export interface Cache {
 export interface Window {
     /** The rows. */
     readonly rows: readonly Row[];
-    /** The time the audience's decisions change on their own, absent if never. */
+    /** The time the audience's decisions change by themselves, absent if never. */
     readonly until: number | undefined;
 }
 
@@ -594,7 +594,7 @@ export interface Segment {
     readonly after?: Row;
 }
 
-/** A view's own shared reads, with images from the log. */
+/** A view's shared reads, with images from the log. */
 class ViewCache implements Cache {
     /** The shared reads of rows. */
     readonly rows: Memo<Promise<readonly Row[]>>;

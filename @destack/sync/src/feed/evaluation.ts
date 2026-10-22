@@ -9,7 +9,7 @@ import { View } from "../dataflow/view.ts";
 import type { Audience } from "./audience.ts";
 import type { Feed } from "./feed.ts";
 
-/** The recent sequences whose decided pages an evaluation keeps. */
+/** The recent sequences whose decided pages an evaluation stores. */
 const DECIDED_RECENT = 4;
 
 /** One set of queries evaluated for one audience over a feed. */
@@ -87,7 +87,7 @@ export class Evaluation {
             return undefined;
         }
 
-        // decide the pages and keep a few recent ones
+        // decide the pages and store a few recent ones
         const decided = this.#pagesAfter(position);
         this.#decided.set(sequence, decided);
         this.#idle.delete(sequence);
@@ -97,7 +97,7 @@ export class Evaluation {
         }
         decided.then(
             (result) => {
-                // note decisions that reached no further
+                // note decisions that went no further
                 if (result.sequence === sequence && this.#decided.get(sequence) === decided) {
                     this.#idle.set(sequence, result.until);
                 }
@@ -144,7 +144,7 @@ export class Evaluation {
 
     /** Decide the subscriber's rows again at a position, sending the difference to what it has. */
     async redecide(position: LogPosition, isComplete: boolean): Promise<Page> {
-        // keep what the subscriber has, decide again, and collect what the new decisions allow
+        // read what the subscriber has, decide again, and collect what the new decisions allow
         const before = this.#dataflow.sink.rows();
         await this.#audience.refresh();
         const after = await this.collect(this.#view(position));
@@ -206,9 +206,9 @@ export class Evaluation {
             from = position.sequence;
         }
 
-        // keep the reached position
-        const reached = Math.max(sequence, read.sequence);
-        const advanced = signal.aborted ? from : reached;
+        // take the later position of the walk and the read
+        const latest = Math.max(sequence, read.sequence);
+        const advanced = signal.aborted ? from : latest;
         this.#dataflow.advance({ ...after, sequence: advanced });
 
         return advanced;
@@ -241,7 +241,7 @@ export class Evaluation {
             }
         }
 
-        // keep the walked position within the capacity
+        // bound the walked position within the capacity
 
         return await run.patch.page(view.position, this.#audience, this.#feed, {
             reset: isFirst,
@@ -281,8 +281,8 @@ export class Evaluation {
         // refresh once the decisions expired
         const until = await this.#audience.until();
         if (until !== undefined && until <= this.#feed.clock.now()) {
-            const reached = { ...position, sequence: next.value };
-            pages.push(await this.redecide(reached, true));
+            const refreshed = { ...position, sequence: next.value };
+            pages.push(await this.redecide(refreshed, true));
         }
 
         return { pages, sequence: next.value, until: await this.#audience.until() };
@@ -351,7 +351,7 @@ export class Evaluation {
 export interface Advance {
     /** The pages, complete at their positions. */
     readonly pages: readonly Page[];
-    /** The sequence the pages reach. */
+    /** The sequence the pages arrive at. */
     readonly sequence: number;
     /** When the audience's decisions expire. */
     readonly until: number | undefined;

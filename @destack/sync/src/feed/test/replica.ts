@@ -31,9 +31,9 @@ export class MemoryReplica implements Contents {
     /** The waiters for the next page. */
     readonly #waiting: Set<() => void>;
 
-    /** Keep rows of some tables. */
+    /** Store rows of some tables. */
     constructor(tables: readonly Table[]) {
-        // keep the tables, with no rows, groups or pages yet
+        // store the tables, with no rows, groups or pages yet
         this.#tables = new Map(tables.map((table) => [table[TABLE].sqlName, table]));
         this.rows = new Map();
         this.results = new Map();
@@ -51,7 +51,7 @@ export class MemoryReplica implements Contents {
             this.results.clear();
         }
 
-        // keep and let go of rows and refuse contradicting changes
+        // store and let go of rows and refuse contradicting changes
         for (const change of page.changes) {
             const table = this.#tables.get(change.table);
             if (table === undefined) {
@@ -74,7 +74,7 @@ export class MemoryReplica implements Contents {
             }
         }
 
-        // keep and let go of groups
+        // store and let go of groups
         for (const result of page.results ?? []) {
             if (result.group === null) {
                 for (const key of this.results.keys()) {
@@ -155,7 +155,7 @@ export class Follower {
             readonly replica?: { readonly replica: Replica; readonly database: DatabaseConnection };
         } = {},
     ) {
-        // keep the feed, queries and tables
+        // store the feed, queries and tables
         this.#feed = feed;
         this.#queries = queries;
         this.#audience = options.audience;
@@ -214,7 +214,7 @@ export class Follower {
         await this.#running;
     }
 
-    /** Wait until the replica reaches a position, asking the stream to confirm it. */
+    /** Wait until the replica arrives at a position, asking the stream to confirm it. */
     async wait(position: LogPosition): Promise<void> {
         for (;;) {
             // ask the current stream to confirm the position
@@ -222,11 +222,11 @@ export class Follower {
             if (this.#failure !== undefined) {
                 throw this.#failure;
             }
-            const reached = this.replica.position;
+            const current = this.replica.position;
             if (
-                reached !== undefined &&
-                reached.epoch === position.epoch &&
-                reached.sequence >= position.sequence
+                current !== undefined &&
+                current.epoch === position.epoch &&
+                current.sequence >= position.sequence
             ) {
                 return;
             }

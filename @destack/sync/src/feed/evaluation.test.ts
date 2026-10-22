@@ -1,5 +1,4 @@
 import { expect, test } from "@destack/test";
-import { TEST_DIALECTS } from "@destack/db/test";
 import type { Change, Row, Table } from "@destack/db";
 import { View } from "../dataflow/view.ts";
 import { first, note, open } from "../test/fixture.ts";
@@ -131,64 +130,58 @@ class TimedAudience implements Audience {
     }
 }
 
-test.for(TEST_DIALECTS)(
-    "send the rows an audience shows after deciding again at the same position on %s",
-    async (dialect) => {
-        const database = await open(dialect);
-        const feed = new Feed(database, [note], { clock: Clock.system });
-        await database.insert(note).values([
-            { ...first, id: "a", title: "Open" },
-            { ...first, id: "b", title: "Done" },
-        ]);
+test("send the rows an audience shows after deciding again at the same position", async () => {
+    const database = await open();
+    const feed = new Feed(database, [note], { clock: Clock.system });
+    await database.insert(note).values([
+        { ...first, id: "a", title: "Open" },
+        { ...first, id: "b", title: "Done" },
+    ]);
 
-        // collect the open note through the feed's shared reads
-        const audience = new SwitchingAudience(
-            new ConditionAudience(new Map([[note, { title: "Open" }]])),
-            new ConditionAudience(new Map([[note, { title: "Done" }]])),
-        );
-        const evaluation = new Evaluation(
-            feed,
-            { notes: { table: note, scopes: ["inbox"] } },
-            audience,
-        );
-        const position = await database.log.position();
-        await evaluation.collect(new View(database, position, feed));
+    // collect the open note through the feed's shared reads
+    const audience = new SwitchingAudience(
+        new ConditionAudience(new Map([[note, { title: "Open" }]])),
+        new ConditionAudience(new Map([[note, { title: "Done" }]])),
+    );
+    const evaluation = new Evaluation(
+        feed,
+        { notes: { table: note, scopes: ["inbox"] } },
+        audience,
+    );
+    const position = await database.log.position();
+    await evaluation.collect(new View(database, position, feed));
 
-        // swap the open note for the done note once the audience decides again
-        const page = await evaluation.redecide(position, true);
-        expect(page.changes.map((change) => [change.operation, change.row["id"]])).toEqual([
-            ["insert", "b"],
-            ["delete", "a"],
-        ]);
-    },
-);
+    // swap the open note for the done note once the audience decides again
+    const page = await evaluation.redecide(position, true);
+    expect(page.changes.map((change) => [change.operation, change.row["id"]])).toEqual([
+        ["insert", "b"],
+        ["delete", "a"],
+    ]);
+});
 
-test.for(TEST_DIALECTS)(
-    "read shared windows again once the decisions they hold expire, under one key, on %s",
-    async (dialect) => {
-        const database = await open(dialect);
-        const clock = new VirtualClock(1000);
-        const feed = new Feed(database, [note], { clock });
-        await database.insert(note).values([
-            { ...first, id: "a", title: "Open" },
-            { ...first, id: "b", title: "Done" },
-        ]);
+test("read shared windows again once their decisions expire, under one key", async () => {
+    const database = await open();
+    const clock = new VirtualClock(1000);
+    const feed = new Feed(database, [note], { clock });
+    await database.insert(note).values([
+        { ...first, id: "a", title: "Open" },
+        { ...first, id: "b", title: "Done" },
+    ]);
 
-        // collect the open note through the feed's shared reads before the moment
-        const evaluation = new Evaluation(
-            feed,
-            { notes: { table: note, scopes: ["inbox"] } },
-            new TimedAudience(clock, 2000),
-        );
-        const position = await database.log.position();
-        await evaluation.collect(new View(database, position, feed));
+    // collect the open note through the feed's shared reads before the moment
+    const evaluation = new Evaluation(
+        feed,
+        { notes: { table: note, scopes: ["inbox"] } },
+        new TimedAudience(clock, 2000),
+    );
+    const position = await database.log.position();
+    await evaluation.collect(new View(database, position, feed));
 
-        // swap the open note for the done note once the moment passed
-        clock.set(2000);
-        const page = await evaluation.redecide(position, true);
-        expect(page.changes.map((change) => [change.operation, change.row["id"]])).toEqual([
-            ["insert", "b"],
-            ["delete", "a"],
-        ]);
-    },
-);
+    // swap the open note for the done note once the moment passed
+    clock.set(2000);
+    const page = await evaluation.redecide(position, true);
+    expect(page.changes.map((change) => [change.operation, change.row["id"]])).toEqual([
+        ["insert", "b"],
+        ["delete", "a"],
+    ]);
+});

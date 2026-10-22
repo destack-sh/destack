@@ -28,7 +28,7 @@ import { Run, type RunCost } from "../dataflow/run.ts";
 import { Memo, View, type Cache, type Window } from "../dataflow/view.ts";
 import { Clock } from "@destack/environment";
 
-/** The default count of recent changes a feed keeps in memory. */
+/** The default count of recent changes a feed stores in memory. */
 const FEED_CHANGES = 10_000;
 
 /** The default subscriber limit of a feed. */
@@ -37,13 +37,13 @@ const FEED_SUBSCRIBERS = 1000;
 /** The default count of rows and groups one evaluation knows. */
 const CAPACITY = 100_000;
 
-/** The recent log sequences whose reads and encodings the memos keep for subscribers to share. */
+/** The recent log sequences whose reads and encodings the memos store for subscribers to share. */
 const MEMO_SEQUENCES = 8;
 
 /** The default wait before a caught-up stream repeats its position, in milliseconds. */
 const HEARTBEAT_MILLISECONDS = 10_000;
 
-/** The rows of one capture page across tables: 500 rows of about 500 B keep a page near 250 KB. */
+/** The rows of one capture page across tables: 500 rows of about 500 B make a page near 250 KB. */
 const CAPTURE_ROWS = 500;
 
 /** One database's log, read once per commit and served to every subscriber. */
@@ -58,7 +58,7 @@ export class Feed implements Cache {
     readonly capacity: number;
     /** The most rows one page of a snapshot or a catch-up reads. */
     readonly pageSize: number;
-    /** The count of recent changes kept in memory. */
+    /** The count of recent changes stored in memory. */
     readonly #memory: number;
     /** Report each run's cost. */
     readonly observe: ((cost: RunCost) => void) | undefined;
@@ -74,9 +74,9 @@ export class Feed implements Cache {
     #beats = 0;
     /** The recent changes in commit order. */
     #changes: Change[];
-    /** The sequence before the oldest kept change. */
+    /** The sequence before the oldest stored change. */
     #start: number;
-    /** The sequence the kept changes reach, below zero before reading. */
+    /** The sequence the stored changes arrive at, below zero before reading. */
     #sequence: number;
     /** The subscribers waiting for the feed to pass a sequence. */
     readonly #waiting: Set<() => void>;
@@ -132,7 +132,7 @@ export class Feed implements Cache {
         this.encodings = new Memo<RowChange>(MEMO_SEQUENCES);
         this.#images = new Memo<Promise<ReadonlyMap<string, Row | null>>>(MEMO_SEQUENCES);
 
-        // keep the logged tables and the limits
+        // store the logged tables and the limits
         this.database = database;
         this.upstream = options.upstream;
         this.clock = options.clock;
@@ -421,9 +421,9 @@ export class Feed implements Cache {
         }
         // step the dataflow through the changes
         else {
-            const reached = { ...position, sequence: read.sequence };
+            const current = { ...position, sequence: read.sequence };
             const run = new Run(
-                new View(this.database, reached, this),
+                new View(this.database, current, this),
                 EVERYONE,
                 undefined,
                 read.changes,
@@ -433,7 +433,7 @@ export class Feed implements Cache {
             await dataflow.step(run);
             const isChanged = run.patch.rows.size > 0 || run.patch.results.size > 0;
 
-            return { position: reached, isChanged };
+            return { position: current, isChanged };
         }
     }
 
@@ -442,7 +442,7 @@ export class Feed implements Cache {
         watches: readonly Watch[],
         sequence: number,
     ): Promise<{ readonly changes: readonly Change[]; readonly sequence: number } | undefined> {
-        // read kept changes from memory
+        // read stored changes from memory
         if (sequence >= this.#start) {
             return {
                 changes: this.#changes
@@ -475,7 +475,7 @@ export class Feed implements Cache {
                 throw new TypeError(`log ends at ${read.sequence} before ${through}`);
             }
 
-            // keep the changes up to the end sequence
+            // take the changes up to the end sequence
             changes.push(...read.changes.filter((change) => change.sequence <= through));
             sequence = read.sequence;
         }
@@ -524,7 +524,7 @@ export class Feed implements Cache {
             }
             const images = new Map<string, Row | null>();
             for (let index = this.#after(after); index < this.#changes.length; index += 1) {
-                // keep each row's first change in the range
+                // take each row's first change in the range
                 const change = nth(this.#changes, index);
                 if (change.sequence > upto) {
                     break;
@@ -617,9 +617,9 @@ export class Feed implements Cache {
         }
     }
 
-    /** Find the index of the first kept change after a sequence. */
+    /** Find the index of the first stored change after a sequence. */
     #after(sequence: number): number {
-        // search the kept changes in sequence order
+        // search the stored changes in sequence order
         let low = 0;
         let high = this.#changes.length;
         while (low < high) {
@@ -685,7 +685,7 @@ export class Feed implements Cache {
         this.#sequence = latest;
         this.#wake();
 
-        // keep each page and drop the oldest changes beyond the limit
+        // store each page and drop the oldest changes beyond the limit
         for await (const page of this.database.log.follow(
             { tables: this.tables, after: latest },
             signal,
@@ -737,7 +737,7 @@ export interface FeedOptions {
 export interface FeedInspection {
     /** The sequence the feed read the log up to, below zero before reading. */
     readonly sequence: number;
-    /** The kept recent changes. */
+    /** The stored recent changes. */
     readonly changes: number;
     /** The subscribers it serves. */
     readonly subscribers: number;

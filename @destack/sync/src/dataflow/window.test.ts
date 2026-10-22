@@ -78,7 +78,7 @@ test("arrange rows as a sorted list does through random moves", () => {
         }
     }
 
-    // keep the list's first rows and evict the displaced rows
+    // retain the list's first rows and evict the displaced rows
     expect([window.keys(), window.size, evictions]).toEqual([
         reference.slice(0, LIMIT).map((row) => row.id),
         reference.length,

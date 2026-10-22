@@ -9,7 +9,7 @@ import type { Result } from "./tally.ts";
 
 /** What the subscriber has: each row with its table and count, and each shown group. */
 export class Sink {
-    /** Each row's table and how many members and chains keep it, by key. */
+    /** Each row's table and how many members and chains retain it, by key. */
     readonly #rows: Map<string, { readonly table: Table; readonly count: number }>;
     /** The aggregate groups the subscriber has, by query and group. */
     readonly #groups: Set<string>;
@@ -36,7 +36,7 @@ export class Sink {
         }
     }
 
-    /** Count up or down how many members and chains keep a row. */
+    /** Count up or down how many members and chains retain a row. */
     retain(run: Run, table: Table, key: string, row: Row | null, step: 1 | -1): void {
         this.touch(run, table, key, row);
         const count = (this.#rows.get(key)?.count ?? 0) + step;
@@ -137,7 +137,7 @@ export class Sink {
         this.#groups.clear();
     }
 
-    /** Read the row a touched present row keeps at the run's position. */
+    /** Read the row a touched present row has at the run's position. */
     static #touchedRow(key: string, touched: Touch): Row {
         if (touched.row === null) {
             throw new TypeError(`present row ${key} is sent before it is read`);
@@ -227,10 +227,10 @@ export class Patch {
         // encode each table's rows
         const changes: RowChange[] = [];
         for (const [table, decisions] of byTable) {
-            const kept = decisions.filter(([, decision]) => decision.operation !== "delete");
+            const present = decisions.filter(([, decision]) => decision.operation !== "delete");
             const hidden = await audience.conceals(
                 table,
-                kept.map(([, decision]) => decision.row),
+                present.map(([, decision]) => decision.row),
                 position,
             );
             let index = 0;

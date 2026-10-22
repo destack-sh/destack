@@ -46,7 +46,7 @@ export abstract class Input {
         _dirty: Map<string, Row | null>,
     ): Promise<void> {}
 
-    /** Filter the visible rows of a table in the node's scopes, under the node's own permission. */
+    /** Filter the visible rows of a table in the node's scopes, under the node's permission. */
     protected async passable(table: Table, rows: readonly Row[], run: Run): Promise<Row[]> {
         return run.seen(
             table,
@@ -118,7 +118,7 @@ class KeyJoin extends Input {
         return read.map((rows) => [...rows]);
     }
 
-    /** Name each row's own value. */
+    /** Locate each row's value. */
     async locate(rows: readonly Row[]): Promise<ColumnValue[][]> {
         return rows.map((row) => {
             const value = row[this.#path.column];
@@ -156,8 +156,8 @@ class JunctionJoin extends Input {
             named.flat().map((join) => ({ [path.to.key]: Input.value(join, path.to.column) })),
         );
 
-        return Input.unflatten(targets, named).map((reached) => [
-            ...new Map(reached.flat().map((row) => [this.node.keyName(row), row])).values(),
+        return Input.unflatten(targets, named).map((related) => [
+            ...new Map(related.flat().map((row) => [this.node.keyName(row), row])).values(),
         ]);
     }
 
@@ -171,7 +171,7 @@ class JunctionJoin extends Input {
         );
         const passable = new Set(await this.passable(path.table, joins.flat(), run));
 
-        // name each distinct value once
+        // list each distinct value once
         return joins.map((entries) => {
             const values = new Map<string, ColumnValue>();
             for (const join of entries) {
@@ -243,19 +243,19 @@ export class TreeJoin extends Input {
             values.map((value) => ({ [this.#key]: value })),
         );
         const present = parents.filter((row): row is Row => row !== null);
-        const reached = this.#isDown
+        const related = this.#isDown
             ? await this.below(present, run)
             : await this.above(present, run);
-        const byRow = new Map(zip(present, reached));
+        const byRow = new Map(zip(present, related));
 
         return parents.map((row) => (row === null ? [] : found(byRow, row)));
     }
 
     /** Name the visible rows above or below each row. */
     async locate(rows: readonly Row[], run: Run): Promise<ColumnValue[][]> {
-        const reached = this.#isDown ? await this.above(rows, run) : await this.below(rows, run);
+        const related = this.#isDown ? await this.above(rows, run) : await this.below(rows, run);
 
-        return reached.map((entries) => entries.map((entry) => Input.value(entry, this.#key)));
+        return related.map((entries) => entries.map((entry) => Input.value(entry, this.#key)));
     }
 
     /** Decide again the rows below a changed row along a tree. */
@@ -280,10 +280,10 @@ export class TreeJoin extends Input {
             const images = isMoved
                 ? [before, after].filter((image): image is Row => image !== null)
                 : [];
-            const reached = this.#isDown
+            const related = this.#isDown
                 ? await this.below(images, run)
                 : await this.above(images, run);
-            for (const row of reached.flat()) {
+            for (const row of related.flat()) {
                 dirty.set(node.keyName(row), row);
             }
         }
@@ -332,7 +332,7 @@ export class TreeJoin extends Input {
         const present = lower.filter((row): row is Row => row !== null);
         const byRow = new Map(zip(present, await this.above(present, run)));
 
-        // keep the rows up to the upper row
+        // take the rows up to the upper row
         return zip(pairs, lower).map(([{ member, value }, row]) => {
             // walk up until the upper row
             const upper = this.#isDown ? value : member[key];
@@ -374,17 +374,17 @@ export class TreeJoin extends Input {
             ),
         );
 
-        // keep ancestors up to the first impassable row
+        // take ancestors up to the first impassable row
         return Input.unflatten(ancestors, nearest).map((entries) => {
-            const kept: Row[] = [];
+            const taken: Row[] = [];
             for (const ancestor of entries) {
                 if (ancestor === null || !passable.has(ancestor)) {
                     break;
                 }
-                kept.push(ancestor);
+                taken.push(ancestor);
             }
 
-            return kept;
+            return taken;
         });
     }
 
@@ -414,23 +414,23 @@ export class TreeJoin extends Input {
             ),
         );
 
-        // keep each descendant whose parent the path reached
+        // take each descendant whose parent the path arrived at
         return zip(rows, Input.unflatten(descendants, shallowest)).map(([row, entries]) => {
             // start from the parent row
-            const reached = new Set<ColumnValue | undefined>([row[this.#key]]);
-            const kept: Row[] = [];
+            const parents = new Set<ColumnValue | undefined>([row[this.#key]]);
+            const taken: Row[] = [];
             for (const descendant of entries) {
                 if (
                     descendant !== null &&
                     passable.has(descendant) &&
-                    reached.has(descendant[this.#column])
+                    parents.has(descendant[this.#column])
                 ) {
-                    reached.add(descendant[this.#key]);
-                    kept.push(descendant);
+                    parents.add(descendant[this.#key]);
+                    taken.push(descendant);
                 }
             }
 
-            return kept;
+            return taken;
         });
     }
 
@@ -558,7 +558,7 @@ export class TreeJoin extends Input {
         }
     }
 
-    /** Keep the strict tree index paths, nearest first. */
+    /** Take the strict tree index paths, nearest first. */
     static #byDepth(paths: readonly Row[]): Row[] {
         return paths
             .filter((path) => TreeJoin.#depth(path) > 0)

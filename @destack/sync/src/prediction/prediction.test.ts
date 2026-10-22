@@ -1,5 +1,5 @@
+import { TestDatabase } from "@destack/db/test";
 import { expect, test } from "@destack/test";
-import { TEST_DIALECTS } from "@destack/db/test";
 import { asc, eq, TABLE, type DatabaseConnection, type Table } from "@destack/db";
 import { Replica, replicaTables } from "../replica/replica.ts";
 import type { Page } from "../query/page.ts";
@@ -89,7 +89,7 @@ async function pushed(
 }
 
 test("rebase predicted mutations onto source pages until the source executes or rejects them", async () => {
-    const client = await open("sqlite", [note, ...replicaTables, ...predictionTables]);
+    const client = await open([note, ...replicaTables, ...predictionTables], { dialect: "sqlite" });
     const prediction = predicting([note]);
     const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
     const titles = async () =>
@@ -115,7 +115,7 @@ test("rebase predicted mutations onto source pages until the source executes or 
     ]);
     expect((await prediction.pending(client)).map((entry) => entry.id)).toEqual([...IDS]);
 
-    // drop the rejected prediction and replace the executed one once a page reaches it
+    // drop the rejected prediction and replace the executed one once a page arrives at it
     await pushed(client, prediction, 2);
     await replicate(notes, client, [page(2, [{ id: "a", title: "Server" }])], prediction);
     expect(await titles()).toEqual([
@@ -159,8 +159,8 @@ test("rebase predicted mutations onto source pages until the source executes or 
 });
 
 test("drop a group every predicted row left, without a count measuring it", async () => {
-    // keep one group of notes by title
-    const client = await open("sqlite", [note, ...replicaTables, ...predictionTables]);
+    // store one group of notes by title
+    const client = await open([note, ...replicaTables, ...predictionTables], { dialect: "sqlite" });
     const prediction = predicting([note]);
     const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
     const titles: Omit<Query, "scopes"> = {
@@ -195,10 +195,10 @@ test("drop a group every predicted row left, without a count measuring it", asyn
     ]);
 });
 
-test.skipIf(!TEST_DIALECTS.includes("postgresql"))(
+test.skipIf(TestDatabase.target() !== "postgresql")(
     "refuse predicting on PostgreSQL, whose log sequences changes only at commit",
     async () => {
-        const database = await open("postgresql", [note, ...replicaTables, ...predictionTables]);
+        const database = await open([note, ...replicaTables, ...predictionTables]);
         const prediction = predicting([note]);
         await expect(
             prediction.add(database, IDS[0], "tab-1", async () => ({
@@ -211,9 +211,9 @@ test.skipIf(!TEST_DIALECTS.includes("postgresql"))(
     },
 );
 
-test("push again on a snapshot the mutations of a log and epoch no replica follows, keeping the rest", async () => {
+test("push again on a snapshot the mutations of a log and epoch no replica follows, retaining the rest", async () => {
     // predict three notes
-    const client = await open("sqlite", [note, ...replicaTables, ...predictionTables]);
+    const client = await open([note, ...replicaTables, ...predictionTables], { dialect: "sqlite" });
     const prediction = predicting([note]);
     const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
     await replicate(notes, client, [page(1, [], { reset: true })], prediction);
@@ -253,7 +253,7 @@ test("push again on a snapshot the mutations of a log and epoch no replica follo
 
 test("read pending mutations up to a limit, and count each state with branch edits pending", async () => {
     // predict three notes and a fourth on a branch
-    const client = await open("sqlite", [note, ...replicaTables, ...predictionTables]);
+    const client = await open([note, ...replicaTables, ...predictionTables], { dialect: "sqlite" });
     const prediction = predicting([note]);
     const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
     await replicate(notes, client, [page(1, [], { reset: true })], prediction);
@@ -294,8 +294,10 @@ test("read pending mutations up to a limit, and count each state with branch edi
 });
 
 test("predict a checked-out branch's rows under its edits, and push the edits to their branch", async () => {
-    // keep a branch's rows in a list a page of tags announces
-    const client = await open("sqlite", [note, tag, ...replicaTables, ...predictionTables]);
+    // store a branch's rows in a list a page of tags announces
+    const client = await open([note, tag, ...replicaTables, ...predictionTables], {
+        dialect: "sqlite",
+    });
     const server: Call[] = [];
     const prediction = new Prediction({
         tables: [note, tag],

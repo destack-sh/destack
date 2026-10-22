@@ -12,7 +12,7 @@ import {
 import { Node } from "../query/node.ts";
 import type { Run } from "./run.ts";
 
-/** Decide a node's rows: compute their values and keep the visible candidates. */
+/** Decide a node's rows: compute their values and retain the visible candidates. */
 export class Filter {
     /** The node whose rows the filter decides. */
     readonly node: Node;
@@ -85,7 +85,7 @@ export class Filter {
 
     /** Read a prepared row with the node's computed values. */
     resolve(row: Row, run: Run): Row {
-        // keep rows computing nothing or already resolved
+        // pass rows computing nothing or already resolved
         if (this.#formulas.length === 0 || this.#resolved.has(row)) {
             return row;
         }
