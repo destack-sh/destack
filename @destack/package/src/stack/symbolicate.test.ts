@@ -32,7 +32,7 @@ const module = graph.Module.parse({
     exports: [],
     declarations: [
         {
-            moniker: `${AT}#Note:object`,
+            moniker: `${AT}#Note:object:note`,
             symbol: `${AT}#Note`,
             kind: "object",
             kindPackageId: "package-01996ab0-0000-7000-8000-000000000002",
@@ -40,7 +40,7 @@ const module = graph.Module.parse({
             description: {},
         },
         {
-            moniker: `${AT}#Note.rename:method`,
+            moniker: `${AT}#Note:object:note.rename:method`,
             symbol: `${AT}#Note`,
             kind: "method",
             kindPackageId: "package-01996ab0-0000-7000-8000-000000000002",

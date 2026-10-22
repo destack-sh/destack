@@ -11,7 +11,7 @@ const monikerSchema = schema.string().regex(MONIKER_PATTERN);
 export type Moniker = schema.Infer<typeof monikerSchema>;
 
 /** A stable name of a module, symbol or declaration across builds. */
-export const Moniker = Object.assign(monikerSchema, { of, packageId, module });
+export const Moniker = Object.assign(monikerSchema, { of, packageId, module, name: symbolName });
 
 /** The names a moniker of a module, symbol or member joins. */
 export interface MonikerName {
@@ -49,4 +49,11 @@ function module(moniker: Moniker): string {
     const rest = moniker.slice(packageId(moniker).length + 1);
 
     return nth(nth(rest.split("#"), 0).split(":"), 0);
+}
+
+/** Read a moniker's qualified symbol name, past its kind, absent for a module's moniker. */
+function symbolName(moniker: Moniker): string | undefined {
+    const hash = moniker.indexOf("#");
+
+    return hash < 0 ? undefined : nth(moniker.slice(hash + 1).split(":"), 0);
 }

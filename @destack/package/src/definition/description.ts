@@ -54,25 +54,30 @@ const packageJson = schema.object({
 export const PackageJson = Object.assign(packageJson, {
     /** List the names a package requires at runtime: its dependencies, peers and optional ones. */
     runtimeDependencies(requirements: RuntimeRequirements): string[] {
-        return Object.keys({
+        const required = Object.keys({
             ...requirements.dependencies,
-            ...requirements.peerDependencies,
             ...requirements.optionalDependencies,
         });
+
+        return [...required, ...PackageJson.peers(requirements)];
+    },
+    /** List the peers a package declares, an optional peer its metadata alone lists among them. */
+    peers(requirements: RuntimeRequirements): string[] {
+        const required = { ...requirements.dependencies, ...requirements.optionalDependencies };
+        const declared = { ...requirements.peerDependencies, ...requirements.peerDependenciesMeta };
+
+        return Object.keys(declared).filter((name) => !Object.hasOwn(required, name));
     },
     /** Decide whether a package runs without a dependency, an optional one or optional peer. */
-    isOptional(
-        value: Pick<PackageJson, "dependencies" | "optionalDependencies" | "peerDependenciesMeta">,
-        name: string,
-    ): boolean {
+    isOptional(value: RuntimeRequirements, name: string): boolean {
         // accept an optional dependency, which overrides a matching dependency
-        if (Object.hasOwn(value.optionalDependencies, name)) {
+        if (value.optionalDependencies?.[name] !== undefined) {
             return true;
         }
 
         // accept an optional peer the package does not also require
-        const isRequired = Object.hasOwn(value.dependencies, name);
-        const isOptionalPeer = value.peerDependenciesMeta[name]?.optional === true;
+        const isRequired = value.dependencies?.[name] !== undefined;
+        const isOptionalPeer = value.peerDependenciesMeta?.[name]?.optional === true;
 
         return !isRequired && isOptionalPeer;
     },
@@ -82,11 +87,18 @@ export const PackageJson = Object.assign(packageJson, {
 export type PackageJson = schema.Infer<typeof packageJson>;
 
 /** The runtime dependency groups of a package.json, each absent when it declares none. */
-export interface RuntimeRequirements {
+export const RuntimeRequirements = schema.looseObject({
     /** The required dependencies. */
-    readonly dependencies?: Readonly<Record<string, string>>;
+    dependencies: schema.record(schema.string(), schema.string()).exactOptional(),
     /** The dependencies a dependent supplies. */
-    readonly peerDependencies?: Readonly<Record<string, string>>;
+    peerDependencies: schema.record(schema.string(), schema.string()).exactOptional(),
+    /** The peer metadata, which may list an optional peer alone. */
+    peerDependenciesMeta: schema
+        .record(schema.string(), schema.looseObject({ optional: schema.boolean().exactOptional() }))
+        .exactOptional(),
     /** The optional dependencies. */
-    readonly optionalDependencies?: Readonly<Record<string, string>>;
-}
+    optionalDependencies: schema.record(schema.string(), schema.string()).exactOptional(),
+});
+
+/** The runtime dependency groups of a package.json, each absent when it declares none. */
+export type RuntimeRequirements = schema.Infer<typeof RuntimeRequirements>;

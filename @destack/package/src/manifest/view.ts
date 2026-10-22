@@ -44,6 +44,11 @@ const viewDescription = schema
 
 /** A view a browser output compiles, as manifests describe it. */
 export const ViewDescription = Object.assign(viewDescription, {
+    /** A view as its declaration describes it: its name, presented types and called packages. */
+    declaration: viewDescription
+        .pick({ presents: true, packages: true })
+        .extend({ name: schema.string().min(1) }),
+
     /** List the views a build's outputs compile, by name. */
     list(manifest: {
         readonly outputs: Readonly<

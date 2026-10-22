@@ -54,25 +54,17 @@ export const StackFrame = Object.assign(stackFrame, {
             return frame;
         }
 
-        // find the declaration at the symbol, else the one its enclosing symbol declares, the most specific first
-        const specificity = (candidate: Declaration) =>
-            candidate.moniker.startsWith(`${symbol.moniker}:`)
-                ? 2
-                : candidate.symbol === symbol.moniker
-                  ? 1
-                  : 0;
-        const declaration = located.module.declarations
-            .filter(
-                (candidate) =>
-                    candidate.moniker.startsWith(`${symbol.moniker}:`) ||
-                    symbol.moniker === candidate.symbol ||
-                    symbol.moniker.startsWith(`${candidate.symbol}.`),
-            )
-            .toSorted(
-                (left, right) =>
-                    specificity(right) - specificity(left) ||
-                    right.symbol.length - left.symbol.length,
-            )[0];
+        // find the member the symbol is, else the declaration at it, else one at an enclosing symbol
+        const ranked = located.module.declarations.flatMap((candidate) => {
+            const rank = StackFrame.rank(symbol.moniker, candidate);
+
+            return rank === undefined ? [] : [{ candidate, rank }];
+        });
+        const declaration = ranked.toSorted(
+            (left, right) =>
+                right.rank - left.rank ||
+                right.candidate.symbol.length - left.candidate.symbol.length,
+        )[0]?.candidate;
 
         return {
             ...frame,
@@ -87,6 +79,29 @@ export const StackFrame = Object.assign(stackFrame, {
                       },
                   }),
         };
+    },
+
+    /** Rank how closely a declaration describes a code symbol, absent for one that does not. */
+    rank(symbol: Moniker, declaration: Declaration): number | undefined {
+        // rank a member first, then a declaration at the symbol, then one enclosing it
+        const isMember = Declaration.isMember(declaration);
+
+        // the member the symbol is
+        if (isMember && symbol === `${declaration.symbol}.${declaration.name}`) {
+            return 2;
+        }
+        // a declaration at the symbol itself
+        else if (!isMember && symbol === declaration.symbol) {
+            return 1;
+        }
+        // a declaration at an enclosing symbol
+        else if (!isMember && symbol.startsWith(`${declaration.symbol}.`)) {
+            return 0;
+        }
+        // a member of another symbol
+        else {
+            return undefined;
+        }
     },
 
     /** Read the UTF-16 offsets a source's lines start at, as frames count lines. */

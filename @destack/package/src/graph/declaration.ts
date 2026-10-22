@@ -5,7 +5,7 @@ import { Moniker } from "./moniker.ts";
 /** A Destack entity a module declares, such as a service, an object type or one of its methods. */
 export const Declaration = Object.assign(
     schema.object({
-        /** The declaration's moniker: its symbol's with a member and kind, or a kind and name. */
+        /** The moniker: the symbol's with the kind and name, or a member's under its parent's. */
         moniker: Moniker,
         /** The symbol declaring it. */
         symbol: Moniker,
@@ -30,12 +30,12 @@ function at(symbol: Moniker, declared: Omit<Declaration, "moniker" | "symbol">):
     return { moniker: monikerOf(symbol, declared), symbol, ...declared };
 }
 
-/** Declare a member another declaration derives, such as an object's procedure, at its symbol. */
+/** Declare a member another declaration derives, such as an object's method, under its moniker. */
 function member(
-    parent: Pick<Declaration, "symbol" | "kindPackageId">,
+    parent: Pick<Declaration, "moniker" | "symbol" | "kindPackageId">,
     derived: Pick<Declaration, "kind" | "name" | "description">,
 ): Declaration {
-    const moniker = Moniker.parse(`${parent.symbol}.${derived.name}:${derived.kind}`);
+    const moniker = Moniker.parse(`${parent.moniker}.${derived.name}:${derived.kind}`);
 
     return { moniker, symbol: parent.symbol, kindPackageId: parent.kindPackageId, ...derived };
 }
