@@ -75,7 +75,7 @@ export const SegmentFile = {
         file: AsyncBuffer,
         filter: EventFilter,
     ): Promise<Event[]> {
-        // read the rows in the range and with the values asked for, skipping row groups outside them
+        // read the rows in the range with the asked values, skipping row groups outside them
         const types = kind.keyTypes;
         const range = EventFilter.range(filter);
         const time = {
@@ -99,7 +99,7 @@ export const SegmentFile = {
             utf8: true,
         });
 
-        // rebuild each stored event, its keys as numbers, text and maps of entries
+        // rebuild each stored event with its keys as numbers, text and maps of entries
         return rows.map((row) => {
             const read = SegmentRow.parse(row);
             const keys = kind.keyValues(
@@ -155,7 +155,7 @@ export const SegmentFile = {
         );
     },
 
-    /** Report whether a segment may hold events with the key values a filter requires. */
+    /** Report whether a segment may have events with the key values a filter requires. */
     mayHold(kind: EventKind, sets: KeyIndex, filter: EventFilter): boolean {
         return Object.entries(EventFilter.equalities(kind, filter)).every(([name, value]) => {
             const held = sets[name];

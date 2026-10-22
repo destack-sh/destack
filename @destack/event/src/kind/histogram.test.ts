@@ -28,7 +28,7 @@ const fine: Histogram = {
 test("merge histograms at the coarser scale and read quantiles from the bucket with each rank", () => {
     const merged = Histogram.merge(coarse, fine);
 
-    // fold bucket 8 at scale 1 into bucket 4 at scale 0 and keep every count, the sum and the range
+    // fold bucket 8 at scale 1 into bucket 4 at scale 0, with every count, the sum and the range
     expect(merged).toEqual({
         count: 5,
         sum: 46,
@@ -40,7 +40,7 @@ test("merge histograms at the coarser scale and read quantiles from the bucket w
         negative: { offset: 0, counts: [] },
     });
 
-    // estimate each quantile as its bucket's geometric middle: 2^2.5 for rank 2, 2^3.5 for rank 3.96
+    // estimate each quantile as its bucket's geometric middle: 2^2.5 at rank 2, 2^3.5 at rank 3.96
     expect([
         Histogram.quantile(merged, 0.5),
         Histogram.quantile(merged, 0.99),

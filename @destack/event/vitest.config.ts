@@ -1,22 +1,11 @@
-import { defineConfiguration, defineProject } from "@destack/test/config";
+import { defineConfiguration } from "@destack/test/config";
 
 export default defineConfiguration({
+    // run every test against each database the package stores in
+    targets: { database: ["sqlite", "postgresql"] },
     test: {
-        projects: [
-            {
-                extends: false,
-                ...defineProject({
-                    test: {
-                        name:
-                            process.env["DESTACK_TEST_POSTGRES"] === undefined
-                                ? "sqlite"
-                                : "postgresql",
-                        include: ["src/**/*.test.ts", "tests/*.test.ts"],
-                        testTimeout: 5000,
-                        hookTimeout: 5000,
-                    },
-                }),
-            },
-        ],
+        include: ["src/**/*.test.ts", "tests/*.test.ts"],
+        testTimeout: 5000,
+        hookTimeout: 5000,
     },
 });

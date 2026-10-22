@@ -39,15 +39,15 @@ class DeletedSegment extends Error {
     }
 }
 
-/** Where a store keeps segments. */
+/** Where a store writes segments. */
 export interface EventArchiveOptions {
     /** The database of the hot events and the catalog. */
     readonly database: DatabaseConnection;
-    /** The bucket keeping a scope's segments. */
+    /** The bucket that stores a scope's segments. */
     readonly files: (scope: string) => Bucket;
     /** The bucket key prefix of the segments. */
     readonly prefix: string;
-    /** Read the retention a scope's setting gives a kind that keeps segments by one. */
+    /** Read the retention a scope's setting gives a kind with segments by one. */
     readonly settings: SettingRetention | undefined;
 }
 
@@ -62,9 +62,9 @@ export class EventArchive {
     /** The reader of scopes' retention settings. */
     readonly #settings: SettingRetention | undefined;
 
-    /** Keep segments as the options say. */
+    /** Store segments as the options say. */
     constructor(options: EventArchiveOptions) {
-        // keep the database, buckets, prefix and settings
+        // store the database, buckets, prefix and settings
         this.#database = options.database;
         this.#files = options.files;
         this.#prefix = options.prefix;
@@ -334,7 +334,7 @@ export class EventArchive {
             return undefined;
         }
 
-        // keep the events past the cursor the filter selects
+        // take the events past the cursor the filter selects
         const match = EventFilter.match(kind, filter);
 
         return decoded

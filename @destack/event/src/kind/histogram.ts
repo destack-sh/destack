@@ -38,7 +38,7 @@ type Buckets = schema.Infer<typeof Buckets>;
 
 /** Merge two histograms at the coarser of their scales. */
 function merge(first: Histogram, second: Histogram): Histogram {
-    // bring both to the coarser scale and keep the recorded range
+    // bring both to the coarser scale, preserving the recorded range
     const scale = Math.min(first.scale, second.scale);
     const lowest = [first.min, second.min].filter((value) => value !== undefined);
     const highest = [first.max, second.max].filter((value) => value !== undefined);
@@ -83,7 +83,7 @@ function quantile(histogram: Histogram, fraction: number): number | undefined {
         })),
     ];
 
-    // keep the middle of the bucket with the rank within the recorded range
+    // take the middle of the bucket with the rank within the recorded range
     const low = histogram.min ?? -Infinity;
     const high = histogram.max ?? Infinity;
     let seen = 0;
@@ -99,7 +99,7 @@ function quantile(histogram: Histogram, fraction: number): number | undefined {
 
 /** Coarsen buckets by a number of scale steps: each step halves the bucket count. */
 function downscale(buckets: Buckets, steps: number): Buckets {
-    // keep buckets already at the scale
+    // return buckets already at the scale
     if (steps === 0 || buckets.counts.length === 0) {
         return buckets;
     }
@@ -118,7 +118,7 @@ function downscale(buckets: Buckets, steps: number): Buckets {
 
 /** Add two sides of buckets at the same scale. */
 function add(first: Buckets, second: Buckets): Buckets {
-    // keep one side when the other is empty
+    // return one side when the other is empty
     if (first.counts.length === 0) {
         return second;
     } else if (second.counts.length === 0) {

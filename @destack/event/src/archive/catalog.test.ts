@@ -1,7 +1,7 @@
 import { expect, test } from "@destack/test";
 import { BloomFilter } from "./catalog.ts";
 
-test("hold every identifier a filter was built of, and few others", () => {
+test("include every identifier a filter was built of, and few others", () => {
     // build a filter of ten thousand identifiers and probe ten thousand others
     const held = Array.from({ length: 10_000 }, (_, index) => `event-${String(index)}`);
     const others = Array.from({ length: 10_000 }, (_, index) => `other-${String(index)}`);

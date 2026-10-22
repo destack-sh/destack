@@ -23,7 +23,7 @@ export class ArchiveController implements Controller {
     /** When this controller last swept each kind and scope for orphaned files, by key. */
     readonly #swept = new Map<string, number>();
 
-    /** Keep the segments of kinds. */
+    /** Maintain the segments of kinds. */
     constructor(archive: EventArchive, kinds: readonly EventKind[], clock: Clock) {
         // index the kinds and watch their hot tables
         this.#archive = archive;
@@ -51,7 +51,7 @@ export class ArchiveController implements Controller {
         return listed.flat();
     }
 
-    /** Keep a scope's segments up, returning the wait until the next due work. */
+    /** Maintain a scope's segments, returning the wait until the next due work. */
     async reconcile(key: string): Promise<number> {
         // find the kind and scope of the key
         const separator = key.indexOf(" ");

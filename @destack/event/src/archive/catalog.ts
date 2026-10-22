@@ -57,7 +57,7 @@ export const eventSegment = defineTable(
         id: text("id").primaryKey(),
         /** The event kind, by its package and name. */
         kind: text("kind").notNull(),
-        /** The scope whose events it keeps. */
+        /** The scope of its events. */
         scope: text("scope").notNull(),
         /** The earliest event time, in Unix microseconds. */
         from: integer("from").notNull(),

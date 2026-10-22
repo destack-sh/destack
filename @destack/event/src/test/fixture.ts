@@ -8,7 +8,6 @@ import {
     json,
     real,
     text,
-    type Dialect,
 } from "@destack/db";
 import { present, schema, toJsonSchema, type JsonValue } from "@destack/schema";
 import { TestDatabase } from "@destack/db/test";
@@ -17,7 +16,7 @@ import { MemoryBucket } from "@destack/bucket/test";
 import { DatabasePersonalKeyring } from "../store/personal-keyring.ts";
 import {
     EventKind,
-    type EventKeyShape,
+    type EventKeyFields,
     type EventKeyType,
     type EventKindDescription,
     type SettingRetention,
@@ -28,10 +27,10 @@ import { EventStore } from "../store/store.ts";
 import { VirtualClock } from "@destack/environment/simulation";
 
 /** Build a test kind and its table: the event columns, and an indexed column per key. */
-export function testKind<Shape extends EventKeyShape, Data extends JsonValue>(
-    description: Omit<EventKindDescription<Shape, Data>, "table">,
+export function testKind<Fields extends EventKeyFields, Data extends JsonValue>(
+    description: Omit<EventKindDescription<Fields, Data>, "table">,
     search: readonly string[] = [],
-): EventKind<Shape, Data> {
+): EventKind<Fields, Data> {
     // lay out a column per key beside the event columns
     const name = `event_${description.name.replaceAll("-", "_")}`;
     const keys = Object.entries(description.keys.shape);
@@ -92,13 +91,13 @@ function snake(key: string): string {
 export class EventFixture implements AsyncDisposable {
     /** The store. */
     readonly store: EventStore;
-    /** The test database keeping the hot events, the catalog and people's keys. */
+    /** The test database that stores the hot events, the catalog and people's keys. */
     readonly database: TestDatabase;
     /** The clock the controllers and the bucket's locks read, which tests set. */
     readonly clock = new VirtualClock(Date.UTC(2026, 9, 1));
-    /** The memory bucket keeping the segments, its locks on the fixture's clock. */
+    /** The memory bucket that stores the segments, its locks on the fixture's clock. */
     readonly bucket = new MemoryBucket(this.clock);
-    /** The telemetry keeping the exceptions the store captures. */
+    /** The telemetry that records the exceptions the store captures. */
     readonly telemetry = TestTelemetry.register();
     /** The stop of the store's control loop. */
     readonly #stop = new AbortController();
@@ -107,26 +106,25 @@ export class EventFixture implements AsyncDisposable {
     /** The store's control loop and its run, started at the first settle. */
     #controlled: { readonly loop: ControlLoop; readonly running: Promise<void> } | undefined;
 
-    /** Hold opened events. */
+    /** Store opened events. */
     private constructor(open: (fixture: EventFixture) => EventStore, database: TestDatabase) {
-        // hold the database, then open the store on the fixture's bucket and clock
+        // store the database, then open the store on the fixture's bucket and clock
         this.database = database;
         this.store = open(this);
     }
 
-    /** Open events of some kinds over a fresh dialect database, memory bucket and new keyring. */
+    /** Open events of some kinds over a fresh database, memory bucket and new keyring. */
     static async open(
-        dialect: Dialect,
         kinds: readonly EventKind[],
         settings?: SettingRetention,
     ): Promise<EventFixture> {
         // migrate the kinds' tables
         const tables = eventTables(kinds);
-        const database = await TestDatabase.create(dialect, tables);
+        const database = await TestDatabase.create(tables);
         await database.database.migrate(tables);
         const keyring = await LocalKeyring.read(LocalKeyring.generate());
 
-        // keep every scope's segments in the one bucket, on the fixture's clock
+        // store every scope's segments in the one bucket, on the fixture's clock
         return new EventFixture(
             (fixture) =>
                 new EventStore({
@@ -172,7 +170,7 @@ export class EventFixture implements AsyncDisposable {
     }
 }
 
-/** Read the column type a test key's schema keeps its values in, from its JSON type. */
+/** Read the column type of a test key's values, from its schema's JSON type. */
 function readKeyType(key: schema.Schema): EventKeyType {
     // read the described types of the key and each of its alternatives, ignoring null
     const described = toJsonSchema(key);

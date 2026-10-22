@@ -1,4 +1,4 @@
-import { type EventKeyShape, EventTime } from "../kind/kind.ts";
+import { type EventKeyFields, EventTime } from "../kind/kind.ts";
 import { Histogram } from "../kind/histogram.ts";
 
 /** The quantile each quantile fold reads from a step's merged distributions. */
@@ -33,19 +33,19 @@ export const Fold = {
 };
 
 /** A field a series measures or groups by. */
-export type SeriesField<Shape extends EventKeyShape> =
-    | (keyof Shape & string)
-    | `${keyof Shape & string}.${string}`
+export type SeriesField<Fields extends EventKeyFields> =
+    | (keyof Fields & string)
+    | `${keyof Fields & string}.${string}`
     | "scope";
 
 /** How a series folds a kind's events: measured key, fold, grouping keys and step. */
-export interface SeriesRequest<Shape extends EventKeyShape> {
+export interface SeriesRequest<Fields extends EventKeyFields> {
     /** The key folded, numeric for arithmetic folds, needed by all but count and quantiles. */
-    readonly measure?: SeriesField<Shape>;
+    readonly measure?: SeriesField<Fields>;
     /** The fold. */
     readonly fold: Fold;
-    /** The keys whose values each get a series of their own. */
-    readonly group?: readonly SeriesField<Shape>[];
+    /** The keys whose values each get a separate series. */
+    readonly group?: readonly SeriesField<Fields>[];
     /** The width of each step, in milliseconds, one step over the whole range when absent. */
     readonly step?: number;
 }
@@ -87,7 +87,7 @@ export interface StepFold {
 }
 
 /** The series of a request while its events and partial folds come in, by group and step. */
-export class SeriesFold<Shape extends EventKeyShape> {
+export class SeriesFold<Fields extends EventKeyFields> {
     /** The measured key, absent for a count. */
     readonly measure: string | undefined;
     /** The grouping keys. */
@@ -108,7 +108,7 @@ export class SeriesFold<Shape extends EventKeyShape> {
     >();
 
     /** Start folding a request over a range, refusing a measure the fold lacks or needs. */
-    constructor(request: SeriesRequest<Shape>, from: number | undefined) {
+    constructor(request: SeriesRequest<Fields>, from: number | undefined) {
         // require a measure for every fold but count and quantiles, which read distributions
         const isQuantile = Fold.isQuantile(request.fold);
         if (isQuantile && request.measure !== undefined) {
@@ -187,7 +187,7 @@ export class SeriesFold<Shape extends EventKeyShape> {
     }
 }
 
-/** Read a key's value as a group keeps it. */
+/** Read a key's value as a group stores it. */
 function toScalar(value: unknown): string | number | null {
     return typeof value === "string" || typeof value === "number" ? value : null;
 }

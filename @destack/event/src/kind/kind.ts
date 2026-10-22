@@ -10,15 +10,15 @@ const MICROSECONDS_PER_MILLISECOND = 1000;
 const IDENTITY_BYTES = 16;
 
 /** The query keys of an event kind: a schema per key. */
-export type EventKeyShape = Readonly<Record<string, schema.Schema>>;
+export type EventKeyFields = Readonly<Record<string, schema.Schema>>;
 
 /** The values of an event's query keys. */
-export type EventKeyValues<Shape extends EventKeyShape> = schema.Infer<schema.Object<Shape>>;
+export type EventKeyValues<Fields extends EventKeyFields> = schema.Infer<schema.Object<Fields>>;
 
 /** The entries of a map key, such as an OpenTelemetry record's attributes, by name. */
 export type EventKeyMap = Readonly<Record<string, string | number | boolean>>;
 
-/** The value a query key holds: text, a number, a map of entries, or nothing. */
+/** The value a query key has: text, a number, a map of entries, or nothing. */
 export type EventKeyValue = string | number | EventKeyMap | null;
 
 /** The value of a map key's entry. */
@@ -26,7 +26,7 @@ const EntryValue = schema.union([schema.string(), schema.number(), schema.boolea
 
 /** One append-only event of a scope: its identity, time, query keys and data. */
 export interface Event<
-    Shape extends EventKeyShape = EventKeyShape,
+    Fields extends EventKeyFields = EventKeyFields,
     Data extends JsonValue = JsonValue,
 > {
     /** The scope the event happened in, its home. */
@@ -36,7 +36,7 @@ export interface Event<
     /** When the event happened, in Unix microseconds. */
     readonly time: number;
     /** The values of the kind's query keys. */
-    readonly keys: EventKeyValues<Shape>;
+    readonly keys: EventKeyValues<Fields>;
     /** The data. */
     readonly data: Data;
 }
@@ -54,7 +54,7 @@ export const EventTime = {
     },
 };
 
-/** An event of any kind as it is kept, its personal values sealed. */
+/** An event of any kind as it is stored, its personal values sealed. */
 const EventSchema = schema.object({
     /** The scope the event happened in, its home. */
     scope: schema.string().min(1),
@@ -84,16 +84,16 @@ export const Event = Object.assign(EventSchema, {
     },
 });
 
-/** How an event is kept: exactly once in the caller's transaction, or at most once outside it. */
+/** How an event is stored: exactly once in the caller's transaction, or at most once outside it. */
 export const Delivery = schema.enum(["exactly-once", "at-most-once"]);
-/** Whether an event is kept exactly once or at most once. */
+/** Whether an event is stored exactly once or at most once. */
 export type Delivery = schema.Infer<typeof Delivery>;
 
 /** When a scope's hot events flush into a segment: at an age of the oldest, or at a count. */
 export const FlushPolicy = schema.object({
     /** The longest an event stays hot, in milliseconds. */
     maxAge: schema.number().int().positive(),
-    /** The most hot events a scope keeps of the kind. */
+    /** The most hot events a scope stores of the kind. */
     maxRows: schema.number().int().positive(),
 });
 /** When a scope's hot events flush into a segment. */
@@ -102,14 +102,14 @@ export type FlushPolicy = schema.Infer<typeof FlushPolicy>;
 /** How long a kind's segments stay: milliseconds, or a setting of its package per scope. */
 export type EventRetention = number | { readonly setting: object };
 
-/** Read the milliseconds a scope keeps segments under a package's setting. */
+/** Read the milliseconds a scope retains segments under a package's setting. */
 export type SettingRetention = (setting: object, owner: Package, scope: string) => Promise<number>;
 
 /** When a scope's hot events flush and how long its segments stay. */
 export interface EventPolicy {
     /** When hot events flush. */
     readonly flush: FlushPolicy;
-    /** How long segments are kept. */
+    /** How long segments are retained. */
     readonly retention: EventRetention;
 }
 
@@ -144,19 +144,19 @@ export const EventTable = {
     },
 };
 
-/** An event kind as the engine keeps it: the object type's table, keys, data and settings. */
-export interface EventKindDescription<Shape extends EventKeyShape, Data extends JsonValue> {
+/** An event kind as the engine stores it: the object type's table, keys, data and settings. */
+export interface EventKindDescription<Fields extends EventKeyFields, Data extends JsonValue> {
     /** The declaring package. */
     readonly package: Package;
     /** The package-local name, such as call or log. */
     readonly name: string;
-    /** The append-only table keeping the hot events, a column per key beside the event columns. */
+    /** The append-only table of the hot events, a column per key beside the event columns. */
     readonly table: EventTable;
     /** The exact query keys, each an indexed column. */
-    readonly keys: schema.Object<Shape>;
+    readonly keys: schema.Object<Fields>;
     /** The schema of each event's data. */
     readonly data: schema.Schema<Data>;
-    /** Whether every event is kept exactly once or at most once. */
+    /** Whether every event is stored exactly once or at most once. */
     readonly delivery: Delivery;
     /** When hot events flush and how long segments stay, unless a store sets others per scope. */
     readonly policy: EventPolicy;
@@ -170,14 +170,14 @@ export interface EventKindDescription<Shape extends EventKeyShape, Data extends 
 
 /** A kind of append-only event of scopes. */
 export class EventKind<
-    Shape extends EventKeyShape = EventKeyShape,
+    Fields extends EventKeyFields = EventKeyFields,
     Data extends JsonValue = JsonValue,
 > {
     /** The declaring package. */
     readonly package: Package;
     /** The name, keys, data, delivery, policy, lock and subject. */
-    readonly #definition: EventKindDescription<Shape, Data>;
-    /** The append-only table keeping the hot events. */
+    readonly #definition: EventKindDescription<Fields, Data>;
+    /** The append-only table of the hot events. */
     readonly table: EventTable;
     /** The query key names in declaration order. */
     readonly keys: readonly string[];
@@ -186,8 +186,8 @@ export class EventKind<
     /** The names of the keys with maps of entries. */
     readonly mapKeys: readonly string[];
 
-    /** Keep a kind, refusing keys, a subject or a distribution the engine cannot keep. */
-    constructor(definition: EventKindDescription<Shape, Data>) {
+    /** Register a kind, refusing keys, a subject or a distribution the engine cannot store. */
+    constructor(definition: EventKindDescription<Fields, Data>) {
         // check the policy, the subject and the distribution
         EventKind.#require(definition);
 
@@ -230,7 +230,7 @@ export class EventKind<
             : EventKind.person(named);
     }
 
-    /** Key a person by their subject keys' values, as the personal keyring keeps them. */
+    /** Key a person by their subject keys' values, as the personal keyring stores them. */
     static person(subject: readonly string[]): string {
         return JSON.stringify(subject);
     }
@@ -257,13 +257,13 @@ export class EventKind<
         return recorded === undefined ? undefined : Histogram.parse(recorded);
     }
 
-    /** Whether every event is kept exactly once or at most once. */
+    /** Whether every event is stored exactly once or at most once. */
     get delivery(): Delivery {
         return this.#definition.delivery;
     }
 
     /** Check an event's query keys against the kind. */
-    parseKeys(keys: unknown): EventKeyValues<Shape> {
+    parseKeys(keys: unknown): EventKeyValues<Fields> {
         return this.#definition.keys.parse(keys);
     }
 
@@ -277,9 +277,9 @@ export class EventKind<
         return this.#definition.policy;
     }
 
-    /** Read the milliseconds a scope keeps the kind's segments, through a store's settings. */
+    /** Read the milliseconds a scope retains the kind's segments, through a store's settings. */
     async retention(scope: string, settings: SettingRetention | undefined): Promise<number> {
-        // take the fixed retention, else read the scope's setting, refusing a store without settings
+        // take the fixed retention, else the scope's setting, refusing a store without settings
         const { retention } = this.#definition.policy;
         if (typeof retention === "number") {
             return retention;
@@ -312,8 +312,8 @@ export class EventKind<
         };
     }
 
-    /** Read a row of the kind's table as the event it keeps, its query keys typed by the kind. */
-    event(row: Readonly<Record<string, unknown>>): Event<Shape> {
+    /** Read a row of the kind's table as its event, its query keys typed by the kind. */
+    event(row: Readonly<Record<string, unknown>>): Event<Fields> {
         // require the columns every event has
         const { scope, id, time, data } = row;
         if (typeof scope !== "string" || typeof id !== "string" || typeof time !== "number") {
@@ -339,7 +339,7 @@ export class EventKind<
 
     /** Read the column type of a query key from its column in the kind's table. */
     static #keyType(
-        definition: EventKindDescription<EventKeyShape, JsonValue>,
+        definition: EventKindDescription<EventKeyFields, JsonValue>,
         name: string,
     ): EventKeyType {
         const kind = definition.table[TABLE].column(name).definition.kind;
@@ -352,8 +352,8 @@ export class EventKind<
         return kind;
     }
 
-    /** Refuse a policy, a subject or a distribution the engine cannot keep. */
-    static #require(definition: EventKindDescription<EventKeyShape, JsonValue>): void {
+    /** Refuse a policy, a subject or a distribution the engine cannot store. */
+    static #require(definition: EventKindDescription<EventKeyFields, JsonValue>): void {
         // check the policy and each key's column type
         FlushPolicy.parse(definition.policy.flush);
         const { retention } = definition.policy;
@@ -386,7 +386,7 @@ export class EventKind<
     }
 }
 
-/** Read one query key's value as its column keeps it: null if absent, map entries parsed. */
+/** Read one query key's value as its column stores it: null if absent, map entries parsed. */
 function toKeyValue(type: EventKeyType | undefined, value: unknown): EventKeyValue {
     // an absent key
     if (value === null || value === undefined) {

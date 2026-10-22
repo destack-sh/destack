@@ -80,7 +80,7 @@ export const FilterText = Object.assign(schema.string().min(1).max(1000), {
 
 /** The events of some scopes a query selects. */
 export interface EventFilter {
-    /** The scopes, at least one: a scope's own, and its kept replicas of the scopes within it. */
+    /** The scopes, at least one: a scope, and its replicas of the scopes within it. */
     readonly scopes: readonly [string, ...string[]];
     /** The condition over `id`, `time` and the keys, map entries as `<key>.<entry>`. */
     readonly where?: JsonCondition;
@@ -184,7 +184,7 @@ export const EventFilter = {
         Condition.resolve(filter.where, EventFilter.fields(kind, filter));
     },
 
-    /** Read the keys a condition pins to one value, which prune segments. */
+    /** Read the keys a condition fixes to one value, which prune segments. */
     equalities(kind: EventKind, filter: EventFilter): Readonly<Record<string, string | number>> {
         return Object.fromEntries(
             Condition.conjuncts(filter.where).flatMap((condition) =>
@@ -233,11 +233,11 @@ export const EventFilter = {
         });
     },
 
-    /** Read the identifier a filter's condition pins at its top, which prunes segments. */
+    /** Read the identifier a filter's condition fixes at its top, which prunes segments. */
     identity(filter: EventFilter): string | undefined {
-        const pinned = Condition.conjuncts(filter.where).map((condition) => condition["id"]);
+        const fixed = Condition.conjuncts(filter.where).map((condition) => condition["id"]);
 
-        return pinned.find((id): id is string => typeof id === "string");
+        return fixed.find((id): id is string => typeof id === "string");
     },
 
     /** Read the time range a filter's condition requires at its top, which prunes segments. */

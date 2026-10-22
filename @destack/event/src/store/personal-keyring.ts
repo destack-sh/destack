@@ -31,12 +31,12 @@ export const personalKey = defineTable("personal_key", {
 
 /** People's keys in a database, encrypted under the host's keyring, for stores sharing it. */
 export class DatabasePersonalKeyring implements PersonalKeyring {
-    /** The database keeping the keys. */
+    /** The database that stores the keys. */
     readonly #database: DatabaseConnection;
     /** The host's keyring encrypting each person's key. */
     readonly #keyring: Keyring;
 
-    /** Keep keys in a database under a host's keyring. */
+    /** Store keys in a database under a host's keyring. */
     constructor(database: DatabaseConnection, keyring: Keyring) {
         this.#database = database;
         this.#keyring = keyring;
@@ -50,17 +50,17 @@ export class DatabasePersonalKeyring implements PersonalKeyring {
         // reuse the newest key
         const connection =
             transaction?.state === this.#database.state ? transaction : this.#database;
-        const [kept] = await connection
+        const [stored] = await connection
             .select()
             .from(personalKey)
             .where(eq(personalKey.subject, subject))
             .orderBy(desc(personalKey.createdAt))
             .limit(1);
-        if (kept !== undefined) {
-            return { id: kept.id, key: await this.#open(subject, kept.id, kept.sealed) };
+        if (stored !== undefined) {
+            return { id: stored.id, key: await this.#open(subject, stored.id, stored.sealed) };
         }
 
-        // create a key and keep it encrypted under the keyring
+        // create a key and store it encrypted under the keyring
         const id = v7();
         const bytes = crypto.getRandomValues(new Uint8Array(32));
         const sealed = await this.#keyring.encrypt(bytes, encryptionContext(subject, id));
@@ -71,12 +71,12 @@ export class DatabasePersonalKeyring implements PersonalKeyring {
 
     /** Read one of a person's keys, absent once the person is forgotten. */
     async key(subject: string, id: string): Promise<CryptoKey | undefined> {
-        const [kept] = await this.#database
+        const [stored] = await this.#database
             .select({ sealed: personalKey.sealed })
             .from(personalKey)
             .where(and(eq(personalKey.subject, subject), eq(personalKey.id, id)));
 
-        return kept === undefined ? undefined : this.#open(subject, id, kept.sealed);
+        return stored === undefined ? undefined : this.#open(subject, id, stored.sealed);
     }
 
     /** Delete a person's keys. */
@@ -84,7 +84,7 @@ export class DatabasePersonalKeyring implements PersonalKeyring {
         await this.#database.delete(personalKey).where(eq(personalKey.subject, subject));
     }
 
-    /** Decrypt a kept key under the keyring. */
+    /** Decrypt a stored key under the keyring. */
     async #open(subject: string, id: string, sealed: string): Promise<CryptoKey> {
         return importKey(
             await this.#keyring.decrypt(Ciphertext.parse(sealed), encryptionContext(subject, id)),
@@ -118,7 +118,7 @@ export const PersonalSeal = {
             return marked;
         }
 
-        // encrypt each personal value's JSON under the person's current key, with the key's identifier
+        // encrypt each personal value's JSON under the person's current key and its identifier
         const { id, key } = await required(keyring, kind).currentKey(subject, transaction);
         const sealed = new Map<object, JsonValue>();
         for (const [marker, value] of held) {
@@ -146,7 +146,7 @@ export const PersonalSeal = {
         const subject = kind.subjectOf(keys);
         const held = new Map<object, Ciphertext>();
         const marked = kind.mapSensitive(data, (value, sensitivity) => {
-            // keep a value that is not a sealed personal one as it is
+            // return a value that is not a sealed personal one as it is
             const sealed =
                 sensitivity === "personal" && JsonValue.isObject(value)
                     ? value["$sealed"]

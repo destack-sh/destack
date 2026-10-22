@@ -1,13 +1,13 @@
 import type { DatabaseConnection, LogClaim } from "@destack/db";
 
-/** A reader of events in commit order, its place kept in a log slot. */
+/** A reader of events in commit order, its place stored in a log slot. */
 export class EventReader {
     /** The slot's name, unique per reader. */
     readonly name: string;
-    /** How long the log keeps events past the reader's place once it advances, in milliseconds. */
+    /** How long the log retains events past the reader's place once it moves, in milliseconds. */
     readonly hold: number;
 
-    /** Read in commit order under a slot name, holding unread events for a while. */
+    /** Read in commit order under a slot name, retaining unread events for a while. */
     constructor(name: string, hold: number) {
         this.name = name;
         this.hold = hold;
@@ -54,7 +54,7 @@ export class EventReader {
         await database.log.drop(this.name);
     }
 
-    /** Read one key of the reader's family at its own place, like a partition's offset. */
+    /** Read one key of the reader's family at its place, like a partition's offset. */
     at(key: string): EventReader {
         return new EventReader(`${this.name}:${key}`, this.hold);
     }
