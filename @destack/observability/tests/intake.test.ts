@@ -196,7 +196,7 @@ test("group failures logged and annotated on spans into an issue at their declar
             title: "RangeError: title is too long",
             errorType: "RangeError",
             culprit: `${ids.package}/src/note.ts#Note.rename`,
-            declaration: `${ids.package}/src/note.ts#Note.rename:method`,
+            declaration: `${ids.package}/src/note.ts#Note:object:note.rename:method`,
             level: "error",
             count: 3,
             people: 2,

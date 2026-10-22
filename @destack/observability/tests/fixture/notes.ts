@@ -1,5 +1,5 @@
 import type { DatabaseConnection } from "@destack/db";
-import { StackFrame, Symbolicator } from "@destack/package/stack";
+import { Attribution, StackFrame, Symbolicator } from "@destack/package/stack";
 import { FRAMES_ATTRIBUTE } from "@destack/telemetry/otlp";
 import { graph } from "@destack/package";
 import { PackageFile } from "@destack/package/file";
@@ -91,23 +91,55 @@ export async function openNotesBuild(): Promise<BuildReader> {
     );
 }
 
-/** Build the note module's graph file: `Note` and its `rename` method. */
+/** Index the note module's code: the `Note` class and its `rename` method, by their source ranges. */
+async function notesCode(): Promise<graph.Document> {
+    const range = (start: number, end: number) => ({ file: "src/note.ts", start, end });
+    const rename = NOTE_SOURCE.indexOf("    rename");
+
+    return {
+        path: "src/note.ts",
+        digest: await Digest.of(encode(NOTE_SOURCE)),
+        symbols: [
+            {
+                moniker: at("Note"),
+                kind: "class",
+                source: range(0, NOTE_SOURCE.length),
+                signature: "class Note",
+                isExported: true,
+            },
+            {
+                moniker: at("Note.rename"),
+                kind: "method",
+                source: range(rename, NOTE_SOURCE.lastIndexOf("    }") + "    }".length),
+                signature: "rename(title: string): string",
+                isExported: true,
+            },
+        ],
+        edges: [],
+    };
+}
+
+/** Build the note module's graph file: the `note` object at `Note` and its `rename` method. */
 async function notesModule() {
+    // declare the object and the method it derives
+    const object = graph.Declaration.at(at("Note"), {
+        kind: "object",
+        kindPackageId: ids.package,
+        name: "note",
+        description: {},
+    });
+    const rename = graph.Declaration.member(object, {
+        kind: "method",
+        name: "rename",
+        description: {},
+    });
+
     return graph.Module.file({
         path: "src/note.ts",
         digest: await Digest.of(encode(NOTE_SOURCE)),
         imports: [],
         exports: [],
-        declarations: [
-            {
-                moniker: `${at("Note.rename")}:method`,
-                symbol: at("Note"),
-                kind: "method",
-                kindPackageId: ids.package,
-                name: "rename",
-                description: {},
-            },
-        ],
+        declarations: [object, rename],
         edges: [],
     });
 }
@@ -299,9 +331,11 @@ export function exceptionsExport(
 const RENAME_STACK =
     "RangeError: title is too long\n    at rename (file:///srv/output/bun/workload.js:1:1)";
 
-/** The frames of that failure, symbolicated through the notes build as its runtime exports them. */
+/** The frames of that failure, symbolicated by its runtime and attributed by the machine forwarding it. */
 const RENAME_FRAMES = JSON.stringify(
-    await new Symbolicator(await openNotesBuild()).frames(StackFrame.read(RENAME_STACK)),
+    await new Attribution(await openNotesBuild(), [await notesCode()]).frames(
+        await new Symbolicator(await openNotesBuild()).frames(StackFrame.read(RENAME_STACK)),
+    ),
 );
 
 /** A failure of `Note.rename` as the notes workload captures and exports it, for a person. */

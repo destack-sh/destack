@@ -13,7 +13,9 @@ import {
     SESSION_STATUS_ATTRIBUTE,
     SESSION_STATUSES,
     VISIT_EVENT,
+    FRAMES_ATTRIBUTE,
 } from "@destack/telemetry/otlp";
+import { StackFrame } from "@destack/package/stack";
 import {
     type AttributeKey,
     type Attributes,
@@ -83,6 +85,8 @@ const OtlpKeyValue: schema.Schema<OtlpKeyValue> = schema.lazy(() =>
 
 /** The attributes of a resource or an item. */
 const OtlpAttributes = schema.array(OtlpKeyValue).default([]);
+/** A record's attributes. */
+type OtlpAttributes = schema.Infer<typeof OtlpAttributes>;
 
 /** The resource around a group of items. */
 const Resource = schema.looseObject({ attributes: OtlpAttributes }).default({ attributes: [] });
@@ -103,6 +107,12 @@ const OptionalSpan = schema
     .string()
     .regex(/^(?:[0-9a-f]{16})?$/u)
     .exactOptional();
+
+/** An OTLP attribute keeping an exception's symbolicated frames as JSON text. */
+const FramesEntry = schema.looseObject({
+    key: schema.literal(FRAMES_ATTRIBUTE),
+    value: schema.looseObject({ stringValue: schema.string() }),
+});
 
 /** An OTLP/JSON logs export request. */
 export const OtlpLogsRequest = schema.looseObject({
@@ -358,6 +368,42 @@ export class OtlpExport {
         }));
 
         return new OtlpExport(this.signal, { ...request, [groups]: stamped });
+    }
+
+    /** Attribute the frames of the exceptions the export's logs and span events keep. */
+    async attribute(
+        attribute: (frames: readonly StackFrame[]) => Promise<StackFrame[]>,
+    ): Promise<OtlpExport> {
+        // rewrite the frames of each log record
+        if (this.signal === "logs") {
+            const request = OtlpLogsRequest.parse(this.body);
+            for (const group of request.resourceLogs) {
+                for (const scoped of group.scopeLogs) {
+                    for (const record of scoped.logRecords) {
+                        record.attributes = await attributeFrames(record.attributes, attribute);
+                    }
+                }
+            }
+
+            return new OtlpExport(this.signal, request);
+        }
+        // rewrite the frames of each span's events
+        else if (this.signal === "traces") {
+            const request = OtlpTracesRequest.parse(this.body);
+            for (const group of request.resourceSpans) {
+                for (const scoped of group.scopeSpans) {
+                    for (const event of scoped.spans.flatMap((span) => span.events)) {
+                        event.attributes = await attributeFrames(event.attributes, attribute);
+                    }
+                }
+            }
+
+            return new OtlpExport(this.signal, request);
+        }
+        // keep metrics, which record no exceptions
+        else {
+            return this;
+        }
     }
 
     /** Decode each resource's records in a scope, under the emitter its attributes name. */
@@ -916,4 +962,25 @@ function valueOf(value: OtlpValue): AttributeValue | undefined {
     else {
         return undefined;
     }
+}
+
+/** Attribute the symbolicated frames an exception's attributes keep, leaving other attributes. */
+async function attributeFrames(
+    attributes: OtlpAttributes,
+    attribute: (frames: readonly StackFrame[]) => Promise<StackFrame[]>,
+): Promise<OtlpAttributes> {
+    return Promise.all(
+        attributes.map(async (entry) => {
+            // leave an attribute other than the frames
+            const frames = FramesEntry.safeParse(entry);
+            if (!frames.success) {
+                return entry;
+            }
+
+            // rewrite the frames as their build attributes them
+            const read = StackFrame.array().parse(JSON.parse(frames.data.value.stringValue));
+
+            return { ...entry, value: { stringValue: JSON.stringify(await attribute(read)) } };
+        }),
+    );
 }
