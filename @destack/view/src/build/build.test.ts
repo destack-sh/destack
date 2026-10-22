@@ -3,8 +3,8 @@ import { expect, test } from "@destack/test";
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Compiler, Workspace } from "@destack/build";
-import { testCompilers, testStore } from "@destack/build/test";
+import { Compiler, Workspace, CompilerPool } from "@destack/build";
+import { testStore } from "@destack/build/test";
 import { Package, type DeclarationDescription } from "@destack/package";
 import type { Compilation, Plugin, PluginOption } from "@destack/package/build";
 import { destackTheme } from "@destack/theme/declare";
@@ -76,15 +76,16 @@ test(
     async () => {
         // build the notebook package's browser output on its closure's stored builds
         await using store = await testStore();
-        await using compilers = await testCompilers();
+        await using compilers = await CompilerPool.open(store);
         const workspace = await Workspace.open(NOTEBOOK, compilers);
-        await using builder = await Compiler.start(NOTEBOOK);
-        await using build = await builder.build({
-            directory: NOTEBOOK,
-            dependencies: await workspace.storeDependencies(store, {}),
-            outputs: { browser: { kind: "module", runtime: "browser" } },
-            store,
-        });
+        const dependencies = await workspace.storeDependencies({});
+        await using build = await compilers.use(NOTEBOOK, (compiler) =>
+            compiler.build({
+                directory: NOTEBOOK,
+                dependencies,
+                outputs: { browser: { kind: "module", runtime: "browser" } },
+            }),
+        );
 
         // describe the view by its generated chunk, exported under its entrypoint
         const output = build.manifest.outputs["browser"];
