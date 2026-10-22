@@ -713,7 +713,7 @@ function answerProviders(): void {
 
         return Response.json(answers[url]);
     };
-    globalThis.fetch = Object.assign(answer, { preconnect: original.preconnect });
+    globalThis.fetch = Object.assign(answer, original);
     onTestFinished(() => {
         globalThis.fetch = original;
     });
