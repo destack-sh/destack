@@ -83,11 +83,11 @@ export class LocalKeyring implements Keyring {
             // refuse forgetting the active or an unknown key
             const keys = LocalKeyring.#required(stored, name);
             if (keys.active === version) {
-                throw new IdentityError("INVALID_ROOT_KEY", "cannot retire the active root key");
+                throw IdentityError.of("INVALID_ROOT_KEY", "cannot retire the active root key");
             } else if (!Object.hasOwn(keys.keys, String(version))) {
-                throw new IdentityError(
+                throw IdentityError.of(
                     "INVALID_ROOT_KEY",
-                    `no root key ${version} is stored as ${name}`,
+                    `root key ${version} not found in ${name}`,
                 );
             }
 
@@ -104,14 +104,14 @@ export class LocalKeyring implements Keyring {
         values: ReadonlyMap<number, Uint8Array<ArrayBuffer>>,
     ): Promise<LocalKeyring> {
         if (!values.has(active)) {
-            throw new IdentityError("INVALID_ROOT_KEY", "active root key is missing");
+            throw IdentityError.of("INVALID_ROOT_KEY", "active root key is missing");
         }
 
         // validate all versions before accepting the deployment
         const keys = new Map<number, RootKey>();
         for (const [version, value] of values) {
             if (!Number.isSafeInteger(version) || version < 1 || value.length !== ROOT_KEY_BYTES) {
-                throw new IdentityError(
+                throw IdentityError.of(
                     "INVALID_ROOT_KEY",
                     "root keys require a positive whole version and 32 bytes",
                 );
@@ -181,7 +181,10 @@ export class LocalKeyring implements Keyring {
     static version(ciphertext: Ciphertext): number {
         const version = Number(Ciphertext.keyId(ciphertext));
         if (!Number.isSafeInteger(version)) {
-            throw new IdentityError("KEY_UNAVAILABLE", "the ciphertext names no root key");
+            throw IdentityError.of(
+                "KEY_UNAVAILABLE",
+                "the ciphertext does not reference a root key",
+            );
         }
 
         return version;
@@ -212,7 +215,7 @@ export class LocalKeyring implements Keyring {
     /** Refuse a name the keychain stores no root keys under. */
     static #required(keys: Keyset | undefined, name: string): Keyset {
         if (keys === undefined) {
-            throw new IdentityError("KEY_UNAVAILABLE", `no root keys are stored as ${name}`);
+            throw IdentityError.of("KEY_UNAVAILABLE", `no root keys found in ${name}`);
         }
 
         return keys;
@@ -248,7 +251,7 @@ export class LocalKeyring implements Keyring {
     #get(version: number): RootKey {
         const key = this.#keys.get(version);
         if (key === undefined) {
-            throw new IdentityError("KEY_UNAVAILABLE", "required root key is unavailable");
+            throw IdentityError.of("KEY_UNAVAILABLE", "required root key is unavailable");
         }
 
         return key;

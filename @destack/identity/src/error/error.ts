@@ -1,38 +1,18 @@
-import type { DomainError, CallErrorCode, Failure } from "@destack/error";
+import { defineErrorFamily, type ReasonOf } from "@destack/error";
 import type {} from "@destack/package/import-meta";
 
-/** The call error code of each identity failure. */
-const CALL_CODES = {
-    INVALID_PUBLIC_KEY: "BAD_REQUEST",
-    INVALID_PROOF: "BAD_REQUEST",
-    INVALID_OPERATION: "BAD_REQUEST",
-    INVALID_ROOT_KEY: "INTERNAL_SERVER_ERROR",
-    KEY_UNAVAILABLE: "INTERNAL_SERVER_ERROR",
-    DECRYPTION_FAILED: "INTERNAL_SERVER_ERROR",
-} as const satisfies Readonly<Record<string, CallErrorCode>>;
+/** The identity package's failures, each reason with the call error code it answers. */
+export const IdentityError = defineErrorFamily(import.meta.destack.package, {
+    // bad request
+    INVALID_OPERATION: { code: "BAD_REQUEST" },
+    INVALID_PROOF: { code: "BAD_REQUEST" },
+    INVALID_PUBLIC_KEY: { code: "BAD_REQUEST" },
 
-/** A stable cause of failures of identities and their keys. */
-export type IdentityReason = keyof typeof CALL_CODES;
+    // internal server error
+    DECRYPTION_FAILED: { code: "INTERNAL_SERVER_ERROR" },
+    INVALID_ROOT_KEY: { code: "INTERNAL_SERVER_ERROR" },
+    KEY_UNAVAILABLE: { code: "INTERNAL_SERVER_ERROR" },
+});
 
-/** A failure of an identity or its keys, without their bytes. */
-export class IdentityError extends Error implements DomainError {
-    /** The failure's stable cause within its package. */
-    readonly reason: IdentityReason;
-
-    /** Report a failure without its cryptographic inputs. */
-    constructor(reason: IdentityReason, message: string, options?: ErrorOptions) {
-        super(message, options);
-        this.name = "IdentityError";
-        this.reason = reason;
-    }
-
-    /** Convert the failure to the call error a caller receives. */
-    toCallError(): Failure {
-        return {
-            code: CALL_CODES[this.reason],
-            reason: this.reason,
-            domain: import.meta.destack.package.name,
-            message: this.message,
-        };
-    }
-}
+/** A stable cause of identity failures. */
+export type IdentityReason = ReasonOf<typeof IdentityError>;

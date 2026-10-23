@@ -1,6 +1,5 @@
-import { expect, test } from "@destack/test";
+import { expect, test, refusal } from "@destack/test";
 import { decodeProtectedHeader } from "jose";
-import { IdentityError } from "../error/error.ts";
 import { Derivation } from "../derivation/derivation.ts";
 import { Recipient } from "./recipient.ts";
 
@@ -12,11 +11,15 @@ test("seal bytes to a recipient, which alone opens them under the same context",
 
     // open only on the recipient under the sealed context
     expect([...(await recipient.open(sealed, context))]).toEqual([1, 2, 3]);
-    const failed = new IdentityError("DECRYPTION_FAILED", "ciphertext authentication failed");
-    await expect(recipient.open(sealed, other)).rejects.toEqual(failed);
-    await expect((await Recipient.generate()).open(sealed, context)).rejects.toEqual(failed);
+    const failed = [
+        "INTERNAL_SERVER_ERROR",
+        "DECRYPTION_FAILED",
+        "ciphertext authentication failed",
+    ];
+    expect(await refusal(recipient.open(sealed, other))).toEqual(failed);
+    expect(await refusal((await Recipient.generate()).open(sealed, context))).toEqual(failed);
     await expect(Recipient.of(recipient.key).open(sealed, context)).rejects.toThrow(
-        new TypeError("open sealed bytes on the recipient with its private key"),
+        new TypeError("the recipient has no private key to decrypt with"),
     );
 });
 

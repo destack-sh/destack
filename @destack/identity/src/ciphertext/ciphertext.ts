@@ -48,12 +48,12 @@ export const Ciphertext = Object.assign(schema.string().regex(COMPACT_JWE), {
             if (!(error instanceof errors.JOSEError)) {
                 throw error;
             }
-            throw new IdentityError("DECRYPTION_FAILED", "ciphertext authentication failed");
+            throw IdentityError.of("DECRYPTION_FAILED", "ciphertext authentication failed");
         });
 
         // require the context it was encrypted under
         if (decrypted.protectedHeader["ctx"] !== (await digest(Label.encode(context)))) {
-            throw new IdentityError("DECRYPTION_FAILED", "ciphertext authentication failed");
+            throw IdentityError.of("DECRYPTION_FAILED", "ciphertext authentication failed");
         }
 
         return new Uint8Array(decrypted.plaintext);

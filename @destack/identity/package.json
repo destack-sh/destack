@@ -7,6 +7,7 @@
     "description": "Prove who a principal is and keep the keys proving it.",
     "exports": {
         ".": "./src/index.ts",
+        "./error": "./src/error/index.ts",
         "./aws": "./src/aws/index.ts",
         "./bun": "./src/bun/index.ts"
     },

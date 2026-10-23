@@ -1,5 +1,4 @@
-import { expect, test } from "@destack/test";
-import { IdentityError } from "../error/error.ts";
+import { expect, test, refusal } from "@destack/test";
 import { PublicKey } from "../key/key.ts";
 import { IdentityOperation } from "./identity.ts";
 
@@ -32,8 +31,10 @@ test("verify an operation signed by a P-256 or an Ed25519 rotation key at its pr
     ]);
 });
 
-test("refuse reading a token that is no identity operation", () => {
-    expect(() => IdentityOperation.read("eyJhbGciOiJub25lIn0.e30.")).toThrow(
-        new IdentityError("INVALID_OPERATION", "the operation is no identity operation"),
-    );
+test("refuse reading a token that is no identity operation", async () => {
+    expect(await refusal(() => IdentityOperation.read("eyJhbGciOiJub25lIn0.e30."))).toEqual([
+        "BAD_REQUEST",
+        "INVALID_OPERATION",
+        "the operation is not an identity operation",
+    ]);
 });

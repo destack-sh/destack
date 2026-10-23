@@ -1,6 +1,5 @@
 import { schema } from "@destack/schema";
-import { expect, test } from "@destack/test";
-import { IdentityError } from "../error/error.ts";
+import { expect, test, refusal } from "@destack/test";
 import { MemoryKeychain } from "../keychain/index.ts";
 import { LocalKeyring } from "./index.ts";
 
@@ -16,9 +15,11 @@ test("open root keys a keychain stores, refuse another context, rotate them, and
     const encrypted = await first.encrypt(plaintext, context);
 
     // refuse decrypting under another context
-    await expect(
-        first.decrypt(encrypted, { label: "@destack/identity/test", context: "context-2" }),
-    ).rejects.toEqual(new IdentityError("DECRYPTION_FAILED", "ciphertext authentication failed"));
+    expect(
+        await refusal(
+            first.decrypt(encrypted, { label: "@destack/identity/test", context: "context-2" }),
+        ),
+    ).toEqual(["INTERNAL_SERVER_ERROR", "DECRYPTION_FAILED", "ciphertext authentication failed"]);
 
     // rotate to a new active key that still decrypts the old key's ciphertexts
     const rotated = await LocalKeyring.rotate(keychain, name);
@@ -29,16 +30,22 @@ test("open root keys a keychain stores, refuse another context, rotate them, and
     ]);
 
     // retire only the old key
-    await expect(LocalKeyring.retire(keychain, name, rotated.active)).rejects.toEqual(
-        new IdentityError("INVALID_ROOT_KEY", "cannot retire the active root key"),
-    );
-    await expect(LocalKeyring.retire(keychain, name, 99)).rejects.toEqual(
-        new IdentityError("INVALID_ROOT_KEY", `no root key 99 is stored as ${name}`),
-    );
+    expect(await refusal(LocalKeyring.retire(keychain, name, rotated.active))).toEqual([
+        "INTERNAL_SERVER_ERROR",
+        "INVALID_ROOT_KEY",
+        "cannot retire the active root key",
+    ]);
+    expect(await refusal(LocalKeyring.retire(keychain, name, 99))).toEqual([
+        "INTERNAL_SERVER_ERROR",
+        "INVALID_ROOT_KEY",
+        `root key 99 not found in ${name}`,
+    ]);
     const retired = await LocalKeyring.retire(keychain, name, first.active);
-    await expect(retired.decrypt(encrypted, context)).rejects.toEqual(
-        new IdentityError("KEY_UNAVAILABLE", "required root key is unavailable"),
-    );
+    expect(await refusal(retired.decrypt(encrypted, context))).toEqual([
+        "INTERNAL_SERVER_ERROR",
+        "KEY_UNAVAILABLE",
+        "required root key is unavailable",
+    ]);
     expect([...(await retired.decrypt(reencrypted, context))]).toEqual([...plaintext]);
 });
 

@@ -1,5 +1,4 @@
 import { expect, refusal, test } from "@destack/test";
-import { IdentityError } from "../error/error.ts";
 import { PublicKey } from "../key/key.ts";
 import { Proof } from "./proof.ts";
 
@@ -40,10 +39,12 @@ test("verify a request proof for its subject, key, time and request, refusing ev
     ]);
 });
 
-test("refuse reading anything but a key proof", () => {
-    expect(() => Proof.read("not.a.proof")).toThrow(
-        new IdentityError("INVALID_PROOF", "key proof is no compact JWS"),
-    );
+test("refuse reading anything but a key proof", async () => {
+    expect(await refusal(() => Proof.read("not.a.proof"))).toEqual([
+        "BAD_REQUEST",
+        "INVALID_PROOF",
+        "key proof is not a compact JWS",
+    ]);
 });
 
 test("tell a key proof from other tokens by its declared type", async () => {

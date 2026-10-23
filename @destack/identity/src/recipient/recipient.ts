@@ -64,7 +64,7 @@ export class Recipient {
     /** Open bytes sealed to the recipient. */
     async open(ciphertext: Ciphertext, context: Label): Promise<Uint8Array<ArrayBuffer>> {
         if (this.#privateKey === undefined) {
-            throw new TypeError("open sealed bytes on the recipient with its private key");
+            throw new TypeError("the recipient has no private key to decrypt with");
         }
 
         return Ciphertext.decrypt(ciphertext, this.#privateKey, context);

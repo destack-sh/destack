@@ -62,7 +62,7 @@ export const PublicKey = Object.assign(publicKey, {
         try {
             return await crypto.subtle.importKey("jwk", key, algorithm, false, ["verify"]);
         } catch (error) {
-            throw new IdentityError("INVALID_PUBLIC_KEY", "invalid public key", { cause: error });
+            throw IdentityError.of("INVALID_PUBLIC_KEY", "invalid public key", { cause: error });
         }
     },
 

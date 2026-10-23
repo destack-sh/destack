@@ -1,3 +1,4 @@
+import type { FamilyError } from "@destack/error";
 import { schema } from "@destack/schema";
 import { IdentityError } from "../error/error.ts";
 import { PublicKey } from "../key/key.ts";
@@ -186,11 +187,11 @@ export class Proof {
 }
 
 /** Refuse a malformed or unverifiable key proof. */
-function invalid(message: string, cause?: unknown): IdentityError {
-    return new IdentityError("INVALID_PROOF", message, cause === undefined ? undefined : { cause });
+function invalid(message: string, cause?: unknown): FamilyError<"INVALID_PROOF"> {
+    return IdentityError.of("INVALID_PROOF", message, cause === undefined ? undefined : { cause });
 }
 
-/** Decode a part of a compact JWS, refusing one that is no JWS. */
+/** Decode a part of a compact JWS, refusing one that is not a JWS. */
 function decoded(decode: () => unknown): unknown {
     try {
         return decode();
@@ -198,7 +199,7 @@ function decoded(decode: () => unknown): unknown {
         if (!(error instanceof errors.JOSEError || error instanceof TypeError)) {
             throw error;
         }
-        throw invalid("key proof is no compact JWS", error);
+        throw invalid("key proof is not a compact JWS", error);
     }
 }
 

@@ -47,7 +47,10 @@ export const IdentityOperation = Object.assign(identityOperation, {
     read(signed: string): IdentityOperation {
         const claims = identityOperation.safeParse(decode(signed));
         if (!claims.success) {
-            throw new IdentityError("INVALID_OPERATION", "the operation is no identity operation");
+            throw IdentityError.of(
+                "INVALID_OPERATION",
+                "the operation is not an identity operation",
+            );
         }
 
         return claims.data;
