@@ -1,18 +1,10 @@
-import { expect, test } from "@destack/test";
+import { expect, refusal, test } from "@destack/test";
 import { IdentityError } from "../error/error.ts";
 import { PublicKey } from "../key/key.ts";
 import { Proof } from "./proof.ts";
 
 /** The request a request proof binds. */
 const REQUEST = { method: "POST", url: "https://destack.test/machines/token" };
-
-/** Report a verification's outcome: accepted, or the refusal's message. */
-function refusal(verifying: Promise<void>): Promise<string> {
-    return verifying.then(
-        () => "accepted",
-        (error: IdentityError) => error.message,
-    );
-}
 
 test("verify a request proof for its subject, key, time and request, refusing every other one", async () => {
     // sign a proof of one request with a machine's key
@@ -39,12 +31,12 @@ test("verify a request proof for its subject, key, time and request, refusing ev
         await refusal(proof.verify(key, "machine-1", now, { ...REQUEST, method: "GET" })),
         await refusal(proof.verify(key, "machine-1", now)),
     ]).toEqual([
-        "accepted",
-        "key proof signature is invalid",
-        "key proof is for another subject or time",
-        "key proof is for another subject or time",
-        "key proof is for another request",
-        "key proof is for another request",
+        "done",
+        ["BAD_REQUEST", "INVALID_PROOF", "key proof signature is invalid"],
+        ["BAD_REQUEST", "INVALID_PROOF", "key proof is for another subject or time"],
+        ["BAD_REQUEST", "INVALID_PROOF", "key proof is for another subject or time"],
+        ["BAD_REQUEST", "INVALID_PROOF", "key proof is for another request"],
+        ["BAD_REQUEST", "INVALID_PROOF", "key proof is for another request"],
     ]);
 });
 
