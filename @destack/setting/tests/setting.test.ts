@@ -66,7 +66,7 @@ function failure(run: () => unknown): { code: string; message: string } | "accep
             throw error;
         }
 
-        return { code: error.code, message: error.message };
+        return { code: error.reason, message: error.message };
     }
 }
 
@@ -362,11 +362,11 @@ test("refuse placements and writes a setting does not permit", () => {
         message: "setting value uses an unsupported setting override",
     };
     expect([
-        failure(() => plain.requirePlacement({ installation, mode: "set" }, "own")),
+        failure(() => plain.requirePlacement({ installation, mode: "set" }, "declared")),
         failure(() => plain.resolve(selection, [], chain, [laptop])),
         failure(() => editor.requirePlacement({ mode: "set" }, "enclosing")),
-        failure(() => editor.requirePlacement({ mode: "recommend" }, "own")),
-        failure(() => editor.requirePlacement({ space, installation, mode: "set" }, "own")),
+        failure(() => editor.requirePlacement({ mode: "recommend" }, "declared")),
+        failure(() => editor.requirePlacement({ space, installation, mode: "set" }, "declared")),
     ]).toEqual([
         unsupported,
         {

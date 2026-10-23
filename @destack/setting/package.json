@@ -10,7 +10,6 @@
         "./destack.json": "./destack.json",
         "./declare": "./src/declare/index.ts",
         "./inspect": "./src/inspect/index.ts",
-        "./stack": "./src/stack/index.ts",
         "./server": "./src/server/index.ts",
         "./object": "./src/object/index.ts",
         "./package": "./src/package.ts",

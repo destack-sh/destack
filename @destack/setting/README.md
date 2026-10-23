@@ -28,6 +28,14 @@ await client
     .create({ ...editorMode.reference, ...placement, mode: "set", value: "vim", release });
 ```
 
+A stack declares a space's values under `settings`, and stamps each with the release of the build declaring the setting.
+
+```ts
+export default defineStack([settingPackage], {
+    settings: { editor: { ...editorMode.reference, value: "vim", mode: "recommend" } },
+});
+```
+
 ## Resolving
 
 `resolve` picks the value that applies to a selection from the values along its scope chain and a device's own values.
@@ -36,7 +44,10 @@ await client
 const selection = SettingSelection.parse({ scope: userId, space: spaceId });
 const resolution = editorMode.resolve(selection, values, chain, deviceValues);
 resolution.value; // "vim"
-const mode = await SettingValue.resolve(database, editorMode, { ...selection, scope: userId });
+const mode = await SettingValue.resolve(Snapshot.live(database), editorMode, {
+    ...selection,
+    scope: userId,
+});
 ```
 
 ## Replicating
@@ -58,8 +69,7 @@ for await (const { chain, values } of SettingValue.replicate(
 
 ```ts
 import { settingServer } from "@destack/setting/server";
-import { settingTables } from "@destack/setting/stack";
+import { Setting } from "@destack/setting";
 
-const server = settingServer({ declared: SettingCatalog.cached(open), after: [] });
-const database = defineDatabase({ name: "main", tables: settingTables });
+const server = settingServer({ declared: Setting.declared(open), after: [] });
 ```

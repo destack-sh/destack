@@ -1,3 +1,4 @@
+import { SettingError } from "../error/index.ts";
 import { DeclarationReference } from "@destack/package/declare";
 import { type DatabaseConnection, Log, Snapshot, type Select } from "@destack/db";
 import { deviceSetting, type DeviceSettingValue } from "./device-setting.ts";
@@ -9,7 +10,6 @@ import type { SettingSelection } from "../setting/placement.ts";
 import { defineObject, field } from "@destack/object";
 import { Duration, type Identifier, schema, Version } from "@destack/schema";
 import { DeclarationName, type Package, PackageId } from "@destack/package";
-import { StackSetting } from "../declare/stack.ts";
 import { SETTING_MODES } from "../setting/mode.ts";
 import type { Clock } from "@destack/environment";
 
@@ -17,9 +17,10 @@ import type { Clock } from "@destack/environment";
 export const setting = defineObject({
     name: "setting",
     plural: "settings",
-    declarable: { schema: StackSetting },
     // hand every value down to the scopes inside its scope
     inherited: {},
+    // let a stack write a declared value against the release of the build declaring its setting
+    supplied: ["release"],
     fields: {
         /** The package declaring the setting. */
         packageId: field.string(PackageId).immutable(),
@@ -42,7 +43,6 @@ export const setting = defineObject({
         release: field.string(Version),
     },
     permissions: ["read", "write"],
-    adoptable: { by: "write" },
     constraints: {
         placement: {
             kind: "index",
@@ -71,13 +71,13 @@ export const setting = defineObject({
 /** A setting value as its row stores it. */
 export type SettingValue = Select<typeof setting.table>;
 
-/** The values a scope's chain places for some settings, nearest first, and a device's own. */
-export interface SettingPlacement {
+/** The values a scope's chain places for some settings, nearest first, and a device's values. */
+export interface SettingChain {
     /** The scope and the scopes above it, nearest first. */
     readonly chain: string[];
     /** The values the chain places. */
     readonly values: SettingValue[];
-    /** The device's own values, none without a device. */
+    /** The device's values, none without a device. */
     readonly device: DeviceSettingValue[];
 }
 
@@ -86,9 +86,9 @@ export const SettingValue = {
     /** Read the retention a package's setting of days gives a scope. */
     retention(
         database: DatabaseConnection,
-    ): (setting: object, owner: Package, scope: string) => Promise<number> {
+    ): (described: object, owner: Package, scope: string) => Promise<number> {
         return async (described, owner, scope) => {
-            // rebuild the package's setting from its definition, refusing anything but a setting of days
+            // rebuild the setting from the definition its kind's description stores, refusing anything but days
             const definition = schema.record(schema.string(), schema.unknown()).parse(described);
             const {
                 schema: value,
@@ -109,7 +109,7 @@ export const SettingValue = {
                 default: schema.number().int().positive().parse(fallback),
             });
 
-            // resolve it in a scope of its scope type, and take its default in any other
+            // resolve it in a scope of its scope type, and give its default where none can be placed, such as a machine
             const isApplied = schema.identifier(declared.definition.scope).safeParse(scope).success;
             const days = isApplied
                 ? await SettingValue.resolve(Snapshot.live(database), declared, { scope })
@@ -126,7 +126,7 @@ export const SettingValue = {
         selection: SettingSelection & { readonly scope: string },
     ): Promise<schema.Infer<Value>> {
         // read the values the scope and the scopes above it set
-        const chain = (await Scope.chain(reader, selection.scope)).map((link) => link.object.id);
+        const chain = await SettingValue.chain(reader, selection.scope);
         const values = await reader.read(setting.table).findMany({
             where: {
                 AND: [declared.condition(selection), { scope: { in: chain } }],
@@ -136,33 +136,48 @@ export const SettingValue = {
         return declared.resolve(selection, values, chain).value;
     },
 
-    /** Read the values a scope and the scopes above it place for some settings, nearest first. */
-    async along(
-        database: DatabaseConnection,
+    /** Read a scope and the scopes above it, nearest first, refusing a scope this store lacks. */
+    async chain(reader: Pick<Snapshot, "read">, scope: string): Promise<string[]> {
+        const chain = (await Scope.chain(reader, scope)).map((link) => link.object.id);
+        if (chain.length === 0) {
+            throw new SettingError("UNKNOWN_SCOPE", `unknown scope ${scope}`);
+        }
+
+        return chain;
+    },
+
+    /** List the values a scope and the scopes above it place for some settings, nearest first. */
+    async list(
+        reader: Pick<Snapshot, "read">,
         settings: readonly DeclarationReference[],
         scope: string,
-    ): Promise<{ readonly chain: string[]; readonly values: SettingValue[] }> {
-        // read the values placed along the scope's chain
-        const snapshot = Snapshot.live(database);
-        const chain = (await Scope.chain(snapshot, scope)).map((link) => link.object.id);
-        const values =
-            settings.length === 0
-                ? []
-                : await snapshot.read(setting.table).findMany({
-                      where: {
-                          AND: [
-                              { scope: { in: chain } },
-                              {
-                                  OR: settings.map((reference) => ({
-                                      packageId: reference.packageId,
-                                      name: reference.name,
-                                  })),
-                              },
-                          ],
-                      },
-                  });
+    ): Promise<Omit<SettingChain, "device">> {
+        const chain = await SettingValue.chain(reader, scope);
 
-        return { chain, values };
+        return { chain, values: await SettingValue.placed(reader, settings, chain) };
+    },
+
+    /** Read the values a chain of scopes places for some settings. */
+    async placed(
+        reader: Pick<Snapshot, "read">,
+        settings: readonly DeclarationReference[],
+        chain: readonly string[],
+    ): Promise<SettingValue[]> {
+        return settings.length === 0 || chain.length === 0
+            ? []
+            : await reader.read(setting.table).findMany({
+                  where: {
+                      AND: [
+                          { scope: { in: [...chain] } },
+                          {
+                              OR: settings.map((reference) => ({
+                                  packageId: reference.packageId,
+                                  name: reference.name,
+                              })),
+                          },
+                      ],
+                  },
+              });
     },
 
     /** Replicate a scope's values from their store into a database, yielding each change. */
@@ -182,7 +197,7 @@ export const SettingValue = {
             readonly clock: Clock;
         },
         signal: AbortSignal,
-    ): AsyncGenerator<{ readonly chain: string[]; readonly values: SettingValue[] }> {
+    ): AsyncGenerator<SettingChain> {
         // open a client of the scope's values over the database
         const { endpoint, scope, caller, database, clock } = options;
         const client = await ObjectClient.open({
@@ -201,14 +216,12 @@ export const SettingValue = {
 
         // record the first failure, which stops following
         const failed = Promise.withResolvers<never>();
-        failed.promise.catch(() => {});
-        let failure: { readonly error: unknown } | undefined;
+        failed.promise.catch(() => undefined);
         const stopping = new AbortController();
         const following = AbortSignal.any([signal, stopping.signal]);
 
         // run the client and subscribe to the values
         const running = client.run(following, (error) => {
-            failure = { error };
             failed.reject(error);
             stopping.abort();
         });
@@ -226,9 +239,9 @@ export const SettingValue = {
             ]);
             yield* SettingValue.follow(database, options.settings, { scope }, following);
 
-            // fail with the replica's failure, ending quietly once stopped
-            if (failure !== undefined) {
-                throw failure.error;
+            // fail with the replica's failure, which alone stops following before the caller does
+            if (stopping.signal.aborted) {
+                await failed.promise;
             }
         } finally {
             stopping.abort();
@@ -249,45 +262,67 @@ export const SettingValue = {
             readonly device?: Identifier<"device">;
         },
         signal: AbortSignal,
-    ): AsyncGenerator<SettingPlacement> {
+    ): AsyncGenerator<SettingChain> {
         // read the values along the chain and the device's own
         const { scope, device } = at;
         const named = settings.map((reference) => ({
             packageId: reference.packageId,
             name: reference.name,
         }));
-        const read = async (): Promise<SettingPlacement> => ({
-            ...(await SettingValue.along(database, settings, scope)),
-            device:
+        const read = async (): Promise<SettingChain> => {
+            // read the chain as it stands, none before its scope replicates, with its values and the device's values
+            const snapshot = Snapshot.live(database);
+            const chain = (await Scope.chain(snapshot, scope)).map((link) => link.object.id);
+            const values = await SettingValue.placed(snapshot, settings, chain);
+            const devices =
                 device === undefined
                     ? []
-                    : await Snapshot.live(database)
+                    : await snapshot
                           .read(deviceSetting.table)
-                          .findMany({ where: { scope: device, OR: named } }),
-        });
+                          .findMany({ where: { scope: device, OR: named } });
 
-        // yield them now from the log's position, then after each page changing them
+            return { chain, values, device: devices };
+        };
+
+        // yield them now from the log's position
         const log = new Log(database);
-        const { sequence } = await log.position();
-        const current = await read();
+        let { sequence } = await log.position();
+        let current = await read();
         yield current;
-        const pages = log.follow(
-            {
-                tables:
-                    device === undefined ? [setting.table] : [setting.table, deviceSetting.table],
-                after: sequence,
-                scopes: device === undefined ? current.chain : [...current.chain, device],
-            },
-            signal,
-        );
-        const changes = pages[Symbol.asyncIterator]();
-        try {
-            while ((await changes.next()).done !== true) {
-                yield await read();
+
+        // yield them after each page changing them, following the chain again once it changes
+        const tables = [
+            setting.table,
+            Scope.table,
+            ...(device === undefined ? [] : [deviceSetting.table]),
+        ];
+        for (;;) {
+            const scopes = device === undefined ? current.chain : [...current.chain, device];
+            const pages = log.follow({ tables, after: sequence, scopes }, signal);
+            const changes = pages[Symbol.asyncIterator]();
+            try {
+                // read again after each page until the follow ends or the chain changes
+                let page = await changes.next();
+                while (page.done !== true) {
+                    sequence = page.value.sequence;
+                    const next = await read();
+                    yield next;
+                    const isMoved = next.chain.join(" ") !== current.chain.join(" ");
+                    current = next;
+                    if (isMoved) {
+                        break;
+                    }
+                    page = await changes.next();
+                }
+
+                // end once the follow ends, else follow the new chain
+                if (page.done === true) {
+                    return;
+                }
+            } finally {
+                // stop following once the caller stops reading or the chain changes
+                await changes.return?.(undefined);
             }
-        } finally {
-            // stop following once the caller stops reading
-            await changes.return?.(undefined);
         }
     },
 };

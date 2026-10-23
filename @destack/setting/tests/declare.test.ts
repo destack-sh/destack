@@ -1,17 +1,14 @@
-import { space } from "./fixture/space.ts";
-import { TEST_DIALECTS } from "@destack/db/test";
-import { ObjectReference, Scope } from "@destack/sync";
-import { AccessFixture } from "@destack/access/test";
-import { expect, onTestFinished, refusal, test } from "@destack/test";
+import { ObjectReference } from "@destack/sync";
+import { expect, refusal, single, test } from "@destack/test";
 import { asc, eq } from "@destack/db";
 import { Stack } from "@destack/object/server";
-import { schema, type JsonObject } from "@destack/schema";
+import { nth, schema, type JsonObject } from "@destack/schema";
 
 import { defineSetting } from "../src/declare/index.ts";
 import { setting } from "../src/object/index.ts";
-import { implementSetting } from "../src/server/index.ts";
-import { editor, notes } from "./fixture/setting/editor.ts";
-import { Storage } from "./fixture/storage.ts";
+import type { SettingDeclared } from "../src/setting/index.ts";
+import { editor, notes, release } from "./fixture/setting/index.ts";
+import { openSettings } from "./fixture/store.ts";
 
 /** A space-wide template the space's stack selects. */
 const template = defineSetting(
@@ -27,114 +24,148 @@ const manager = {
     packageId: schema.identifier("package").parse("package-01996ab0-0000-7000-8000-000000000002"),
 };
 
-/** The space receiving the values. */
-const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000003");
+test("set, recommend and require declared values in the space and refuse undeclared or misplaced ones", async () => {
+    // serve the space's settings, checked against the build declaring them
+    await using served = await openSettings({ settings: [editor, template] });
+    const spaceId = served.scope;
+    const objects = served.store.objects.filter((type) => type.same(setting));
+    const reader = release([editor, template]);
+    let applied: JsonObject = {};
+    const apply = async (settings: JsonObject) => {
+        // apply the settings against the ones applied last
+        const document = { settings };
+        const plan = await new Stack({
+            database: served.database,
+            objects,
+            store: served.store,
+            as: served.store.principal,
+            release: async () => await reader,
+            manager,
+            scope: spaceId,
+            document,
+            applied,
+        }).apply(Date.now());
+        applied = document;
 
-test.each(TEST_DIALECTS)(
-    "set, recommend and require declared values in the space and refuse undeclared or misplaced ones on %s",
-    async (dialect) => {
-        const storage = await Storage.open(dialect, [editor, template]);
-        onTestFinished(() => storage.close());
-        await new AccessFixture(storage.database).replicateScope(
-            space.reference(Scope.universe.id, spaceId),
-            "own",
-        );
-        const objects = [implementSetting({ declared: storage.declared, after: [] })];
-        const served = storage.space(spaceId);
-        const apply = (settings: JsonObject) =>
-            Stack.apply({
-                now: Date.now(),
-                database: storage.database,
-                objects,
-                store: served,
-                as: served.principal,
-                release: () => storage.reader,
-                manager,
-                scope: spaceId,
-                document: { settings },
-            });
+        return plan;
+    };
 
-        // set the space template and recommend the editor mode to the space's users
-        await apply({
-            template: { setting: template.reference, value: "vim", mode: "set" },
-            editor: { setting: editor.reference, value: "vim", mode: "recommend" },
-        });
-        const rows = await storage.database
+    // set the space template and recommend the editor mode to the space's users
+    await apply({
+        template: { ...template.reference, value: "vim", mode: "set" },
+        editor: { ...editor.reference, value: "vim", mode: "recommend" },
+    });
+    const rows = await served.database
+        .select()
+        .from(setting.table)
+        .orderBy(asc(setting.table.name));
+    const written = {
+        ...ObjectReference.columns("createdBy", served.store.principal),
+        ...ObjectReference.columns("updatedBy", served.store.principal),
+        scope: spaceId,
+        revision: 1,
+        tags: {},
+        managerInstallationId: manager.installationId,
+        managerPackageId: manager.packageId,
+        detachedAt: null,
+        packageId: notes.id,
+        package: null,
+        space: null,
+        installation: null,
+        value: "vim",
+        release: "2026.9.0",
+    };
+    const editorRow = nth(rows, 0);
+    const templateRow = nth(rows, 1);
+    expect(rows).toEqual([
+        {
+            ...written,
+            id: editorRow.id,
+            createdAt: editorRow.createdAt,
+            updatedAt: editorRow.updatedAt,
+            managerName: "editor",
+            name: "editor.mode",
+            mode: "recommend",
+        },
+        {
+            ...written,
+            id: templateRow.id,
+            createdAt: templateRow.createdAt,
+            updatedAt: templateRow.updatedAt,
+            managerName: "template",
+            name: "template",
+            mode: "set",
+        },
+    ]);
+
+    // refuse values outside the setting's schema, undeclared settings,
+    //  and a user's value set in the space, which may only recommend or require it
+    const unknown = { ...editor.reference, name: "editor.theme" };
+    expect([
+        await refusal(
+            apply({
+                template: { ...template.reference, value: "emacs", mode: "set" },
+            }),
+        ),
+        await refusal(apply({ theme: { ...unknown, value: "vim", mode: "recommend" } })),
+        await refusal(apply({ editor: { ...editor.reference, value: "vim", mode: "set" } })),
+    ]).toEqual([
+        ["BAD_REQUEST", "INVALID_VALUE", "setting value does not match its declaration"],
+        ["NOT_FOUND", "UNDECLARED", `setting ${notes.id}/editor.theme is not declared`],
+        [
+            "BAD_REQUEST",
+            "INVALID_PLACEMENT",
+            "setting value outside its declared scope must recommend or require",
+        ],
+    ]);
+
+    // turn the recommendation into a requirement of the space's users
+    await apply({
+        template: { ...template.reference, value: "vim", mode: "set" },
+        editor: { ...editor.reference, value: "vim", mode: "require" },
+    });
+    const requirement = single(
+        await served.database
             .select()
             .from(setting.table)
-            .orderBy(asc(setting.table.name));
-        const written = {
-            ...ObjectReference.columns("createdBy", undefined),
-            ...ObjectReference.columns("updatedBy", undefined),
-            scope: spaceId,
-            revision: 1,
-            tags: {},
-            managerInstallationId: manager.installationId,
-            managerPackageId: manager.packageId,
-            detachedAt: null,
-            packageId: notes.id,
-            package: null,
-            space: null,
-            installation: null,
-            value: "vim",
-            release: "2026.9.0",
-        };
-        const [editorRow, templateRow] = rows;
-        if (editorRow === undefined || templateRow === undefined) {
-            throw new TypeError("the stack placed fewer than two values");
-        }
-        expect(rows).toEqual([
-            {
-                ...written,
-                id: editorRow.id,
-                createdAt: editorRow.createdAt,
-                updatedAt: editorRow.updatedAt,
-                managerName: "editor",
-                name: "editor.mode",
-                mode: "recommend",
-            },
-            {
-                ...written,
-                id: templateRow.id,
-                createdAt: templateRow.createdAt,
-                updatedAt: templateRow.updatedAt,
-                managerName: "template",
-                name: "template",
-                mode: "set",
-            },
-        ]);
+            .where(eq(setting.table.name, "editor.mode")),
+    );
+    expect(requirement).toEqual({
+        ...written,
+        id: editorRow.id,
+        createdAt: editorRow.createdAt,
+        updatedAt: requirement.updatedAt,
+        managerName: "editor",
+        name: "editor.mode",
+        mode: "require",
+        revision: 2,
+    });
+});
 
-        // refuse values outside the setting's schema, undeclared settings,
-        //  and a user's value set in the space, which may only recommend or require it
-        const unknown = { ...editor.reference, name: "editor.theme" };
-        expect([
-            await refusal(
-                apply({
-                    template: { setting: template.reference, value: "emacs", mode: "set" },
-                }),
-            ),
-            await refusal(apply({ theme: { setting: unknown, value: "vim", mode: "recommend" } })),
-            await refusal(
-                apply({ editor: { setting: editor.reference, value: "vim", mode: "set" } }),
-            ),
-        ]).toEqual([
-            ["INVALID_VALUE", "setting value does not match its declaration"],
-            ["UNDECLARED", `setting ${notes.id}/editor.theme is not declared`],
-            [
-                "INVALID_PLACEMENT",
-                "setting value outside its declared scope must recommend or require",
-            ],
-        ]);
+test("stamp a declared value with the release of the build declaring its setting, then check it at that release", async () => {
+    // apply a recommendation of a setting its build declares, recording each build the store opens
+    const opened: SettingDeclared[] = [];
+    await using served = await openSettings({ settings: [editor], opened });
+    const reader = release([editor]);
+    await new Stack({
+        database: served.database,
+        objects: served.store.objects.filter((type) => type.same(setting)),
+        store: served.store,
+        as: served.store.principal,
+        release: async () => await reader,
+        manager,
+        scope: served.scope,
+        document: {
+            settings: { editor: { ...editor.reference, value: "vim", mode: "recommend" } },
+        },
+        applied: {},
+    }).apply(Date.now());
 
-        // turn the recommendation into a requirement of the space's users
-        await apply({
-            template: { setting: template.reference, value: "vim", mode: "set" },
-            editor: { setting: editor.reference, value: "vim", mode: "require" },
-        });
-        const [requirement] = await storage.database
-            .select({ mode: setting.table.mode, revision: setting.table.revision })
-            .from(setting.table)
-            .where(eq(setting.table.name, "editor.mode"));
-        expect(requirement).toEqual({ mode: "require", revision: 2 });
-    },
-);
+    // stamp the value with the installed build's release, then check the write against that release
+    const placed = single(await served.database.select().from(setting.table));
+    const declared = { ...editor.reference, scope: served.scope };
+    expect([placed.release, opened]).toEqual([
+        editor.package.version,
+        [declared, { ...declared, release: editor.package.version }],
+    ]);
+});

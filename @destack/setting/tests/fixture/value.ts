@@ -1,3 +1,4 @@
+import { principal } from "@destack/access";
 import { schema } from "@destack/schema";
 import type { DeviceSettingValue, SettingValue } from "../../src/object/index.ts";
 import { ObjectReference, Scope } from "@destack/sync";
@@ -8,6 +9,9 @@ import { editor } from "./setting/index.ts";
 
 /** Alice's personal scope. */
 export const alice = "user-019f5530-8000-7000-8000-000000000003";
+
+/** Alice, who owns her personal scope. */
+export const aliceUser = principal.user.reference(Scope.universe.id, alice);
 
 /** Bob's space, in which Alice acts. */
 export const space = schema.identifier("space").parse("space-019f5530-8000-7000-8000-000000000003");

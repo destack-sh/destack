@@ -4,7 +4,8 @@ import type {} from "@destack/package/import-meta";
 import { BuildCache, type BuildReader } from "@destack/package/manifest";
 import { fromJsonSchema, nth, schema, Version, canonicalize } from "@destack/schema";
 import type { JsonObject, JsonValue } from "@destack/schema";
-import { Expression, Condition } from "@destack/db";
+import { Expression, Condition, type Table } from "@destack/db";
+import type { RelationalQueryBuilder } from "@destack/db";
 import type { SettingDefinition } from "../declare/setting.ts";
 import type { SettingValue } from "../object/setting.ts";
 import type { DeviceSettingValue } from "../object/device-setting.ts";
@@ -150,17 +151,14 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         return setting;
     }
 
-    /** Find a written value's setting in the build `open` opens for it, reading each build once. */
+    /** Find a value's setting in the build `open` opens for it in a view, each build read once. */
     static declared(
-        open: (
-            written: DeclarationReference & SettingPlacement & Pick<SettingWrite, "release">,
-        ) => Promise<BuildReader>,
-    ): (
-        written: DeclarationReference & SettingPlacement & Pick<SettingWrite, "release">,
-    ) => Promise<Setting> {
+        open: (written: SettingDeclared, view: SettingView) => Promise<BuildReader>,
+    ): (written: SettingDeclared, view: SettingView) => Promise<Setting> {
         const builds = new BuildCache((reader) => Setting.list(reader));
 
-        return async (written) => Setting.find(await builds.read(await open(written)), written);
+        return async (written, view) =>
+            Setting.find(await builds.read(await open(written, view)), written);
     }
 
     /** The identity its values refer to. */
@@ -401,9 +399,9 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         }
         this.requireValue(converted.value);
 
-        // require the placement of the setting's own scope, or of an enclosing one
+        // require the placement of the setting's declared scope, or of an enclosing one
         const position = schema.identifier(this.definition.scope).safeParse(scope).success
-            ? "own"
+            ? "declared"
             : "enclosing";
         this.requirePlacement(write, position);
     }
@@ -411,10 +409,10 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
     /** Require a value to have the mode and overrides its scope permits. */
     requirePlacement(
         value: Omit<SettingPlacement, "scope"> & { readonly mode: SettingMode },
-        position: "own" | "enclosing",
+        position: "declared" | "enclosing",
     ): void {
-        // require set values in the setting's own scope
-        if (position === "own" && value.mode !== "set") {
+        // require set values in the setting's declared scope
+        if (position === "declared" && value.mode !== "set") {
             throw new SettingError(
                 "INVALID_PLACEMENT",
                 "setting value in its declared scope must be set",
@@ -436,9 +434,9 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
             );
         }
 
-        // permit the declared overrides in the own scope, and an installation from enclosing scopes
+        // permit the declared overrides in the declared scope, and an installation from enclosing scopes
         const permitted: readonly string[] =
-            position === "own" ? this.definition.overrides : ["installation"];
+            position === "declared" ? this.definition.overrides : ["installation"];
         const overrides = (
             [
                 ["package", value.package],
@@ -529,7 +527,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
     ): Rank | undefined {
         // rank a value set in the selected scope by the overrides matching the selection
         if (value.scope === selection.scope) {
-            this.requirePlacement({ ...placement, mode: value.mode }, "own");
+            this.requirePlacement({ ...placement, mode: value.mode }, "declared");
             const weight = setWeight(placement, selection);
 
             return weight === undefined ? undefined : [SET_TIER, weight];
@@ -714,4 +712,15 @@ function equalValue(left: unknown, right: unknown): boolean {
 /** Read a merged setting's value as its record of keys. */
 function recordOf(value: unknown): JsonObject {
     return schema.jsonObject().parse(value);
+}
+
+/** A value's setting at a placement, its release absent until a stack stamps it. */
+export type SettingDeclared = DeclarationReference &
+    SettingPlacement &
+    Partial<Pick<SettingWrite, "release">>;
+
+/** A view a setting's declaring build is read in: a call's or an apply's. */
+export interface SettingView {
+    /** Read a table's rows in the view. */
+    readonly read: <Read extends Table>(table: Read) => RelationalQueryBuilder<Read>;
 }
