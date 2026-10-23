@@ -12,11 +12,17 @@ const errorConstructors = new Set([
     "AggregateError",
 ]);
 
-/** A failure code, such as NOT_FOUND, that coded error constructors take before their message. */
+/** A failure reason, such as NOTE_NOT_FOUND, that an error family takes before its message. */
 const CODE = /^[A-Z][A-Z0-9_]*$/u;
 
 /** The call failure constructor whose options include the message. */
 const CALL_ERROR = "CallError";
+
+/** The family failure constructor that takes its message after the failure. */
+const FAMILY_ERROR = "FamilyError";
+
+/** The call that declares an error family. */
+const DEFINE_ERROR_FAMILY = "defineErrorFamily";
 
 /** Check error messages without assuming custom constructor signatures. */
 export const errorMessageStyle: Rule = {
@@ -91,23 +97,100 @@ export const errorMessageStyle: Rule = {
             }
         }
 
-        /** Check whether a name resolves to a local declaration. */
-        function isShadowed(node: ESTree.Node, name: string): boolean {
+        /** Find the declaration a name resolves to. */
+        function resolve(node: ESTree.Node, name: string) {
             // walk the scopes outward
             let scope: ReturnType<typeof context.sourceCode.getScope> | null =
                 context.sourceCode.getScope(node);
             while (scope) {
                 const variable = scope.set.get(name);
                 if (variable !== undefined && variable.defs.length > 0) {
-                    return true;
+                    return variable.defs[0];
                 }
                 scope = scope.upper;
             }
 
-            return false;
+            return undefined;
+        }
+
+        /** Check whether a name resolves to a local declaration. */
+        function isShadowed(node: ESTree.Node, name: string): boolean {
+            return resolve(node, name) !== undefined;
+        }
+
+        /** Check whether a name is an error family, declared here or imported from its module. */
+        function isFamily(node: ESTree.Node, name: string): boolean {
+            // accept imported bindings, whose declaring module this file cannot see
+            const definition = resolve(node, name);
+            if (definition?.type === "ImportBinding") {
+                return true;
+            }
+
+            // accept a local defineErrorFamily binding
+            const declarator = definition?.node;
+            const initializer = declarator?.type === "VariableDeclarator" ? declarator.init : null;
+
+            return (
+                initializer?.type === "CallExpression" &&
+                initializer.callee.type === "Identifier" &&
+                initializer.callee.name === DEFINE_ERROR_FAMILY
+            );
+        }
+
+        /** Check a call error's message among literal options unless a spread may contain it. */
+        function checkOptions(node: ESTree.Node, options: ESTree.Node | undefined): void {
+            // find the message property
+            const properties = options?.type === "ObjectExpression" ? options.properties : [];
+            const message = properties.find(
+                (property) =>
+                    property.type === "Property" &&
+                    !property.computed &&
+                    property.key.type === "Identifier" &&
+                    property.key.name === "message",
+            );
+            const isOpaque =
+                (options !== undefined && options.type !== "ObjectExpression") ||
+                properties.some((property) => property.type === "SpreadElement");
+
+            // check a named message
+            if (message?.type === "Property") {
+                checkStyle(message.value);
+            }
+            // require a message unless opaque options may contain it
+            else if (!isOpaque) {
+                context.report({ node, messageId: "missing" });
+            }
         }
 
         return {
+            CallExpression(node) {
+                // read a static member call, as in NoteError.of or CallError.http
+                const { callee } = node;
+                if (
+                    callee.type !== "MemberExpression" ||
+                    callee.computed ||
+                    callee.object.type !== "Identifier" ||
+                    callee.property.type !== "Identifier"
+                ) {
+                    return;
+                }
+                const owner = callee.object.name;
+                const method = callee.property.name;
+
+                // check a family failure's message after its reason, as in NoteError.of(reason, message)
+                const reason = node.arguments[0];
+                const isCoded =
+                    reason?.type === "Literal" &&
+                    typeof reason.value === "string" &&
+                    CODE.test(reason.value);
+                if (method === "of" && isCoded && isFamily(node, owner)) {
+                    checkStyle(node.arguments[1]);
+                }
+                // check a call error's options, as in CallError.http(code, { message })
+                else if (method === "http" && owner === CALL_ERROR) {
+                    checkOptions(node, node.arguments[1]);
+                }
+            },
             NewExpression(node) {
                 // inspect named constructors only
                 if (node.callee.type !== "Identifier") {
@@ -118,48 +201,14 @@ export const errorMessageStyle: Rule = {
                 // check a native error's message argument
                 if (errorConstructors.has(name) && !isShadowed(node, name)) {
                     checkStyle(node.arguments[name === "AggregateError" ? 1 : 0]);
-
-                    return;
                 }
-                // check a coded error's message after its code
-                else if (name !== CALL_ERROR && name.endsWith("Error")) {
-                    const code = node.arguments[0];
-                    const isCoded =
-                        code?.type === "Literal" &&
-                        typeof code.value === "string" &&
-                        CODE.test(code.value);
-                    if (isCoded) {
-                        checkStyle(node.arguments[1]);
-                    }
-
-                    return;
+                // check a family failure's message after the failure
+                else if (name === FAMILY_ERROR) {
+                    checkStyle(node.arguments[1]);
                 }
-                // leave every other constructor alone
-                else if (name !== CALL_ERROR) {
-                    return;
-                }
-
-                // find a call error's message among literal options unless a spread may contain it
-                const options = node.arguments[1];
-                const properties = options?.type === "ObjectExpression" ? options.properties : [];
-                const message = properties.find(
-                    (property) =>
-                        property.type === "Property" &&
-                        !property.computed &&
-                        property.key.type === "Identifier" &&
-                        property.key.name === "message",
-                );
-                const isOpaque =
-                    (options !== undefined && options.type !== "ObjectExpression") ||
-                    properties.some((property) => property.type === "SpreadElement");
-
-                // check a named message
-                if (message?.type === "Property") {
-                    checkStyle(message.value);
-                }
-                // require a message unless opaque options may contain it
-                else if (!isOpaque) {
-                    context.report({ node, messageId: "missing" });
+                // check a call error's options
+                else if (name === CALL_ERROR) {
+                    checkOptions(node, node.arguments[1]);
                 }
             },
         };

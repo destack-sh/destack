@@ -189,8 +189,11 @@ tester.run("error-message-style", rules["error-message-style"], {
             code: 'const failure = new CallError("FORBIDDEN", { ...options });',
             filename: SOURCE,
         },
-        'throw new UpdateError("INSTALL", "invalid staged release digest");',
+        'import { UpdateError } from "./error.ts"; throw UpdateError.of("INSTALL", "invalid staged release digest");',
         "const failure = new NoteError(message);",
+        'const Note = new Map(); Note.of("DRAFT", "Draft.");',
+        'throw CallError.http("NOT_FOUND", { message: "note not found" });',
+        'throw new FamilyError(failure, "note not found");',
         'const notes = new Map([["Note", "Draft."]]);',
     ],
     invalid: [
@@ -205,13 +208,27 @@ tester.run("error-message-style", rules["error-message-style"], {
             errors: [{ messageId: "style" }],
         },
         {
-            code: 'throw new UpdateError("INSTALL", `Unsafe archive path: ${path}.`);',
-            output: 'throw new UpdateError("INSTALL", `unsafe archive path: ${path}`);',
+            code: 'import { UpdateError } from "./error.ts"; throw UpdateError.of("INSTALL", `Unsafe archive path: ${path}.`);',
+            output: 'import { UpdateError } from "./error.ts"; throw UpdateError.of("INSTALL", `unsafe archive path: ${path}`);',
             errors: [{ messageId: "style" }],
         },
         {
-            code: 'throw new UpdateError("INSTALL", "Invalid staged release digest.");',
-            output: 'throw new UpdateError("INSTALL", "invalid staged release digest");',
+            code: 'const Update = defineErrorFamily(owner, {}); throw Update.of("INSTALL", "Invalid staged release digest.");',
+            output: 'const Update = defineErrorFamily(owner, {}); throw Update.of("INSTALL", "invalid staged release digest");',
+            errors: [{ messageId: "style" }],
+        },
+        {
+            code: 'throw CallError.http("NOT_FOUND", { message: "Note not found." });',
+            output: 'throw CallError.http("NOT_FOUND", { message: "note not found" });',
+            errors: [{ messageId: "style" }],
+        },
+        {
+            code: 'throw CallError.http("NOT_FOUND");',
+            errors: [{ messageId: "missing" }],
+        },
+        {
+            code: 'throw new FamilyError(failure, "Note not found.");',
+            output: 'throw new FamilyError(failure, "note not found");',
             errors: [{ messageId: "style" }],
         },
         {

@@ -1,37 +1,20 @@
-import type { DomainError, CallErrorCode, Failure } from "@destack/error";
+import { defineErrorFamily, type ReasonOf } from "@destack/error";
 
-/** The domain of check failures, written out: check runs outside the Destack build. */
+/** The package name: check runs outside the Destack build, where no metadata is injected. */
 const DOMAIN = "@destack/check";
 
-/** The call error code of each check failure. */
-const CALL_CODES = {
-    TOOL_FAILED: "INTERNAL_SERVER_ERROR",
-    INVALID_CONFIGURATION: "BAD_REQUEST",
-    LANGUAGE_SERVICE_FAILED: "INTERNAL_SERVER_ERROR",
-} as const satisfies Readonly<Record<string, CallErrorCode>>;
+/** The check package's failures, each reason with the call error code it answers. */
+export const CheckError = defineErrorFamily(
+    { name: DOMAIN },
+    {
+        // bad request
+        INVALID_CONFIGURATION: { code: "BAD_REQUEST" },
 
-/** The stable causes of check failures. */
-export type CheckReason = keyof typeof CALL_CODES;
+        // internal server error
+        LANGUAGE_SERVICE_FAILED: { code: "INTERNAL_SERVER_ERROR" },
+        TOOL_FAILED: { code: "INTERNAL_SERVER_ERROR" },
+    },
+);
 
-/** A failed checker invocation or unsupported package. */
-export class CheckError extends Error implements DomainError {
-    /** The failure's stable cause within its package. */
-    readonly reason: CheckReason;
-
-    /** Identify the failed operation. */
-    constructor(reason: CheckReason, message: string, options?: ErrorOptions) {
-        super(message, options);
-        this.name = "CheckError";
-        this.reason = reason;
-    }
-
-    /** Convert the failure to the call error a caller receives. */
-    toCallError(): Failure {
-        return {
-            code: CALL_CODES[this.reason],
-            reason: this.reason,
-            domain: DOMAIN,
-            message: this.message,
-        };
-    }
-}
+/** A stable cause of check failures. */
+export type CheckReason = ReasonOf<typeof CheckError>;

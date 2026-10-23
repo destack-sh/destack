@@ -40,7 +40,7 @@ export function lintConfiguration(
     const rules: Record<string, "error"> = {};
     for (const plugin of plugins) {
         if (names.has(plugin.name)) {
-            throw new CheckError("INVALID_CONFIGURATION", `duplicate lint plugin: ${plugin.name}`);
+            throw CheckError.of("INVALID_CONFIGURATION", `duplicate lint plugin: ${plugin.name}`);
         }
         names.add(plugin.name);
         for (const name of Object.keys(plugin.rules)) {
@@ -338,7 +338,7 @@ export async function checkConfiguration(
         if (existsSync(path)) {
             const source = await readFile(path, "utf8");
             if (!isDeepStrictEqual(JSON.parse(source), configuration)) {
-                throw new CheckError(
+                throw CheckError.of(
                     "INVALID_CONFIGURATION",
                     `${name} differs from the shared configuration; run configure`,
                 );

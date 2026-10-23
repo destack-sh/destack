@@ -24,7 +24,7 @@ export const noInlineConfiguration: Rule = {
                 // reject configuration before Oxlint filters suppressed diagnostics
                 const line = directiveLine(context.sourceCode.getAllComments());
                 if (line !== undefined) {
-                    throw new CheckError(
+                    throw CheckError.of(
                         "INVALID_CONFIGURATION",
                         `${context.filename}:${line}: fix the code the rule reports, or suppress its next line with \`oxlint-disable-next-line <rules> -- <reason>\``,
                     );

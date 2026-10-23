@@ -1,9 +1,8 @@
-import { expect, onTestFinished, test } from "vitest";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { TYPESCRIPT_OPTIONS } from "@destack/package/build";
-import { CheckError } from "../src/error/index.ts";
 import {
     checkConfiguration,
     configurePackage,
@@ -117,12 +116,11 @@ test("refuse a hand-edited tsconfig.json", async () => {
         const path = join(directory, "tsconfig.json");
         const source = await readFile(path, "utf8");
         await writeFile(path, source.replace('"strict": true', '"strict": false'));
-        await expect(checkConfiguration(directory)).rejects.toThrow(
-            new CheckError(
-                "INVALID_CONFIGURATION",
-                "tsconfig.json differs from the shared configuration; run configure",
-            ),
-        );
+        expect(await refusal(checkConfiguration(directory))).toEqual([
+            "BAD_REQUEST",
+            "INVALID_CONFIGURATION",
+            "tsconfig.json differs from the shared configuration; run configure",
+        ]);
     } finally {
         await rm(directory, { recursive: true });
     }

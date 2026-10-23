@@ -117,7 +117,7 @@ async function throwTypes(
         throws.map(async (node, index) => {
             const type = types[index];
             if (!type) {
-                throw new CheckError(
+                throw CheckError.of(
                     "LANGUAGE_SERVICE_FAILED",
                     "compiler returned no type for a throw expression",
                 );

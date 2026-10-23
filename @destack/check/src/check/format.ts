@@ -20,7 +20,7 @@ export async function formatSource(filename: string, source: string): Promise<st
     const { format } = await import("oxfmt");
     const result = await format(filename, source, formatConfiguration);
     if (result.errors.length) {
-        throw new CheckError("TOOL_FAILED", JSON.stringify(result.errors));
+        throw CheckError.of("TOOL_FAILED", JSON.stringify(result.errors));
     }
 
     return result.code;
