@@ -2,6 +2,7 @@ import { schema, Text } from "@destack/schema";
 import { PackageId } from "../definition/package.ts";
 import { PackagePath } from "../file/file.ts";
 import { Sandbox } from "../definition/sandbox.ts";
+import { PackageError } from "../error/index.ts";
 
 /** The presentation priorities, the strongest first. */
 const PRESENTATION_PRIORITIES = ["default", "option"] as const;
@@ -60,8 +61,9 @@ export const ViewDescription = Object.assign(viewDescription, {
         for (const [output, compiled] of Object.entries(manifest.outputs)) {
             for (const [name, view] of Object.entries(compiled.views)) {
                 if (Object.hasOwn(views, name)) {
-                    throw new TypeError(
-                        `output ${output} compiles view ${name} another output does`,
+                    throw PackageError.of(
+                        "DUPLICATE_VIEW",
+                        `output ${output} compiles view ${name}, which another output already compiles`,
                     );
                 }
                 views[name] = view;

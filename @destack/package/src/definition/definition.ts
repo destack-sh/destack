@@ -87,10 +87,7 @@ export const PackageDefinition = Object.assign(definition, {
     runtimes(value: PackageDefinition, name: string): Runtime[] {
         const runtimes = value.exports?.[name]?.runtimes ?? value.runtimes;
         if (runtimes === undefined) {
-            throw new PackageError(
-                "INVALID_DEFINITION",
-                `no runtimes declared for export: ${name}`,
-            );
+            throw PackageError.of("INVALID_DEFINITION", `no runtimes declared for export: ${name}`);
         }
 
         return runtimes;
@@ -136,10 +133,7 @@ function requireRuntimes(value: PackageDefinition): PackageDefinition {
         ...Object.values(value.exports ?? {}).flatMap((entry) => entry.runtimes),
     ];
     if (value.sandbox?.process !== undefined && !runtimes.includes("bun")) {
-        throw new PackageError(
-            "INVALID_DEFINITION",
-            "the process ability requires the bun runtime",
-        );
+        throw PackageError.of("INVALID_DEFINITION", "the process ability requires the bun runtime");
     }
 
     return value;

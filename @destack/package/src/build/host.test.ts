@@ -1,4 +1,4 @@
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, test, refusal } from "@destack/test";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -23,4 +23,14 @@ test("classify host modules a runtime keeps, a package replaces with nothing, an
         browser.classify("node:path", importer),
         browser.classify("@example/other", importer),
     ]).toEqual(["external", "empty", "unavailable", undefined]);
+});
+
+test("refuse a host module the runtime lacks and the importing package keeps", async () => {
+    expect(
+        await refusal(() => new HostModules("browser").resolve("node:path", "/app/index.js")),
+    ).toEqual([
+        "UNPROCESSABLE_CONTENT",
+        "HOST_MODULE_UNAVAILABLE",
+        "host module is unavailable on browser: node:path, imported by /app/index.js",
+    ]);
 });

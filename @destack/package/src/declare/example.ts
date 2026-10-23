@@ -75,7 +75,7 @@ export function defineExample<Of, Instance = never>(
     // require JSON properties
     const properties = definition.properties ?? {};
     if (!isProperties<Of>(properties)) {
-        throw new PackageError(
+        throw PackageError.of(
             "INVALID_DEFINITION",
             `example ${name} sets properties that are not JSON`,
         );
@@ -101,7 +101,7 @@ export function defineExample<Of, Instance = never>(
 /** Require one sentence saying what a declaration shows. */
 export function requireDescription(kind: string, name: string, description: string): void {
     if (description.trim() === "") {
-        throw new PackageError("INVALID_DEFINITION", `${kind} ${name} needs a description`);
+        throw PackageError.of("INVALID_DEFINITION", `${kind} ${name} needs a description`);
     }
 }
 

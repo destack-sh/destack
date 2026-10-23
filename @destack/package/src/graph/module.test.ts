@@ -1,4 +1,4 @@
-import { expect, test } from "@destack/test";
+import { expect, test, refusal } from "@destack/test";
 import { Digest } from "@destack/schema";
 import { PackageId } from "../definition/package.ts";
 import { Declaration } from "./declaration.ts";
@@ -45,10 +45,14 @@ test("encode a module whose declarations sit in it, at itself or its symbols, re
     expect({
         encoded: (await Module.file(module(DEFINED))).bytes.byteLength > 0,
         atModule: (await Module.file(module(MODULE))).bytes.byteLength > 0,
-        refused: await Module.file(module(ELSEWHERE)).catch((error: unknown) => String(error)),
+        refused: await refusal(Module.file(module(ELSEWHERE))),
     }).toEqual({
         encoded: true,
         atModule: true,
-        refused: `TypeError: src/a.ts declares ${ELSEWHERE}:object:a in another module`,
+        refused: [
+            "UNPROCESSABLE_CONTENT",
+            "INVALID_INSPECTION",
+            `src/a.ts declares ${ELSEWHERE}:object:a, which belongs to another module`,
+        ],
     });
 });

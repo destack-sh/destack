@@ -4,6 +4,7 @@ import type { Plugin } from "vite";
 import { schema } from "@destack/schema";
 import type { Runtime } from "../runtime/index.ts";
 import { isHostModule, isRuntimeModule } from "./runtime.ts";
+import { PackageError } from "../error/index.ts";
 
 /** The module standing in for a host module a package's `browser` field replaces with nothing. */
 const EMPTY_MODULE = "\0virtual:destack/empty";
@@ -39,7 +40,8 @@ export class HostModules {
         const resolution = this.classify(specifier, importer);
         if (resolution === "unavailable") {
             const importedBy = importer === undefined ? "" : `, imported by ${importer}`;
-            throw new TypeError(
+            throw PackageError.of(
+                "HOST_MODULE_UNAVAILABLE",
                 `host module is unavailable on ${this.runtime}: ${specifier}${importedBy}`,
             );
         }

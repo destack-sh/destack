@@ -40,9 +40,11 @@ test("refuse a module's graph file whose bytes differ from its digest", async ()
     );
 
     const [digest] = Object.values((await build.graph()).modules);
-    await expect(tampered.modules()).rejects.toThrow(
-        new PackageError("INVALID_FILE", `file digest mismatch: graph/${digest}.json`),
-    );
+    expect(await refusal(tampered.modules())).toEqual([
+        "BAD_REQUEST",
+        "INVALID_FILE",
+        `file digest mismatch: graph/${digest}.json`,
+    ]);
 });
 
 test("refuse a distributed file whose bytes differ from its listing, and an unlisted path", async () => {
@@ -102,21 +104,27 @@ test("open a remote build by its manifest digest, and refuse other bytes and uns
     expect([reader.manifest, await reader.load("src/index.js")]).toEqual([build.manifest, content]);
 
     // refuse a manifest of other bytes, an address with credentials and a failed read
-    await expect(
-        BuildReader.open(
-            { manifest: await Digest.of(content), url: "https://registry.example/build/" },
-            fetch,
+    expect(
+        await refusal(
+            BuildReader.open(
+                { manifest: await Digest.of(content), url: "https://registry.example/build/" },
+                fetch,
+            ),
         ),
-    ).rejects.toThrow(new PackageError("INVALID_FILE", "file digest mismatch: manifest.json"));
-    await expect(
-        BuildReader.open(
-            { manifest: digest, url: "https://user:secret@registry.example/build/" },
-            fetch,
+    ).toEqual(["BAD_REQUEST", "INVALID_FILE", "file digest mismatch: manifest.json"]);
+    expect(
+        await refusal(
+            BuildReader.open(
+                { manifest: digest, url: "https://user:secret@registry.example/build/" },
+                fetch,
+            ),
         ),
-    ).rejects.toThrow(new PackageError("INVALID_FILE", "invalid package URL"));
-    await expect(
-        BuildReader.open({ manifest: digest, url: "https://registry.example/missing/" }, fetch),
-    ).rejects.toThrow(new PackageError("INVALID_FILE", "package read failed: HTTP 404"));
+    ).toEqual(["BAD_REQUEST", "INVALID_FILE", "invalid package URL"]);
+    expect(
+        await refusal(
+            BuildReader.open({ manifest: digest, url: "https://registry.example/missing/" }, fetch),
+        ),
+    ).toEqual(["BAD_REQUEST", "INVALID_FILE", "package read failed: HTTP 404"]);
 });
 
 test("list the Destack releases a build resolved, leaving its npm dependencies out", async () => {
@@ -160,15 +168,17 @@ test("read each list and the graph's modules once, and read a list again after a
         loaded.push(path);
         if (path === build.manifest.lists.files.path && isFailing) {
             isFailing = false;
-            throw new PackageError("INVALID_FILE", `package read failed: ${path}`);
+            throw PackageError.of("INVALID_FILE", `package read failed: ${path}`);
         }
 
         return await build.stream(path);
     });
     const { lists } = build.manifest;
-    await expect(reader.files()).rejects.toThrow(
-        new PackageError("INVALID_FILE", `package read failed: ${lists.files.path}`),
-    );
+    expect(await refusal(reader.files())).toEqual([
+        "BAD_REQUEST",
+        "INVALID_FILE",
+        `package read failed: ${lists.files.path}`,
+    ]);
 
     // read every list and the declarations twice, loading each file once after the failed read
     const read = () =>

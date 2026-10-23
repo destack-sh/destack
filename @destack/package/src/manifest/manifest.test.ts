@@ -58,6 +58,10 @@ test("read a Destack package's build as its package, refusing an npm unit's buil
             name: "@example/notes",
             version: "2026.9.0",
         },
-        ["BAD_REQUEST", "INVALID_BUILD", "zod@4.6.5 is an npm unit's build"],
+        [
+            "BAD_REQUEST",
+            "INVALID_BUILD",
+            "zod@4.6.5 is an npm package build, not a Destack package build",
+        ],
     ]);
 });

@@ -39,12 +39,12 @@ async function describe(
 /** Verify a file's exact size and digest before reading its contents. */
 async function verify(file: PackageFile, bytes: Uint8Array<ArrayBuffer>): Promise<void> {
     if (bytes.byteLength !== file.size) {
-        throw new PackageError("INVALID_FILE", `file size mismatch: ${file.path}`);
+        throw PackageError.of("INVALID_FILE", `file size mismatch: ${file.path}`);
     }
 
     // reject any content change, including changes that preserve the length
     const digest = await Digest.of(bytes);
     if (digest !== file.digest) {
-        throw new PackageError("INVALID_FILE", `file digest mismatch: ${file.path}`);
+        throw PackageError.of("INVALID_FILE", `file digest mismatch: ${file.path}`);
     }
 }

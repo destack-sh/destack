@@ -21,7 +21,7 @@ export const ModuleMetadata = Object.assign(moduleMetadataSchema, {
     require(module: ModuleMetadata | undefined, name: string): ModuleMetadata {
         // require the argument appended by the module transform
         if (!module) {
-            throw new PackageError(
+            throw PackageError.of(
                 "INVALID_DEFINITION",
                 `the Destack module transform passed no module to: ${name}`,
             );

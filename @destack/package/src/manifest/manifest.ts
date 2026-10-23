@@ -53,7 +53,10 @@ export const PackageManifest = Object.assign(manifest, {
         // refuse an npm unit's build, which names no Destack package
         if (!("id" in value.package)) {
             const { name, version } = value.package;
-            throw new PackageError("INVALID_BUILD", `${name}@${version} is an npm unit's build`);
+            throw PackageError.of(
+                "INVALID_BUILD",
+                `${name}@${version} is an npm package build, not a Destack package build`,
+            );
         }
 
         return value.package;

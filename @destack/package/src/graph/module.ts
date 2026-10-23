@@ -3,6 +3,7 @@ import { PackagePath } from "../file/file.ts";
 import { Declaration } from "./declaration.ts";
 import { Edge, MODULE_EDGE_KINDS } from "./edge.ts";
 import { Moniker } from "./moniker.ts";
+import { PackageError } from "../error/index.ts";
 
 /** A module's graph file: its imports, exports, declarations and their edges. */
 export const Module = Object.assign(
@@ -49,7 +50,10 @@ async function file(module: Module): Promise<{ digest: Digest; bytes: Uint8Array
         (declaration) => Moniker.module(declaration.symbol) !== module.path,
     );
     if (stray !== undefined) {
-        throw new TypeError(`${module.path} declares ${stray.moniker} in another module`);
+        throw PackageError.of(
+            "INVALID_INSPECTION",
+            `${module.path} declares ${stray.moniker}, which belongs to another module`,
+        );
     }
 
     // encode the module

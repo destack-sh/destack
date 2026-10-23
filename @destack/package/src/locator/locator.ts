@@ -161,7 +161,7 @@ export class PackageLocator {
         // refuse a definition without the manifest of its package
         const manifestText = await readOptional(join(directory, "package.json"));
         if (manifestText === undefined) {
-            throw new PackageError(
+            throw PackageError.of(
                 "INVALID_DEFINITION",
                 `${join(directory, "destack.json")} has no package.json beside it`,
             );
