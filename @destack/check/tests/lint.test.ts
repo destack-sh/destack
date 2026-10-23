@@ -16,8 +16,6 @@ const PACKAGE_INDEX = new URL("../src/index.ts", import.meta.url).pathname;
 /** A package source path for rules that depend on the module location. */
 const SOURCE = new URL("../src/note/note.ts", import.meta.url).pathname;
 
-/** A package test kit path, which only the package's tests and its dependents' tests import. */
-const TEST_KIT = new URL("../src/note/test/note.ts", import.meta.url).pathname;
 /** A test module path of a Destack package. */
 const TEST = new URL("../src/note/note.test.ts", import.meta.url).pathname;
 
@@ -433,49 +431,6 @@ tester.run("no-partial-assertions", rules["no-partial-assertions"], {
             code: "expect(title).toContain('no');",
             filename: "/package/tests/note.test.ts",
             errors: [{ messageId: "partial" }],
-        },
-    ],
-});
-
-tester.run("valid-declaration", rules["valid-declaration"], {
-    valid: [
-        {
-            code: 'import { defineDatabase } from "@destack/db";\nexport const main = defineDatabase({});',
-            filename: SOURCE,
-        },
-        {
-            code: 'import { defineDatabase } from "@destack/db";\nexport const main = defineDatabase({}).implement({});',
-            filename: SOURCE,
-        },
-        { code: "const main = defineDatabase({});", filename: SOURCE },
-        {
-            code: 'import { defineDatabase } from "@destack/db";\nexport default defineDatabase({});',
-            filename: SOURCE,
-        },
-        {
-            code: 'import { valueOf } from "@destack/db";\nfunction f() {\n    return valueOf({});\n}',
-            filename: SOURCE,
-        },
-        {
-            code: 'import { defineDatabase } from "@destack/db";\nfunction f() {\n    return defineDatabase({});\n}',
-            filename: TEST_KIT,
-        },
-    ],
-    invalid: [
-        {
-            code: 'import { defineDatabase } from "@destack/db";\nconst main = defineDatabase({});',
-            filename: SOURCE,
-            errors: [{ messageId: "export" }],
-        },
-        {
-            code: 'import { defineDatabase } from "@destack/db";\nconst main = defineDatabase({}).implement({});',
-            filename: SOURCE,
-            errors: [{ messageId: "export" }],
-        },
-        {
-            code: 'import * as db from "@destack/db";\nfunction f() {\n    return db.defineDatabase({});\n}',
-            filename: SOURCE,
-            errors: [{ messageId: "export" }],
         },
     ],
 });

@@ -23,7 +23,6 @@ import { styleHover } from "./style-hover.ts";
 import { styleShorthand } from "./style-shorthand.ts";
 import { styleTokens } from "./style-tokens.ts";
 import { styleXstyleLast } from "./style-xstyle-last.ts";
-import { validDeclaration } from "./valid-declaration.ts";
 import { validPackageHandle } from "./valid-package-handle.ts";
 
 /** A trusted Oxc plugin selected by the host's dependency resolver. */
@@ -62,7 +61,6 @@ export const rules = {
     "style-shorthand": styleShorthand,
     "style-tokens": styleTokens,
     "style-xstyle-last": styleXstyleLast,
-    "valid-declaration": validDeclaration,
     "valid-package-handle": validPackageHandle,
 } satisfies Record<string, Rule>;
 

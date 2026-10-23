@@ -86,7 +86,6 @@
         "destack/style-shorthand": "error",
         "destack/style-tokens": "error",
         "destack/style-xstyle-last": "error",
-        "destack/valid-declaration": "error",
         "destack/valid-package-handle": "error"
     },
     "overrides": [
