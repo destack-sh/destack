@@ -96,9 +96,9 @@ const stackParts: readonly { name: string; icon: string; detail: string }[] = [
     { name: "Vault", icon: "vault", detail: "Secrets, encrypted and shared" },
     { name: "Audit", icon: "audit", detail: "Every change, by whom and when" },
     { name: "Telemetry", icon: "telemetry", detail: "Traces, logs and alerts" },
-    { name: "Your own AI", icon: "ai", detail: "Subscriptions, keys or local models" },
+    { name: "Inference", icon: "ai", detail: "Subscriptions, keys or local models" },
     { name: "Self-hosting", icon: "computer", detail: "Run Destack on your own machines" },
-    { name: "Remote access", icon: "cloud", detail: "Reach your machines anywhere" },
+    { name: "Tunneling", icon: "cloud", detail: "Reach your machines anywhere" },
 ];
 
 /** The support each level gives, as a benefit. */
@@ -200,10 +200,10 @@ export function Plans(properties: { audience: Audience; currency: Currency }) {
                 )}
             </For>
 
-            {/* the full stack, the same on every plan */}
+            {/* the full stack, included in every plan */}
             <div {...style.attrs(lattice.cell, styles.stack)}>
                 <div {...style.attrs(styles.stackCard)}>
-                    <Label>The full stack, on every plan</Label>
+                    <Label>The full stack, always included</Label>
                     <ul {...style.attrs(styles.parts)}>
                         {stackParts.map((part) => (
                             <li {...style.attrs(styles.part)}>
