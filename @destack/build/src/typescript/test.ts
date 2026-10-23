@@ -200,7 +200,7 @@ function describeTest(
     // reject registrations whose presence depends on executing application code
     const location = `${file}:${node.getStart()}`;
     if (scopes.some((scope) => CONDITIONAL_KINDS.has(scope.kind))) {
-        throw new BuildError(
+        throw BuildError.of(
             "INSPECTION_FAILED",
             `test declaration requires module or suite scope: ${location}`,
         );
@@ -209,7 +209,7 @@ function describeTest(
     // require a title that can be read without evaluation
     const title = node.arguments[0];
     if (!title || !(isStringLiteral(title) || isNoSubstitutionTemplateLiteral(title))) {
-        throw new BuildError(
+        throw BuildError.of(
             "INSPECTION_FAILED",
             `test declaration requires a literal title: ${location}`,
         );
@@ -219,7 +219,7 @@ function describeTest(
     if (kind === "suite") {
         const callback = node.arguments.at(-1);
         if (!callback || !(isArrowFunction(callback) || isFunctionExpression(callback))) {
-            throw new BuildError(
+            throw BuildError.of(
                 "INSPECTION_FAILED",
                 `suite declaration requires an inline callback: ${location}`,
             );

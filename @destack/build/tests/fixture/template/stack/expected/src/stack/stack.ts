@@ -1,14 +1,13 @@
-import type {} from "@destack/observability/stack";
+import observabilityPackage from "@destack/observability/package";
+import vaultPackage from "@destack/vault/package";
 import { defineStack } from "@destack/stack";
 import { files } from "../bucket/index.ts";
 import { credentials } from "../vault/index.ts";
 
 /** A space's stack: the files bucket, the credentials vault, and a rollback on fatal issues. */
-export const personal = defineStack({
-    resources: {
-        files: { declaration: files, retention: { within: { days: 30 } }, tags: {} },
-        credentials: { declaration: credentials, retention: { within: { days: 30 } }, tags: {} },
-    },
+export const personal = defineStack([vaultPackage, observabilityPackage], {
+    buckets: { files: files.declare({ retention: { within: { days: 30 } } }) },
+    vaults: { credentials: credentials.declare({ retention: { within: { days: 30 } } }) },
     alertRules: {
         rollback: {
             title: "Roll back installation on new fatal issues",

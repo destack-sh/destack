@@ -65,7 +65,7 @@ export class PackageCopy implements AsyncDisposable {
         for (const name of new Set(declared)) {
             const member = members.get(name);
             if (member === undefined) {
-                throw new BuildError("BUILD_FAILED", `the workspace has no member ${name}`);
+                throw BuildError.of("MEMBER_UNKNOWN", `the workspace has no member ${name}`);
             }
             const link = join(source, "node_modules", name);
             await mkdir(dirname(link), { recursive: true });

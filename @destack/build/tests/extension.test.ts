@@ -3,7 +3,7 @@ import { DependencyTree } from "../src/dependency/index.ts";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { present, schema } from "@destack/schema";
-import { expect, test } from "@destack/test";
+import { expect, refusal, test } from "@destack/test";
 import { Compiler, PackageBuild, Workspace, CompilerPool } from "../src/index.ts";
 import { loadExtensions } from "../src/compile/extension.ts";
 import { readPackageJson } from "../src/source/index.ts";
@@ -291,10 +291,11 @@ test("load a listed package's extension without walking its dependencies, and bu
 
         // refuse a listed package declaring no extension
         await listExtensions(directory, ["@fixture/other"]);
-        await expect(extensions()).rejects.toMatchObject({
-            code: "BUILD_FAILED",
-            message: "@fixture/site lists @fixture/other, which declares no build extension",
-        });
+        expect(await refusal(extensions())).toEqual([
+            "UNPROCESSABLE_CONTENT",
+            "EXTENSION_INVALID",
+            "@fixture/site lists @fixture/other, but @fixture/other declares no build extension",
+        ]);
 
         // refuse a lockfile member whose directory is missing
         await writeLockfile(root, [
@@ -306,18 +307,20 @@ test("load a listed package's extension without walking its dependencies, and bu
             "site",
             "gone",
         ]);
-        await expect(units()).rejects.toMatchObject({
-            code: "BUILD_FAILED",
-            message: `the workspace member @fixture/gone is missing at ${join(root, "gone")}`,
-        });
+        expect(await refusal(units())).toEqual([
+            "NOT_FOUND",
+            "MEMBER_UNKNOWN",
+            `the workspace member @fixture/gone is missing at ${join(root, "gone")}`,
+        ]);
         await writeLockfile(root, ["leaf", "middle", "other", "application", "tool", "site"]);
 
         // refuse a listed extension that is not installed
         await listExtensions(directory, ["@fixture/absent"]);
-        await expect(units()).rejects.toMatchObject({
-            code: "BUILD_FAILED",
-            message: "missing dependency of @fixture/site: @fixture/absent",
-        });
+        expect(await refusal(units())).toEqual([
+            "UNPROCESSABLE_CONTENT",
+            "DEPENDENCY_UNRESOLVED",
+            "missing dependency of @fixture/site: @fixture/absent",
+        ]);
 
         // load the tool's extension, not the leaf's it requires, and build the tool's closure first
         await listExtensions(directory, ["@fixture/tool"]);
@@ -361,11 +364,11 @@ test("refuse what a module an extension generates imports until the package decl
         } as const;
         await using refusing = await LocalPackageStore.temporary();
         await using compiler = await Compiler.start(directory, { store: refusing });
-        await expect(compiler.build(request)).rejects.toMatchObject({
-            code: "BUILD_FAILED",
-            message:
-                "undeclared runtime dependency: @fixture/leaf, imported by \0virtual:@fixture/leaf/barrel",
-        });
+        expect(await refusal(compiler.build(request))).toEqual([
+            "UNPROCESSABLE_CONTENT",
+            "DEPENDENCY_UNRESOLVED",
+            "undeclared runtime dependency: @fixture/leaf, imported by \0virtual:@fixture/leaf/barrel",
+        ]);
 
         // build the application on the leaf's build once it declares the leaf at runtime
         await declare(directory, "dependencies", "@fixture/leaf");

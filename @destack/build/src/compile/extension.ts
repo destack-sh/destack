@@ -12,7 +12,7 @@ import {
 import { PackageDefinition, PackageJson, PackageExport } from "@destack/package";
 import { registerModulePlugin } from "@destack/package/bun";
 import { PackageLocator } from "@destack/package/locator";
-import { BuildError } from "../error/index.ts";
+import { BuildError, extensionFailureOf } from "../error/index.ts";
 import { readPackageJson, selectExport } from "../source/index.ts";
 import { present, schema } from "@destack/schema";
 
@@ -69,7 +69,7 @@ export async function loadExtensions(
         // refuse another absent one
         else if (installed === undefined) {
             const named = dependent.package.name;
-            throw new BuildError("BUILD_FAILED", `missing dependency of ${named}: ${name}`);
+            throw BuildError.of("DEPENDENCY_UNRESOLVED", `missing dependency of ${named}: ${name}`);
         }
         // take a Destack package's definition, walking a required one's runtime dependencies
         else if (existsSync(join(installed, "destack.json"))) {
@@ -90,9 +90,9 @@ export async function loadExtensions(
     // refuse a listed extension that is not one
     const unbuilt = listed.find((name) => packages.get(name)?.definition.build === undefined);
     if (unbuilt !== undefined) {
-        throw new BuildError(
-            "BUILD_FAILED",
-            `${root} lists ${unbuilt}, which declares no build extension`,
+        throw BuildError.of(
+            "EXTENSION_INVALID",
+            `${root} lists ${unbuilt}, but ${unbuilt} declares no build extension`,
         );
     }
 
@@ -134,7 +134,7 @@ export function transformPlugins(
         try {
             return extension.transform?.(context) ?? [];
         } catch (cause) {
-            throw BuildError.from(cause);
+            throw extensionFailureOf(cause);
         }
     });
 }
@@ -153,9 +153,9 @@ async function importExtension(
     // split the build field into the package export and the export name
     const separator = build.indexOf("#");
     if (separator === -1) {
-        throw new BuildError(
-            "BUILD_FAILED",
-            `${name} declares the build ${build}, which names no export`,
+        throw BuildError.of(
+            "EXTENSION_INVALID",
+            `${name} declares build ${build}, but has no export ${build}`,
         );
     }
     const subpath = build.slice(0, separator);
@@ -165,7 +165,7 @@ async function importExtension(
     const manifest = await readManifest(installed);
     const file = selectExport(manifest.exports?.[subpath], CONDITIONS);
     if (typeof file !== "string") {
-        throw new BuildError("BUILD_FAILED", `${name} exports no build module at ${subpath}`);
+        throw BuildError.of("EXTENSION_INVALID", `${name} exports no build module at ${subpath}`);
     }
 
     // read the extension from the module's exports
@@ -173,7 +173,10 @@ async function importExtension(
     const module = Exports.parse(await import(join(installed, file)));
     const extension = module[exportName];
     if (typeof extension !== "object" || extension === null) {
-        throw new BuildError("BUILD_FAILED", `${name} exports no build extension ${exportName}`);
+        throw BuildError.of(
+            "EXTENSION_INVALID",
+            `${name} exports no build extension ${exportName}`,
+        );
     }
 
     return extension;

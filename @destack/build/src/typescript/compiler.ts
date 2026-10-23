@@ -60,7 +60,7 @@ export class TypeScriptCompiler implements AsyncDisposable {
                     await Promise.all(projects.map((project) => this.#check(project)))
                 ).flat();
                 if (diagnostics.length) {
-                    throw new BuildError(
+                    throw BuildError.of(
                         "INSPECTION_FAILED",
                         `the TypeScript inspection failed: ${JSON.stringify(diagnostics)}`,
                     );
@@ -142,7 +142,7 @@ export class TypeScriptCompiler implements AsyncDisposable {
             const projects = paths.map((path) => {
                 const project = snapshot.getProject(path);
                 if (!project) {
-                    throw new BuildError(
+                    throw BuildError.of(
                         "INSPECTION_FAILED",
                         `the TypeScript compiler did not load ${path}`,
                     );

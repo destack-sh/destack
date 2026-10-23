@@ -277,7 +277,7 @@ class DependencyRecorder {
         }
         const absolute = resolve(root, original);
         if (!(await isFile(absolute))) {
-            throw new BuildError("BUILD_FAILED", `missing asset file: ${original}`);
+            throw BuildError.of("ASSET_INVALID", `missing asset file: ${original}`);
         }
 
         // attribute assets read by CSS plugins without creating JavaScript modules
@@ -332,7 +332,7 @@ class DependencyRecorder {
         // refuse two sources of one unpublished release
         const previous = this.#directories.get(key);
         if (previous !== undefined && previous !== source.directory) {
-            throw new BuildError("BUILD_FAILED", `conflicting dependency sources: ${key}`);
+            throw BuildError.of("DEPENDENCY_INVALID", `conflicting dependency sources: ${key}`);
         }
         this.#directories.set(key, source.directory);
 
@@ -369,7 +369,7 @@ class DependencyRecorder {
 
         // refuse a release resolved otherwise
         if (snapshot.kind !== "source") {
-            throw new BuildError("BUILD_FAILED", `conflicting dependency resolution: ${key}`);
+            throw BuildError.of("DEPENDENCY_INVALID", `conflicting dependency resolution: ${key}`);
         }
 
         return snapshot;
@@ -400,7 +400,7 @@ class DependencyRecorder {
             resolution.package.name !== owner.name ||
             resolution.package.version !== owner.version
         ) {
-            throw new BuildError("BUILD_FAILED", `${failure}: ${key}`);
+            throw BuildError.of("DEPENDENCY_UNRESOLVED", `${failure}: ${key}`);
         }
 
         return resolution;
@@ -412,7 +412,7 @@ function addFile(snapshot: SourceSnapshot, file: PackageFile): void {
     // store an equal file once, and refuse a file whose bytes changed during the build
     const previous = snapshot.files.find((candidate) => candidate.path === file.path);
     if (previous !== undefined && previous.digest !== file.digest) {
-        throw new BuildError("BUILD_FAILED", `dependency file changed during build: ${file.path}`);
+        throw BuildError.of("SOURCE_CHANGED", `dependency file changed during build: ${file.path}`);
     }
     if (previous !== undefined) {
         return;
@@ -467,7 +467,10 @@ export function dependencyPlugin(
             // record the module's location and package
             const code = module.code;
             if (code === null) {
-                throw new BuildError("BUILD_FAILED", `parsed module has no source: ${module.id}`);
+                throw BuildError.of(
+                    "INVARIANT_VIOLATED",
+                    `parsed module has no source: ${module.id}`,
+                );
             }
             await recorder.parsed(module.id, runtimes.get(module.id), () => this.parse(code));
 
@@ -562,8 +565,8 @@ export function resolutionPlugin(
                 const selected =
                     runtime && (this.environment.name === "client" ? "browser" : runtime);
                 if (selected && required && !required.includes(selected)) {
-                    throw new BuildError(
-                        "BUILD_FAILED",
+                    throw BuildError.of(
+                        "RUNTIME_MODULE_UNSUPPORTED",
                         `unsupported ${selected} dependency: ${specifier}`,
                     );
                 }
@@ -590,7 +593,7 @@ function requireDeclared(source: PackageSource, importer: string, name: string):
 
     // refuse a dependency no requirement group names
     if (!PackageJson.runtimeDependencies(packageJson).includes(name)) {
-        throw new BuildError("BUILD_FAILED", `undeclared runtime dependency: ${name}`);
+        throw BuildError.of("DEPENDENCY_UNRESOLVED", `undeclared runtime dependency: ${name}`);
     }
 }
 
@@ -612,15 +615,15 @@ function requireSelected(
     const selected = dependencies[key] ?? dependencies[name];
     if (selected) {
         if (selected.package.name !== owner.name || selected.package.version !== owner.version) {
-            throw new BuildError(
-                "BUILD_FAILED",
+            throw BuildError.of(
+                "DEPENDENCY_INVALID",
                 `dependency resolution differs from installation: ${name}`,
             );
         }
     }
     // refuse an installed release without a selection
     else if (path.split(sep).includes("node_modules")) {
-        throw new BuildError("BUILD_FAILED", `unresolved installed dependency: ${key}`);
+        throw BuildError.of("DEPENDENCY_UNRESOLVED", `unresolved installed dependency: ${key}`);
     }
 }
 
@@ -665,7 +668,7 @@ function describeInputs(
     for (const id of parsed.keys()) {
         const location = locations.get(id);
         if (!location) {
-            throw new BuildError("BUILD_FAILED", `missing parsed module: ${id}`);
+            throw BuildError.of("INVARIANT_VIOLATED", `missing parsed module: ${id}`);
         }
         names.set(id, JSON.stringify([location.kind, location.package ?? "", location.path]));
     }
@@ -687,7 +690,7 @@ function describeInputs(
                 const isExternal = !parsed.has(path);
                 const reference = isExternal ? path : identifiers.get(path);
                 if (reference === undefined) {
-                    throw new BuildError("BUILD_FAILED", `unresolved module: ${path}`);
+                    throw BuildError.of("INVARIANT_VIOLATED", `unresolved module: ${path}`);
                 }
                 imports.push({ path: reference, external: isExternal, dynamic });
             }
@@ -722,7 +725,7 @@ function chunkInputs(
         }
         const reference = identifiers.get(id);
         if (reference === undefined) {
-            throw new BuildError("BUILD_FAILED", `unknown emitted module: ${id}`);
+            throw BuildError.of("INVARIANT_VIOLATED", `unknown emitted module: ${id}`);
         }
         inputs.push(reference);
     }

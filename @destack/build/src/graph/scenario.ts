@@ -24,9 +24,9 @@ export class ScenarioGraph {
             const given = scenario.examples.map((reference) => {
                 const example = examples.at(name(reference));
                 if (example === undefined) {
-                    throw new BuildError(
+                    throw BuildError.of(
                         "INSPECTION_FAILED",
-                        `scenario ${location} is given ${name(reference)}, which is no example of the package`,
+                        `scenario ${location} is given ${name(reference)}, which is not an example of the package`,
                     );
                 }
 

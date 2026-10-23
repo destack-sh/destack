@@ -1,4 +1,4 @@
-import { test } from "@destack/test";
+import { refusal, test } from "@destack/test";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { PackageBuild } from "../src/index.ts";
@@ -38,10 +38,11 @@ test.concurrent("relocate the library build and call its exports, refusing corru
 
         return new Blob([bytes]).stream();
     });
-    await expect(corrupt.files()).rejects.toMatchObject({
-        code: "INVALID_FILE",
-        message: `file digest mismatch: ${build.manifest.lists.files.path}`,
-    });
+    expect(await refusal(corrupt.files())).toEqual([
+        "BAD_REQUEST",
+        "INVALID_FILE",
+        `file digest mismatch: ${build.manifest.lists.files.path}`,
+    ]);
 
     // call the library's exports from the relocated build
     const module = await importBuilt(destination, exported(build.manifest.outputs["library"], "."));
@@ -72,9 +73,17 @@ test.concurrent("ship a package's catalogs in its build, refusing a misnamed one
     // refuse a catalog named for another locale, then one of another package
     await write("de.json", { ...german, locale: "de-AT" });
     const misnamed = input.build(library.request);
-    await expect(misnamed).rejects.toMatchObject({ message: "invalid catalog: locale/de.json" });
+    expect(await refusal(misnamed)).toEqual([
+        "UNPROCESSABLE_CONTENT",
+        "CATALOG_INVALID",
+        "invalid catalog: locale/de.json",
+    ]);
     await write("de.json", { ...german, package: "package-01996ab0-0000-7000-8000-0000000000aa" });
     const foreign = input.build(library.request);
-    await expect(foreign).rejects.toMatchObject({ message: "invalid catalog: locale/de.json" });
+    expect(await refusal(foreign)).toEqual([
+        "UNPROCESSABLE_CONTENT",
+        "CATALOG_INVALID",
+        "invalid catalog: locale/de.json",
+    ]);
     expect(shipped).toEqual([german]);
 });

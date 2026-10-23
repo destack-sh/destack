@@ -49,7 +49,8 @@ test("join a module each runtime inspects into one description, refusing other s
     // refuse a description of other source bytes
     const other = described("b".repeat(64), "./browser.ts", "window");
     expect(await refusal(Promise.resolve().then(() => joinModules(bun, other)))).toEqual([
-        "BUILD_FAILED",
+        "CONFLICT",
+        "SOURCE_CHANGED",
         "module src/platform.ts was inspected from two sources",
     ]);
 });

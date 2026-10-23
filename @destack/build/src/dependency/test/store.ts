@@ -66,3 +66,20 @@ export const convertHere: NpmConverter = async (request) => {
 
     return { files: await NpmUnit.files(destination), imported: new Set(imported) };
 };
+
+/** Read a module load's failure as its runtime's code and message, or "loaded". */
+export function moduleFailure(
+    pending: Promise<unknown>,
+): Promise<"loaded" | readonly [unknown, string]> {
+    return pending.then(
+        () => "loaded" as const,
+        (error: unknown) => {
+            // rethrow a failure without a code, failing the test that awaits it
+            if (!(error instanceof Error && "code" in error)) {
+                throw error;
+            }
+
+            return [error.code, error.message] as const;
+        },
+    );
+}

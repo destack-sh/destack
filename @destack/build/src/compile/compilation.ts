@@ -39,7 +39,7 @@ import { type PackageSource } from "../source/index.ts";
 import { relativePath } from "../source/dependency.ts";
 import { type DirectoryReference } from "../typescript/index.ts";
 import { type ModuleOptions } from "../build/build.ts";
-import { BuildError } from "../error/index.ts";
+import { BuildError, extensionFailureOf, bundleFailureOf } from "../error/index.ts";
 import { sourcePlugin, mapSource } from "./source.ts";
 import { dependencyPlugin, modulePath, type ModuleSource } from "./dependency.ts";
 import { directoryPlugin } from "./asset.ts";
@@ -165,8 +165,8 @@ export class OutputCompilation implements Compilation {
                     entry.symbol.name === name,
             );
         if (exported === undefined) {
-            throw new BuildError(
-                "BUILD_FAILED",
+            throw BuildError.of(
+                "DECLARATION_INVALID",
                 `${declaration.kind} ${declaration.name} has no export`,
             );
         }
@@ -178,15 +178,15 @@ export class OutputCompilation implements Compilation {
     entry(entrypoint: string, module: string): void {
         // refuse an entry of an output its kind compiles in a pass
         if (this.isLent) {
-            throw new BuildError(
-                "BUILD_FAILED",
-                `a pass compiles output ${this.name}, which emits no entry: ${entrypoint}`,
+            throw BuildError.of(
+                "EXTENSION_INVALID",
+                `output ${this.name} emits no entry: ${entrypoint}`,
             );
         }
 
         // refuse an entrypoint taken twice
         if (this.#entries.has(entrypoint) || Object.hasOwn(this.project.exports, entrypoint)) {
-            throw new BuildError("BUILD_FAILED", `duplicate entrypoint: ${entrypoint}`);
+            throw BuildError.of("ENTRY_INVALID", `duplicate entrypoint: ${entrypoint}`);
         }
         this.#entries.set(entrypoint, module);
     }
@@ -220,7 +220,7 @@ export class OutputCompilation implements Compilation {
             return compiled;
         }
         if (entries.some((entry) => entry.endsWith(".html")) && project.runtime !== "browser") {
-            throw new BuildError("BUILD_FAILED", "entries in HTML require the browser runtime");
+            throw BuildError.of("ENTRY_INVALID", "entries in HTML require the browser runtime");
         }
 
         // retain HTML before Vite rewrites its module and asset references
@@ -290,7 +290,7 @@ export class OutputCompilation implements Compilation {
             try {
                 return extension.compile?.(this) ?? [];
             } catch (cause) {
-                throw BuildError.from(cause);
+                throw extensionFailureOf(cause);
             }
         });
 
@@ -339,6 +339,8 @@ export class OutputCompilation implements Compilation {
                 ...plugins,
                 modulePlugin(project.versions),
             ],
+            // give worker bundles their modules' metadata too
+            worker: { plugins: () => [modulePlugin(project.versions)] },
             build: {
                 emitAssets: true,
                 write: true,
@@ -483,7 +485,7 @@ export class OutputCompilation implements Compilation {
                 (entry) => entry.type === "chunk" && entry.facadeModuleId === facade,
             );
             if (chunk === undefined) {
-                throw new BuildError("BUILD_FAILED", `missing generated entry: ${entrypoint}`);
+                throw BuildError.of("INVARIANT_VIOLATED", `missing generated entry: ${entrypoint}`);
             }
             exports[entrypoint] = PackagePath.parse(`output/${this.name}/${chunk.fileName}`);
         }
@@ -491,7 +493,7 @@ export class OutputCompilation implements Compilation {
         // require every package export to be generated
         for (const name of Object.keys(this.project.exports)) {
             if (exports[name] === undefined) {
-                throw new BuildError("BUILD_FAILED", `missing generated entry: ${name}`);
+                throw BuildError.of("INVARIANT_VIOLATED", `missing generated entry: ${name}`);
             }
         }
     }
@@ -596,8 +598,8 @@ export class OutputCompilation implements Compilation {
         const { packageJson } = this.project;
         if (!PackageJson.runtimeDependencies(packageJson).includes(dependency)) {
             const by = importer === undefined ? "" : `, imported by ${importer}`;
-            throw new BuildError(
-                "BUILD_FAILED",
+            throw BuildError.of(
+                "DEPENDENCY_UNRESOLVED",
                 `undeclared runtime dependency: ${dependency}${by}`,
             );
         }
@@ -608,11 +610,14 @@ export class OutputCompilation implements Compilation {
         }
         const selected = dependencies[dependency];
         if (!selected) {
-            throw new BuildError("BUILD_FAILED", `unresolved runtime dependency: ${dependency}`);
+            throw BuildError.of(
+                "DEPENDENCY_UNRESOLVED",
+                `unresolved runtime dependency: ${dependency}`,
+            );
         }
         if (selected.kind === "source") {
-            throw new BuildError(
-                "BUILD_FAILED",
+            throw BuildError.of(
+                "DEPENDENCY_INVALID",
                 `runtime dependency requires a registry release: ${dependency}`,
             );
         }
@@ -632,7 +637,7 @@ export class OutputCompilation implements Compilation {
         const emitted = output.exports[entrypoint];
         const facade = facades.get(entrypoint);
         if (emitted === undefined || facade === undefined) {
-            throw new BuildError("BUILD_FAILED", `no emitted entrypoint: ${entrypoint}`);
+            throw BuildError.of("INVARIANT_VIOLATED", `no emitted entrypoint: ${entrypoint}`);
         }
         this.#checkChunks(entrypoint, emitted, output, inspection);
 
@@ -644,7 +649,7 @@ export class OutputCompilation implements Compilation {
             .filter(([, input]) => input.package === undefined && modulePath(input.path) === root)
             .map(([id]) => id);
         if (!sources.length) {
-            throw new BuildError("BUILD_FAILED", `missing input of entrypoint: ${entrypoint}`);
+            throw BuildError.of("INVARIANT_VIOLATED", `missing input of entrypoint: ${entrypoint}`);
         }
 
         // select the declarations the files of the entry's modules declare
@@ -676,7 +681,7 @@ export class OutputCompilation implements Compilation {
             visited.add(path);
             const chunk = inspection.outputs[path];
             if (!chunk) {
-                throw new BuildError("BUILD_FAILED", `unknown emitted chunk: ${path}`);
+                throw BuildError.of("INVARIANT_VIOLATED", `unknown emitted chunk: ${path}`);
             }
 
             // follow internal imports and check external ones against the runtime and the dependencies
@@ -688,8 +693,8 @@ export class OutputCompilation implements Compilation {
                 if (!imported.external) {
                     chunks.push(imported.path);
                 } else if (!isRuntimeModule(imported.path, this.runtime) && !isDependency) {
-                    throw new BuildError(
-                        "BUILD_FAILED",
+                    throw BuildError.of(
+                        "RUNTIME_MODULE_UNSUPPORTED",
                         `unsupported external import of ${entrypoint} on ${this.runtime}: ${imported.path}`,
                     );
                 }
@@ -710,7 +715,7 @@ export class OutputCompilation implements Compilation {
             visited.add(id);
             const input = inspection.inputs[id];
             if (!input) {
-                throw new BuildError("BUILD_FAILED", `unknown source module: ${id}`);
+                throw BuildError.of("INVARIANT_VIOLATED", `unknown source module: ${id}`);
             }
 
             // index the input's file under its package
@@ -719,7 +724,10 @@ export class OutputCompilation implements Compilation {
                     ? this.package
                     : inspection.packages[input.package]?.package;
             if (owner === undefined) {
-                throw new BuildError("BUILD_FAILED", `unknown source package: ${input.package}`);
+                throw BuildError.of(
+                    "INVARIANT_VIOLATED",
+                    `unknown source package: ${input.package}`,
+                );
             }
             const key = `${owner.name}@${owner.version}`;
             const files = paths.get(key) ?? new Set<string>();
@@ -753,10 +761,10 @@ async function retainPages(
 async function runVite(configuration: InlineConfig): Promise<(OutputChunk | OutputAsset)[]> {
     // report a bundler failure as a build failure
     const generated = await build(configuration).catch((error: unknown) => {
-        throw BuildError.fromBundle(error);
+        throw bundleFailureOf(error);
     });
     if (!("output" in generated)) {
-        throw new BuildError("BUILD_FAILED", "expected one Vite output");
+        throw BuildError.of("INVARIANT_VIOLATED", "expected one Vite output");
     }
 
     return generated.output;
@@ -765,7 +773,7 @@ async function runVite(configuration: InlineConfig): Promise<(OutputChunk | Outp
 /** Fail on Rolldown warnings and pass other logs on. */
 function failOnWarning(level: LogLevel, log: RolldownLog, handler: LogOrStringHandler): void {
     if (level === "warn") {
-        throw new BuildError("BUILD_FAILED", log.message);
+        throw BuildError.of("BUNDLE_FAILED", log.message);
     }
     handler(level, log);
 }
@@ -779,7 +787,7 @@ function describe(
     try {
         return extension.describe?.(compilation, compiled) ?? {};
     } catch (cause) {
-        throw BuildError.from(cause);
+        throw extensionFailureOf(cause);
     }
 }
 
@@ -797,7 +805,7 @@ function mergeSection<Entry>(
 ): void {
     for (const [name, description] of Object.entries(entries ?? {})) {
         if (Object.hasOwn(target, name)) {
-            throw new BuildError("BUILD_FAILED", `duplicate ${section} entry: ${name}`);
+            throw BuildError.of("ENTRY_INVALID", `duplicate ${section} entry: ${name}`);
         }
         target[name] = description;
     }

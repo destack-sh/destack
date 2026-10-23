@@ -1,10 +1,9 @@
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { Clock } from "@destack/environment";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { LocalBucket } from "@destack/bucket/bun";
-import { PackageError } from "@destack/package/error";
 import { PackageFile } from "@destack/package/file";
 import { BuildReader, PackageManifest } from "@destack/package/manifest";
 import { CallError } from "@destack/object";
@@ -145,16 +144,16 @@ test("store a build's files once by digest, read it after reopening, and refuse 
 
     // fail reads of stored corruption, and never overwrite it by storing again
     await bucket.put(`files/${answer.digest}`, "broken");
-    await expect(store.file(answer)).rejects.toEqual(
-        new CallError("INTERNAL_SERVER_ERROR", {
-            message: "stored file differs: src/answer.ts",
-        }),
-    );
-    await expect(store.put(build)).rejects.toEqual(
-        new CallError("INTERNAL_SERVER_ERROR", {
-            message: `stored object differs: files/${answer.digest}`,
-        }),
-    );
+    expect(await refusal(store.file(answer))).toEqual([
+        "INTERNAL_SERVER_ERROR",
+        "STORED_CONTENT_DIFFERS",
+        "stored file differs: src/answer.ts",
+    ]);
+    expect(await refusal(store.put(build))).toEqual([
+        "INTERNAL_SERVER_ERROR",
+        "STORED_CONTENT_DIFFERS",
+        `stored object differs: files/${answer.digest}`,
+    ]);
 });
 
 test("sweep the builds retention drops, the files only they list and the cache entries that list them", async () => {
@@ -405,7 +404,7 @@ test("serve a stored build over HTTP after the host authorizes each read", async
     const access = {
         async authorize(request: Request, selected: string) {
             if (request.headers.get("authorization") !== "Bearer allowed" || selected !== digest) {
-                throw new CallError("UNAUTHORIZED", { message: "package access denied" });
+                throw CallError.http("UNAUTHORIZED", { message: "package access denied" });
             }
 
             return isExpired ? { expiresAt: 0 } : {};
@@ -422,9 +421,9 @@ test("serve a stored build over HTTP after the host authorizes each read", async
     // open the build as a remote package, refusing another manifest digest
     const reader = await BuildReader.open({ manifest: digest, url }, fetchPackage);
     expect([reader.manifest, await reader.files()]).toEqual([build.manifest, await build.files()]);
-    await expect(BuildReader.open({ manifest: "0".repeat(64), url }, fetchPackage)).rejects.toEqual(
-        new PackageError("INVALID_FILE", "file digest mismatch: manifest.json"),
-    );
+    expect(
+        await refusal(BuildReader.open({ manifest: "0".repeat(64), url }, fetchPackage)),
+    ).toEqual(["BAD_REQUEST", "INVALID_FILE", "file digest mismatch: manifest.json"]);
 
     // authorize before serving partial bodies or answering cache conditions
     const path = `${url}files/src/answer.ts`;
@@ -449,7 +448,17 @@ test("serve a stored build over HTTP after the host authorizes each read", async
         full: bytes,
         partial: [206, `bytes 7-11/${bytes.length}`, SOURCES["src/answer.ts"].slice(7, 12)],
         cached: 304,
-        denied: [401, { error: "UNAUTHORIZED", message: "package access denied" }],
+        denied: [
+            401,
+            {
+                defined: true,
+                code: "UNAUTHORIZED",
+                status: 401,
+                message: "package access denied",
+                reason: "UNAUTHORIZED",
+                domain: "http",
+            },
+        ],
         missing: 404,
         head: [200, String(bytes.length), ""],
     });
@@ -608,17 +617,25 @@ test("refuse uploads lacking files, of other bytes, past the limit, or where nob
         await upload(receiving, `${digest}/manifest.json`, manifest, READING),
     ]).toEqual([
         [
-            409,
+            400,
             {
-                error: "CONFLICT",
+                defined: false,
+                code: "BAD_REQUEST",
+                status: 400,
                 message: `build ${digest} lists manifest/dependencies.json, which was not uploaded`,
+                reason: "MANIFEST_BLOB_UNKNOWN",
+                domain: "@destack/build",
             },
         ],
         [
             400,
             {
-                error: "BAD_REQUEST",
+                defined: false,
+                code: "BAD_REQUEST",
+                status: 400,
                 message: `the uploaded file does not match its digest ${digest}`,
+                reason: "DIGEST_INVALID",
+                domain: "@destack/build",
             },
         ],
         [413, null],

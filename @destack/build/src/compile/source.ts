@@ -45,7 +45,10 @@ export function sourcePlugin(
 
                 // compile inspected module bytes and retain additional assets read by Vite
                 if (/\.[cm]?tsx?$/u.test(path) && !sources.has(local)) {
-                    throw new BuildError("BUILD_FAILED", `uninspected source module: ${local}`);
+                    throw BuildError.of(
+                        "INVARIANT_VIOLATED",
+                        `uninspected source module: ${local}`,
+                    );
                 }
 
                 // preserve large assets by file copy while Vite loads them separately
@@ -85,7 +88,7 @@ function omitUrlSources(bundle: OutputBundle): void {
                 : new TextDecoder().decode(entry.source);
         const map: unknown = JSON.parse(text);
         if (!isSourceMap(map)) {
-            throw new BuildError("BUILD_FAILED", `invalid source map: ${entry.fileName}`);
+            throw BuildError.of("INVARIANT_VIOLATED", `invalid source map: ${entry.fileName}`);
         }
 
         // preserve source indices and mappings for generated URL modules
@@ -133,7 +136,7 @@ export function mapSource(
     const absolute = resolve(dirname(map), source);
     const location = locations.get(absolute);
     if (!location) {
-        throw new BuildError("BUILD_FAILED", `unknown source map input: ${source}`);
+        throw BuildError.of("INVARIANT_VIOLATED", `unknown source map input: ${source}`);
     }
     if (location.package !== undefined) {
         return `package:${location.package}/${location.path}`;

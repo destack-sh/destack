@@ -1,6 +1,7 @@
 import { Digest } from "@destack/schema";
 import { PackagePath, type PackageFile } from "@destack/package/file";
 import { CallError } from "@destack/object";
+import { BuildError } from "../error/index.ts";
 import { PackageStore } from "./store.ts";
 
 /** The most bytes one upload has: 64 MiB, which bounds its memory. */
@@ -38,16 +39,16 @@ export async function serveStore(
     try {
         return await read(store, mount, request, access);
     } catch (error) {
-        // answer the failures that know their call error, rethrowing internal ones
+        // answer the failures that know their call error with its body, rethrowing internal ones
         const failure = CallError.of(error);
         if (failure === undefined || failure.code === "INTERNAL_SERVER_ERROR") {
             throw error;
         }
 
-        return Response.json(
-            { error: failure.code, message: failure.message },
-            { status: failure.status, headers: { "cache-control": "no-store" } },
-        );
+        return Response.json(failure.toJSON(), {
+            status: failure.status,
+            headers: { "cache-control": "no-store" },
+        });
     }
 }
 
@@ -90,9 +91,10 @@ async function write(
     if (target.kind === "file") {
         const type = request.headers.get("content-type");
         if (type === null) {
-            throw new CallError("BAD_REQUEST", {
-                message: `the upload of ${target.digest} has no media type`,
-            });
+            throw BuildError.of(
+                "MEDIA_TYPE_MISSING",
+                `the upload of ${target.digest} has no media type`,
+            );
         }
         await store.receive(target.digest, bytes, type);
     }

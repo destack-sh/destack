@@ -41,7 +41,7 @@ export class BuildDirectory {
             previous?.length === bytes.length &&
             previous.every((value, index) => value === bytes[index]);
         if (previous && !isEqual) {
-            throw new BuildError("BUILD_FAILED", `conflicting build file: ${path}`);
+            throw BuildError.of("INVARIANT_VIOLATED", `conflicting build file: ${path}`);
         }
         this.#retained.set(path, bytes);
     }
@@ -103,8 +103,8 @@ export async function readDirectory(
             } else if (entry.isFile()) {
                 files.set(name, new Uint8Array(await readFile(join(directory, name))));
             } else {
-                throw new BuildError(
-                    "BUILD_FAILED",
+                throw BuildError.of(
+                    "ASSET_INVALID",
                     `unsupported directory entry: ${name} in ${directory}`,
                 );
             }

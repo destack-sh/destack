@@ -88,7 +88,7 @@ export class NpmInstallation {
             return known;
         }
         if (visiting.has(directory)) {
-            throw new BuildError("BUILD_FAILED", `npm dependency cycle through ${directory}`);
+            throw BuildError.of("DEPENDENCY_INVALID", `npm dependency cycle through ${directory}`);
         }
 
         // lock the release by its installed name and version
@@ -98,7 +98,7 @@ export class NpmInstallation {
         const key = `${manifest.name}@${manifest.version}`;
         const release = this.locked[key];
         if (release === undefined) {
-            throw new BuildError("BUILD_FAILED", `the lockfile has no ${key}`);
+            throw BuildError.of("LOCKFILE_INVALID", `the lockfile has no ${key}`);
         }
 
         // open each installed package it requires, leaving its peers to the tree it sits in
@@ -118,7 +118,10 @@ export class NpmInstallation {
             }
             // refuse another absent one
             else if (installed === undefined) {
-                throw new BuildError("BUILD_FAILED", `missing dependency of ${key}: ${name}`);
+                throw BuildError.of(
+                    "DEPENDENCY_UNRESOLVED",
+                    `missing dependency of ${key}: ${name}`,
+                );
             }
             // open the installed one
             else {
@@ -309,7 +312,7 @@ export class NpmUnit {
         const linked = await Promise.all(links.map((path) => stat(join(directory, path))));
         const folder = links.find((_path, index) => nth(linked, index).isDirectory());
         if (folder !== undefined) {
-            throw new BuildError("BUILD_FAILED", `npm package links a folder: ${folder}`);
+            throw BuildError.of("DEPENDENCY_INVALID", `npm package links a folder: ${folder}`);
         }
 
         // read the files a bounded number at a time

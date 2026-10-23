@@ -1,11 +1,10 @@
-import { expect, onTestFinished, test, vi } from "@destack/test";
+import { expect, onTestFinished, refusal, test, vi } from "@destack/test";
 import { cp, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PackageBuild, Compiler } from "../index.ts";
 import type { PackageManifest } from "@destack/package/manifest";
-import { PackageError } from "@destack/package/error";
 import { request } from "../../tests/fixture/library/request.ts";
 import {
     countObjects,
@@ -72,10 +71,11 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
             notePath,
             note + "\n/** The page title. */\nexport const page = document.title;\n",
         );
-        await expect(builder.build(workerdRequest)).rejects.toMatchObject({
-            code: "BUILD_FAILED",
-            message: `unsupported workerd API: document.title at src/note.ts:${note.length + 44}`,
-        });
+        expect(await refusal(builder.build(workerdRequest))).toEqual([
+            "UNPROCESSABLE_CONTENT",
+            "RUNTIME_API_UNSUPPORTED",
+            `unsupported workerd API: document.title at src/note.ts:${note.length + 44}`,
+        ]);
 
         // accept the browser API inside a function, which only the browser calls
         const deferredSource =
@@ -91,16 +91,19 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
             note +
             "\n/** The constructor. */\nexport const create: FunctionConstructor = Function;\n";
         await writeFile(notePath, constructed);
-        await expect(
-            builder.build({
-                directory: source,
-                dependencies: {},
-                outputs: { library: { ...request.outputs.library, runtime: "workerd" } },
-            }),
-        ).rejects.toMatchObject({
-            code: "BUILD_FAILED",
-            message: `unsupported workerd API: Function at src/note.ts:${note.length + 68}`,
-        });
+        expect(
+            await refusal(
+                builder.build({
+                    directory: source,
+                    dependencies: {},
+                    outputs: { library: { ...request.outputs.library, runtime: "workerd" } },
+                }),
+            ),
+        ).toEqual([
+            "UNPROCESSABLE_CONTENT",
+            "RUNTIME_API_UNSUPPORTED",
+            `unsupported workerd API: Function at src/note.ts:${note.length + 68}`,
+        ]);
         const prototypeSource =
             note +
             "\n/** The function prototype's names. */\nexport const names = Object.getOwnPropertyNames(Function.prototype);\n";
@@ -127,10 +130,11 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
             note +
                 '\n/** A Math member. */\nexport const member = (key: string) => Math[key as "PI"];\n',
         );
-        await expect(builder.build(workerdRequest)).rejects.toMatchObject({
-            code: "BUILD_FAILED",
-            message: `dynamic global access: Math at src/note.ts:${note.length + 62}`,
-        });
+        expect(await refusal(builder.build(workerdRequest))).toEqual([
+            "UNPROCESSABLE_CONTENT",
+            "RUNTIME_API_UNSUPPORTED",
+            `dynamic global access: Math at src/note.ts:${note.length + 62}`,
+        ]);
 
         // accept browser index signatures through the runtime's actual type declarations
         const browserSource =
@@ -156,9 +160,11 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
         expect(restored.manifest).toEqual(build.manifest);
 
         // preserve an existing distribution when the caller repeats a write
-        await expect(PackageBuild.write(build.reader, destination)).rejects.toMatchObject({
-            code: "EEXIST",
-        });
+        expect(await systemFailure(PackageBuild.write(build.reader, destination))).toEqual([
+            "EEXIST",
+            "mkdir",
+            destination,
+        ]);
         expect((await PackageBuild.read(destination)).manifest).toEqual(build.manifest);
 
         // refuse writing a file whose bytes of the same size no longer match its digest
@@ -172,29 +178,37 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
         const flipped = Uint8Array.from(original, (byte, index) => (index === 0 ? byte ^ 1 : byte));
         await writeFile(join(build.directory, changed.path), flipped);
         const corrupted = join(directory, "corrupted");
-        await expect(PackageBuild.write(build.reader, corrupted)).rejects.toEqual(
-            new PackageError("INVALID_FILE", `file digest mismatch: ${changed.path}`),
-        );
+        expect(await refusal(PackageBuild.write(build.reader, corrupted))).toEqual([
+            "BAD_REQUEST",
+            "INVALID_FILE",
+            `file digest mismatch: ${changed.path}`,
+        ]);
         await writeFile(join(build.directory, changed.path), original);
 
         // leave no published manifest when an output cannot be written
         const failed = join(directory, "failed");
         await rm(join(build.directory, rootExport(build.manifest, "library")));
-        await expect(PackageBuild.write(build.reader, failed)).rejects.toMatchObject({
-            code: "ENOENT",
-        });
-        await expect(readFile(join(failed, "manifest.json"))).rejects.toMatchObject({
-            code: "ENOENT",
-        });
+        expect(await systemFailure(PackageBuild.write(build.reader, failed))).toEqual([
+            "ENOENT",
+            "open",
+            join(build.directory, rootExport(build.manifest, "library")),
+        ]);
+        expect(await systemFailure(readFile(join(failed, "manifest.json")))).toEqual([
+            "ENOENT",
+            "open",
+            join(failed, "manifest.json"),
+        ]);
 
         const module = await importNotes(destination, rootExport(restored.manifest, "library"));
         expect(module.createNote("A note")).toEqual({ title: "A note", complete: false });
 
         // discard temporary compiler output while preserving the retained distribution
         await build[Symbol.asyncDispose]();
-        await expect(readFile(join(build.directory, "manifest.json"))).rejects.toMatchObject({
-            code: "ENOENT",
-        });
+        expect(await systemFailure(readFile(join(build.directory, "manifest.json")))).toEqual([
+            "ENOENT",
+            "open",
+            join(build.directory, "manifest.json"),
+        ]);
         await restored[Symbol.asyncDispose]();
         expect((await PackageBuild.read(destination)).manifest).toEqual(restored.manifest);
     } finally {
@@ -299,22 +313,18 @@ test("reject invalid outputs and recover the retained compiler", async () => {
     await using store = await LocalPackageStore.temporary();
     await using builder = await Compiler.start(source, { store });
     await using first = await builder.build(library);
-    await expect(
-        builder.build({ directory: source, dependencies: {}, outputs: {} }),
-    ).rejects.toMatchObject({
-        code: "BUILD_FAILED",
-        message: "a build requires at least one output",
-    });
-    await expect(
-        builder.build({
-            directory: source,
-            dependencies: {},
-            outputs: { website: { kind: "web", app: "src/app.tsx", ssr: false } },
-        }),
-    ).rejects.toMatchObject({
-        code: "BUILD_FAILED",
-        message: "no dependency compiles outputs of kind web",
-    });
+    expect(
+        await refusal(builder.build({ directory: source, dependencies: {}, outputs: {} })),
+    ).toEqual(["BAD_REQUEST", "OUTPUT_INVALID", "a build requires at least one output"]);
+    expect(
+        await refusal(
+            builder.build({
+                directory: source,
+                dependencies: {},
+                outputs: { website: { kind: "web", app: "src/app.tsx", ssr: false } },
+            }),
+        ),
+    ).toEqual(["BAD_REQUEST", "OUTPUT_INVALID", "no dependency compiles outputs of kind web"]);
 
     // build the same package again with the same compiler after rejected requests
     await using build = await builder.build(library);
@@ -333,16 +343,18 @@ test("terminate compilation on cancellation and deadline, and build again with t
     // cancel a build once the compiler has it, as the library's build takes over a second
     const pending = builder.build({ ...library, signal: controller.signal });
     setTimeout(() => controller.abort(), CANCEL_MILLISECONDS);
-    await expect(pending).rejects.toMatchObject({
-        code: "BUILD_FAILED",
-        message: "build cancelled",
-    });
+    expect(await refusal(pending)).toEqual([
+        "CLIENT_CLOSED_REQUEST",
+        "BUILD_CANCELLED",
+        "build cancelled",
+    ]);
 
     // stop a compiler past its deadline, and build again with the same builder
-    await expect(builder.build({ ...library, timeout: 1 })).rejects.toMatchObject({
-        code: "BUILD_FAILED",
-        message: "build exceeded 1 ms",
-    });
+    expect(await refusal(builder.build({ ...library, timeout: 1 }))).toEqual([
+        "GATEWAY_TIMEOUT",
+        "COMPILER_TIMEOUT",
+        "build exceeded 1 ms",
+    ]);
     await using rebuilt = await builder.build(library);
     expect(rebuilt.manifest.package.name).toBe("@destack/build-library-fixture");
 });
@@ -517,10 +529,11 @@ test("refuse a workerd output importing an npm unit that workerd cannot load", a
         dependencies: { native },
         outputs: { server: { kind: "module", runtime: "workerd" } },
     });
-    await expect(built).rejects.toMatchObject({
-        code: "BUILD_FAILED",
-        message: "the workerd output of @example/addon needs native, which workerd cannot load",
-    });
+    expect(await refusal(built)).toEqual([
+        "UNPROCESSABLE_CONTENT",
+        "RUNTIME_MODULE_UNSUPPORTED",
+        "the workerd output of @example/addon needs native, which workerd cannot load",
+    ]);
     expect(await countObjects(store)).toBe(stored);
 });
 
@@ -569,6 +582,16 @@ test("check every output's entries with the package's ambient declarations", asy
     });
     expect(Object.keys(built.manifest.outputs).toSorted()).toEqual(["browser", "server"]);
 });
+
+/** Read a system call's failure as its code, call and path. */
+async function systemFailure(pending: Promise<unknown>): Promise<unknown[]> {
+    try {
+        await pending;
+    } catch (error) {
+        return ["code", "syscall", "path"].map((key): unknown => Reflect.get(Object(error), key));
+    }
+    throw new TypeError("the system call did not fail");
+}
 
 /** Read the file an output exports at its root, failing when the manifest lacks it. */
 function rootExport(manifest: PackageManifest, output: string): string {

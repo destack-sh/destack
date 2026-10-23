@@ -3,7 +3,7 @@ import { Digest, present, schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 
 import { NpmInstallation } from "./npm.ts";
-import { convertHere, copy, writeStore } from "./test/store.ts";
+import { convertHere, copy, moduleFailure, writeStore } from "./test/store.ts";
 import { DependencyTree } from "./tree.ts";
 import { LocalPackageStore } from "../store/local.ts";
 
@@ -61,8 +61,8 @@ test("place npm units with the peers the packages beside them provide, failing a
         renderer: "rendered with core",
         store: "object",
     });
-    await expect(import(lacked)).rejects.toMatchObject({
-        code: "MODULE_NOT_FOUND",
-        message: `Cannot find module 'core'\nRequire stack:\n- ${lacked}`,
-    });
+    expect(await moduleFailure(import(lacked))).toEqual([
+        "MODULE_NOT_FOUND",
+        `Cannot find module 'core'\nRequire stack:\n- ${lacked}`,
+    ]);
 });

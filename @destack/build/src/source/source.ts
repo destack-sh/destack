@@ -198,7 +198,7 @@ async function readPackageSource(
 
     // require at least one runtime or type export
     if (!Object.keys(exports).length && !Object.keys(types).length) {
-        throw new PackageError("UNSUPPORTED_TARGET", `no exports for runtime: ${runtime}`);
+        throw PackageError.of("UNSUPPORTED_TARGET", `no exports for runtime: ${runtime}`);
     }
 
     return {
@@ -220,7 +220,7 @@ function isCompiled(
 ): boolean {
     // require a subpath export of a concrete module
     if (!isSelected && name !== "." && !name.startsWith("./")) {
-        throw new PackageError("INVALID_DEFINITION", `invalid export: ${name}`);
+        throw PackageError.of("INVALID_DEFINITION", `invalid export: ${name}`);
     }
 
     // skip the test layer
@@ -231,7 +231,7 @@ function isCompiled(
     // skip exports of other runtimes, refusing a selected entry of another runtime
     const isSupported = PackageDefinition.runtimes(definition, name).includes(runtime);
     if (!isSupported && isSelected) {
-        throw new PackageError(
+        throw PackageError.of(
             "UNSUPPORTED_TARGET",
             `unsupported entry runtime: ${name} -> ${runtime}`,
         );
@@ -248,7 +248,7 @@ function selectType(entry: PackageExport, conditions: ReadonlySet<string>): stri
         return undefined;
     }
     if (!type.startsWith("./")) {
-        throw new PackageError("INVALID_DEFINITION", `invalid type export path: ${type}`);
+        throw PackageError.of("INVALID_DEFINITION", `invalid type export path: ${type}`);
     }
 
     return PackagePath.parse(type.slice(2));
@@ -262,7 +262,7 @@ function selectModule(entry: PackageExport, conditions: ReadonlySet<string>): st
         return undefined;
     }
     if (!path.startsWith("./") || isAbsolute(path)) {
-        throw new PackageError("INVALID_DEFINITION", `invalid export path: ${path}`);
+        throw PackageError.of("INVALID_DEFINITION", `invalid export path: ${path}`);
     }
 
     return /\.d\.[cm]?ts$/u.test(path) ? undefined : PackagePath.parse(path.slice(2));
@@ -301,15 +301,15 @@ export async function readPackageJson(
     const exported = overridden.length === 0 ? {} : mapExports(packageJson);
     const stale = overridden.find((name) => !Object.hasOwn(exported, name));
     if (stale !== undefined) {
-        throw new PackageError(
+        throw PackageError.of(
             "INVALID_DEFINITION",
-            `destack.json overrides the runtimes of an export package.json lacks: ${stale}`,
+            `destack.json overrides the runtimes of an export missing from package.json: ${stale}`,
         );
     }
 
     // require a TypeScript package
     if (definition.language !== "typescript") {
-        throw new PackageError(
+        throw PackageError.of(
             "UNSUPPORTED_LANGUAGE",
             "building TypeScript++ packages requires the language toolchain",
         );
@@ -318,7 +318,7 @@ export async function readPackageJson(
     // associate peer metadata with authored dependency requirements
     for (const name of Object.keys(packageJson.peerDependenciesMeta)) {
         if (!Object.hasOwn(packageJson.peerDependencies, name)) {
-            throw new PackageError("INVALID_DEPENDENCY", `undeclared peer dependency: ${name}`);
+            throw PackageError.of("INVALID_DEPENDENCY", `undeclared peer dependency: ${name}`);
         }
     }
 
@@ -343,9 +343,9 @@ async function expandPatterns(
         }
         // refuse a pattern without one pattern target
         else if (typeof entry !== "string" || !entry.includes("*")) {
-            throw new PackageError(
+            throw PackageError.of(
                 "INVALID_DEFINITION",
-                `a pattern export maps to one pattern target: ${name}`,
+                `a pattern export must map to one pattern target: ${name}`,
             );
         }
         // key each file the target matches by the text its wildcard stands for
@@ -371,7 +371,7 @@ export function mapExports(packageJson: PackageJson): Readonly<Record<string, Pa
     // require exports
     const authored = packageJson.exports;
     if (authored === undefined) {
-        throw new PackageError(
+        throw PackageError.of(
             "INVALID_DEFINITION",
             "a package build requires package.json exports",
         );
@@ -401,7 +401,7 @@ export function selectExport(
     }
     // refuse an absent definition
     else if (value === undefined) {
-        throw new PackageError("INVALID_DEFINITION", "invalid package export definition");
+        throw PackageError.of("INVALID_DEFINITION", "invalid package export definition");
     }
 
     // try a fallback list's alternatives, or the matching conditions in declaration order

@@ -3,14 +3,14 @@ import {
     type Bucket,
     type BucketBody,
     type BucketEntry,
-    type BucketFile,
-    BucketPreconditionError,
+    BucketFile,
+    BucketError,
     type BucketRange,
     MAX_BATCH_FILES,
 } from "@destack/bucket";
 import { PackageFile } from "@destack/package/file";
 import { BuildReader, type PackageLocation, PackageManifest } from "@destack/package/manifest";
-import { CallError } from "@destack/object";
+import { BuildError } from "../error/index.ts";
 import { Tarball } from "@destack/package/archive";
 import { comparePath } from "../build/serialization.ts";
 import { CacheEntry } from "../cache/entry.ts";
@@ -135,9 +135,10 @@ export class PackageStore {
         // store each missing file as served, then the manifest
         const digest = await this.put(reader, signal);
         if (digest !== location.manifest) {
-            throw new CallError("BAD_GATEWAY", {
-                message: `build ${location.manifest} was stored as ${digest}`,
-            });
+            throw BuildError.of(
+                "DIGEST_MISMATCH",
+                `expected build digest ${location.manifest}, got ${digest}`,
+            );
         }
     }
 
@@ -148,9 +149,10 @@ export class PackageStore {
         mediaType: string,
     ): Promise<void> {
         if ((await Digest.of(bytes)) !== Digest.parse(digest)) {
-            throw new CallError("BAD_REQUEST", {
-                message: `the uploaded file does not match its digest ${digest}`,
-            });
+            throw BuildError.of(
+                "DIGEST_INVALID",
+                `the uploaded file does not match its digest ${digest}`,
+            );
         }
         await this.putFile(
             { path: PackageStore.fileKey(digest), digest, size: bytes.byteLength, mediaType },
@@ -162,9 +164,10 @@ export class PackageStore {
     async adopt(digest: string, bytes: Uint8Array<ArrayBuffer>): Promise<void> {
         // read the manifest its digest names
         if ((await Digest.of(bytes)) !== Digest.parse(digest)) {
-            throw new CallError("BAD_REQUEST", {
-                message: `the uploaded manifest does not match its digest ${digest}`,
-            });
+            throw BuildError.of(
+                "DIGEST_INVALID",
+                `the uploaded manifest does not match its digest ${digest}`,
+            );
         }
         const manifest = PackageManifest.parse(
             JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)),
@@ -212,7 +215,7 @@ export class PackageStore {
                 httpMetadata: { contentType: "application/json" },
             })
             .catch((error: unknown) => {
-                if (!(error instanceof BucketPreconditionError)) {
+                if (!BucketError.is(error, "PRECONDITION_UNMET")) {
                     throw error;
                 }
             });
@@ -279,7 +282,7 @@ export class PackageStore {
                 file = references.get(path);
             }
             if (!file) {
-                throw new CallError("NOT_FOUND", { message: `package file not found: ${path}` });
+                throw BuildError.of("BLOB_UNKNOWN", `package file not found: ${path}`);
             }
 
             return file;
@@ -466,7 +469,7 @@ export class PackageStore {
                 httpMetadata: { contentType: "application/json" },
             });
         } catch (error) {
-            if (error instanceof BucketPreconditionError) {
+            if (BucketError.is(error, "PRECONDITION_UNMET")) {
                 return undefined;
             }
             throw error;
@@ -571,7 +574,7 @@ export class PackageStore {
                     httpMetadata: { contentType: "application/json" },
                 });
             } catch (error) {
-                if (!(error instanceof BucketPreconditionError)) {
+                if (!BucketError.is(error, "PRECONDITION_UNMET")) {
                     throw error;
                 }
             }
@@ -605,7 +608,7 @@ export class PackageStore {
         Digest.parse(digest);
         const stored = await this.bucket.head(`${MANIFESTS_PREFIX}${digest}`);
         if (!stored) {
-            throw new CallError("NOT_FOUND", { message: "package manifest not found" });
+            throw BuildError.of("MANIFEST_UNKNOWN", "package manifest not found");
         }
 
         return { path: "manifest.json", digest, size: stored.size, mediaType: "application/json" };
@@ -620,7 +623,7 @@ export class PackageStore {
             range === undefined ? {} : { range },
         );
         if (!object) {
-            throw new CallError("NOT_FOUND", { message: "package manifest not found" });
+            throw BuildError.of("MANIFEST_UNKNOWN", "package manifest not found");
         }
 
         return object;
@@ -634,15 +637,11 @@ export class PackageStore {
             range === undefined ? {} : { range },
         );
         if (!object) {
-            throw new CallError("NOT_FOUND", {
-                message: `package file not found: ${file.path}`,
-            });
+            throw BuildError.of("BLOB_UNKNOWN", `package file not found: ${file.path}`);
         }
         if (!isStored(object, file)) {
             await object.body.cancel();
-            throw new CallError("INTERNAL_SERVER_ERROR", {
-                message: `stored file differs: ${file.path}`,
-            });
+            throw BuildError.of("STORED_CONTENT_DIFFERS", `stored file differs: ${file.path}`);
         }
 
         return object;
@@ -673,9 +672,10 @@ export class PackageStore {
     async #requireStored(digest: string, files: readonly PackageFile[]): Promise<void> {
         for (const file of files) {
             if (!(await this.#has(PackageStore.fileKey(file.digest), file))) {
-                throw new CallError("CONFLICT", {
-                    message: `build ${digest} lists ${file.path}, which was not uploaded`,
-                });
+                throw BuildError.of(
+                    "MANIFEST_BLOB_UNKNOWN",
+                    `build ${digest} lists ${file.path}, which was not uploaded`,
+                );
             }
         }
     }
@@ -779,9 +779,7 @@ export class PackageStore {
         if (stored === null) {
             return false;
         } else if (!isStored(stored, file)) {
-            throw new CallError("INTERNAL_SERVER_ERROR", {
-                message: `stored object differs: ${key}`,
-            });
+            throw BuildError.of("STORED_CONTENT_DIFFERS", `stored object differs: ${key}`);
         }
 
         return true;
@@ -798,8 +796,10 @@ export class PackageStore {
             })
             .catch((error: unknown) => {
                 // read the existing object
-                if (error instanceof BucketPreconditionError) {
-                    return error.current;
+                if (BucketError.is(error, "PRECONDITION_UNMET")) {
+                    const { current } = error.data;
+
+                    return current === null ? null : BucketFile.read(current);
                 }
                 // rethrow any other failure
                 else {
@@ -809,9 +809,7 @@ export class PackageStore {
 
         // require the stored object to match the file
         if (!stored || !isStored(stored, file)) {
-            throw new CallError("INTERNAL_SERVER_ERROR", {
-                message: `stored object differs: ${key}`,
-            });
+            throw BuildError.of("STORED_CONTENT_DIFFERS", `stored object differs: ${key}`);
         }
     }
 
@@ -858,12 +856,10 @@ function requireDistinctPaths(list: readonly PackageFile[]): void {
     const paths = new Set<string>();
     for (const file of list) {
         if (file.path === "manifest.json" || file.path.startsWith("manifest.json/")) {
-            throw new CallError("BAD_REQUEST", { message: `reserved build path: ${file.path}` });
+            throw BuildError.of("MANIFEST_INVALID", `reserved build path: ${file.path}`);
         }
         if (paths.has(file.path)) {
-            throw new CallError("BAD_REQUEST", {
-                message: `duplicate package file: ${file.path}`,
-            });
+            throw BuildError.of("MANIFEST_INVALID", `duplicate package file: ${file.path}`);
         }
         paths.add(file.path);
     }

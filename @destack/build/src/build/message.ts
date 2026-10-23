@@ -7,7 +7,8 @@ import { OutputRequest } from "@destack/package/build";
 import { Runtime } from "@destack/package/runtime";
 import { History } from "@destack/resource";
 import { Commit, Digest, schema, Version } from "@destack/schema";
-import { BuildError, BuildErrorCode } from "../error/index.ts";
+import { Failure } from "@destack/error";
+import { BuildError } from "../error/index.ts";
 import { CachedOutput, OutputKeys } from "../cache/entry.ts";
 import { ModuleOptions } from "./build.ts";
 
@@ -53,10 +54,9 @@ export const BuildResponse = schema.union([
     }),
     schema.object({
         kind: schema.literal("result"),
-        /** The compilation failure, preserving its public code. */
+        /** The compilation failure, keeping its call error. */
         error: schema.object({
-            code: BuildErrorCode,
-            message: schema.string(),
+            failure: Failure,
             cause: schema.unknown().exactOptional(),
             stack: schema.string().exactOptional(),
         }),
@@ -203,10 +203,10 @@ export async function* readMessages<Message>(
             if (isHeader) {
                 const size = buffer.readUInt32LE();
                 if (!size) {
-                    throw new BuildError("BUILD_FAILED", "empty compiler message");
+                    throw BuildError.of("COMPILER_FAILED", "empty compiler message");
                 } else if (size > MAX_MESSAGE_BYTES) {
-                    throw new BuildError(
-                        "BUILD_FAILED",
+                    throw BuildError.of(
+                        "COMPILER_FAILED",
                         `compiler message of ${size} bytes exceeds ${MAX_MESSAGE_BYTES}`,
                     );
                 }
@@ -225,7 +225,7 @@ export async function* readMessages<Message>(
 
     // reject a truncated stream
     if (offset || !isHeader) {
-        throw new BuildError("BUILD_FAILED", "incomplete compiler message");
+        throw BuildError.of("COMPILER_FAILED", "incomplete compiler message");
     }
 }
 

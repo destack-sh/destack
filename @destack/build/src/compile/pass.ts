@@ -136,7 +136,7 @@ export class OutputPass implements Pass {
                 ? { packages: {}, inputs: {}, outputs: {} }
                 : this.#inspections.get(output);
         if (inspection === undefined) {
-            throw new BuildError("BUILD_FAILED", `the pass compiles no output ${output}`);
+            throw BuildError.of("EXTENSION_INVALID", `the pass does not compile output ${output}`);
         }
         if (output !== undefined) {
             this.#recorded.add(output);
@@ -159,7 +159,7 @@ export class OutputPass implements Pass {
     inspection(output: string): BuildDescription {
         const inspection = this.#inspections.get(output);
         if (inspection === undefined || !this.#recorded.has(output)) {
-            throw new BuildError("BUILD_FAILED", `the pass recorded no output ${output}`);
+            throw BuildError.of("EXTENSION_INVALID", `the pass recorded no output ${output}`);
         }
 
         return inspection;
@@ -180,7 +180,7 @@ export class OutputPass implements Pass {
         // require an output of the pass
         const compilation = this.compilations[output];
         if (compilation === undefined) {
-            throw new BuildError("BUILD_FAILED", `the pass compiles no output ${output}`);
+            throw BuildError.of("EXTENSION_INVALID", `the pass does not compile output ${output}`);
         }
         const inspection = this.inspection(output);
 

@@ -1,3 +1,4 @@
+import type { FamilyError } from "@destack/error";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -8,7 +9,7 @@ import type { GlobalReference, ModuleDescription } from "@destack/package/code";
 import { FILE_RESOLVING_RUNTIMES, type Runtime } from "@destack/package/runtime";
 import { TYPESCRIPT_OPTIONS } from "@destack/package/build";
 import type { BuildDescription } from "@destack/package/manifest";
-import { BuildError } from "../error/index.ts";
+import { BuildError, type BuildReason } from "../error/index.ts";
 import { modulePath } from "./dependency.ts";
 import { TypeScriptCompiler } from "../typescript/compiler.ts";
 
@@ -32,7 +33,10 @@ export class RuntimeCompiler implements AsyncDisposable {
         const dynamic = references.find((reference) => reference.dynamic);
         if (dynamic !== undefined) {
             const { path, location } = describeReference(dynamic);
-            throw new BuildError("BUILD_FAILED", `dynamic global access: ${path} at ${location}`);
+            throw BuildError.of(
+                "RUNTIME_API_UNSUPPORTED",
+                `dynamic global access: ${path} at ${location}`,
+            );
         }
 
         // collect the globals each runtime rejects
@@ -75,7 +79,7 @@ export class RuntimeCompiler implements AsyncDisposable {
         try {
             const project = snapshot.getProject(configuration);
             if (!project) {
-                throw new BuildError("BUILD_FAILED", `missing ${runtime} type environment`);
+                throw BuildError.of("INVARIANT_VIOLATED", `missing ${runtime} type environment`);
             }
             await checkEnvironment(project.program, runtime);
 
@@ -84,9 +88,13 @@ export class RuntimeCompiler implements AsyncDisposable {
             const rejected: GlobalReference[] = [];
             for (const failure of failures) {
                 if (failure.fileName !== entry) {
-                    throw new BuildError("BUILD_FAILED", `invalid ${runtime} type environment`, {
-                        cause: failures,
-                    });
+                    throw BuildError.of(
+                        "INVARIANT_VIOLATED",
+                        `invalid ${runtime} type environment`,
+                        {
+                            cause: failures,
+                        },
+                    );
                 }
 
                 // translate the generated location back to the authored access
@@ -94,7 +102,7 @@ export class RuntimeCompiler implements AsyncDisposable {
                 const generated = lines[line];
                 const reference = generated === undefined ? undefined : expressions.get(generated);
                 if (!reference) {
-                    throw new BuildError("BUILD_FAILED", failure.text, { cause: failure });
+                    throw BuildError.of("INVARIANT_VIOLATED", failure.text, { cause: failure });
                 }
                 rejected.push(reference);
             }
@@ -212,8 +220,8 @@ async function checkEnvironment(program: Program, runtime: Runtime): Promise<voi
         const messages = diagnostics.map(
             (diagnostic) => `${diagnostic.fileName ?? runtime}: ${diagnostic.text}`,
         );
-        throw new BuildError(
-            "BUILD_FAILED",
+        throw BuildError.of(
+            "INVARIANT_VIOLATED",
             `invalid ${runtime} type environment:\n${messages.join("\n")}`,
             {
                 cause: diagnostics,
@@ -239,11 +247,14 @@ function declarationFiles(runtime: Runtime): string[] {
 }
 
 /** Report an API none of a module's runtimes has, at the authored expression. */
-function unsupported(reference: GlobalReference, runtimes: readonly Runtime[]): BuildError {
+function unsupported(
+    reference: GlobalReference,
+    runtimes: readonly Runtime[],
+): FamilyError<BuildReason> {
     const { path, location } = describeReference(reference);
 
-    return new BuildError(
-        "BUILD_FAILED",
+    return BuildError.of(
+        "RUNTIME_API_UNSUPPORTED",
         `unsupported ${runtimes.join(", ")} API: ${path} at ${location}`,
     );
 }
@@ -276,11 +287,11 @@ export async function checkRuntime(
     for (const id of inputs) {
         const input = build.inputs[id];
         if (!input) {
-            throw new BuildError("BUILD_FAILED", `unknown compiled module: ${id}`);
+            throw BuildError.of("INVARIANT_VIOLATED", `unknown compiled module: ${id}`);
         }
         if (input.runtimes && !input.runtimes.includes(runtime)) {
-            throw new BuildError(
-                "BUILD_FAILED",
+            throw BuildError.of(
+                "RUNTIME_MODULE_UNSUPPORTED",
                 `unsupported ${runtime} module: ${input.package ?? "source"}/${input.path}`,
             );
         }
@@ -288,7 +299,10 @@ export async function checkRuntime(
         const isUnresolved =
             input.unresolvedImports !== undefined && input.unresolvedImports.length > 0;
         if (isUnresolved && !FILE_RESOLVING_RUNTIMES.has(runtime)) {
-            throw new BuildError("BUILD_FAILED", `unresolved runtime imports: ${input.path}`);
+            throw BuildError.of(
+                "DEPENDENCY_UNRESOLVED",
+                `unresolved runtime imports: ${input.path}`,
+            );
         }
 
         // collect the package's globals, those in functions by the runtimes their module ships to

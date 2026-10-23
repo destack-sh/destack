@@ -58,7 +58,7 @@ export async function modulePackage(
         }
     }
 
-    throw new BuildError("BUILD_FAILED", `no package declaration for module: ${directory}`);
+    throw BuildError.of("DEPENDENCY_UNRESOLVED", `no package declaration for module: ${directory}`);
 }
 
 /** Read the npm releases the nearest Bun lockfile locks, by release and by import name. */
@@ -109,7 +109,7 @@ export function readLockedReleases(lockfile: BunLockfile): Record<string, NpmRel
         const key = `${release.package.name}@${release.package.version}`;
         const existing = releases[key];
         if (existing && JSON.stringify(existing) !== JSON.stringify(release)) {
-            throw new BuildError("BUILD_FAILED", `conflicting locked dependency: ${key}`);
+            throw BuildError.of("LOCKFILE_INVALID", `conflicting locked dependency: ${key}`);
         }
         releases[key] = release;
     }
@@ -128,7 +128,7 @@ function readLockedRelease(id: string, entry: LockedPackage): NpmRelease | undef
         return undefined;
     }
     if (separator < 1 || integrity === undefined || integrity === "") {
-        throw new BuildError("BUILD_FAILED", `unsupported locked dependency: ${id}`);
+        throw BuildError.of("LOCKFILE_INVALID", `unsupported locked dependency: ${id}`);
     }
 
     // read the registry from the full tarball URL that Bun stores for other registries
@@ -137,7 +137,7 @@ function readLockedRelease(id: string, entry: LockedPackage): NpmRelease | undef
     if (location !== undefined && location !== "") {
         const position = location.indexOf(suffix);
         if (position < 0) {
-            throw new BuildError("BUILD_FAILED", `unsupported registry location: ${location}`);
+            throw BuildError.of("LOCKFILE_INVALID", `unsupported registry location: ${location}`);
         }
         registry = location.slice(0, position + 1);
     }
@@ -183,7 +183,7 @@ export function isAuthored(root: string, file: string): boolean {
 export async function readLockfile(directory: string): Promise<BunLockfile> {
     const lockfile = await BunLockfile.read(directory);
     if (lockfile === undefined) {
-        throw new BuildError("BUILD_FAILED", "no Bun lockfile");
+        throw BuildError.of("LOCKFILE_INVALID", "no Bun lockfile");
     }
 
     return requireLockfileVersion(lockfile);
@@ -192,8 +192,8 @@ export async function readLockfile(directory: string): Promise<BunLockfile> {
 /** Require a lockfile in the format the package records follow. */
 function requireLockfileVersion(lockfile: BunLockfile): BunLockfile {
     if (lockfile.version !== LOCKFILE_VERSION) {
-        throw new BuildError(
-            "BUILD_FAILED",
+        throw BuildError.of(
+            "LOCKFILE_INVALID",
             `unsupported Bun lockfile version: ${lockfile.version}`,
         );
     }

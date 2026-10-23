@@ -8,6 +8,7 @@ import { Sandbox } from "@destack/sandbox";
 import { readBuild } from "@destack/package/bun";
 import { Toolchain } from "@destack/check/toolchain";
 import { BunProcess } from "@destack/check/bun";
+import { FamilyError } from "@destack/error";
 import { BuildError } from "../error/index.ts";
 import { locateWorkspace } from "@destack/check/workspace";
 import { present } from "@destack/schema";
@@ -207,17 +208,21 @@ export class Compiler implements AsyncDisposable {
             ({ code }) => {
                 this.#exitCode = code;
                 if (code !== 0 || !this.#disposed) {
-                    this.#failure ??= new BuildError(
-                        "BUILD_FAILED",
+                    this.#failure ??= BuildError.of(
+                        "COMPILER_FAILED",
                         `compiler exited (${code}): ${this.#stderr.trim()}`,
                     );
                 }
                 this.#pending?.reject(this.#failure);
             },
             (cause: unknown) => {
-                this.#failure ??= new BuildError("BUILD_FAILED", "the compiler's sandbox failed", {
-                    cause,
-                });
+                this.#failure ??= BuildError.of(
+                    "COMPILER_FAILED",
+                    "the compiler's sandbox failed",
+                    {
+                        cause,
+                    },
+                );
                 this.#pending?.reject(this.#failure);
             },
         );
@@ -237,8 +242,8 @@ export class Compiler implements AsyncDisposable {
             if (this.#stderr.length > MAX_DIAGNOSTICS) {
                 const head = this.#stderr.slice(0, DIAGNOSTICS_HEAD);
                 fail(
-                    new BuildError(
-                        "BUILD_FAILED",
+                    BuildError.of(
+                        "COMPILER_FAILED",
                         `build diagnostics exceeded 1 MiB, starting: ${head}`,
                     ),
                 );
@@ -257,7 +262,7 @@ export class Compiler implements AsyncDisposable {
             // refuse a message no request awaits
             const pending = this.#pending;
             if (pending === undefined) {
-                throw new BuildError("BUILD_FAILED", "unexpected compiler message");
+                throw BuildError.of("COMPILER_FAILED", "unexpected compiler message");
             }
             // deliver the response to its request
             else if (message.kind === "result") {
@@ -267,7 +272,7 @@ export class Compiler implements AsyncDisposable {
             else {
                 void this.#answer(sandbox, message).catch((error: unknown) =>
                     this.#fail(
-                        new BuildError("BUILD_FAILED", "cannot answer a cache request", {
+                        BuildError.of("COMPILER_FAILED", "cannot respond to a cache request", {
                             cause: error,
                         }),
                     ),
@@ -373,8 +378,8 @@ export class Compiler implements AsyncDisposable {
                 // refuse a unit without the runtime: a native addon, or one importing such a unit
                 const { outputs } = await store.get(unit.manifest);
                 if (!Object.values(outputs).some((each) => each.runtime === output.runtime)) {
-                    throw new BuildError(
-                        "BUILD_FAILED",
+                    throw BuildError.of(
+                        "RUNTIME_MODULE_UNSUPPORTED",
                         `the ${output.runtime} output of ${manifest.package.name} needs ${unit.package.name}, which ${output.runtime} cannot load`,
                     );
                 }
@@ -390,7 +395,7 @@ export class Compiler implements AsyncDisposable {
     ): Promise<OutputKeys> {
         const planned = await this.#request({ kind: "plan", options }, signal, timeout);
         if (planned.kind !== "plan") {
-            throw new BuildError("BUILD_FAILED", "unexpected compiler result");
+            throw BuildError.of("COMPILER_FAILED", "unexpected compiler result");
         }
 
         return planned.keys;
@@ -414,7 +419,7 @@ export class Compiler implements AsyncDisposable {
         };
         const response = await this.#request(request, signal, timeout);
         if (response.kind !== "build") {
-            throw new BuildError("BUILD_FAILED", "unexpected compiler result");
+            throw BuildError.of("COMPILER_FAILED", "unexpected compiler result");
         }
 
         return response;
@@ -430,7 +435,7 @@ export class Compiler implements AsyncDisposable {
             const request = { kind: "inspect", options: await this.#inspected(options) } as const;
             const response = await this.#request(request, signal);
             if (response.kind !== "inspect") {
-                throw new BuildError("INSPECTION_FAILED", "unexpected compiler result");
+                throw BuildError.of("COMPILER_FAILED", "unexpected compiler result");
             }
 
             return response.inspection;
@@ -447,7 +452,7 @@ export class Compiler implements AsyncDisposable {
             const request = { kind: "index", options: await this.#inspected(options) } as const;
             const response = await this.#request(request, signal);
             if (response.kind !== "index") {
-                throw new BuildError("INSPECTION_FAILED", "unexpected compiler result");
+                throw BuildError.of("COMPILER_FAILED", "unexpected compiler result");
             }
 
             return response.code;
@@ -481,7 +486,7 @@ export class Compiler implements AsyncDisposable {
                     peers: [...request.peers],
                 });
                 if (response.kind !== "convert") {
-                    throw new BuildError("BUILD_FAILED", "unexpected compiler result");
+                    throw BuildError.of("COMPILER_FAILED", "unexpected compiler result");
                 }
 
                 return {
@@ -513,16 +518,16 @@ export class Compiler implements AsyncDisposable {
     ): Promise<BuildResult> {
         // refuse a closed compiler, an invalid timeout and a cancelled request
         if (this.#disposed) {
-            throw new BuildError("BUILD_FAILED", "compiler is closed");
+            throw BuildError.of("INVARIANT_VIOLATED", "compiler is closed");
         }
         if (
             timeout !== undefined &&
             (!Number.isSafeInteger(timeout) || timeout <= 0 || timeout > 2 ** 31 - 1)
         ) {
-            throw new BuildError("BUILD_FAILED", "invalid compiler timeout");
+            throw BuildError.of("TIMEOUT_INVALID", "invalid compiler timeout");
         }
         if (signal?.aborted === true) {
-            throw new BuildError("BUILD_FAILED", "build cancelled", { cause: signal.reason });
+            throw BuildError.of("BUILD_CANCELLED", "build cancelled", { cause: signal.reason });
         }
 
         // start a compiler again once a cancelled, late or crashed one has stopped
@@ -532,7 +537,7 @@ export class Compiler implements AsyncDisposable {
         }
         const abort = () =>
             this.#fail(
-                new BuildError("BUILD_FAILED", "build cancelled", { cause: signal?.reason }),
+                BuildError.of("BUILD_CANCELLED", "build cancelled", { cause: signal?.reason }),
             );
         // fail a build past the caller's deadline, and leave one without a deadline to its signal
         const timer =
@@ -541,7 +546,7 @@ export class Compiler implements AsyncDisposable {
                 : setTimeout(
                       () =>
                           this.#fail(
-                              new BuildError("BUILD_FAILED", `build exceeded ${timeout} ms`),
+                              BuildError.of("COMPILER_TIMEOUT", `build exceeded ${timeout} ms`),
                           ),
                       timeout,
                   );
@@ -565,7 +570,7 @@ export class Compiler implements AsyncDisposable {
             this.#pending = { resolve: deliver, reject };
             void writeMessage(this.#sandbox.stdin, request).catch((error: unknown) =>
                 this.#fail(
-                    new BuildError("BUILD_FAILED", "cannot send the compiler request", {
+                    BuildError.of("COMPILER_FAILED", "cannot send the compiler request", {
                         cause: error,
                     }),
                 ),
@@ -583,7 +588,7 @@ export class Compiler implements AsyncDisposable {
         // mark disposal, fail a pending build and end the compiler input
         this.#disposed = true;
         if (this.#pending) {
-            this.#fail(new BuildError("BUILD_FAILED", "compiler closed during a build"));
+            this.#fail(BuildError.of("INVARIANT_VIOLATED", "compiler closed during a build"));
         }
         this.#sandbox.stdin.end();
 
@@ -610,7 +615,9 @@ export class Compiler implements AsyncDisposable {
 
         // stop the compiler's process group at once
         void this.#sandbox.stop(0).catch((cause: unknown) => {
-            this.#failure ??= new BuildError("BUILD_FAILED", "cannot stop the compiler", { cause });
+            this.#failure ??= BuildError.of("COMPILER_FAILED", "cannot stop the compiler", {
+                cause,
+            });
         });
     }
 }
@@ -641,7 +648,8 @@ function spawn(
 /** Read a compiler response's result, rethrowing the failure it reports. */
 function resultOf(response: BuildResponse): BuildResult {
     if (response.error !== undefined) {
-        const failure = new BuildError(response.error.code, response.error.message, {
+        const { code, reason, domain, message, data } = response.error.failure;
+        const failure = new FamilyError({ domain, reason, code, data }, message, {
             cause: response.error.cause,
         });
         if (response.error.stack !== undefined) {
@@ -683,7 +691,10 @@ async function reuseOutputs(
 /** Read the output a cached output names, refusing an entry of another kind. */
 function cachedOutput(entry: CacheEntry): CachedOutput {
     if (entry.kind !== "output") {
-        throw new BuildError("BUILD_FAILED", "an output's cache key names a build");
+        throw BuildError.of(
+            "INVARIANT_VIOLATED",
+            "the cache entry of an output is a package build",
+        );
     }
 
     return entry.output;

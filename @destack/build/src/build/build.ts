@@ -94,7 +94,7 @@ export class PackageBuild implements AsyncDisposable {
         }
         for (const path of references) {
             if (!paths.has(path)) {
-                throw new PackageError("INVALID_FILE", `missing build file: ${path}`);
+                throw PackageError.of("INVALID_FILE", `missing build file: ${path}`);
             }
         }
 
@@ -102,7 +102,7 @@ export class PackageBuild implements AsyncDisposable {
         for (const file of list) {
             const { digest, size } = await digestFile(resolve(directory, file.path));
             if (size !== file.size || digest !== file.digest) {
-                throw new PackageError("INVALID_FILE", `file contents differ: ${file.path}`);
+                throw PackageError.of("INVALID_FILE", `file contents differ: ${file.path}`);
             }
         }
 
@@ -132,10 +132,10 @@ function requireDistinctPaths(list: readonly PackageFile[]): Set<string> {
     const paths = new Set<string>();
     for (const file of list) {
         if (file.path === MANIFEST_PATH || file.path.startsWith(`${MANIFEST_PATH}/`)) {
-            throw new PackageError("INVALID_FILE", `reserved build path: ${file.path}`);
+            throw PackageError.of("INVALID_FILE", `reserved build path: ${file.path}`);
         }
         if (paths.has(file.path)) {
-            throw new PackageError("INVALID_FILE", `duplicate file: ${file.path}`);
+            throw PackageError.of("INVALID_FILE", `duplicate file: ${file.path}`);
         }
         paths.add(file.path);
     }
@@ -144,7 +144,7 @@ function requireDistinctPaths(list: readonly PackageFile[]): Set<string> {
     for (const path of paths) {
         for (const parent of parents(path)) {
             if (paths.has(parent)) {
-                throw new PackageError("INVALID_FILE", `file is also a directory: ${parent}`);
+                throw PackageError.of("INVALID_FILE", `file is also a directory: ${parent}`);
             }
         }
     }
@@ -158,7 +158,7 @@ function requireSeparateOutputs(manifest: PackageManifest, paths: ReadonlySet<st
     const directories = new Set<string>();
     for (const output of Object.values(manifest.outputs)) {
         if (directories.has(output.directory)) {
-            throw new PackageError(
+            throw PackageError.of(
                 "INVALID_FILE",
                 `duplicate output directory: ${output.directory}`,
             );
@@ -170,10 +170,10 @@ function requireSeparateOutputs(manifest: PackageManifest, paths: ReadonlySet<st
     for (const directory of directories) {
         for (const path of [...parents(directory), directory]) {
             if (paths.has(path)) {
-                throw new PackageError("INVALID_FILE", `output directory is a file: ${path}`);
+                throw PackageError.of("INVALID_FILE", `output directory is a file: ${path}`);
             }
             if (path !== directory && directories.has(path)) {
-                throw new PackageError(
+                throw PackageError.of(
                     "INVALID_FILE",
                     `overlapping output directories: ${path}, ${directory}`,
                 );
@@ -191,7 +191,7 @@ function exportedPaths(
     const exported = Object.values(output.exports);
     for (const path of exported) {
         if (!path.startsWith(`${output.directory}/`)) {
-            throw new PackageError("INVALID_FILE", `export is outside its output: ${path}`);
+            throw PackageError.of("INVALID_FILE", `export is outside its output: ${path}`);
         }
     }
 
@@ -273,7 +273,7 @@ export function outputsOf(
     // select the named outputs, refusing a name the exports imply no output for
     const unknown = names.filter((name) => !Object.hasOwn(implied, name));
     if (unknown.length > 0) {
-        throw new BuildError("BUILD_FAILED", `the package builds no output ${unknown.join(", ")}`);
+        throw BuildError.of("OUTPUT_INVALID", `the package has no output ${unknown.join(", ")}`);
     }
 
     return Object.fromEntries(Object.entries(implied).filter(([name]) => names.includes(name)));

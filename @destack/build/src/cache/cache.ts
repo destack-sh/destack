@@ -297,7 +297,7 @@ export function importClosure(program: ProgramImports, entries: readonly string[
     // require each entry among the package's modules
     for (const entry of entries) {
         if (!program.modules.has(entry)) {
-            throw new BuildError("BUILD_FAILED", `the program lacks the entry ${entry}`);
+            throw BuildError.of("ENTRY_INVALID", `the program is missing entry ${entry}`);
         }
     }
 
@@ -390,7 +390,7 @@ class CycleFinder {
         do {
             member = this.#stack.pop();
             if (member === undefined) {
-                throw new BuildError("BUILD_FAILED", "an import cycle lost its modules");
+                throw BuildError.of("INVARIANT_VIOLATED", "an import cycle lost its modules");
             }
             this.#stacked.delete(member);
             cycle.push(member);

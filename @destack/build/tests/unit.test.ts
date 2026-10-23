@@ -111,7 +111,7 @@ test("build a workspace's units on their dependencies' builds, restore every uni
     ).catch((error: unknown) => (error instanceof Error ? error.message : error));
     const previous = built.manifest.outputs["bun"]?.dependencies?.[LIBRARY];
     const before = previous?.kind === "destack" ? previous.manifest : "";
-    const refused = `${LIBRARY} is required as two builds, ${before} and ${edited.manifest}`;
+    const refused = `${LIBRARY} is required as two different builds: ${before} and ${edited.manifest}`;
 
     // expect the restored build to equal the first one, and the rebuilt one to greet anew
     expect({

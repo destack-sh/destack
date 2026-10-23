@@ -47,7 +47,8 @@ import { NpmConversion } from "../compile/conversion.ts";
 import { OutputPass } from "../compile/pass.ts";
 import { checkRuntime, RuntimeCompiler } from "../compile/runtime.ts";
 import { Template } from "../template/index.ts";
-import { BuildError, isMissing } from "../error/index.ts";
+import { DomainError } from "@destack/error";
+import { BuildError, isMissing, extensionFailureOf } from "../error/index.ts";
 import { isAuthored, relativePath } from "../source/dependency.ts";
 import { ProgramImports } from "../cache/scan.ts";
 import type { PackageBuildOptions, ModuleOptions } from "./build.ts";
@@ -173,7 +174,7 @@ export class CompilerWorker implements AsyncDisposable {
         }
 
         // fail the cache requests the host can no longer answer, then finish the requests
-        cache.close(new BuildError("BUILD_FAILED", "the host closed the compiler's input"));
+        cache.close(BuildError.of("COMPILER_FAILED", "the host closed the compiler's input"));
         await responding;
     }
 
@@ -537,7 +538,7 @@ export class CompilerWorker implements AsyncDisposable {
             );
             const identity = project.packageJson.package;
             if (source !== undefined && !isSamePackage(source, identity)) {
-                throw new BuildError("BUILD_FAILED", "package changed during build");
+                throw BuildError.of("SOURCE_CHANGED", "package changed during build");
             }
             source = identity;
             projects.set(name, project);
@@ -655,7 +656,7 @@ export class CompilerWorker implements AsyncDisposable {
         for (const [name, output] of planned) {
             const described = found(requests, output.pass?.name ?? name).outputs[name];
             if (described === undefined) {
-                throw new BuildError("BUILD_FAILED", `no compilation described output ${name}`);
+                throw BuildError.of("INVARIANT_VIOLATED", `output ${name} has no compilation`);
             }
             outputs.set(name, { output: described.output, inspection: described.description });
         }
@@ -730,7 +731,7 @@ export class CompilerWorker implements AsyncDisposable {
                 pass,
             );
         } catch (cause) {
-            throw BuildError.from(cause);
+            throw extensionFailureOf(cause);
         }
         await writeFiles(pass.files, pass.paths, files);
 
@@ -739,7 +740,10 @@ export class CompilerWorker implements AsyncDisposable {
         for (const member of members) {
             const output = described[member];
             if (output === undefined) {
-                throw new BuildError("BUILD_FAILED", `the pass described no output ${member}`);
+                throw BuildError.of(
+                    "INVARIANT_VIOLATED",
+                    `the pass did not describe output ${member}`,
+                );
             }
             outputs[member] = { output, description: pass.inspection(member) };
         }
@@ -950,7 +954,7 @@ async function recordReused(
         for (const file of entry.files) {
             await files.record(file.path);
             if (files.file(file.path).digest !== file.digest) {
-                throw new BuildError("BUILD_FAILED", `a cached file changed: ${file.path}`);
+                throw BuildError.of("SOURCE_CHANGED", `a cached file changed: ${file.path}`);
             }
         }
     }
@@ -1000,7 +1004,7 @@ function expand(
             try {
                 expanded = kind.expand(name, request);
             } catch (cause) {
-                throw BuildError.from(cause);
+                throw extensionFailureOf(cause);
             }
             for (const [member, output] of Object.entries(expanded)) {
                 const { files, ...settings } = output;
@@ -1015,7 +1019,7 @@ function expand(
 
     // require at least one output
     if (!planned.size) {
-        throw new BuildError("BUILD_FAILED", "a build requires at least one output");
+        throw BuildError.of("OUTPUT_INVALID", "a build requires at least one output");
     }
 
     return planned;
@@ -1024,10 +1028,10 @@ function expand(
 /** Plan an output, refusing an invalid or taken name. */
 function addOutput(planned: Map<string, PlannedOutput>, name: string, output: PlannedOutput): void {
     if (!/^[a-z][a-z0-9-]*$/u.test(name)) {
-        throw new BuildError("BUILD_FAILED", `invalid output name: ${name}`);
+        throw BuildError.of("OUTPUT_INVALID", `invalid output name: ${name}`);
     }
     if (planned.has(name)) {
-        throw new BuildError("BUILD_FAILED", `duplicate output name: ${name}`);
+        throw BuildError.of("OUTPUT_INVALID", `duplicate output name: ${name}`);
     }
     planned.set(name, output);
 }
@@ -1041,7 +1045,7 @@ function isModuleRequest(request: ModuleOptions | OutputRequest): request is Mod
 function kindOf(name: string, extensions: readonly BuildExtension[]): OutputKind {
     const kind = extensions.find((extension) => extension.outputs?.[name])?.outputs?.[name];
     if (kind === undefined) {
-        throw new BuildError("BUILD_FAILED", `no dependency compiles outputs of kind ${name}`);
+        throw BuildError.of("OUTPUT_INVALID", `no dependency compiles outputs of kind ${name}`);
     }
 
     return kind;
@@ -1146,7 +1150,7 @@ function requirePresent(
         dependency.package.version !== owner.version ||
         (dependency.kind !== "npm" && dependency.package.id !== owner.id)
     ) {
-        throw new BuildError("BUILD_FAILED", `unresolved declaration package: ${key}`);
+        throw BuildError.of("DEPENDENCY_UNRESOLVED", `unresolved declaration package: ${key}`);
     }
 
     // require the declaring source file in a source dependency
@@ -1154,8 +1158,8 @@ function requirePresent(
         dependency.kind === "source" &&
         !dependency.files.some((file) => file.path === declaration.source.file)
     ) {
-        throw new BuildError(
-            "BUILD_FAILED",
+        throw BuildError.of(
+            "DECLARATION_INVALID",
             `missing declaration source: ${key}/${declaration.source.file}`,
         );
     }
@@ -1232,7 +1236,7 @@ function joinResolutions(
         next.kind !== "source" ||
         JSON.stringify(previous.package) !== JSON.stringify(next.package)
     ) {
-        throw new BuildError("BUILD_FAILED", `conflicting dependency resolution: ${key}`);
+        throw BuildError.of("DEPENDENCY_INVALID", `conflicting dependency resolution: ${key}`);
     }
 
     // unite the files by path, refusing one path read with different bytes
@@ -1240,8 +1244,8 @@ function joinResolutions(
     for (const file of next.files) {
         const known = files.get(file.path);
         if (known !== undefined && known.digest !== file.digest) {
-            throw new BuildError(
-                "BUILD_FAILED",
+            throw BuildError.of(
+                "DEPENDENCY_INVALID",
                 `conflicting dependency file: ${key}/${file.path}`,
             );
         }
@@ -1256,22 +1260,26 @@ function joinResolutions(
 async function findPackage(name: string, locator: PackageLocator): Promise<Package> {
     const owner = await locator.find(join(Toolchain.locate([name], PACKAGE), "package.json"));
     if (!owner) {
-        throw new BuildError("BUILD_FAILED", `missing Destack package: ${name}`);
+        throw BuildError.of("INVARIANT_VIOLATED", `missing Destack package: ${name}`);
     }
 
     return owner.metadata.package;
 }
 
-/** Describe a failure for the host, with a build failure's code, its cause and its stack. */
+/** Describe a failure for the host, with a build failure's reason, its cause and its stack. */
 function describeFailure(error: unknown): Extract<BuildResponse, { error: object }>["error"] {
     // describe a thrown value that is no error by its text
     if (!(error instanceof Error)) {
-        return { code: "BUILD_FAILED", message: String(error) };
+        return { failure: BuildError.of("INVARIANT_VIOLATED", String(error)).toCallError() };
     }
 
+    // keep a package's declared failure, and report anything else as an internal fault
+    const failure = DomainError.is(error)
+        ? error.toCallError()
+        : BuildError.of("INVARIANT_VIOLATED", error.message).toCallError();
+
     return {
-        code: error instanceof BuildError ? error.code : "BUILD_FAILED",
-        message: error.message,
+        failure,
         cause: cloneableCause(error.cause),
         ...(error.stack === undefined ? {} : { stack: error.stack }),
     };

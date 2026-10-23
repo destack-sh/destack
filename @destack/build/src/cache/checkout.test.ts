@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promis
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Digest } from "@destack/schema";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { Checkout } from "./checkout.ts";
 
 /** Make a temporary directory, removed after the test. */
@@ -76,6 +76,36 @@ test("key a package by the files git lists, reading linked files through their l
     });
 });
 
+test("key a package by the files a build reads, keeping the key across test and doc edits", async () => {
+    // write a package with a module and its test kit in a git checkout
+    const root = await temporary("destack-checkout-");
+    await writeManifest(root, "@example/production");
+    await mkdir(join(root, "src", "test"), { recursive: true });
+    await writeFile(join(root, "src", "index.ts"), "export const answer = 42;\n");
+    await writeFile(join(root, "src", "test", "kit.ts"), "export const kit = 1;\n");
+    git(root, "init", "--quiet");
+    const key = async () => await (await Checkout.list(root)).identify(root);
+    const initial = await key();
+
+    // write a test, a tests folder with a fixture, a readme and a justfile
+    await mkdir(join(root, "tests", "fixtures"), { recursive: true });
+    await writeFile(join(root, "src", "index.test.ts"), "export {};\n");
+    await writeFile(join(root, "tests", "build.ts"), "export {};\n");
+    await writeFile(join(root, "tests", "fixtures", "note.json"), "{}\n");
+    await writeFile(join(root, "README.md"), "# Production\n");
+    await writeFile(join(root, "justfile"), "test:\n");
+    const tested = await key();
+
+    // change the test kit, then the module
+    await writeFile(join(root, "src", "test", "kit.ts"), "export const kit = 2;\n");
+    const kit = await key();
+    await writeFile(join(root, "src", "index.ts"), "export const answer = 43;\n");
+    const changed = await key();
+
+    // keep the key across files no build reads, and change it for the kit and the module
+    expect([tested === initial, kit === tested, changed === kit]).toEqual([true, false, false]);
+});
+
 test("list a checkout once and key each package by the git blobs below its directory", async () => {
     // write two packages, one nested in the other, in one checkout, staging the outer module
     const root = await temporary("destack-checkout-packages-");
@@ -121,16 +151,19 @@ test("refuse a package outside a git checkout, ignored by one or listing a linke
     const checkout = await Checkout.list(root);
 
     // refuse each instead of keying no files or failing on a directory read
-    await expect(Checkout.list(outside)).rejects.toMatchObject({
-        code: "BUILD_FAILED",
-        message: `git rev-parse failed in ${outside}`,
-    });
-    await expect(checkout.identify(ignored)).rejects.toMatchObject({
-        code: "BUILD_FAILED",
-        message: `git lists no package.json in ${ignored}`,
-    });
-    await expect(checkout.identify(linking)).rejects.toMatchObject({
-        code: "BUILD_FAILED",
-        message: `git lists the linked directory ${join(linking, "linked")}`,
-    });
+    expect(await refusal(Checkout.list(outside))).toEqual([
+        "INTERNAL_SERVER_ERROR",
+        "CHECKOUT_FAILED",
+        `git rev-parse failed in ${outside}`,
+    ]);
+    expect(await refusal(checkout.identify(ignored))).toEqual([
+        "INTERNAL_SERVER_ERROR",
+        "CHECKOUT_FAILED",
+        `git lists no package.json in ${ignored}`,
+    ]);
+    expect(await refusal(checkout.identify(linking))).toEqual([
+        "INTERNAL_SERVER_ERROR",
+        "CHECKOUT_FAILED",
+        `git lists the linked directory ${join(linking, "linked")}`,
+    ]);
 });

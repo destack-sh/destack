@@ -129,7 +129,7 @@ export class SymbolInspector {
         if (symbol.flags & SymbolFlags.Value) {
             const type = await this.project.checker.getTypeOfSymbol(symbol);
             if (!type) {
-                throw new BuildError("INSPECTION_FAILED", `missing value type: ${symbol.name}`);
+                throw BuildError.of("INSPECTION_FAILED", `missing value type: ${symbol.name}`);
             }
             result.valueType = await this.type(type, nodes[0]);
             result.signatures = await this.signatures(type, nodes[0]);
@@ -231,7 +231,7 @@ export class SymbolInspector {
         const location = declarations[0];
         const type = await this.#memberType(await this.original(symbol), location);
         if (type === undefined || type.isErrorType()) {
-            throw new BuildError(
+            throw BuildError.of(
                 "INSPECTION_FAILED",
                 `cannot inspect member: ${parent.name}.${symbol.name} (${symbol.flags})`,
             );
@@ -355,7 +355,7 @@ export class SymbolInspector {
     /** Describe an expression and the named declarations needed to understand it. */
     async type(type: Type, location: Node | undefined): Promise<TypeDescription> {
         if (type.isErrorType()) {
-            throw new BuildError("INSPECTION_FAILED", "cannot inspect an unresolved type");
+            throw BuildError.of("INSPECTION_FAILED", "cannot inspect an unresolved type");
         }
 
         // render the expression as hovers do, truncated, while walking its references
@@ -485,7 +485,7 @@ export class SymbolInspector {
             signature.getParameters().then((symbols) => this.#typesOf(symbols)),
         ]);
         if (!returns) {
-            throw new BuildError("INSPECTION_FAILED", "missing signature return type");
+            throw BuildError.of("INSPECTION_FAILED", "missing signature return type");
         }
 
         return [returns, ...parameters];
@@ -514,7 +514,7 @@ export class SymbolInspector {
 
         return types.map((type, index) => {
             if (type === undefined) {
-                throw new BuildError(
+                throw BuildError.of(
                     "INSPECTION_FAILED",
                     `missing type: ${nth(symbols, index).name}`,
                 );
@@ -562,7 +562,7 @@ export class SymbolInspector {
         );
         const returns = await this.#returnOf(signature);
         if (!node || !returns) {
-            throw new BuildError(
+            throw BuildError.of(
                 "INSPECTION_FAILED",
                 `cannot describe a callable signature: ${declaration?.getText()}`,
             );
@@ -586,7 +586,7 @@ export class SymbolInspector {
         if (receiver) {
             const type = await this.project.checker.getTypeOfSymbol(receiver);
             if (!type) {
-                throw new BuildError("INSPECTION_FAILED", "missing receiver type");
+                throw BuildError.of("INSPECTION_FAILED", "missing receiver type");
             }
             result.receiver = await this.type(type, declaration);
         }
@@ -605,7 +605,7 @@ export class SymbolInspector {
                 const handle = symbol?.declarations[0];
                 const generic = handle === undefined ? undefined : await this.node(handle);
                 if (!generic || !isTypeParameterDeclaration(generic)) {
-                    throw new BuildError(
+                    throw BuildError.of(
                         "INSPECTION_FAILED",
                         "missing generic parameter declaration",
                     );
@@ -632,7 +632,7 @@ export class SymbolInspector {
                 const declaration = nth(nodes, index).find(isParameterDeclaration);
                 const type = nth(types, index);
                 if (type.isErrorType()) {
-                    throw new BuildError("INSPECTION_FAILED", "cannot inspect an unresolved type");
+                    throw BuildError.of("INSPECTION_FAILED", "cannot inspect an unresolved type");
                 }
 
                 return {
@@ -652,7 +652,7 @@ export class SymbolInspector {
     /** Read a generic parameter from its source declaration. */
     async parameterType(node: Node): Promise<SourceDeclaration["typeParameters"][number]> {
         if (!isTypeParameterDeclaration(node)) {
-            throw new BuildError("INSPECTION_FAILED", "expected a type parameter");
+            throw BuildError.of("INSPECTION_FAILED", "expected a type parameter");
         }
 
         // describe the parameter and each authored type expression
@@ -668,7 +668,7 @@ export class SymbolInspector {
             // resolve the authored constraint or default
             const type = await this.project.checker.getTypeFromTypeNode(expression);
             if (!type) {
-                throw new BuildError("INSPECTION_FAILED", `missing generic ${key}: ${result.name}`);
+                throw BuildError.of("INSPECTION_FAILED", `missing generic ${key}: ${result.name}`);
             }
 
             result[key] = await this.type(type, node);
@@ -745,7 +745,7 @@ export class SymbolInspector {
         // require the declaration
         const node = await handle.resolve(this.project);
         if (!node) {
-            throw new BuildError("INSPECTION_FAILED", `missing declaration: ${handle.path}`);
+            throw BuildError.of("INSPECTION_FAILED", `missing declaration: ${handle.path}`);
         }
 
         return node;
@@ -787,7 +787,7 @@ function nodeList<Item extends Node>(
     if (list === undefined) {
         return [];
     } else if (!isNodeList(list) || !list.every(guard)) {
-        throw new BuildError("INSPECTION_FAILED", "a declaration has an unexpected node list");
+        throw BuildError.of("INSPECTION_FAILED", "a declaration has an unexpected node list");
     }
 
     return list;

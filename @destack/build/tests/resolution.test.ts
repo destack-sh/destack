@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer } from "vite";
 import { DependencyResolution } from "@destack/package";
-import { expect, test } from "@destack/test";
+import { expect, refusal, test } from "@destack/test";
 import { Compiler, Workspace, CompilerPool } from "../src/index.ts";
 import { resolutionPlugin } from "../src/compile/dependency.ts";
 import { PackageSource } from "../src/source/index.ts";
@@ -158,12 +158,13 @@ test("resolve a dependency the build releases at a given version exactly, refusi
         expect(built.manifest.package.version).toEqual("2026.9.0-dev.4");
 
         // refuse the declared version in a dev build, and the dev version in a release build
-        const refusal = {
-            code: "BUILD_FAILED",
-            message: "dependency resolution differs from installation: @fixture/pinned",
-        };
-        await expect(build("2026.9.0", dev)).rejects.toMatchObject(refusal);
-        await expect(build("2026.9.0-dev.4")).rejects.toMatchObject(refusal);
+        const refused = [
+            "UNPROCESSABLE_CONTENT",
+            "DEPENDENCY_INVALID",
+            "dependency resolution differs from installation: @fixture/pinned",
+        ];
+        expect(await refusal(build("2026.9.0", dev))).toEqual(refused);
+        expect(await refusal(build("2026.9.0-dev.4"))).toEqual(refused);
     } finally {
         await rm(root, { recursive: true });
     }
@@ -197,18 +198,21 @@ test("refuse an unsupported dependency in a build as the development server does
             outputs: Object.keys(build.manifest.outputs),
             server: build.manifest.outputs["bun"]?.dependencies["@fixture/server"]?.kind,
         }).toEqual({ outputs: ["bun"], server: "destack" });
-        await expect(
-            compilers.use(directory, (compiler) =>
-                compiler.build({
-                    directory,
-                    dependencies: {},
-                    outputs: { browser: { kind: "module", runtime: "browser" } },
-                }),
+        expect(
+            await refusal(
+                compilers.use(directory, (compiler) =>
+                    compiler.build({
+                        directory,
+                        dependencies: {},
+                        outputs: { browser: { kind: "module", runtime: "browser" } },
+                    }),
+                ),
             ),
-        ).rejects.toMatchObject({
-            code: "BUILD_FAILED",
-            message: "unsupported browser dependency: @fixture/server",
-        });
+        ).toEqual([
+            "UNPROCESSABLE_CONTENT",
+            "RUNTIME_MODULE_UNSUPPORTED",
+            "unsupported browser dependency: @fixture/server",
+        ]);
     } finally {
         await rm(root, { recursive: true });
     }
@@ -301,16 +305,19 @@ test("refuse star exports that lead back into a module, listing the cycle", asyn
     try {
         await using store = await LocalPackageStore.temporary();
         await using compiler = await Compiler.start(directory, { store });
-        await expect(
-            compiler.build({
-                directory,
-                dependencies: {},
-                outputs: { bun: { kind: "module", runtime: "bun" } },
-            }),
-        ).rejects.toMatchObject({
-            code: "INSPECTION_FAILED",
-            message: "export * cycle: src/left.ts -> src/right.ts -> src/left.ts",
-        });
+        expect(
+            await refusal(
+                compiler.build({
+                    directory,
+                    dependencies: {},
+                    outputs: { bun: { kind: "module", runtime: "bun" } },
+                }),
+            ),
+        ).toEqual([
+            "UNPROCESSABLE_CONTENT",
+            "INSPECTION_FAILED",
+            "export * cycle: src/left.ts -> src/right.ts -> src/left.ts",
+        ]);
     } finally {
         await rm(root, { recursive: true });
     }

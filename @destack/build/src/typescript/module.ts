@@ -287,7 +287,7 @@ class ProjectInspection {
         const bytes = new Uint8Array(await readFile(file));
         const text = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes);
         if (text !== source.text) {
-            throw new BuildError("INSPECTION_FAILED", `source changed during inspection: ${path}`);
+            throw BuildError.of("INSPECTION_FAILED", `source changed during inspection: ${path}`);
         }
 
         // retain the module's bytes and an empty description
@@ -349,7 +349,7 @@ class ProjectInspection {
                 const declaration = target?.declarations[0];
                 if (declaration === undefined) {
                     const text = nth(specifiers, index).getText();
-                    throw new BuildError("INSPECTION_FAILED", `unresolved export module: ${text}`);
+                    throw BuildError.of("INSPECTION_FAILED", `unresolved export module: ${text}`);
                 }
 
                 return (await this.inspector.node(declaration)).getSourceFile();
@@ -380,7 +380,7 @@ class ProjectInspection {
                 );
                 const ordered = [...cycle.slice(first), ...cycle.slice(0, first)];
                 const paths = [...ordered, nth(ordered, 0)].join(" -> ");
-                throw new BuildError("INSPECTION_FAILED", `export * cycle: ${paths}`);
+                throw BuildError.of("INSPECTION_FAILED", `export * cycle: ${paths}`);
             }
             await this.#requireAcyclic(starred, [...chain, starred]);
         }
@@ -436,7 +436,7 @@ class ProjectInspection {
         const exports = await Promise.all(
             [...table.values()].map(async ({ symbol, original, isRuntime }) => {
                 if (await this.project.checker.isUnknownSymbol(original)) {
-                    throw new BuildError(
+                    throw BuildError.of(
                         "INSPECTION_FAILED",
                         `unresolved export: ${path}#${symbol.name}`,
                     );
@@ -491,9 +491,9 @@ class ProjectInspection {
         const modules = new Map(described.modules.map((module) => [module.path, module]));
         const unknown = [...this.modules.keys()].filter((path) => !modules.has(path));
         if (unknown.length > 0) {
-            throw new BuildError(
+            throw BuildError.of(
                 "INSPECTION_FAILED",
-                `the runtime programs read modules the first one lacks: ${unknown.join(", ")}`,
+                `the runtime programs read modules that the first one does not have: ${unknown.join(", ")}`,
             );
         }
 
@@ -505,12 +505,12 @@ class ProjectInspection {
                 .filter((each) => !exported.has(stringifyInspection(each)))
                 .map((each) => each.name);
             if (other.source.digest !== module.source.digest) {
-                throw new BuildError(
+                throw BuildError.of(
                     "INSPECTION_FAILED",
                     `${path} changed between runtime programs`,
                 );
             } else if (differing.length > 0 || other.exports.length !== module.exports.length) {
-                throw new BuildError(
+                throw BuildError.of(
                     "INSPECTION_FAILED",
                     `the runtime programs disagree on the exports of ${path}: ${differing.join(", ")}`,
                 );
@@ -555,7 +555,7 @@ class ProjectInspection {
     ): Promise<{ module: string; symbol: SymbolDescription }> {
         const located = await this.reference(symbol);
         if (!("module" in located)) {
-            throw new BuildError("INSPECTION_FAILED", "queued an external declaration");
+            throw BuildError.of("INVARIANT_VIOLATED", "queued an external declaration");
         }
 
         return {
@@ -576,7 +576,7 @@ async function readAuthored(
         authored.map(async (file) => {
             const source = await project.program.getSourceFile(file);
             if (!source) {
-                throw new BuildError("INSPECTION_FAILED", `missing compiler source: ${file}`);
+                throw BuildError.of("INSPECTION_FAILED", `missing compiler source: ${file}`);
             }
 
             return [file, source] as const;
@@ -663,7 +663,7 @@ async function locateDeclaration(
     // qualify the first declaration within its source module
     const [declaration] = symbol.declarations;
     if (declaration === undefined) {
-        throw new BuildError(
+        throw BuildError.of(
             "INSPECTION_FAILED",
             `export has no source declaration: ${symbol.name}`,
         );
@@ -673,7 +673,7 @@ async function locateDeclaration(
 
     // require a declaration of the package to belong to one of its modules
     if ("module" in reference && !modules.has(reference.module)) {
-        throw new BuildError(
+        throw BuildError.of(
             "INSPECTION_FAILED",
             `declaration belongs to an unknown module: ${reference.module}`,
         );
@@ -692,7 +692,7 @@ async function describeImports(
     // read literal specifiers, including dynamic imports
     const specifiers = source.imports.map((entry) => {
         if (!isStringLiteral(entry) && !isNoSubstitutionTemplateLiteral(entry)) {
-            throw new BuildError("INSPECTION_FAILED", `unsupported import in ${source.fileName}`);
+            throw BuildError.of("INSPECTION_FAILED", `unsupported import in ${source.fileName}`);
         }
 
         return entry;
@@ -730,7 +730,7 @@ async function locateSymbol(
     // name compiler libraries by their lowercase file names, leaving their large sources unread
     const metadata = await inspector.project.program.getSourceFileMetadataByPath(declaration.path);
     if (metadata === undefined) {
-        throw new BuildError("INSPECTION_FAILED", `undeclared source file: ${declaration.path}`);
+        throw BuildError.of("INSPECTION_FAILED", `undeclared source file: ${declaration.path}`);
     }
     if (metadata.isDefaultLibrary) {
         return {
@@ -764,7 +764,7 @@ async function declarationName(symbol: TypeScriptSymbol): Promise<string> {
     while (parent) {
         const [declaration] = parent.declarations;
         if (declaration === undefined) {
-            throw new BuildError(
+            throw BuildError.of(
                 "INSPECTION_FAILED",
                 `unresolved declaration parent: ${parent.name}`,
             );

@@ -19,13 +19,13 @@ export async function readCatalogs(
         // require a catalog file of the package's messages
         const path = `${CATALOG_DIRECTORY}/${name}`;
         if (!Catalog.isPath(path)) {
-            throw new BuildError("BUILD_FAILED", `not a catalog: ${path}`);
+            throw BuildError.of("CATALOG_INVALID", `not a catalog: ${path}`);
         }
         const bytes = new Uint8Array(await readFile(join(directory, path)));
         try {
             Catalog.of(path, JSON.parse(new TextDecoder().decode(bytes)), owner);
         } catch (cause) {
-            throw new BuildError("BUILD_FAILED", `invalid catalog: ${path}`, { cause });
+            throw BuildError.of("CATALOG_INVALID", `invalid catalog: ${path}`, { cause });
         }
         catalogs.set(path, bytes);
     }

@@ -1,3 +1,4 @@
+import type { FamilyError } from "@destack/error";
 import type { Symbol as TypeScriptSymbol } from "typescript/unstable/async";
 import {
     type CallExpression,
@@ -23,7 +24,7 @@ import {
 } from "typescript/unstable/ast";
 import type { JsonValue } from "@destack/schema";
 import type { SourceRange } from "@destack/package/source";
-import { BuildError } from "../error/index.ts";
+import { BuildError, type BuildReason } from "../error/index.ts";
 import { exportedNames } from "./declaration.ts";
 import type { SymbolInspector } from "./symbol.ts";
 
@@ -254,8 +255,8 @@ export class DefinitionFields {
     }
 
     /** Describe a definition that cannot be read without evaluation. */
-    #error(requirement: string): BuildError {
-        return new BuildError(
+    #error(requirement: string): FamilyError<BuildReason> {
+        return BuildError.of(
             "INSPECTION_FAILED",
             `${this.#kind} ${this.location} requires ${requirement}`,
         );
@@ -331,7 +332,7 @@ async function locateConstant(
         Boolean(declaration.parent.flags & NodeFlags.Const) &&
         declaration.parent.parent.parent.kind === SyntaxKind.SourceFile;
     if (!isConstant || !isIdentifier(declaration.name)) {
-        throw new BuildError(
+        throw BuildError.of(
             "INSPECTION_FAILED",
             `${kind} in ${file} must initialize a module-level constant`,
         );
@@ -340,9 +341,9 @@ async function locateConstant(
     // require the constant to be exported
     const symbol = await inspector.project.checker.getSymbolAtLocation(declaration.name);
     if (symbol === undefined || !exported.has(symbol.id)) {
-        throw new BuildError(
+        throw BuildError.of(
             "INSPECTION_FAILED",
-            `export ${file}#${declaration.name.text} to inspect its ${kind}`,
+            `cannot inspect the ${kind} of ${file}#${declaration.name.text}: export it`,
         );
     }
 

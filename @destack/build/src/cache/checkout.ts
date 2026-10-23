@@ -16,6 +16,9 @@ const LISTING_BYTES = 64 * 1024 * 1024;
 /** The mode git stores a symbolic link with, whose blob stores the link's target path. */
 const LINK_MODE = "120000";
 
+/** The files no build reads: test modules, the tests folder, docs and recipes. */
+const UNREAD_FILES = [/(?:^|\/)[^/]*\.test\.[^/]+$/u, /^tests\//u, /\.md$/u, /(?:^|\/)justfile$/u];
+
 /** The hash functions of git's object formats. */
 const ObjectFormat = schema.enum(["sha1", "sha256"]);
 
@@ -45,7 +48,7 @@ export class Checkout {
         const revision = ["rev-parse", "--show-toplevel", "--show-object-format"];
         const [root, format] = (await Checkout.#git(revision, directory)).split("\n");
         if (root === undefined || root === "") {
-            throw new BuildError("BUILD_FAILED", `git reports no checkout of ${directory}`);
+            throw BuildError.of("CHECKOUT_FAILED", `${directory} is not a git checkout`);
         }
 
         // list the stored blobs, then the untracked and modified files git stores no blob for
@@ -66,25 +69,28 @@ export class Checkout {
         return new Checkout(root, files, ObjectFormat.parse(format));
     }
 
-    /** Digest a package's files by path and git blob id, hashing files without a blob. */
+    /** Digest the files a build reads by path and git blob id, hashing files without a blob. */
     async identify(directory: string): Promise<Digest> {
         // take the files below the directory
         const below = relativePath(this.root, directory);
         const prefix = below === "" ? "" : `${below}/`;
-        const files = [...this.files].filter(([path]) => path.startsWith(prefix));
+        const files = [...this.files]
+            .filter(([path]) => path.startsWith(prefix))
+            .map(([path, blob]) => [path.slice(prefix.length), blob] as const);
 
         // refuse a package outside the checkout or ignored by it, whose listing lacks its manifest
-        if (!files.some(([path]) => path === `${prefix}package.json`)) {
-            throw new BuildError("BUILD_FAILED", `git lists no package.json in ${directory}`);
+        if (!files.some(([path]) => path === "package.json")) {
+            throw BuildError.of("CHECKOUT_FAILED", `git lists no package.json in ${directory}`);
         }
 
-        // key each file by its stored blob, else by the blob of its bytes, in path order
+        // key each file a build can read by its stored blob, else by the blob of its bytes, in path order
         const blobs = await Promise.all(
             files
+                .filter(([path]) => !UNREAD_FILES.some((pattern) => pattern.test(path)))
                 .toSorted(([left], [right]) => (left < right ? -1 : 1))
                 .map(async ([path, blob]) => [
-                    path.slice(prefix.length),
-                    blob ?? (await this.#hash(join(this.root, path))),
+                    path,
+                    blob ?? (await this.#hash(join(this.root, prefix, path))),
                 ]),
         );
 
@@ -107,7 +113,7 @@ export class Checkout {
             }
             // refuse a linked directory, which git lists as one entry
             else if (error instanceof Error && "code" in error && error.code === "EISDIR") {
-                throw new BuildError("BUILD_FAILED", `git lists the linked directory ${path}`);
+                throw BuildError.of("CHECKOUT_FAILED", `git lists the linked directory ${path}`);
             }
             throw error;
         }
@@ -122,7 +128,7 @@ export class Checkout {
     static async #git(command: readonly string[], directory: string): Promise<string> {
         const ran = await run("git", command, { cwd: directory, maxBuffer: LISTING_BYTES }).catch(
             (cause: unknown) => {
-                throw new BuildError("BUILD_FAILED", `git ${command[0]} failed in ${directory}`, {
+                throw BuildError.of("CHECKOUT_FAILED", `git ${command[0]} failed in ${directory}`, {
                     cause,
                 });
             },

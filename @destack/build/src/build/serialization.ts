@@ -18,7 +18,7 @@ function checkValue(value: unknown, path: string, ancestors: Set<object>): void 
         return;
     }
     if (typeof value !== "object" || value === null) {
-        throw new BuildError("INSPECTION_FAILED", `non-JSON inspection value at ${path}`);
+        throw BuildError.of("INSPECTION_FAILED", `non-JSON inspection value at ${path}`);
     }
 
     // reject objects with serialization behavior and cyclic references
@@ -26,10 +26,10 @@ function checkValue(value: unknown, path: string, ancestors: Set<object>): void 
     const prototype: unknown = Object.getPrototypeOf(value);
     const plain: unknown = isArray ? Array.prototype : Object.prototype;
     if (prototype !== plain && prototype !== null) {
-        throw new BuildError("INSPECTION_FAILED", `non-JSON inspection object at ${path}`);
+        throw BuildError.of("INSPECTION_FAILED", `non-JSON inspection object at ${path}`);
     }
     if (ancestors.has(value)) {
-        throw new BuildError("INSPECTION_FAILED", `cyclic inspection value at ${path}`);
+        throw BuildError.of("INSPECTION_FAILED", `cyclic inspection value at ${path}`);
     }
     ancestors.add(value);
 
@@ -42,7 +42,7 @@ function checkValue(value: unknown, path: string, ancestors: Set<object>): void 
     // reject symbol keys, leaving non-enumerable object metadata outside the JSON document
     for (const key of Object.getOwnPropertySymbols(value)) {
         if (isArray || Object.prototype.propertyIsEnumerable.call(value, key)) {
-            throw new BuildError(
+            throw BuildError.of(
                 "INSPECTION_FAILED",
                 `non-JSON inspection property at ${path}[${JSON.stringify(String(key))}]`,
             );
@@ -51,7 +51,7 @@ function checkValue(value: unknown, path: string, ancestors: Set<object>): void 
 
     // reject array holes, which JSON would replace with null
     if (isArray && Object.keys(properties).length !== value.length + 1) {
-        throw new BuildError("INSPECTION_FAILED", `sparse inspection array at ${path}`);
+        throw BuildError.of("INSPECTION_FAILED", `sparse inspection array at ${path}`);
     }
     ancestors.delete(value);
 }
@@ -74,10 +74,10 @@ function checkProperty(
 
     // require a data property at an array index
     if (!("value" in property)) {
-        throw new BuildError("INSPECTION_FAILED", `non-JSON inspection property at ${location}`);
+        throw BuildError.of("INSPECTION_FAILED", `non-JSON inspection property at ${location}`);
     }
     if (array !== undefined && (!/^(0|[1-9][0-9]*)$/u.test(key) || Number(key) >= array.length)) {
-        throw new BuildError("INSPECTION_FAILED", `non-JSON array property at ${location}`);
+        throw BuildError.of("INSPECTION_FAILED", `non-JSON array property at ${location}`);
     }
 
     // check a present value

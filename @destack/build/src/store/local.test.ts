@@ -37,7 +37,7 @@ test("open one store per toolchain, deleting other toolchains' idle stores and r
     onTestFinished(() => rm(directory, { recursive: true }));
     const idle = await LocalBucket.open(join(directory, "idle"), "space-test", Clock.system);
     await idle[Symbol.asyncDispose]();
-    await using open = await LocalBucket.open(join(directory, "open"), "space-test", Clock.system);
+    await using _open = await LocalBucket.open(join(directory, "open"), "space-test", Clock.system);
     await writeFile(join(directory, ".DS_Store"), "");
 
     // write an object into the toolchain's store, then reopen it

@@ -160,8 +160,8 @@ export function joinModules(
 ): ModuleDescription {
     // require the same source bytes, which give both outputs the same symbols and exports
     if (module.source.digest !== other.source.digest) {
-        throw new BuildError(
-            "BUILD_FAILED",
+        throw BuildError.of(
+            "SOURCE_CHANGED",
             `module ${module.path} was inspected from two sources`,
         );
     }
@@ -455,7 +455,7 @@ function isAnonymous(name: string): boolean {
 function kindOf(declarations: readonly SourceDeclaration[], name: string): graph.Symbol["kind"] {
     const kind = DECLARATION_SYMBOL_KINDS[first(declarations).kind];
     if (kind === undefined) {
-        throw new BuildError(
+        throw BuildError.of(
             "INSPECTION_FAILED",
             `unknown declaration kind ${first(declarations).kind}: ${name}`,
         );
@@ -468,7 +468,7 @@ function kindOf(declarations: readonly SourceDeclaration[], name: string): graph
 function first(declarations: readonly SourceDeclaration[]): SourceDeclaration {
     const [declaration] = declarations;
     if (declaration === undefined) {
-        throw new BuildError("INSPECTION_FAILED", "a symbol has no declaration");
+        throw BuildError.of("INSPECTION_FAILED", "a symbol has no declaration");
     }
 
     return declaration;

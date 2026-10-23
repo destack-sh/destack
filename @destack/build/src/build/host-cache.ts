@@ -40,10 +40,7 @@ export class HostCache implements TransformCache {
         // find the request awaiting the answer, refusing an answer no request awaits
         const awaiting = this.#pending.get(response.id);
         if (awaiting === undefined) {
-            throw new BuildError(
-                "BUILD_FAILED",
-                `no cache request ${response.id} awaits an answer`,
-            );
+            throw BuildError.of("COMPILER_FAILED", `no pending cache request ${response.id}`);
         }
 
         // deliver it once

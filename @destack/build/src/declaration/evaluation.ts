@@ -91,7 +91,7 @@ export const Evaluation = {
         // bundle the package's declaring and example modules
         const source = generateEntry(declarations, examples, project.directory);
         const namespace = await evaluateEntry(source, project).catch((cause: unknown) => {
-            throw new BuildError(
+            throw BuildError.of(
                 "INSPECTION_FAILED",
                 `declaration evaluation failed: ${messageOf(cause)}`,
                 { cause },
@@ -114,7 +114,7 @@ export const Evaluation = {
                 namespace,
                 compare,
             ).catch((cause: unknown) => {
-                throw new BuildError(
+                throw BuildError.of(
                     "INSPECTION_FAILED",
                     `declaration evaluation failed: ${kind} ${name} (${declaration.file}): ${messageOf(cause)}`,
                     { cause },
@@ -197,7 +197,7 @@ function locateFunction(
     // require the module the runtime selects
     const path = selectExport(inspector.target, conditions);
     if (typeof path !== "string") {
-        throw new BuildError(
+        throw BuildError.of(
             "INSPECTION_FAILED",
             `${inspector.directory} exports no ${HOST_RUNTIME} module at ${inspector.subpath}`,
         );
@@ -246,7 +246,7 @@ async function evaluateEntry(source: string, project: PackageSource): Promise<Ev
         const chunks = generated.output.filter((file) => file.type === "chunk");
         const [chunk] = chunks;
         if (chunks.length !== 1 || chunk === undefined) {
-            throw new BuildError(
+            throw BuildError.of(
                 "INSPECTION_FAILED",
                 "declaration evaluation requires one JavaScript module",
             );
@@ -286,7 +286,7 @@ function treePlugin(tree: DependencyTree, runtime: Runtime): Plugin {
             if (modules !== undefined) {
                 const module = modules[HOST_RUNTIME] ?? modules[runtime];
                 if (module === undefined) {
-                    throw new BuildError(
+                    throw BuildError.of(
                         "INSPECTION_FAILED",
                         `${specifier} has no ${[...new Set([HOST_RUNTIME, runtime])].join(" or ")} module`,
                     );
@@ -356,7 +356,7 @@ function entryPlugin(source: string): Plugin {
                     sourcemap: true,
                 });
                 if (result.errors.length) {
-                    throw new BuildError("INSPECTION_FAILED", JSON.stringify(result.errors));
+                    throw BuildError.of("INSPECTION_FAILED", JSON.stringify(result.errors));
                 }
 
                 return {
@@ -432,9 +432,9 @@ function requireDeclaringPackage(declaration: DeclarationExport, value: unknown)
 
     // refuse a declaration without a package
     if (stamped === undefined) {
-        throw new BuildError(
+        throw BuildError.of(
             "INSPECTION_FAILED",
-            `${declaration.export} declaration lacks its declaring package; stamp it in ${declaration.description.constructor.symbol.name}`,
+            `${declaration.export} declaration has no package: set it in ${declaration.description.constructor.symbol.name}`,
         );
     }
     // refuse a declaration of another package
@@ -443,7 +443,7 @@ function requireDeclaringPackage(declaration: DeclarationExport, value: unknown)
         stamped.name !== owner.name ||
         stamped.version !== owner.version
     ) {
-        throw new BuildError(
+        throw BuildError.of(
             "INSPECTION_FAILED",
             `${declaration.export} declaration belongs to a different package`,
         );

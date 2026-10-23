@@ -1,7 +1,7 @@
 import { Digest } from "@destack/schema";
 import type { BuildReader } from "@destack/package/manifest";
 import { PackageManifest } from "@destack/package/manifest";
-import { CallError } from "@destack/object";
+import { BuildError } from "../error/index.ts";
 import { distinctFiles, encodeManifest, inBatches } from "./store.ts";
 
 /** The client of a package server, pushing builds by digest as registry clients push images. */
@@ -34,9 +34,10 @@ export class PackageClient {
             }
             // refuse a failed probe
             else if (!held.ok) {
-                throw new CallError("BAD_GATEWAY", {
-                    message: `cannot probe ${new URL(target).pathname}: HTTP ${held.status}`,
-                });
+                throw BuildError.of(
+                    "PROBE_FAILED",
+                    `cannot probe ${new URL(target).pathname}: HTTP ${held.status}`,
+                );
             }
         });
 
@@ -59,9 +60,10 @@ export class PackageClient {
     async #upload(request: Request): Promise<void> {
         const response = await this.#fetch(request);
         if (!response.ok) {
-            throw new CallError("BAD_GATEWAY", {
-                message: `cannot upload ${new URL(request.url).pathname}: HTTP ${response.status}`,
-            });
+            throw BuildError.of(
+                "UPLOAD_FAILED",
+                `cannot upload ${new URL(request.url).pathname}: HTTP ${response.status}`,
+            );
         }
     }
 }

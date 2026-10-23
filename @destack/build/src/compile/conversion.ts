@@ -270,7 +270,7 @@ export class NpmConversion {
 
         // refuse a CommonJS module rendered without rolldown's wrapper
         if (match === null && isCommonJS) {
-            throw new BuildError("BUILD_FAILED", `unrecognized CommonJS export of ${id}`);
+            throw BuildError.of("BUNDLE_FAILED", `unrecognized CommonJS export of ${id}`);
         }
         // leave an ES module
         else if (match === null) {

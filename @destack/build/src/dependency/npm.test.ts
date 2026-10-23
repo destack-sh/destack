@@ -1,10 +1,10 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Digest, schema } from "@destack/schema";
-import { expect, test } from "@destack/test";
+import { expect, refusal, test } from "@destack/test";
 
 import { NpmInstallation } from "./npm.ts";
-import { convertHere, copy, writeStore } from "./test/store.ts";
+import { convertHere, copy, moduleFailure, writeStore } from "./test/store.ts";
 import { LocalPackageStore } from "../store/local.ts";
 
 /** The toolchain identity the units key by, as one call's workspace reads it. */
@@ -163,9 +163,10 @@ test("convert for workerd what its conditions import, replacing what a `browser`
     });
 
     // fail the unreplaced parser's signal reader once it runs, as workerd lacks the constants module
-    await expect(call(lazy["parseFile"], "/")).rejects.toMatchObject({
-        message: "host module is unavailable on workerd: constants",
-    });
+    const unavailable = new Error("host module is unavailable on workerd: constants");
+    await expect(call(lazy["parseFile"], "/")).rejects.toEqual(
+        Object.assign(unavailable, { code: "MODULE_NOT_FOUND" }),
+    );
 });
 
 test("convert a package for workerd past the tsconfig it publishes, which extends a development dependency, as khroma's does", async () => {
@@ -239,10 +240,10 @@ test("fail an absent optional dependency's require when it runs, and an absent o
         greeting: "hello",
     });
     const loading = join(placed, "node_modules", "loader", "index.js");
-    await expect(call(loader["load"])).rejects.toMatchObject({
-        code: "ERR_MODULE_NOT_FOUND",
-        message: `Cannot find package 'plugin' imported from ${loading}`,
-    });
+    expect(await moduleFailure(Promise.resolve(call(loader["load"])))).toEqual([
+        "ERR_MODULE_NOT_FOUND",
+        `Cannot find package 'plugin' imported from ${loading}`,
+    ]);
 });
 
 test("refuse an npm unit with a missing dependency or a cycle, and build Bun's copy alone of a native addon and its importers", async () => {
@@ -269,10 +270,14 @@ test("refuse an npm unit with a missing dependency or a cycle, and build Bun's c
     // build Bun's copy alone of the native addon and its importer, and refuse the others with their exact reasons
     expect(await runtimesOf(store, (await build("native")).manifest)).toEqual(["bun"]);
     expect(await runtimesOf(store, (await build("importer")).manifest)).toEqual(["bun"]);
-    await expect(build("missing")).rejects.toMatchObject({
-        message: "missing dependency of missing@1.0.0: absent",
-    });
-    await expect(build("first")).rejects.toMatchObject({
-        message: `npm dependency cycle through ${copy(root, "first")}`,
-    });
+    expect(await refusal(build("missing"))).toEqual([
+        "UNPROCESSABLE_CONTENT",
+        "DEPENDENCY_UNRESOLVED",
+        "missing dependency of missing@1.0.0: absent",
+    ]);
+    expect(await refusal(build("first"))).toEqual([
+        "UNPROCESSABLE_CONTENT",
+        "DEPENDENCY_INVALID",
+        `npm dependency cycle through ${copy(root, "first")}`,
+    ]);
 });

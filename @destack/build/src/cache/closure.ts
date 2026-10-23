@@ -72,8 +72,8 @@ export class ModuleClosure {
         // scan the module past its hashbang as Bun's transpiler loads it
         const loader = LOADERS[extname(file)];
         if (loader === undefined) {
-            throw new BuildError(
-                "BUILD_FAILED",
+            throw BuildError.of(
+                "INVARIANT_VIOLATED",
                 `the toolchain loads a module Bun cannot scan: ${file}`,
             );
         }
@@ -113,6 +113,6 @@ export class ModuleClosure {
                 return { directory, ...parsed.data };
             }
         }
-        throw new BuildError("BUILD_FAILED", `no package declares the module ${file}`);
+        throw BuildError.of("DEPENDENCY_UNRESOLVED", `no package declares the module ${file}`);
     }
 }

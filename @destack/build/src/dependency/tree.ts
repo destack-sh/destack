@@ -132,9 +132,9 @@ export class DependencyTree {
             // visit each package once, refusing two builds of one package in the flat tree
             const visited = manifests.get(dependency.package.name);
             if (visited !== undefined && visited !== dependency.manifest) {
-                throw new BuildError(
-                    "BUILD_FAILED",
-                    `${dependency.package.name} is required as two builds, ${visited} and ${dependency.manifest}`,
+                throw BuildError.of(
+                    "DEPENDENCY_INVALID",
+                    `${dependency.package.name} is required as two different builds: ${visited} and ${dependency.manifest}`,
                 );
             } else if (visited !== undefined) {
                 continue;
@@ -342,7 +342,7 @@ export class DependencyTree {
         // refuse peers requiring each other in a cycle
         const name = dependency.package.name;
         if (visiting.has(dependency.manifest)) {
-            throw new BuildError("BUILD_FAILED", `npm peer cycle through ${name}`);
+            throw BuildError.of("DEPENDENCY_INVALID", `npm peer cycle through ${name}`);
         }
 
         // provide each peer the unit declares from the packages beside it, as Node resolves them
@@ -421,9 +421,9 @@ export class DependencyTree {
         const beside = new Map<string, NpmDependency>([[name, dependency]]);
         for (const [imported, release] of siblings) {
             if (release.kind !== "npm") {
-                throw new BuildError(
-                    "BUILD_FAILED",
-                    `the npm unit of ${name} records ${imported} as a build`,
+                throw BuildError.of(
+                    "DEPENDENCY_INVALID",
+                    `the npm unit of ${name} lists ${imported} as a build, not an npm release`,
                 );
             }
             beside.set(imported, release);
@@ -522,7 +522,7 @@ export class DependencyTree {
         // refuse a subpath the package does not export
         const conditions = exports[subpath];
         if (conditions === undefined) {
-            throw new BuildError("BUILD_FAILED", `${name} exports no ${subpath}`);
+            throw BuildError.of("DEPENDENCY_UNRESOLVED", `${name} exports no ${subpath}`);
         }
 
         // answer each runtime's module of the subpath, none for a subpath of types alone
@@ -604,10 +604,13 @@ export class DependencyTree {
         if (only === undefined && !isRequired) {
             return undefined;
         } else if (only === undefined) {
-            throw new BuildError("BUILD_FAILED", `npm package not installed: ${name}@${version}`);
+            throw BuildError.of(
+                "DEPENDENCY_UNRESOLVED",
+                `npm package not installed: ${name}@${version}`,
+            );
         } else if (others.length > 0) {
-            throw new BuildError(
-                "BUILD_FAILED",
+            throw BuildError.of(
+                "DEPENDENCY_INVALID",
                 `npm package installed with several peer sets: ${entries.join(", ")}`,
             );
         }
@@ -624,7 +627,10 @@ export class DependencyTree {
     static #directory(directories: Readonly<Record<string, string>>, name: string): string {
         const directory = directories[name];
         if (directory === undefined) {
-            throw new TypeError(`the dependency tree has no directory for ${name}`);
+            throw BuildError.of(
+                "INVARIANT_VIOLATED",
+                `the dependency tree has no directory for ${name}`,
+            );
         }
 
         return directory;

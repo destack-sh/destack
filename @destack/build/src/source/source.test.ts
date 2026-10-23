@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { PackageSource, readPackageJson } from "./source.ts";
 
 /** Write a package whose destack.json overrides the runtimes of some exports. */
@@ -33,10 +33,11 @@ async function writePackage(overrides: readonly string[]): Promise<string> {
 test("read runtime overrides of a package's exports, and refuse one of an export package.json lacks", async () => {
     // read an override of an export, and refuse one of a missing export
     const read = await readPackageJson(await writePackage(["./server"]));
-    await expect(readPackageJson(await writePackage(["./gone"]))).rejects.toMatchObject({
-        code: "INVALID_DEFINITION",
-        message: "destack.json overrides the runtimes of an export package.json lacks: ./gone",
-    });
+    expect(await refusal(readPackageJson(await writePackage(["./gone"])))).toEqual([
+        "BAD_REQUEST",
+        "INVALID_DEFINITION",
+        "destack.json overrides the runtimes of an export missing from package.json: ./gone",
+    ]);
     expect(read.definition.exports).toEqual({ "./server": { runtimes: ["workerd"] } });
 });
 

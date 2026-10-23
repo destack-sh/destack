@@ -110,7 +110,7 @@ export class ConstructorCatalog {
         // leave compiler library functions unread, since no package declares them
         const metadata = await project.program.getSourceFileMetadataByPath(handle.path);
         if (metadata === undefined) {
-            throw new BuildError("INSPECTION_FAILED", `undeclared source file: ${handle.path}`);
+            throw BuildError.of("INSPECTION_FAILED", `undeclared source file: ${handle.path}`);
         }
         if (metadata.isDefaultLibrary) {
             return undefined;
@@ -156,9 +156,9 @@ export class ConstructorCatalog {
     async identify(location: PackageLocation): Promise<Package> {
         const owner = await this.owner(location);
         if (!("id" in owner)) {
-            throw new BuildError(
+            throw BuildError.of(
                 "INSPECTION_FAILED",
-                `${location.name} declares Destack declarations without a destack.json`,
+                `${location.name} has Destack declarations but no destack.json`,
             );
         }
 
@@ -264,9 +264,9 @@ export class ConstructorCatalog {
                     candidate.kind === kind && !("package" in candidate),
             );
         if (directory === undefined || entry === undefined) {
-            throw new BuildError(
+            throw BuildError.of(
                 "INSPECTION_FAILED",
-                `${location.name} describes kind ${kind}, which ${name} does not declare`,
+                `${location.name} describes kind ${kind}, but ${name} does not declare it`,
             );
         }
         const declaring = await this.locate(directory);
@@ -279,14 +279,17 @@ export class ConstructorCatalog {
         // require the package export of the function, which may be conditional
         const separator = reference.indexOf("#");
         if (separator === -1) {
-            throw new TypeError(`function reference ${reference} names no export`);
+            throw BuildError.of(
+                "INSPECTION_FAILED",
+                `function reference ${reference} is not an export`,
+            );
         }
         const subpath = reference.slice(0, separator);
         const name = reference.slice(separator + 1);
         const exports = await this.#exported(location);
         const target = exports?.[subpath];
         if (target === undefined) {
-            throw new BuildError(
+            throw BuildError.of(
                 "INSPECTION_FAILED",
                 `${location.name} does not export ${subpath} for ${reference}`,
             );
@@ -456,7 +459,7 @@ async function locateDeclaration(
 
     // require a named variable initialized by the constructor, or by methods chained on its result
     if (!isVariableDeclaration(declaration) || !isIdentifier(declaration.name)) {
-        throw new BuildError(
+        throw BuildError.of(
             "INSPECTION_FAILED",
             `${constructor.symbol.name} requires a named module declaration`,
         );
@@ -466,9 +469,9 @@ async function locateDeclaration(
     const symbol = await inspector.project.checker.getSymbolAtLocation(declaration.name);
     const exportedName = symbol === undefined ? undefined : exported.get(symbol.id);
     if (exportedName === undefined) {
-        throw new BuildError(
+        throw BuildError.of(
             "INSPECTION_FAILED",
-            `export ${file}:${declaration.name.text} to inspect its declaration`,
+            `cannot inspect the declaration ${file}:${declaration.name.text}: export it`,
         );
     }
 
@@ -477,7 +480,7 @@ async function locateDeclaration(
         !(declaration.parent.flags & NodeFlags.Const) ||
         declaration.parent.parent.parent.kind !== SyntaxKind.SourceFile
     ) {
-        throw new BuildError(
+        throw BuildError.of(
             "INSPECTION_FAILED",
             `${constructor.symbol.name} must initialize a module-level constant`,
         );

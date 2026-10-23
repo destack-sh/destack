@@ -56,8 +56,8 @@ export function directoryPlugin(
 
                     // emit the directory's files and add the package's to the build
                     const entries = await readDirectory(source).catch((cause: unknown) => {
-                        throw new BuildError(
-                            "BUILD_FAILED",
+                        throw BuildError.of(
+                            "ASSET_INVALID",
                             `${id} references an unreadable directory`,
                             { cause },
                         );
@@ -87,7 +87,7 @@ async function resolveDirectory(
     const source = await realpath(fileURLToPath(new URL(path, pathToFileURL(importer))));
     const local = relativePath(packageDirectory, source);
     if (local === ".." || local.startsWith("../") || isAbsolute(local)) {
-        throw new BuildError("BUILD_FAILED", `directory import leaves its package: ${path}`);
+        throw BuildError.of("ASSET_INVALID", `directory import is outside its package: ${path}`);
     }
 
     return { source, local };
@@ -122,7 +122,7 @@ async function emitDirectory(
         anchor ??= { asset, parent: "../".repeat(name.split("/").length - 1) || "./" };
     }
     if (anchor === undefined) {
-        throw new BuildError("BUILD_FAILED", `directory import is empty: ${path}`);
+        throw BuildError.of("ASSET_INVALID", `directory import is empty: ${path}`);
     }
 
     return `new URL(${JSON.stringify(anchor.parent)}, import.meta.ROLLUP_FILE_URL_${anchor.asset})`;
@@ -180,7 +180,7 @@ export function describeAssets(
 function assetKey(key: string, keys: ReadonlyMap<string, string>): string {
     const value = keys.get(key);
     if (value === undefined) {
-        throw new BuildError("BUILD_FAILED", `missing Vite manifest entry: ${key}`);
+        throw BuildError.of("INVARIANT_VIOLATED", `missing Vite manifest entry: ${key}`);
     }
 
     return value;

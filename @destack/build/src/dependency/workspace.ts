@@ -3,6 +3,7 @@ import { mkdtemp, realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import type { BunLockfile } from "@destack/check/bun";
+import { DomainError } from "@destack/error";
 import { type DependencyResolution, PackageJson, type graph } from "@destack/package";
 import { PackageManifest } from "@destack/package/manifest";
 import { PackageLocator } from "@destack/package/locator";
@@ -116,8 +117,8 @@ export class Workspace {
                         if (!isMissing(cause)) {
                             throw cause;
                         }
-                        throw new BuildError(
-                            "BUILD_FAILED",
+                        throw BuildError.of(
+                            "MEMBER_UNKNOWN",
                             `the workspace member ${member.name ?? path} is missing at ${location}`,
                             { cause },
                         );
@@ -156,7 +157,7 @@ export class Workspace {
             return known;
         }
         if (walk.visiting.has(from)) {
-            throw new BuildError("BUILD_FAILED", `workspace dependency cycle through ${from}`);
+            throw BuildError.of("DEPENDENCY_INVALID", `workspace dependency cycle through ${from}`);
         }
         walk.visiting.add(from);
         const packageJson = await readPackageJson(from);
@@ -178,8 +179,8 @@ export class Workspace {
             const isDestack = resolved !== undefined && existsSync(join(resolved, "destack.json"));
             // refuse a missing dependency the package cannot build without
             if (resolved === undefined && !isOptional) {
-                throw new BuildError(
-                    "BUILD_FAILED",
+                throw BuildError.of(
+                    "DEPENDENCY_UNRESOLVED",
                     `missing dependency of ${name}: ${dependency}`,
                 );
             }
@@ -467,7 +468,16 @@ export class Workspace {
         return await this.#compilers
             .use(unit.directory, (compiler) => compiler.build(options))
             .catch((cause: unknown) => {
-                throw new BuildError("BUILD_FAILED", `building ${unit.name} failed`, { cause });
+                // keep a declared failure as it is
+                if (DomainError.is(cause)) {
+                    throw cause;
+                }
+                // report any other as an internal fault of the unit's build
+                else {
+                    throw BuildError.of("INVARIANT_VIOLATED", `building ${unit.name} failed`, {
+                        cause,
+                    });
+                }
             });
     }
 }
