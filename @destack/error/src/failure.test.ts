@@ -27,7 +27,7 @@ test("describe a domain error as its call error, a call error by its code and re
     const answered = Object.assign(new Error("down"), { status: 503 });
 
     expect([
-        Failure.of(new NoteError("no note note-1")),
+        Failure.of(new NoteError("note note-1 not found")),
         Failure.of(coded),
         Failure.of(reasoned),
         Failure.of(named),
@@ -38,7 +38,7 @@ test("describe a domain error as its call error, a call error by its code and re
             code: "NOT_FOUND",
             reason: "NOTE_NOT_FOUND",
             domain: "@destack/note",
-            message: "no note note-1",
+            message: "note note-1 not found",
             data: { note: "note-1" },
         },
         {
