@@ -16,7 +16,7 @@ curl -fsSL https://destack.sh/install | sh
 Paste this into your coding agent:
 
 ```text
-Install Destack by following https://destack.sh/docs/setup.md
+Set up my Destack: https://destack.me
 ```
 
 Every documentation page is also published as Markdown for agents: add `.md` to its address, as in `https://destack.sh/docs/setup.md`.

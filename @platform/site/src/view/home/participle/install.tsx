@@ -81,6 +81,17 @@ function CopyField(properties: { name: string; text: string; children: JSX.Eleme
 /** Build the three ways to install, the agent prompt naming the tools you picked. */
 function waysOf(prompt: string): readonly Way[] {
     return [
+        {
+            name: "Ask your Agent",
+            field: () => (
+                <CopyField name="prompt" text={prompt}>
+                    <span {...style.attrs(styles.text)}>
+                        Set up my Destack.
+                        <span {...style.attrs(styles.more)}>…</span>
+                    </span>
+                </CopyField>
+            ),
+        },
         { name: "Download Desktop", field: () => <DownloadField /> },
         {
             name: "Install via Terminal",
@@ -91,17 +102,6 @@ function waysOf(prompt: string): readonly Way[] {
                         curl destack.sh/install | sh
                         <span {...style.attrs(styles.more)}>…</span>
                     </code>
-                </CopyField>
-            ),
-        },
-        {
-            name: "Ask your Agent",
-            field: () => (
-                <CopyField name="prompt" text={prompt}>
-                    <span {...style.attrs(styles.text)}>
-                        Set up my Destack.
-                        <span {...style.attrs(styles.more)}>…</span>
-                    </span>
                 </CopyField>
             ),
         },

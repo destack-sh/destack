@@ -4,7 +4,7 @@ import { color, font, stroke, weight } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 import { createSignal, For } from "@destack/view";
 
-import { installCommand } from "../content/site";
+import { agentPrompt, installCommand } from "../content/site";
 import { Goo } from "../effect/goo";
 import { lattice } from "./lattice.stylex";
 import { Mark } from "./mark";
@@ -25,14 +25,17 @@ export function Footer() {
         <footer data-component="SiteFooter" {...style.attrs(styles.root)}>
             <Goo xstyle={styles.band}>
                 <div {...style.attrs(lattice.frame, styles.colophon)}>
-                    {/* what Destack is, and the one line that installs it */}
+                    {/* what Destack is, and the two lines that install it */}
                     <div {...style.attrs(styles.lead)}>
                         <span {...style.attrs(styles.brand)}>
                             <Mark />
                             Destack
                         </span>
                         <p {...style.attrs(styles.statement)}>Reconquer your software.</p>
-                        <InstallCommand />
+                        <div {...style.attrs(styles.lines)}>
+                            <CopyLine name="agent prompt" mark=">" text={agentPrompt} />
+                            <CopyLine name="install command" mark="$" text={installCommand} />
+                        </div>
                     </div>
 
                     {/* the site's menu, and the community off the site */}
@@ -99,14 +102,14 @@ const company = {
     mail: "florian@symbol.industries",
 };
 
-/** Show the install command as a line of terminal that copies itself when pressed. */
-function InstallCommand() {
+/** Show one line of terminal that copies itself when pressed. */
+function CopyLine(properties: { name: string; mark: string; text: string }) {
     const [copiedAt, setCopiedAt] = createSignal<number>();
 
-    // copy the install command and acknowledge it briefly
+    // copy the line and acknowledge it briefly
     const copy = async () => {
         // write the command to the clipboard
-        await navigator.clipboard.writeText(installCommand);
+        await navigator.clipboard.writeText(properties.text);
 
         // replay the acknowledgement on every press
         const at = performance.now();
@@ -120,18 +123,18 @@ function InstallCommand() {
     return (
         <button
             type="button"
-            aria-label="Copy install command"
+            aria-label={`Copy ${properties.name}`}
             title={copiedAt() === undefined ? "Copy" : "Copied"}
             data-silent
             onClick={() => void copy()}
-            {...style.attrs(styles.command)}
+            {...style.attrs(styles.line)}
         >
-            {/* sweep a selection across the command each time it copies */}
+            {/* sweep a selection across the line each time it copies */}
             <For each={copiedAt() === undefined ? [] : [copiedAt()]}>
                 {() => <span aria-hidden="true" {...style.attrs(styles.sweep)} />}
             </For>
             <code {...style.attrs(styles.code)}>
-                <span {...style.attrs(styles.prompt)}>$</span> {installCommand}
+                <span {...style.attrs(styles.prompt)}>{properties.mark}</span> {properties.text}
                 <span aria-hidden="true" {...style.attrs(styles.caret)} />
             </code>
 
@@ -232,12 +235,16 @@ const styles = style.create({
         fontSize: typeScale.body,
         fontWeight: weight.semibold,
     },
+    lines: {
+        display: "grid",
+        justifySelf: "start",
+    },
     statement: {
         color: `color-mix(in srgb, ${color.foreground} 70%, transparent)`,
         fontSize: typeScale.body,
         margin: 0,
     },
-    command: {
+    line: {
         alignItems: "center",
         alignSelf: "center",
         backgroundColor: "transparent",
@@ -254,7 +261,7 @@ const styles = style.create({
         cursor: "pointer",
         display: "flex",
         gap: "0.75rem",
-        justifySelf: "start",
+        justifyContent: "space-between",
         marginInlineStart: "-0.625rem",
         minWidth: 0,
         paddingBlock: "0.375rem",

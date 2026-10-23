@@ -475,7 +475,7 @@ export function promptOf(picks: readonly Tool[]) {
 
     return asks.length === 0
         ? agentPrompt
-        : `Set up my Destack, ${asks.join(" and ")}, following ${setupGuide}`;
+        : `Set up my Destack, ${asks.join(" and ")}: ${setupGuide}`;
 }
 
 /** Name tools in a list a person would write. */
