@@ -6,7 +6,7 @@ import { VERTEX_SHADER } from "./mount/vertex.ts";
 const MOUNT_UNIFORMS = ["u_time", "u_resolution", "u_pixelRatio"];
 
 /** The directories of the package that hold no effect. */
-const CORE = new Set(["mount", "shader", "glsl"]);
+const CORE = new Set(["mount", "shader", "glsl", "error"]);
 
 /** Read the uniforms a shader declares. */
 function declared(source: string): string[] {

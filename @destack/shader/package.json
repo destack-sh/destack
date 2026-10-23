@@ -7,6 +7,7 @@
     "description": "Draw fragment shader effects in views, colored by the theme.",
     "exports": {
         ".": "./src/index.ts",
+        "./error": "./src/error/index.ts",
         "./dithering": "./src/dithering/index.ts",
         "./dot-grid": "./src/dot-grid/index.ts",
         "./fluted-glass": "./src/fluted-glass/index.ts",
@@ -34,6 +35,7 @@
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "dependencies": {
+        "@destack/error": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/style": "workspace:*",
         "@destack/theme": "workspace:*",

@@ -1,3 +1,4 @@
+export * from "./error/index.ts";
 export * from "./mount/mount.ts";
 export * from "./shader/shader.tsx";
 export * from "./shader/sizing.ts";

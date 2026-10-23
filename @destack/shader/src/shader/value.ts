@@ -1,4 +1,5 @@
 import type { ShaderUniform, ShaderUniforms } from "../mount/mount.ts";
+import { ShaderError } from "../error/index.ts";
 
 /** The shorter side an image is drawn at least at, in pixels. */
 const MIN_IMAGE_SIDE = 1024;
@@ -85,7 +86,7 @@ type Rgba = [number, number, number, number];
 function present(colors: ReadonlyMap<string, Rgba>, text: string): Rgba {
     const color = colors.get(text);
     if (color === undefined) {
-        throw new TypeError(`${text} was not computed`);
+        throw new TypeError(`color ${text} is not computed`);
     }
 
     return color;
@@ -97,7 +98,7 @@ export function colorsOf(values: readonly string[], element: Element): Map<strin
     const texts = [...new Set(values)];
     for (const text of texts) {
         if (!CSS.supports("color", text)) {
-            throw new TypeError(`${text} is not a CSS color`);
+            throw ShaderError.of("INVALID_COLOR", `${text} is not a CSS color`);
         }
     }
 
@@ -141,7 +142,10 @@ function paintedColor(color: string, document: Document): Rgba {
     // paint the color on a one-pixel canvas
     const context = document.createElement("canvas").getContext("2d", { willReadFrequently: true });
     if (context === null) {
-        throw new TypeError("this browser draws no 2D canvas to read colors with");
+        throw ShaderError.of(
+            "CANVAS_UNSUPPORTED",
+            "this browser has no 2D canvas to read colors with",
+        );
     }
     context.fillStyle = color;
     context.fillRect(0, 0, 1, 1);

@@ -1,21 +1,25 @@
 import { expect, onTestFinished, test, vi } from "@destack/test";
 import { render } from "@destack/view/test";
-import { type ShaderFailure, ShaderMount } from "../mount/mount.ts";
+import { ShaderMount } from "../mount/mount.ts";
 import { Shader } from "./shader.tsx";
 
 test("show the fallback and report why where the browser draws no WebGL 2", async () => {
-    const failures: ShaderFailure[] = [];
+    const failures: (readonly [string, string, string])[] = [];
     const { container } = render(() => (
         <Shader
             fragmentShader="#version 300 es"
             uniforms={{ u_size: 1 }}
             fallback={<img alt="" src="/still.png" />}
-            onFailure={(failure) => failures.push(failure)}
+            onFailure={(failure) => failures.push([failure.code, failure.reason, failure.message])}
         />
     ));
 
     // the canvas gives way to the fallback once the mount finds no WebGL 2 context
-    await expect.poll(() => failures).toEqual(["unsupported"]);
+    await expect
+        .poll(() => failures)
+        .toEqual([
+            ["PRECONDITION_FAILED", "WEBGL_UNSUPPORTED", "this browser does not support WebGL 2"],
+        ]);
     expect([
         container.querySelector("[data-slot=shader]")?.getAttribute("data-state"),
         container.querySelector("canvas"),

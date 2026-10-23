@@ -1,4 +1,5 @@
 import { VERTEX_SHADER } from "./vertex.ts";
+import { ShaderError } from "../error/index.ts";
 
 /** The most device pixels a shader renders: a 4K screen at twice the density on each side. */
 const MAX_PIXEL_COUNT = 1920 * 1080 * 4;
@@ -41,9 +42,6 @@ export type ShaderUniform =
 /** The uniforms a fragment shader reads, by their GLSL names. */
 export type ShaderUniforms = Readonly<Record<string, ShaderUniform>>;
 
-/** Why a shader cannot draw: no WebGL 2 context, or a shader that does not compile or link. */
-export type ShaderFailure = "unsupported" | "compile" | "link";
-
 /** How a shader picks its resolution: lower under slow frames, or fixed at its pixel ratio. */
 export type ShaderResolution = "adaptive" | "fixed";
 
@@ -63,19 +61,6 @@ export interface ShaderMountOptions {
     readonly mipmaps?: readonly string[] | undefined;
     /** The attributes of the WebGL 2 context. */
     readonly contextAttributes?: WebGLContextAttributes;
-}
-
-/** A shader that cannot draw, and why. */
-export class ShaderError extends Error {
-    /** Why the shader cannot draw. */
-    readonly reason: ShaderFailure;
-
-    /** Hold the reason and the driver's log. */
-    constructor(reason: ShaderFailure, message: string) {
-        super(message);
-        this.name = "ShaderError";
-        this.reason = reason;
-    }
 }
 
 /** The density every shader on the page renders at. */
@@ -196,7 +181,7 @@ export class ShaderMount {
     /** The observer of the canvas entering and leaving the viewport. */
     #intersectionObserver: IntersectionObserver | undefined;
 
-    /** Compile the fragment shader for the canvas and start drawing, or throw a ShaderError. */
+    /** Compile the fragment shader for the canvas and start drawing, or throw a shader failure. */
     constructor(
         canvas: HTMLCanvasElement,
         fragment: string,
@@ -214,7 +199,7 @@ export class ShaderMount {
         // open a WebGL 2 context, refusing a browser without one
         const context = canvas.getContext("webgl2", options.contextAttributes);
         if (context === null) {
-            throw new ShaderError("unsupported", "this browser draws no WebGL 2");
+            throw ShaderError.of("WEBGL_UNSUPPORTED", "this browser does not support WebGL 2");
         }
         this.#context = context;
         if (this.#resolution === "adaptive" && isSlowGraphics()) {
@@ -333,7 +318,7 @@ export class ShaderMount {
         // follow the canvas's own window, which differs inside frames and picture-in-picture windows
         const view = this.canvas.ownerDocument.defaultView;
         if (view === null) {
-            throw new TypeError("the shader's canvas belongs to no window");
+            throw new TypeError("the shader's canvas has no window");
         }
         this.#intersectionObserver = new view.IntersectionObserver(([entry]) => {
             this.#isInViewport = entry?.isIntersecting ?? true;
@@ -506,7 +491,10 @@ export class ShaderMount {
         const size = Array.isArray(first) ? first.length : value.length;
         const flat = value.flat();
         if (Array.isArray(first) && flat.length !== size * value.length) {
-            throw new RangeError(`the vectors of uniform ${name} differ in size`);
+            throw ShaderError.of(
+                "INVALID_UNIFORM",
+                `the vectors of uniform ${name} differ in size`,
+            );
         }
 
         // set it by its vector or matrix size
@@ -523,7 +511,8 @@ export class ShaderMount {
             case 16:
                 return context.uniformMatrix4fv(location, false, flat);
             default:
-                throw new RangeError(
+                throw ShaderError.of(
+                    "INVALID_UNIFORM",
                     `uniform ${name} has ${size} components, not 2, 3, 4, 9 or 16`,
                 );
         }
@@ -537,7 +526,7 @@ export class ShaderMount {
     ): void {
         // refuse an image that has not loaded
         if (!image.complete || image.naturalWidth === 0) {
-            throw new TypeError(`the image of uniform ${name} has not loaded`);
+            throw ShaderError.of("IMAGE_NOT_LOADED", `the image of uniform ${name} has not loaded`);
         }
 
         // replace the texture on the uniform's unit
@@ -611,7 +600,7 @@ function linkProgram(
     if (context.getProgramParameter(program, context.LINK_STATUS) !== true) {
         const log = context.getProgramInfoLog(program) ?? "";
         context.deleteProgram(program);
-        throw new ShaderError("link", `the shader program does not link: ${log}`);
+        throw ShaderError.of("LINK_FAILED", `the shader program does not link: ${log}`);
     }
 
     // release the stages, which the linked program no longer needs
@@ -628,7 +617,7 @@ function compileShader(context: WebGL2RenderingContext, type: number, source: st
     // compile the source
     const shader = context.createShader(type);
     if (shader === null) {
-        throw new ShaderError("compile", "the context created no shader");
+        throw ShaderError.of("CONTEXT_LOST", "the WebGL context is lost");
     }
     context.shaderSource(shader, source);
     context.compileShader(shader);
@@ -637,7 +626,7 @@ function compileShader(context: WebGL2RenderingContext, type: number, source: st
     if (context.getShaderParameter(shader, context.COMPILE_STATUS) !== true) {
         const log = context.getShaderInfoLog(shader) ?? "";
         context.deleteShader(shader);
-        throw new ShaderError("compile", `the shader does not compile: ${log}`);
+        throw ShaderError.of("COMPILE_FAILED", `the shader does not compile: ${log}`);
     }
 
     return shader;

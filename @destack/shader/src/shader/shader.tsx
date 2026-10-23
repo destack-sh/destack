@@ -12,13 +12,9 @@ import {
 import { createMediaQuery } from "@destack/view/primitives/media";
 import { createMutationObserver } from "@destack/view/primitives/mutation-observer";
 import { createReducedMotion } from "@destack/view/motion";
-import {
-    ShaderError,
-    type ShaderFailure,
-    ShaderMount,
-    type ShaderResolution,
-} from "../mount/mount.ts";
+import { ShaderMount, type ShaderResolution } from "../mount/mount.ts";
 import { type ColorCache, resolveValues, type ShaderValues } from "./value.ts";
+import { ShaderError, type ShaderFailure } from "../error/index.ts";
 
 /** The device preferences a theme's colors follow. */
 const THEME_QUERIES = ["(prefers-color-scheme: dark)", "(prefers-contrast: more)"];
@@ -177,12 +173,19 @@ export function Shader(properties: ShaderProperties): JSX.Element {
                     setMount(built);
                     properties.onMount?.(built);
                 } catch (error) {
-                    // show the fallback where the shader cannot draw, and rethrow anything else
-                    if (!(error instanceof ShaderError)) {
+                    // show the fallback where this browser cannot draw the shader
+                    if (
+                        ShaderError.is(error, "WEBGL_UNSUPPORTED") ||
+                        ShaderError.is(error, "COMPILE_FAILED") ||
+                        ShaderError.is(error, "LINK_FAILED")
+                    ) {
+                        setFailure(error);
+                        properties.onFailure?.(error);
+                    }
+                    // rethrow every other failure
+                    else {
                         throw error;
                     }
-                    setFailure(error.reason);
-                    properties.onFailure?.(error.reason);
                 }
             });
 
