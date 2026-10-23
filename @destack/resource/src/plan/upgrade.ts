@@ -82,7 +82,7 @@ function planUpgrade(
     // remove declarations without terms, then plan the terms
     for (const [target, previous] of remaining) {
         if (previous.vocabulary === undefined) {
-            const detail = `remove ${previous.kind}: earlier releases keep serving it`;
+            const detail = `remove ${previous.kind}: earlier releases still serve it`;
             const step = {
                 action: "delete",
                 target,

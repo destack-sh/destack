@@ -1,4 +1,5 @@
 import type { DomainError, CallErrorCode, Failure } from "@destack/error";
+import type {} from "@destack/package/import-meta";
 
 /** The call error code of each binding failure: every binding failure is the host's. */
 const CALL_CODES = {
@@ -6,24 +7,29 @@ const CALL_CODES = {
     ALREADY_BOUND: "INTERNAL_SERVER_ERROR",
 } as const satisfies Readonly<Record<string, CallErrorCode>>;
 
-/** A failure code of resource bindings. */
-export type ResourceErrorCode = keyof typeof CALL_CODES;
+/** A stable cause of failures of resource bindings. */
+export type ResourceReason = keyof typeof CALL_CODES;
 
 /** A resource binding failure. */
 export class ResourceError extends Error implements DomainError {
-    /** The binding operation that failed. */
-    readonly code: ResourceErrorCode;
+    /** The failure's stable cause within its package. */
+    readonly reason: ResourceReason;
 
     /** Describe a missing or duplicate binding. */
-    constructor(code: ResourceErrorCode, message: string, options?: ErrorOptions) {
+    constructor(reason: ResourceReason, message: string, options?: ErrorOptions) {
         super(message, options);
         this.name = "ResourceError";
-        this.code = code;
+        this.reason = reason;
     }
 
     /** Convert the failure to the call error a caller receives. */
     toCallError(): Failure {
-        return { code: CALL_CODES[this.code], message: this.message };
+        return {
+            code: CALL_CODES[this.reason],
+            reason: this.reason,
+            domain: import.meta.destack.package.name,
+            message: this.message,
+        };
     }
 }
 
@@ -46,6 +52,11 @@ export class PlanError extends Error implements DomainError {
 
     /** Report the unreachable state as a conflict with the declared state. */
     toCallError(): Failure {
-        return { code: "CONFLICT", message: this.message };
+        return {
+            code: "CONFLICT",
+            reason: "UNREACHABLE_PLAN",
+            domain: import.meta.destack.package.name,
+            message: this.message,
+        };
     }
 }

@@ -22,3 +22,15 @@ test("tell a kind reconciling toward a desired state from one without", () => {
 
     expect([stateful.isStateful, stateless.isStateful]).toEqual([true, false]);
 });
+
+test("tell a kind outside Destack from one Destack creates", () => {
+    const module = { package: owner };
+    const api = defineResourceKind(
+        "api",
+        { spec: schema.object({}), management: "external" },
+        module,
+    );
+    const link = defineResourceKind("link", { spec: schema.object({}) }, module);
+
+    expect([api.management, link.management]).toEqual(["external", "internal"]);
+});

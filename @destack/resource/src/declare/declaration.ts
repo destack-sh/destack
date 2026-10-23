@@ -1,4 +1,4 @@
-import { Duration, schema } from "@destack/schema";
+import { Duration, type Identifier, schema } from "@destack/schema";
 import { DeclarationName, Package, PackageId } from "@destack/package";
 import type {} from "@destack/package/import-meta";
 import type { ResourceState } from "@destack/package/declare";
@@ -52,6 +52,23 @@ export const ResourcePlacement = schema.object({
 /** Where a resource is asked to live. */
 export type ResourcePlacement = schema.Infer<typeof ResourcePlacement>;
 
+/** User-defined labels indexed by name. */
+export const TagMap = schema.record(schema.string().min(1).max(128), schema.string().max(256));
+/** User-defined labels indexed by name. */
+export type TagMap = schema.Infer<typeof TagMap>;
+
+/** How a stack declares a resource: its placement, retention, tags and lending connection. */
+export interface ResourceDeclareOptions {
+    /** The requested placement. */
+    readonly placement?: ResourcePlacement;
+    /** What deleting the resource does to its content. */
+    readonly retention?: ResourceRetention;
+    /** User-defined labels. */
+    readonly tags?: TagMap;
+    /** The connection whose credential the machine lends to every call of a lent resource. */
+    readonly connection?: Identifier<"connection">;
+}
+
 /** A provisioned resource in a space. */
 export const ResourceReference = schema.object({
     /** The space the resource lives in. */
@@ -93,6 +110,17 @@ export class ResourceDeclaration<
     /** Describe the state the resource must hold, empty for resources that hold none. */
     state(): ResourceState {
         return {};
+    }
+
+    /** Describe the create input of a resource of this declaration, as a stack declares it. */
+    declare(options: ResourceDeclareOptions = {}) {
+        return {
+            definitionPackageId: this.package.id,
+            definitionVersion: this.package.version,
+            definitionName: this.name,
+            spec: this.spec,
+            ...options,
+        };
     }
 
     /** Serialise the declaration as its declaring package, name, kind and spec. */

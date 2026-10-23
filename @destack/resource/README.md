@@ -1,6 +1,6 @@
 # @destack/resource
 
-`defineResourceKind` is a Kubernetes CustomResourceDefinition with `spec` and desired `state` schemas, a `Provider` is a Terraform provider that plans, applies, snapshots and fences one kind's resources on a host, and `ResourceContext` holds a workload's clients as a Cloudflare Worker's `env` holds its bindings.
+`defineResourceKind` is a Kubernetes CustomResourceDefinition with `spec` and desired `state` schemas (`management: "external"` for kinds whose resources live outside Destack, such as a third-party API), a `Provider` is a Terraform provider that plans, applies, snapshots and fences one kind's resources on a host, and `ResourceContext` holds a workload's clients as a Cloudflare Worker's `env` holds its bindings.
 
 ```ts
 // a CRD's spec and status
@@ -13,18 +13,21 @@ Plan.classify(plan); // "safe", "fallible", "backward-incompatible" or "destruct
 await database.get(new ResourceContext().bind(database, connection)).select().from(note);
 ```
 
-## Definitions
+## Declaring
 
-`ResourceDefinition` is the declarable schema of a resource of any kind: its package's declaration, retention, placement and tags.
+`declare` describes the resource a stack creates from a declaration, and an external kind such as `https` takes the connection whose credential its calls carry.
 
 ```ts
-const files = BucketKind.description.parse({ name: "files", kind: "bucket", spec: {} });
-const declared = ResourceDefinition.parse({
-    declaration: { ...files, package: import.meta.destack.package },
-    retention: { within: { days: 30 } },
-    placement: { provider: "r2" },
-    tags: {},
+export default defineStack([vaultPackage], {
+    buckets: {
+        files: files.declare({
+            retention: { within: { days: 30 } },
+            placement: { provider: "r2" },
+        }),
+    },
 });
+// an external API, called with the connection's credential
+const stripe = stripeApi.declare({ connection: stripeConnection });
 ```
 
 ## Connectors
