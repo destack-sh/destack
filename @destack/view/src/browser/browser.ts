@@ -16,7 +16,7 @@ import { user } from "@destack/account/object";
 import { deviceSetting, setting, SettingValue } from "@destack/setting/object";
 import { Theme, type ThemeDescription } from "@destack/theme";
 import { destackTheme } from "@destack/theme/declare";
-import { eq } from "@destack/db";
+import { Snapshot } from "@destack/db";
 import { Presentation, type Page, PRESENTED_SETTINGS } from "./presentation.ts";
 import type { View } from "../declare/view.ts";
 import { CONTEXT_SCOPES } from "../declare/context.ts";
@@ -24,6 +24,7 @@ import { renderView } from "../page/mount.ts";
 import { mountPackages } from "../page/view.ts";
 import { listenForCommands } from "../palette/overlay.ts";
 import { Clock } from "@destack/environment";
+import { ViewError } from "../error/error.ts";
 
 /** Mount a view with its package's theme and commands once its scopes' objects are open. */
 export async function mount(
@@ -36,7 +37,7 @@ export async function mount(
     // read the view's context from the page, and the release its package's build serves
     const element = document.getElementById(CONTEXT_ELEMENT);
     if (element === null) {
-        throw new TypeError(`the page has no ${CONTEXT_ELEMENT} context`);
+        throw ViewError.of("PAGE_CONTEXT_MISSING", `the page has no ${CONTEXT_ELEMENT} context`);
     }
     const context = ViewContext.parse(JSON.parse(element.textContent));
     const release = view.package.version;
@@ -281,19 +282,16 @@ async function* follow(
 
     // present the person's settings along their chain in their language
     const presented = async (): Promise<Presentation> => {
-        // read the values along their chain and their profile's language
-        const { chain, values } = await SettingValue.along(database, PRESENTED_SETTINGS, person);
-        const [row] = await database
-            .select({ locale: user.table.locale })
-            .from(user.table)
-            .where(eq(user.table.id, person));
+        // read the values along their chain and their profile's language from one snapshot
+        const snapshot = Snapshot.live(database);
+        const { chain, values } = await SettingValue.list(snapshot, PRESENTED_SETTINGS, person);
+        const row = await snapshot.read(user.table).findFirst({ where: { id: person } });
         const locale = present(row, "the person's profile").locale;
 
-        // read the values this browser's device keeps for itself
-        const kept = await database
-            .select()
-            .from(deviceSetting.table)
-            .where(eq(deviceSetting.table.scope, schema.identifier("device").parse(device.id)));
+        // read the values this browser's device keeps for itself, from the same snapshot
+        const kept = await snapshot.read(deviceSetting.table).findMany({
+            where: { scope: schema.identifier("device").parse(device.id) },
+        });
 
         return Presentation.resolve(page, { locale, chain }, values, kept);
     };
@@ -348,14 +346,18 @@ async function fetchCatalogs(
 
                 return [];
             } else if (!response.ok) {
-                throw new TypeError(`the catalog at ${path} answered ${response.status}`);
+                throw ViewError.of(
+                    "CATALOG_UNAVAILABLE",
+                    `the catalog at ${path} responded with ${response.status}`,
+                );
             }
 
             // require the package and language of its path
             const catalog = Catalog.parse(await response.json());
             if (catalog.package !== packageId || catalog.locale !== tag) {
-                throw new TypeError(
-                    `the catalog at ${path} translates another package or language`,
+                throw ViewError.of(
+                    "CATALOG_MISMATCH",
+                    `the catalog at ${path} is for another package or language`,
                 );
             }
 

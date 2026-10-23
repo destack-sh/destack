@@ -8,6 +8,7 @@ import {
     onCleanup,
 } from "solid-js";
 import { access, type MaybeAccessor, TRANSPARENT } from "./utils.ts";
+import { ViewError } from "../error/error.ts";
 
 /** A position on Earth in degrees. */
 export type GeolocationCoord = { readonly latitude: number; readonly longitude: number };
@@ -32,7 +33,10 @@ export function makeGeolocation(
     // query nothing on the server
     if (isServer) {
         return [
-            async () => Promise.reject(new TypeError("geolocation runs only in a browser")),
+            async () =>
+                Promise.reject(
+                    ViewError.of("GEOLOCATION_UNSUPPORTED", "geolocation only runs in a browser"),
+                ),
             () => {},
         ];
     }
@@ -235,13 +239,18 @@ export function createWithinRadius(
 async function currentPosition(options?: PositionOptions): Promise<GeolocationCoordinates> {
     // refuse where the device cannot locate
     if (!("geolocation" in navigator)) {
-        throw new TypeError("this browser cannot locate");
+        throw ViewError.of("GEOLOCATION_UNSUPPORTED", "this browser does not support geolocation");
     }
 
     return new Promise((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(
             (position) => resolve(position.coords),
-            (error) => reject(new Error(`geolocation failed: ${error.message}`, { cause: error })),
+            (error) =>
+                reject(
+                    ViewError.of("GEOLOCATION_FAILED", `geolocation failed: ${error.message}`, {
+                        cause: error,
+                    }),
+                ),
             { ...DEFAULT_OPTIONS, ...options },
         );
     });

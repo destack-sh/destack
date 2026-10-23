@@ -256,7 +256,7 @@ export function makeBattery(onChange: (reading: BatteryReading) => void): () => 
             if (isStopped) {
                 return;
             } else if (!isBatteryManager(battery)) {
-                throw new TypeError("the battery status API answered without a battery");
+                throw new TypeError("the battery status API returned no battery");
             }
             const update = (): void =>
                 onChange({

@@ -1,4 +1,13 @@
-import { afterAll, afterEach, beforeAll, beforeEach, expect, test, vi } from "@destack/test";
+import {
+    afterAll,
+    afterEach,
+    beforeAll,
+    beforeEach,
+    expect,
+    refusal,
+    test,
+    vi,
+} from "@destack/test";
 import { createRoot, createSignal, flush } from "solid-js";
 import {
     createFavicon,
@@ -309,9 +318,11 @@ test("keep the plain favicon, reporting why, when its image fails to load", asyn
     badge.dispose();
     vi.unstubAllGlobals();
 
-    expect([shown, reported]).toEqual([
+    // report the failed load as the call error it converts to
+    const failures = await Promise.all(reported.map((error) => refusal(Promise.reject(error))));
+    expect([shown, failures]).toEqual([
         "error:missing.png",
-        [new Error("favicon image failed to load: error:missing.png")],
+        [["BAD_GATEWAY", "FAVICON_LOAD_FAILED", "favicon image failed to load: error:missing.png"]],
     ]);
 });
 

@@ -4,6 +4,7 @@ import sharp from "sharp";
 import type { Plugin, TransformCache } from "@destack/package/build";
 import { Digest } from "@destack/schema";
 import { ImageFormat } from "../media/asset.ts";
+import { ViewError } from "../error/error.ts";
 
 /** The widths a build renders images at by default, Next.js's device sizes. */
 export const IMAGE_WIDTHS: readonly number[] = [640, 750, 828, 1080, 1200, 1920, 2048, 3840];
@@ -75,7 +76,10 @@ export async function transformImage(
     const metadata = await sharp(bytes).metadata();
     const format = ImageFormat.safeParse(metadata.format);
     if (metadata.width === undefined || metadata.height === undefined || !format.success) {
-        throw new TypeError(`image of format ${metadata.format} has no raster size`);
+        throw ViewError.of(
+            "IMAGE_NOT_RASTER",
+            `image of format ${metadata.format} has no raster size`,
+        );
     }
 
     // render each planned file once per image, keeping the original's own bytes at its own width and format

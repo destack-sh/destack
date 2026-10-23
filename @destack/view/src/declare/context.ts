@@ -1,6 +1,7 @@
 import { DeclarationName } from "@destack/package";
 import { schema } from "@destack/schema";
 import { ObjectReference, Subject } from "@destack/sync";
+import { ViewError } from "../error/error.ts";
 
 /** The same-origin host path opening an object, a view or the command palette. */
 export const OPEN_PATH = "/.destack/open";
@@ -74,7 +75,7 @@ export const ViewContext = Object.assign(viewContext, {
         // require a scope the host opens
         const found = context[name];
         if (found === undefined) {
-            throw new TypeError(`the host does not open ${name} for this view`);
+            throw ViewError.of("SCOPE_NOT_OPENED", `the host does not open ${name} for this view`);
         }
 
         return found;

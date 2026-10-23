@@ -1,18 +1,18 @@
 import { fileURLToPath } from "node:url";
 import { defineConfiguration } from "@destack/test/config";
-import * as view from "./src/test/index.ts";
+import * as view from "@destack/view/test";
 
 /** The package directory, which every project compiles from. */
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
 
 export default defineConfiguration({
     test: {
-        // store the builds of the notebook package's closure once per run
-        globalSetup: ["src/test/setup.ts"],
         // render components in a DOM and on the server, and build packages as hosts do
         projects: [
             {
                 extends: false,
+                // render the views over the database a browser stores in
+                targets: { database: ["sqlite"] },
                 ...view.defineConfiguration({
                     root: ROOT,
                     test: {
@@ -57,7 +57,13 @@ export default defineConfiguration({
                 extends: false,
                 ...defineConfiguration({
                     root: ROOT,
-                    test: { name: "build", include: ["src/build/**/*.test.ts"], testTimeout: 2000 },
+                    test: {
+                        name: "build",
+                        include: ["src/build/**/*.test.ts"],
+                        // store the notebook package's dependency builds once per run
+                        globalSetup: ["src/test/setup.ts"],
+                        testTimeout: 2000,
+                    },
                 }),
             },
         ],

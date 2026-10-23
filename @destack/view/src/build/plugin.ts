@@ -2,6 +2,7 @@ import { fileURLToPath } from "node:url";
 import solid, { type StartOptions } from "@solidjs/vite-plugin";
 import { parseSync, Visitor } from "rolldown/utils";
 import type { Plugin, PluginOption } from "@destack/package/build";
+import { ViewError } from "../error/error.ts";
 
 /** The package declaring views, whose installation resolves the framework's generated imports. */
 export const VIEW_PACKAGE = "@destack/view";
@@ -37,12 +38,13 @@ function frameworkPlugin(): Plugin {
                 const [path = id] = id.split("?");
                 const parsed = parseSync(path, code);
                 if (parsed.errors.length) {
-                    throw new TypeError(`invalid framework source: ${id}`);
+                    throw ViewError.of("INVALID_SOURCE", `invalid framework source: ${id}`);
                 }
                 new Visitor({
                     ExpressionStatement(node) {
                         if (node.directive === "use server") {
-                            throw new TypeError(
+                            throw ViewError.of(
+                                "SERVER_FUNCTION_UNSUPPORTED",
                                 `solid server functions are unsupported: ${id}:${node.start}`,
                             );
                         }

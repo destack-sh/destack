@@ -9,6 +9,7 @@ import {
 } from "solid-js";
 import { createPermission } from "./permission.ts";
 import { access, type MaybeAccessor } from "./utils.ts";
+import { ViewError } from "../error/error.ts";
 
 /** Handlers of a notification's events. */
 export type NotificationEventHandlers = {
@@ -165,7 +166,8 @@ export function createNotificationPermission(): {
 /** Refuse to show a notification the person has not permitted. */
 function requirePermission(): void {
     if (Notification.permission !== "granted") {
-        throw new TypeError(
+        throw ViewError.of(
+            "NOTIFICATION_NOT_PERMITTED",
             `notifications are ${Notification.permission === "denied" ? "denied" : "not yet permitted"}`,
         );
     }

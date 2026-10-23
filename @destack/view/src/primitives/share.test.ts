@@ -1,4 +1,4 @@
-import { afterEach, expect, test } from "@destack/test";
+import { afterEach, expect, refusal, test } from "@destack/test";
 import { createRoot, flush, runWithOwner } from "solid-js";
 import { createWebShare, makeWebShare } from "./share.ts";
 
@@ -27,15 +27,13 @@ function stubShare(outcome: "resolve" | Error): ShareData[] {
 test("refuse to share without a share sheet, and files the browser cannot share", async () => {
     // share without a share sheet, then files with one
     const share = makeWebShare();
-    const without = await share({ url: "https://destack.sh" }).catch((error: unknown) => error);
+    const without = await refusal(share({ url: "https://destack.sh" }));
     stubShare("resolve");
-    const files = await share({ files: [new File(["x"], "x.txt")] }).catch(
-        (error: unknown) => error,
-    );
+    const files = await refusal(share({ files: [new File(["x"], "x.txt")] }));
 
     expect([without, files]).toEqual([
-        new TypeError("this browser cannot share"),
-        new TypeError("this browser cannot share these files"),
+        ["PRECONDITION_FAILED", "SHARE_UNSUPPORTED", "this browser does not support sharing"],
+        ["PRECONDITION_FAILED", "SHARE_UNSUPPORTED", "this browser cannot share these files"],
     ]);
 });
 

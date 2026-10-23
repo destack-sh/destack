@@ -11,6 +11,7 @@ import { SolidApplication } from "./application.ts";
 import { fontPlugin } from "./font.ts";
 import { imagePlugin } from "./image.ts";
 import { VIEW_PACKAGE, viewPlugins } from "./plugin.ts";
+import { ViewError } from "../error/error.ts";
 
 /** The prefix of the generated modules mounting each view. */
 const PREFIX = "virtual:@destack/view/view/";
@@ -74,7 +75,8 @@ function requireOneTheme(compilation: Compilation, views: number): void {
             declaration.symbol.package.id === compilation.package.id,
     );
     if (views > 0 && themes.length > 1) {
-        throw new TypeError(
+        throw ViewError.of(
+            "MULTIPLE_THEMES",
             `a package with views declares at most one theme: ${themes.map((theme) => theme.name).join(", ")}`,
         );
     }
@@ -105,7 +107,7 @@ function locate(compilation: Compilation): LocatedView[] {
 
         // refuse a name taken twice
         if (views.some((view) => view.name === declaration.name)) {
-            throw new TypeError(`duplicate view: ${declaration.name}`);
+            throw ViewError.of("DUPLICATE_VIEW", `duplicate view: ${declaration.name}`);
         }
 
         // keep the module exporting the view, the types it presents and the packages it calls

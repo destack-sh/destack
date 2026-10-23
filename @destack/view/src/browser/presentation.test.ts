@@ -43,7 +43,6 @@ const page: Page = {
 test("present a page in its person's language, their display settings' style and their keybindings, offering none once they turn the package's commands off, and its device's own values over theirs", async () => {
     // place the person's dark appearance and their keybinding of the archive command
     const storage = await TestDatabase.create(
-        "sqlite",
         [accessRelationship, setting.table, deviceSetting.table],
         {
             isMigrated: true,

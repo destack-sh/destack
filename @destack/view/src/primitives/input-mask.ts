@@ -178,7 +178,7 @@ export function createMaskPattern<
 function readField(event: EventLike): HTMLInputElement | HTMLTextAreaElement {
     const field = event.currentTarget ?? event.target;
     if (!(field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement)) {
-        throw new TypeError("an input mask handles events of an input or a text area");
+        throw new TypeError("an input mask only handles events of an input or a text area");
     }
 
     return field;

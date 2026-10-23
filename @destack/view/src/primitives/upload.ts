@@ -8,6 +8,7 @@ import {
     onCleanup,
 } from "solid-js";
 import { TRANSPARENT } from "./utils.ts";
+import { ViewError } from "../error/error.ts";
 
 /** A chosen file, with an object URL that shows it. */
 export type UploadFile = {
@@ -447,7 +448,8 @@ export function fileSender(url: string, options: FileSenderOptions = {}): SendFu
             request.addEventListener("load", () => {
                 if (request.status < 200 || request.status >= 300) {
                     reject(
-                        new Error(
+                        ViewError.of(
+                            "UPLOAD_FAILED",
                             `upload failed with HTTP ${request.status} ${request.statusText}`,
                         ),
                     );
@@ -458,7 +460,7 @@ export function fileSender(url: string, options: FileSenderOptions = {}): SendFu
                 resolve(isJson ? JSON.parse(request.responseText) : request.responseText);
             });
             request.addEventListener("error", () =>
-                reject(new Error("upload failed on the network")),
+                reject(ViewError.of("UPLOAD_UNREACHABLE", "upload failed on the network")),
             );
             request.addEventListener("abort", () =>
                 reject(new DOMException("upload aborted", "AbortError")),

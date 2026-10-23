@@ -1,5 +1,6 @@
 import { isServer } from "@solidjs/web";
 import { type Accessor, action, createOptimistic, createSignal } from "solid-js";
+import { ViewError } from "../error/error.ts";
 
 /** A Web Share primitive's share action and its state. */
 export type WebShareResult = {
@@ -18,10 +19,10 @@ export function makeWebShare(): (data: ShareData) => Promise<void> {
     return async (data) => {
         // refuse where the browser has no share sheet, or cannot share these files
         if (!("share" in navigator)) {
-            throw new TypeError("this browser cannot share");
+            throw ViewError.of("SHARE_UNSUPPORTED", "this browser does not support sharing");
         }
         if (data.files !== undefined && !navigator.canShare(data)) {
-            throw new TypeError("this browser cannot share these files");
+            throw ViewError.of("SHARE_UNSUPPORTED", "this browser cannot share these files");
         }
 
         await navigator.share(data);

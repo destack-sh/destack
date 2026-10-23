@@ -2,6 +2,7 @@ import { isServer } from "@solidjs/web";
 import { type Accessor, createEffect, createSignal, onCleanup, untrack } from "solid-js";
 import { makeEventListener } from "./event-listener.ts";
 import { access, type MaybeAccessor, TRANSPARENT } from "./utils.ts";
+import { ViewError } from "../error/error.ts";
 
 /** The relation of a favicon link. */
 export type FaviconRel = "icon" | "shortcut icon" | "apple-touch-icon";
@@ -505,7 +506,13 @@ async function drawBase(
             image.addEventListener("load", () => resolve(), { once: true });
             image.addEventListener(
                 "error",
-                () => reject(new Error(`favicon image failed to load: ${href}`)),
+                () =>
+                    reject(
+                        ViewError.of(
+                            "FAVICON_LOAD_FAILED",
+                            `favicon image failed to load: ${href}`,
+                        ),
+                    ),
                 { once: true },
             );
             image.src = href;

@@ -5,6 +5,7 @@ import type { ObjectType } from "@destack/object";
 import type { ContextScope } from "./context.ts";
 import type { PackageHandle } from "@destack/object";
 import type { Component } from "solid-js";
+import { ViewError } from "../error/error.ts";
 
 /** A view as its package defines it. */
 export interface ViewDefinition {
@@ -83,7 +84,8 @@ export function defineView(definition: ViewDefinition, module?: ModuleMetadata):
         ({ object }) => !opened.some((each) => each.same(object)),
     );
     if (unpresentable !== undefined) {
-        throw new TypeError(
+        throw ViewError.of(
+            "PRESENTED_TYPE_NOT_OPENED",
             `view ${definition.name} presents ${unpresentable.object.name} but does not open ${unpresentable.object.name} objects`,
         );
     }

@@ -6,6 +6,7 @@ import { SettingValue } from "@destack/setting/object";
 import { type Accessor, createSignal, onCleanup } from "solid-js";
 import { useClient, useView } from "../page/view.ts";
 import { ViewContext } from "../declare/context.ts";
+import { ViewError } from "../error/error.ts";
 
 /** Read and change object types of the view's space by key, as its space permissions grant. */
 export function useSpace<const Objects extends Readonly<Record<string, ObjectType>>>(
@@ -34,8 +35,9 @@ export function useSetting<Value extends schema.Schema>(
 ): Accessor<schema.Infer<Value> | undefined> {
     // refuse a setting of another scope than the person's
     if (declared.definition.scope !== "user") {
-        throw new TypeError(
-            `useSetting follows the person's settings, not ${declared.definition.scope} ones: ${declared.definition.name}`,
+        throw ViewError.of(
+            "SETTING_SCOPE_UNSUPPORTED",
+            `useSetting only reads the person's settings, not ${declared.definition.scope} settings: ${declared.definition.name}`,
         );
     }
 

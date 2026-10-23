@@ -2,6 +2,7 @@ import type { JSX } from "@solidjs/web";
 import { For, Show } from "../solid/flow.ts";
 import type { FallbackMetrics, FontFile } from "../build/font.ts";
 import { Link, Style } from "./head.ts";
+import { ViewError } from "../error/error.ts";
 
 /** The generic families CSS writes without quotes. */
 const GENERIC_FAMILIES = new Set([
@@ -78,7 +79,7 @@ export function defineFont(definition: FontDefinition): Font {
     const first = sources[0]?.path;
     const family = definition.family ?? first?.family;
     if (family === undefined || first === undefined) {
-        throw new TypeError("a font has no file");
+        throw ViewError.of("FONT_FILE_MISSING", "the font has no file");
     }
 
     // adjust the chosen local font to the first file's metrics
@@ -188,7 +189,10 @@ function requireFormat(url: string): { readonly format: string; readonly type: s
     const extension = new URL(url, "file:///").pathname.split(".").at(-1) ?? "";
     const format = FORMATS[extension];
     if (format === undefined) {
-        throw new TypeError(`a font file of type ${extension} is not woff2, woff, ttf or otf`);
+        throw ViewError.of(
+            "FONT_FORMAT_UNSUPPORTED",
+            `font file type ${extension} is not woff2, woff, ttf or otf`,
+        );
     }
 
     return format;

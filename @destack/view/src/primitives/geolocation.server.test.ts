@@ -1,4 +1,4 @@
-import { expect, test } from "@destack/test";
+import { expect, refusal, test } from "@destack/test";
 import { NotReadyError } from "solid-js";
 import {
     createDistance,
@@ -21,7 +21,7 @@ function read(accessor: () => { latitude: number }): number | string {
 }
 
 test("stay pending on the server unless seeded, and measure from the seed", async () => {
-    const refused = await makeGeolocation()[0]().catch((error: unknown) => error);
+    const refused = await refusal(makeGeolocation()[0]());
 
     expect({
         refused,
@@ -36,7 +36,11 @@ test("stay pending on the server unless seeded, and measure from the seed", asyn
             createWithinRadius(PARIS, 10, { initialLocation: PARIS })(),
         ],
     }).toEqual({
-        refused: new TypeError("geolocation runs only in a browser"),
+        refused: [
+            "PRECONDITION_FAILED",
+            "GEOLOCATION_UNSUPPORTED",
+            "geolocation only runs in a browser",
+        ],
         unseeded: ["pending", "pending"],
         seeded: [48.8566, 48.8566],
         distance: [null, 0],

@@ -1,9 +1,9 @@
 // @vitest-environment node
-import { expect, test } from "@destack/test";
+import { expect, refusal, test } from "@destack/test";
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Compiler, Workspace, CompilerPool } from "@destack/build";
+import { Workspace, CompilerPool } from "@destack/build";
 import { testStore } from "@destack/build/test";
 import { Package, type DeclarationDescription } from "@destack/package";
 import type { Compilation, Plugin, PluginOption } from "@destack/package/build";
@@ -74,7 +74,7 @@ test(
     "mount each declared view from a separate browser chunk and describe it in the output",
     { timeout: NOTEBOOK_BUILD_MILLISECONDS },
     async () => {
-        // build the notebook package's browser output on its closure's stored builds
+        // build the notebook package's browser output on its stored dependency builds
         await using store = await testStore();
         await using compilers = await CompilerPool.open(store);
         const workspace = await Workspace.open(NOTEBOOK, compilers);
@@ -220,15 +220,21 @@ test("generate the module mounting a view with its package's theme and commands,
     ]);
 });
 
-test("refuse Solid server functions before their bodies can enter a browser output", () => {
+test("refuse Solid server functions before their bodies can enter a browser output", async () => {
     // transform a module declaring a server function through the framework plugin
     const [framework] = flatten(viewPlugins(false));
 
     // report the module and the directive's offset
-    expect(() =>
-        invoke(framework?.transform, [
-            '"use server";\nexport const note = 1;\n',
-            "/package/src/note.ts",
-        ]),
-    ).toThrow(new TypeError("solid server functions are unsupported: /package/src/note.ts:0"));
+    expect(
+        await refusal(() =>
+            invoke(framework?.transform, [
+                '"use server";\nexport const note = 1;\n',
+                "/package/src/note.ts",
+            ]),
+        ),
+    ).toEqual([
+        "UNPROCESSABLE_CONTENT",
+        "SERVER_FUNCTION_UNSUPPORTED",
+        "solid server functions are unsupported: /package/src/note.ts:0",
+    ]);
 });

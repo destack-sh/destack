@@ -19,6 +19,7 @@ import {
     type Theme,
 } from "@destack/theme";
 import { destackTheme } from "@destack/theme/declare";
+import { ViewError } from "../error/error.ts";
 
 /** The display an environment sets, each choice the person's default when absent. */
 const EnvironmentDisplay = schema.object({
@@ -102,7 +103,10 @@ function renderFrame<Properties extends object>(frame: ExampleFrame<Properties>)
     if (example.of instanceof View) {
         return createComponent(ViewExample, { view: example.of, objects: example.objects });
     } else if (example.render === undefined) {
-        throw new TypeError(`example ${example.name} renders nothing and shows no view`);
+        throw ViewError.of(
+            "EXAMPLE_EMPTY",
+            `example ${example.name} has neither a render function nor a view`,
+        );
     }
 
     return example.render(frame.properties);

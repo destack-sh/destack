@@ -1,6 +1,7 @@
 import { useLocation, useSearchParams } from "@solidjs/router";
 import { mapValues, type schema } from "@destack/schema";
 import { type Accessor, createEffect, createMemo, untrack } from "solid-js";
+import { ViewError } from "../error/error.ts";
 
 /** How setting URL state moves through history, scrolls and treats defaults. */
 export interface Options {
@@ -179,7 +180,7 @@ export const parseAsInteger: ParserBuilder<number> = createParser({
     parse: (text) => (/^-?\d+$/u.test(text) ? Number(text) : null),
     serialize: (value) => {
         if (!Number.isInteger(value)) {
-            throw new RangeError(`${value} is not a whole number`);
+            throw ViewError.of("INVALID_QUERY_VALUE", `${value} is not a whole number`);
         }
 
         return String(value);
@@ -201,7 +202,7 @@ export const parseAsHex: ParserBuilder<number> = createParser({
     parse: (text) => (/^[0-9a-f]+$/iu.test(text) ? Number.parseInt(text, 16) : null),
     serialize: (value) => {
         if (!Number.isInteger(value)) {
-            throw new RangeError(`${value} is not a whole number`);
+            throw ViewError.of("INVALID_QUERY_VALUE", `${value} is not a whole number`);
         }
         const hex = value.toString(16);
 
@@ -485,7 +486,7 @@ function writeUpdates<Built extends Parsers>(
         Object.entries(updates).flatMap(([key, value]) => {
             const parser = parsers[key];
             if (parser === undefined) {
-                throw new TypeError(`no parser reads the query value ${key}`);
+                throw new TypeError(`no parser for query value ${key}`);
             }
 
             return [[urlKey(key, options), parser.write(value, options)]];

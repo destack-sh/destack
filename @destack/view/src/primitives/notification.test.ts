@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, test, vi } from "@destack/test";
+import { afterEach, beforeEach, expect, refusal, test, vi } from "@destack/test";
 import { createRoot, flush } from "solid-js";
 import {
     createNotification,
@@ -84,11 +84,15 @@ test("show a notification in place of the last, and close it", () => {
     ]);
 });
 
-test("refuse to show a notification without permission", () => {
+test("refuse to show a notification without permission", async () => {
     StubNotification.permission = "default";
     const [show] = makeNotification("Saved");
 
-    expect(() => show()).toThrow(new TypeError("notifications are not yet permitted"));
+    expect(await refusal(() => show())).toEqual([
+        "FORBIDDEN",
+        "NOTIFICATION_NOT_PERMITTED",
+        "notifications are not yet permitted",
+    ]);
 });
 
 test("follow the shown notification through its events, closing it on cleanup", () => {

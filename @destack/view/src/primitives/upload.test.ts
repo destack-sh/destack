@@ -1,4 +1,4 @@
-import { afterEach, expect, test, vi } from "@destack/test";
+import { afterEach, expect, refusal, test, vi } from "@destack/test";
 import { createRoot, flush } from "solid-js";
 import {
     createDropzone,
@@ -461,9 +461,7 @@ test("post files as a form with headers and progress, parsing JSON responses", a
     const text = send(uploadFile(), () => {}, new AbortController().signal);
     listeners.get("load")?.();
     status = 413;
-    const failed = send(uploadFile(), () => {}, new AbortController().signal).catch(
-        (error: unknown) => error,
-    );
+    const failed = refusal(send(uploadFile(), () => {}, new AbortController().signal));
     listeners.get("load")?.();
 
     expect({
@@ -477,6 +475,6 @@ test("post files as a form with headers and progress, parsing JSON responses", a
         progress: [{ loaded: 256, total: 1024, percentage: 25 }],
         json: { ok: true },
         text: '{"ok":true}',
-        failed: new Error("upload failed with HTTP 413 OK"),
+        failed: ["BAD_GATEWAY", "UPLOAD_FAILED", "upload failed with HTTP 413 OK"],
     });
 });

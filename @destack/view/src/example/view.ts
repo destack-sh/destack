@@ -12,6 +12,7 @@ import { Loading } from "../solid/flow.ts";
 import { createMemo, onCleanup } from "../solid/reactive.ts";
 import { type ViewMount, ViewMountContext } from "../page/view.ts";
 import { Clock } from "@destack/environment";
+import { ViewError } from "../error/error.ts";
 
 /** The sample space a sample view opens in. */
 const SAMPLE_SPACE = "space-01996ab0-0000-7000-8000-00000000e001";
@@ -83,7 +84,8 @@ async function openSample(
             for (const call of objects[name] ?? []) {
                 const object = opened.find((type) => type.name === call.object.name);
                 if (object === undefined) {
-                    throw new TypeError(
+                    throw ViewError.of(
+                        "OBJECT_NOT_OPENED",
                         `view ${view.name} does not open ${call.object.name} in its ${name}`,
                     );
                 }

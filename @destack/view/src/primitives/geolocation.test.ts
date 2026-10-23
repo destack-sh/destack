@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, test } from "@destack/test";
+import { afterEach, beforeEach, expect, refusal, test } from "@destack/test";
 import { createRoot, createSignal, flush, NotReadyError, resolve } from "solid-js";
 import {
     createDistance,
@@ -108,13 +108,13 @@ test("query the position once, refusing after cleanup and rejecting with the pla
     const [query, cleanup] = makeGeolocation();
     const located = await query();
     geolocation.answer = failure("permission denied");
-    const failed = await query().catch((error: unknown) => error);
+    const failed = await refusal(query());
     cleanup();
     const stopped = await query().catch((error: unknown) => error);
 
     expect([located.latitude, failed, stopped]).toEqual([
         48.8566,
-        new Error("geolocation failed: permission denied"),
+        ["SERVICE_UNAVAILABLE", "GEOLOCATION_FAILED", "geolocation failed: permission denied"],
         new DOMException("geolocation query stopped", "AbortError"),
     ]);
 });

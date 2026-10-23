@@ -63,7 +63,7 @@ const CONTEXT = {
 /** Open a board's cards offline, as a view's page keeps them, predicting every change locally. */
 async function openClient(): Promise<ObjectClient<{ readonly card: typeof card }>> {
     // keep the cards in a local database whose server never answers
-    const storage = await TestDatabase.create("sqlite", ObjectClient.tables({ card }));
+    const storage = await TestDatabase.create(ObjectClient.tables({ card }));
     const offline = { url: "https://cards.test", fetch: () => new Promise<Response>(() => {}) };
     const client = await ObjectClient.open({
         clock: Clock.system,
@@ -200,10 +200,7 @@ function EditorMode() {
 
 test("show a setting's value for the page's person, and the device's value once it stores one", async () => {
     // keep the person's settings and the device's own offline
-    const storage = await TestDatabase.create(
-        "sqlite",
-        ObjectClient.tables({ setting, deviceSetting }),
-    );
+    const storage = await TestDatabase.create(ObjectClient.tables({ setting, deviceSetting }));
     const offline = { url: "https://settings.test", fetch: () => new Promise<Response>(() => {}) };
     const client = await ObjectClient.open({
         clock: Clock.system,
@@ -288,6 +285,6 @@ test("refuse following a space's setting as the page's person into the error bou
         ),
     );
     expect(element.textContent).toBe(
-        "useSetting follows the person's settings, not space ones: space.language",
+        "useSetting only reads the person's settings, not space settings: space.language",
     );
 });

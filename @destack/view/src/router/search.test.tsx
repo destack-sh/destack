@@ -1,4 +1,4 @@
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { schema } from "@destack/schema";
 import { render } from "@solidjs/web";
 import { flush } from "solid-js";
@@ -65,7 +65,7 @@ test("read each value from its text, refusing text that names none", () => {
     ]);
 });
 
-test("write links to values, leaving defaults out and keeping the base's other values and fragment", () => {
+test("write links to values, leaving defaults out and keeping the base's other values and fragment", async () => {
     const serialize = createSerializer(notes, { urlKeys: { query: "q" } });
 
     expect([
@@ -81,7 +81,11 @@ test("write links to values, leaving defaults out and keeping the base's other v
     ]);
 
     // refuse to write a fraction as a whole number, a caller's mistake rounding would hide
-    expect(() => serialize({ page: 1.5 })).toThrow(new RangeError("1.5 is not a whole number"));
+    expect(await refusal(() => serialize({ page: 1.5 }))).toEqual([
+        "BAD_REQUEST",
+        "INVALID_QUERY_VALUE",
+        "1.5 is not a whole number",
+    ]);
 });
 
 /** Render a router over a memory history at a path. */

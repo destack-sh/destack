@@ -63,7 +63,7 @@ let nextIdentifier = 0;
 export function getScrollParent(node: Element | undefined): Element {
     // find nothing on the server, which has no document
     if (isServer) {
-        throw new TypeError("scroll parents exist only in a document");
+        throw new TypeError("scroll parents only exist in a document");
     }
 
     // climb until an ancestor scrolls

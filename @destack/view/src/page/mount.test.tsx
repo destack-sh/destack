@@ -164,7 +164,7 @@ test("call a package the view declares where the host mounts it, and refuse it t
         Localization.of(SOURCE_LOCALE, []),
     );
     expect(refused.textContent).toBe(
-        "TypeError: the view does not declare package @example/counter",
+        "FamilyError: the view does not declare package @example/counter",
     );
     disposeRefused();
 });

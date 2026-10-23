@@ -1,7 +1,12 @@
 import { createContext, useContext } from "solid-js";
 import type { ObjectClient } from "@destack/object/client";
 import type { ObjectReference } from "@destack/sync";
-import { type Client, type PackageHandle, type ProcedureRouter, PackageMount } from "@destack/object";
+import {
+    type Client,
+    type PackageHandle,
+    type ProcedureRouter,
+    PackageMount,
+} from "@destack/object";
 import { type ClientOptions, createClient } from "@destack/object/client";
 import {
     OBJECT_PARAMETER,
@@ -10,6 +15,7 @@ import {
     VIEW_PARAMETER,
     type ViewContext,
 } from "../declare/context.ts";
+import { ViewError } from "../error/error.ts";
 
 /** A mounted view. */
 export interface ViewMount {
@@ -40,7 +46,7 @@ export function useOrigin(): (path: string) => ClientOptions {
 export function useClient(scope: string): ObjectClient {
     const client = useContext(ViewMountContext).clients.get(scope);
     if (client === undefined) {
-        throw new TypeError(`the view does not open objects in ${scope}`);
+        throw ViewError.of("SCOPE_NOT_OPENED", `the view does not open objects in ${scope}`);
     }
 
     return client;
@@ -53,7 +59,10 @@ export function usePackage<Definition extends ProcedureRouter>(
     // connect where the host mounted the declared package
     const options = useContext(ViewMountContext).packages.get(handle.id);
     if (options === undefined) {
-        throw new TypeError(`the view does not declare package ${handle.name}`);
+        throw ViewError.of(
+            "PACKAGE_NOT_DECLARED",
+            `the view does not declare package ${handle.name}`,
+        );
     }
 
     return createClient(handle, options);
