@@ -8,7 +8,9 @@ import { ResourceDescription } from "./declaration.ts";
 export const NO_STATE = schema.object({});
 
 /** Whether Destack creates a kind's resources, or they live outside it, as third-party APIs do. */
-export type ResourceManagement = "internal" | "external";
+export const ResourceManagement = schema.enum(["internal", "external"]);
+/** Whether Destack creates a kind's resources, or they live outside it. */
+export type ResourceManagement = schema.Infer<typeof ResourceManagement>;
 
 /** The desired state a kind's providers reconcile resources toward, empty for kinds without one. */
 export type KindState<Kind extends ResourceKind> = schema.Output<Kind["state"]>;
