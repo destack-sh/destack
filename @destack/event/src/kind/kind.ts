@@ -285,7 +285,7 @@ export class EventKind<
             return retention;
         } else if (settings === undefined) {
             throw new TypeError(
-                `event kind ${this.key} keeps segments by a setting its store cannot read`,
+                `event kind ${this.key} reads its retention from a setting, but its store has no settings reader`,
             );
         }
 
@@ -345,7 +345,7 @@ export class EventKind<
         const kind = definition.table[TABLE].column(name).definition.kind;
         if (kind !== "text" && kind !== "integer" && kind !== "real" && kind !== "json") {
             throw new TypeError(
-                `event kind ${definition.name} keeps key ${name} in a ${kind} column: keys must be text, numbers or maps`,
+                `event kind ${definition.name} stores key ${name} in a ${kind} column: keys must be text, numbers or maps`,
             );
         }
 

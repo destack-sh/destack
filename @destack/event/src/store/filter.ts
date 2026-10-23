@@ -48,7 +48,7 @@ export const EventCursor = Object.assign(
 
             // refuse text without both
             if (separator < 1 || !parsed.success) {
-                throw new EventError("INVALID_CURSOR", `no event cursor ${text}`);
+                throw EventError.of("INVALID_CURSOR", `unknown event cursor ${text}`);
             }
 
             return parsed.data;

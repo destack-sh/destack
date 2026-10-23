@@ -1,5 +1,6 @@
 import { type EventKeyFields, EventTime } from "../kind/kind.ts";
 import { Histogram } from "../kind/histogram.ts";
+import { EventError } from "../error/index.ts";
 
 /** The quantile each quantile fold reads from a step's merged distributions. */
 const QUANTILES = { p50: 0.5, p90: 0.9, p99: 0.99 } as const;
@@ -112,11 +113,12 @@ export class SeriesFold<Fields extends EventKeyFields> {
         // require a measure for every fold but count and quantiles, which read distributions
         const isQuantile = Fold.isQuantile(request.fold);
         if (isQuantile && request.measure !== undefined) {
-            throw new TypeError(
+            throw EventError.of(
+                "INVALID_SERIES",
                 `a ${request.fold} series reads distributions and cannot measure a key`,
             );
         } else if (!isQuantile && request.measure === undefined && request.fold !== "count") {
-            throw new TypeError(`a ${request.fold} series needs a measured key`);
+            throw EventError.of("INVALID_SERIES", `a ${request.fold} series needs a measured key`);
         }
         this.measure = request.measure;
         this.group = request.group ?? [];

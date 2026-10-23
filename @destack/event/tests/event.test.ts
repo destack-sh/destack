@@ -123,7 +123,7 @@ test("page a scope's events a condition selects in time order, appending one aga
     expect(await refusal(store.append(reading, [measured("a", 1, "db.bytes", 99)]))).toEqual([
         "CONFLICT",
         "CONTENTS_DIFFER",
-        `event a of ${reading.key} was stored with other contents`,
+        `event a of ${reading.key} is already stored with other contents`,
     ]);
 
     // read the scope's database readings one per page, then every reading of at least 20
@@ -530,7 +530,7 @@ test("store an exactly-once event only when its transaction commits, and an at-m
         refused,
     ]).toEqual([
         ["kept"],
-        `event kind ${line.key} is kept at most once and cannot join a caller's transaction`,
+        `event kind ${line.key} is stored at most once and cannot join a caller's transaction`,
     ]);
 });
 
@@ -773,12 +773,8 @@ test("fold the distributions of a kind's events into quantiles per group, hot an
 
     // refuse a quantile of a kind without distributions, and one measuring a key
     const quantile = { scopes: ["space-1"] } as const;
-    const unrecorded = store
-        .series(reading, quantile, { fold: "p50" })
-        .catch((error: unknown) => String(error));
-    const keyed = store
-        .series(timing, quantile, { fold: "p50", measure: "operation" })
-        .catch((error: unknown) => String(error));
+    const unrecorded = refusal(store.series(reading, quantile, { fold: "p50" }));
+    const keyed = refusal(store.series(timing, quantile, { fold: "p50", measure: "operation" }));
 
     // read each quantile as its bucket's geometric middle: 2^2.5 at rank 1.5, 2^3.5 at rank 2.97
     expect([await fold("p50"), await fold("p99"), await unrecorded, await keyed]).toEqual([
@@ -790,8 +786,16 @@ test("fold the distributions of a kind's events into quantiles per group, hot an
             ["load", [[at(0), 0, 1]]],
             ["save", [[at(0), 2 ** 3.5, 3]]],
         ],
-        `TypeError: a p50 series reads distributions, but ${reading.key} records none`,
-        "TypeError: a p50 series reads distributions and cannot measure a key",
+        [
+            "BAD_REQUEST",
+            "INVALID_SERIES",
+            `a p50 series reads distributions, but ${reading.key} records none`,
+        ],
+        [
+            "BAD_REQUEST",
+            "INVALID_SERIES",
+            "a p50 series reads distributions and cannot measure a key",
+        ],
     ]);
 });
 
@@ -902,6 +906,6 @@ test("select, group and count the events of a map key's entries newest first, ho
         users: { "/notes": 3, "/tasks": 1 },
         failed: ["c"],
         found: true,
-        twice: `TypeError: event kind ${request.key} is kept twice`,
+        twice: `TypeError: event kind ${request.key} is registered twice`,
     });
 });

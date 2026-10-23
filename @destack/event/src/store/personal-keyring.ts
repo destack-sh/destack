@@ -235,7 +235,7 @@ function valueContext(kind: string, subject: string): Label {
 function required(personal: PersonalKeyring | undefined, kind: EventKind): PersonalKeyring {
     if (personal === undefined) {
         throw new TypeError(
-            `event kind ${kind.key} seals personal fields, so it needs personal keys`,
+            `event kind ${kind.key} encrypts personal fields, so it needs personal keys`,
         );
     }
 

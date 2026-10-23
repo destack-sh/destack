@@ -95,14 +95,14 @@ export class EventStore {
             options.settings === undefined &&
             kinds.some((kind) => typeof kind.policy.retention !== "number")
         ) {
-            throw new TypeError("event kinds keeping segments by a setting need a settings reader");
+            throw new TypeError("event kinds with a retention setting need a settings reader");
         }
 
         // refuse a kind listed twice
         const keys = kinds.map((kind) => kind.key);
         const repeated = keys.find((key, index) => keys.indexOf(key) !== index);
         if (repeated !== undefined) {
-            throw new TypeError(`event kind ${repeated} is kept twice`);
+            throw new TypeError(`event kind ${repeated} is registered twice`);
         }
 
         // store segments under each kind's policy, flushed and delivered by the controllers
@@ -128,7 +128,7 @@ export class EventStore {
         this.kind(kind.key);
         if (transaction !== undefined && kind.delivery === "at-most-once") {
             throw new TypeError(
-                `event kind ${kind.key} is kept at most once and cannot join a caller's transaction`,
+                `event kind ${kind.key} is stored at most once and cannot join a caller's transaction`,
             );
         }
 
@@ -226,7 +226,8 @@ export class EventStore {
         const { fold } = request;
         const isQuantile = Fold.isQuantile(fold);
         if (isQuantile && kind.distribution === undefined) {
-            throw new TypeError(
+            throw EventError.of(
+                "INVALID_SERIES",
                 `a ${fold} series reads distributions, but ${kind.key} records none`,
             );
         }
@@ -327,7 +328,9 @@ export class EventStore {
     /** Forget a person by their subject keys' values, erasing their sealed personal values. */
     async forget(subject: readonly string[]): Promise<void> {
         if (this.#personal === undefined) {
-            throw new TypeError("a store without a personal keyring cannot seal personal values");
+            throw new TypeError(
+                "a store without a personal keyring cannot encrypt personal values",
+            );
         }
         await this.#personal.forget(EventKind.person(subject));
     }
@@ -410,9 +413,9 @@ export class EventStore {
         // refuse an identity stored with other contents
         const changed = repeated.find((event) => kept.get(event.id) !== searchedText(kind, event));
         if (changed !== undefined) {
-            throw new EventError(
+            throw EventError.of(
                 "CONTENTS_DIFFER",
-                `event ${changed.id} of ${kind.key} was stored with other contents`,
+                `event ${changed.id} of ${kind.key} is already stored with other contents`,
             );
         }
     }
@@ -467,7 +470,7 @@ export class EventStore {
             }
         }
 
-        throw new EventError(
+        throw EventError.of(
             "CONCURRENT_UPDATE",
             `the segments of ${kind.key} in ${filter.scopes.join(", ")} kept changing during a read`,
         );

@@ -7,6 +7,7 @@
     "description": "Keep the append-only events of scopes, hot in their database and sealed into their bucket, and query, fold and follow them.",
     "exports": {
         ".": "./src/index.ts",
+        "./error": "./src/error/index.ts",
         "./destack.json": "./destack.json",
         "./stack": "./src/stack/index.ts",
         "./test": "./src/test/index.ts"
