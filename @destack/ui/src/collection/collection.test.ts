@@ -161,7 +161,7 @@ test("hold no items while their load runs, then the loaded ones, and throw a fai
         after: { state: "loaded", keys: ["groceries", "lisbon", "plans", "taxes"] },
         failed: "failed",
         error: "TypeError: offline",
-        early: "TypeError: a load has no value until it loads",
+        early: "TypeError: the load has no value yet",
     });
 });
 

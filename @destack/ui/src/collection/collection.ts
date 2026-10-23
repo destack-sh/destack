@@ -164,7 +164,7 @@ export class Load<Value> {
     value(): Value {
         const outcome = this.#outcome();
         if (outcome.kind === "loading") {
-            throw new TypeError("a load has no value until it loads");
+            throw new TypeError("the load has no value yet");
         } else if (outcome.kind === "failed") {
             throw outcome.error;
         }
