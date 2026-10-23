@@ -1,20 +1,28 @@
 import { createSignal, onSettled } from "@destack/view";
 
-import { type Download, readDownloads, selectDownload } from "./catalog.ts";
+import {
+    type Download,
+    readDownloads,
+    selectDownload,
+    type System,
+    systemOfAgent,
+} from "./catalog.ts";
 import { captureException } from "../../../telemetry.ts";
 
 /** The one request for the published downloads that every download control on the page shares. */
 let published: Promise<Download[]> | undefined;
 
-/** Load the published downloads after the page settles, and choose the one for this machine. */
+/** Read this machine's system and load the published downloads once the page settles. */
 export function createDownloads() {
-    // hold the loaded downloads, the choice and a failure to load them
+    // hold this machine's system, the loaded downloads, the choice and a failure to load them
+    const [system, setSystem] = createSignal<System>();
     const [downloads, setDownloads] = createSignal<Download[]>([]);
     const [selected, setSelected] = createSignal<Download>();
     const [error, setError] = createSignal<string>();
 
     // load platform choices without delaying the rest of the landing page
     onSettled(() => {
+        setSystem(systemOfAgent(navigator.userAgent));
         published ??= readDownloads();
         published
             .then((catalog) => {
@@ -27,5 +35,5 @@ export function createDownloads() {
             });
     });
 
-    return { downloads, selected, setSelected, error };
+    return { system, downloads, selected, setSelected, error };
 }

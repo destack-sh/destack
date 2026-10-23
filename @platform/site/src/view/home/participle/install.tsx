@@ -2,19 +2,22 @@ import { frame } from "../../layout/frame.stylex";
 import { media } from "@destack/style/media.stylex";
 import { color, font, stroke } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
-import type { JSX } from "@destack/view";
+import { type JSX, Show } from "@destack/view";
 
 import { installCommand } from "../../content/site";
 import { lattice } from "../../layout/lattice.stylex";
-import { systemOf, systems } from "./download/catalog";
+import { type Download, type System, systems } from "./download/catalog";
 import { createDownloads } from "./download/download";
 import { Glyph } from "../figure/glyph";
 import { screen } from "../../layout/screen.stylex";
 import { createCopy } from "../../layout/copy";
 import { typeScale } from "../../layout/type.stylex";
 
+/** The detected system and published build the download field shows. */
+type Desktop = Pick<ReturnType<typeof createDownloads>, "system" | "selected">;
+
 /** A way to install: its name, and its field drawn as the one control that installs. */
-type Way = { name: string; field: () => JSX.Element };
+type Way = { name: () => string; field: () => JSX.Element };
 
 /** Draw a field's key: the icon at its end that says what pressing the field does. */
 function Key(properties: { isPrimary?: boolean; children: JSX.Element }) {
@@ -28,32 +31,54 @@ function Key(properties: { isPrimary?: boolean; children: JSX.Element }) {
     );
 }
 
-/** Download the published build for this machine, or open the setup guide when none fits. */
-function DownloadField() {
-    // hold the build chosen for this machine
-    const { selected } = createDownloads();
-    const system = () => {
-        const download = selected();
-
-        return download === undefined ? undefined : systemOf(download.label);
-    };
-    const label = () => (system() === undefined ? "Download" : `Download for ${system()}`);
+/** Download the published build for this machine, or show the field grayed out when none fits. */
+function DownloadField(properties: { system: System | undefined; download: Download | undefined }) {
+    // explain a missing build: none for this system yet, or none for phones and tablets
+    const missing = () =>
+        properties.system === undefined
+            ? `Destack Desktop runs on ${systems}`
+            : `No ${properties.system} build yet`;
 
     return (
-        <a
-            href={selected()?.url ?? "/docs/setup/"}
-            aria-label={label()}
-            title={`Destack for ${systems}`}
-            {...style.attrs(styles.field, styles.tiled)}
+        <Show
+            when={properties.download}
+            fallback={
+                <span
+                    aria-disabled="true"
+                    title={missing()}
+                    {...style.attrs(styles.field, styles.tiled, styles.unavailable)}
+                >
+                    <Product />
+                    <Key>
+                        <Glyph name="download" size={16} />
+                    </Key>
+                </span>
+            }
         >
-            <span {...style.attrs(styles.product)}>
-                <img alt="" src="/brand/icon/icon-rounded.svg" {...style.attrs(styles.icon)} />
-                Destack Desktop
-            </span>
-            <Key isPrimary>
-                <Glyph name="download" size={16} />
-            </Key>
-        </a>
+            {(download) => (
+                <a
+                    href={download().url}
+                    aria-label={`Download ${download().label}`}
+                    title={`Destack for ${download().label}`}
+                    {...style.attrs(styles.field, styles.tiled)}
+                >
+                    <Product />
+                    <Key isPrimary>
+                        <Glyph name="download" size={16} />
+                    </Key>
+                </a>
+            )}
+        </Show>
+    );
+}
+
+/** Draw the desktop app's icon and name. */
+function Product() {
+    return (
+        <span {...style.attrs(styles.product)}>
+            <img alt="" src="/brand/icon/icon-rounded.svg" {...style.attrs(styles.icon)} />
+            Destack Desktop
+        </span>
     );
 }
 
@@ -78,11 +103,11 @@ function CopyField(properties: { name: string; text: string; children: JSX.Eleme
     );
 }
 
-/** Build the three ways to install, the agent prompt naming the tools you picked. */
-function waysOf(prompt: string): readonly Way[] {
+/** Build the three ways to install, the agent prompt listing the tools you picked. */
+function waysOf(prompt: string, desktop: Desktop): readonly Way[] {
     return [
         {
-            name: "Ask your Agent",
+            name: () => "Ask your Agent",
             field: () => (
                 <CopyField name="prompt" text={prompt}>
                     <span {...style.attrs(styles.text)}>
@@ -92,9 +117,16 @@ function waysOf(prompt: string): readonly Way[] {
                 </CopyField>
             ),
         },
-        { name: "Download Desktop", field: () => <DownloadField /> },
         {
-            name: "Install via Terminal",
+            name: () => {
+                const system = desktop.system();
+
+                return system === undefined ? "Download Desktop" : `Download for ${system}`;
+            },
+            field: () => <DownloadField system={desktop.system()} download={desktop.selected()} />,
+        },
+        {
+            name: () => "Install via Terminal",
             field: () => (
                 <CopyField name="command" text={installCommand}>
                     <code {...style.attrs(styles.text)}>
@@ -110,9 +142,12 @@ function waysOf(prompt: string): readonly Way[] {
 
 /** Show the three ways to install side by side as alternatives, any one of them enough. */
 export function InstallWays(properties: { prompt: string }) {
+    // detect this machine's system and its published build once for the download field
+    const desktop = createDownloads();
+
     return (
         <ul {...style.attrs(lattice.cell, styles.column)}>
-            {waysOf(properties.prompt).map((way, index) => (
+            {waysOf(properties.prompt, desktop).map((way, index) => (
                 <li {...style.attrs(styles.way)}>
                     {/* sit an "or" on the rule between two ways */}
                     {index === 0 ? undefined : (
@@ -120,7 +155,7 @@ export function InstallWays(properties: { prompt: string }) {
                             or
                         </span>
                     )}
-                    <span {...style.attrs(styles.title)}>{way.name}</span>
+                    <span {...style.attrs(styles.title)}>{way.name()}</span>
                     {way.field()}
                 </li>
             ))}
@@ -168,24 +203,18 @@ const styles = style.create({
         fontWeight: 600,
     },
     or: {
-        alignItems: "center",
         backgroundColor: color.background,
-        borderColor: color.border,
-        borderRadius: "999px",
-        borderStyle: "solid",
-        borderWidth: stroke.border,
-        boxShadow: `0 0 0 0.375rem ${color.background}`,
         color: color.mutedForeground,
-        display: "inline-flex",
-        fontFamily: font.code,
-        fontSize: typeScale.label,
-        height: "1.75rem",
-        justifyContent: "center",
+        fontFamily: font.text,
+        fontSize: typeScale.small,
+        fontStyle: "italic",
         left: { default: 0, [screen.belowDesktop]: "50%" },
+        lineHeight: 1,
+        paddingBlock: { default: "0.625rem", [screen.belowDesktop]: 0 },
+        paddingInline: { default: 0, [screen.belowDesktop]: "0.75rem" },
         position: "absolute",
         top: { default: "calc(100% - 1.5rem - 1.5rem)", [screen.belowDesktop]: 0 },
         transform: "translate(-50%, -50%)",
-        width: "1.75rem",
         zIndex: 1,
     },
     field: {
@@ -213,6 +242,12 @@ const styles = style.create({
         transition: "background-color 160ms ease, color 160ms ease, transform 120ms ease",
         width: "100%",
         ":active": { transform: "scale(0.99)" },
+    },
+    unavailable: {
+        backgroundColor: "transparent",
+        cursor: "not-allowed",
+        opacity: 0.5,
+        transform: "none",
     },
     product: {
         alignItems: "center",

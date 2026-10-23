@@ -47,6 +47,9 @@ export const systems = [...new Set(Object.values(LABELS).map(systemOf))].join(" 
 /** A published desktop distribution target. */
 type Target = keyof typeof LABELS;
 
+/** An operating system a visitor's browser runs on, which the desktop app may have a build for. */
+export type System = "macOS" | "Windows" | "Linux";
+
 /** A desktop distribution in the public release catalog. */
 export interface Download {
     /** Operating system and architecture. */
@@ -109,6 +112,26 @@ export function selectDownload(downloads: Download[], agent: string): Download |
     return undefined;
 }
 
+/** Read the desktop operating system from a user agent, or none on a phone or tablet. */
+export function systemOfAgent(agent: string): System | undefined {
+    // skip phones and tablets, which run no desktop app
+    if (/Android|iPhone|iPad|Mobile/u.test(agent)) {
+        return undefined;
+    }
+    // match the desktop systems by their user agent tokens
+    else if (/Macintosh/u.test(agent)) {
+        return "macOS";
+    } else if (/Windows/u.test(agent)) {
+        return "Windows";
+    } else if (/Linux/u.test(agent)) {
+        return "Linux";
+    }
+    // leave any other system unknown
+    else {
+        return undefined;
+    }
+}
+
 /** Read one catalog choice as a download, refusing an address outside the release targets. */
 function downloadOf(target: Target, download: CatalogDownload): Download {
     // read the address and version of the release's catalog download
@@ -135,12 +158,12 @@ function downloadOf(target: Target, download: CatalogDownload): Download {
     return { target, label: LABELS[target], version, url };
 }
 
-/** Report whether a catalog key names a published desktop distribution target. */
+/** Report whether a catalog key is a published desktop distribution target. */
 function isTarget(key: string): key is Target {
     return Object.hasOwn(LABELS, key);
 }
 
-/** Return the operating system a platform label names, such as macOS for "macOS · Intel". */
+/** Return the operating system in a platform label, such as macOS for "macOS · Intel". */
 export function systemOf(label: string) {
     return label.split(" · ")[0];
 }
