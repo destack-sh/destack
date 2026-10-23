@@ -25,7 +25,7 @@ export const noInlineConfiguration: Rule = {
                 const line = directiveLine(context.sourceCode.getAllComments());
                 if (line !== undefined) {
                     throw new CheckError(
-                        "CONFIGURATION",
+                        "INVALID_CONFIGURATION",
                         `${context.filename}:${line}: fix the code the rule reports, or suppress its next line with \`oxlint-disable-next-line <rules> -- <reason>\``,
                     );
                 }
