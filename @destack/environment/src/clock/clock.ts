@@ -4,6 +4,8 @@ export interface Clock {
     readonly now: () => number;
     /** Wait some milliseconds of this clock, rejecting with the signal's reason once it aborts. */
     readonly sleep: (milliseconds: number, signal?: AbortSignal) => Promise<void>;
+    /** Make a signal aborting with a timeout once some milliseconds of this clock pass. */
+    readonly timeout: (milliseconds: number) => AbortSignal;
 }
 
 /** The longest timer delay, the largest signed 32 bit integer, in milliseconds. */
@@ -45,5 +47,6 @@ export const Clock: { readonly system: Clock } = {
                 signal?.addEventListener("abort", abort, { once: true });
                 next();
             }),
+        timeout: (milliseconds) => AbortSignal.timeout(milliseconds),
     },
 };

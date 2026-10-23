@@ -136,7 +136,7 @@ class SimulatedListener<Attachment> implements Listener<Attachment> {
         if (response !== undefined) {
             return { kind: "response", response };
         } else if (upgrade === undefined) {
-            throw new TypeError(`${this.url.origin} answered nothing without an upgrade`);
+            throw new TypeError(`${this.url.origin} sent no response and no upgrade`);
         }
 
         // accept the socket with its attachment
@@ -277,7 +277,7 @@ export class SimulatedNetwork {
     #serve<Attachment>(node: string, options: ServeOptions<Attachment>): Listener<Attachment> {
         // refuse Unix sockets, and an origin another listener serves
         if (options.unix !== undefined) {
-            throw new TypeError("a simulated listener listens on a host name and port");
+            throw new TypeError("a simulated listener needs a host name and port");
         }
         const port = options.port === undefined || options.port === 0 ? this.#port : options.port;
         this.#port += port === this.#port ? 1 : 0;

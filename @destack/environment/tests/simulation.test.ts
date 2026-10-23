@@ -30,6 +30,26 @@ test("release a virtual clock's waits in deadline order as it moves in whole mil
     );
 });
 
+test("abort a virtual clock's timeout signal with a timeout once the clock passes it, outside the counted waits", async () => {
+    // start a timeout of a second and move the clock to just before it
+    const clock = new VirtualClock(START);
+    const signal = clock.timeout(1000);
+    const aborted = new Promise<void>((resolve) => {
+        signal.addEventListener("abort", () => resolve());
+    });
+    clock.advance(999);
+    const early = signal.aborted;
+
+    // move past it and wait for the abort
+    clock.advance(1);
+    await aborted;
+    const reason: unknown = signal.reason;
+    const name = reason instanceof DOMException ? reason.name : reason;
+
+    // abort once passed, as the web's timeout signal does, beginning no counted wait
+    expect([early, signal.aborted, name, clock.begun]).toEqual([false, true, "TimeoutError", 0]);
+});
+
 /** Draw six bytes and an integer below a thousand from a seed. */
 function draw(seed: number) {
     const random = new SeededRandom(seed);

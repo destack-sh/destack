@@ -7,6 +7,8 @@ interface VirtualSleep {
     readonly deadline: number;
     /** Release the wait. */
     readonly release: () => void;
+    /** Whether the wait keeps the process running: a sleep does, a timeout signal does not. */
+    readonly isHeld: boolean;
 }
 
 /** A clock that a test pauses, moves and resumes. */
@@ -40,6 +42,24 @@ export class VirtualClock implements Clock {
 
     /** Wait some milliseconds from now, rounded up to whole ones, until the clock passes them. */
     sleep(milliseconds: number, signal?: AbortSignal): Promise<void> {
+        this.#begun += 1;
+
+        return this.#wait(milliseconds, true, signal);
+    }
+
+    /** Make a signal aborting with a timeout once the clock passes some milliseconds from now. */
+    timeout(milliseconds: number): AbortSignal {
+        // abort as the web's timeout signal does, outside the counted waits
+        const controller = new AbortController();
+        void this.#wait(milliseconds, false).then(() =>
+            controller.abort(new DOMException("signal timed out", "TimeoutError")),
+        );
+
+        return controller.signal;
+    }
+
+    /** Add a wait until the clock passes some milliseconds from now. */
+    #wait(milliseconds: number, isHeld: boolean, signal?: AbortSignal): Promise<void> {
         // refuse aborted waits, end empty waits
         if (signal?.aborted === true) {
             return Promise.reject(signal.reason);
@@ -55,13 +75,14 @@ export class VirtualClock implements Clock {
                 signal?.removeEventListener("abort", abort);
                 resolve();
             },
+            isHeld,
         };
         const abort = () => {
             this.#sleeps.splice(this.#sleeps.indexOf(sleep), 1);
+            this.#follow();
             reject(signal?.reason);
         };
         this.#sleeps.push(sleep);
-        this.#begun += 1;
         signal?.addEventListener("abort", abort, { once: true });
 
         // wake it on time while the clock flows
@@ -149,7 +170,7 @@ export class VirtualClock implements Clock {
     #schedule(handler: unknown, delay: number, values: unknown[], isRepeating: boolean): number {
         // refuse code strings
         if (typeof handler !== "function") {
-            throw new TypeError("a virtual timer runs functions only");
+            throw new TypeError("a virtual timer can only run functions");
         }
 
         // add the timer under a new handle
@@ -220,10 +241,14 @@ export class VirtualClock implements Clock {
         SYSTEM.clearTimeout(this.#timer);
         this.#timer = undefined;
 
-        // wake at the earliest deadline while flowing
+        // wake at the earliest deadline while flowing, keeping the process running for held waits alone
         const next = this.next;
         if (this.#resumedAt !== undefined && next !== undefined) {
-            this.#timer = SYSTEM.setTimeout(() => this.#wake(), Math.max(next - this.now(), 0));
+            const timer = SYSTEM.setTimeout(() => this.#wake(), Math.max(next - this.now(), 0));
+            if (!this.#sleeps.some((sleep) => sleep.isHeld)) {
+                timer.unref();
+            }
+            this.#timer = timer;
         }
     }
 }

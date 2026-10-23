@@ -113,7 +113,7 @@ export class SimulatedWebSocket extends EventTarget implements ClientSocket {
         if (typeof message === "string") {
             this.#send(message);
         } else if (message instanceof Blob) {
-            throw new TypeError("a simulated socket sends text or bytes");
+            throw new TypeError("a simulated socket can only send text or bytes");
         } else if (ArrayBuffer.isView(message)) {
             this.#send(
                 new Uint8Array(message.buffer, message.byteOffset, message.byteLength).slice(),

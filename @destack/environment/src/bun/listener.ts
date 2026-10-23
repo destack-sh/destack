@@ -11,7 +11,7 @@ interface BunSocketKey {
 export function serveBun<Attachment>(options: ServeOptions<Attachment>): Listener<Attachment> {
     // refuse runtimes that cannot listen
     if (typeof Bun === "undefined") {
-        throw new TypeError("listening needs the Bun runtime");
+        throw new TypeError("listening requires the Bun runtime");
     }
 
     // keep each accepted socket's attachment, and wrap each Bun socket once
