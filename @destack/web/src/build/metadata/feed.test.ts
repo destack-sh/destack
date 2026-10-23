@@ -1,4 +1,4 @@
-import { expect, test } from "@destack/test";
+import { expect, refusal, test } from "@destack/test";
 import { writeFeed } from "./feed.ts";
 
 test("write an Atom feed dated by its newest article, at absolute addresses, escaping XML", () => {
@@ -58,7 +58,7 @@ test("write an Atom feed dated by its newest article, at absolute addresses, esc
     );
 });
 
-test("refuse a feed without articles and an article with an invalid date", () => {
+test("refuse a feed without articles and an article with an invalid date", async () => {
     const feed = {
         path: "/blog/feed.xml",
         home: "/blog/",
@@ -67,13 +67,16 @@ test("refuse a feed without articles and an article with an invalid date", () =>
     };
 
     // name the empty feed and the invalid date
-    expect(() => writeFeed("https://destack.sh", { ...feed, entries: [] })).toThrow(
-        "the feed /blog/feed.xml has no articles",
-    );
-    expect(() =>
-        writeFeed("https://destack.sh", {
-            ...feed,
-            entries: [{ title: "A", path: "/a/", published: "someday" }],
-        }),
-    ).toThrow("invalid feed date: someday");
+    expect([
+        await refusal(() => writeFeed("https://destack.sh", { ...feed, entries: [] })),
+        await refusal(() =>
+            writeFeed("https://destack.sh", {
+                ...feed,
+                entries: [{ title: "A", path: "/a/", published: "someday" }],
+            }),
+        ),
+    ]).toEqual([
+        ["BAD_REQUEST", "FEED_EMPTY", "the feed /blog/feed.xml has no articles"],
+        ["BAD_REQUEST", "INVALID_FEED_DATE", "invalid feed date: someday"],
+    ]);
 });

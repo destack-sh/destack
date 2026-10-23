@@ -1,30 +1,33 @@
-import { expect, test } from "@destack/test";
+import { expect, refusal, test } from "@destack/test";
 import { webOutput } from "./output.ts";
 
-test("refuse a site that is no bare HTTP origin, and prerendered pages and site files without a site", () => {
-    // expand requests with a non-HTTP site, a site with a path, and pages and files without one
-    const base = { kind: "web", app: "src/app.tsx", ssr: { runtime: "bun" } };
-    const refusals = [
-        { ...base, site: "ftp://example.test" },
-        { ...base, site: "https://example.test/blog" },
-        { ...base, prerender: { routes: ["/"] } },
-        { ...base, metadata: { robots: { rules: [] } } },
-    ].map((request) => {
-        try {
-            webOutput.expand("site", request);
+/** A web request rendering on bun, without a site. */
+const BASE = { kind: "web", app: "src/app.tsx", ssr: { runtime: "bun" } };
 
-            return "expanded";
-        } catch (error) {
-            return error instanceof Error ? error.message : "unexpected failure";
-        }
-    });
+/** Defer expanding a request into a site's outputs. */
+const expand = (request: Parameters<typeof webOutput.expand>[1]) => () =>
+    webOutput.expand("site", request);
 
-    // refuse the sites as the schema reports them, then the missing ones
-    const origin = JSON.stringify(
-        [{ code: "custom", path: ["site"], message: "expected an HTTP origin" }],
-        null,
-        2,
-    );
-    const missing = "prerendered pages and site files require a site origin";
-    expect(refusals).toEqual([origin, origin, missing, missing]);
+test("refuse a site that is no bare HTTP origin, and prerendered pages and site files without a site", async () => {
+    // refuse a non-HTTP site and a site with a path
+    const origin = [
+        "BAD_REQUEST",
+        "INVALID_OPTIONS",
+        "invalid web output site: site: expected an HTTP origin",
+    ];
+    expect([
+        await refusal(expand({ ...BASE, site: "ftp://example.test" })),
+        await refusal(expand({ ...BASE, site: "https://example.test/blog" })),
+    ]).toEqual([origin, origin]);
+
+    // refuse pages and files without a site
+    const missing = [
+        "BAD_REQUEST",
+        "SITE_REQUIRED",
+        "prerendered pages and site files require a site origin",
+    ];
+    expect([
+        await refusal(expand({ ...BASE, prerender: { routes: ["/"] } })),
+        await refusal(expand({ ...BASE, metadata: { robots: { rules: [] } } })),
+    ]).toEqual([missing, missing]);
 });

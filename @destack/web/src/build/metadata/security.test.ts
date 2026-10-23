@@ -1,4 +1,4 @@
-import { expect, test } from "@destack/test";
+import { expect, refusal, test } from "@destack/test";
 import { writeSecurity } from "./security.ts";
 
 /** The moment the files are written at. */
@@ -29,12 +29,18 @@ test("write the contacts, expiry, languages and policy, canonical at the well-kn
     );
 });
 
-test("refuse an expiry that has passed", () => {
-    expect(() =>
-        writeSecurity(
-            "https://destack.sh",
-            { contact: ["mailto:a@b.c"], expires: "2026-01-01T00:00:00Z" },
-            NOW,
+test("refuse an expiry that has passed", async () => {
+    expect(
+        await refusal(() =>
+            writeSecurity(
+                "https://destack.sh",
+                { contact: ["mailto:a@b.c"], expires: "2026-01-01T00:00:00Z" },
+                NOW,
+            ),
         ),
-    ).toThrow("security.txt expires in the past or never: 2026-01-01T00:00:00Z");
+    ).toEqual([
+        "BAD_REQUEST",
+        "INVALID_SECURITY_EXPIRY",
+        "security.txt expiry is invalid or in the past: 2026-01-01T00:00:00Z",
+    ]);
 });

@@ -1,4 +1,5 @@
 import { schema } from "@destack/schema";
+import { WebError } from "../../error/error.ts";
 
 /** A site's security contact (RFC 9116), published at `/.well-known/security.txt`. */
 export const SecurityOptions = schema.object({
@@ -19,7 +20,10 @@ export function writeSecurity(origin: string, options: SecurityOptions, now: Dat
     // require a valid expiry in the future
     const expires = new Date(options.expires);
     if (Number.isNaN(expires.getTime()) || expires <= now) {
-        throw new Error(`security.txt expires in the past or never: ${options.expires}`);
+        throw WebError.of(
+            "INVALID_SECURITY_EXPIRY",
+            `security.txt expiry is invalid or in the past: ${options.expires}`,
+        );
     }
 
     // write each field on its own line, canonical at the well-known address

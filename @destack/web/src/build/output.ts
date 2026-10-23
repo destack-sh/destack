@@ -13,6 +13,7 @@ import type { PackageOutput } from "@destack/package/manifest";
 import type { Runtime } from "@destack/package/runtime";
 import { schema } from "@destack/schema";
 import { SolidApplication, VIEW_PACKAGE } from "@destack/view/build";
+import { WebError } from "../error/error.ts";
 import { entryPlugin } from "./entry.ts";
 import { MetadataOptions, writeMetadata } from "./metadata/index.ts";
 import { prerender, PrerenderOptions } from "./prerender/index.ts";
@@ -83,9 +84,19 @@ const RENDER_MODES = new Set(["sync", "async", "stream"]);
 export const webOutput: OutputKind = {
     expand(name, request) {
         // require a server renderer for prerendered pages, and an origin for them and the site files
-        const application = WebOptions.parse(request);
+        const parsed = WebOptions.safeParse(request);
+        if (!parsed.success) {
+            const issues = parsed.error.issues.map(
+                (issue) => `${issue.path.join(".")}: ${issue.message}`,
+            );
+            throw WebError.of(
+                "INVALID_OPTIONS",
+                `invalid web output ${name}: ${issues.join(", ")}`,
+            );
+        }
+        const application = parsed.data;
         if (application.prerender !== undefined && application.ssr === false) {
-            throw new TypeError("prerendering requires an SSR handler");
+            throw WebError.of("SSR_REQUIRED", "prerendering requires an SSR handler");
         }
         if (application.prerender !== undefined || application.metadata !== undefined) {
             requireSite(application);
@@ -107,7 +118,17 @@ export const webOutput: OutputKind = {
     },
     async compile(name, request, compilations, pass) {
         // stage the package where Start writes its client and server builds
-        const application = WebOptions.parse(request);
+        const parsed = WebOptions.safeParse(request);
+        if (!parsed.success) {
+            const issues = parsed.error.issues.map(
+                (issue) => `${issue.path.join(".")}: ${issue.message}`,
+            );
+            throw WebError.of(
+                "INVALID_OPTIONS",
+                `invalid web output ${name}: ${issues.join(", ")}`,
+            );
+        }
+        const application = parsed.data;
         const browser = `${name}-browser`;
         const server = application.ssr === false ? undefined : `${name}-server`;
         const compilation = compilations[browser];
@@ -382,7 +403,10 @@ function sideExports(
 /** Read an application's site origin, which prerendered pages and site files require. */
 export function requireSite(application: WebOptions): string {
     if (application.site === undefined) {
-        throw new TypeError("prerendered pages and site files require a site origin");
+        throw WebError.of(
+            "SITE_REQUIRED",
+            "prerendered pages and site files require a site origin",
+        );
     }
 
     return application.site;

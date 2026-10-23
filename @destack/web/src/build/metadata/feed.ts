@@ -1,4 +1,5 @@
 import { schema } from "@destack/schema";
+import { WebError } from "../../error/error.ts";
 import { escapeXml } from "./xml.ts";
 
 /** A site's Atom feed of articles (RFC 4287), such as its blog's. */
@@ -45,7 +46,7 @@ export function writeFeed(origin: string, options: FeedOptions): string {
     const updates = options.entries.map((entry) => instant(entry.updated ?? entry.published));
     const newest = updates.toSorted().at(-1);
     if (newest === undefined) {
-        throw new Error(`the feed ${options.path} has no articles`);
+        throw WebError.of("FEED_EMPTY", `the feed ${options.path} has no articles`);
     }
 
     // describe the feed, then each article
@@ -95,7 +96,7 @@ export function writeFeed(origin: string, options: FeedOptions): string {
 function instant(date: string): string {
     const parsed = new Date(date);
     if (Number.isNaN(parsed.getTime())) {
-        throw new Error(`invalid feed date: ${date}`);
+        throw WebError.of("INVALID_FEED_DATE", `invalid feed date: ${date}`);
     }
 
     return parsed.toISOString();

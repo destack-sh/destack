@@ -7,6 +7,7 @@ import type { Readable } from "node:stream";
 import { pathToFileURL } from "node:url";
 import { PackagePath } from "@destack/package/file";
 import { schema } from "@destack/schema";
+import { WebError } from "../../error/error.ts";
 
 /** The longest a request's response may take by default, in milliseconds. */
 const RESPONSE_TIMEOUT = 10_000;
@@ -33,6 +34,8 @@ const RenderedResponse = schema.object({
     /** The response headers by lowercase name. */
     headers: schema.record(schema.string(), schema.string()),
 });
+/** The status and headers the renderer writes beside each page body. */
+type RenderedResponse = schema.Infer<typeof RenderedResponse>;
 
 /** One page a build renders: its URL, its file and the status it requires. */
 interface PageRequest {
@@ -81,7 +84,7 @@ function planRequests(site: string, options: PrerenderOptions): PageRequest[] {
         // resolve the route against the origin
         const url = new URL(route, origin);
         if (url.origin !== origin.origin || url.pathname !== route || url.search || url.hash) {
-            throw new Error(`expected a canonical URL path: ${route}`);
+            throw WebError.of("ROUTE_NOT_CANONICAL", `expected a canonical URL path: ${route}`);
         }
         const isNotFound = route === options.notFound;
 
@@ -90,7 +93,7 @@ function planRequests(site: string, options: PrerenderOptions): PageRequest[] {
 
     // refuse two routes writing one file
     if (new Set(requests.map((request) => request.path)).size !== requests.length) {
-        throw new Error("prerender routes produce duplicate files");
+        throw WebError.of("DUPLICATE_PAGE", "prerender routes produce duplicate files");
     }
 
     return requests;
@@ -137,30 +140,53 @@ async function readPage(
     index: number,
     request: PageRequest,
 ): Promise<Uint8Array<ArrayBuffer>> {
+    // read the response the renderer wrote beside the page
+    const { response, body } = await readRendered(directory, index, request);
+
+    // require the expected status and an HTML body
+    const contentType = response.headers["content-type"];
+    if (response.status !== request.status || contentType?.startsWith("text/html") !== true) {
+        throw WebError.of(
+            "UNEXPECTED_RESPONSE",
+            `expected an HTML response: ${request.url.pathname} (${response.status})`,
+        );
+    }
+
+    // refuse a response varying by request or marked private
+    const cacheControl = response.headers["cache-control"];
+    if (
+        response.headers["set-cookie"] !== undefined ||
+        (cacheControl !== undefined && /private|no-store/iu.test(cacheControl)) ||
+        response.headers["vary"] !== undefined
+    ) {
+        throw WebError.of(
+            "PERSONALIZED_RESPONSE",
+            `cannot prerender a personalized response: ${request.url.pathname}`,
+        );
+    }
+
+    return body;
+}
+
+/** Read the status, headers and body the renderer wrote for a request. */
+async function readRendered(
+    directory: string,
+    index: number,
+    request: PageRequest,
+): Promise<{ response: RenderedResponse; body: Uint8Array<ArrayBuffer> }> {
     try {
-        // require the expected status and an HTML body
-        const metadata = join(directory, `${index}.json`);
-        const response = RenderedResponse.parse(JSON.parse(await readFile(metadata, "utf8")));
-        const contentType = response.headers["content-type"];
-        if (response.status !== request.status || contentType?.startsWith("text/html") !== true) {
-            throw new Error(
-                `expected an HTML response: ${request.url.pathname} (${response.status})`,
-            );
-        }
+        // read the metadata, then the page body
+        const metadata = await readFile(join(directory, `${index}.json`), "utf8");
+        const response = RenderedResponse.parse(JSON.parse(metadata));
+        const body = new Uint8Array(await readFile(join(directory, `${index}.html`)));
 
-        // refuse a response varying by request or marked private
-        const cacheControl = response.headers["cache-control"];
-        if (
-            response.headers["set-cookie"] !== undefined ||
-            (cacheControl !== undefined && /private|no-store/iu.test(cacheControl)) ||
-            response.headers["vary"] !== undefined
-        ) {
-            throw new Error(`cannot prerender a personalized response: ${request.url.pathname}`);
-        }
-
-        return new Uint8Array(await readFile(join(directory, `${index}.html`)));
+        return { response, body };
     } catch (cause) {
-        throw new Error(`prerender failed: ${request.url.pathname}`, { cause });
+        throw WebError.of(
+            "PRERENDER_UNREADABLE",
+            `the prerendered page ${request.url.pathname} is unreadable`,
+            { cause },
+        );
     }
 }
 
@@ -187,7 +213,10 @@ function supervise(
         let diagnostics = "";
         let failure: Error | undefined;
         const expire = () => {
-            failure = new Error(`prerender response ${completed} exceeded ${timeout} ms`);
+            failure = WebError.of(
+                "PRERENDER_TIMEOUT",
+                `prerender response ${completed} exceeded ${timeout} ms`,
+            );
             child.kill("SIGKILL");
         };
         let timer = setTimeout(expire, timeout);
@@ -207,7 +236,10 @@ function supervise(
         child.stderr.on("data", (chunk: string) => {
             diagnostics += chunk;
             if (diagnostics.length > MAX_DIAGNOSTICS) {
-                failure = new Error("prerender diagnostics exceeded 1 MiB");
+                failure = WebError.of(
+                    "DIAGNOSTICS_TOO_LONG",
+                    "prerender diagnostics exceeded 1 MiB",
+                );
                 child.kill("SIGKILL");
             }
         });
@@ -240,6 +272,9 @@ function exitFailure(
     diagnostics: string,
 ): Error | undefined {
     return code !== 0 || completed !== count
-        ? new Error(`prerender failed (${completed}/${count}): ${diagnostics.trim()}`)
+        ? WebError.of(
+              "PRERENDER_EXITED",
+              `prerender failed (${completed}/${count}): ${diagnostics.trim()}`,
+          )
         : undefined;
 }
