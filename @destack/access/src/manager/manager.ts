@@ -130,7 +130,7 @@ export const Manager = {
             Manager.isManaged(columns) &&
             (manager === null || !Manager.manages(columns, manager))
         ) {
-            throw new AccessError(
+            throw AccessError.of(
                 "MANAGED",
                 `${name} is managed by its declaration: detach it before changing it`,
             );

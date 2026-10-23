@@ -47,11 +47,11 @@ test("allow any signed-in user's read of a public space whose home stores its ro
     await database.insert(accountTable).values({ id: "account-1", scope: "universe" });
     await database.insert(spaceTable).values({ id: "personal", account: "account-1" });
     const access = new AccessFixture(database);
-    await access.replicateScope(account.reference("universe", "account-1"));
-    await access.replicateScope(home, "self");
+    await access.replicateScope(account.reference("universe", "account-1"), account);
+    await access.replicateScope(home, publicSpace);
 
     // show the space to anyone from the start
-    await access.replicateRelationship("personal", home, "public", anyone.reference("*", "*"), 0);
+    await access.replicateRelationship(home, "public", anyone.reference("*", "*"), 0);
 
     // let a stranger who signed in read it in their scope
     const snapshot = Snapshot.live(database);

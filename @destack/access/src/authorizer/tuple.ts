@@ -799,10 +799,12 @@ export class TupleReader {
         row: Row,
         trail: Trail,
     ): Promise<Tuple[]> {
+        // collect the covering bindings, leaving those inside the row, which cover what the row contains
+        const id = TupleReader.#object(mapping, row).id;
         const bindings = [
             ...(await this.#covering(mapping, row)),
             ...(await this.#scopeBindings(TableMapping.scope(mapping, row))),
-        ];
+        ].filter((entry) => !Relationship.isInside(entry) || entry.objectId !== id);
 
         return bindings.map((entry) => ({
             subject: TupleReader.#subject(entry),
@@ -1119,13 +1121,13 @@ export const TupleTree = {
                         field: (name) => (row === undefined ? request(name) : row[name]),
                         placeholder: request,
                         exists: (via) => {
-                            throw new AccessError(
+                            throw AccessError.of(
                                 "INVALID_DECLARATION",
                                 `policy conditions cannot follow relations: ${via}`,
                             );
                         },
                         search: () => {
-                            throw new AccessError(
+                            throw AccessError.of(
                                 "INVALID_DECLARATION",
                                 "policy conditions cannot search",
                             );

@@ -70,6 +70,8 @@ export const PolicyDescription = schema.object({
             isScope: schema.literal(true).exactOptional(),
             /** Whether relationships show only to holders of the granting permission. */
             concealed: schema.literal(true).exactOptional(),
+            /** Whether each object keeps at least one relationship of the relation. */
+            isRequired: schema.literal(true).exactOptional(),
             /** Whether the rows with a deleted subject go with it. */
             onDelete: schema.literal("cascade").exactOptional(),
         }),

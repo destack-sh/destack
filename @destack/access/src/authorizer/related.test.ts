@@ -33,8 +33,8 @@ test("relate a caller to a scope through a direct, wildcard or subject-set share
     // store the personal space below its account, as every scope has its row
     const replicas = new AccessFixture(database);
     const personal = space.reference("account-1", "personal");
-    await replicas.replicateScope(account.reference("universe", "account-1"));
-    await replicas.replicateScope(personal, "self");
+    await replicas.replicateScope(account.reference("universe", "account-1"), account);
+    await replicas.replicateScope(personal, space);
 
     // define a role in the personal space to bind on the space itself
     const roleId = schema.identifier("role").parse("role-01996ab0-0000-7000-8000-000000000301");
@@ -73,7 +73,6 @@ test("relate a caller to a scope through a direct, wildcard or subject-set share
                       createdAt: 1,
                       expiresAt,
                   },
-            "personal",
         );
         await database.insert(accessRelationship).values(row);
 
@@ -92,17 +91,14 @@ test("relate a caller to a scope through a direct, wildcard or subject-set share
     // let carol be a member of a group in the universe, outside the personal scope
     const team = group.reference("universe", "team");
     await database.insert(accessRelationship).values(
-        Relationship.encode(
-            {
-                id: `relationship-${v7()}`,
-                object: team,
-                relation: "member",
-                subject: user("carol"),
-                createdAt: 1,
-                expiresAt: null,
-            },
-            team.scope,
-        ),
+        Relationship.encode({
+            id: `relationship-${v7()}`,
+            object: team,
+            relation: "member",
+            subject: user("carol"),
+            createdAt: 1,
+            expiresAt: null,
+        }),
     );
 
     // relate through each share, and through none for an expired share or a stranger

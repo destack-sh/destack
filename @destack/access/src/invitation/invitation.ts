@@ -92,7 +92,7 @@ export const Invitation = {
     pending(page: InvitationPage, now: number): Condition<Select<typeof accessInvitation>> {
         // require a bounded page
         if (!Number.isInteger(page.limit) || page.limit < 1 || page.limit > INVITATION_PAGE) {
-            throw new AccessError(
+            throw AccessError.of(
                 "INVALID_PAGE",
                 `invitation page limit must be 1 to ${INVITATION_PAGE}`,
             );
@@ -131,12 +131,12 @@ export const Invitation = {
             },
         });
         if (!row) {
-            throw new AccessError("INVITATION_NOT_FOUND", "invitation not found");
+            throw AccessError.of("INVITATION_NOT_FOUND", "invitation not found");
         }
 
         // refuse a settled invitation
         if (row.status !== "pending") {
-            throw new AccessError("INVITATION_NOT_PENDING", `invitation is ${row.status}`);
+            throw AccessError.of("INVITATION_NOT_PENDING", `invitation is ${row.status}`);
         }
 
         return Invitation.decode(row);
@@ -198,8 +198,11 @@ export const Invitation = {
         ].some((subject) => Subject.same(subject, invitation.relationship.subject));
     },
 
-    /** Write an invitation as its row, keyed for listing by inviter and addressee. */
-    encode(invitation: Invitation, scope: string): Select<typeof accessInvitation> {
+    /** Write an invitation as its row in the scope its relationship would live in. */
+    encode(
+        invitation: Invitation,
+        scope = invitation.relationship.object.scope,
+    ): Select<typeof accessInvitation> {
         const invited = invitation.relationship;
 
         return {
@@ -239,9 +242,12 @@ export const Invitation = {
     /** Invite a relationship that applies once accepted, asked by its subject or offered. */
     async create(request: InvitationRequest, authorization: Authorization): Promise<Invitation> {
         return authorization.transaction.savepoint(async () => {
-            // require a local object and an inviting principal or the system
+            // require a relationship stored here and an inviting principal or the system
             const invited = request.relationship;
-            await authorization.authorizer.requireLocal(authorization.transaction, invited.object);
+            const scope = await authorization.authorizer.requireRelationship(
+                authorization.transaction,
+                invited,
+            );
             const context = authorization.context();
             const inviter = Caller.principal(context) ?? null;
 
@@ -253,7 +259,7 @@ export const Invitation = {
             );
             const expiresAt = request.expiresAt ?? context.now + INVITATION_LIFETIME_MILLISECONDS;
             if (!Number.isFinite(expiresAt) || expiresAt <= context.now) {
-                throw new AccessError(
+                throw AccessError.of(
                     "INVALID_INVITATION_EXPIRY",
                     "invitation must expire in the future",
                 );
@@ -266,7 +272,7 @@ export const Invitation = {
                     invited.subject.id === "*" ||
                     invited.subject.scope === "*"
                 ) {
-                    throw new AccessError(
+                    throw AccessError.of(
                         "INVALID_INVITATION_SUBJECT",
                         "invitation subject must be one principal",
                     );
@@ -289,7 +295,6 @@ export const Invitation = {
                 createdAt: context.now,
                 expiresAt,
             };
-            const scope = authorization.authorizer.governingScope(invited.object);
             const row = Table.complete(accessInvitation, Invitation.encode(invitation, scope));
             await authorization.transaction.write({
                 table: accessInvitation,
@@ -312,7 +317,7 @@ export const Invitation = {
             const context = authorization.context();
             const invitation = await Invitation.read(authorization.transaction, object, id);
             if (invitation.expiresAt <= context.now) {
-                throw new AccessError("INVITATION_LAPSED", "invitation has lapsed");
+                throw AccessError.of("INVITATION_LAPSED", "invitation expired");
             }
 
             // require a grantor for a request
@@ -326,12 +331,12 @@ export const Invitation = {
             else {
                 const accepting = Caller.principal(context);
                 if (Caller.isAnonymous(context)) {
-                    throw new AccessError(
+                    throw AccessError.of(
                         "IDENTITY_REQUIRED",
                         "accepting an offer needs an identity",
                     );
                 } else if (!Invitation.addresses(invitation, accepting, context)) {
-                    throw new AccessError(
+                    throw AccessError.of(
                         "INVITATION_ADDRESSEE_MISMATCH",
                         "invitation is addressed to someone else",
                     );
@@ -340,14 +345,16 @@ export const Invitation = {
                 await requireInviter(invitation, context.now, authorization);
             }
 
-            // relate the accepting subject and settle the invitation
+            // relate the accepting subject in the relationship's scope, and settle the invitation
             const { expiresAt, ...granted } = invited;
+            const scope = await Relationship.scope(authorization.snapshot, invited);
             const relationship = await Relationship.create(
                 {
                     ...granted,
                     subject,
                     ...(expiresAt === null ? {} : { expiresAt }),
                 },
+                scope,
                 authorization,
             );
             await settle(id, "accepted", context.now, authorization);
@@ -448,7 +455,7 @@ async function settle(
         .read(accessInvitation)
         .findFirst({ where: { id: Invitation.id(id) } });
     if (row === undefined || row.status !== "pending") {
-        throw new AccessError("INVITATION_NOT_PENDING", "invitation is no longer pending");
+        throw AccessError.of("INVITATION_NOT_PENDING", "invitation is no longer pending");
     }
 
     // mark it settled

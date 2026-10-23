@@ -100,9 +100,9 @@ export const Grant = {
             const delegator = index === 0 ? chain.subject : nth(chain.actors, index - 1);
             const live = await Grant.find(reader, { delegator, delegate }, now);
             if (live === undefined) {
-                throw new AccessError(
+                throw AccessError.of(
                     "GRANT_REQUIRED",
-                    `${delegate.type} ${delegate.id} acts for ${delegator.type} ${delegator.id} under no grant`,
+                    `${delegate.type} ${delegate.id} has no grant to act for ${delegator.type} ${delegator.id}`,
                 );
             }
             grants.push(Grant.claim(live));
@@ -121,9 +121,9 @@ export const Grant = {
     ): Grant {
         // refuse a revoked or lapsed grant
         if (grant === undefined) {
-            throw new AccessError("GRANT_REVOKED", `grant ${id} is revoked`);
+            throw AccessError.of("GRANT_REVOKED", `grant ${id} is revoked`);
         } else if (grant.expiresAt !== null && grant.expiresAt <= now) {
-            throw new AccessError("GRANT_EXPIRED", `grant ${id} expired`);
+            throw AccessError.of("GRANT_EXPIRED", `grant ${id} expired`);
         }
 
         // refuse a grant of another delegator or to another delegate
@@ -131,7 +131,7 @@ export const Grant = {
             !Subject.same(ObjectReference.at("delegator", grant), parties.delegator) ||
             !Subject.same(ObjectReference.at("delegate", grant), parties.delegate)
         ) {
-            throw new AccessError(
+            throw AccessError.of(
                 "GRANT_DELEGATE_MISMATCH",
                 `grant ${id} belongs to another delegate`,
             );
@@ -146,14 +146,14 @@ export const Grant = {
         request: GrantRequest,
         authorization: Authorization,
     ): Promise<Grant> {
-        // write only the grants of a local scope
-        await authorization.authorizer.requireLocal(authorization.transaction, scope);
+        // write only the grants of a homed scope
+        await authorization.authorizer.requireHome(authorization.transaction, scope);
 
         // grant only a principal's authority, in its scope
         const context = authorization.context();
         const delegator = Caller.principal(context);
         if (delegator === undefined || Caller.isDelegated(context) || delegator.id !== scope.id) {
-            throw new AccessError(
+            throw AccessError.of(
                 "FOREIGN_AUTHORITY",
                 "a principal can grant only its own authority",
             );
@@ -167,12 +167,12 @@ export const Grant = {
             delegate.scope === "*" ||
             Subject.same(delegate, delegator)
         ) {
-            throw new AccessError(
+            throw AccessError.of(
                 "DELEGATE_REQUIRED",
                 "a grant needs one other principal as delegate",
             );
         } else if (request.expiresAt !== undefined && request.expiresAt <= context.now) {
-            throw new AccessError("INVALID_GRANT_EXPIRY", "a grant must expire after its creation");
+            throw AccessError.of("INVALID_GRANT_EXPIRY", "a grant must expire after its creation");
         }
 
         // replace the delegator's earlier grant to the delegate, live or lapsed
@@ -211,21 +211,21 @@ export const Grant = {
         id: Identifier<"grant">,
         authorization: Authorization,
     ): Promise<Grant> {
-        // write only the grants of a local scope
-        await authorization.authorizer.requireLocal(authorization.transaction, scope);
+        // write only the grants of a homed scope
+        await authorization.authorizer.requireHome(authorization.transaction, scope);
 
         // require the grant in the scope and its delegator acting as itself
         const context = authorization.context();
         const delegator = Caller.principal(context);
         const grant = await Grant.read(authorization.snapshot, id);
         if (grant === undefined || grant.scope !== scope.id) {
-            throw new AccessError("GRANT_NOT_FOUND", `no grant ${id}`);
+            throw AccessError.of("GRANT_NOT_FOUND", `grant ${id} not found`);
         } else if (
             delegator === undefined ||
             Caller.isDelegated(context) ||
             !Subject.same(delegator, ObjectReference.at("delegator", grant))
         ) {
-            throw new AccessError("DELEGATOR_REQUIRED", "only the delegator can revoke a grant");
+            throw AccessError.of("DELEGATOR_REQUIRED", "only the delegator can revoke a grant");
         }
 
         // delete it

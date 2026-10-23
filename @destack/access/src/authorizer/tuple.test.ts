@@ -256,27 +256,22 @@ test("decide in memory exactly as the permission queries do, for objects and the
             const isBinding = draw() < 0.25;
             const isMembership = !isBinding && draw() < 0.2;
 
-            return Relationship.encode(
-                {
-                    id: `relationship-01996ab0-0000-7000-8000-0000000003${String(position).padStart(2, "0")}`,
-                    object: isMembership
-                        ? group.reference("personal", "g1")
-                        : node.reference("personal", pick(["a", "b", "c"])),
-                    ...(isBinding
-                        ? { role: roleId }
-                        : {
-                              relation: isMembership
-                                  ? "member"
-                                  : pick(["viewer", "editor", "subtree-editor"]),
-                          }),
-                    subject: isMembership
-                        ? pick([user("bob"), user("carol"), agent])
-                        : pick(subjects),
-                    ...lifetime(pick([1, 1, 1, NOW + 1]), pick([null, null, NOW, NOW + 1000])),
-                    ...(isMembership ? {} : linkSecretOf(pick(linkSecrets))),
-                },
-                "personal",
-            );
+            return Relationship.encode({
+                id: `relationship-01996ab0-0000-7000-8000-0000000003${String(position).padStart(2, "0")}`,
+                object: isMembership
+                    ? group.reference("personal", "g1")
+                    : node.reference("personal", pick(["a", "b", "c"])),
+                ...(isBinding
+                    ? { role: roleId }
+                    : {
+                          relation: isMembership
+                              ? "member"
+                              : pick(["viewer", "editor", "subtree-editor"]),
+                      }),
+                subject: isMembership ? pick([user("bob"), user("carol"), agent]) : pick(subjects),
+                ...lifetime(pick([1, 1, 1, NOW + 1]), pick([null, null, NOW, NOW + 1000])),
+                ...(isMembership ? {} : linkSecretOf(pick(linkSecrets))),
+            });
         });
         await database.insert(accessRelationship).values(related).onConflictDoNothing();
 
@@ -479,18 +474,15 @@ test("explain which grants allow a caller and why the others fail", async () => 
     // share a node with a link only its secret opens
     const linkSecret = "d".repeat(64);
     await database.insert(accessRelationship).values(
-        Relationship.encode(
-            {
-                id: "relationship-01996ab0-0000-7000-8000-000000000401",
-                object: node.reference("personal", "c"),
-                relation: "viewer",
-                subject: anyone.reference("*", "*"),
-                createdAt: 1,
-                expiresAt: null,
-                linkSecret,
-            },
-            "personal",
-        ),
+        Relationship.encode({
+            id: "relationship-01996ab0-0000-7000-8000-000000000401",
+            object: node.reference("personal", "c"),
+            relation: "viewer",
+            subject: anyone.reference("*", "*"),
+            createdAt: 1,
+            expiresAt: null,
+            linkSecret,
+        }),
     );
 
     // explain reading the node for a visitor without and with the link secret

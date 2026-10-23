@@ -2,7 +2,7 @@ import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { Scope } from "@destack/sync";
 import { Transaction, Snapshot, and, asc, eq, ne } from "@destack/db";
 import { PackageId } from "@destack/package";
-import { schema } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 import {
     accessRelationship,
     accessRole,
@@ -118,11 +118,12 @@ async function openRoleFixture() {
     let next = 0;
     const relate = async (relationship: RelationshipRequest) => {
         const id = `relationship-01996ab0-0000-7000-8000-0000000003${String(next++).padStart(2, "0")}`;
-        await Relationship.insert(
-            database,
-            { ...relationship, id, createdAt: 1, expiresAt: relationship.expiresAt ?? null },
-            query.governingScope(relationship.object),
-        );
+        await Relationship.insert(database, {
+            ...relationship,
+            id,
+            createdAt: 1,
+            expiresAt: relationship.expiresAt ?? null,
+        });
 
         return id;
     };
@@ -234,9 +235,9 @@ test("bind roles on enclosing scopes and compose roles through includes", async 
 
     // place the personal scope inside the account of its members
     const access = new AccessFixture(database);
-    await access.replicateScope(account.reference("universe", "account-1"));
+    await access.replicateScope(account.reference("universe", "account-1"), account);
     await access.bindOwner(account.reference("universe", "account-1"), carolMembership, 1);
-    await access.replicateScope(space.reference("account-1", "personal"), "self");
+    await access.replicateScope(space.reference("account-1", "personal"), space);
 
     // bind an editor role including the reader role on the account
     const reader = await defineRole(1, [node.permission("read")], "account-1");
@@ -254,17 +255,19 @@ test("bind roles on enclosing scopes and compose roles through includes", async 
     expect(await readable(carol)).toEqual(["a", "b", "c"]);
 
     // refuse deleting the included reader role, even for the account's owners
-    const home = new Authorizer(policies, homeMappings);
+    const home = new Authorizer(policies, homeMappings, { partition: Scope.universe.id });
     const object = account.reference("universe", "account-1");
     await database.insert(accountTable).values({ id: "account-1", scope: "universe" });
-    await expect(
-        Authorization.run(
-            home,
-            database,
-            () => carol,
-            (authorization) => Role.delete(object, reader, 1, authorization),
+    expect(
+        await refusal(
+            Authorization.run(
+                home,
+                database,
+                () => carol,
+                (authorization) => Role.delete(object, reader, 1, authorization),
+            ),
         ),
-    ).rejects.toThrow("role is still bound or included");
+    ).toEqual(["CONFLICT", "ROLE_IN_USE", "role is still bound or included"]);
 });
 
 test("bind roles to groups, nested groups and verified subject sets", async () => {
@@ -351,6 +354,7 @@ test("decide anew once a transaction adds the caller to a group or to a set's fi
             const before = [await read("a"), await read("c")];
             await Relationship.create(
                 { object: engineering, relation: "member", subject: carol.subject },
+                engineering.scope,
                 authorization,
             );
             const joined = await read("a");
@@ -455,12 +459,13 @@ test("bind only roles whose permissions the granting caller has", async () => {
 test("let owners have everything in their scope, make owners, and never remove the last one", async () => {
     const { database, readable, alice } = await openRoleFixture();
 
-    // create the personal space in its home database, carol as owner: she reads every note in it
-    const home = new Authorizer(policies, homeMappings);
+    // create the personal space in the universe, carol as owner: she reads every note in it
+    const universe = new Authorizer(policies, homeMappings, { partition: Scope.universe.id });
+    const home = new Authorizer(policies, homeMappings, { partition: "personal" });
     const place = space.reference("universe", "personal");
     await database.insert(spaceTable).values({ id: "personal", account: "universe" });
     await Authorization.run(
-        home,
+        universe,
         database,
         () => carol,
         (authorization) =>
@@ -475,7 +480,7 @@ test("let owners have everything in their scope, make owners, and never remove t
     expect(
         await refusal(
             Authorization.run(
-                home,
+                universe,
                 database,
                 () => alice,
                 (authorization) =>
@@ -491,7 +496,7 @@ test("let owners have everything in their scope, make owners, and never remove t
         ),
     ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: share"]);
     const second = await Authorization.run(
-        home,
+        universe,
         database,
         () => carol,
         (authorization) =>
@@ -505,7 +510,7 @@ test("let owners have everything in their scope, make owners, and never remove t
             ),
     );
 
-    // refuse a sharer who is not an owner binding the role granting everything
+    // refuse a sharer of the space's nodes who is not an owner binding the role granting everything on one
     const sharer = await Authorization.run(
         home,
         database,
@@ -515,8 +520,8 @@ test("let owners have everything in their scope, make owners, and never remove t
                 place,
                 {
                     name: "sharer",
-                    description: "Shares the space",
-                    permissions: [space.permission("share")],
+                    description: "Shares the space's nodes",
+                    permissions: [node.permission("share")],
                 },
                 authorization,
             ),
@@ -554,7 +559,7 @@ test("let owners have everything in their scope, make owners, and never remove t
                 (authorization) =>
                     Relationship.grant(
                         {
-                            object: place,
+                            object: node.reference("personal", "a"),
                             role: owner.id,
                             subject: principal.user.reference("universe", "bob"),
                         },
@@ -578,7 +583,7 @@ test("let owners have everything in their scope, make owners, and never remove t
         throw new Error("the space has no first owner");
     }
     await Authorization.run(
-        home,
+        universe,
         database,
         () => carol,
         (authorization) => Relationship.revoke(place, second.id, authorization),
@@ -586,28 +591,37 @@ test("let owners have everything in their scope, make owners, and never remove t
     expect(
         await refusal(
             Authorization.run(
-                home,
+                universe,
                 database,
                 () => carol,
                 (authorization) => Relationship.revoke(place, first.id, authorization),
             ),
         ),
-    ).toEqual(["CONFLICT", "LAST_OWNER", "the last owner cannot be removed"]);
+    ).toEqual([
+        "CONFLICT",
+        "LAST_RELATIONSHIP",
+        "the last owner of space personal cannot be removed",
+    ]);
 });
 
 test("create a scope without separate owners, whose account's owners are its owners", async () => {
     const { database } = await openRoleFixture();
 
     // create carol's account and a space in it without a separate owner
-    const home = new Authorizer(policies, homeMappings);
-    const asCarol = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
-        Authorization.run(home, database, () => carol, call);
+    const universe = new Authorizer(policies, homeMappings, { partition: Scope.universe.id });
+    const home = new Authorizer(policies, homeMappings, { partition: "shared" });
+    const asCarol = <Value>(
+        authorizer: Authorizer,
+        call: (authorization: Authorization) => Promise<Value>,
+    ) => Authorization.run(authorizer, database, () => carol, call);
     const created = account.reference("universe", "account-1");
     const place = space.reference("account-1", "shared");
     await database.insert(accountTable).values({ id: "account-1", scope: "universe" });
     await database.insert(spaceTable).values({ id: "shared", account: "account-1" });
-    await asCarol((authorization) => authorization.create(created, { owner: carol.subject }));
-    await asCarol((authorization) => authorization.create(place, {}));
+    await asCarol(universe, (authorization) =>
+        authorization.create(created, { owner: carol.subject }),
+    );
+    await asCarol(universe, (authorization) => authorization.create(place, {}));
 
     // let carol have everything in the space through her account
     const access = await home.resolve(Snapshot.live(database), "shared", carol);
@@ -619,7 +633,7 @@ test("create a scope without separate owners, whose account's owners are its own
     );
     expect(
         await refusal(
-            asCarol((authorization) =>
+            asCarol(home, (authorization) =>
                 authorization.create(node.reference("shared", "a"), {
                     owner: carol.subject,
                 }),
@@ -645,15 +659,15 @@ test("list the spaces an account contains to the account's owner", async () => {
 
     // record two accounts, their spaces, and carol as the first account's owner
     const access = new AccessFixture(database);
-    await access.replicateScope(account.reference("universe", "account-1"));
+    await access.replicateScope(account.reference("universe", "account-1"), account);
     await access.bindOwner(account.reference("universe", "account-1"), carol.subject, 1);
-    await access.replicateScope(account.reference("universe", "account-2"));
+    await access.replicateScope(account.reference("universe", "account-2"), account);
     for (const [id, owner] of [
         ["space-1", "account-1"],
         ["space-2", "account-1"],
         ["space-3", "account-2"],
     ] as const) {
-        await new AccessFixture(database).replicateScope(space.reference(owner, id), "self");
+        await new AccessFixture(database).replicateScope(space.reference(owner, id), space);
         await database.insert(spaceTable).values({ id, account: owner });
     }
 
@@ -675,7 +689,10 @@ test("list the spaces an account contains to the account's owner", async () => {
     expect(await listed(alice)).toEqual([]);
 
     // list the same spaces from the scope records of every database
-    await new AccessFixture(database).replicateScope(account.reference("account-1", "account-3"));
+    await new AccessFixture(database).replicateScope(
+        account.reference("account-1", "account-3"),
+        account,
+    );
     const scopes = new Authorizer(policies, mappings);
     const recorded = await database
         .select({ id: Scope.table.scope })
@@ -754,14 +771,15 @@ test("refuse an offer whose inviting principal lost the authority to grant it", 
     ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: share"]);
 });
 
-/** Open the role fixture with carol as owner of the personal space in its home database. */
+/** Open the role fixture with carol as owner of the personal space, created in the universe. */
 async function openSpaceWithOwner() {
     const fixture = await openRoleFixture();
-    const home = new Authorizer(policies, homeMappings);
+    const universe = new Authorizer(policies, homeMappings, { partition: Scope.universe.id });
+    const home = new Authorizer(policies, homeMappings, { partition: "personal" });
     const place = space.reference("universe", "personal");
     await fixture.database.insert(spaceTable).values({ id: "personal", account: "universe" });
     await Authorization.run(
-        home,
+        universe,
         fixture.database,
         () => carol,
         (authorization) =>
@@ -774,7 +792,7 @@ async function openSpaceWithOwner() {
     const owner = <Value>(now: number, call: (authorization: Authorization) => Promise<Value>) =>
         Authorization.run(home, fixture.database, () => ({ ...carol, now }), call);
 
-    return { ...fixture, home, place, owner };
+    return { ...fixture, universe, home, place, owner };
 }
 
 test("upsert a role by name, replace its purpose and permissions, then upsert it identically without a write", async () => {
@@ -814,6 +832,58 @@ test("upsert a role by name, replace its purpose and permissions, then upsert it
         Role.describe(record, await Role.permissions(reading, upserted.id)),
         record.updatedAt,
     ]).toEqual([expected, expected, 2000]);
+});
+
+test("grant a space's own role bound on the space inside it alone, never on the space's row", async () => {
+    const { database, home, place, owner, bob, readable } = await openSpaceWithOwner();
+
+    // define a role in the space reading its nodes and the space, and bind it on the space to bob
+    const reader = await owner(1000, (authorization) =>
+        Role.create(
+            place,
+            {
+                name: "reader",
+                description: "Read the space and its nodes",
+                permissions: [node.permission("read"), space.permission("read")],
+            },
+            authorization,
+        ),
+    );
+    await owner(1000, (authorization) =>
+        Relationship.grant({ object: place, role: reader.id, subject: bob.subject }, authorization),
+    );
+
+    // decide the space's row for bob and its owner, in memory and in SQL
+    const snapshot = Snapshot.live(database);
+    const decide = async (context: AccessContext) => {
+        const access = await home.resolve(snapshot, "personal", context);
+        const listed = await database
+            .select({ id: spaceTable.id })
+            .from(spaceTable)
+            .where(home.where(space.permission("read"), access));
+
+        return [
+            (await home.check(snapshot, space.permission("read"), place, access)).isAllowed,
+            listed.map((row) => row.id),
+        ];
+    };
+
+    // store the binding inside the space, granting bob its nodes but not the space itself
+    const [binding] = await database
+        .select({ scope: accessRelationship.scope })
+        .from(accessRelationship)
+        .where(eq(accessRelationship.roleId, reader.id));
+    expect({
+        binding,
+        nodes: await readable(bob),
+        bob: await decide(bob),
+        carol: await decide(carol),
+    }).toEqual({
+        binding: { scope: "personal" },
+        nodes: ["a", "b", "c"],
+        bob: [false, []],
+        carol: [true, ["personal"]],
+    });
 });
 
 test("upsert a declaration's role as its manager, refuse it to others until released, then let others change it and refuse the declaration", async () => {
@@ -922,13 +992,13 @@ test("assign a role to one subject alone, revoking the previous subject and leav
     // assign the role to carol, to dave and to dave again
     const dave = principal.user.reference("universe", "dave");
     await owner(1000, (authorization) =>
-        Role.assign(place, reader.id, carol.subject, authorization),
+        Role.assign(place, reader.id, [carol.subject], authorization),
     );
-    const assigned = await owner(2000, (authorization) =>
-        Role.assign(place, reader.id, dave, authorization),
+    const [assigned] = await owner(2000, (authorization) =>
+        Role.assign(place, reader.id, [dave], authorization),
     );
     const again = await owner(3000, (authorization) =>
-        Role.assign(place, reader.id, dave, authorization),
+        Role.assign(place, reader.id, [dave], authorization),
     );
 
     // expect only dave's first binding on the scope's object
@@ -937,14 +1007,14 @@ test("assign a role to one subject alone, revoking the previous subject and leav
         .from(accessRelationship)
         .where(eq(accessRelationship.roleId, schema.identifier("role").parse(reader.id)));
     const binding = {
-        id: assigned.id,
+        id: present(assigned, "dave's binding").id,
         object: place,
         role: reader.id,
         subject: dave,
         createdAt: 2000,
         expiresAt: null,
     };
-    expect([again, rows.map((row) => Relationship.decode(row))]).toEqual([binding, [binding]]);
+    expect([again, rows.map((row) => Relationship.decode(row))]).toEqual([[binding], [binding]]);
 });
 
 test("refuse upserting and assigning roles to a caller without the permissions", async () => {
@@ -997,7 +1067,7 @@ test("refuse upserting and assigning roles to a caller without the permissions",
     expect(
         await refusal(
             outsider((authorization) =>
-                Role.assign(place, reader.id, alice.subject, authorization),
+                Role.assign(place, reader.id, [alice.subject], authorization),
             ),
         ),
     ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: share"]);

@@ -15,8 +15,8 @@ test("fence a scope for a transfer, moving it and the scopes below it until unfe
 
     // insert an account and a space inside it
     const access = new AccessFixture(database);
-    await access.replicateScope(account.reference(Scope.universe.id, "account-a"));
-    await access.replicateScope(space.reference("account-a", "space-a"), "self");
+    await access.replicateScope(account.reference(Scope.universe.id, "account-a"), account);
+    await access.replicateScope(space.reference("account-a", "space-a"), space);
     const context = {
         subject: principal.user.reference("universe", "alice"),
         groups: [],

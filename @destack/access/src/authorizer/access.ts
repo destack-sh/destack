@@ -146,7 +146,7 @@ export class Access {
     ): Promise<Access> {
         // reject invalid request time before reading expiring records
         if (!Number.isFinite(context.now)) {
-            throw new AccessError("INVALID_REQUEST_TIME", "request time must be finite");
+            throw AccessError.of("INVALID_REQUEST_TIME", "request time must be finite");
         }
 
         // read the chain, unless the caller read it in the same snapshot already
@@ -157,9 +157,9 @@ export class Access {
         // refuse a credential bound to a scope the chain leaves out
         const confined = context.credential?.scope;
         if (confined !== undefined && !chain.includes(confined)) {
-            throw new AccessError(
+            throw AccessError.of(
                 "CREDENTIAL_CONFINED",
-                `the caller's credential applies to ${confined} only`,
+                `the caller's credential only applies to ${confined}`,
             );
         }
 
@@ -645,9 +645,9 @@ export class Access {
     ): Promise<void> {
         for (const [scope, origin] of await Replica.origins(database, CHAIN_PUBLICATION, chain)) {
             if (now - origin.confirmedAt > lag) {
-                throw new AccessError(
+                throw AccessError.of(
                     "STALE",
-                    `access of ${scope} is unconfirmed by its home for over ${lag} ms`,
+                    `the home of ${scope} has not confirmed access for over ${lag} ms`,
                 );
             }
         }

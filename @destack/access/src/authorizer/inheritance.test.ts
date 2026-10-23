@@ -87,14 +87,16 @@ async function relate(
 ): Promise<void> {
     written += 1;
     const id = `relationship-01996ab0-0000-7000-8000-${String(written).padStart(12, "0")}`;
-    await database
-        .insert(accessRelationship)
-        .values(
-            Relationship.encode(
-                { id, object, relation: relationName, subject, createdAt: 1, expiresAt: null },
-                object.id,
-            ),
-        );
+    await database.insert(accessRelationship).values(
+        Relationship.encode({
+            id,
+            object,
+            relation: relationName,
+            subject,
+            createdAt: 1,
+            expiresAt: null,
+        }),
+    );
 }
 
 /** Write a document of frank's in the plans folder as its row. */
@@ -122,8 +124,8 @@ test("inherit a scope's relations onto the objects it encloses, through every sc
     const acme = org.reference("universe", "acme");
     const plans = folder.reference("acme", "plans");
     const replicas = new AccessFixture(database);
-    await replicas.replicateScope(acme);
-    await replicas.replicateScope(plans);
+    await replicas.replicateScope(acme, org);
+    await replicas.replicateScope(plans, folder);
     await database.insert(item).values(["a", "b", "c"].map((id) => documentRow(id)));
 
     // make carol an editor of the organisation, dave a viewer of the folder, and erin nothing
@@ -223,7 +225,7 @@ test("share an object with everyone with a permission on another, as its relatio
         permissions: { read: relation("reader") },
     });
     const authorizer = new Authorizer([team, note], [{ ...mapping, policy: note, relations: {} }]);
-    await new AccessFixture(database).replicateScope(org.reference("universe", "plans"));
+    await new AccessFixture(database).replicateScope(org.reference("universe", "plans"), org);
     await database.insert(item).values({
         id: "a",
         scope: "plans",
@@ -299,8 +301,8 @@ test("share an object with a scope's readers, including those of the scopes encl
     const acme = org.reference("universe", "acme");
     const plans = folder.reference("acme", "plans");
     const replicas = new AccessFixture(database);
-    await replicas.replicateScope(acme);
-    await replicas.replicateScope(plans);
+    await replicas.replicateScope(acme, org);
+    await replicas.replicateScope(plans, folder);
     await database.insert(item).values({
         id: "a",
         scope: "plans",
@@ -389,8 +391,8 @@ test("read a permission through each object's scope, granting nothing where the 
     const corner = shop.reference("universe", "corner");
     const chess = club.reference("universe", "chess");
     const replicas = new AccessFixture(database);
-    await replicas.replicateScope(corner);
-    await replicas.replicateScope(chess);
+    await replicas.replicateScope(corner, shop);
+    await replicas.replicateScope(chess, club);
     await database.insert(item).values([
         { ...documentRow("a"), scope: "corner" },
         { ...documentRow("b"), scope: "chess" },

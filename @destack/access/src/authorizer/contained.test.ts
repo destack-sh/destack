@@ -73,14 +73,14 @@ test("permit a scope's row to the principals inside it and a row living in a sco
     const { database } = opened;
     const authorizer = new Authorizer([realm, district, parcel, lot], mappings);
     const scopes = [
-        realm.reference("universe", "near"),
-        realm.reference("universe", "far"),
-        district.reference("near", "inside"),
-        district.reference("near", "sibling"),
-        district.reference("far", "outside"),
-    ];
-    for (const scope of scopes) {
-        await new AccessFixture(database).replicateScope(scope);
+        [realm.reference("universe", "near"), realm],
+        [realm.reference("universe", "far"), realm],
+        [district.reference("near", "inside"), district],
+        [district.reference("near", "sibling"), district],
+        [district.reference("far", "outside"), district],
+    ] as const;
+    for (const [scope, policy] of scopes) {
+        await new AccessFixture(database).replicateScope(scope, policy);
     }
     await database.insert(accountTable).values([
         { id: "near", scope: "universe" },
@@ -183,13 +183,13 @@ test("resolve a credential bound to a scope within that scope and the scopes ins
     onTestFinished(() => opened.close());
     const { database } = opened;
     const authorizer = new Authorizer([realm, district, parcel, lot], mappings);
-    for (const scope of [
-        realm.reference("universe", "near"),
-        realm.reference("universe", "far"),
-        district.reference("near", "inside"),
-        district.reference("far", "outside"),
-    ]) {
-        await new AccessFixture(database).replicateScope(scope);
+    for (const [scope, policy] of [
+        [realm.reference("universe", "near"), realm],
+        [realm.reference("universe", "far"), realm],
+        [district.reference("near", "inside"), district],
+        [district.reference("far", "outside"), district],
+    ] as const) {
+        await new AccessFixture(database).replicateScope(scope, policy);
     }
 
     // resolve a caller whose credential is bound to the near realm in each scope
@@ -217,7 +217,7 @@ test("resolve a credential bound to a scope within that scope and the scopes ins
     const refused = [
         "UNAUTHORIZED",
         "CREDENTIAL_CONFINED",
-        "the caller's credential applies to near only",
+        "the caller's credential only applies to near",
     ];
     expect(resolved).toEqual(["done", "done", refused, refused, refused]);
 });
@@ -256,14 +256,13 @@ test("contain a space's principals under its global principal reference", async 
     onTestFinished(() => opened.close());
     const { database } = opened;
     const access = new AccessFixture(database);
-    await access.replicateScope(realm.reference("universe", "near"));
-    await access.replicateScope(home.reference("near", "own"));
-    await access.replicateScope(home.reference("near", "other"));
+    await access.replicateScope(realm.reference("universe", "near"), realm);
+    await access.replicateScope(home.reference("near", "own"), home);
+    await access.replicateScope(home.reference("near", "other"), home);
     await database.insert(accountTable).values({ id: "near", scope: "universe" });
     await database.insert(homeTable).values([{ id: "own" }, { id: "other" }]);
     await database.insert(groupTable).values({ id: "alice", scope: "universe" });
     await access.replicateRelationship(
-        "universe",
         person.reference("universe", "alice"),
         "home",
         home.reference("universe", "own"),
@@ -336,9 +335,9 @@ test("contain a global scope's principal in its scope under its universe referen
     onTestFinished(() => opened.close());
     const { database } = opened;
     const access = new AccessFixture(database);
-    await access.replicateScope(realm.reference("universe", "near"));
-    await access.replicateScope(home.reference("near", "own"));
-    await access.replicateScope(home.reference("near", "other"));
+    await access.replicateScope(realm.reference("universe", "near"), realm);
+    await access.replicateScope(home.reference("near", "own"), home);
+    await access.replicateScope(home.reference("near", "other"), home);
     await database.insert(placeTable).values([
         { id: "own", scope: "near" },
         { id: "other", scope: "near" },

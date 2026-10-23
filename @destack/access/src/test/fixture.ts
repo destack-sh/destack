@@ -65,7 +65,7 @@ export const account = new Policy(module4.package, {
     name: "account",
     relations: {
         member: { subjects: [principal.user] },
-        root: { subjects: [principal.user], grantedBy: null },
+        root: { subjects: [principal.user], grantedBy: "administer", isRequired: true },
         resident: { subjects: [region.members("server")] },
     },
     permissions: {

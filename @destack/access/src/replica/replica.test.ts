@@ -3,7 +3,6 @@ import { Snapshot, asc, eq, type DatabaseConnection } from "@destack/db";
 import { Feed, Replica, Scope, type Subscription } from "@destack/sync";
 import { nth } from "@destack/schema";
 import {
-    AccessError,
     accessTables,
     accessRelationship,
     CHAIN_PUBLICATION,
@@ -54,11 +53,16 @@ const carol: AccessContext = {
 };
 
 /** Build a scope's chain replica for an authorizer's database, with its subscription. */
-function chainOf(authorizer: Authorizer, scope: string, target = scope) {
+function chainOf(
+    authorizer: Authorizer,
+    scope: string,
+    target = scope,
+    scopes: readonly string[] = [target, scope],
+) {
     const name = `${CHAIN_PUBLICATION}:${target}`;
     const local = scope === target ? authorizer.local : [];
     const parameters = {
-        scopes: [target, scope],
+        scopes: [...scopes],
         local: [...local],
         types: [],
         via: [],
@@ -78,15 +82,20 @@ function chainOf(authorizer: Authorizer, scope: string, target = scope) {
     };
 }
 
+/** Build the universe's chain replica of a target, with the relationships on its chain. */
+function universeOf(authorizer: Authorizer, chain: readonly string[]) {
+    return chainOf(authorizer, Scope.universe.id, nth(chain, 0), chain);
+}
+
 test("relay an account's access through the space's database into an app's, and follow its revocation", async () => {
     // open the universe's database with accounts and spaces, the space's, and an app's with notes
     const global = await openDatabase();
-    const regional = await openDatabase();
-    const app = await openFixture();
+    const regional = await openDatabase("personal");
+    const app = await openFixture("app");
     onTestFinished(async () => {
         await Promise.all([global.close(), regional.close(), app.close()]);
     });
-    const accounts = new Authorizer(policies, homeMappings);
+    const accounts = new Authorizer(policies, homeMappings, { partition: Scope.universe.id });
     const spaces = new Authorizer(policies, mappings);
     const notes = app.authorizer;
 
@@ -118,7 +127,7 @@ test("relay an account's access through the space's database into an app's, and 
         ),
     );
 
-    // create the space in the universe beside its account, and replica both into the space's database
+    // create the space in the universe beside its account
     await global.database.insert(spaceTable).values({ id: "personal", account: "account-1" });
     await owner((authorization) =>
         authorization.create(space.reference("account-1", "personal"), {
@@ -128,16 +137,17 @@ test("relay an account's access through the space's database into an app's, and 
     const accountFeed = new Feed(global.database, [...accessTables, policyTable], {
         clock: Clock.system,
     });
-    await replicate(regional.database, chainOf(spaces, "account-1"), accountFeed);
-    await replicate(regional.database, chainOf(spaces, "personal"), accountFeed);
 
-    // relay the space and the account from the cell's database into the app's, where carol reads every note
+    // relay the universe, the account and the space through the space's database into the app's, where carol reads every note
     const spaceFeed = new Feed(regional.database, [...accessTables, policyTable], {
         clock: Clock.system,
     });
+    const chain = ["personal", "account-1", Scope.universe.id];
     const relay = async () => {
+        await replicate(regional.database, universeOf(spaces, chain), accountFeed);
         await replicate(regional.database, chainOf(spaces, "account-1"), accountFeed);
         await replicate(regional.database, chainOf(spaces, "personal"), accountFeed);
+        await replicate(app.database, universeOf(notes, chain), spaceFeed);
         await replicate(app.database, chainOf(notes, "account-1"), spaceFeed);
         await replicate(app.database, chainOf(notes, "personal"), spaceFeed);
     };
@@ -166,38 +176,39 @@ test("relay an account's access through the space's database into an app's, and 
         [
             "SERVICE_UNAVAILABLE",
             "STALE",
-            "access of account-1 is unconfirmed by its home for over 50 ms",
+            "the home of universe has not confirmed access for over 50 ms",
         ],
     );
 
-    // relay the revocation: carol reads nothing, and the app's replica reflects the account's position
+    // relay the revocation: carol reads nothing, and the app's replica reflects the universe's position
     await relay();
     expect(await readable(carol)).toEqual([]);
-    const origins = await Replica.origins(app.database, CHAIN_PUBLICATION, ["account-1"]);
-    expect(origins.get("account-1")?.position).toEqual(revoked);
+    const origins = await Replica.origins(app.database, CHAIN_PUBLICATION, [Scope.universe.id]);
+    expect(origins.get(Scope.universe.id)?.position).toEqual(revoked);
 
     // refuse writing the account's access in the app's replica
-    await expect(
-        Authorization.run(
-            notes,
-            app.database,
-            () => alice,
-            (authorization) =>
-                Relationship.grant(
-                    {
-                        object,
-                        relation: "member",
-                        subject: principal.user.reference("universe", "dave"),
-                    },
-                    authorization,
-                ),
+    expect(
+        await refusal(
+            Authorization.run(
+                notes,
+                app.database,
+                () => alice,
+                (authorization) =>
+                    Relationship.grant(
+                        {
+                            object,
+                            relation: "member",
+                            subject: principal.user.reference("universe", "dave"),
+                        },
+                        authorization,
+                    ),
+            ),
         ),
-    ).rejects.toEqual(
-        new AccessError(
-            "ACCESS_NOT_LOCAL",
-            "cannot write the access of account account-1 here: this database has a replica",
-        ),
-    );
+    ).toEqual([
+        "FORBIDDEN",
+        "ACCESS_NOT_LOCAL",
+        "cannot write the access of account account-1 here: this database has a replica of universe",
+    ]);
 
     // read the app's relationships, about its notes, through a fresh snapshot of the space's replica
     await replicate(app.database, chainOf(notes, "personal"), spaceFeed, "snapshot");
@@ -210,8 +221,8 @@ test("relay an account's access through the space's database into an app's, and 
     ]);
 });
 
-test("write a home's access at the home as it is born, beside the chain it replicates, and none where its creator stores its row", async () => {
-    // create an account and its space of alice in the universe, which stores the space's row alone
+test("write a space's own access beside its row where its creator stores it, and replicate it to the home born below it", async () => {
+    // create an account and its space of alice in the universe, which stores the space's row and owners
     const global = await openDatabase();
     const home = await openDatabase();
     onTestFinished(async () => {
@@ -231,7 +242,7 @@ test("write a home's access at the home as it is born, beside the chain it repli
     const personal = space.reference("account-1", "personal");
     await owner((authorization) => authorization.create(personal, { owner: alice.subject }));
 
-    // replicate the home's chain before it is born, store its row, and receive it with its owner
+    // replicate the home's chain, store its row, and receive it
     const feed = new Feed(global.database, [...accessTables, policyTable], { clock: Clock.system });
     await replicate(home.database, chainOf(spaces, "account-1", "personal"), feed);
     await home.database.insert(spaceTable).values({ id: "personal", account: "account-1" });
@@ -239,21 +250,21 @@ test("write a home's access at the home as it is born, beside the chain it repli
         spaces,
         home.database,
         () => alice,
-        (authorization) => authorization.receive(personal, ["account-1"], { owner: alice.subject }),
+        (authorization) => authorization.receive(personal, ["account-1"]),
     );
 
-    // bind alice to the one owner role at the home, and write nothing of the space's access in the universe
+    // bind alice to the owner role in the universe, which the home replicates
     expect({
         home: await bound(home.database),
         universe: await bound(global.database),
         isHome: await spaces.isHome(Snapshot.live(home.database), "personal"),
     }).toEqual({
         home: [[Role.OWNER, "alice"]],
-        universe: [],
+        universe: [[Role.OWNER, "alice"]],
         isHome: true,
     });
 
-    // grant on the space at its home, and refuse it at the universe
+    // grant on the space in the universe, and refuse it at its home
     const grant = (authorizer: Authorizer, database: DatabaseConnection) =>
         Authorization.run(
             authorizer,
@@ -269,13 +280,12 @@ test("write a home's access at the home as it is born, beside the chain it repli
                     authorization,
                 ),
         );
-    await grant(spaces, home.database);
-    await expect(grant(accounts, global.database)).rejects.toEqual(
-        new AccessError(
-            "ACCESS_NOT_LOCAL",
-            "cannot write the access of space personal here: it lives at its home",
-        ),
-    );
+    await grant(accounts, global.database);
+    expect(await refusal(grant(spaces, home.database))).toEqual([
+        "FORBIDDEN",
+        "ACCESS_NOT_LOCAL",
+        "cannot write the access of space personal here: this database has a replica of account-1",
+    ]);
 });
 
 /** Read the role and subject of each relationship on the personal space. */

@@ -28,7 +28,8 @@ import {
     type QuerySelection,
     Subject,
 } from "@destack/sync";
-import { AccessError } from "../error/index.ts";
+import type { FamilyError } from "@destack/error";
+import { AccessError, type AccessReason } from "../error/index.ts";
 import { Manager } from "../manager/manager.ts";
 import { relationsOf, PermissionReference, type Policy } from "../declare/policy.ts";
 import type {
@@ -44,7 +45,7 @@ import { HIGHEST_ASSURANCE, type Elevation, type StepUp } from "../context/eleva
 import { accessRelationship } from "../relationship/table.ts";
 import { Relationship } from "../relationship/relationship.ts";
 import type { Creation } from "./authorization.ts";
-import { accessRole } from "../role/table.ts";
+import { accessRole, OWNER_ROLE } from "../role/table.ts";
 import { accessTables, decisionTables } from "../replica/replica.ts";
 import { accessGrant } from "../grant/table.ts";
 import { earliest, Access } from "./access.ts";
@@ -142,7 +143,7 @@ export class Authorizer {
     readonly setDepth: number;
     /** The relations arrows follow, by permission key of their type and name. */
     readonly #arrows = new Set<string>();
-    /** The one partition whose scopes' access this database stores, every partition when absent. */
+    /** The one partition whose scopes' access this database stores, none when absent. */
     readonly partition: string | undefined;
     /** The tables the database stores rows of, every mapped one when absent. */
     readonly #tables: ReadonlySet<Table> | undefined;
@@ -172,7 +173,7 @@ export class Authorizer {
             readonly replicated?: ReadonlySet<Table>;
             /** The tables the database stores rows of, every mapped one when absent. */
             readonly tables?: ReadonlySet<Table>;
-            /** The one partition whose scopes' access the database stores, else every one. */
+            /** The one partition whose scopes' access the database stores, else none. */
             readonly partition?: string;
         } = {},
     ) {
@@ -245,7 +246,7 @@ export class Authorizer {
             // refuse a contribution to a relation that is not open
             const target = this.#policies.get(ObjectTypeReference.key(entry));
             if (target?.definition.relations[entry.relation]?.open !== true) {
-                throw new AccessError(
+                throw AccessError.of(
                     "INVALID_DECLARATION",
                     `${type.name} cannot contribute to ${entry.type}.${entry.relation}: it is not an open relation`,
                 );
@@ -333,7 +334,7 @@ export class Authorizer {
                 type: definition.name,
             }) !== mapping.policy
         ) {
-            throw new AccessError(
+            throw AccessError.of(
                 "INVALID_DECLARATION",
                 "mapping must reference the registered object declaration",
             );
@@ -345,7 +346,7 @@ export class Authorizer {
             type: definition.name,
         });
         if (this.#mappings.has(key)) {
-            throw new AccessError("INVALID_DECLARATION", `duplicate database mapping: ${key}`);
+            throw AccessError.of("INVALID_DECLARATION", `duplicate database mapping: ${key}`);
         }
 
         // validate the columns and the compiled expressions before registering
@@ -447,9 +448,9 @@ export class Authorizer {
         const key = ObjectTypeReference.key(policy.typeReference);
         if (path.some((step) => ObjectTypeReference.key(step.typeReference) === key)) {
             const cycle = [...path, policy].map((step) => step.name).join(" -> ");
-            throw new AccessError(
+            throw AccessError.of(
                 "INVALID_DECLARATION",
-                `universe subject sets nest without end: ${cycle}`,
+                `universe subject sets nest in a cycle: ${cycle}`,
             );
         }
 
@@ -587,7 +588,7 @@ export class Authorizer {
                     name,
                 });
                 if (!decided.has(name) && !sets.has(key) && !parents.has(key)) {
-                    throw new AccessError(
+                    throw AccessError.of(
                         "INVALID_DECLARATION",
                         `no permission uses relation ${definition.name}.${name}`,
                     );
@@ -622,7 +623,7 @@ export class Authorizer {
     policy(reference: Pick<ObjectReference, "packageId" | "type">): Policy {
         const policy = this.#policies.get(ObjectTypeReference.key(reference));
         if (!policy) {
-            throw new AccessError(
+            throw AccessError.of(
                 "INVALID_DECLARATION",
                 `unknown object type: ${reference.packageId}/${reference.type}`,
             );
@@ -644,7 +645,7 @@ export class Authorizer {
             (each) => each.typeReference.type === prefix,
         );
         if (policy === undefined || others.length > 0) {
-            throw new AccessError(
+            throw AccessError.of(
                 "INVALID_DECLARATION",
                 policy === undefined
                     ? `no known type has identifiers like ${id}`
@@ -668,7 +669,7 @@ export class Authorizer {
             ? definition.permissions[reference.name]
             : undefined;
         if (expression === undefined) {
-            throw new AccessError("INVALID_DECLARATION", `unknown permission: ${reference.name}`);
+            throw AccessError.of("INVALID_DECLARATION", `unknown permission: ${reference.name}`);
         }
 
         return expression;
@@ -681,7 +682,7 @@ export class Authorizer {
             ? type.definition.relations[name]
             : undefined;
         if (relation === undefined) {
-            throw new AccessError("INVALID_DECLARATION", `unknown relation: ${name}`);
+            throw AccessError.of("INVALID_DECLARATION", `unknown relation: ${name}`);
         }
 
         // add the types contributing to an open relation
@@ -704,7 +705,7 @@ export class Authorizer {
     requireMapping(reference: Pick<PermissionReference, "packageId" | "type">): TableMapping {
         const mapping = this.mapping(reference);
         if (!mapping) {
-            throw new AccessError(
+            throw AccessError.of(
                 "INVALID_DECLARATION",
                 `missing database mapping: ${reference.type}`,
             );
@@ -742,7 +743,7 @@ export class Authorizer {
         // refuse a permission the walk visited before
         const key = PermissionReference.key(reference);
         if (visited.has(key)) {
-            throw new AccessError(
+            throw AccessError.of(
                 "INVALID_DECLARATION",
                 `cyclic scope chain: ${reference.type}.${reference.name}`,
             );
@@ -783,7 +784,7 @@ export class Authorizer {
         // read the related identifier
         const field = mapping.relations[relation];
         if (field === undefined) {
-            throw new AccessError("INVALID_DECLARATION", `${relation} is not a field relation`);
+            throw AccessError.of("INVALID_DECLARATION", `${relation} is not a field relation`);
         }
         const id = row[field.column];
         if (id === null || id === undefined) {
@@ -821,15 +822,12 @@ export class Authorizer {
 
     /** Decide whether the transaction's database stores an object's access rows. */
     async isLocal(transaction: Transaction, object: ObjectReference): Promise<boolean> {
-        // follow a role to the scope object defining it
-        if (this.mapping(object)?.table === accessRole) {
-            const scope = await Scope.object(transaction.view(), object.scope);
-
-            return this.isLocal(transaction, scope);
-        }
-        // store a scope object's access at the scope's home, which stores the scope itself
-        else if (this.policy(object).definition.scope === true) {
-            return this.isHome(transaction.view(), object.id);
+        // store a role's and a scope object's access at the home of the scope containing it
+        const isScoped =
+            this.mapping(object)?.table === accessRole ||
+            this.policy(object).definition.scope === true;
+        if (isScoped) {
+            return this.isHome(transaction.view(), object.scope);
         }
         // store another type's access where its rows are local
         else {
@@ -839,45 +837,86 @@ export class Authorizer {
         }
     }
 
-    /** Decide whether a snapshot's database is a scope's home. */
+    /** Decide whether a snapshot's database is a scope's home: its partition's, and no copy. */
     async isHome(snapshot: Snapshot, scope: string): Promise<boolean> {
         // home the universe at the database of its partition alone
         if (scope === Scope.universe.id) {
             return this.partition === Scope.universe.id;
         }
 
-        // require the scope's row in this partition, written here and stored by no replica
+        // require the scope's row in this database's partition, stored by no replica
         const [row] = await Scope.read(snapshot, [scope]);
+        const isPartition = this.partition !== undefined && row?.partition === this.partition;
+
+        return isPartition && !(await Authorizer.#isCopied(snapshot, scope));
+    }
+
+    /** Decide whether a replica stored a scope's row here, by key or with the whole scope. */
+    static async #isCopied(snapshot: Pick<Snapshot, "read">, scope: string): Promise<boolean> {
         const stored = await snapshot.read(replicaKey).findFirst({
             where: { table: Scope.table[TABLE].sqlName, key: Key.name(Scope.table, { scope }) },
         });
-        const isCopied =
-            stored !== undefined || (await Replica.isReplicated(snapshot, scope, Scope.table));
 
-        return row !== undefined && !this.#isElsewhere(row) && !isCopied;
+        return stored !== undefined || (await Replica.isReplicated(snapshot, scope, Scope.table));
     }
 
-    /** Decide whether a scope's row was created in another partition than this database's. */
-    #isElsewhere(row: { readonly partition: string } | undefined): boolean {
-        return (
-            this.partition !== undefined && row !== undefined && row.partition !== this.partition
-        );
+    /** Refuse a relationship another database stores, returning the scope it lives in. */
+    async requireRelationship(
+        transaction: Transaction,
+        request: { readonly object: ObjectReference } & ({ relation: string } | { role: string }),
+    ): Promise<string> {
+        // store a binding inside its scope at the scope's home, and any other beside its object
+        const scope = await Relationship.scope(transaction.view(), request);
+        if (scope === request.object.id) {
+            await this.requireHome(transaction, request.object);
+        } else {
+            await this.requireLocal(transaction, request.object);
+        }
+
+        return scope;
     }
 
     /** Refuse writing the access rows of an object another database stores. */
     async requireLocal(transaction: Transaction, object: ObjectReference): Promise<void> {
-        // refuse access a scope's partition stores at its home, and access this database replicates
         if (!(await this.isLocal(transaction, object))) {
-            const [row] =
-                this.policy(object).definition.scope === true
-                    ? await Scope.read(transaction.view(), [object.id])
-                    : [];
-            const reason = this.#isElsewhere(row)
-                ? "it lives at its home"
-                : "this database has a replica";
-            throw new AccessError(
+            throw await this.#notLocal(transaction, object, object.scope);
+        }
+    }
+
+    /** Refuse writing a scope's inside rows another database homes: roles, grants and record. */
+    async requireHome(transaction: Transaction, scope: ObjectReference): Promise<void> {
+        if (!(await this.isHome(transaction.view(), scope.id))) {
+            throw await this.#notLocal(transaction, scope, scope.id);
+        }
+    }
+
+    /** Build the refusal of a write another database stores: a home, or a replica's source. */
+    async #notLocal(
+        transaction: Transaction,
+        object: ObjectReference,
+        scope: string,
+    ): Promise<FamilyError<AccessReason>> {
+        // name the scope this database lacks, the one it replicates, or the one homed elsewhere
+        const view = transaction.view();
+        const [row] = await Scope.read(view, [scope]);
+        const refused = `cannot write the access of ${object.type} ${object.id} here`;
+
+        // refuse a scope this database lacks
+        if (row === undefined) {
+            return AccessError.of("ACCESS_NOT_LOCAL", `${refused}: this database lacks ${scope}`);
+        }
+        // refuse a scope this database replicates
+        else if (await Authorizer.#isCopied(view, scope)) {
+            return AccessError.of(
                 "ACCESS_NOT_LOCAL",
-                `cannot write the access of ${object.type} ${object.id} here: ${reason}`,
+                `${refused}: this database has a replica of ${scope}`,
+            );
+        }
+        // refuse a scope another database homes
+        else {
+            return AccessError.of(
+                "ACCESS_NOT_LOCAL",
+                `${refused}: it lives at the home of ${scope}`,
             );
         }
     }
@@ -894,22 +933,20 @@ export class Authorizer {
         const isGranting = scope === Scope.universe.id && via.length === 0;
         const where = new Map<Table, Condition>();
 
-        // read the chain objects' universe relationships, and their subject sets' as deep as sets nest
+        // read the universe's relationships on chain objects alone, and elsewhere the chain's scope objects alone
         const isUniverse = scope === Scope.universe.id;
-        if (isUniverse) {
-            const objects = [...new Set([scope, ...parameters.scopes, ...between, ...via])];
-            where.set(accessRelationship, {
-                OR: [{ scope: { ne: scope } }, { objectId: { in: objects } }],
-            });
-        }
+        const objects = [...new Set([scope, ...parameters.scopes, ...between, ...via])];
+        const others = isUniverse
+            ? { scope: { ne: scope } }
+            : { NOT: { OR: this.#scopeTypes().map((type) => Authorizer.#objectType(type)) } };
+        const followed = { OR: [others, { objectId: { in: objects } }] };
+
         // leave out of the target's scope the access rows of the objects it homes
-        else if (local.length > 0) {
-            const homed = local.map((type) => ({
-                objectPackageId: type.packageId,
-                objectType: type.type,
-            }));
-            where.set(accessRelationship, { NOT: { OR: homed } });
-        }
+        const homed = { NOT: { OR: local.map((type) => Authorizer.#objectType(type)) } };
+        where.set(
+            accessRelationship,
+            !isUniverse && local.length > 0 ? { AND: [followed, homed] } : followed,
+        );
 
         // read the grants to the target from every scope, at the universe of the target's chain
         if (isGranting) {
@@ -962,6 +999,18 @@ export class Authorizer {
                   }
                 : {}),
         });
+    }
+
+    /** List the object types that are scopes. */
+    #scopeTypes(): ObjectTypeReference[] {
+        return this.policies()
+            .filter((policy) => policy.definition.scope === true)
+            .map((policy) => policy.typeReference);
+    }
+
+    /** Match the relationships on objects of one type. */
+    static #objectType(type: ObjectTypeReference): Condition {
+        return { objectPackageId: type.packageId, objectType: type.type };
     }
 
     /** Merge the typed reads of one table: any type's rows, in every type's scopes. */
@@ -1032,7 +1081,7 @@ export class Authorizer {
         }
         // refuse a type that is neither inherited, a scope nor replicated through its scopes
         else if (mapping.policy.definition.scope !== true) {
-            throw new AccessError("NO_INHERITED_ROWS", `no inherited rows of ${type.type}`);
+            throw AccessError.of("NO_INHERITED_ROWS", `no inherited rows of ${type.type}`);
         }
         // replicate the scope objects' rows whose identifiers are of the scope type
         else {
@@ -1049,7 +1098,7 @@ export class Authorizer {
     #replicatedTable(type: ObjectTypeReference): Table {
         const mapping = this.#mappings.get(ObjectTypeReference.key(type));
         if (mapping === undefined || mapping.table === Scope.table) {
-            throw new AccessError("NO_REPLICATED_TYPE", `no object type ${type.type} to replicate`);
+            throw AccessError.of("NO_REPLICATED_TYPE", `no object type ${type.type} to replicate`);
         }
 
         return mapping.table;
@@ -1105,8 +1154,6 @@ export class Authorizer {
         creation: Creation,
         now: number,
     ): Select<typeof accessRelationship>[] {
-        const scope = this.governingScope(object);
-
         return (creation.relationships ?? []).map((request) => {
             // validate each relation before encoding it
             this.validate({ object, ...request }, now);
@@ -1120,7 +1167,7 @@ export class Authorizer {
             };
 
             return {
-                ...Relationship.encode(relationship, scope),
+                ...Relationship.encode(relationship),
                 revision: 1,
                 ...Manager.values(null),
             };
@@ -1147,14 +1194,14 @@ export class Authorizer {
             subject !== undefined &&
             !accepts(this.relation(this.policy(request.object), request.relation), subject)
         ) {
-            throw new AccessError(
+            throw AccessError.of(
                 "SUBJECT_REFUSED",
                 `relation ${request.relation} does not accept the subject`,
             );
         }
         // refuse a wildcard as a role's subject
         else if (isRole && subject !== undefined && (subject.id === "*" || subject.scope === "*")) {
-            throw new AccessError("WILDCARD_ROLE", "a role cannot bind to a wildcard");
+            throw AccessError.of("WILDCARD_ROLE", "a role cannot bind to a wildcard");
         }
         // require a role's subject set to be one that caller resolution expands
         else if (
@@ -1167,18 +1214,32 @@ export class Authorizer {
                     set.relation === subject.relation,
             )
         ) {
-            throw new AccessError(
+            throw AccessError.of(
                 "ROLE_SUBJECT_REFUSED",
                 `a role cannot bind to ${subject.type}#${subject.relation}: roles bind to subject sets and scope relations`,
             );
         }
-        // require a future expiry
-        else if (expiresAt !== null && (!Number.isFinite(expiresAt) || expiresAt <= now)) {
-            throw new AccessError(
+        // refuse an expiry on a relationship that must stay, and require a future one elsewhere
+        else if (expiresAt !== null && this.isRequired(request)) {
+            throw AccessError.of(
+                "INVALID_RELATIONSHIP_EXPIRY",
+                "a required relationship cannot expire",
+            );
+        } else if (expiresAt !== null && (!Number.isFinite(expiresAt) || expiresAt <= now)) {
+            throw AccessError.of(
                 "INVALID_RELATIONSHIP_EXPIRY",
                 "a relationship must expire in the future",
             );
         }
+    }
+
+    /** Report whether an object must keep one such relationship: an owner or required relation. */
+    isRequired(
+        request: { readonly object: ObjectReference } & ({ relation: string } | { role: string }),
+    ): boolean {
+        return "role" in request
+            ? request.role === OWNER_ROLE.id
+            : this.relation(this.policy(request.object), request.relation).isRequired === true;
     }
 
     /** Resolve a principal in a scope at the strongest current authentication. */
@@ -1402,7 +1463,7 @@ export class Authorizer {
         // find the scope's object on the access's chain, which lives in its enclosing scope
         const scoped = access.scopes.find((link) => link.id === scope);
         if (scoped === undefined) {
-            throw new AccessError("ACCESS_UNRESOLVED", `access is not resolved in ${scope}`);
+            throw AccessError.of("ACCESS_UNRESOLVED", `access is not resolved in ${scope}`);
         }
 
         // list the subjects the authority matches in the scope and its enclosing scope
@@ -1514,7 +1575,7 @@ export class Authorizer {
     ): Promise<Explanation> {
         // read the object as a row of its type
         if (permission.packageId !== target.packageId || permission.type !== target.type) {
-            throw new AccessError(
+            throw AccessError.of(
                 "PERMISSION_TYPE_MISMATCH",
                 "the permission must belong to the object's type",
             );
@@ -1523,7 +1584,7 @@ export class Authorizer {
         const reader = this.reader(snapshot, access.scopes);
         const found = await reader.row(mapping, target);
         if (found === undefined) {
-            throw new AccessError("OBJECT_NOT_FOUND", `no ${target.type} ${target.id}`);
+            throw AccessError.of("OBJECT_NOT_FOUND", `${target.type} ${target.id} not found`);
         }
 
         // decide the authority by the permission's tree, and by each tuple alone
@@ -1575,13 +1636,13 @@ export class Authorizer {
             async (stepped) => (await this.check(snapshot, permission, target, stepped)).isAllowed,
         );
         if (stepUp !== undefined) {
-            throw new AccessError(
+            throw AccessError.of(
                 "INSUFFICIENT_AUTHENTICATION",
                 "authentication assurance is too low: authenticate again",
-                { stepUp },
+                { data: stepUp },
             );
         }
-        throw new AccessError("PERMISSION_DENIED", `permission denied: ${permission.name}`);
+        throw AccessError.of("PERMISSION_DENIED", `permission denied: ${permission.name}`);
     }
 
     /** Read the gate a request fails on a row before any grant. */
@@ -1632,7 +1693,7 @@ export class Authorizer {
                 expression.transitive &&
                 mapping.trees?.[expression.relation] === undefined
             ) {
-                throw new AccessError(
+                throw AccessError.of(
                     "INVALID_DECLARATION",
                     `missing tree mapping: ${expression.relation}`,
                 );
@@ -1640,7 +1701,7 @@ export class Authorizer {
                 (expression.kind === "granters" || expression.kind === "readers") &&
                 mapping.references?.[expression.reference] === undefined
             ) {
-                throw new AccessError(
+                throw AccessError.of(
                     "INVALID_DECLARATION",
                     `unmapped reference: ${expression.reference}`,
                 );
@@ -1694,7 +1755,7 @@ export class Authorizer {
     onlySubject(type: Policy, name: string): SubjectType {
         const [only, ...others] = this.relation(type, name).subjects;
         if (only === undefined || others.length > 0) {
-            throw new AccessError(
+            throw AccessError.of(
                 "INVALID_DECLARATION",
                 `relation ${type.definition.name}#${name} needs exactly one subject type`,
             );
@@ -1713,7 +1774,7 @@ export class Authorizer {
                 this.policy(scope).definition.scope === true,
         );
         if (!isScopeTypes) {
-            throw new AccessError(
+            throw AccessError.of(
                 "INVALID_DECLARATION",
                 `${type.name}.${name} is a scope relation: it accepts scope types only`,
             );
@@ -1721,7 +1782,7 @@ export class Authorizer {
         if (
             this.mapping({ packageId: type.definition.packageId, type: type.name })?.relations[name]
         ) {
-            throw new AccessError(
+            throw AccessError.of(
                 "INVALID_DECLARATION",
                 `${type.name}.${name} is a scope relation: a field cannot store it`,
             );
@@ -1734,7 +1795,7 @@ export class Authorizer {
         const type = this.policy(subject);
         if (subject.relation !== undefined) {
             if (subject.wildcard) {
-                throw new AccessError("INVALID_DECLARATION", "a subject set cannot be a wildcard");
+                throw AccessError.of("INVALID_DECLARATION", "a subject set cannot be a wildcard");
             }
             // accept a relation, or a permission the object's relations decide
             if (!Object.hasOwn(type.definition.relations, subject.relation)) {
@@ -1790,7 +1851,7 @@ export class Authorizer {
         const isScope = this.policy(reference).definition.relations[name]?.isScope === true;
         const isField = this.mapping(reference)?.relations[name] !== undefined;
         if (isScope || isField) {
-            throw new AccessError(
+            throw AccessError.of(
                 "INVALID_DECLARATION",
                 `${reference.type}.${reference.name} cannot use ${name}: it is a ${isScope ? "scope" : "field"} relation`,
             );
@@ -1850,7 +1911,7 @@ export class Authorizer {
             }
             // refuse what relationships on the chain cannot decide
             else {
-                throw new AccessError(
+                throw AccessError.of(
                     "INVALID_DECLARATION",
                     `${reference.type}.${reference.name} is a chain permission: it can use relations only`,
                 );
@@ -1890,7 +1951,7 @@ export class Authorizer {
         // detect recursion by the complete permission reference
         const key = PermissionReference.key(reference);
         if (parents.has(key)) {
-            throw new AccessError("INVALID_DECLARATION", `cyclic permission: ${reference.name}`);
+            throw AccessError.of("INVALID_DECLARATION", `cyclic permission: ${reference.name}`);
         }
 
         // retain the named permission path while checking its expression
@@ -1939,9 +2000,9 @@ export class Authorizer {
     static #validateSelf(type: Policy): void {
         const { packageId, name } = type.definition;
         if (!TableMapping.isPrincipalType({ packageId, type: name })) {
-            throw new AccessError(
+            throw AccessError.of(
                 "INVALID_DECLARATION",
-                `${name} represents no principal, so self allows no one`,
+                `${name} is not a principal, so self allows no one`,
             );
         }
     }
@@ -1964,7 +2025,7 @@ export class Authorizer {
         );
         for (const subject of this.scopeTypes(type, expression.relation, expression.permission)) {
             if (subject.relation !== undefined || subject.wildcard) {
-                throw new AccessError(
+                throw AccessError.of(
                     "INVALID_DECLARATION",
                     `an arrow requires plain object subjects: ${expression.relation}`,
                 );
@@ -1977,7 +2038,7 @@ export class Authorizer {
                     subject.packageId !== definition.packageId ||
                     subject.type !== definition.name)
             ) {
-                throw new AccessError(
+                throw AccessError.of(
                     "INVALID_DECLARATION",
                     "ancestor traversal requires a same-type relation",
                 );
@@ -2026,12 +2087,12 @@ export class Authorizer {
         // refuse relations and undeclared attributes, which resolve as relations
         const [relation] = Predicate.relations(predicate);
         if (relation !== undefined && Object.hasOwn(definition.relations, relation.via)) {
-            throw new AccessError(
+            throw AccessError.of(
                 "INVALID_DECLARATION",
                 `policy conditions cannot follow relations: ${relation.via}`,
             );
         } else if (relation !== undefined) {
-            throw new AccessError(
+            throw AccessError.of(
                 "INVALID_DECLARATION",
                 `undeclared ${isObject ? "object" : "request"} attribute: ${relation.via}`,
             );
@@ -2064,7 +2125,7 @@ export class Authorizer {
             case "like":
                 // require a text attribute for a pattern
                 if (Authorizer.#attributeType(predicate.name, declared) !== "string") {
-                    throw new AccessError(
+                    throw AccessError.of(
                         "INVALID_DECLARATION",
                         "pattern applies to text attributes only",
                     );
@@ -2073,7 +2134,7 @@ export class Authorizer {
             case "characters":
                 // require a text attribute for a character set
                 if (Authorizer.#attributeType(predicate.name, declared) !== "string") {
-                    throw new AccessError(
+                    throw AccessError.of(
                         "INVALID_DECLARATION",
                         "character set applies to text attributes only",
                     );
@@ -2082,7 +2143,7 @@ export class Authorizer {
             case "length":
                 // require a text attribute, and compare its length as a number
                 if (Authorizer.#attributeType(predicate.name, declared) !== "string") {
-                    throw new AccessError(
+                    throw AccessError.of(
                         "INVALID_DECLARATION",
                         "length applies to text attributes only",
                     );
@@ -2103,12 +2164,12 @@ export class Authorizer {
                 Authorizer.#validatePredicate(predicate.predicate, declared, placeholders);
                 break;
             case "exists":
-                throw new AccessError(
+                throw AccessError.of(
                     "INVALID_DECLARATION",
                     `policy conditions cannot follow relations: ${predicate.via}`,
                 );
             case "search":
-                throw new AccessError("INVALID_DECLARATION", "policy conditions cannot search");
+                throw AccessError.of("INVALID_DECLARATION", "policy conditions cannot search");
         }
     }
 
@@ -2131,14 +2192,14 @@ export class Authorizer {
 
         // order only numbers
         if (isOrdered && attribute !== "number") {
-            throw new AccessError(
+            throw AccessError.of(
                 "INVALID_DECLARATION",
                 `ordered comparisons require a number attribute: ${predicate.name}`,
             );
         }
         // compare only values of the attribute's type
         else if (valueType !== attribute) {
-            throw new AccessError(
+            throw AccessError.of(
                 "INVALID_DECLARATION",
                 `comparisons require a ${attribute} value: ${predicate.name}`,
             );
@@ -2153,7 +2214,7 @@ export class Authorizer {
         // refuse a listed value of another type
         const attribute = Authorizer.#attributeType(predicate.name, declared);
         if (predicate.values.some((value) => typeof value !== attribute)) {
-            throw new AccessError(
+            throw AccessError.of(
                 "INVALID_DECLARATION",
                 `listed values require ${attribute} values: ${predicate.name}`,
             );
@@ -2167,7 +2228,7 @@ export class Authorizer {
     ): AttributeType {
         const type = Object.hasOwn(declared, name) ? declared[name] : undefined;
         if (type === undefined) {
-            throw new AccessError("INVALID_DECLARATION", `undeclared attribute: ${name}`);
+            throw AccessError.of("INVALID_DECLARATION", `undeclared attribute: ${name}`);
         }
 
         return type;
@@ -2180,12 +2241,12 @@ export class Authorizer {
     ): AttributeType {
         // refuse placeholders in request conditions, which read request attributes directly
         if (placeholders === undefined) {
-            throw new AccessError(
+            throw AccessError.of(
                 "INVALID_DECLARATION",
                 `request conditions cannot read placeholders: ${name}`,
             );
         } else if (!Object.hasOwn(placeholders, name)) {
-            throw new AccessError("INVALID_DECLARATION", `undeclared request attribute: ${name}`);
+            throw AccessError.of("INVALID_DECLARATION", `undeclared request attribute: ${name}`);
         }
 
         return Authorizer.#attributeType(name, placeholders);
@@ -2211,7 +2272,7 @@ export class Authorizer {
             }
             // refuse two distinct policies for one type
             else if (!INTRINSIC_POLICIES.includes(type)) {
-                throw new AccessError(
+                throw AccessError.of(
                     "INVALID_DECLARATION",
                     `duplicate object type: ${Authorizer.#policyKey(type)}`,
                 );
@@ -2254,7 +2315,7 @@ export class Authorizer {
 
         // require an index or the primary key
         if (!isIndexed && subjectColumn.definition.primaryKey !== true) {
-            throw new AccessError(
+            throw AccessError.of(
                 "INVALID_DECLARATION",
                 `subject set ${mapping.policy.definition.name}#${relation} needs an index on ${field.column}`,
             );
@@ -2331,7 +2392,7 @@ export class Authorizer {
         // delete the rows with the subject: by its typed columns, else by its id within its type
         for (const { mapping, name, column } of cascading) {
             if (column === undefined) {
-                throw new TypeError(`relation ${name} cascades only from a column`);
+                throw new TypeError(`relation ${name} can only cascade from a column`);
             }
             const typed = column.subject;
             const rows = await transaction.read(mapping.table).findMany({

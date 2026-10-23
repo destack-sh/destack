@@ -213,7 +213,7 @@ export class Authorization {
         return enclosing;
     }
 
-    /** Record a new object's access: a new scope's row, and its access where stored here. */
+    /** Record a new object's access beside its row: a scope's row, its first subjects and owner. */
     async create(object: ObjectReference, creation: Creation): Promise<void> {
         // record a new scope below the scopes containing it, none below the universe
         const isScope = this.authorizer.policy(object).definition.scope === true;
@@ -225,36 +225,26 @@ export class Authorization {
             await this.#record(object, ancestors);
         }
 
-        // relate its first subjects here, or leave a scope homed elsewhere to its home's birth
-        if (!isScope || (await this.authorizer.isLocal(this.transaction, object))) {
-            await this.#relate(object, creation);
-        }
-    }
-
-    /** Record a scope at its home as it is born, below its containing scopes, with its access. */
-    async receive(
-        object: ObjectReference,
-        ancestors: readonly string[],
-        creation: Creation,
-    ): Promise<void> {
-        await this.#record(object, ancestors);
+        // relate its first subjects and owner
         await this.#relate(object, creation);
     }
 
-    /** Forget a removed object's access here: relationships, a scope's row and its scope access. */
+    /** Record a scope at its home as it is born, below its containing scopes. */
+    async receive(object: ObjectReference, ancestors: readonly string[]): Promise<void> {
+        await this.#record(object, ancestors);
+    }
+
+    /** Forget a removed object's access: its relationships, a scope's row and inside rows. */
     async remove(object: ObjectReference): Promise<void> {
-        // require the object's row here: a scope object's row lives in the scope containing it
+        // require the object's row and access here, in the scope containing it
         const isScope = this.authorizer.policy(object).definition.scope === true;
         const view = this.transaction.view();
-        await this.authorizer.requireLocal(
-            this.transaction,
-            isScope ? await Scope.object(view, object.scope) : object,
-        );
+        await this.authorizer.requireLocal(this.transaction, object);
 
-        // read the relationships on the object, and a scope's access only at its home
-        const related = await this.transaction
-            .read(accessRelationship)
-            .findMany({ where: Relationship.objectColumns(object) });
+        // read the relationships and invitations on the object, and a scope's inside access only at its home
+        const on = Relationship.objectColumns(object);
+        const related = await this.transaction.read(accessRelationship).findMany({ where: on });
+        const invited = await this.transaction.read(accessInvitation).findMany({ where: on });
         const isHome = isScope && (await this.authorizer.isHome(view, object.id));
         const inside = isHome
             ? await Promise.all([
@@ -269,15 +259,16 @@ export class Authorization {
             ? await this.transaction.read(Scope.table).findFirst({ where: { scope: object.id } })
             : undefined;
 
-        // delete the relationships once each, then the scope's invitations and roles with their permissions
+        // delete the relationships and invitations once each, then the scope's roles with their permissions
         const relationships = new Map(
             [...related, ...(inside?.[0] ?? [])].map((row) => [row.id, row]),
         );
+        const invitations = new Map(
+            [...invited, ...(inside?.[1] ?? [])].map((row) => [row.id, row]),
+        );
         const roles = inside?.[2] ?? [];
         const permissions = await this.transaction.read(accessRolePermission).findMany({
-            where: {
-                roleId: { in: roles.map((row) => row.id) },
-            },
+            where: { roleId: { in: roles.map((row) => row.id) } },
         });
         await this.transaction.write(
             ...[...relationships.values()].map((row) => ({
@@ -285,7 +276,7 @@ export class Authorization {
                 before: row,
                 after: null,
             })),
-            ...(inside?.[1] ?? []).map((row) => ({
+            ...[...invitations.values()].map((row) => ({
                 table: accessInvitation,
                 before: row,
                 after: null,
@@ -312,7 +303,7 @@ export class Authorization {
             .read(accessRelationship)
             .findMany({ where: Relationship.objectColumns(object), limit: 1 });
         if (related.length > 0) {
-            throw new AccessError(
+            throw AccessError.of(
                 "INVALID_RELATIONSHIP",
                 "a relationship needs a grant after creation",
             );
@@ -321,7 +312,7 @@ export class Authorization {
         // refuse owners of an object that is not a scope
         const definition = this.authorizer.policy(object).definition;
         if (definition.scope !== true && creation.owner !== undefined) {
-            throw new AccessError("SCOPE_REQUIRED", "only a scope can have owners");
+            throw AccessError.of("SCOPE_REQUIRED", "only a scope can have owners");
         }
         const context = this.context();
 
@@ -378,7 +369,7 @@ export class Authorization {
     async #parent(scope: string): Promise<RowImage<typeof Scope.table>> {
         const [row] = await Scope.read(this.snapshot, [scope]);
         if (row === undefined) {
-            throw new AccessError("SCOPE_NOT_FOUND", `unknown scope: ${scope}`);
+            throw AccessError.of("SCOPE_NOT_FOUND", `unknown scope: ${scope}`);
         }
 
         return row;
@@ -410,8 +401,8 @@ export class Authorization {
         permissions: readonly PermissionReference[],
         record?: Select<typeof accessRole>,
     ): Promise<void> {
-        // write only the roles of a local scope, and refuse a managed role outside its declaration until detached
-        await this.authorizer.requireLocal(this.transaction, scope);
+        // write only the roles of a homed scope, and refuse a managed role outside its declaration until detached
+        await this.authorizer.requireHome(this.transaction, scope);
         if (record !== undefined) {
             Manager.requireChangeable(record, this.manager, "role");
         }
@@ -432,17 +423,17 @@ export class Authorization {
             subject.scope !== "*" &&
             ![Scope.universe.id, object.scope, ...chain].includes(subject.scope);
         if (isOutside && !(await this.authorizer.isHome(this.snapshot, subject.scope))) {
-            throw new AccessError(
+            throw AccessError.of(
                 "SUBJECT_OUTSIDE_CHAIN",
                 `${subject.type}#${subject.relation} in ${subject.scope} is outside the scope chain of ${object.scope}`,
             );
         }
     }
 
-    /** Require the grant permission and every permission of a bound role. */
-    async authorizeGrant(request: RelationshipFields): Promise<void> {
-        // write only the access of a local object
-        await this.authorizer.requireLocal(this.transaction, request.object);
+    /** Require the grant permission and every permission of a bound role, returning its scope. */
+    async authorizeGrant(request: RelationshipFields): Promise<string> {
+        // write only a relationship stored here
+        const placed = await this.authorizer.requireRelationship(this.transaction, request);
 
         // require the relation's grant permission to grant it
         const scope = this.authorizer.governingScope(request.object);
@@ -459,7 +450,7 @@ export class Authorization {
         // prevent escalation: bind only scope chain roles with permissions the caller has
         const grants = role === undefined ? undefined : access.grants.get(role);
         if (role !== undefined && grants === undefined) {
-            throw new AccessError("ROLE_NOT_FOUND", "role not found");
+            throw AccessError.of("ROLE_NOT_FOUND", "role not found");
         }
         required.push(...(grants?.permissions ?? []));
         await this.authorizer.require(this.snapshot, required, request.object, access);
@@ -469,11 +460,13 @@ export class Authorization {
             grants?.isOwner === true &&
             !(await this.authorizer.isOwner(this.snapshot, request.object, access))
         ) {
-            throw new AccessError(
+            throw AccessError.of(
                 "OWNER_REQUIRED",
                 "only owners may bind a role granting everything",
             );
         }
+
+        return placed;
     }
 
     /** Require a local object and the grant permission of a relationship. */
@@ -481,8 +474,8 @@ export class Authorization {
         request: RelationshipFields,
         record?: Select<typeof accessRelationship>,
     ): Promise<void> {
-        // write only the access of a local object, and refuse a managed relationship outside its declaration until detached
-        await this.authorizer.requireLocal(this.transaction, request.object);
+        // write only a relationship stored here, and refuse a managed one outside its declaration until detached
+        await this.authorizer.requireRelationship(this.transaction, request);
         if (record !== undefined) {
             Manager.requireChangeable(record, this.manager, "relationship");
         }
@@ -512,29 +505,29 @@ export class Authorization {
                 ? policy.definition.grantedBy
                 : this.authorizer.relation(policy, relation).grantedBy;
         if (grant === undefined) {
-            throw new AccessError("UNGRANTABLE", "relationship cannot be granted");
+            throw AccessError.of("UNGRANTABLE", "relationship cannot be granted");
         }
 
         return policy.permission(grant);
     }
 
-    /** Write some columns of a local scope's record. */
+    /** Write some columns of a homed scope's record. */
     async #mark(
         object: ObjectReference,
         changes: Partial<Select<typeof Scope.table>>,
     ): Promise<void> {
-        // require a local scope
-        await this.authorizer.requireLocal(this.transaction, object);
+        // require a scope homed here
         if (this.authorizer.policy(object).definition.scope !== true) {
-            throw new AccessError("SCOPE_REQUIRED", `${object.type} is not a scope`);
+            throw AccessError.of("SCOPE_REQUIRED", `${object.type} is not a scope`);
         }
+        await this.authorizer.requireHome(this.transaction, object);
 
         // mark the scope's record
         const row = await this.transaction
             .read(Scope.table)
             .findFirst({ where: { scope: object.id } });
         if (row === undefined) {
-            throw new AccessError("SCOPE_NOT_FOUND", `unknown scope: ${object.id}`);
+            throw AccessError.of("SCOPE_NOT_FOUND", `unknown scope: ${object.id}`);
         }
         await this.transaction.write({
             table: Scope.table,

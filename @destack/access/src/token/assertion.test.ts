@@ -81,7 +81,7 @@ test("authenticate a machine by its assertion once, refusing replayed, expired, 
             },
         },
         refusals: [
-            ["UNAUTHORIZED", "ASSERTION_REUSED", "assertion was used before"],
+            ["UNAUTHORIZED", "ASSERTION_REUSED", "assertion was already used"],
             ["UNAUTHORIZED", "ASSERTION_EXPIRED", "assertion expired"],
             ["UNAUTHORIZED", "INVALID_ASSERTION", "invalid assertion"],
             ["UNAUTHORIZED", "ASSERTION_KEY_UNKNOWN", "assertion has no standing key"],

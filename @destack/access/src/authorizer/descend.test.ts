@@ -28,11 +28,11 @@ test("resolve a caller in the scopes one encloses exactly as each scope resolves
     onTestFinished(() => fixture.close());
     const { database, authorizer, bob } = fixture;
     const access = new AccessFixture(database);
-    await access.replicateScope(account.reference("universe", "near"));
-    await access.replicateScope(account.reference("universe", "far"));
+    await access.replicateScope(account.reference("universe", "near"), account);
+    await access.replicateScope(account.reference("universe", "far"), account);
     const spaces = ["plain", "shared", "suspended"].map((id) => space.reference("near", id));
     for (const scope of [...spaces, space.reference("far", "outside")]) {
-        await new AccessFixture(database).replicateScope(scope);
+        await new AccessFixture(database).replicateScope(scope, space);
     }
 
     // let bob read the nodes of two spaces through a role, and suspend one of them

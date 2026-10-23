@@ -160,7 +160,7 @@ export class Compiler {
         const isScope =
             object !== undefined && ObjectReference.key(object) === ObjectReference.key(target);
         if (target.scope !== access.scope && !isScope) {
-            throw new AccessError("TARGET_OUTSIDE_SCOPE", "target is outside the resolved scope");
+            throw AccessError.of("TARGET_OUTSIDE_SCOPE", "target is outside the resolved scope");
         }
         const mapping = this.#authorizer.requireMapping(target);
         const compilation = Compiler.#compilation(access);
@@ -284,8 +284,16 @@ export class Compiler {
         source: Table,
         compilation: Compilation,
     ): SQL {
-        return Compiler.#matchBinding(permission, compilation, (relationship) =>
-            this.#covers(relationship, mapping, source, compilation),
+        // match a cover, leaving a binding inside the row, which covers what the row contains
+        const id = TableMapping.column(source, mapping.id);
+
+        return Compiler.#matchBinding(
+            permission,
+            compilation,
+            (relationship) => sql`(
+                ${this.#covers(relationship, mapping, source, compilation)}
+                AND NOT (${Relationship.insideCondition(relationship)} AND ${relationship.objectId} = ${id})
+            )`,
         );
     }
 
@@ -1017,13 +1025,13 @@ export class Compiler {
                     : sql`${AccessContext.attribute(context, name)}`,
             placeholder: (name) => AccessContext.attribute(context, name),
             exists: (via) => {
-                throw new AccessError(
+                throw AccessError.of(
                     "INVALID_DECLARATION",
                     `policy conditions cannot follow relations: ${via}`,
                 );
             },
             search: () => {
-                throw new AccessError("INVALID_DECLARATION", "policy conditions cannot search");
+                throw AccessError.of("INVALID_DECLARATION", "policy conditions cannot search");
             },
         };
     }

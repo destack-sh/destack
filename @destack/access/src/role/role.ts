@@ -1,5 +1,4 @@
 import * as policies from "../declare/principal.ts";
-import { zip } from "@destack/schema";
 import type { Authorization } from "../authorizer/authorization.ts";
 import { type ObjectReference, Subject } from "@destack/sync";
 import { type Select, type Transaction, Table } from "@destack/db";
@@ -62,7 +61,7 @@ export const Role = {
             },
         });
         if (record === undefined || record.scope !== scope) {
-            throw new AccessError("ROLE_NOT_FOUND", "role not found");
+            throw AccessError.of("ROLE_NOT_FOUND", "role not found");
         }
 
         return record;
@@ -209,7 +208,7 @@ export const Role = {
         });
         const role = defined?.id ?? (await Role.define(transaction, scope.id, request, now, null));
         if (role === undefined) {
-            throw new AccessError("ROLE_NAME_TAKEN", "role name is already in use");
+            throw AccessError.of("ROLE_NAME_TAKEN", "role name is already in use");
         }
         if (defined !== undefined) {
             await Role.replace(transaction, role, scope.id, request.permissions);
@@ -247,7 +246,7 @@ export const Role = {
         }
     },
 
-    /** Bind a role on a scope's object to a subject. */
+    /** Bind a role on a scope's object to a subject, inside the scope for the scope's own role. */
     async bind(
         transaction: Transaction,
         scope: ObjectReference,
@@ -255,6 +254,8 @@ export const Role = {
         subject: Subject,
         now: number,
     ): Promise<void> {
+        // keep a binding of the scope's own role inside it, and any other beside the scope's row
+        const placed = await Relationship.scope(transaction.view(), { object: scope, role });
         const relationship = Relationship.encode(
             {
                 id: schema.identifier("relationship").parse(`relationship-${v7()}`),
@@ -264,7 +265,7 @@ export const Role = {
                 createdAt: now,
                 expiresAt: null,
             },
-            scope.id,
+            placed,
         );
         await transaction.write({
             table: accessRelationship,
@@ -301,7 +302,7 @@ export const Role = {
                 authorization.manager,
             );
             if (id === undefined) {
-                throw new AccessError("ROLE_NAME_TAKEN", "role name is already in use");
+                throw AccessError.of("ROLE_NAME_TAKEN", "role name is already in use");
             }
             const record = await Role.read(authorization.transaction, scope.id, id);
 
@@ -321,7 +322,7 @@ export const Role = {
             const context = authorization.context();
             const record = await Role.read(authorization.transaction, scope.id, id);
             if (record.revision !== changes.revision) {
-                throw new AccessError("STALE_REVISION", "role revision has changed");
+                throw AccessError.of("STALE_REVISION", "role revision has changed");
             }
             await authorization.authorizeRole(
                 scope,
@@ -372,7 +373,7 @@ export const Role = {
             // require an editable role at the revision and permission to delete roles
             const record = await Role.read(authorization.transaction, scope.id, id);
             if (record.revision !== revision) {
-                throw new AccessError("STALE_REVISION", "role revision has changed");
+                throw AccessError.of("STALE_REVISION", "role revision has changed");
             }
             await authorization.authorizeRole(scope, [policies.role.permission("delete")], record);
 
@@ -391,7 +392,7 @@ export const Role = {
                 limit: 1,
             });
             if (bindings.length > 0) {
-                throw new AccessError("ROLE_IN_USE", "role is still bound or included");
+                throw AccessError.of("ROLE_IN_USE", "role is still bound or included");
             }
 
             // delete the role with its permissions
@@ -436,7 +437,7 @@ export const Role = {
             // refuse a role of the name the declaration does not manage
             const { manager } = authorization;
             if (manager !== null && !Manager.manages(existing, manager)) {
-                throw new AccessError("ROLE_NAME_TAKEN", "role name is already in use");
+                throw AccessError.of("ROLE_NAME_TAKEN", "role name is already in use");
             }
             const granted = await Role.permissions(authorization.transaction, existing.id);
             const isGranted = isSamePermissions(granted, request.permissions);
@@ -469,34 +470,27 @@ export const Role = {
         });
     },
 
-    /** Bind a role on an object to only one subject, as the caller may. */
+    /** Bind a role on an object to exactly some subjects, revoking its other bindings. */
     async assign(
         object: ObjectReference,
         role: string,
-        subject: Subject,
+        subjects: readonly Subject[],
         authorization: Authorization,
-    ): Promise<Relationship> {
-        const relationship = await authorization.transaction.savepoint(async () => {
-            // read the role's bindings
-            const request = { object, role, subject };
+    ): Promise<Relationship[]> {
+        return authorization.transaction.savepoint(async () => {
+            // read the role's bindings, and split those of the subjects on the object from the rest
             const id = schema.identifier("role").parse(role);
             const rows = await authorization.transaction
                 .read(accessRelationship)
                 .findMany({ where: { roleId: id } });
-            const bound = rows.map((row) => Relationship.decode(row));
+            const isWanted = (binding: Relationship) =>
+                subjects.some((subject) => isBinding(binding, { object, role, subject }));
+            const bound = rows.map((row) => ({ row, binding: Relationship.decode(row) }));
+            const stale = bound.filter(({ binding }) => !isWanted(binding));
 
-            // leave a role bound only to the subject as it is
-            const [only] = bound;
-            if (bound.length === 1 && only !== undefined && isBinding(only, request)) {
-                return only;
-            }
-
-            // revoke its other bindings and bind it to the subject, as the caller may
-            await authorization.authorizeGrant(request);
-            for (const [binding, row] of zip(bound, rows)) {
+            // revoke the other bindings, as the caller may
+            for (const { row, binding } of stale) {
                 await authorization.authorizeRevoke(binding, row);
-            }
-            for (const row of rows) {
                 await authorization.transaction.write({
                     table: accessRelationship,
                     before: row,
@@ -504,10 +498,25 @@ export const Role = {
                 });
             }
 
-            return Relationship.create(request, authorization);
-        });
+            // bind each subject once
+            const assigned: Relationship[] = [];
+            for (const subject of subjects) {
+                const request = { object, role, subject };
+                const kept = bound.find(({ binding }) => isBinding(binding, request))?.binding;
 
-        return relationship;
+                // keep an existing binding as it is
+                if (kept !== undefined) {
+                    assigned.push(kept);
+                }
+                // bind a missing one, as the caller may
+                else {
+                    const scope = await authorization.authorizeGrant(request);
+                    assigned.push(await Relationship.create(request, scope, authorization));
+                }
+            }
+
+            return assigned;
+        });
     },
 
     /** Upsert a scope's role by name with exactly some permissions, bound to one subject. */

@@ -1,4 +1,5 @@
 import { expect, refusal, test } from "@destack/test";
+import type { FamilyError } from "@destack/error";
 import { v7 } from "uuid";
 import {
     defineTable,
@@ -13,6 +14,7 @@ import { nth, Identifier, schema } from "@destack/schema";
 import { Scope, type Subject } from "@destack/sync";
 import {
     AccessError,
+    type AccessReason,
     ACCESS_PACKAGE_ID,
     accessGrant,
     accessRelationship,
@@ -186,7 +188,11 @@ databaseTest("authorize notes, ranges and world entities", async ({ fixture }) =
                     entity.reference("personal", "a"),
                     access,
                 )
-                .catch((error: AccessError) => [error.reason, error.message, error.stepUp]),
+                .catch((error: FamilyError<AccessReason>) => [
+                    error.reason,
+                    error.message,
+                    error.data,
+                ]),
         );
     }
     expect(refusals).toEqual([
@@ -753,9 +759,9 @@ databaseTest(
         }).toEqual({
             grants: [later.id],
             caller: [alice.subject, [assistant], [Grant.claim(later)]],
-            lapsed: "GRANT_REQUIRED: installation assistant acts for user alice under no grant",
+            lapsed: "GRANT_REQUIRED: installation assistant has no grant to act for user alice",
             unlinked:
-                "GRANT_REQUIRED: installation subagent acts for installation assistant under no grant",
+                "GRANT_REQUIRED: installation subagent has no grant to act for installation assistant",
         });
     },
 );
@@ -838,17 +844,14 @@ databaseTest(
         // relate many other subjects to notes of the scope, then resolve bob again
         await database.insert(accessRelationship).values(
             Array.from({ length: STRESS_RELATIONSHIPS }, (_, index) =>
-                Relationship.encode(
-                    {
-                        id: schema.identifier("relationship").parse(`relationship-${v7()}`),
-                        object: node.reference("personal", `stress-${index}`),
-                        relation: "editor",
-                        subject: userSubject(`stranger-${index}`),
-                        createdAt: bob.now,
-                        expiresAt: null,
-                    },
-                    "personal",
-                ),
+                Relationship.encode({
+                    id: schema.identifier("relationship").parse(`relationship-${v7()}`),
+                    object: node.reference("personal", `stress-${index}`),
+                    relation: "editor",
+                    subject: userSubject(`stranger-${index}`),
+                    createdAt: bob.now,
+                    expiresAt: null,
+                }),
             ),
         );
         const many = await resolve();
@@ -868,10 +871,10 @@ test("resolve the policy of an identifier by its prefix, refusing a prefix of no
     // find each identifier's type, and refuse one of no registered type and one two packages share
     expect(found.map((id) => authorizer.policyOf(id))).toEqual([cell, entity]);
     expect(() => authorizer.policyOf(unknown)).toThrow(
-        new AccessError("INVALID_DECLARATION", `no known type has identifiers like ${unknown}`),
+        AccessError.of("INVALID_DECLARATION", `no known type has identifiers like ${unknown}`),
     );
     expect(() => authorizer.policyOf(shared)).toThrow(
-        new AccessError(
+        AccessError.of(
             "INVALID_DECLARATION",
             `several known types have identifiers like ${shared}`,
         ),
@@ -897,7 +900,7 @@ test("follow a scope relation of several scope types to the nearest scope only, 
         authorizer.enclosingTypes(badge, reading, [chainLink(account)]).map((type) => type.type),
     ]).toEqual([["space"], ["account"]]);
     expect(() => new Authorizer([...policies, badgePolicy([account, group])], mappings)).toThrow(
-        new AccessError(
+        AccessError.of(
             "INVALID_DECLARATION",
             "badge.scope is a scope relation: it accepts scope types only",
         ),
@@ -968,7 +971,7 @@ async function outcome(promise: Promise<unknown>): Promise<string> {
 
         return "resolved";
     } catch (error) {
-        if (!(error instanceof AccessError)) {
+        if (!AccessError.is(error)) {
             throw error;
         }
 
@@ -1154,7 +1157,7 @@ test("refuse binding a role to a scope relation a field decides", () => {
         );
     expect(bind("member")).not.toThrow();
     expect(bind("lead")).toThrow(
-        new AccessError(
+        AccessError.of(
             "ROLE_SUBJECT_REFUSED",
             "a role cannot bind to workspace#lead: roles bind to subject sets and scope relations",
         ),
@@ -1197,7 +1200,7 @@ databaseTest(
                     ],
                 }),
         );
-        const refused = new AccessError(
+        const refused = AccessError.of(
             "SUBJECT_OUTSIDE_CHAIN",
             "group#member in account-2 is outside the scope chain of personal",
         );
@@ -1219,9 +1222,9 @@ test("refuse universe subject sets that nest without end", () => {
 
     // refuse the declaration, listing the cycle
     expect(declare).toThrow(
-        new AccessError(
+        AccessError.of(
             "INVALID_DECLARATION",
-            "universe subject sets nest without end: crew -> crew",
+            "universe subject sets nest in a cycle: crew -> crew",
         ),
     );
 });

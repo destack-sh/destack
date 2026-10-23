@@ -142,7 +142,7 @@ export class TokenVerifier {
                     ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)
                 )
             ) {
-                throw new AccessError(
+                throw AccessError.of(
                     "INSECURE_KEYS",
                     "authentication requires HTTPS outside loopback",
                 );
@@ -183,7 +183,7 @@ export class TokenVerifier {
             result.data.sub !== result.data.caller.subject.id ||
             result.data.exp <= result.data.iat
         ) {
-            throw new AccessError("INVALID_TOKEN", "invalid access token claims");
+            throw AccessError.of("INVALID_TOKEN", "invalid access token claims");
         }
 
         // refuse a token outliving its audience's lifetime
@@ -192,7 +192,7 @@ export class TokenVerifier {
         const verifiedAt = claims.iat * 1000;
         const lifetime = this.options.lifetime ?? TOKEN_LIFETIME_MILLISECONDS;
         if ((claims.exp - claims.iat) * 1000 > lifetime) {
-            throw new AccessError("INVALID_TOKEN", "invalid access token claims");
+            throw AccessError.of("INVALID_TOKEN", "invalid access token claims");
         }
 
         // verify it for this audience in the space it calls
@@ -307,7 +307,7 @@ function requireSpaceSubjects(space: string, caller: Caller, subjects: readonly 
         (principal.space.is(subject) && subject.id === space) ||
         (principal.installation.is(subject) && subject.scope === space);
     if (caller.contacts.length > 0 || caller.actors.length > 0 || !subjects.every(isSpaceSubject)) {
-        throw new AccessError("TOKEN_OUTSIDE_AUTHORITY", "token exceeds issuer authority");
+        throw AccessError.of("TOKEN_OUTSIDE_AUTHORITY", "token exceeds issuer authority");
     }
 }
 
@@ -335,7 +335,7 @@ function requireDeployments(
         workloads.some((subject) => matching(subject) !== 1) ||
         actors.some((subject) => matching(subject) > 1)
     ) {
-        throw new AccessError("INVALID_WORKLOAD_IDENTITY", "invalid workload token identity");
+        throw AccessError.of("INVALID_WORKLOAD_IDENTITY", "invalid workload token identity");
     }
 
     // reject deployments of no asserted workload or actor
@@ -345,7 +345,7 @@ function requireDeployments(
             (deployment) => !bound.some((subject) => Subject.same(subject, deployment.subject)),
         )
     ) {
-        throw new AccessError("INVALID_WORKLOAD_IDENTITY", "unexpected workload token identity");
+        throw AccessError.of("INVALID_WORKLOAD_IDENTITY", "unexpected workload token identity");
     }
 }
 
@@ -365,6 +365,6 @@ function requireDelegation(caller: Caller): void {
             chain.slice(position + 1).some((other) => Subject.same(entry, other)),
         )
     ) {
-        throw new AccessError("INVALID_DELEGATION", "invalid token delegation");
+        throw AccessError.of("INVALID_DELEGATION", "invalid token delegation");
     }
 }

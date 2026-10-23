@@ -1,8 +1,7 @@
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { and, asc, type DatabaseConnection, eq, Snapshot } from "@destack/db";
 import { Scope } from "@destack/sync";
 import {
-    AccessError,
     accessInvitation,
     accessRelationship,
     accessRole,
@@ -29,7 +28,7 @@ test("record each scope in its partition where its type partitions, else in its 
     onTestFinished(() => home.close());
     const owner = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
         Authorization.run(
-            new Authorizer(policies, homeMappings),
+            new Authorizer(policies, homeMappings, { partition: Scope.universe.id }),
             home.database,
             () => ({
                 ...home.alice,
@@ -59,8 +58,8 @@ test("record each scope in its partition where its type partitions, else in its 
     ]);
 });
 
-test("store a space's access in its partition, its home, refusing it where its row was created, which removes only the space's row", async () => {
-    // open the universe's partition, with an account and a space created in it
+test("store a space's own access beside its row in its account's home, refusing it at the space's home, which records the space's scope alone", async () => {
+    // open the universe's partition, with an account and a space alice owns created in it
     const universe = await openFixture();
     onTestFinished(() => universe.close());
     const owner = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
@@ -80,11 +79,12 @@ test("store a space's access in its partition, its home, refusing it where its r
     const personal = space.reference("account-1", "personal");
     await owner((authorization) => authorization.create(personal, { owner: userSubject("alice") }));
 
-    // bear the space in its partition below its replicated account, with alice its owner
+    // bear the space in its partition below its replicated account
     const partition = await openFixture();
     onTestFinished(() => partition.close());
     await new AccessFixture(partition.database).replicateScope(
         account.reference("universe", "account-1"),
+        account,
     );
     await partition.database.insert(spaceTable).values({ id: "personal", account: "account-1" });
     const home = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
@@ -94,59 +94,46 @@ test("store a space's access in its partition, its home, refusing it where its r
             () => ({ ...partition.alice, now: Date.now() }),
             call,
         );
-    await home((authorization) =>
-        authorization.receive(personal, ["account-1"], { owner: userSubject("alice") }),
+    await home((authorization) => authorization.receive(personal, ["account-1"]));
+
+    // make bob an owner beside the space's row, and refuse the same at its home
+    const ownBob = { object: personal, role: Role.OWNER, subject: userSubject("bob") };
+    const granted = await owner((authorization) => Relationship.grant(ownBob, authorization));
+    const refused = await refusal(
+        home((authorization) => Relationship.grant(ownBob, authorization)),
     );
 
-    // make bob an owner at the space's home, and refuse the same where its row was created
-    const granted = await home((authorization) =>
-        Relationship.grant(
-            { object: personal, role: Role.OWNER, subject: userSubject("bob") },
-            authorization,
-        ),
-    );
-
-    // record the space in its partition below the account, its owners bound there alone
+    // record the space in its partition below the account, its owners bound beside its row alone
     const chain = await Scope.chain(Snapshot.live(partition.database), "personal");
     expect({
         granted: granted.subject,
+        refused,
         chain: chain.map((link) => [link.object.id, link.partition]),
         home: await owners(partition.database),
         universe: await owners(universe.database),
     }).toEqual({
         granted: userSubject("bob"),
+        refused: [
+            "FORBIDDEN",
+            "ACCESS_NOT_LOCAL",
+            "cannot write the access of space personal here: it lives at the home of account-1",
+        ],
         chain: [
             ["personal", "personal"],
             ["account-1", "universe"],
             ["universe", "universe"],
         ],
-        home: ["alice", "bob"],
-        universe: [],
+        home: [],
+        universe: ["alice", "bob"],
     });
-    await expect(
-        owner((authorization) =>
-            Relationship.grant(
-                {
-                    object: personal,
-                    role: Role.OWNER,
-                    subject: userSubject("bob"),
-                },
-                authorization,
-            ),
-        ),
-    ).rejects.toEqual(
-        new AccessError(
-            "ACCESS_NOT_LOCAL",
-            "cannot write the access of space personal here: it lives at its home",
-        ),
-    );
 
-    // remove the space where its row was created: its scope row goes, its access stays at its home
+    // remove the space beside its row: its scope row and its own access go, its home keeps its scope
     await owner((authorization) => authorization.remove(personal));
     expect({
         universe: await Scope.read(Snapshot.live(universe.database), ["personal"]),
-        home: await owners(partition.database),
-    }).toEqual({ universe: [], home: ["alice", "bob"] });
+        owners: await owners(universe.database),
+        home: (await Scope.read(Snapshot.live(partition.database), ["personal"])).length,
+    }).toEqual({ universe: [], owners: [], home: 1 });
 });
 
 test("forget a removed scope's relationships, roles, invitations and row, and reuse its identifier", async () => {
@@ -197,12 +184,12 @@ test("forget a removed scope's relationships, roles, invitations and row, and re
     });
 });
 
-/** Read the access rows of account-1: its relationships, roles, invitations and scope row. */
+/** Read account-1's access rows: the relationships and invitations on it, its roles and scope. */
 async function stored(database: DatabaseConnection) {
     const relationships = await database
         .select({ roleId: accessRelationship.roleId, subjectId: accessRelationship.subjectId })
         .from(accessRelationship)
-        .where(eq(accessRelationship.scope, "account-1"));
+        .where(eq(accessRelationship.objectId, "account-1"));
     const roles = await database
         .select({ id: accessRole.id })
         .from(accessRole)
@@ -210,7 +197,7 @@ async function stored(database: DatabaseConnection) {
     const invitations = await database
         .select({ id: accessInvitation.id })
         .from(accessInvitation)
-        .where(eq(accessInvitation.scope, "account-1"));
+        .where(eq(accessInvitation.objectId, "account-1"));
     const scopes = await database
         .select({ scope: Scope.table.scope })
         .from(Scope.table)

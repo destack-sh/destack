@@ -6,6 +6,7 @@ import { AccessError } from "../error/index.ts";
 import { Relationship } from "../relationship/relationship.ts";
 import { accessRelationship } from "../relationship/table.ts";
 import type { GrantPermission } from "../grant/permission.ts";
+import type { Policy } from "../declare/policy.ts";
 import { accessGrant } from "../grant/table.ts";
 import { Role, type RoleRequest } from "../role/role.ts";
 
@@ -19,11 +20,8 @@ export class AccessFixture {
         this.database = database;
     }
 
-    /** Record a scope object below its containing scopes, as its home's access replica does. */
-    async replicateScope(
-        scope: ObjectReference,
-        partition: "parent" | "self" = "parent",
-    ): Promise<void> {
+    /** Record a scope below its containing scopes, partitioned as its type's policy declares. */
+    async replicateScope(scope: ObjectReference, policy: Policy): Promise<void> {
         // read the ancestry and partition of the containing scope
         const [parent] =
             scope.scope === Scope.universe.id
@@ -36,14 +34,14 @@ export class AccessFixture {
                       .from(Scope.table)
                       .where(eq(Scope.table.scope, scope.scope));
         if (parent === undefined) {
-            throw new AccessError("SCOPE_NOT_FOUND", `unknown scope: ${scope.scope}`);
+            throw AccessError.of("SCOPE_NOT_FOUND", `unknown scope: ${scope.scope}`);
         }
 
         // record the scope below it
         await this.database.insert(Scope.table).values({
             scope: scope.id,
             parent: scope.scope,
-            partition: partition === "self" ? scope.id : parent.partition,
+            partition: policy.definition.partition === true ? scope.id : parent.partition,
             packageId: scope.packageId,
             type: scope.type,
             ancestors: scope.scope === Scope.universe.id ? [] : [scope.scope, ...parent.ancestors],
@@ -73,9 +71,8 @@ export class AccessFixture {
         return id;
     }
 
-    /** Relate a subject to an object in its governing scope, as a home access replica does. */
+    /** Relate a subject to an object in its scope, as a home access replica does. */
     async replicateRelationship(
-        governing: string,
         object: ObjectReference,
         relation: string,
         subject: Subject,
@@ -83,17 +80,14 @@ export class AccessFixture {
     ): Promise<Identifier<"relationship">> {
         const id = schema.identifier("relationship").parse(`relationship-${v7()}`);
         await this.database.insert(accessRelationship).values(
-            Relationship.encode(
-                {
-                    id,
-                    object,
-                    relation,
-                    subject,
-                    createdAt: now,
-                    expiresAt: null,
-                },
-                governing,
-            ),
+            Relationship.encode({
+                id,
+                object,
+                relation,
+                subject,
+                createdAt: now,
+                expiresAt: null,
+            }),
         );
 
         return id;

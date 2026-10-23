@@ -18,17 +18,14 @@ test("list the users with a permission on an object, through nested groups, deci
     const { database, authorizer } = fixture;
     const relate = (object: Relationship["object"], relation: string, subject: Subject) =>
         database.insert(accessRelationship).values(
-            Relationship.encode(
-                {
-                    id: `relationship-${v7()}`,
-                    object,
-                    relation,
-                    subject,
-                    createdAt: 1,
-                    expiresAt: null,
-                },
-                object.scope,
-            ),
+            Relationship.encode({
+                id: `relationship-${v7()}`,
+                object,
+                relation,
+                subject,
+                createdAt: 1,
+                expiresAt: null,
+            }),
         );
 
     // let a group, with carol and a nested group with dave, and every user view note a

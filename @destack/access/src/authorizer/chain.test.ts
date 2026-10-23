@@ -66,7 +66,7 @@ test("replicate a space's chain up to the universe, with the policies each scope
     onTestFinished(async () => {
         await Promise.all([home.close(), app.close()]);
     });
-    const authorizer = new Authorizer(policies, homeMappings);
+    const authorizer = new Authorizer(policies, homeMappings, { partition: Scope.universe.id });
     const owner = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
         Authorization.run(
             authorizer,
@@ -117,7 +117,7 @@ test("replicate a space's chain up to the universe, with the policies each scope
         ],
     ]);
 
-    // follow a grant on the account into the replica
+    // follow a grant on the account, which lives in the universe beside the account's row, into the replica
     await owner((authorization) =>
         Relationship.grant(
             {
@@ -128,11 +128,13 @@ test("replicate a space's chain up to the universe, with the policies each scope
             authorization,
         ),
     );
-    await follow(
-        app.database,
-        chainOf(app.authorizer, authorizer, "account-1", "personal", chain, [policy.typeReference]),
-        feed,
-    );
+    for (const scope of chain) {
+        await follow(
+            app.database,
+            chainOf(app.authorizer, authorizer, scope, "personal", chain, [policy.typeReference]),
+            feed,
+        );
+    }
     expect(await replicated(app.database)).toEqual(await replicated(home.database));
 });
 
@@ -192,7 +194,7 @@ test("replicate the chains of the accounts a follower outside them replicates in
     });
 
     // store two accounts of alice with one member each in the home database
-    const authorizer = new Authorizer(policies, homeMappings);
+    const authorizer = new Authorizer(policies, homeMappings, { partition: Scope.universe.id });
     const owner = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
         Authorization.run(
             authorizer,
@@ -245,7 +247,9 @@ test("replicate the chains of the accounts a follower outside them replicates in
             scopes: stored.scopes.filter(isOutsideSecond),
             roles: stored.roles.filter(isOutsideSecond),
             permissions: stored.permissions,
-            relationships: stored.relationships.filter(isOutsideSecond),
+            relationships: stored.relationships.filter(
+                (row) => isOutsideSecond(row) && row.objectId !== "account-2",
+            ),
         },
         ["account-1", "universe"],
     ]);
@@ -457,28 +461,22 @@ test("replicate the universe's relationships of a space's chain alone, beside th
                 .insert(regionTable)
                 .values(others.map((index) => ({ id: `other-${index}` })));
             const rows = others.flatMap((index) => [
-                Relationship.encode(
-                    {
-                        id: schema.identifier("relationship").parse(`relationship-${v7()}`),
-                        object: region.reference(Scope.universe.id, `other-${index}`),
-                        relation: "machine",
-                        subject: userSubject(`server-${index}`),
-                        createdAt: now,
-                        expiresAt: null,
-                    },
-                    Scope.universe.id,
-                ),
-                Relationship.encode(
-                    {
-                        id: schema.identifier("relationship").parse(`relationship-${v7()}`),
-                        object: account.reference(Scope.universe.id, `account-other-${index}`),
-                        relation: "member",
-                        subject: userSubject(`member-${index}`),
-                        createdAt: now,
-                        expiresAt: null,
-                    },
-                    Scope.universe.id,
-                ),
+                Relationship.encode({
+                    id: schema.identifier("relationship").parse(`relationship-${v7()}`),
+                    object: region.reference(Scope.universe.id, `other-${index}`),
+                    relation: "machine",
+                    subject: userSubject(`server-${index}`),
+                    createdAt: now,
+                    expiresAt: null,
+                }),
+                Relationship.encode({
+                    id: schema.identifier("relationship").parse(`relationship-${v7()}`),
+                    object: account.reference(Scope.universe.id, `account-other-${index}`),
+                    relation: "member",
+                    subject: userSubject(`member-${index}`),
+                    createdAt: now,
+                    expiresAt: null,
+                }),
             ]);
 
             // relate the people otherwise, whom the chain lists directly, and its regions otherwise
@@ -496,15 +494,12 @@ test("replicate the universe's relationships of a space's chain alone, beside th
             ];
             rows.push(
                 ...unnamed.map((related) =>
-                    Relationship.encode(
-                        {
-                            id: schema.identifier("relationship").parse(`relationship-${v7()}`),
-                            ...related,
-                            createdAt: now,
-                            expiresAt: null,
-                        },
-                        Scope.universe.id,
-                    ),
+                    Relationship.encode({
+                        id: schema.identifier("relationship").parse(`relationship-${v7()}`),
+                        ...related,
+                        createdAt: now,
+                        expiresAt: null,
+                    }),
                 ),
             );
 
@@ -578,7 +573,6 @@ async function openWorld(
         for (const person of PEOPLE) {
             if (random() < 0.4) {
                 await access.replicateRelationship(
-                    Scope.universe.id,
                     region.reference(Scope.universe.id, id),
                     random() < 0.5 ? "machine" : "home",
                     person,
@@ -592,24 +586,24 @@ async function openWorld(
         const id = `account-${index}`;
         const object = account.reference(Scope.universe.id, id);
         await home.database.insert(accountTable).values({ id, scope: Scope.universe.id });
-        await access.replicateScope(object);
+        await access.replicateScope(object, account);
         for (const resided of [0, 1]) {
             if (random() < 0.5) {
                 const servers = {
                     ...region.reference(Scope.universe.id, `region-${resided}`),
                     relation: "server",
                 };
-                await access.replicateRelationship(Scope.universe.id, object, "resident", servers);
+                await access.replicateRelationship(object, "resident", servers);
             }
         }
         for (const person of PEOPLE) {
             if (random() < 0.3) {
-                await access.replicateRelationship(Scope.universe.id, object, "member", person);
+                await access.replicateRelationship(object, "member", person);
             }
         }
     }
     await home.database.insert(spaceTable).values({ id: SPACE, account: "account-0" });
-    await access.replicateScope(space.reference("account-0", SPACE), "self");
+    await access.replicateScope(space.reference("account-0", SPACE), space);
 
     // follow the space's chain above it, then record the space as its home
     const authorizer = new Authorizer(policies, homeMappings);
@@ -620,7 +614,7 @@ async function openWorld(
     await followScope(Scope.universe.id);
     await new AccessFixture(app.database).replicateScope(
         space.reference("account-0", SPACE),
-        "self",
+        space,
     );
 
     return {

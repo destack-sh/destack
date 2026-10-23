@@ -29,7 +29,7 @@ export const Bearer = {
     require(headers: Headers): string {
         const token = Bearer.read(headers);
         if (token === undefined) {
-            throw new AccessError("INVALID_BEARER", "invalid bearer credential");
+            throw AccessError.of("INVALID_BEARER", "invalid bearer credential");
         }
 
         return token;
@@ -65,11 +65,11 @@ export const Bearer = {
             error instanceof errors.JOSENotSupported ||
             error instanceof errors.JWKSNoMatchingKey
         ) {
-            return new AccessError(reason, message, { cause: error });
+            return AccessError.of(reason, message, { cause: error });
         }
         // answer any other failure as unavailable keys
         else {
-            return new AccessError("KEYS_UNAVAILABLE", "authentication keys are unavailable", {
+            return AccessError.of("KEYS_UNAVAILABLE", "authentication keys are unavailable", {
                 cause: error,
             });
         }

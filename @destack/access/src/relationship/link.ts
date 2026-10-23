@@ -36,7 +36,7 @@ export class LinkSecret {
     static async digest(secret: string): Promise<string> {
         // reject secrets access never created
         if (!SECRET.test(secret)) {
-            throw new AccessError("INVALID_LINK_SECRET", "invalid link secret");
+            throw AccessError.of("INVALID_LINK_SECRET", "invalid link secret");
         }
 
         // hash the secret

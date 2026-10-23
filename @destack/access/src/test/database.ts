@@ -1,5 +1,5 @@
 import { TestDatabase } from "@destack/db/test";
-import type { Subject } from "@destack/sync";
+import { Scope, type Subject } from "@destack/sync";
 import { fixtureDatabase, item, mappings, node, policies, rows } from "./fixture.ts";
 import {
     ACCESS_PACKAGE_ID,
@@ -14,12 +14,12 @@ import {
 /** How long a test session credential lasts: a minute, longer than any test. */
 const CREDENTIAL_MILLISECONDS = 60_000;
 
-/** Open a migrated database, PostgreSQL if configured, with two users and no rows. */
-export async function openDatabase() {
-    // open the database and authorize its objects
+/** Open a migrated database home to a partition, the universe by default, with two users. */
+export async function openDatabase(partition: string = Scope.universe.id) {
+    // open the database and authorize its objects as its partition's
     const test = await TestDatabase.create(fixtureDatabase, { isMigrated: true });
     const { database } = test;
-    const authorizer = new Authorizer(policies, mappings);
+    const authorizer = new Authorizer(policies, mappings, { partition });
 
     // authenticate two independent users
     const alice: AccessContext = {
@@ -43,10 +43,10 @@ export async function openDatabase() {
     return { test, database, authorizer, alice, bob, close: () => test.close() };
 }
 
-/** Open a migrated application database, PostgreSQL if configured, with its notes and one grant. */
-export async function openFixture() {
+/** Open a migrated application database home to a partition, with its notes and one grant. */
+export async function openFixture(partition: string = Scope.universe.id) {
     // populate the database and grant bob one note
-    const opened = await openDatabase();
+    const opened = await openDatabase(partition);
     const { database, authorizer, alice } = opened;
     await database.insert(item).values(rows);
     await Authorization.run(

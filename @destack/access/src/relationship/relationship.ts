@@ -3,7 +3,7 @@ import { nth } from "@destack/schema";
 import { Table } from "@destack/db";
 import { anyone } from "../declare/principal.ts";
 import { LinkSecret, type Link } from "./link.ts";
-import { OWNER_ROLE } from "../role/table.ts";
+import { accessRole, OWNER_ROLE } from "../role/table.ts";
 import type { Authorization } from "../authorizer/authorization.ts";
 import {
     ObjectReference,
@@ -21,7 +21,7 @@ import {
     type OpenCondition,
     type Select,
     type SQL,
-    type Snapshot,
+    Snapshot,
 } from "@destack/db";
 import { Digest, Instant, schema } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
@@ -81,8 +81,8 @@ export const Relationship = {
     /** The schema of a relationship. */
     schema: relationshipSchema,
 
-    /** Write a relationship as a row in the scope it decides access for. */
-    encode(relationship: Relationship, scope: string): EncodedRelationship {
+    /** Write a relationship as a row in the scope it lives in, its object's by default. */
+    encode(relationship: Relationship, scope = relationship.object.scope): EncodedRelationship {
         return {
             id: schema.identifier("relationship").parse(relationship.id),
             createdAt: relationship.createdAt,
@@ -101,6 +101,39 @@ export const Relationship = {
         };
     },
 
+    /** Read the scope a relationship lives in: a scope for its own role, else its object's. */
+    async scope(
+        reader: Pick<Snapshot, "read">,
+        request: { readonly object: ObjectReference } & ({ relation: string } | { role: string }),
+    ): Promise<string> {
+        // keep a binding of the object's own role inside the object, with the role
+        const { object } = request;
+        if ("role" in request) {
+            const role = await reader
+                .read(accessRole)
+                .findFirst({ where: { id: schema.identifier("role").parse(request.role) } });
+            if (role === undefined) {
+                throw AccessError.of("ROLE_NOT_FOUND", "role not found");
+            } else if (role.scope === object.id) {
+                return object.id;
+            }
+        }
+
+        return object.scope;
+    },
+
+    /** Report whether a row lives inside its object, which binds the object's own role there. */
+    isInside(
+        row: Pick<Select<typeof accessRelationship>, "scope" | "objectScope" | "objectId">,
+    ): boolean {
+        return row.scope === row.objectId && row.objectScope !== row.objectId;
+    },
+
+    /** Match a row inside its object in SQL, as `isInside` decides it. */
+    insideCondition(row: RelationshipColumnMap): SQL {
+        return sql`(${row.scope} = ${row.objectId} AND ${row.objectScope} <> ${row.objectId})`;
+    },
+
     /** Read a row's subject from its subject columns. */
     subjectOf(
         row: Pick<
@@ -117,12 +150,9 @@ export const Relationship = {
         };
     },
 
-    /** Insert a relationship as a row in the scope it decides access for. */
-    async insert(
-        database: DatabaseConnection,
-        relationship: Relationship,
-        scope: string,
-    ): Promise<void> {
+    /** Insert a relationship as a row in the scope it lives in. */
+    async insert(database: DatabaseConnection, relationship: Relationship): Promise<void> {
+        const scope = await Relationship.scope(Snapshot.live(database), relationship);
         await database.insert(accessRelationship).values(Relationship.encode(relationship, scope));
     },
 
@@ -322,10 +352,7 @@ export const Relationship = {
         }
         // refuse a caller applying no declaration
         else {
-            throw new AccessError(
-                "MANAGER_REQUIRED",
-                "only a declaration can manage relationships",
-            );
+            throw AccessError.of("MANAGER_REQUIRED", "only a declaration can manage relationships");
         }
 
         return transaction
@@ -371,7 +398,9 @@ export const Relationship = {
         } else if (row.roleId !== null && row.relation === null) {
             return { role: row.roleId };
         } else {
-            throw new TypeError(`relationship ${row.id} has no single relation or role`);
+            throw new TypeError(
+                `relationship ${row.id} does not have exactly one relation or role`,
+            );
         }
     },
 
@@ -401,12 +430,55 @@ export const Relationship = {
     /** Relate a subject to an object by a relation or bound role, as the caller may grant. */
     async grant(request: RelationshipRequest, authorization: Authorization): Promise<Relationship> {
         const relationship = await authorization.transaction.savepoint(async () => {
-            await authorization.authorizeGrant(request);
+            const scope = await authorization.authorizeGrant(request);
 
-            return Relationship.create(request, authorization);
+            return Relationship.create(request, scope, authorization);
         });
 
         return relationship;
+    },
+
+    /** Relate a subject to an object, or set the expiry of the same relationship. */
+    async touch(request: RelationshipRequest, authorization: Authorization): Promise<Relationship> {
+        return authorization.transaction.savepoint(async () => {
+            // require a valid request and the grant
+            const now = authorization.context().now;
+            authorization.authorizer.validate(request, now);
+            const scope = await authorization.authorizeGrant(request);
+
+            // read the same relationship, whatever its expiry
+            const expiresAt = request.expiresAt ?? null;
+            const probe = Relationship.encode(Relationship.of(request, now), scope);
+            const [existing] = await authorization.transaction
+                .read(accessRelationship)
+                .findMany({ where: Relationship.equal(probe), limit: 1 });
+
+            // create it when missing
+            if (existing === undefined) {
+                return Relationship.create(request, scope, authorization);
+            }
+            // keep it when its expiry matches
+            else if (existing.expiresAt === expiresAt) {
+                return Relationship.decode(existing);
+            }
+            // set its expiry otherwise, as its manager allows, advancing its revision
+            else {
+                Manager.requireChangeable(existing, authorization.manager, "relationship");
+                const after = {
+                    ...existing,
+                    expiresAt,
+                    updatedAt: now,
+                    revision: existing.revision + 1,
+                };
+                await authorization.transaction.write({
+                    table: accessRelationship,
+                    before: existing,
+                    after,
+                });
+
+                return Relationship.decode(after);
+            }
+        });
     },
 
     /** Revoke one relationship of an object as the caller may, its history left in the log. */
@@ -425,13 +497,13 @@ export const Relationship = {
                 },
             });
             if (!row) {
-                throw new AccessError("RELATIONSHIP_NOT_FOUND", "relationship not found");
+                throw AccessError.of("RELATIONSHIP_NOT_FOUND", "relationship not found");
             }
 
-            // require permission to revoke what it grants, and leave an owner
+            // require permission to revoke what it grants, and leave a required relationship
             const relationship = Relationship.decode(row);
             await authorization.authorizeRevoke(relationship, row);
-            await requireRemainingOwner(authorization.transaction, row);
+            await requireRemaining(authorization, row);
             await authorization.transaction.write({
                 table: accessRelationship,
                 before: row,
@@ -483,11 +555,14 @@ export const Relationship = {
                 relationship: Relationship.decode(row),
             }));
 
-            // revoke the relationships no longer wanted
+            // refuse a replacement that leaves an object without a required relationship
             const missing = new Map(wanted.map((request) => [identity(request), request]));
             const stale = related.filter(
                 ({ relationship }) => !missing.delete(identity(relationship)),
             );
+            await requireReplaced(authorization, stale, [...missing.values()]);
+
+            // revoke the relationships no longer wanted
             for (const { row, relationship } of stale) {
                 await authorization.authorizeRevoke(relationship, row);
                 await authorization.transaction.write({
@@ -499,30 +574,35 @@ export const Relationship = {
 
             // grant the wanted relationships missing
             for (const request of missing.values()) {
-                await authorization.authorizeGrant(request);
-                await Relationship.create(request, authorization);
+                const scope = await authorization.authorizeGrant(request);
+                await Relationship.create(request, scope, authorization);
             }
         });
     },
 
-    /** Insert a valid relationship under the caller's declaration, refusing duplicates. */
-    async create(
-        request: RelationshipRequest,
-        authorization: Authorization,
-    ): Promise<Relationship> {
-        // build the relationship
-        const scope = authorization.authorizer.governingScope(request.object);
-        const context = authorization.context();
-        authorization.authorizer.validate(request, context.now);
-        const relationship: Relationship = {
+    /** Build a new relationship a request asks for, created at a time. */
+    of(request: RelationshipRequest, now: number): Relationship {
+        return {
             id: schema.identifier("relationship").parse(`relationship-${v7()}`),
             object: request.object,
             ...Relationship.via(request),
             subject: request.subject,
-            createdAt: context.now,
+            createdAt: now,
             expiresAt: request.expiresAt ?? null,
             ...(request.linkSecret === undefined ? {} : { linkSecret: request.linkSecret }),
         };
+    },
+
+    /** Insert a valid relationship in its scope as the caller declares it, refusing duplicates. */
+    async create(
+        request: RelationshipRequest,
+        scope: string,
+        authorization: Authorization,
+    ): Promise<Relationship> {
+        // build the relationship
+        const context = authorization.context();
+        authorization.authorizer.validate(request, context.now);
+        const relationship = Relationship.of(request, context.now);
 
         // insert it unless the same relationship exists
         const row = {
@@ -533,7 +613,7 @@ export const Relationship = {
             .read(accessRelationship)
             .findMany({ where: Relationship.equal(row), limit: 1 });
         if (same.length > 0) {
-            throw new AccessError("RELATIONSHIP_EXISTS", "relationship already exists");
+            throw AccessError.of("RELATIONSHIP_EXISTS", "relationship already exists");
         }
         await authorization.transaction.write({
             table: accessRelationship,
@@ -572,29 +652,67 @@ function identity(relationship: RelationshipRequest | Relationship): string {
     ]);
 }
 
-/** Refuse removing the last owner binding on an object. */
-async function requireRemainingOwner(
-    transaction: Transaction,
+/** Refuse a replacement whose final set leaves an object without a required relationship. */
+async function requireReplaced(
+    authorization: Authorization,
+    stale: readonly { readonly row: Select<typeof accessRelationship> }[],
+    added: readonly RelationshipRequest[],
+): Promise<void> {
+    const removed = new Set(stale.map(({ row }) => row.id));
+    for (const { row } of stale) {
+        // skip the relationships an object may lose
+        const relationship = Relationship.decode(row);
+        if (!authorization.authorizer.isRequired(relationship)) {
+            continue;
+        }
+
+        // count what stays of the same relation or role, and what the replacement adds
+        const via = row.relation === null ? { role: OWNER_ROLE.id } : { relation: row.relation };
+        const kept = (
+            await Relationship.readOn(authorization.transaction.view(), relationship.object, via)
+        ).filter((same) => !removed.has(same.id));
+        const key = ObjectReference.key(relationship.object);
+        const replaced = added.filter(
+            (request) =>
+                ObjectReference.key(request.object) === key &&
+                ("role" in request ? request.role === via.role : request.relation === via.relation),
+        );
+
+        // refuse leaving none
+        if (kept.length === 0 && replaced.length === 0) {
+            const name = row.relation ?? "owner";
+            throw AccessError.of(
+                "LAST_RELATIONSHIP",
+                `the last ${name} of ${relationship.object.type} ${relationship.object.id} cannot be removed`,
+            );
+        }
+    }
+}
+
+/** Refuse removing an object's last owner binding or last relationship of a required relation. */
+async function requireRemaining(
+    authorization: Authorization,
     row: Select<typeof accessRelationship>,
 ): Promise<void> {
-    // skip relations and other roles' bindings
-    if (row.roleId !== OWNER_ROLE.id) {
+    // skip the bindings of other roles and the relationships of optional relations
+    const relationship = Relationship.decode(row);
+    if (!authorization.authorizer.isRequired(relationship)) {
         return;
     }
 
-    // read the object's bindings of the owner role
-    const owners = await transaction.read(accessRelationship).findMany({
-        where: {
-            objectPackageId: row.objectPackageId,
-            objectType: row.objectType,
-            objectScope: row.objectScope,
-            objectId: row.objectId,
-            roleId: OWNER_ROLE.id,
-        },
-    });
+    // read the object's relationships of the same relation or role, which never expire
+    const same = await Relationship.readOn(
+        authorization.transaction.view(),
+        relationship.object,
+        row.relation === null ? { role: OWNER_ROLE.id } : { relation: row.relation },
+    );
 
-    // refuse removing the only such binding
-    if (owners.length === 1 && nth(owners, 0).id === row.id) {
-        throw new AccessError("LAST_OWNER", "the last owner cannot be removed");
+    // refuse removing the only one
+    if (same.length === 1 && nth(same, 0).id === row.id) {
+        const name = row.relation ?? "owner";
+        throw AccessError.of(
+            "LAST_RELATIONSHIP",
+            `the last ${name} of ${relationship.object.type} ${relationship.object.id} cannot be removed`,
+        );
     }
 }

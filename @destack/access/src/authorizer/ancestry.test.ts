@@ -43,7 +43,7 @@ test("decide a scope with no table here on its ancestry row, refusing terms that
     const storage = await TestDatabase.create(accessTables, { isMigrated: true });
     onTestFinished(() => storage.close());
     const authorizer = new Authorizer([club], []);
-    await new AccessFixture(storage.database).replicateScope(chess);
+    await new AccessFixture(storage.database).replicateScope(chess, club);
 
     // decide for a caller with the signed set of the club's members, and for one without it
     expect({
@@ -80,7 +80,7 @@ test("decide a scope whose object row lives elsewhere on its ancestry row, and r
         join: [false, false],
         visit: [false, false],
     });
-    await new AccessFixture(storage.database).replicateScope(chess);
+    await new AccessFixture(storage.database).replicateScope(chess, club);
 
     // decide for a caller with the signed set of the club's members, and for one without it
     expect({

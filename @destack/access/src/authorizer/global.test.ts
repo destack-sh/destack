@@ -76,7 +76,7 @@ test("follow a relation to a global type at the universe, through a plain and a 
     const { database } = storage;
     const authorizer = new Authorizer([space, profile, card], mappings);
     const access = new AccessFixture(database);
-    await access.replicateScope(space.reference("universe", "personal"), "self");
+    await access.replicateScope(space.reference("universe", "personal"), space);
     await database.insert(profileTable).values({ id: "p1" });
     await database.insert(cardTable).values({
         id: "c1",
@@ -88,7 +88,6 @@ test("follow a relation to a global type at the universe, through a plain and a 
         holder: "p1",
     });
     await access.replicateRelationship(
-        "universe",
         profile.reference("universe", "p1"),
         "viewer",
         principal.user.reference("universe", "carol"),

@@ -1,5 +1,5 @@
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { type ObjectReference, Subject } from "@destack/sync";
+import { type ObjectReference, Scope, Subject } from "@destack/sync";
 import { nth, present } from "@destack/schema";
 import { Snapshot, asc, eq } from "@destack/db";
 import {
@@ -17,8 +17,8 @@ import {
     type RelationshipRequest,
     Relationship,
 } from "../index.ts";
-import { mappings, node, policies } from "../test/fixture.ts";
-import { openFixture } from "../test/database.ts";
+import { account, accountTable, homeMappings, mappings, node, policies } from "../test/fixture.ts";
+import { openFixture, sessionCredential } from "../test/database.ts";
 
 test("show an object's relationships to its readers, a concealed relation's only to its subject and whoever may grant it", async () => {
     // open the fixture, where alice is the owner of node b and granted bob editing it
@@ -198,6 +198,140 @@ test("read the invitations on an object to one addressee, leaving out other addr
         await read(object, principal.user.reference("universe", "bob")),
         await read(node.reference("personal", "a"), dave),
     ]).toEqual([[["pending", "b", "dave", "alice"]], [], []]);
+});
+
+test("relate a subject once however often touched, set a new expiry on the same relationship, and refuse a caller who may not grant it", async () => {
+    // open the fixture, where alice is the owner of node b and granted bob editing it
+    const fixture = await openFixture();
+    onTestFinished(() => fixture.close());
+    const authorizer = new Authorizer(policies, mappings);
+    const shared = node.reference("personal", "b");
+    const touch = (context: AccessContext, request: RelationshipRequest) =>
+        Authorization.run(
+            authorizer,
+            fixture.database,
+            () => context,
+            (authorization) => Relationship.touch(request, authorization),
+        );
+    const viewer = (id: string): RelationshipRequest => ({
+        object: shared,
+        relation: "viewer",
+        subject: principal.user.reference("universe", id),
+    });
+
+    // touch bob's grant and carol's new view twice as alice, and dave's view as bob
+    const editing = await touch(fixture.alice, {
+        object: shared,
+        relation: "editor",
+        subject: fixture.bob.subject,
+    });
+    const first = await touch(fixture.alice, viewer("carol"));
+    const again = await touch(fixture.alice, viewer("carol"));
+    const lapsing = await touch(fixture.alice, { ...viewer("carol"), expiresAt: 5000 });
+    const refused = await refusal(touch(fixture.bob, viewer("dave")));
+
+    // keep one row per relationship, answering the same one each time and setting a new expiry on it
+    const rows = await fixture.database
+        .select({
+            id: accessRelationship.id,
+            subjectId: accessRelationship.subjectId,
+            expiresAt: accessRelationship.expiresAt,
+        })
+        .from(accessRelationship)
+        .where(eq(accessRelationship.objectId, "b"))
+        .orderBy(asc(accessRelationship.subjectId));
+    expect({ refused, again: again.id, lapsing: lapsing.id, rows }).toEqual({
+        refused: ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: share"],
+        again: first.id,
+        lapsing: first.id,
+        rows: [
+            { id: editing.id, subjectId: "bob", expiresAt: null },
+            { id: first.id, subjectId: "carol", expiresAt: 5000 },
+        ],
+    });
+});
+
+test("keep an object's last relationship of a required relation through revoking and replacing, and refuse letting one lapse", async () => {
+    // create account-1 with alice as its root, and make bob a root too
+    const fixture = await openFixture();
+    onTestFinished(() => fixture.close());
+    const authorizer = new Authorizer(policies, homeMappings, { partition: Scope.universe.id });
+    const object = account.reference("universe", "account-1");
+    const stepped = {
+        ...fixture.alice,
+        credential: {
+            ...sessionCredential("alice", fixture.alice.now),
+            assurance: { level: 2, authenticatedAt: fixture.alice.now },
+        },
+    };
+    const asAlice = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
+        Authorization.run(authorizer, fixture.database, () => stepped, call);
+    const root = (subject: Subject): RelationshipRequest => ({ object, relation: "root", subject });
+    await fixture.database.insert(accountTable).values({ id: "account-1", scope: "universe" });
+    const alice = await asAlice(async (authorization) => {
+        await authorization.create(object, {
+            relationships: [{ relation: "root", subject: fixture.alice.subject }],
+        });
+        const [created] = await Relationship.readOn(authorization.transaction.view(), object, {
+            relation: "root",
+        });
+
+        return present(created, "alice's root relationship");
+    });
+    const bob = await asAlice((authorization) =>
+        Relationship.grant(root(fixture.bob.subject), authorization),
+    );
+
+    // revoke bob's root, then refuse revoking alice's, the last one
+    await asAlice((authorization) => Relationship.revoke(object, bob.id, authorization));
+    const refused = await refusal(
+        asAlice((authorization) => Relationship.revoke(object, alice.id, authorization)),
+    );
+
+    // refuse a root that would lapse, and replacing alice's roots with none
+    const lapsing = await refusal(
+        asAlice((authorization) =>
+            Relationship.grant(
+                { ...root(fixture.bob.subject), expiresAt: fixture.alice.now + 60_000 },
+                authorization,
+            ),
+        ),
+    );
+    const emptied = await refusal(
+        asAlice((authorization) =>
+            Relationship.replace(
+                {
+                    scope: object.scope,
+                    objects: [account.typeReference],
+                    relation: "root",
+                    subject: fixture.alice.subject,
+                },
+                [],
+                authorization,
+            ),
+        ),
+    );
+
+    // keep alice as the one root through every refusal
+    const roots = await fixture.database
+        .select({ subjectId: accessRelationship.subjectId })
+        .from(accessRelationship)
+        .where(eq(accessRelationship.relation, "root"));
+    const last = [
+        "CONFLICT",
+        "LAST_RELATIONSHIP",
+        "the last root of account account-1 cannot be removed",
+    ];
+    expect({ refused, lapsing, emptied, roots }).toEqual({
+        refused: last,
+        lapsing: [
+            "BAD_REQUEST",
+            "INVALID_RELATIONSHIP_EXPIRY",
+            "a required relationship cannot expire",
+        ],
+        emptied: last,
+        roots: [{ subjectId: "alice" }],
+    });
 });
 
 test("replace a subject's relationships through a relation with exactly the wanted objects as a grantor, refusing anyone else", async () => {

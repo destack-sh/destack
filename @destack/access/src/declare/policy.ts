@@ -88,7 +88,7 @@ export class Policy<Name extends string = string, Kind extends string = string> 
     permission(name: Name): Permission {
         // require a declared permission
         if (!Object.hasOwn(this.definition.permissions, name)) {
-            throw new AccessError("INVALID_DECLARATION", `unknown permission: ${name}`);
+            throw AccessError.of("INVALID_DECLARATION", `unknown permission: ${name}`);
         }
 
         return Permission.parse({
@@ -135,7 +135,7 @@ export class Policy<Name extends string = string, Kind extends string = string> 
         // parse `type`, `type#relation` and `type:*`
         const match = /^([a-z][a-z0-9-]*)(?:#([a-z][a-z0-9-]*)|(:\*))?$/u.exec(subject);
         if (!match) {
-            throw new AccessError("INVALID_DECLARATION", `invalid subject type: ${subject}`);
+            throw AccessError.of("INVALID_DECLARATION", `invalid subject type: ${subject}`);
         }
 
         return SubjectType.parse({
@@ -166,6 +166,7 @@ export class Policy<Name extends string = string, Kind extends string = string> 
                         ...(relation.open === true ? { open: true } : {}),
                         ...(relation.isScope === true ? { isScope: true } : {}),
                         ...(relation.concealed === true ? { concealed: true } : {}),
+                        ...(relation.isRequired === true ? { isRequired: true } : {}),
                         ...(relation.onDelete === undefined ? {} : { onDelete: relation.onDelete }),
                     },
                 ];
@@ -181,7 +182,7 @@ export class Policy<Name extends string = string, Kind extends string = string> 
                 relation.open !== true &&
                 relation.isScope !== true
             ) {
-                throw new AccessError(
+                throw AccessError.of(
                     "INVALID_DECLARATION",
                     `relation ${name} has no subject type and is not open`,
                 );
@@ -325,6 +326,8 @@ export interface RelationInput {
     readonly isScope?: true;
     /** Whether the relation's relationships show only to holders of the permission granting it. */
     readonly concealed?: true;
+    /** Whether each object keeps at least one relationship of the relation, as its owners. */
+    readonly isRequired?: true;
     /** Whether the rows with a deleted subject go with it, as SQL's ON DELETE CASCADE. */
     readonly onDelete?: "cascade";
 }

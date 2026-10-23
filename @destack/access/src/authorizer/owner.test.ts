@@ -77,10 +77,10 @@ async function openWithOwner() {
     // replicate the accounts, the holder and the home, and store the holder and an asset of it
     const replicas = new AccessFixture(database);
     for (const scope of [holding, unrelated, account.reference(Scope.universe.id, "account-3")]) {
-        await replicas.replicateScope(scope);
+        await replicas.replicateScope(scope, account);
     }
-    await replicas.replicateScope(holder);
-    await replicas.replicateScope(home, "self");
+    await replicas.replicateScope(holder, space);
+    await replicas.replicateScope(home, space);
     await database.insert(spaceTable).values({ id: holder.id, account: holder.scope });
     await database.insert(assetTable).values({ id: "asset-1", scope: home.id, holder: holder.id });
 
@@ -135,17 +135,14 @@ async function openWithOwner() {
     // bind a role to carol on another object
     const bind = async (object: ObjectReference, role: string, subject: Subject = carol) => {
         await database.insert(accessRelationship).values(
-            Relationship.encode(
-                {
-                    id: `relationship-${v7()}`,
-                    object,
-                    role,
-                    subject,
-                    createdAt: 0,
-                    expiresAt: null,
-                },
-                authorizer.governingScope(object),
-            ),
+            Relationship.encode({
+                id: `relationship-${v7()}`,
+                object,
+                role,
+                subject,
+                createdAt: 0,
+                expiresAt: null,
+            }),
         );
     };
 
@@ -185,7 +182,7 @@ test("grant nothing through a role bound on an owner when a scope outside the ow
     const { readable, reader, bind, replicas } = await openWithOwner();
 
     // define a reader in an unrelated account, then bind it on the holder
-    await replicas.replicateScope(space.reference("account-2", "elsewhere"));
+    await replicas.replicateScope(space.reference("account-2", "elsewhere"), space);
     const foreign = await reader(space.reference("account-2", "elsewhere"));
     await bind(holder, foreign);
 
