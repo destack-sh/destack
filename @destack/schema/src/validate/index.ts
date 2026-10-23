@@ -60,6 +60,7 @@ export {
     uuidv4,
     uuidv6,
     uuidv7,
+    void,
     xid,
     xor,
     ZodDiscriminatedUnion as DiscriminatedUnion,
