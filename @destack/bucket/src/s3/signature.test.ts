@@ -1,4 +1,4 @@
-import { expect, test } from "@destack/test";
+import { expect, test, refusal } from "@destack/test";
 import { Payload } from "./payload.ts";
 import { S3Signature } from "./signature.ts";
 
@@ -30,12 +30,9 @@ test("presign the documented GET example", async () => {
     expect(
         (await SIGNER.authenticate(new Request(url.href), lookup, NOW + 86400 * 1000)).accessKeyId,
     ).toBe(CREDENTIALS.accessKeyId);
-    await expect(
-        SIGNER.authenticate(new Request(url.href), lookup, NOW + 86401 * 1000),
-    ).rejects.toMatchObject({
-        code: "AccessDenied",
-        message: "request has expired",
-    });
+    expect(
+        await refusal(SIGNER.authenticate(new Request(url.href), lookup, NOW + 86401 * 1000)),
+    ).toEqual(["FORBIDDEN", "ACCESS_DENIED", "request has expired"]);
 });
 
 test("sign the documented ranged GET example", async () => {
@@ -60,11 +57,11 @@ test("sign the documented ranged GET example", async () => {
     expect((await SIGNER.authenticate(request, lookup, NOW + 15 * 60 * 1000)).accessKeyId).toBe(
         CREDENTIALS.accessKeyId,
     );
-    await expect(
-        SIGNER.authenticate(request, lookup, NOW + 15 * 60 * 1000 + 1),
-    ).rejects.toMatchObject({
-        code: "RequestTimeTooSkewed",
-    });
+    expect(await refusal(SIGNER.authenticate(request, lookup, NOW + 15 * 60 * 1000 + 1))).toEqual([
+        "FORBIDDEN",
+        "REQUEST_TIME_TOO_SKEWED",
+        "the request time differs too much from the server time",
+    ]);
 });
 
 test("decode the documented signed aws-chunked upload", async () => {
@@ -84,10 +81,11 @@ test("decode the documented signed aws-chunked upload", async () => {
     // refuse a changed chunk
     const changed = chunkedRequest(body.replace("aaaa\r\n400", "aaab\r\n400"));
     const stream = Payload.open(changed, changed.headers, authorization);
-    await expect(new Response(stream).text()).rejects.toMatchObject({
-        code: "SignatureDoesNotMatch",
-        message: "an aws-chunked chunk signature does not match",
-    });
+    expect(await refusal(new Response(stream).text())).toEqual([
+        "FORBIDDEN",
+        "SIGNATURE_DOES_NOT_MATCH",
+        "an aws-chunked chunk signature does not match",
+    ]);
 });
 
 /** Write one signed aws-chunked chunk of a size. */

@@ -70,7 +70,7 @@ export class LocalBucket extends CatalogueBucket {
             const [segment, ...rest] = await this.#storage.segments(entry.version);
             if (segment === undefined || rest.length > 0 || segment.nonce !== null) {
                 throw new BucketError(
-                    "UNSUPPORTED",
+                    "FILE_NOT_CLONABLE",
                     `cloning needs a plain single-part file: ${key}`,
                 );
             }

@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setImmediate } from "node:timers/promises";
 import { present, schema } from "@destack/schema";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { SweepController } from "../provider/index.ts";
 import { BucketError } from "../error/index.ts";
 import { S3Location, S3Server, S3Signature } from "../s3/index.ts";
@@ -122,10 +122,11 @@ test("open a bucket again after a failed open", async () => {
     const bucket = { bucketId: schema.identifier("bucket").parse(BUCKET_ID) };
 
     // refuse a bucket never created, then create it in its scope and reuse it
-    await expect(buckets.open(bucket)).rejects.toMatchObject({
-        code: "NO_SUCH_BUCKET",
-        message: `no bucket at ${buckets.path(bucket)}`,
-    });
+    expect(await refusal(buckets.open(bucket))).toEqual([
+        "NOT_FOUND",
+        "NO_SUCH_BUCKET",
+        `no bucket at ${buckets.path(bucket)}`,
+    ]);
     const created = await buckets.open(bucket, "space-test");
     expect(await buckets.open(bucket)).toBe(created);
 });

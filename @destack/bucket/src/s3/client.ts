@@ -144,7 +144,7 @@ export class S3Client implements Bucket {
             throw BucketError.preconditionFailed(await this.head(key));
         } else if (!answer.ok) {
             const failure = await refusal(answer);
-            if (failure instanceof BucketError && failure.code === "NO_SUCH_KEY") {
+            if (failure instanceof BucketError && failure.reason === "NO_SUCH_KEY") {
                 return null;
             }
             throw failure;
@@ -184,7 +184,7 @@ export class S3Client implements Bucket {
             throw BucketError.preconditionFailed(await this.head(key));
         } else if (!answer.ok) {
             const failure = await refusal(answer);
-            const isMissing = failure instanceof BucketError && failure.code === "NO_SUCH_KEY";
+            const isMissing = failure instanceof BucketError && failure.reason === "NO_SUCH_KEY";
             throw isMissing && options.onlyIf?.etagMatches !== undefined
                 ? BucketError.preconditionFailed(null)
                 : failure;

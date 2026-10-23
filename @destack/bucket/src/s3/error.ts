@@ -1,5 +1,8 @@
 import type { DomainError, CallErrorCode, Failure } from "@destack/error";
-import { BucketError, type BucketErrorCode } from "../error/index.ts";
+import { BucketError, type BucketReason } from "../error/index.ts";
+
+/** The domain of S3's error codes, which the S3 API reference defines. */
+const S3_DOMAIN = "s3";
 
 /** The HTTP status of each S3 error code, as the S3 API reference lists them. */
 const S3_ERROR_STATUS = {
@@ -53,7 +56,7 @@ const CALL_CODES = {
 >;
 
 /** The S3 error code of each storage failure a request causes; the host reports the rest. */
-const STORAGE_ERROR_CODE: Partial<Record<BucketErrorCode, S3ErrorCode>> = {
+const STORAGE_ERROR_CODE: Partial<Record<BucketReason, S3ErrorCode>> = {
     INVALID_KEY: "InvalidArgument",
     INVALID_RANGE: "InvalidRange",
     INVALID_CURSOR: "InvalidArgument",
@@ -72,11 +75,11 @@ const STORAGE_ERROR_CODE: Partial<Record<BucketErrorCode, S3ErrorCode>> = {
 };
 
 /** The storage failure each S3 error code answers. */
-const STORAGE_FAILURES: ReadonlyMap<S3ErrorCode, BucketErrorCode> = new Map(
+const STORAGE_FAILURES: ReadonlyMap<S3ErrorCode, BucketReason> = new Map(
     Object.entries(STORAGE_ERROR_CODE).flatMap(([failure, code]) => {
         const answering = Object.values(STORAGE_ERROR_CODE).filter((each) => each === code);
 
-        return answering.length === 1 && BucketError.isCode(failure) ? [[code, failure]] : [];
+        return answering.length === 1 && BucketError.isReason(failure) ? [[code, failure]] : [];
     }),
 );
 
@@ -114,7 +117,17 @@ export class S3Error extends Error implements DomainError {
 
     /** Convert the failure to the call error a caller receives, by the status of its code. */
     toCallError(): Failure {
-        return { code: CALL_CODES[S3_ERROR_STATUS[this.code]], message: this.message };
+        // give S3's code as the reason in its constant case, such as NO_SUCH_KEY
+        const reason = this.code
+            .replaceAll(/(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])/gu, "_")
+            .toUpperCase();
+
+        return {
+            code: CALL_CODES[S3_ERROR_STATUS[this.code]],
+            reason,
+            domain: S3_DOMAIN,
+            message: this.message,
+        };
     }
 
     /** Read the S3 error of an error document, refusing a code S3 does not define. */
@@ -153,7 +166,7 @@ export class S3Error extends Error implements DomainError {
         }
 
         // translate a storage failure with an S3 code
-        const code = STORAGE_ERROR_CODE[error.code];
+        const code = STORAGE_ERROR_CODE[error.reason];
 
         return code === undefined ? undefined : new S3Error(code, error.message, { cause: error });
     }

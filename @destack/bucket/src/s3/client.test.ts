@@ -53,17 +53,17 @@ async function read(bucket: Bucket, key: string, options: Parameters<Bucket["get
         : { file: describe(file), range: file.range, text: await file.text() };
 }
 
-/** Run an operation and describe its refusal. */
-async function refusal(operation: Promise<unknown>) {
+/** Run an operation and describe its refusal, with a failed precondition's current file. */
+async function outcome(operation: Promise<unknown>) {
     try {
         await operation;
 
         return "done";
     } catch (error) {
         if (error instanceof BucketPreconditionError) {
-            return { code: error.code, current: describe(error.current) };
+            return { code: error.reason, current: describe(error.current) };
         } else if (error instanceof BucketError) {
-            return { code: error.code, message: error.message };
+            return { code: error.reason, message: error.message };
         }
         throw error;
     }
@@ -180,8 +180,8 @@ test.for(CLIENTS)(
             await read(on, "documents/readme.txt", { range: { offset: 7 } }),
             await read(on, "documents/sealed.txt", { ssecKey: CUSTOMER_KEY }),
             await read(on, "documents/missing.txt"),
-            await refusal(on.get("documents/sealed.txt")),
-            await refusal(on.get("documents/readme.txt", { range: { offset: 100 } })),
+            await outcome(on.get("documents/sealed.txt")),
+            await outcome(on.get("documents/readme.txt", { range: { offset: 100 } })),
         ];
         expect(await reads(client)).toEqual(await reads(bucket));
 
@@ -189,15 +189,15 @@ test.for(CLIENTS)(
         const etag = stored.etag;
         const second = new Date(Math.floor(Date.now() / 1000) * 1000 - 60_000);
         const conditions = async (on: Bucket) => [
-            await refusal(on.get("documents/readme.txt", { onlyIf: { etagMatches: "other" } })),
-            await refusal(on.get("documents/readme.txt", { onlyIf: { etagDoesNotMatch: etag } })),
-            await refusal(on.get("documents/readme.txt", { onlyIf: { uploadedBefore: second } })),
+            await outcome(on.get("documents/readme.txt", { onlyIf: { etagMatches: "other" } })),
+            await outcome(on.get("documents/readme.txt", { onlyIf: { etagDoesNotMatch: etag } })),
+            await outcome(on.get("documents/readme.txt", { onlyIf: { uploadedBefore: second } })),
             await read(on, "documents/readme.txt", { onlyIf: { etagMatches: etag } }),
             await read(on, "documents/readme.txt", { onlyIf: { uploadedAfter: second } }),
-            await refusal(
+            await outcome(
                 on.put("documents/readme.txt", "next", { onlyIf: { etagDoesNotMatch: "*" } }),
             ),
-            await refusal(
+            await outcome(
                 on.put("documents/absent.txt", "next", { onlyIf: { etagMatches: etag } }),
             ),
         ];
@@ -217,7 +217,7 @@ test.for(CLIENTS)(
         const aborted = await client.createMultipartUpload("media/draft.bin");
         await aborted.abort();
         const parts = async (on: Bucket) =>
-            refusal(
+            outcome(
                 on.resumeMultipartUpload("media/draft.bin", aborted.uploadId).uploadPart(1, "x"),
             );
         expect({
@@ -233,10 +233,10 @@ test.for(CLIENTS)(
 
         // delete one file and several, refusing a locked one
         const deletes = [
-            await refusal(client.delete("documents/locked.txt")),
-            await refusal(bucket.delete("documents/locked.txt")),
-            await refusal(client.delete("documents/empty.txt")),
-            await refusal(
+            await outcome(client.delete("documents/locked.txt")),
+            await outcome(bucket.delete("documents/locked.txt")),
+            await outcome(client.delete("documents/empty.txt")),
+            await outcome(
                 client.delete(["documents/readme.txt", "documents/hashed.txt", "missing"]),
             ),
         ];

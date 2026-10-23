@@ -1,4 +1,4 @@
-import type { Controller } from "@destack/db";
+import type { ReconcileController } from "@destack/db";
 import type { CatalogueBucketHost } from "../catalogue/index.ts";
 
 /** How often a host sweeps its open buckets: daily. */
@@ -11,7 +11,7 @@ const BUSY_INTERVAL_MILLISECONDS = 60_000;
 const BUCKETS = "buckets";
 
 /** Sweeps a host's open buckets daily, deleting what interrupted writes left behind. */
-export class SweepController implements Controller {
+export class SweepController implements ReconcileController {
     /** The controller's name in reports. */
     readonly name = "bucket-sweep";
     /** The host whose buckets it sweeps. */

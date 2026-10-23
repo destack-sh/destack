@@ -51,10 +51,11 @@ test("retain local files across reopen and failed streamed uploads", async () =>
     const directory = await mkdtemp(join(tmpdir(), "destack-bucket-reopen-"));
     try {
         // refuse creating a bucket without the scope it belongs to
-        await expect(LocalBucket.open(directory, undefined, Clock.system)).rejects.toMatchObject({
-            code: "NO_SUCH_BUCKET",
-            message: `no bucket at ${directory}`,
-        });
+        expect(await refusal(LocalBucket.open(directory, undefined, Clock.system))).toEqual([
+            "NOT_FOUND",
+            "NO_SUCH_BUCKET",
+            `no bucket at ${directory}`,
+        ]);
 
         {
             await using bucket = await LocalBucket.open(directory, "space-test", Clock.system);
@@ -69,12 +70,13 @@ test("retain local files across reopen and failed streamed uploads", async () =>
                 },
             });
             await expect(bucket.put("document", body)).rejects.toThrow(failure);
-            await expect(
-                bucket.put("document", "changed", { sha256: "0".repeat(64) }),
-            ).rejects.toMatchObject({
-                code: "INVALID_CHECKSUM",
-                message: "object checksum does not match its contents",
-            });
+            expect(
+                await refusal(bucket.put("document", "changed", { sha256: "0".repeat(64) })),
+            ).toEqual([
+                "BAD_REQUEST",
+                "INVALID_CHECKSUM",
+                "object checksum does not match its contents",
+            ]);
         }
         await using restored = await LocalBucket.open(directory, "space-test", Clock.system);
         const document = present(await restored.get("document"), "document");
@@ -277,13 +279,18 @@ test("copy files by sharing their contents until the last reference goes", async
         });
 
         // refuse a missing source, and return null when a source precondition fails
-        await expect(bucket.copy("missing", "copy")).rejects.toMatchObject({
-            code: "NO_SUCH_KEY",
-            message: "the source file does not exist",
-        });
-        await expect(
-            bucket.copy("source", "copy", { onlyIf: { etagMatches: "other" } }),
-        ).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
+        expect(await refusal(bucket.copy("missing", "copy"))).toEqual([
+            "NOT_FOUND",
+            "NO_SUCH_KEY",
+            "the source file does not exist",
+        ]);
+        expect(
+            await refusal(bucket.copy("source", "copy", { onlyIf: { etagMatches: "other" } })),
+        ).toEqual([
+            "PRECONDITION_FAILED",
+            "PRECONDITION_FAILED",
+            "at least one of the preconditions did not hold",
+        ]);
 
         // keep the one blob, named by its digest, while any copy references it
         await bucket.delete(["source", "copy"]);
@@ -314,10 +321,11 @@ test("record storage classes and refuse storage classes R2 does not offer", asyn
         expect(listed.files.map((file) => file.storageClass)).toEqual(["InfrequentAccess"]);
 
         // refuse storage classes R2 does not offer when reading them from a caller
-        await expect(Promise.try(() => StorageClass.read("Glacier"))).rejects.toMatchObject({
-            code: "INVALID_STORAGE_CLASS",
-            message: "unknown storage class Glacier",
-        });
+        expect(await refusal(Promise.try(() => StorageClass.read("Glacier")))).toEqual([
+            "BAD_REQUEST",
+            "INVALID_STORAGE_CLASS",
+            "unknown storage class Glacier",
+        ]);
     } finally {
         await rm(directory, { recursive: true });
     }
@@ -363,18 +371,35 @@ test("encrypt files under customer keys, reading ranges with the key and refusin
             ].map((pending) => refusal(pending)),
         );
         expect(refusals).toEqual([
-            ["INVALID_CUSTOMER_KEY", "the file is encrypted with another customer key"],
-            ["INVALID_CUSTOMER_KEY", "the file is encrypted with another customer key"],
-            ["INVALID_CUSTOMER_KEY", "the file is not encrypted with a customer key"],
-            ["INVALID_CUSTOMER_KEY", "a customer key must be 32 bytes or 64 hexadecimal digits"],
+            [
+                "BAD_REQUEST",
+                "INVALID_CUSTOMER_KEY",
+                "the file is encrypted with another customer key",
+            ],
+            [
+                "BAD_REQUEST",
+                "INVALID_CUSTOMER_KEY",
+                "the file is encrypted with another customer key",
+            ],
+            [
+                "BAD_REQUEST",
+                "INVALID_CUSTOMER_KEY",
+                "the file is not encrypted with a customer key",
+            ],
+            [
+                "BAD_REQUEST",
+                "INVALID_CUSTOMER_KEY",
+                "a customer key must be 32 bytes or 64 hexadecimal digits",
+            ],
         ]);
 
         // upload parts under the upload's key, refusing a part without it
         const upload = await bucket.createMultipartUpload("parts", { ssecKey });
-        await expect(upload.uploadPart(1, "first")).rejects.toMatchObject({
-            code: "INVALID_CUSTOMER_KEY",
-            message: "the file is encrypted with another customer key",
-        });
+        expect(await refusal(upload.uploadPart(1, "first"))).toEqual([
+            "BAD_REQUEST",
+            "INVALID_CUSTOMER_KEY",
+            "the file is encrypted with another customer key",
+        ]);
         const part = await upload.uploadPart(1, "parted contents", { ssecKey });
         const completed = await upload.complete([part]);
         expect([
@@ -437,8 +462,8 @@ test("refuse replacing or deleting a locked file until its retain-until date, th
         });
         await bucket.delete("audit/segment");
         expect([replaced, deleted, held, await bucket.head("audit/segment")]).toEqual([
-            ["LOCKED", "file audit/segment is retained until its lock expires"],
-            ["LOCKED", "file audit/segment is retained until its lock expires"],
+            ["FORBIDDEN", "LOCKED", "file audit/segment is retained until its lock expires"],
+            ["FORBIDDEN", "LOCKED", "file audit/segment is retained until its lock expires"],
             [retainUntil.getTime(), false],
             null,
         ]);
@@ -533,9 +558,17 @@ test("clone a plain file's bytes to a path, refusing a missing, encrypted or mul
         }).toEqual({
             cloned: "plain contents",
             refusals: [
-                ["NO_SUCH_KEY", "no file at missing"],
-                ["UNSUPPORTED", "cloning needs a plain single-part file: sealed"],
-                ["UNSUPPORTED", "cloning needs a plain single-part file: parts"],
+                ["NOT_FOUND", "NO_SUCH_KEY", "no file at missing"],
+                [
+                    "UNPROCESSABLE_CONTENT",
+                    "FILE_NOT_CLONABLE",
+                    "cloning needs a plain single-part file: sealed",
+                ],
+                [
+                    "UNPROCESSABLE_CONTENT",
+                    "FILE_NOT_CLONABLE",
+                    "cloning needs a plain single-part file: parts",
+                ],
             ],
         });
     } finally {

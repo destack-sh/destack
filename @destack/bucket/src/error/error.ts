@@ -1,5 +1,6 @@
 import type { DomainError, CallErrorCode, Failure } from "@destack/error";
 import type { BucketFile } from "../bucket/file.ts";
+import type {} from "@destack/package/import-meta";
 
 /** The call error code of each storage failure. */
 const CALL_CODES = {
@@ -18,29 +19,30 @@ const CALL_CODES = {
     NO_SUCH_BUCKET: "NOT_FOUND",
     LOCKED: "FORBIDDEN",
     UNSUPPORTED: "NOT_IMPLEMENTED",
+    FILE_NOT_CLONABLE: "UNPROCESSABLE_CONTENT",
     FENCED: "SERVICE_UNAVAILABLE",
     CLOSED: "SERVICE_UNAVAILABLE",
     BUSY: "SERVICE_UNAVAILABLE",
     WRITE_FAILED: "INTERNAL_SERVER_ERROR",
 } as const satisfies Readonly<Record<string, CallErrorCode>>;
 
-/** A failure code of file storage. */
-export type BucketErrorCode = keyof typeof CALL_CODES;
+/** A stable cause of failures of file storage. */
+export type BucketReason = keyof typeof CALL_CODES;
 
-/** A storage failure with a stable code. */
+/** A storage failure with its reason. */
 export class BucketError extends Error implements DomainError {
-    /** The failure code. */
-    readonly code: BucketErrorCode;
+    /** The failure's stable cause within its package. */
+    readonly reason: BucketReason;
 
     /** Create a storage failure. */
-    constructor(code: BucketErrorCode, message: string, options?: ErrorOptions) {
+    constructor(reason: BucketReason, message: string, options?: ErrorOptions) {
         super(message, options);
         this.name = "BucketError";
-        this.code = code;
+        this.reason = reason;
     }
 
-    /** Report whether a value is a failure code of file storage. */
-    static isCode(value: string): value is BucketErrorCode {
+    /** Report whether a value is a stable cause of file storage failures. */
+    static isReason(value: string): value is BucketReason {
         return Object.hasOwn(CALL_CODES, value);
     }
 
@@ -51,7 +53,12 @@ export class BucketError extends Error implements DomainError {
 
     /** Convert the failure to the call error a caller receives. */
     toCallError(): Failure {
-        return { code: CALL_CODES[this.code], message: this.message };
+        return {
+            code: CALL_CODES[this.reason],
+            reason: this.reason,
+            domain: import.meta.destack.package.name,
+            message: this.message,
+        };
     }
 }
 

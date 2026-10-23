@@ -88,7 +88,7 @@ async function exerciseRanges(bucket: R2Bucket): Promise<void> {
         }
     }
     await assert.rejects(async () => bucket.get("document", { range: { offset: 2 } }), {
-        code: "INVALID_RANGE",
+        reason: "INVALID_RANGE",
         message: "the requested file range is not satisfiable",
     });
     await bucket.put("empty", null);
