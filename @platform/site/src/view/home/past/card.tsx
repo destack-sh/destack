@@ -1,5 +1,5 @@
 import { frame } from "../../layout/frame.stylex";
-import { font } from "@destack/theme/tokens.stylex";
+import { font, motion } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 import { createMemo, For } from "@destack/view";
 
@@ -279,7 +279,7 @@ const styles = style.create({
             opacity: cardVariables.marks,
             pointerEvents: "none",
             position: "absolute",
-            transition: "opacity 360ms ease",
+            transition: `opacity ${motion.durationMedium} ${motion.easingStandard}`,
         },
         flexDirection: { default: null, [media.maxMd]: "column" },
         justifyContent: { default: null, [media.maxMd]: "center" },
@@ -343,7 +343,9 @@ const styles = style.create({
         gap: { default: "0.5rem", [media.maxMd]: "0.25rem" },
         minWidth: 0,
         paddingInline: { default: "0.75rem", [media.maxMd]: "0.125rem" },
-        transition: "box-shadow 300ms ease, opacity 300ms ease, filter 300ms ease",
+        transitionDuration: motion.durationMedium,
+        transitionProperty: "box-shadow, opacity, filter",
+        transitionTimingFunction: motion.easingStandard,
         transitionDelay: cardVariables.cascade,
         opacity: `clamp(0, ${itemEntry}, 1)`,
         translate: `0 calc((1 - clamp(0, ${itemEntry}, 1)) * 0.75rem)`,
@@ -358,7 +360,7 @@ const styles = style.create({
     },
     chip: {
         opacity: cardVariables.ink,
-        transition: `opacity ${cardVariables.inkTime} ease ${cardVariables.inkDelay}`,
+        transition: `opacity ${cardVariables.inkTime} ${motion.easingStandard} ${cardVariables.inkDelay}`,
         alignItems: "center",
         borderRadius: "6px",
         boxShadow: `inset 0 0 0 1.5px color-mix(in srgb, ${palette.ink} 22%, transparent)`,
@@ -408,7 +410,7 @@ const styles = style.create({
 
     text: {
         opacity: cardVariables.ink,
-        transition: `opacity ${cardVariables.inkTime} ease ${cardVariables.inkDelay}`,
+        transition: `opacity ${cardVariables.inkTime} ${motion.easingStandard} ${cardVariables.inkDelay}`,
         display: "flex",
         flexDirection: "column",
         gap: "0.0625rem",
@@ -454,18 +456,18 @@ const styles = style.create({
     },
     tapeFresh: {
         animationDelay: "240ms",
-        animationDuration: "180ms",
+        animationDuration: motion.durationShort,
         animationFillMode: "backwards",
-        animationName: { default: slap, [media.motionReduce]: "none" },
-        animationTimingFunction: "cubic-bezier(0.23, 1, 0.32, 1)",
+        animationName: slap,
+        animationTimingFunction: motion.easingEmphasised,
         transformBox: "fill-box",
         transformOrigin: "center",
     },
     tapeWorn: {
-        animationDuration: "180ms",
+        animationDuration: motion.durationShort,
         animationFillMode: "forwards",
-        animationName: { default: peel, [media.motionReduce]: "none" },
-        animationTimingFunction: "ease",
+        animationName: peel,
+        animationTimingFunction: motion.easingStandard,
         opacity: { default: null, [media.motionReduce]: 0 },
     },
     tapeText: {

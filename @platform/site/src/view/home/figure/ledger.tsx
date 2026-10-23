@@ -1,4 +1,4 @@
-import { color, font, shadow, stroke } from "@destack/theme/tokens.stylex";
+import { color, font, motion, shadow, stroke } from "@destack/theme/tokens.stylex";
 import { media } from "@destack/style/media.stylex";
 import { present } from "@destack/schema";
 import * as style from "@destack/style";
@@ -431,9 +431,9 @@ const styles = style.create({
         backgroundColor: ledgerVariables.fill,
         borderRadius: "4px",
         boxShadow: `inset 0 1.5px 0 ${color.background}, inset 0 -1.5px 0 ${color.background}`,
-        transitionDuration: { default: "260ms", [media.motionReduce]: "0ms" },
+        transitionDuration: motion.durationShort,
         transitionProperty: "background-color, border-radius, box-shadow",
-        transitionTimingFunction: "ease",
+        transitionTimingFunction: motion.easingStandard,
     },
     pressable: {
         cursor: "pointer",
@@ -455,9 +455,9 @@ const styles = style.create({
         insetInlineStart: "0.375rem",
         opacity: 0,
         position: "absolute",
-        transitionDuration: { default: "180ms", [media.motionReduce]: "0ms" },
+        transitionDuration: motion.durationShort,
         transitionProperty: "opacity",
-        transitionTimingFunction: "ease",
+        transitionTimingFunction: motion.easingStandard,
         width: "1.5px",
         zIndex: 1,
         "::after": {
@@ -491,9 +491,9 @@ const styles = style.create({
         paddingBlock: { default: 0, [media.maxMd]: "0.5rem" },
         paddingInlineStart: ROW_INSET,
         position: "sticky",
-        transitionDuration: { default: "260ms", [media.motionReduce]: "0ms" },
+        transitionDuration: motion.durationShort,
         transitionProperty: "border-color",
-        transitionTimingFunction: "ease",
+        transitionTimingFunction: motion.easingStandard,
         zIndex: 1,
         "::before": {
             backgroundColor: ledgerVariables.fill,
@@ -502,9 +502,9 @@ const styles = style.create({
             content: '""',
             inset: 0,
             position: "absolute",
-            transitionDuration: { default: "260ms", [media.motionReduce]: "0ms" },
+            transitionDuration: motion.durationShort,
             transitionProperty: "background-color",
-            transitionTimingFunction: "ease",
+            transitionTimingFunction: motion.easingStandard,
             zIndex: -1,
         },
     },

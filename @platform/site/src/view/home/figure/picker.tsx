@@ -1,4 +1,4 @@
-import { color, font } from "@destack/theme/tokens.stylex";
+import { color, font, motion } from "@destack/theme/tokens.stylex";
 import { media } from "@destack/style/media.stylex";
 import * as style from "@destack/style";
 import {
@@ -247,9 +247,9 @@ const styles = style.create({
         gridArea: "1 / 1",
         opacity: 0,
         transform: "translateY(70%)",
-        transitionDuration: { default: "360ms", [media.motionReduce]: "0ms" },
+        transitionDuration: motion.durationMedium,
         transitionProperty: "opacity, transform",
-        transitionTimingFunction: "cubic-bezier(0.2, 0.7, 0.3, 1)",
+        transitionTimingFunction: motion.easingEmphasised,
         whiteSpace: "nowrap",
     },
     nameShown: {

@@ -4,7 +4,7 @@ import key from "@destack/icon/phosphor/key";
 import { present } from "@destack/schema";
 import { createSignal } from "@destack/view";
 import * as style from "@destack/style";
-import { color, stroke } from "@destack/theme/tokens.stylex";
+import { color, motion, stroke } from "@destack/theme/tokens.stylex";
 import { ToggleGroup, ToggleGroupItem } from "@destack/ui/toggle-group";
 import { Favicon, Glyph } from "../figure/glyph";
 import type { Entry, Item } from "../figure/item";
@@ -787,8 +787,9 @@ const styles = style.create({
         minHeight: 0,
         overflowY: "auto",
         padding: "0.75rem",
-        transitionDuration: "200ms",
+        transitionDuration: motion.durationShort,
         transitionProperty: "opacity, visibility",
+        transitionTimingFunction: motion.easingStandard,
         zIndex: 2,
     },
     overviewClosed: {

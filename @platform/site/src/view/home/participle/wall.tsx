@@ -9,12 +9,14 @@ import {
     type Workload,
     jobWorkloads,
 } from "../figure/price";
-import { color, font, shadow, stroke } from "@destack/theme/tokens.stylex";
+import { color, font, motion, shadow, stroke } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 import { createEffect, createSignal } from "@destack/view";
 import { createVisibilityObserver } from "@destack/view/primitives/intersection-observer";
 
 import { agentPromptOf } from "../../content/site";
+import { duration, easing } from "../../layout/motion";
+import { movement } from "../../layout/motion.stylex";
 import { Favicon } from "../figure/glyph";
 import { Tile } from "../figure/tile";
 import { Glyph } from "../figure/glyph";
@@ -150,14 +152,8 @@ const makes: readonly Make[] = [
 /** The most apps to make the wall offers at once, as many as fit beside each other. */
 const MAKE_COUNT = 2;
 
-/** The milliseconds a mark takes to move to its new place. */
-const moveTime = 340;
-
 /** The milliseconds between one mark's move and the next. */
 const moveStep = 18;
-
-/** The strong ease-out every move lands on. */
-const landing = "cubic-bezier(0.23, 1, 0.32, 1)";
 
 /** Draw your tools a row per job: to pick while stacked, folded into your apps once destacked. */
 export function ToolWall(properties: {
@@ -361,13 +357,13 @@ function move(wall: HTMLElement, last: ReadonlyMap<string, DOMRect>) {
         if (before === undefined) {
             element.animate(
                 [
-                    { opacity: 0, transform: "translateY(6px) scale(0.97)" },
+                    { opacity: 0, transform: `translateY(${movement.travel}) scale(0.97)` },
                     { opacity: 1, transform: "none" },
                 ],
                 {
-                    duration: moveTime * 0.6,
+                    duration: duration.medium,
                     delay: 60 + index * 6,
-                    easing: landing,
+                    easing: easing.emphasised,
                     fill: "backwards",
                 },
             );
@@ -385,14 +381,14 @@ function move(wall: HTMLElement, last: ReadonlyMap<string, DOMRect>) {
         }
         element.animate(
             [{ transform: `translate(${dx}px, ${dy}px) scale(${scale})` }, { transform: "none" }],
-            { duration: moveTime, delay, easing: landing, fill: "backwards" },
+            { duration: duration.medium, delay, easing: easing.standard, fill: "backwards" },
         );
 
         // bring a growing cell's face in once it has mostly grown, so no squeezed text shows
         if (scale < 0.9) {
             element.firstElementChild?.animate(
                 [{ opacity: 0 }, { opacity: 0, offset: 0.4 }, { opacity: 1 }],
-                { duration: moveTime, delay, easing: landing, fill: "backwards" },
+                { duration: duration.medium, delay, easing: easing.standard, fill: "backwards" },
             );
         }
     });
@@ -601,7 +597,7 @@ const styles = style.create({
             ":hover": { default: null, [media.hover]: color.muted },
         },
         cursor: "pointer",
-        transition: `background-color 160ms ${landing}, box-shadow 160ms ${landing}`,
+        transition: `background-color ${motion.durationShort} ${motion.easingStandard}, box-shadow ${motion.durationShort} ${motion.easingStandard}`,
     },
     picked: {
         backgroundColor: {

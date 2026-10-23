@@ -15,7 +15,7 @@ import paperclip from "@destack/icon/phosphor/paperclip";
 import smiley from "@destack/icon/phosphor/smiley";
 import { present } from "@destack/schema";
 import * as style from "@destack/style";
-import { color, font, radius, space, stroke, weight } from "@destack/theme/tokens.stylex";
+import { color, font, motion, radius, space, stroke, weight } from "@destack/theme/tokens.stylex";
 import { AvatarGroup } from "@destack/ui/avatar";
 import { Checkbox } from "@destack/ui/checkbox";
 import { Progress } from "@destack/ui/progress";
@@ -1425,8 +1425,9 @@ const styles = style.create({
     },
     changed: {
         backgroundColor: `color-mix(in srgb, ${palette.signal} 14%, transparent)`,
-        transitionDuration: "250ms",
+        transitionDuration: motion.durationShort,
         transitionProperty: "background-color",
+        transitionTimingFunction: motion.easingStandard,
     },
     approval: {
         alignItems: "center",

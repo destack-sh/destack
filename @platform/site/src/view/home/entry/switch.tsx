@@ -1,4 +1,4 @@
-import { color, font } from "@destack/theme/tokens.stylex";
+import { color, font, motion } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 import { Icon } from "@destack/icon";
 import arrowUp from "@destack/icon/phosphor/arrow-up";
@@ -188,8 +188,9 @@ const styles = style.create({
         color: color.mutedForeground,
         fontSize: typeScale.small,
         fontWeight: 600,
-        transitionDuration: "300ms",
+        transitionDuration: motion.durationShort,
         transitionProperty: "color",
+        transitionTimingFunction: motion.easingStandard,
     },
     active: {
         color: color.primary,
@@ -202,7 +203,7 @@ const styles = style.create({
         display: "flex",
         height: "1.25rem",
         padding: "2px",
-        transition: "background-color 300ms ease",
+        transition: `background-color ${motion.durationMedium} ${motion.easingStandard}`,
         width: "2.25rem",
     },
     trackOn: {
@@ -212,10 +213,7 @@ const styles = style.create({
         backgroundColor: color.primary,
         borderRadius: "50%",
         height: "0.8125rem",
-        transition: {
-            default: "translate 450ms cubic-bezier(0.4, 0, 0.2, 1.3)",
-            [media.motionReduce]: "none",
-        },
+        transition: `translate ${motion.durationMedium} ${motion.easingSpring}`,
         width: "0.8125rem",
     },
     knobOn: {
@@ -241,10 +239,7 @@ const styles = style.create({
         maxWidth: "28rem",
         paddingInline: "0.5rem",
         position: "fixed",
-        transition: {
-            default: "opacity 200ms ease, translate 200ms ease",
-            [media.motionReduce]: "none",
-        },
+        transition: `opacity ${motion.durationShort} ${motion.easingStandard}, translate ${motion.durationShort} ${motion.easingStandard}`,
         zIndex: 3,
     },
     barHidden: {

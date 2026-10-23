@@ -1,4 +1,4 @@
-import { font } from "@destack/theme/tokens.stylex";
+import { font, motion } from "@destack/theme/tokens.stylex";
 import { media } from "@destack/style/media.stylex";
 import { present } from "@destack/schema";
 import * as style from "@destack/style";
@@ -579,9 +579,6 @@ function allowOf(grant: Grant, shown: Assistant): string {
     return shown === "Claude" ? "Allow once" : "Approve";
 }
 
-/** The time a change of assistant takes to ease in. */
-const EASE = "320ms";
-
 /** The colour and shape properties that ease between assistants. */
 const EASED = "background-color, color, border-color, border-radius, box-shadow";
 
@@ -675,7 +672,8 @@ const styles = style.create({
         fontFamily: SANS,
         gridTemplateRows: "auto minmax(0, 1fr) auto",
         height: "100%",
-        transitionDuration: EASE,
+        transitionDuration: motion.durationMedium,
+        transitionTimingFunction: motion.easingStandard,
         transitionProperty: EASED,
     },
 
@@ -688,7 +686,8 @@ const styles = style.create({
         gridArea: "1 / 1",
         opacity: 0,
         pointerEvents: "none",
-        transitionDuration: EASE,
+        transitionDuration: motion.durationMedium,
+        transitionTimingFunction: motion.easingStandard,
         transitionProperty: "opacity",
     },
     layerShown: {
@@ -750,8 +749,8 @@ const styles = style.create({
 
     // conversation
     messages: {
-        animationDuration: EASE,
-        animationTimingFunction: "ease-out",
+        animationDuration: motion.durationMedium,
+        animationTimingFunction: motion.easingStandard,
         display: "flex",
         flexDirection: "column",
         gap: "1rem",
@@ -794,7 +793,8 @@ const styles = style.create({
         maxWidth: "80%",
         paddingBlock: "0.625rem",
         paddingInline: "1rem",
-        transitionDuration: EASE,
+        transitionDuration: motion.durationMedium,
+        transitionTimingFunction: motion.easingStandard,
         transitionProperty: EASED,
     },
     reply: {
@@ -823,15 +823,15 @@ const styles = style.create({
         lineHeight: 1.5,
     },
     character: {
-        animationDuration: { default: "120ms", [media.motionReduce]: "0ms" },
+        animationDuration: motion.durationShort,
         animationFillMode: "backwards",
         animationName: appear,
     },
     word: {
-        animationDuration: { default: "280ms", [media.motionReduce]: "0ms" },
+        animationDuration: motion.durationMedium,
         animationFillMode: "backwards",
         animationName: appear,
-        animationTimingFunction: "ease-out",
+        animationTimingFunction: motion.easingEmphasised,
     },
     shimmer: {
         animationDuration: { default: "1.6s", [media.motionReduce]: "0ms" },
@@ -914,8 +914,9 @@ const styles = style.create({
     },
     chevron: {
         display: "inline-flex",
-        transitionDuration: "160ms",
+        transitionDuration: motion.durationShort,
         transitionProperty: "transform",
+        transitionTimingFunction: motion.easingStandard,
     },
     chevronOpen: {
         transform: "rotate(180deg)",
@@ -930,7 +931,8 @@ const styles = style.create({
         gap: "0.25rem",
         paddingBlock: "0.5rem",
         paddingInline: "0.75rem",
-        transitionDuration: EASE,
+        transitionDuration: motion.durationMedium,
+        transitionTimingFunction: motion.easingStandard,
         transitionProperty: EASED,
     },
     fieldLabel: {
@@ -967,7 +969,8 @@ const styles = style.create({
         flexShrink: 0,
         fontSize: "0.8125rem",
         overflow: "hidden",
-        transitionDuration: EASE,
+        transitionDuration: motion.durationMedium,
+        transitionTimingFunction: motion.easingStandard,
         transitionProperty: EASED,
     },
     appHead: {
@@ -1059,7 +1062,8 @@ const styles = style.create({
         gap: "0.625rem",
         paddingBlock: "0.75rem",
         paddingInline: "0.875rem",
-        transitionDuration: EASE,
+        transitionDuration: motion.durationMedium,
+        transitionTimingFunction: motion.easingStandard,
         transitionProperty: EASED,
     },
     approved: {
@@ -1079,7 +1083,8 @@ const styles = style.create({
         fontWeight: 500,
         paddingBlock: "0.3125rem",
         paddingInline: "0.875rem",
-        transitionDuration: EASE,
+        transitionDuration: motion.durationMedium,
+        transitionTimingFunction: motion.easingStandard,
         transitionProperty: `${EASED}, opacity, transform`,
     },
     allow: {

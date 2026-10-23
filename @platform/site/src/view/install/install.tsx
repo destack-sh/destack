@@ -1,6 +1,6 @@
 import { frame } from "../layout/frame.stylex";
 import { media } from "@destack/style/media.stylex";
-import { color, font, stroke } from "@destack/theme/tokens.stylex";
+import { color, font, motion, stroke } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 import { type JSX, Show } from "@destack/view";
 
@@ -265,7 +265,9 @@ const styles = style.create({
         paddingInlineEnd: "0.375rem",
         textAlign: "start",
         textDecorationLine: "none",
-        transition: "background-color 160ms ease, color 160ms ease, transform 120ms ease",
+        transitionDuration: motion.durationShort,
+        transitionProperty: "background-color, color, transform",
+        transitionTimingFunction: motion.easingStandard,
         width: "100%",
         ":active": { transform: "scale(0.99)" },
     },

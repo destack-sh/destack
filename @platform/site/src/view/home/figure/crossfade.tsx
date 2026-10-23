@@ -1,4 +1,4 @@
-import { media } from "@destack/style/media.stylex";
+import { motion } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 
 /** Show the stacked or the destacked text in the space of the longer one. */
@@ -28,7 +28,7 @@ const styles = style.create({
     },
     text: {
         gridArea: "1 / 1",
-        transition: { default: "opacity 180ms ease", [media.motionReduce]: "none" },
+        transition: `opacity ${motion.durationShort} ${motion.easingStandard}`,
     },
     hidden: {
         opacity: 0,

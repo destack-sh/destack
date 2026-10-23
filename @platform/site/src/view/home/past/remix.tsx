@@ -1,10 +1,9 @@
 import { frame } from "../../layout/frame.stylex";
-import { color } from "@destack/theme/tokens.stylex";
+import { color, motion } from "@destack/theme/tokens.stylex";
 import { present } from "@destack/schema";
 import * as style from "@destack/style";
 import { createMemo, createSignal, For, onSettled } from "@destack/view";
 
-import { cardVariables } from "./card.stylex";
 import {
     boardCells,
     boardInset,
@@ -17,6 +16,8 @@ import { Card, type Entity } from "./card";
 import { listedOf } from "../figure/price";
 import { palette } from "../../palette.stylex";
 import { isMotionReduced } from "@destack/view/motion";
+import { duration, stagger } from "../../layout/motion";
+import { movement } from "../../layout/motion.stylex";
 import { makeEventListener } from "@destack/view/primitives/event-listener";
 import { makeIntersectionObserver } from "@destack/view/primitives/intersection-observer";
 import { makeResizeObserver } from "@destack/view/primitives/resize-observer";
@@ -25,16 +26,10 @@ import { makeResizeObserver } from "@destack/view/primitives/resize-observer";
 const sceneTime = 5200;
 /** The milliseconds from the water fully draining to the first scene change. */
 const firstSceneTime = 1200;
-/** The milliseconds between neighbouring cards turning over, left to right. */
-const flipStagger = 35;
-/** The milliseconds after the stack opens before its apps turn into view. */
-const openFlipAt = 280;
-/** The milliseconds a card's ink takes to fade out before handing over its box, or to fade in. */
-const inkFade = 200;
-/** The milliseconds a card takes to turn over and show the card replacing it. */
-const flipTime = 360;
-/** The milliseconds cards take to travel between places. */
-const moveTime = 380;
+/** The milliseconds after the stack opens before its apps enter, as the water drains. */
+const openDelay = 280;
+/** The milliseconds after the stack closes before its silos enter, as the ice reforms. */
+const closeDelay = 520;
 
 /** The humans, agents, silos, and apps the scenes arrange. */
 export const entities: Record<string, Entity> = {
@@ -200,10 +195,6 @@ const slots = new Map(
 );
 /** The silos, which ride the icebergs today. */
 const vendors = new Set(slots.keys());
-/** The milliseconds a silo takes to rise after the one it replaces starts to sink. */
-const swapDelay = 240;
-/** The milliseconds a silo waits to rise again after the water returns. */
-const landingDelay = 520;
 
 /** One arrangement of the top two layers. */
 type Scene = {
@@ -413,8 +404,8 @@ const todayPlacements = todayScenes.map(arrange);
 /** The placement of every card in each open scene. */
 const scenePlacements = scenes.map(arrange);
 
-/** How a card moves into its placement. */
-type Step = "stay" | "enter" | "leave" | "park" | "fuse" | "flip";
+/** How a card changes into its placement: kept, shown, hidden, moved, or at rest. */
+type Step = "stay" | "enter" | "leave" | "move" | "park";
 
 /** One placed card: its row, its span in whole board cells, and how it gets there. */
 type Placement = {
@@ -428,22 +419,8 @@ type Placement = {
     isShown: boolean;
     /** How the card moves there. */
     step: Step;
-    /** The milliseconds the card waits before it moves. */
+    /** The milliseconds the card waits before it changes. */
     delay: number;
-    /** Whether the card shows or hides at the end of its move rather than at its start. */
-    isLate: boolean;
-    /** How far the card is turned about its horizontal axis, in degrees. */
-    turn?: number;
-};
-
-/** How a card's ink fades, as CSS values for the card's variables. */
-type Ink = {
-    /** The ink's opacity, one when shown. */
-    opacity: string;
-    /** The fade's duration. */
-    time: string;
-    /** The delay before the fade. */
-    delay: string;
 };
 
 /** One kind of cable, which sets its look. */
@@ -468,7 +445,7 @@ type Cable = {
     pulse: SVGPathElement;
     /** The visibility from 0 to 1. */
     alpha: number;
-    /** The time the cable starts to fade in. */
+    /** The time the cable fades back in after the last change. */
     showsAt: number;
     /** How far the cable has settled onto the grid, from 0 on its cards to 1 in the holes. */
     settle: number;
@@ -496,8 +473,9 @@ export function Remix(properties: {
             ? present(scenes[scene()], "scene")
             : present(todayScenes[properties.today], "scene");
 
-    // place every card of the scene: cards enter and leave across the nearest board edge, vendor apps sink in place
+    // place every card of the scene: cards leave and enter where they stand, row by row
     let wasLaidOpen = properties.isOpen;
+    let change = 0;
     const layout = createMemo(() => {
         // pick the placements and note whether the stack just opened or closed
         const current = properties.isOpen
@@ -505,138 +483,47 @@ export function Remix(properties: {
             : present(todayPlacements[properties.today], "scene");
         const isToggle = properties.isOpen !== wasLaidOpen;
         wasLaidOpen = properties.isOpen;
+        change += 1;
 
-        // step each card toward its placement, collecting the cards that enter and leave across an edge, and those that morph
-        const before = new Map(last);
-        const entering: Placement[] = [];
-        const leaving: Placement[] = [];
-        const morphAt = isToggle ? 300 : 0;
+        // enter after the leaving cards are gone, or after the water drains or the ice reforms on a toggle
+        const toggleDelay = properties.isOpen ? openDelay : closeDelay;
+        const enterAt = Math.max(duration.short, isToggle ? toggleDelay : 0);
+
+        // step each card toward its placement
         for (const id of ids) {
             const placement = current.get(id);
             const previous = last.get(id);
-            const isVendor = vendors.has(id);
 
-            // keep or move a card that shows, growing it out of the cards it replaces, and taking over only at the end of a merge
+            // keep a card in its place, move it by fading out and in, or show it after the leaving cards
             if (placement) {
-                const isEntering = previous !== undefined && !previous.isShown && !isVendor;
-                const isGrowing = isEntering && isOnBoard(previous);
-                const isFlipping = isGrowing && previous.turn !== undefined;
-                const next: Placement = {
-                    ...placement,
-                    step: isFlipping ? "flip" : isEntering ? "enter" : "stay",
-                    delay: isVendor
-                        ? vendorDelay(previous, isToggle)
-                        : isFlipping
-                          ? (isToggle ? openFlipAt : 0) + flipStagger * slotOf(placement)
-                          : isGrowing
-                            ? morphAt
-                            : 0,
-                    isLate: isGrowing && sourcesOf(placement, before, current) > 1,
-                };
-                last.set(id, next);
-                if (isEntering && !isGrowing) {
-                    entering.push(next);
-                }
+                const isShown = previous?.isShown === true;
+                const step: Step =
+                    previous === undefined || (isShown && isSamePlace(previous, placement))
+                        ? "stay"
+                        : isShown
+                          ? "move"
+                          : "enter";
+                const start = step === "enter" ? enterAt : 0;
+                last.set(id, { ...placement, step, delay: start + placement.row * stagger });
             }
-            // sink a vendor app where it stands
-            else if (isVendor) {
-                last.set(id, {
-                    ...(previous ?? lockedPlacement(id)),
-                    isShown: false,
-                    step: "stay",
-                    delay: 0,
-                    isLate: false,
-                });
-            }
-            // fuse a card that showed into the cards replacing it, or send it off across its nearest edge
+            // hide a card that showed where it stands
             else if (previous?.isShown === true) {
-                const successors = [...current]
-                    .filter(
-                        ([other, place]) =>
-                            before.get(other)?.isShown !== true && overlaps(place, previous),
-                    )
-                    .map(([, place]) => place);
-                // flap every open card away on its hinge as the stack closes, before the water comes back
-                if (isToggle && !properties.isOpen) {
-                    last.set(id, {
-                        ...previous,
-                        isShown: false,
-                        step: "flip",
-                        delay: flipStagger * slotOf(previous) + previous.row * flipStagger * 2,
-                        isLate: false,
-                        turn: 90,
-                    });
-                    continue;
-                }
-
-                // turn a card over to show the one card that takes its place
-                const [successor] = successors;
-                if (
-                    successors.length === 1 &&
-                    successor !== undefined &&
-                    sourcesOf(successor, before, current) === 1 &&
-                    sameSlot(successor, previous)
-                ) {
-                    last.set(id, {
-                        ...previous,
-                        isShown: false,
-                        step: "flip",
-                        delay: flipStagger * slotOf(previous),
-                        isLate: false,
-                        turn: 90,
-                    });
-                } else if (successor !== undefined) {
-                    const isMerging =
-                        successors.length === 1 && sourcesOf(successor, before, current) > 1;
-                    last.set(id, {
-                        ...cover(successors),
-                        step: "fuse",
-                        delay: morphAt,
-                        isLate: isMerging,
-                    });
-                } else {
-                    const next: Placement = { ...beyond(previous), step: "leave", isLate: true };
-                    last.set(id, next);
-                    leaving.push(next);
-                }
-            }
-            // leave a card that is turning away alone until it is gone
-            else if (previous?.step === "flip" && previous.turn !== undefined) {
-                continue;
-            }
-            // park a hidden card on the cards it replaces when it next appears, or beyond the edge nearest where it appears
-            else {
-                const next = upcoming(id, scene());
-                const following = properties.isOpen
-                    ? present(scenePlacements[(scene() + 1) % scenes.length], "scene")
-                    : present(scenePlacements[properties.today * 2], "scene");
-                const origins = following.has(id)
-                    ? [...current]
-                          .filter(
-                              ([other, place]) => !following.has(other) && overlaps(place, next),
-                          )
-                          .map(([, place]) => place)
-                    : [];
-                const [origin] = origins;
-                const isSwapping =
-                    origins.length === 1 && origin !== undefined && sameSlot(origin, next);
                 last.set(id, {
-                    ...(isSwapping ? next : origins.length ? cover(origins) : beyond(next)),
+                    ...previous,
                     isShown: false,
-                    step: "park",
-                    isLate: false,
-                    ...(isSwapping && { turn: -90 }),
+                    step: "leave",
+                    delay: previous.row * stagger,
                 });
+            }
+            // rest a hidden card, first at the place where it next appears
+            else {
+                const place =
+                    previous ?? (vendors.has(id) ? lockedPlacement(id) : upcoming(id, scene()));
+                last.set(id, { ...place, isShown: false, step: "park", delay: 0 });
             }
         }
 
-        // start entering cards after the leaving ones clear, farthest from its edge first; send leaving cards nearest first
-        const enterAt = isToggle ? 300 : moveTime * 0.45;
-        const leaveAt = isToggle ? 400 : 0;
-        stagger(entering, enterAt, (place) => -edgeDistance(place));
-        stagger(leaving, leaveAt, edgeDistance);
-
-        return new Map(last);
+        return { change, places: new Map(last) };
     });
 
     // follow a dragged card with the pointer, then let it spring home
@@ -753,15 +640,16 @@ export function Remix(properties: {
             return found;
         };
 
-        // fade a cable in once its moment in the choreography comes
+        // fade a cable out at a change, and back in once the cards have settled
         const show = (found: Cable, fade: number, now: number) => {
-            // fade the cable in after the delay since the last change
-            if (found.alpha === 0 && found.showsAt < changedAt) {
+            // hide the cable from the last change until its moment, then fade it in
+            if (found.showsAt < changedAt) {
                 found.showsAt = changedAt + delay;
             }
-            if (now >= found.showsAt) {
-                found.alpha = Math.min(1, found.alpha + 0.06);
-            }
+            found.alpha =
+                now >= found.showsAt
+                    ? Math.min(1, found.alpha + 0.06)
+                    : Math.max(0, found.alpha - 0.12);
             const opacity = String(found.alpha * fade);
             found.path.style.opacity = opacity;
             found.ends.style.opacity = opacity;
@@ -830,7 +718,7 @@ export function Remix(properties: {
             ]);
             const { bounds, boxes } = measure(needed);
             const kept = new Set<string>();
-            const places = layout();
+            const places = layout().places;
             const cell = bounds.width / boardCells;
             const cellRow = bounds.height / layerRows;
             isStirring = false;
@@ -1047,11 +935,11 @@ export function Remix(properties: {
             // restart the cable timing when the stack opens, closes, or changes scene
             if (properties.isOpen !== wasOpen) {
                 changedAt = now;
-                delay = properties.isOpen ? 500 : 800;
+                delay = (properties.isOpen ? openDelay : closeDelay) + duration.medium + stagger;
                 wasOpen = properties.isOpen;
             } else if (scene() !== wasScene || properties.today !== wasToday) {
                 changedAt = now;
-                delay = moveTime * 0.8;
+                delay = duration.short + duration.medium + stagger;
 
                 // run a dash of light down every open cable once the new scene's cables are in
                 if (properties.isOpen && !isStill) {
@@ -1131,12 +1019,12 @@ export function Remix(properties: {
                 <g ref={wires} />
             </svg>
 
-            {/* place each card on its row; cards travel between rows and can be dragged */}
+            {/* place each card on its row; cards fade between places and can be dragged */}
             <For each={ids}>
                 {(id) => {
                     // read the card's placement, drag offset, and kind
                     const placement = () => {
-                        const found = layout().get(id);
+                        const found = layout().places.get(id);
                         if (!found) {
                             throw new TypeError(`card ${id} has no placement`);
                         }
@@ -1153,18 +1041,10 @@ export function Remix(properties: {
                             data-card
                             onPointerDown={(event) => grab(id, event)}
                             {...style.attributes(
-                                [
-                                    styles.card,
-                                    held() !== undefined && styles.held,
-                                    styles.ink(inkOf(isVendor, placement())),
-                                ],
+                                [styles.card, held() !== undefined && styles.held],
                                 {
                                     ...span(placement()),
-                                    ...follow(
-                                        motion(isVendor, placement()),
-                                        held(),
-                                        travelOf(placement()),
-                                    ),
+                                    ...motionOf(placement(), layout().change, held()),
                                 },
                             )}
                         >
@@ -1185,22 +1065,33 @@ export function Remix(properties: {
 
 /** How far down a gap the cable bus runs on narrow screens, as a share of the gap. */
 const captionedBus = 0.3;
-/** The easing of a card travelling between places. */
-const easing = "cubic-bezier(0.6, 0, 0.2, 1)";
 /** The length of the dash of light that runs down a cable, as a share of the cable. */
 const pulseLength = 0.12;
 /** The milliseconds the dash of light takes to run down a cable. */
 const pulseTime = 400;
 /** The milliseconds after a cable appears before its dash of light starts. */
 const pulseDelay = 90;
-/** A merged card settling into place from slightly smaller. */
-const land = style.keyframes({
-    from: { opacity: 0, scale: "0.98" },
+/** A card fading out over a short change and back in at its new place over a medium one. */
+const moveFadeEven = style.keyframes({
+    "0%": { animationTimingFunction: motion.easingStandard, opacity: 1, translate: "0 0" },
+    "33%": {
+        animationTimingFunction: motion.easingEmphasised,
+        opacity: 0,
+        translate: `0 ${movement.travel}`,
+    },
+    "100%": { opacity: 1, translate: "0 0" },
 });
-/** How far a silo sinks before it is gone, deep enough for the water to hide it. */
-const sinkDepth = "8rem";
-/** The easing of a vendor app sinking under the water. */
-const sink = "cubic-bezier(0.5, 0, 0.9, 0.6)";
+
+/** The same fade under a second name, so each change of scene runs it afresh. */
+const moveFadeOdd = style.keyframes({
+    "0%": { animationTimingFunction: motion.easingStandard, opacity: 1, translate: "0 0" },
+    "34%": {
+        animationTimingFunction: motion.easingEmphasised,
+        opacity: 0,
+        translate: `0 ${movement.travel}`,
+    },
+    "100%": { opacity: 1, translate: "0 0" },
+});
 
 /** Return a card's place, as offsets a transform moves it by, and its width within the layer. */
 function span(place: Placement) {
@@ -1214,117 +1105,71 @@ function span(place: Placement) {
     };
 }
 
-/** Return how a card travels to a new place: at once while parked, or over the move's time. */
-function travelOf(place: Placement): string {
-    return place.step === "park" ? "0ms" : `${moveTime}ms ${easing} ${place.delay}ms`;
-}
-
 /** Return the centre of a card's span in pixels, for a given cell width. */
 function centre(place: Placement, cell: number) {
     return (place.left + place.width / 2) * cell;
 }
 
-/** Return a card's inline motion: how it enters and leaves. */
-function motion(isVendor: boolean, place: Placement): Record<string, string> {
-    // read the card's visibility
-    const isShown = place.isShown;
-
-    // sink a silo under the water and fade it as it goes deep, and raise the next one out of it onto its berg
-    if (isVendor) {
-        return isShown
-            ? {
-                  opacity: "1",
-                  translate: "0 0",
-                  rotate: "0deg",
-                  scale: "1",
-                  transition: `opacity 200ms ease ${place.delay}ms, translate ${moveTime}ms ${easing} ${place.delay}ms, rotate ${moveTime}ms ${easing} ${place.delay}ms, scale 320ms ${easing} ${place.delay}ms`,
-              }
-            : {
-                  opacity: "0",
-                  translate: `0 ${sinkDepth}`,
-                  rotate: "5deg",
-                  scale: "1",
-                  "pointer-events": "none",
-                  transition: `translate 380ms ${sink}, rotate 380ms ${sink}, opacity 260ms ease 120ms`,
-              };
-    }
-
-    // turn a card over in its place: the old one turns away, and the new one turns into view from behind it
-    if (place.step === "flip" || place.turn !== undefined) {
-        const half = flipTime / 2;
-        const at = place.delay + (isShown ? half : 0);
-        return {
-            opacity: isShown ? "1" : "0",
-            rotate: `x ${isShown ? 0 : (place.turn ?? 90)}deg`,
-            "transform-origin": "50% 0",
-            translate: "0 0",
-            "z-index": isShown ? "2" : "1",
-            transition:
-                place.step === "park"
-                    ? "none"
-                    : `rotate ${half}ms ${isShown ? "cubic-bezier(0.2, 0.7, 0.3, 1.2)" : "cubic-bezier(0.6, 0, 0.9, 0.5)"} ${at}ms, opacity 0ms linear ${place.delay + half}ms`,
-            ...(isShown ? {} : { "pointer-events": "none" }),
-        };
-    }
-
-    // travel cards whole or morph them into each other: a card going away fades its ink out, then hands its box over to the card
-    //  taking its place, whose ink fades in, so the boxes never blink
-    const swap = swapOf(place);
-    const move = `width ${moveTime}ms ${easing} ${place.delay}ms, opacity 0ms linear ${place.step === "stay" ? 0 : swap}ms`;
-    // fade in a card that grows out of a merge as it takes over
-    const landing: Record<string, string> =
-        isShown && place.isLate && place.step !== "park"
-            ? { animation: `${land} 220ms ${easing} ${swap}ms both` }
-            : {};
-
-    return {
-        ...landing,
-        rotate: "x 0deg",
-        opacity: isShown ? "1" : "0",
-        "z-index": isShown ? "2" : "1",
-        translate: "0 0",
-        transition: place.step === "park" ? "none" : move,
-        ...(place.isShown ? {} : { "pointer-events": "none" }),
-    };
-}
-
-/** Return when a moving card hands its box over to the card taking its place, in milliseconds. */
-function swapOf(place: Placement) {
-    return place.isLate ? place.delay + moveTime : place.delay + inkFade;
-}
-
-/** Return how a card's ink fades: its opacity, fade time and delay. */
-function inkOf(isVendor: boolean, place: Placement): Ink {
-    // show the ink of a silo and of a turning card at once
-    if (isVendor || place.step === "flip" || place.turn !== undefined) {
-        return { opacity: "1", time: "0ms", delay: "0ms" };
-    }
-
-    // fade a travelling card's ink out before its box hands over, and the arriving card's ink in after
-    const swap = swapOf(place);
-    const delay = place.step === "stay" ? 0 : place.isLate ? swap : place.delay + moveTime * 0.3;
-
-    return place.isShown
-        ? { opacity: "1", time: `${inkFade}ms`, delay: `${delay}ms` }
-        : { opacity: "0", time: `${inkFade}ms`, delay: `${swap - inkFade}ms` };
-}
-
-/** Add the drag offset to a card's motion. */
-function follow(
-    entrance: Record<string, string>,
+/** Return a card's inline motion for a change and any drag. */
+function motionOf(
+    place: Placement,
+    change: number,
     held: { x: number; y: number } | undefined,
-    travel: string,
 ): Record<string, string> {
     // move the card to its place and by any drag in one transform, so the compositor carries it
     const offset = held ? `translate(${held.x}px, ${held.y}px)` : "translate(0px, 0px)";
-    const release = held ? "transform 0ms" : `transform ${travel}`;
+    const transform = `translate(var(--x), var(--y)) ${offset} translateY(-50%)`;
 
-    return {
-        ...entrance,
-        transform: `translate(var(--x), var(--y)) ${offset} translateY(-50%)`,
-        transition:
-            entrance["transition"] === "none" ? release : `${entrance["transition"]}, ${release}`,
-    };
+    // jump the box while the card is faded out, follow a drag at once, and ease home after one
+    const jumpAt = place.step === "move" ? place.delay + duration.short : 0;
+    const box = held
+        ? "transform 0ms, width 0ms"
+        : place.step === "stay"
+          ? `transform ${motion.durationMedium} ${motion.easingStandard}, width 0ms`
+          : `transform 0ms linear ${jumpAt}ms, width 0ms linear ${jumpAt}ms`;
+
+    // show a card, rising into its place after the leaving cards are gone
+    if (place.step === "enter") {
+        const fade = `${motion.durationMedium} ${motion.easingEmphasised} ${place.delay}ms`;
+        return {
+            opacity: "1",
+            transform,
+            translate: "0 0",
+            transition: `opacity ${fade}, translate ${fade}, ${box}`,
+        };
+    }
+    // hide a card, dropping a little as it fades
+    else if (place.step === "leave") {
+        const fade = `${motion.durationShort} ${motion.easingStandard} ${place.delay}ms`;
+        return {
+            opacity: "0",
+            "pointer-events": "none",
+            transform,
+            translate: `0 ${movement.travel}`,
+            transition: `opacity ${fade}, translate ${fade}, ${box}`,
+        };
+    }
+    // move a card by fading it out, jumping its box, and fading it back in
+    else if (place.step === "move") {
+        const fades = change % 2 === 0 ? moveFadeEven : moveFadeOdd;
+        return {
+            animation: `${fades} calc(${motion.durationShort} + ${motion.durationMedium}) ${place.delay}ms both`,
+            opacity: "1",
+            transform,
+            translate: "0 0",
+            transition: box,
+        };
+    }
+    // keep a shown card, or rest a hidden one
+    else {
+        return {
+            opacity: place.isShown ? "1" : "0",
+            transform,
+            translate: place.isShown ? "0 0" : `0 ${movement.travel}`,
+            transition: box,
+            ...(place.isShown ? {} : { "pointer-events": "none" }),
+        };
+    }
 }
 
 /** Return a small square plug at a cable end, as an SVG path. */
@@ -1348,7 +1193,6 @@ function arrange(scene: Scene): Map<string, Placement> {
             isShown: true,
             step: "stay",
             delay: 0,
-            isLate: false,
         });
     });
 
@@ -1367,28 +1211,11 @@ function arrange(scene: Scene): Map<string, Placement> {
             isShown: true,
             step: "stay",
             delay: 0,
-            isLate: false,
         });
         column += card.span;
     }
 
     return placed;
-}
-
-/** Return how long a silo waits to show. */
-function vendorDelay(previous: Placement | undefined, isToggle: boolean) {
-    // land after the ice reforms
-    if (isToggle) {
-        return landingDelay;
-    }
-    // bob up after the silo it replaces starts to sink
-    else if (previous?.isShown !== true) {
-        return swapDelay;
-    }
-    // stay where it floats
-    else {
-        return 0;
-    }
 }
 
 /** Return a silo's place on its iceberg, from the first scene of the locked stack that shows it. */
@@ -1402,86 +1229,13 @@ function lockedPlacement(id: string): Placement {
     return placement;
 }
 
-/** Return how many cards that showed before and are gone now a placement replaces. */
-function sourcesOf(
-    place: Placement,
-    before: ReadonlyMap<string, Placement>,
-    current: ReadonlyMap<string, Placement>,
-) {
-    return [...before].filter(
-        ([id, previous]) => previous.isShown && !current.has(id) && overlaps(previous, place),
-    ).length;
-}
-
-/** Return which third of the board a placement starts in, from 0 at the left to 3 at the right. */
-function slotOf(place: Placement) {
-    return Math.round((place.left / boardCells) * 4);
-}
-
 /** Return whether two placements take the same place: the same row, edge, and width. */
-function sameSlot(first: Placement, second: Placement) {
+function isSamePlace(first: Placement, second: Placement) {
     return (
         first.row === second.row &&
         Math.abs(first.left - second.left) < 0.5 &&
         Math.abs(first.width - second.width) < 0.5
     );
-}
-
-/** Return whether two placements on the same row overlap. */
-function overlaps(first: Placement, second: Placement) {
-    return (
-        first.row === second.row &&
-        first.left < second.left + second.width &&
-        second.left < first.left + first.width
-    );
-}
-
-/** Return a hidden placement covering all the given placements on their row. */
-function cover(places: Placement[]): Placement {
-    // reject an empty cover, which has no row
-    const [first] = places;
-    if (!first) {
-        throw new TypeError("cover takes at least one placement");
-    }
-    const left = Math.min(...places.map((place) => place.left));
-    const right = Math.max(...places.map((place) => place.left + place.width));
-
-    return {
-        row: first.row,
-        left,
-        width: right - left,
-        isShown: false,
-        step: "stay",
-        delay: 0,
-        isLate: false,
-    };
-}
-
-/** Return whether a placement lies on the board rather than beyond an edge. */
-function isOnBoard(place: Placement) {
-    return place.left >= 0 && place.left + place.width <= boardCells;
-}
-
-/** Return how far a placement sits from the board edge it enters and leaves by, in cells. */
-function edgeDistance(place: Placement) {
-    const middle = place.left + place.width / 2;
-    return middle <= boardCells / 2 ? place.left : boardCells - place.left - place.width;
-}
-
-/** Return a placement moved just beyond the board edge nearest to it, hidden. */
-function beyond(place: Placement): Placement {
-    const middle = place.left + place.width / 2;
-    const left = middle <= boardCells / 2 ? -place.width - 2 : boardCells + 2;
-
-    return { ...place, left, isShown: false, delay: 0 };
-}
-
-/** Delay each card by its turn. */
-function stagger(places: Placement[], start: number, key: (place: Placement) => number) {
-    const order = places.toSorted((first, second) => key(first) - key(second));
-    order.forEach((place, turn) => {
-        place.delay = start + turn * 70;
-    });
 }
 
 /** Return where a card next appears after an open scene, or in the locked stack. */
@@ -1606,7 +1360,6 @@ const plugKinds = style.create({
 const styles = style.create({
     layer: {
         clipPath: "inset(-100vh 0)",
-        perspective: "900px",
         left: 0,
         pointerEvents: "none",
         position: "absolute",
@@ -1644,11 +1397,6 @@ const styles = style.create({
         touchAction: "none",
         userSelect: "none",
     },
-    ink: (ink: Ink) => ({
-        [cardVariables.ink]: ink.opacity,
-        [cardVariables.inkTime]: ink.time,
-        [cardVariables.inkDelay]: ink.delay,
-    }),
     held: {
         cursor: "grabbing",
         zIndex: 2,

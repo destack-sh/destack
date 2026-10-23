@@ -1,4 +1,4 @@
-import { color, font } from "@destack/theme/tokens.stylex";
+import { color, font, motion } from "@destack/theme/tokens.stylex";
 import { media } from "@destack/style/media.stylex";
 import { present } from "@destack/schema";
 import * as style from "@destack/style";
@@ -678,7 +678,7 @@ function Timeline(properties: {
                     {...style.attrs(styles.shade)}
                 />
                 <span
-                    style={{ left: `${(properties.time / AXIS) * 100}%` }}
+                    style={{ transform: `translateX(${(properties.time / AXIS) * 100}%)` }}
                     {...style.attrs(styles.playhead)}
                 />
             </div>
@@ -1078,8 +1078,9 @@ const styles = style.create({
         gap: "0.125rem",
         position: { default: "absolute", [NARROW]: "relative" },
         textAlign: "start",
-        transitionDuration: "200ms",
+        transitionDuration: motion.durationShort,
         transitionProperty: "border-color, box-shadow",
+        transitionTimingFunction: motion.easingStandard,
     },
     cardAt: (left: string, top: string, width: string, height: string) => ({
         height: { default: height, [NARROW]: "2rem" },
@@ -1162,14 +1163,23 @@ const styles = style.create({
         top: 0,
     },
     playhead: {
-        backgroundColor: color.foreground,
         bottom: "-3px",
+        insetInline: 0,
+        pointerEvents: "none",
         position: "absolute",
         top: "-3px",
         transitionDuration: { default: "250ms", [media.motionReduce]: "0ms" },
-        transitionProperty: "left",
+        transitionProperty: "transform",
         transitionTimingFunction: "linear",
-        width: "2px",
+        "::before": {
+            backgroundColor: color.foreground,
+            content: "''",
+            height: "100%",
+            left: 0,
+            position: "absolute",
+            top: 0,
+            width: "2px",
+        },
     },
     ruler: {
         height: "0.875rem",
@@ -1289,8 +1299,9 @@ const styles = style.create({
         },
         height: "1.625rem",
         paddingInline: "0.625rem",
-        transitionDuration: "150ms",
+        transitionDuration: motion.durationShort,
         transitionProperty: "background-color, opacity",
+        transitionTimingFunction: motion.easingStandard,
     },
     rowSelected: {
         backgroundColor: color.muted,

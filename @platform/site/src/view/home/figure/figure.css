@@ -3,8 +3,8 @@
     filter: grayscale(1);
     opacity: 0.45;
     transition:
-        filter 500ms ease,
-        opacity 500ms ease;
+        filter var(--destack-motion-duration-long) var(--destack-motion-easing-standard),
+        opacity var(--destack-motion-duration-long) var(--destack-motion-easing-standard);
 }
 
 /* hold every animation of a figure that has scrolled off screen, and change it without transitions */
@@ -16,11 +16,11 @@
     transition: none !important;
 }
 
-/* flip each small rebuilt part of a figure in once the stack has switched */
-@keyframes flip-in {
+/* rise each small rebuilt part of a figure in once the stack has switched */
+@keyframes rise-in {
     from {
         opacity: 0;
-        transform: perspective(40rem) rotateX(-70deg);
+        translate: 0 6px;
     }
 }
 
@@ -33,19 +33,14 @@
 }
 
 :root[data-switched] [data-fade="small"] {
-    animation: flip-in 180ms cubic-bezier(0.23, 1, 0.32, 1) both;
+    animation: rise-in var(--destack-motion-duration-medium) var(--destack-motion-easing-emphasised)
+        both;
 }
 
 [data-turn],
 :root[data-switched] [data-fade="large"] {
-    animation: settle-in 200ms cubic-bezier(0.23, 1, 0.32, 1) both;
-}
-
-@media (prefers-reduced-motion: reduce) {
-    [data-turn],
-    :root[data-switched] [data-fade] {
-        animation: none;
-    }
+    animation: settle-in var(--destack-motion-duration-medium)
+        var(--destack-motion-easing-emphasised) both;
 }
 
 /* drop the first switch's hint once the reader has switched */
@@ -131,7 +126,7 @@
 
 ::view-transition-old(*.space-tab),
 ::view-transition-old(*.pane) {
-    animation-duration: 160ms;
+    animation-duration: var(--destack-motion-duration-short);
 }
 
 /* fly the tab icons above the page and the rail, which come later in the page and would cover them */
@@ -149,8 +144,8 @@
 }
 
 ::view-transition-group(*) {
-    animation-duration: 280ms;
-    animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+    animation-duration: var(--destack-motion-duration-medium);
+    animation-timing-function: var(--destack-motion-easing-standard);
 }
 
 ::view-transition-old(space-page),
@@ -163,11 +158,13 @@
 }
 
 ::view-transition-new(*.rail) {
-    animation: rail-in 280ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    animation: rail-in var(--destack-motion-duration-medium) var(--destack-motion-easing-emphasised)
+        both;
 }
 
 ::view-transition-old(*.rail) {
-    animation: rail-out 180ms cubic-bezier(0.4, 0, 1, 1) both;
+    animation: rail-out var(--destack-motion-duration-short) var(--destack-motion-easing-standard)
+        both;
 }
 
 @keyframes rail-in {

@@ -1,7 +1,7 @@
 import { Icon } from "@destack/icon";
 import gitCommit from "@destack/icon/phosphor/git-commit";
 import * as style from "@destack/style";
-import { color, font } from "@destack/theme/tokens.stylex";
+import { color, font, motion } from "@destack/theme/tokens.stylex";
 import { createEffect, createSignal, onSettled } from "@destack/view";
 import { createVisibilityObserver } from "@destack/view/primitives/intersection-observer";
 import { makeResizeObserver } from "@destack/view/primitives/resize-observer";
@@ -370,8 +370,7 @@ function Mark(properties: {
                         properties.isLit ? styles.markLit(properties.accent) : styles.markQuiet,
                     ],
                     {
-                        left: `${properties.box.x - PAD}px`,
-                        top: `${properties.box.y - PAD}px`,
+                        transform: `translate(${properties.box.x - PAD}px, ${properties.box.y - PAD}px)`,
                         width: `${properties.box.width + PAD * 2}px`,
                         height: `${properties.box.height + PAD * 2}px`,
                     },
@@ -387,7 +386,7 @@ function Mark(properties: {
                         properties.isOwned ? styles.tagOwned : styles.tagRented(properties.accent),
                         properties.isLit ? styles.tagLit : styles.tagQuiet,
                     ],
-                    { left: `${tagLeft()}px`, top: `${tagTop()}px` },
+                    { transform: `translate(${tagLeft()}px, ${tagTop()}px)` },
                 )}
             >
                 {properties.isOwned ? (
@@ -692,11 +691,13 @@ const styles = style.create({
         borderRadius: "6px",
         borderWidth: "1.5px",
         boxSizing: "border-box",
+        left: 0,
         pointerEvents: "auto",
         position: "absolute",
-        transitionDuration: "220ms",
-        transitionProperty: "opacity, background-color, border-color, left, top, width, height",
-        transitionTimingFunction: "ease",
+        top: 0,
+        transitionDuration: motion.durationMedium,
+        transitionProperty: "opacity, background-color, border-color, transform",
+        transitionTimingFunction: motion.easingStandard,
     },
     markRented: (accent: string) => ({
         backgroundColor: `color-mix(in srgb, ${accent} 7%, transparent)`,
@@ -731,10 +732,12 @@ const styles = style.create({
         paddingBlock: "0.125rem",
         paddingInlineEnd: { default: "0.375rem", [NARROW]: "0.125rem" },
         paddingInlineStart: "0.125rem",
+        left: 0,
         position: "absolute",
-        transitionDuration: "220ms",
-        transitionProperty: "opacity, left, top",
-        transitionTimingFunction: "ease",
+        top: 0,
+        transitionDuration: motion.durationMedium,
+        transitionProperty: "opacity, transform",
+        transitionTimingFunction: motion.easingStandard,
         whiteSpace: "nowrap",
     },
     tagLit: {

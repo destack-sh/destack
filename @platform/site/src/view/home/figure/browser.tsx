@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
-import { color, shadow, stroke } from "@destack/theme/tokens.stylex";
+import { color, motion, shadow, stroke } from "@destack/theme/tokens.stylex";
 
 import { chrome } from "./chrome.stylex";
 import { palette } from "../../palette.stylex";
@@ -80,10 +80,7 @@ export const browserStyles = style.create({
         flexShrink: 1,
         justifyContent: "flex-start",
         maxWidth: "12rem",
-        transition: {
-            default: "flex-grow 180ms cubic-bezier(0.23, 1, 0.32, 1)",
-            [media.motionReduce]: "none",
-        },
+        transition: `flex-grow ${motion.durationMedium} ${motion.easingStandard}`,
     },
     tabOn: {
         flexGrow: 5,
@@ -110,7 +107,7 @@ export const browserStyles = style.create({
     },
     tabTitleHidden: {
         opacity: 0,
-        transition: "opacity 80ms ease",
+        transition: `opacity ${motion.durationShort} ${motion.easingStandard}`,
     },
     tabSteady: {
         flexGrow: 1,
@@ -118,7 +115,7 @@ export const browserStyles = style.create({
     },
     tabTitle: {
         flexGrow: 1,
-        transition: "opacity 160ms ease 140ms",
+        transition: `opacity ${motion.durationShort} ${motion.easingStandard} ${motion.durationShort}`,
         minWidth: 0,
         overflow: "hidden",
         textOverflow: "ellipsis",

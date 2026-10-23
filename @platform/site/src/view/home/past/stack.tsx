@@ -1,5 +1,5 @@
 import { frame } from "../../layout/frame.stylex";
-import { color, font, shadow, stroke } from "@destack/theme/tokens.stylex";
+import { color, font, motion, shadow, stroke } from "@destack/theme/tokens.stylex";
 import { present } from "@destack/schema";
 import * as style from "@destack/style";
 import { Shader, type ShaderFailure } from "@destack/shader";
@@ -87,7 +87,7 @@ const layers: readonly Layer[] = [
         detail: { today: "Their accounts", destack: "OIDC, Passkeys" },
         note: {
             today: "your agents left at the door",
-            destack: "one account and one set of permissions for every person and agent",
+            destack: "one account and one set of permissions for everyone",
         },
         item: {
             today: ({ people, vendors }) => `${people * vendors} logins`,
@@ -1003,9 +1003,6 @@ function tapeLabel(gap: number, scene: (typeof todayScenes)[number]) {
     return label;
 }
 
-/** The easing of the figure transitions. */
-const easing = "cubic-bezier(0.6, 0, 0.2, 1)";
-
 /** The figure styles. */
 const styles = style.create({
     shell: {
@@ -1138,7 +1135,7 @@ const styles = style.create({
         letterSpacing: tracking.label,
         lineHeight: "1rem",
         textTransform: "uppercase",
-        transition: `color 200ms ${easing}`,
+        transition: `color ${motion.durationShort} ${motion.easingStandard}`,
         whiteSpace: "nowrap",
     },
     numberLit: {
@@ -1160,7 +1157,7 @@ const styles = style.create({
         backgroundColor: `color-mix(in srgb, ${palette.signal} 8%, transparent)`,
         gridColumn: "1 / -1",
         pointerEvents: "none",
-        transition: `opacity 200ms ${easing}`,
+        transition: `opacity ${motion.durationShort} ${motion.easingStandard}`,
         zIndex: 3,
         display: { default: null, [screen.belowDesktop]: "none" },
     },
@@ -1193,7 +1190,7 @@ const styles = style.create({
     },
     sunkCard: {
         gridArea: "1 / 1",
-        transition: { default: `translate 320ms ${easing} 80ms`, [media.motionReduce]: "none" },
+        transition: `translate ${motion.durationMedium} ${motion.easingStandard} 80ms`,
         width: "100%",
     },
     sunkSlot: {
@@ -1266,7 +1263,7 @@ const styles = style.create({
         position: "absolute",
         right: 0,
         top: `calc(${frame.stage} * ${dryRows} - 1px)`,
-        transition: `opacity 260ms ${easing}`,
+        transition: `opacity ${motion.durationMedium} ${motion.easingStandard}`,
         zIndex: 2,
     },
     poolGone: {
@@ -1277,23 +1274,23 @@ const styles = style.create({
     },
     tapeGone: {
         opacity: 0,
-        transition: `opacity 240ms ${easing} 60ms`,
+        transition: `opacity ${motion.durationShort} ${motion.easingStandard} 60ms`,
     },
     tapeBack: {
-        transition: `opacity 200ms ${easing} 320ms`,
+        transition: `opacity ${motion.durationShort} ${motion.easingStandard} ${motion.durationMedium}`,
     },
     ice: {
         pointerEvents: "none",
         position: "absolute",
         top: 0,
-        transition: `opacity 260ms ${easing}`,
+        transition: `opacity ${motion.durationMedium} ${motion.easingStandard}`,
         zIndex: 0,
     },
     water: {
         pointerEvents: "none",
         position: "absolute",
         top: 0,
-        transition: `opacity 260ms ${easing}`,
+        transition: `opacity ${motion.durationMedium} ${motion.easingStandard}`,
         zIndex: 2,
     },
 });

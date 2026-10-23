@@ -1,4 +1,4 @@
-import { media } from "@destack/style/media.stylex";
+import { motion } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 import { For } from "@destack/view";
 
@@ -8,17 +8,11 @@ const STRIP = "0\n1\n2\n3\n4\n5\n6\n7\n8\n9";
 /** A character that rolls: one decimal digit. */
 const DIGIT = /^[0-9]$/u;
 
-/** The milliseconds a digit takes to roll to its new value. */
-const ROLL_TIME = 600;
-
 /** The milliseconds a roll waits for the frames that render the change itself. */
 const ROLL_DELAY = 60;
 
 /** The milliseconds each digit waits after the one to its right, so a change ripples left. */
 const ROLL_STEP = 24;
-
-/** The cubic ease-out every roll lands on, under a line a frame even across nine digits. */
-const LANDING = "cubic-bezier(0.33, 1, 0.68, 1)";
 
 /** Draw a figure whose digits roll to their new values, up as it grows and down as it falls. */
 export function Digits(properties: { text: string }) {
@@ -86,9 +80,9 @@ const styles = style.create({
     },
     strip: {
         display: "block",
-        transitionDuration: { default: `${ROLL_TIME}ms`, [media.motionReduce]: "0ms" },
+        transitionDuration: motion.durationLong,
         transitionProperty: "transform",
-        transitionTimingFunction: LANDING,
+        transitionTimingFunction: motion.easingEmphasised,
         whiteSpace: "pre",
     },
 });

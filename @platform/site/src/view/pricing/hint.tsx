@@ -1,5 +1,4 @@
-import { media } from "@destack/style/media.stylex";
-import { color, font, shadow, weight } from "@destack/theme/tokens.stylex";
+import { color, font, motion, shadow, weight } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 import { createSignal } from "@destack/view";
 
@@ -39,7 +38,7 @@ const styles = style.create({
         textDecorationStyle: "dotted",
         textDecorationThickness: "1.5px",
         textUnderlineOffset: "0.3em",
-        transition: "text-decoration-color 160ms ease",
+        transition: `text-decoration-color ${motion.durationShort} ${motion.easingStandard}`,
     },
     termOpen: {
         textDecorationColor: color.primary,
@@ -62,10 +61,7 @@ const styles = style.create({
         position: "absolute",
         textAlign: "start",
         transform: "translateY(4px)",
-        transition: {
-            default: "opacity 160ms ease, transform 160ms ease",
-            [media.motionReduce]: "none",
-        },
+        transition: `opacity ${motion.durationShort} ${motion.easingStandard}, transform ${motion.durationShort} ${motion.easingStandard}`,
         whiteSpace: "normal",
         width: "max-content",
         maxWidth: "16rem",

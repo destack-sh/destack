@@ -1,7 +1,7 @@
 import { frame } from "../layout/frame.stylex";
 import * as style from "@destack/style";
 import { Shader, type ShaderFailure, type ShaderMount } from "@destack/shader";
-import { color } from "@destack/theme/tokens.stylex";
+import { color, motion } from "@destack/theme/tokens.stylex";
 import { createSignal, type JSX, onCleanup } from "@destack/view";
 
 import { night } from "../theme.ts";
@@ -16,8 +16,6 @@ const spill = 8;
 const clipMargin = 24;
 /** The deep space behind the goo's stars, the same in both appearances. */
 const SPACE = "#081723";
-/** The milliseconds the field takes to fade in over the still stars. */
-const fadeTime = 500;
 /** How far an island's rim lies outside its cell, in CSS pixels. */
 const rimOffset = 3;
 /** The most goo islands the field draws. */
@@ -227,6 +225,7 @@ export function GooField() {
         let measuredAt = Number.NEGATIVE_INFINITY;
         let lastAt = 0;
         let drawnAt = Number.NEGATIVE_INFINITY;
+        let drawnScroll = { x: Number.NaN, y: Number.NaN };
 
         // measure again whenever the window or the page changes size
         const remeasure = () => {
@@ -317,15 +316,18 @@ export function GooField() {
             eased.pull += (swell - eased.pull) * follow(swell > eased.pull ? swellTime : sagTime);
             eased.charge += (pageCharge.target - eased.charge) * 0.08;
 
-            // twinkle at the slower pace while nothing moves
+            // twinkle at the slower pace while nothing moves, but follow every scroll at once
+            //  since the fixed canvas stays put while the islands move with the page
+            const isScrolled = scroll.x !== drawnScroll.x || scroll.y !== drawnScroll.y;
             const isBusy =
                 Math.abs(eased.pull - swell) > 0.02 ||
                 Math.hypot(eased.x - target.x, eased.y - target.y) > 1 ||
                 Math.abs(eased.charge - pageCharge.target) > 0.01;
             const isMorphing = document.documentElement.dataset["morphing"] !== undefined;
             const pace = isBusy ? busyPace : twinklePace;
-            if (!isMorphing && now - drawnAt >= pace) {
+            if (!isMorphing && (isScrolled || now - drawnAt >= pace)) {
                 drawnAt = now;
+                drawnScroll = scroll;
 
                 // shade only around the islands, as far as their rim, swell and pull can reach
                 const slots = Array.from({ length: islandCapacity }, (_, index) => {
@@ -441,7 +443,7 @@ const styles = style.create({
         backgroundColor: SPACE,
         inset: 0,
         position: "absolute",
-        transition: `opacity ${fadeTime}ms ease`,
+        transition: `opacity ${motion.durationLong} ${motion.easingStandard}`,
     },
     hidden: {
         opacity: 0,
@@ -461,7 +463,7 @@ const styles = style.create({
         opacity: 0,
         position: "fixed",
         top: `-${spill}px`,
-        transition: `opacity ${fadeTime}ms ease`,
+        transition: `opacity ${motion.durationLong} ${motion.easingStandard}`,
         width: `calc(${frame.width} + ${spill * 2}px)`,
     },
     shown: {
