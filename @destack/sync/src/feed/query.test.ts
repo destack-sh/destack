@@ -274,7 +274,11 @@ test("refuse queries whose windows outgrow the feed's capacity", async () => {
         AbortSignal.timeout(5000),
     );
     const refused = await refusal(take(pages, (sent) => sent.complete));
-    expect(refused).toEqual(["OVER_CAPACITY", "queries have 4 rows and groups, more than 3"]);
+    expect(refused).toEqual([
+        "UNPROCESSABLE_CONTENT",
+        "OVER_CAPACITY",
+        "queries have 4 rows and groups, more than 3",
+    ]);
 });
 
 test("refuse subscribers beyond a feed's limit", async () => {
@@ -287,7 +291,11 @@ test("refuse subscribers beyond a feed's limit", async () => {
     await served.next();
     const refused = await refusal(feed.subscribe(query, undefined, signal).next());
     await served.return(undefined);
-    expect(refused).toEqual(["OVERLOADED", "feed serves 1 subscribers already"]);
+    expect(refused).toEqual([
+        "SERVICE_UNAVAILABLE",
+        "OVERLOADED",
+        "feed serves 1 subscribers already",
+    ]);
 });
 
 test("page catch-up changes between transactions", async () => {

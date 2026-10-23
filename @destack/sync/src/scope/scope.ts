@@ -54,6 +54,11 @@ export const Scope = {
         return ids.includes(UNIVERSE_ID) ? [...rows, UNIVERSE_ROW] : rows;
     },
 
+    /** Report whether a scope is or lies within another, the universe enclosing every scope. */
+    within(row: Pick<RowImage<typeof scopeTable>, "scope" | "ancestors">, outer: string): boolean {
+        return outer === row.scope || outer === UNIVERSE_ID || row.ancestors.includes(outer);
+    },
+
     /** Read a scope and every scope below it, nearest first and by key, one level per read. */
     async subtree(reader: Pick<Snapshot, "read">, scope: string): Promise<string[]> {
         // start at the scope and walk down a level at a time

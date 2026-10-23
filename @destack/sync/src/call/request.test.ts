@@ -63,6 +63,10 @@ test("accept created and derived identifiers, and refuse other UUID versions and
         created: true,
         derived: true,
         random: false,
-        expired: ["EXPIRED", "request identifier is outside its retry period"],
+        expired: [
+            "PRECONDITION_FAILED",
+            "EXPIRED",
+            "request identifier is outside its retry period",
+        ],
     });
 });

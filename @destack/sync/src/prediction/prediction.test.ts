@@ -72,7 +72,12 @@ function page(
 }
 
 /** The failure a server rejects a mutation with. */
-const FORBIDDEN = { code: "FORBIDDEN", message: "forbidden" } as const;
+const FORBIDDEN = {
+    code: "FORBIDDEN",
+    reason: "PERMISSION_DENIED",
+    domain: "@destack/access",
+    message: "forbidden",
+} as const;
 
 /** Record a push's outcomes: the first mutation executed at a sequence, the second rejected. */
 async function pushed(

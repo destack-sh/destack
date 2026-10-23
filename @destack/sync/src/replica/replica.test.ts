@@ -1,4 +1,4 @@
-import { expect, test } from "@destack/test";
+import { expect, refusal, test } from "@destack/test";
 import {
     asc,
     binary,
@@ -137,7 +137,7 @@ test("delete the rows of a table a reshaped replica stopped replicating, retaini
             local,
             (from, signal) => feed.subscribe(replica.queries, from.after, signal),
             controller.signal,
-            { clock: Clock.system },
+            { synced: () => {}, clock: Clock.system },
         );
         const signal = AbortSignal.timeout(5000);
         expect(await Replica.wait(local, "inbox", await source.log.position(), signal)).toBe(true);
@@ -179,13 +179,14 @@ test("follow two databases each replicating the other's table, receiving each wr
     const controller = new AbortController();
     const following = Promise.all([
         notes.follow(other, recordFrom(homeFeed, notes, received.notes), controller.signal, {
+            synced: () => {},
             clock,
         }),
         projects.follow(
             home,
             recordFrom(otherFeed, projects, received.projects),
             controller.signal,
-            { clock },
+            { synced: () => {}, clock },
         ),
     ]);
 
@@ -221,7 +222,7 @@ test("refuse publishing a replicated table back to the database it replicates fr
         other,
         followFrom(new Feed(home, [note, replicaPosition], { clock: Clock.system }), inbox),
         controller.signal,
-        { clock: Clock.system },
+        { synced: () => {}, clock: Clock.system },
     );
     const signal = AbortSignal.timeout(5000);
     expect(await Replica.wait(other, "inbox", await home.log.position(), signal)).toBe(true);
@@ -292,7 +293,7 @@ test("replicate several scopes in one replica recorded elsewhere, storing each s
         local,
         (from, signal) => feed.subscribe(folders.queries, from.after, signal),
         controller.signal,
-        { clock: Clock.system, subscription, audience: "contained" },
+        { synced: () => {}, clock: Clock.system, subscription, audience: "contained" },
     );
     const head = await source.log.position();
     const signal = AbortSignal.timeout(5000);
@@ -349,7 +350,7 @@ test("replicate a whole database: follow its logged rows, then capture every col
         target,
         (from, signal) => feed.subscribe(replica.queries, from.after, signal),
         controller.signal,
-        { clock: Clock.system },
+        { synced: () => {}, clock: Clock.system },
     );
     const signal = AbortSignal.timeout(5000);
     expect(await Replica.wait(target, "database", await source.log.position(), signal)).toBe(true);
@@ -401,18 +402,21 @@ test("follow and wait for each commit of one row in a fixed count of statements,
     await source.insert(note).values(first);
     await confirmed();
 
-    // commit notes one at a time, counting the statements each costs the replica
+    // commit notes one at a time, counting the statements each costs the replica once it arrives at the commit
     const costs: number[] = [];
     for (let index = 0; index < FOLLOWED_COMMITS; index++) {
         const before = local.driver.state.statements;
         await source.insert(note).values({ ...first, id: `followed-${index}` });
-        await confirmed();
+        const committed = await source.log.position();
+        expect(await Replica.wait(local, notes.scope, committed, AbortSignal.timeout(5000))).toBe(
+            true,
+        );
         costs.push(local.driver.state.statements - before);
     }
     controller.abort();
     await following;
 
-    // spend nine statements on each commit
+    // spend nine statements on each commit, the wait's own read included
     expect(new Set(costs)).toEqual(new Set([9]));
 });
 
@@ -496,7 +500,7 @@ test("snapshot again once the replicated tables change shape", async () => {
         local,
         (from, signal) => feed.subscribe(projects.queries, from.after, signal),
         controller.signal,
-        { clock: Clock.system },
+        { synced: () => {}, clock: Clock.system },
     );
     const signal = AbortSignal.timeout(5000);
     expect(await Replica.wait(local, "inbox", await source.log.position(), signal)).toBe(true);
@@ -613,7 +617,11 @@ test("arrive at a position only through a replica that has it", async () => {
             position: { log: LOG, epoch: "01996ab0-0000-7000-8000-000000000002", sequence: 1 },
         },
     ]);
-    await expect(confirm()).rejects.toMatchObject({ code: "STALE_EPOCH" });
+    expect(await refusal(confirm())).toEqual([
+        "GONE",
+        "STALE_EPOCH",
+        "inbox started a new epoch after the position",
+    ]);
 });
 
 test("arrive at a position through the replicas of its log, skipping a required one following another log", async () => {
@@ -760,7 +768,7 @@ test("nest each retained row's measures, whole or per group, in the rows a repli
         local,
         (from, signal) => feed.subscribe({ projects: query }, from.after, signal),
         controller.signal,
-        { clock: Clock.system },
+        { synced: () => {}, clock: Clock.system },
     );
     expect(
         await Replica.wait(local, "inbox", await source.log.position(), AbortSignal.timeout(5000)),
@@ -804,7 +812,7 @@ test("replicate a table's binary column and store nothing for a required column 
         local,
         (from, signal) => feed.subscribe(assets.queries, from.after, signal),
         controller.signal,
-        { clock: Clock.system },
+        { synced: () => {}, clock: Clock.system },
     );
     const signal = AbortSignal.timeout(5000);
     expect(await Replica.wait(local, "inbox", await source.log.position(), signal)).toBe(true);
@@ -817,7 +825,7 @@ test("replicate a table's binary column and store nothing for a required column 
     ]);
 });
 
-test("resume a stream the source ends from the replica's position at once", async () => {
+test("resume a stream the source ends from the replica's position at once, reporting the follow synced once", async () => {
     const source = await open();
     const local = await openReplica();
     const feed = new Feed(source, [note, replicaPosition], { clock: Clock.system });
@@ -828,6 +836,7 @@ test("resume a stream the source ends from the replica's position at once", asyn
     const requested: (LogPosition | undefined)[] = [];
     const third = Promise.withResolvers<void>();
     const controller = new AbortController();
+    let syncs = 0;
     const following = notes.follow(
         local,
         async function* ({ after }, signal) {
@@ -844,7 +853,12 @@ test("resume a stream the source ends from the replica's position at once", asyn
             }
         },
         controller.signal,
-        { clock: Clock.system },
+        {
+            synced: () => {
+                syncs += 1;
+            },
+            clock: Clock.system,
+        },
     );
 
     // follow a change through the third stream
@@ -856,11 +870,12 @@ test("resume a stream the source ends from the replica's position at once", asyn
     controller.abort();
     await following;
 
-    // resume from the snapshot's position and store the renamed note
+    // resume from the snapshot's position, store the renamed note, and report synced at the first stream's complete page only
     expect({
         requested,
         notes: (await local.select().from(note)).map((row) => [row.id, row.title]),
-    }).toEqual({ requested: [undefined, snapshot, snapshot], notes: [["a", "Renamed"]] });
+        syncs,
+    }).toEqual({ requested: [undefined, snapshot, snapshot], notes: [["a", "Renamed"]], syncs: 1 });
 });
 
 test("fail following once the source fails or ends a stream without a page", async () => {
@@ -885,7 +900,7 @@ test("fail following once the source fails or ends a stream without a page", asy
             throw new Error("source failed");
         },
         signal,
-        { clock: Clock.system },
+        { synced: () => {}, clock: Clock.system },
     );
     await expect(failing).rejects.toThrow(new Error("source failed"));
     const empty = notes.follow(
@@ -894,7 +909,7 @@ test("fail following once the source fails or ends a stream without a page", asy
             yield* [];
         },
         signal,
-        { clock: Clock.system },
+        { synced: () => {}, clock: Clock.system },
     );
     await expect(empty).rejects.toEqual(
         new SyncError("INVALID_STREAM", "the source of inbox ended a stream without a page"),
@@ -940,7 +955,7 @@ test("finish a snapshot of several pages past a drain, then resume from its comp
             }
         },
         controller.signal,
-        { clock: Clock.system },
+        { synced: () => {}, clock: Clock.system },
     );
     const position = await source.log.position();
     await third.promise;
@@ -1106,7 +1121,7 @@ test("replicate the rows in the scopes of replicated rows, and take them out wit
         local,
         (from, stream) => feed.subscribe(work.queries, from.after, stream),
         controller.signal,
-        { clock: Clock.system },
+        { synced: () => {}, clock: Clock.system },
     );
     expect(await tags()).toEqual([
         ["g1", "p1"],
@@ -1140,7 +1155,7 @@ test("replicate the rows in the scopes of replicated rows, and take them out wit
         local,
         (_from, stream) => feed.subscribe(work.queries, undefined, stream),
         again.signal,
-        { clock: Clock.system },
+        { synced: () => {}, clock: Clock.system },
     );
     expect(await tags()).toEqual([
         ["g5", "p2"],
@@ -1429,7 +1444,7 @@ async function syncLabels(
         local,
         (from, signal) => feed.subscribe(labels.queries, from.after, signal),
         controller.signal,
-        { clock: Clock.system },
+        { synced: () => {}, clock: Clock.system },
     );
     const isSynced = await Replica.wait(
         local,
@@ -1525,7 +1540,7 @@ function followConfirmed(
                 },
             }),
         signal,
-        { clock: Clock.system },
+        { synced: () => {}, clock: Clock.system },
     );
 
     // ask the stream to confirm the source's head, and wait for the replica to arrive at it

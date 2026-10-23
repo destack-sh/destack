@@ -1247,16 +1247,24 @@ export class Replica {
         database: DatabaseConnection,
         source: (from: Resumption, signal: AbortSignal) => AsyncIterable<Page>,
         signal: AbortSignal,
-        options: ApplyOptions,
+        options: ApplyOptions & {
+            /** Report the replica caught up, once per follow at its first full page. */
+            readonly synced: () => void;
+        },
     ): Promise<void> {
         // apply each stream from where the replica is until aborted
         await this.register(database, options);
+        let isSynced = false;
         while (!signal.aborted) {
             let isReceived = false;
             const pages = source(await this.resume(database, options.subscription), signal);
-            const applied = this.apply(database, pages, options);
-            while ((await applied.next()).done !== true) {
+            for await (const page of this.apply(database, pages, options)) {
+                // report the replica synced at its first complete page
                 isReceived = true;
+                if (page.complete && !isSynced) {
+                    isSynced = true;
+                    options.synced();
+                }
             }
 
             // reject a stream that ends without a page

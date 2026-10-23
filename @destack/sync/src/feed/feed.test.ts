@@ -602,6 +602,7 @@ function tasksOf(item: Item): readonly Item[] {
 function failureOf(read: Promise<unknown>): Promise<unknown> {
     return read.then(
         () => undefined,
-        (error: unknown) => (error instanceof DatabaseError ? [error.code, error.message] : error),
+        (error: unknown) =>
+            error instanceof DatabaseError ? [error.reason, error.message] : error,
     );
 }

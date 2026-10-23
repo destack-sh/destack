@@ -830,7 +830,7 @@ export class Dataflow implements Arrangement {
                     through,
                 );
             } catch (error) {
-                if (error instanceof DatabaseError && error.code === "CHANGES_COMPACTED") {
+                if (error instanceof DatabaseError && error.reason === "CHANGES_COMPACTED") {
                     return undefined;
                 }
                 throw error;

@@ -16,7 +16,7 @@ const query: Query = {
     with: { tasks: { limit: 5 } },
 };
 for await (const page of feed.subscribe({ board: query }, after, signal, { audience })) send(page);
-await replica.follow(local, source, signal, { subscription }); // copy the rows into a local database
+await replica.follow(local, source, signal, { subscription, synced }); // copy the rows into a local database
 await prediction.add(local, mutationId, origin, mutate); // show a client's change before the server has it
 ```
 
@@ -84,7 +84,7 @@ A `Replica` keeps a copy of one scope's rows in another database.
 
 ```ts
 const board = new Replica({ name: "board", scope: spaceId, tables: [project, task] });
-await board.follow(local, stream, signal, { subscription, audience, clock });
+await board.follow(local, stream, signal, { subscription, audience, clock, synced });
 await Replica.isSynced(local, "board", spaceId); // true once the first copy is complete
 await Replica.drop(local, board);
 ```

@@ -502,7 +502,7 @@ export class Feed implements Cache {
                 sequence: read.sequence,
             };
         } catch (error) {
-            if (error instanceof DatabaseError && error.code === "CHANGES_COMPACTED") {
+            if (error instanceof DatabaseError && error.reason === "CHANGES_COMPACTED") {
                 return undefined;
             }
             throw error;
