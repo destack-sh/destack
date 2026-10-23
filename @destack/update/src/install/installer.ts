@@ -84,7 +84,10 @@ export class Installer {
         await mkdir(dirname(this.directory), { recursive: true, mode: PRIVATE_DIRECTORY_MODE });
         const lock = await FileLock.tryAcquire(`${this.directory}.lock`);
         if (!lock) {
-            throw new UpdateError("BUSY", "another Destack installation operation is running");
+            throw new UpdateError(
+                "UPDATE_RUNNING",
+                "another Destack installation operation is running",
+            );
         }
 
         return lock;
@@ -115,7 +118,7 @@ export class Installer {
         // validate persisted identifiers before constructing installation paths
         const record = StagedRecord.safeParse(JSON.parse(source));
         if (!record.success) {
-            throw new UpdateError("INSTALL", "invalid staged release record");
+            throw new UpdateError("INVALID_INSTALLATION", "invalid staged release record");
         }
         const { version, target, ...digests } = record.data;
         const release = new Release(version, target);
@@ -134,7 +137,7 @@ export class Installer {
         // validate the persisted release before constructing its path
         const record = CurrentRecord.safeParse(JSON.parse(source));
         if (!record.success) {
-            throw new UpdateError("INSTALL", "invalid installed release record");
+            throw new UpdateError("INVALID_INSTALLATION", "invalid installed release record");
         }
         const release = new Release(record.data.version, record.data.target);
 
@@ -149,14 +152,14 @@ export class Installer {
         // reject downgrades and reuse only an identical authenticated release
         const current = await this.current();
         if (current && current.release.target !== download.release.target) {
-            throw new UpdateError("INSTALL", "cannot change the installed platform");
+            throw new UpdateError("PLATFORM_CHANGED", "cannot change the installed platform");
         }
         if (current && download.release.compare(current.release) < 0) {
-            throw new UpdateError("INSTALL", "refusing to install an older release");
+            throw new UpdateError("DOWNGRADE_REFUSED", "refusing to install an older release");
         }
         if (current && download.release.compare(current.release) === 0) {
             if (current.sha256 !== download.sha256) {
-                throw new UpdateError("INSTALL", "published release changed");
+                throw new UpdateError("RELEASE_CHANGED", "published release changed");
             }
             await check(current.directory);
             return current;
@@ -201,7 +204,7 @@ export class Installer {
             if (isPresent) {
                 if ((await readFile(join(destination, "receipt.json"), "utf8")) !== receipt) {
                     throw new UpdateError(
-                        "INSTALL",
+                        "VERIFICATION_FAILED",
                         "installed release directory contains different content",
                     );
                 }
@@ -228,7 +231,7 @@ export class Installer {
         const isIdentified = applicationIdentifier !== undefined && applicationIdentifier !== "";
         if (isMac !== (application !== undefined) || (isMac && !isIdentified)) {
             throw new UpdateError(
-                "INSTALL",
+                "INVALID_INSTALLATION",
                 "macOS releases require an application destination and identifier",
             );
         }
@@ -248,7 +251,7 @@ export class Installer {
             await this.recover();
         } catch (error) {
             throw new UpdateError(
-                "ACTIVATION",
+                "ACTIVATION_FAILED",
                 "activation did not finish; retry `destack self activate` before restarting applications",
                 { cause: error },
             );
@@ -266,7 +269,7 @@ export class Installer {
         // verify the staged receipt before replacing the native application
         const parsed = ActivationRecord.safeParse(JSON.parse(source));
         if (!parsed.success) {
-            throw new UpdateError("INSTALL", "invalid activation record");
+            throw new UpdateError("INVALID_INSTALLATION", "invalid activation record");
         }
         const record = parsed.data;
         const release = new Release(record.version, record.target);
@@ -276,7 +279,7 @@ export class Installer {
         );
         if (!receipt.success || receipt.data.sha256 !== record.sha256) {
             throw new UpdateError(
-                "INSTALL",
+                "VERIFICATION_FAILED",
                 "activation receipt does not match the staged release",
             );
         }
@@ -290,7 +293,7 @@ export class Installer {
                 applicationIdentifier === ""
             ) {
                 throw new UpdateError(
-                    "INSTALL",
+                    "INVALID_INSTALLATION",
                     "missing absolute application destination or identifier",
                 );
             }
@@ -328,12 +331,12 @@ export class Installer {
             (current.release.target !== release.target || current.release.compare(release) > 0)
         ) {
             throw new UpdateError(
-                "INSTALL",
+                "DOWNGRADE_REFUSED",
                 "refusing to activate an older or incompatible release",
             );
         }
         if (current && current.release.compare(release) === 0 && current.sha256 !== sha256) {
-            throw new UpdateError("INSTALL", "published release changed");
+            throw new UpdateError("RELEASE_CHANGED", "published release changed");
         }
     }
 }
@@ -348,7 +351,10 @@ async function verifyLinks(root: string, directory: string): Promise<void> {
             const destination = resolve(directory, link);
             const relation = relative(root, destination);
             if (isAbsolute(link) || relation === ".." || relation.startsWith(`..${sep}`)) {
-                throw new UpdateError("INSTALL", `archive link escapes the distribution: ${path}`);
+                throw new UpdateError(
+                    "UNSAFE_ARCHIVE",
+                    `archive link escapes the distribution: ${path}`,
+                );
             }
         } else if (stat.isDirectory()) {
             await verifyLinks(root, path);
@@ -367,15 +373,18 @@ function rejectEntry(
 
     // require a tar entry
     if (!("type" in entry)) {
-        return new UpdateError("INSTALL", "expected an archive entry");
+        return new UpdateError("UNSAFE_ARCHIVE", "expected an archive entry");
     }
     // require a relative path inside the distribution
     else if (isAbsolute(path) || components.includes("..") || /^[A-Za-z]:/u.test(path)) {
-        return new UpdateError("INSTALL", `unsafe archive path: ${path}`);
+        return new UpdateError("UNSAFE_ARCHIVE", `unsafe archive path: ${path}`);
     }
     // require a supported entry type
     else if (!["File", "Directory", "SymbolicLink"].includes(entry.type)) {
-        return new UpdateError("INSTALL", `unsupported archive entry: ${path} (${entry.type})`);
+        return new UpdateError(
+            "UNSAFE_ARCHIVE",
+            `unsupported archive entry: ${path} (${entry.type})`,
+        );
     }
     // accept files and directories
     else if (entry.type !== "SymbolicLink") {
@@ -384,12 +393,12 @@ function rejectEntry(
 
     // require a link target inside the distribution
     if (entry.linkpath === undefined || entry.linkpath === "") {
-        return new UpdateError("INSTALL", `missing archive link target: ${path}`);
+        return new UpdateError("UNSAFE_ARCHIVE", `missing archive link target: ${path}`);
     }
     const target = resolve(root, path, "..", entry.linkpath);
     const relation = relative(root, target);
     if (isAbsolute(entry.linkpath) || relation === ".." || relation.startsWith(`..${sep}`)) {
-        return new UpdateError("INSTALL", `archive link escapes the distribution: ${path}`);
+        return new UpdateError("UNSAFE_ARCHIVE", `archive link escapes the distribution: ${path}`);
     }
 
     return undefined;

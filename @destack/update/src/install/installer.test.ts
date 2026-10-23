@@ -75,7 +75,10 @@ test("recover interrupted activation and retain both distributions", async () =>
             }),
         );
         await expect(installer.recover()).rejects.toThrow(
-            new UpdateError("INSTALL", "refusing to activate an older or incompatible release"),
+            new UpdateError(
+                "DOWNGRADE_REFUSED",
+                "refusing to activate an older or incompatible release",
+            ),
         );
         expect(await installer.current()).toEqual(second);
     } finally {
@@ -138,7 +141,7 @@ test.each([
                         throw new Error("unsafe archive reached executable verification");
                     },
                 ),
-            ).rejects.toThrow(new UpdateError("INSTALL", message));
+            ).rejects.toThrow(new UpdateError("UNSAFE_ARCHIVE", message));
             expect(await installer.current()).toBeUndefined();
             expect(await readdir(join(installer.directory, "versions"))).toEqual([]);
         } finally {

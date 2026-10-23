@@ -27,7 +27,7 @@ test("retain application registration across reopening and refuse installer conv
         // preserve registration when an incompatible installer requests the same user directory
         await expect(installation.register({ ...moved, method: "nsis" })).rejects.toEqual(
             new UpdateError(
-                "INSTALL",
+                "INVALID_INSTALLATION",
                 "uninstall the existing installation before changing its method",
             ),
         );

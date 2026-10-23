@@ -23,7 +23,7 @@ export async function installApplication(
             new Response(copy.stderr).text(),
         ]);
         if (copyCode !== 0) {
-            throw new UpdateError("INSTALL", copyError);
+            throw new UpdateError("INSTALL_FAILED", copyError);
         }
         await verifyApplication(pending, identifier);
 
@@ -52,7 +52,7 @@ export async function installApplication(
                     ) !== 0
                 ) {
                     throw new UpdateError(
-                        "INSTALL",
+                        "INSTALL_FAILED",
                         `cannot replace ${destination}: check directory permissions`,
                     );
                 }
@@ -89,7 +89,7 @@ export async function verifyApplication(
     ]);
     if (identifierCode !== 0 || name.trim() !== expectedIdentifier) {
         throw new UpdateError(
-            "INSTALL",
+            "VERIFICATION_FAILED",
             `application identifier does not match ${expectedIdentifier}: ${application}`,
         );
     }
@@ -105,6 +105,6 @@ export async function verifyApplication(
         new Response(signature.stderr).text(),
     ]);
     if (signatureCode !== 0) {
-        throw new UpdateError("INSTALL", signatureError);
+        throw new UpdateError("VERIFICATION_FAILED", signatureError);
     }
 }

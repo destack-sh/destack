@@ -1,10 +1,11 @@
 import type { ObjectStore } from "@destack/object/server";
 import type { Identifier } from "@destack/schema";
 import type { Controller } from "@destack/db";
-import { CallError } from "@destack/object";
 import type { Distribution } from "../distribution/index.ts";
+import { UpdateError } from "../error/index.ts";
 import { distribution } from "../object/index.ts";
 import { RequestId } from "@destack/sync";
+import type {} from "@destack/package/import-meta";
 
 /** How often the distribution stages the feed's latest release: daily, Sparkle's default. */
 const STAGE_INTERVAL_MILLISECONDS = 24 * 60 * 60 * 1000;
@@ -45,9 +46,7 @@ export function serveDistributions(host: DistributionHost | undefined) {
                     // require a staged release
                     const staged = await requireHost(host).distribution.staged();
                     if (staged === undefined) {
-                        throw new CallError("PRECONDITION_FAILED", {
-                            message: "no Destack release is staged",
-                        });
+                        throw new UpdateError("RELEASE_NOT_FOUND", "no Destack release is staged");
                     }
 
                     return staged.release.version;
@@ -119,9 +118,7 @@ export class DistributionController implements Controller {
                   )
                 : [found];
         if (recorded === undefined) {
-            throw new CallError("INTERNAL_SERVER_ERROR", {
-                message: "recording the distribution returned nothing",
-            });
+            throw new TypeError("recording the distribution returned nothing");
         }
 
         // stage the latest release
@@ -141,9 +138,10 @@ export class DistributionController implements Controller {
 /** Read the host's distribution. */
 function requireHost(host: DistributionHost | undefined): DistributionHost {
     if (host === undefined) {
-        throw new CallError("PRECONDITION_FAILED", {
-            message: "development builds cannot take published updates",
-        });
+        throw new UpdateError(
+            "DEVELOPMENT_BUILD",
+            "development builds cannot take published updates",
+        );
     }
 
     return host;

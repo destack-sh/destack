@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { installApplication } from "./install.ts";
 import { Installer } from "../install/installer.ts";
 import { Release } from "../release/release.ts";
+import { UpdateError } from "../error/error.ts";
 
 test.runIf(process.platform === "darwin")(
     "recover macOS activation after bundle replacement",
@@ -77,7 +78,10 @@ test.skipIf(process.platform !== "darwin")(
             await expect(
                 installApplication(source, destination, "org.example.editor"),
             ).rejects.toThrow(
-                `application identifier does not match org.example.editor: ${destination}`,
+                new UpdateError(
+                    "VERIFICATION_FAILED",
+                    `application identifier does not match org.example.editor: ${destination}`,
+                ),
             );
             expect(await readFile(join(destination, "Contents/Resources/version"), "utf8")).toBe(
                 "2026.9.1-dev.2",

@@ -41,10 +41,10 @@ export class UpdateRepository {
         // permit plaintext only for local release verification
         const isLoopback = ["127.0.0.1", "[::1]", "localhost"].includes(url.hostname);
         if (url.protocol !== "https:" && !(url.protocol === "http:" && isLoopback)) {
-            throw new UpdateError("REPOSITORY", "update repositories require HTTPS");
+            throw new UpdateError("INVALID_REPOSITORY", "update repositories require HTTPS");
         }
         if (url.username || url.password || url.search || url.hash || !url.pathname.endsWith("/")) {
-            throw new UpdateError("REPOSITORY", "invalid update repository URL");
+            throw new UpdateError("INVALID_REPOSITORY", "invalid update repository URL");
         }
 
         // retain previously verified metadata across process and release changes
@@ -71,7 +71,10 @@ export class UpdateRepository {
             },
         );
         if (isClaimed && (await readFile(source, "utf8")) !== url.href) {
-            throw new UpdateError("REPOSITORY", "update cache belongs to a different repository");
+            throw new UpdateError(
+                "CACHE_MISMATCH",
+                "update cache belongs to a different repository",
+            );
         }
 
         return new UpdateRepository(directory, url);
@@ -87,20 +90,20 @@ export class UpdateRepository {
         await updater.refresh();
         const artifact = await updater.getTargetInfo(`${target}.tar.gz`);
         if (!artifact) {
-            throw new UpdateError("REPOSITORY", `no published release for ${target}`);
+            throw new UpdateError("RELEASE_NOT_FOUND", `no published release for ${target}`);
         }
 
         // read the signed release identity
         const custom = TargetCustom.safeParse(artifact.custom);
         if (!custom.success) {
-            throw new UpdateError("RELEASE", "invalid release metadata");
+            throw new UpdateError("INVALID_RELEASE", "invalid release metadata");
         }
 
         // refuse a dev build, which no feed publishes
         const release = new Release(custom.data.version, target);
         if (Version.isPrerelease(release.version)) {
             throw new UpdateError(
-                "REPOSITORY",
+                "INVALID_RELEASE",
                 `the feed publishes a dev build ${release.version}`,
             );
         }
@@ -108,7 +111,7 @@ export class UpdateRepository {
         // retain the exact signed target even if the repository publishes another release
         const previous = this.selected.get(release.directory);
         if (previous && !previous.equals(artifact)) {
-            throw new UpdateError("REPOSITORY", "published release changed");
+            throw new UpdateError("RELEASE_CHANGED", "published release changed");
         }
         this.selected.set(release.directory, artifact);
 
@@ -121,7 +124,7 @@ export class UpdateRepository {
         const artifact = this.selected.get(release.directory);
         const digest = Digest.safeParse(artifact?.hashes["sha256"]);
         if (!digest.success) {
-            throw new UpdateError("REPOSITORY", "invalid release archive digest");
+            throw new UpdateError("INVALID_RELEASE", "invalid release archive digest");
         }
 
         return digest.data;
@@ -137,14 +140,14 @@ export class UpdateRepository {
         options.signal?.throwIfAborted();
         const artifact = this.selected.get(release.directory);
         if (!artifact || artifact.custom["version"] !== release.version) {
-            throw new UpdateError("REPOSITORY", "release changed after selection");
+            throw new UpdateError("RELEASE_CHANGED", "release changed after selection");
         }
         if (
             artifact.length > 2 * 1024 ** 3 ||
             artifact.hashes["sha256"] === undefined ||
             !Digest.safeParse(artifact.hashes["sha256"]).success
         ) {
-            throw new UpdateError("REPOSITORY", "invalid release archive metadata");
+            throw new UpdateError("INVALID_RELEASE", "invalid release archive metadata");
         }
 
         // authenticate an installer archive using the same signed length and hashes
@@ -154,7 +157,7 @@ export class UpdateRepository {
         });
         const cached = await downloader.findCachedTarget(artifact, candidate);
         if (candidate !== undefined && candidate !== "" && cached === undefined) {
-            throw new UpdateError("REPOSITORY", "installer archive failed verification");
+            throw new UpdateError("VERIFICATION_FAILED", "installer archive failed verification");
         }
         const archive = cached ?? (await downloader.downloadTarget(artifact));
         options.signal?.throwIfAborted();

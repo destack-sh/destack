@@ -94,9 +94,15 @@ export class Distribution {
         try {
             const locked = await installation.read();
             if (JSON.stringify(locked) !== JSON.stringify(registration)) {
-                throw new UpdateError("INSTALL", "installation changed; retry the operation");
+                throw new UpdateError(
+                    "INSTALLATION_CHANGED",
+                    "installation changed; retry the operation",
+                );
             } else if (running.target.includes("windows") && registration?.method !== "nsis") {
-                throw new UpdateError("INSTALL", "install Destack using Setup.exe before updating");
+                throw new UpdateError(
+                    "INVALID_INSTALLATION",
+                    "install Destack using Setup.exe before updating",
+                );
             }
 
             return updater;
