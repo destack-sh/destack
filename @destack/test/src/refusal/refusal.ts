@@ -13,11 +13,14 @@ const ReceivedFailure = schema.looseObject({
     message: schema.string(),
 });
 
-/** Answer a pending call's refusal as its code, reason and message, or "done" when it succeeds. */
+/** Answer a pending call's or a function's refusal as its code, reason and message, or "done". */
 export function refusal(
-    pending: Promise<unknown>,
+    pending: Promise<unknown> | (() => unknown),
 ): Promise<"done" | readonly [string, string, string]> {
-    return pending.then(
+    // run a function, refusing its throw like a rejection
+    const settled = typeof pending === "function" ? Promise.try(pending) : pending;
+
+    return settled.then(
         () => "done" as const,
         (error: unknown) => {
             // read the failure the caller receives: a package error's, else the call error itself

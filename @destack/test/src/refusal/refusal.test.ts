@@ -28,12 +28,16 @@ test("answer done for a call that succeeds", async () => {
     expect(await refusal(Promise.resolve(1))).toBe("done");
 });
 
-test("answer a refusal's code, reason and message, a package error's as its caller receives it", async () => {
+test("answer a refusal's code, reason and message, a package error's as its caller receives it, a thrown one too", async () => {
     expect([
         await refusal(Promise.reject(new ReasonedFailure("no note"))),
         await refusal(Promise.reject(new NoteError("note taken"))),
+        await refusal(() => {
+            throw new NoteError("note taken");
+        }),
     ]).toEqual([
         ["NOT_FOUND", "NOTE_NOT_FOUND", "no note"],
+        ["CONFLICT", "NOTE_TAKEN", "note taken"],
         ["CONFLICT", "NOTE_TAKEN", "note taken"],
     ]);
 });
