@@ -291,7 +291,7 @@ export class Resolution {
             return known;
         }
         if (this.#resolving.has(name)) {
-            throw new RangeError(`role ${name} reads through itself`);
+            throw new RangeError(`role ${name} refers to itself`);
         }
 
         // resolve the role once
@@ -308,7 +308,7 @@ export class Resolution {
         // require the role it reads on
         const reading = this.#roles[name].reading;
         if (reading === undefined) {
-            throw new RangeError(`role ${name} reads on no role`);
+            throw new RangeError(`role ${name} has no background role`);
         }
 
         // measure a translucent role blended over the role it reads on

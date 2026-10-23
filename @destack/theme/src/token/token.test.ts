@@ -81,6 +81,6 @@ test("refuse a token color whose hex differs from its channels", () => {
     };
 
     expect(() => TokenTree.parse(document)).toThrow(
-        new RangeError("token color.background has hex #000000 for #ffffff"),
+        new RangeError("token color.background has hex #000000, but its color is #ffffff"),
     );
 });

@@ -286,7 +286,7 @@ export class Theme {
                 // refuse an illegible pair
                 if (lightness < floor) {
                     const contrast = level === 0 ? "standard" : "more";
-                    throw new PackageError(
+                    throw PackageError.of(
                         "INVALID_DEFINITION",
                         `theme ${this.name}: ${name} on ${reading.on} reads at Lc ${lightness.toFixed(1)} in ${scheme} with ${contrast} contrast, below ${floor}`,
                     );
