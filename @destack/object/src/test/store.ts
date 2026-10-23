@@ -33,6 +33,12 @@ const SETTLE_ROUNDS = 20;
 /** How long a closing test server drains its requests, in milliseconds: far above a test call's. */
 const DRAIN_MILLISECONDS = 1000;
 
+/** Authenticate a request to a served package, absent for no one. */
+export type TestAuthenticate = (
+    request: Request,
+    audience: PackageId,
+) => Promise<Authentication | undefined>;
+
 /** What a test store serves: its packages, its host's tables, its clock and its space. */
 export interface TestObjectStoreOptions {
     /** The packages it serves, as declared or as implemented. */
@@ -179,11 +185,12 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
             disposables.use(ephemeral);
         }
 
-        return TestObjectStore.#serve(store, store.packages, options.groups ?? new Map(), {
-            disposables,
-            failures,
-            failed,
-        });
+        return TestObjectStore.#serve(
+            store,
+            store.packages,
+            TestObjectStore.#bearers(store, options.groups ?? new Map()),
+            { disposables, failures, failed },
+        );
     }
 
     /** Serve an existing store's packages over HTTP to bearer users, leaving its databases open. */
@@ -194,12 +201,16 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
             readonly groups?: ReadonlyMap<string, readonly Subject[]>;
             /** The handlers to serve, such as a host's with verifiers, the store's by default. */
             readonly packages?: readonly PackageHandler[];
+            /** Authenticate a request to a package as a host does, test bearers by default. */
+            readonly authenticate?: TestAuthenticate;
         } = {},
     ): TestObjectStore {
+        const groups = options.groups ?? new Map();
+
         return TestObjectStore.#serve(
             store,
             options.packages ?? store.packages,
-            options.groups ?? new Map(),
+            options.authenticate ?? TestObjectStore.#bearers(store, groups),
             {
                 disposables: new AsyncDisposableStack(),
                 failures: [],
@@ -212,7 +223,7 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
     static #serve(
         store: ObjectStore,
         packages: readonly PackageHandler[],
-        groups: ReadonlyMap<string, readonly Subject[]>,
+        authenticate: TestAuthenticate,
         run: {
             readonly disposables: AsyncDisposableStack;
             readonly failures: unknown[];
@@ -227,7 +238,8 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
                 Server.start({
                     clock: store.clock,
                     ...handler,
-                    scope: store.scope,
+                    // serve the store's one scope, or every scope as the universe's store does
+                    ...(store.scope === Scope.universe.id ? {} : { scope: store.scope }),
                     resources: new ResourceContext(),
                     health: new Health(handler.package.name),
                     drainTimeout: DRAIN_MILLISECONDS,
@@ -237,13 +249,7 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
                     },
                     // add no host requirement, as a host serving no machines or installations
                     authorizeMachine: async () => {},
-                    authenticate: async (request) =>
-                        TestObjectStore.#authenticate(request, {
-                            audience: handler.package.id,
-                            scope: store.scope,
-                            groups,
-                            now: store.clock.now(),
-                        }),
+                    authenticate: (request) => authenticate(request, handler.package.id),
                 }),
             ]),
         );
@@ -252,6 +258,20 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
         }
 
         return new TestObjectStore(store, servers, disposables, failures, failed.promise);
+    }
+
+    /** Authenticate test bearers toward a store's packages, users in their groups. */
+    static #bearers(
+        store: ObjectStore,
+        groups: ReadonlyMap<string, readonly Subject[]>,
+    ): TestAuthenticate {
+        return async (request, audience) =>
+            TestObjectStore.#authenticate(request, {
+                audience,
+                scope: store.scope,
+                groups,
+                now: store.clock.now(),
+            });
     }
 
     /** Open the failure that serving and settling race, leaving it to those waiting for it. */
