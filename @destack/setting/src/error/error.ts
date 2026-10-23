@@ -1,37 +1,19 @@
-import type { DomainError, CallErrorCode, Failure } from "@destack/error";
+import { defineErrorFamily, type ReasonOf } from "@destack/error";
 import type {} from "@destack/package/import-meta";
 
-/** The call error code of each setting failure. */
-const CALL_CODES = {
-    UNDECLARED: "NOT_FOUND",
-    UNKNOWN_SCOPE: "NOT_FOUND",
-    INVALID_VALUE: "BAD_REQUEST",
-    INVALID_PLACEMENT: "BAD_REQUEST",
-    CONFLICT: "CONFLICT",
-} as const satisfies Readonly<Record<string, CallErrorCode>>;
+/** The setting package's failures, each reason with the call error code it answers. */
+export const SettingError = defineErrorFamily(import.meta.destack.package, {
+    // bad request
+    INVALID_PLACEMENT: { code: "BAD_REQUEST" },
+    INVALID_VALUE: { code: "BAD_REQUEST" },
 
-/** A stable cause of failures of setting declarations, placements and resolution. */
-export type SettingReason = keyof typeof CALL_CODES;
+    // not found
+    UNDECLARED: { code: "NOT_FOUND" },
+    UNKNOWN_SCOPE: { code: "NOT_FOUND" },
 
-/** A setting declaration, placement or resolution failure. */
-export class SettingError extends Error implements DomainError {
-    /** The failure's stable cause within its package. */
-    readonly reason: SettingReason;
+    // conflict
+    CONFLICTING_VALUES: { code: "CONFLICT" },
+});
 
-    /** Report a setting failure. */
-    constructor(reason: SettingReason, message: string) {
-        super(message);
-        this.name = "SettingError";
-        this.reason = reason;
-    }
-
-    /** Convert the failure to the call error a caller receives. */
-    toCallError(): Failure {
-        return {
-            code: CALL_CODES[this.reason],
-            reason: this.reason,
-            domain: import.meta.destack.package.name,
-            message: this.message,
-        };
-    }
-}
+/** A stable cause of setting failures. */
+export type SettingReason = ReasonOf<typeof SettingError>;

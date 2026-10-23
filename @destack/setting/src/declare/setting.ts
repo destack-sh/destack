@@ -47,7 +47,7 @@ export function defineSetting<Value extends schema.Schema>(
     const described = toJsonSchema(valueSchema);
     if (metadata.merge === "key" && (described["type"] !== "object" || "properties" in described)) {
         throw new TypeError(
-            `setting ${definition.name} merges the keys of a value that is not a record`,
+            `setting ${definition.name} merges keys of a value that is not a record`,
         );
     }
 

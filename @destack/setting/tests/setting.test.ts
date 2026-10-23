@@ -1,10 +1,9 @@
 import { DeclarationReference } from "@destack/package/declare";
-import { expect, test } from "@destack/test";
+import { expect, test, refusal } from "@destack/test";
 import { schema } from "@destack/schema";
 import { Expression } from "@destack/db";
 import { PackageId } from "@destack/package";
 import { defineSetting } from "../src/declare/index.ts";
-import { SettingError } from "../src/error/index.ts";
 import {
     compareSetting,
     describeSetting,
@@ -55,22 +54,7 @@ const standard = {
     enforcement: "ordinary",
 };
 
-/** Report a setting failure as its code and message, or as accepted. */
-function failure(run: () => unknown): { code: string; message: string } | "accepted" {
-    try {
-        run();
-
-        return "accepted";
-    } catch (error) {
-        if (!(error instanceof SettingError)) {
-            throw error;
-        }
-
-        return { code: error.reason, message: error.message };
-    }
-}
-
-test("resolve personal, device and required values independently of their order", () => {
+test("resolve personal, device and required values independently of their order", async () => {
     // take the device's value over the personal one and a recommendation, in either order
     const recommendation: SettingValue = { ...required, mode: "recommend" };
     const ordinary = {
@@ -101,45 +85,44 @@ test("resolve personal, device and required values independently of their order"
     });
 });
 
-test("refuse values set in other scopes or outside the chain, and disagreeing requirements", () => {
+test("refuse values set in other scopes or outside the chain, and disagreeing requirements", async () => {
     // refuse another user's value, and resolve the default for an anonymous visitor
     const anonymous = SettingSelection.parse({ scope: null });
-    const misplaced = {
-        code: "INVALID_PLACEMENT",
-        message: "a value set in another scope reached the resolution",
-    };
+    const misplaced = [
+        "BAD_REQUEST",
+        "INVALID_PLACEMENT",
+        "the resolution got a value set in another scope",
+    ];
     expect([
-        failure(() => editor.resolve(selection, [{ ...personal, scope: "user-bob" }], chain)),
-        failure(() => editor.resolve(anonymous, [personal], chain)),
-        failure(() =>
+        await refusal(() => editor.resolve(selection, [{ ...personal, scope: "user-bob" }], chain)),
+        await refusal(() => editor.resolve(anonymous, [personal], chain)),
+        await refusal(() =>
             editor.resolve(selection, [{ ...required, scope: "space-elsewhere" }], chain),
         ),
     ]).toEqual([
         misplaced,
         misplaced,
-        {
-            code: "INVALID_PLACEMENT",
-            message: "a value from outside the selection's scope chain reached the resolution",
-        },
+        [
+            "BAD_REQUEST",
+            "INVALID_PLACEMENT",
+            "the resolution got a value from outside the selection's scope chain",
+        ],
     ]);
     expect(editor.resolve(anonymous, [], chain)).toEqual({ ...standard, selection: anonymous });
 
     // refuse disagreeing requirements and a selection of another scope than the setting's
     expect([
-        failure(() =>
+        await refusal(() =>
             editor.resolve(selection, [required, { ...required, value: "standard" }], chain),
         ),
-        failure(() => editor.resolve(SettingSelection.parse({ scope: space }), [], chain)),
+        await refusal(() => editor.resolve(SettingSelection.parse({ scope: space }), [], chain)),
     ]).toEqual([
-        { code: "CONFLICT", message: "required setting values disagree" },
-        {
-            code: "INVALID_PLACEMENT",
-            message: "setting scope does not match the selected scope",
-        },
+        ["CONFLICT", "CONFLICTING_VALUES", "required setting values conflict"],
+        ["BAD_REQUEST", "INVALID_PLACEMENT", "setting scope does not match the selected scope"],
     ]);
 });
 
-test("resolve each key of a merged setting from its own nearest placement, requirements fixing theirs", () => {
+test("resolve each key of a merged setting from its own nearest placement, requirements fixing theirs", async () => {
     // bind one command personally, another on the device, and require a third in the space
     const bindings = { ...personal, ...named(keybindings) };
     const mine = { ...bindings, value: { "note.archive": "mod+e", "note.pin": "mod+p" } };
@@ -177,20 +160,21 @@ test("resolve each key of a merged setting from its own nearest placement, requi
 
     // refuse equally placed values disagreeing on a key
     expect(
-        failure(() =>
+        await refusal(() =>
             keybindings.resolve(
                 selection,
                 [mine, { ...mine, id: required.id, value: { "note.archive": "mod+r" } }],
                 chain,
             ),
         ),
-    ).toEqual({
-        code: "CONFLICT",
-        message: "multiple values of note.archive have the same precedence",
-    });
+    ).toEqual([
+        "CONFLICT",
+        "CONFLICTING_VALUES",
+        "multiple values of note.archive have the same precedence",
+    ]);
 });
 
-test("compare required structured values independently of key order", () => {
+test("compare required structured values independently of key order", async () => {
     const layout = defineSetting(
         {
             ...editor.definition,
@@ -270,13 +254,12 @@ test("describe a setting and read the settings a build declares", async () => {
     ]).toEqual([[describeSetting(editor), describeSetting(layout)], true, false, true, false]);
 
     // refuse a setting the build does not declare
-    expect(failure(() => Setting.find(settings, { ...editor.reference, name: "theme" }))).toEqual({
-        code: "UNDECLARED",
-        message: `setting ${notes.id}/theme is not declared`,
-    });
+    expect(
+        await refusal(() => Setting.find(settings, { ...editor.reference, name: "theme" })),
+    ).toEqual(["NOT_FOUND", "UNDECLARED", `setting ${notes.id}/theme is not declared`]);
 });
 
-test("resolve space settings per installation and machine settings per machine", () => {
+test("resolve space settings per installation and machine settings per machine", async () => {
     // resolve one space setting independently for two installations
     const template = defineSetting(
         { ...editor.definition, name: "template", scope: "space", overrides: ["installation"] },
@@ -341,67 +324,72 @@ test("resolve space settings per installation and machine settings per machine",
         enforcement: "ordinary",
     });
     expect(
-        failure(() =>
+        await refusal(() =>
             cache.resolve(
                 SettingSelection.parse({ scope: "device-019f5530-8000-7000-8000-000000000016" }),
                 [elsewhere],
                 [device],
             ),
         ),
-    ).toEqual({
-        code: "INVALID_PLACEMENT",
-        message: "a value set in another scope reached the resolution",
-    });
+    ).toEqual([
+        "BAD_REQUEST",
+        "INVALID_PLACEMENT",
+        "the resolution got a value set in another scope",
+    ]);
 });
 
-test("refuse placements and writes a setting does not permit", () => {
+test("refuse placements and writes a setting does not permit", async () => {
     // refuse overrides the setting does not declare, and set values outside its scope
     const plain = defineSetting({ ...editor.definition, overrides: [] }, { package: notes });
-    const unsupported = {
-        code: "INVALID_PLACEMENT",
-        message: "setting value uses an unsupported setting override",
-    };
+    const unsupported = [
+        "BAD_REQUEST",
+        "INVALID_PLACEMENT",
+        "setting value uses an unsupported setting override",
+    ];
     expect([
-        failure(() => plain.requirePlacement({ installation, mode: "set" }, "declared")),
-        failure(() => plain.resolve(selection, [], chain, [laptop])),
-        failure(() => editor.requirePlacement({ mode: "set" }, "enclosing")),
-        failure(() => editor.requirePlacement({ mode: "recommend" }, "declared")),
-        failure(() => editor.requirePlacement({ space, installation, mode: "set" }, "declared")),
+        await refusal(() => plain.requirePlacement({ installation, mode: "set" }, "declared")),
+        await refusal(() => plain.resolve(selection, [], chain, [laptop])),
+        await refusal(() => editor.requirePlacement({ mode: "set" }, "enclosing")),
+        await refusal(() => editor.requirePlacement({ mode: "recommend" }, "declared")),
+        await refusal(() =>
+            editor.requirePlacement({ space, installation, mode: "set" }, "declared"),
+        ),
     ]).toEqual([
         unsupported,
-        {
-            code: "INVALID_PLACEMENT",
-            message: `devices cannot store values of ${DeclarationReference.key(plain.reference)}`,
-        },
-        {
-            code: "INVALID_PLACEMENT",
-            message: "setting value outside its declared scope must recommend or require",
-        },
-        {
-            code: "INVALID_PLACEMENT",
-            message: "setting value in its declared scope must be set",
-        },
-        {
-            code: "INVALID_PLACEMENT",
-            message: "setting value has both an installation and its space",
-        },
+        [
+            "BAD_REQUEST",
+            "INVALID_PLACEMENT",
+            `devices cannot store values of ${DeclarationReference.key(plain.reference)}`,
+        ],
+        [
+            "BAD_REQUEST",
+            "INVALID_PLACEMENT",
+            "setting value outside its declared scope must be a recommendation or a requirement",
+        ],
+        ["BAD_REQUEST", "INVALID_PLACEMENT", "setting value in its declared scope must be set"],
+        [
+            "BAD_REQUEST",
+            "INVALID_PLACEMENT",
+            "setting value has both an installation and its space",
+        ],
     ]);
 
     // accept a current write in its scope, and refuse one of a later release or with an invalid value
     const write = { mode: "set" as const, value: "vim", release: "2026.9.0" };
     expect([
-        failure(() => editor.requireWrite(write, alice)),
-        failure(() => editor.requireWrite({ ...write, release: "2026.10.0" }, alice)),
-        failure(() => editor.requireWrite({ ...write, value: "emacs" }, alice)),
-        failure(() => editor.requireWrite({ ...write, mode: "recommend" }, space)),
+        await refusal(() => editor.requireWrite(write, alice)),
+        await refusal(() => editor.requireWrite({ ...write, release: "2026.10.0" }, alice)),
+        await refusal(() => editor.requireWrite({ ...write, value: "emacs" }, alice)),
+        await refusal(() => editor.requireWrite({ ...write, mode: "recommend" }, space)),
     ]).toEqual([
-        "accepted",
-        {
-            code: "INVALID_VALUE",
-            message: "setting value is at release 2026.10.0, its declaration at 2026.9.0",
-        },
-        { code: "INVALID_VALUE", message: "setting value does not match its declaration" },
-        "accepted",
+        "done",
+        [
+            "BAD_REQUEST",
+            "INVALID_VALUE",
+            "setting value is at release 2026.10.0, but its declaration is at 2026.9.0",
+        ],
+        ["BAD_REQUEST", "INVALID_VALUE", "setting value does not match its declaration"],
+        "done",
     ]);
 });
 
@@ -505,7 +493,7 @@ test("convert stored values of earlier releases, and skip values of later releas
     );
 });
 
-test("resolve a value for its consuming package, and rank recommendations by the nearness of their scope", () => {
+test("resolve a value for its consuming package, and rank recommendations by the nearness of their scope", async () => {
     // apply a value for the consuming package in any space, and nowhere else
     const shared = defineSetting(
         {
@@ -561,10 +549,11 @@ test("resolve a value for its consuming package, and rank recommendations by the
         id: schema.identifier("setting").parse("setting-019f5530-8000-7000-8000-000000000024"),
         value: "standard",
     };
-    expect(failure(() => shared.resolve(home, [nearer, sibling], chain))).toEqual({
-        code: "CONFLICT",
-        message: "multiple setting values have the same precedence",
-    });
+    expect(await refusal(() => shared.resolve(home, [nearer, sibling], chain))).toEqual([
+        "CONFLICT",
+        "CONFLICTING_VALUES",
+        "multiple setting values have the same precedence",
+    ]);
 });
 
 test("plan a setting's value change between releases: safe widenings, converted narrowings, and a refused unconverted narrowing", () => {
@@ -630,7 +619,7 @@ test("plan a setting's value change between releases: safe widenings, converted 
     ]);
 });
 
-test("read a setting's value among an installation's resolved settings, refusing an invalid or unresolved one", () => {
+test("read a setting's value among an installation's resolved settings, refusing an invalid or unresolved one", async () => {
     // read the resolved value by the setting's key
     const key = DeclarationReference.key(editor.reference);
     const read = editor.read({ [key]: "vim" });
@@ -638,7 +627,9 @@ test("read a setting's value among an installation's resolved settings, refusing
     // refuse a value the schema rejects and a setting the host left out
     expect(read).toBe("vim");
     expect(() => editor.read({ [key]: "emacs" })).toThrow(schema.Error);
-    expect(() => editor.read({})).toThrow(
-        new SettingError("UNDECLARED", `the installation's machine did not resolve ${key}`),
-    );
+    expect(await refusal(() => editor.read({}))).toEqual([
+        "NOT_FOUND",
+        "UNDECLARED",
+        `the installation's machine did not resolve ${key}`,
+    ]);
 });

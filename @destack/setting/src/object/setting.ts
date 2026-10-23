@@ -140,7 +140,7 @@ export const SettingValue = {
     async chain(reader: Pick<Snapshot, "read">, scope: string): Promise<string[]> {
         const chain = (await Scope.chain(reader, scope)).map((link) => link.object.id);
         if (chain.length === 0) {
-            throw new SettingError("UNKNOWN_SCOPE", `unknown scope ${scope}`);
+            throw SettingError.of("UNKNOWN_SCOPE", `unknown scope ${scope}`);
         }
 
         return chain;
@@ -209,7 +209,7 @@ export const SettingValue = {
             endpoint,
             reconnect: (machine) => {
                 throw new TypeError(
-                    `setting values of ${scope} never move, yet moved to ${machine}`,
+                    `setting values of ${scope} cannot move, but moved to ${machine}`,
                 );
             },
         });

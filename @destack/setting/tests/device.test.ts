@@ -1,6 +1,5 @@
 import { principal } from "@destack/access";
 import { RequestId, Scope } from "@destack/sync";
-import { TestDatabase } from "@destack/db/test";
 import { ACCESS_PUBLICATION } from "@destack/object";
 import { TestObjectStore } from "@destack/object/test";
 import { ObjectClient, Observable } from "@destack/object/client";
@@ -242,7 +241,6 @@ test("follow a person's values with the device's own, yielding again once the de
 test("replicate a person's values along their chain into a database, yielding each change, and fail with the replica's failure", async () => {
     await using served = await openSettings({ scope: aliceUser });
     const endpoint = served.as(alice).endpoint(settingPackage);
-    const server = served.server(settingPackage);
 
     // replicate Alice's values from the store serving them into a database of the setting tables, stopped with the test
     const stopping = new AbortController();
@@ -263,7 +261,7 @@ test("replicate a person's values along their chain into a database, yielding ea
                 stopping.signal,
             );
         });
-    const replicated = await replica((request) => server.fetch(request));
+    const replicated = await replica(endpoint.fetch);
 
     // yield none, then Alice's value once she sets it
     const first = await replicated.next();
@@ -310,7 +308,6 @@ test("replicate a person's values along their chain into a database, yielding ea
 test("yield a person's values set before the replica starts in its first yield, along their chain however late it arrives", async () => {
     await using served = await openSettings({ scope: aliceUser });
     const endpoint = served.as(alice).endpoint(settingPackage);
-    const server = served.server(settingPackage);
 
     // set Alice's editor before replicating her values
     await served
@@ -337,11 +334,11 @@ test("yield a person's values set before the replica starts in its first yield, 
         if (body.includes(`"shape":"${ACCESS_PUBLICATION}"`)) {
             await settingsServed.promise;
 
-            return server.fetch(request);
+            return endpoint.fetch(request);
         }
 
         // answer the setting rows, then release the access rows
-        const response = await server.fetch(request);
+        const response = await endpoint.fetch(request);
         settingsServed.resolve();
 
         return response;

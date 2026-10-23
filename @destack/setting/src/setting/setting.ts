@@ -145,7 +145,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         const key = DeclarationReference.key(reference);
         const setting = settings.find((each) => DeclarationReference.key(each.reference) === key);
         if (setting === undefined) {
-            throw new SettingError("UNDECLARED", `setting ${key} is not declared`);
+            throw SettingError.of("UNDECLARED", `setting ${key} is not declared`);
         }
 
         return setting;
@@ -176,7 +176,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         // require the value its machine resolved
         const key = DeclarationReference.key(this.reference);
         if (!Object.hasOwn(settings, key)) {
-            throw new SettingError(
+            throw SettingError.of(
                 "UNDECLARED",
                 `the installation's machine did not resolve ${key}`,
             );
@@ -234,7 +234,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
                 ? this.definition.scope === "user"
                 : schema.identifier(this.definition.scope).safeParse(selection.scope).success;
         if (!isSelectable) {
-            throw new SettingError(
+            throw SettingError.of(
                 "INVALID_PLACEMENT",
                 "setting scope does not match the selected scope",
             );
@@ -302,8 +302,8 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
                 current.mode === "recommend" &&
                 equalValue(previous.value, current.value);
             if (compareRanks(previous, current) === 0 && !isShared) {
-                throw new SettingError(
-                    "CONFLICT",
+                throw SettingError.of(
+                    "CONFLICTING_VALUES",
                     "multiple setting values have the same precedence",
                 );
             }
@@ -315,7 +315,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
             requirement !== undefined &&
             required.some((candidate) => !equalValue(candidate.value, requirement.value))
         ) {
-            throw new SettingError("CONFLICT", "required setting values disagree");
+            throw SettingError.of("CONFLICTING_VALUES", "required setting values conflict");
         }
 
         // take the requirements, or else the highest ranked candidates
@@ -381,7 +381,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
     requireValue(value: unknown): schema.Infer<Value> {
         const parsed = this.definition.schema.safeParse(value);
         if (!parsed.success) {
-            throw new SettingError("INVALID_VALUE", "setting value does not match its declaration");
+            throw SettingError.of("INVALID_VALUE", "setting value does not match its declaration");
         }
 
         return parsed.data;
@@ -392,9 +392,9 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         // require a release up to this one and a value it converts to
         const converted = this.#convert(write.value, write.release);
         if (!converted.isConverted) {
-            throw new SettingError(
+            throw SettingError.of(
                 "INVALID_VALUE",
-                `setting value is at release ${write.release}, its declaration at ${this.package.version}`,
+                `setting value is at release ${write.release}, but its declaration is at ${this.package.version}`,
             );
         }
         this.requireValue(converted.value);
@@ -413,22 +413,22 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
     ): void {
         // require set values in the setting's declared scope
         if (position === "declared" && value.mode !== "set") {
-            throw new SettingError(
+            throw SettingError.of(
                 "INVALID_PLACEMENT",
                 "setting value in its declared scope must be set",
             );
         }
         // require recommendations or requirements from enclosing scopes
         else if (position === "enclosing" && value.mode === "set") {
-            throw new SettingError(
+            throw SettingError.of(
                 "INVALID_PLACEMENT",
-                "setting value outside its declared scope must recommend or require",
+                "setting value outside its declared scope must be a recommendation or a requirement",
             );
         }
 
         // refuse an installation together with its space
         if (value.installation !== undefined && value.space !== undefined) {
-            throw new SettingError(
+            throw SettingError.of(
                 "INVALID_PLACEMENT",
                 "setting value has both an installation and its space",
             );
@@ -447,7 +447,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
             .filter(([, placed]) => placed !== undefined)
             .map(([override]) => override);
         if (overrides.some((override) => !permitted.includes(override))) {
-            throw new SettingError(
+            throw SettingError.of(
                 "INVALID_PLACEMENT",
                 "setting value uses an unsupported setting override",
             );
@@ -489,7 +489,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         if (value.packageId !== this.reference.packageId || value.name !== this.reference.name) {
             return undefined;
         } else if (!this.isDeviceStored()) {
-            throw new SettingError(
+            throw SettingError.of(
                 "INVALID_PLACEMENT",
                 `devices cannot store values of ${DeclarationReference.key(this.reference)}`,
             );
@@ -534,9 +534,9 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         }
         // refuse a value set in another scope, such as another user's
         else if (value.mode === "set") {
-            throw new SettingError(
+            throw SettingError.of(
                 "INVALID_PLACEMENT",
-                "a value set in another scope reached the resolution",
+                "the resolution got a value set in another scope",
             );
         }
         // rank a recommendation or requirement of an enclosing scope by its depth and its installation
@@ -544,9 +544,9 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
             this.requirePlacement({ ...placement, mode: value.mode }, "enclosing");
             const depth = chain.indexOf(value.scope);
             if (depth === -1) {
-                throw new SettingError(
+                throw SettingError.of(
                     "INVALID_PLACEMENT",
-                    "a value from outside the selection's scope chain reached the resolution",
+                    "the resolution got a value from outside the selection's scope chain",
                 );
             }
             const nearness = (chain.length - depth) * DEPTH_WEIGHT;
@@ -659,7 +659,7 @@ function decideKey(
             (candidate) => !equalValue(entryOf(candidate), entryOf(requirement)),
         )
     ) {
-        throw new SettingError("CONFLICT", `required values of ${key} disagree`);
+        throw SettingError.of("CONFLICTING_VALUES", `required values of ${key} conflict`);
     }
 
     // take the requirement or the highest ranked candidate, refusing a tie of different values
@@ -671,7 +671,7 @@ function decideKey(
         requirement === undefined &&
         tied.some((candidate) => !equalValue(entryOf(candidate), entryOf(winner)))
     ) {
-        throw new SettingError("CONFLICT", `multiple values of ${key} have the same precedence`);
+        throw SettingError.of("CONFLICTING_VALUES", `multiple values of ${key} have the same precedence`);
     }
 
     return {

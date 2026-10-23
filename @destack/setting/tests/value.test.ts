@@ -1,6 +1,5 @@
 import { asc, Snapshot } from "@destack/db";
-import { principal } from "@destack/access";
-import { ObjectReference, RequestId, Scope } from "@destack/sync";
+import { ObjectReference, RequestId } from "@destack/sync";
 import { Duration } from "@destack/schema";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { setting, SettingValue } from "../src/object/index.ts";
@@ -108,7 +107,7 @@ test("write declared values at their placements and refuse invalid, undeclared a
         [
             "BAD_REQUEST",
             "INVALID_VALUE",
-            "setting value is at release 2026.10.0, its declaration at 2026.9.0",
+            "setting value is at release 2026.10.0, but its declaration is at 2026.9.0",
         ],
         [
             "NOT_FOUND",

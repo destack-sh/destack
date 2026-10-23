@@ -115,7 +115,7 @@ test("set, recommend and require declared values in the space and refuse undecla
         [
             "BAD_REQUEST",
             "INVALID_PLACEMENT",
-            "setting value outside its declared scope must recommend or require",
+            "setting value outside its declared scope must be a recommendation or a requirement",
         ],
     ]);
 
