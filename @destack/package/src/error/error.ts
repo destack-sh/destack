@@ -2,8 +2,11 @@ import { schema } from "@destack/schema";
 import { type DomainError, type CallErrorCode, type Failure } from "@destack/error";
 import type { SandboxName } from "../definition/sandbox.ts";
 
+/** The domain of package failures, written out: the Bun preload loads them before stamping. */
+const DOMAIN = "@destack/package";
+
 /** Invalid package definitions and distributed files. */
-export const PackageErrorCode = schema.enum([
+export const PackageReason = schema.enum([
     "INVALID_DEFINITION",
     "UNSUPPORTED_LANGUAGE",
     "UNSUPPORTED_TARGET",
@@ -14,11 +17,11 @@ export const PackageErrorCode = schema.enum([
     "INVALID_BUILD",
 ]);
 
-/** A machine-readable package failure code. */
-export type PackageErrorCode = schema.Infer<typeof PackageErrorCode>;
+/** A package failure's stable cause. */
+export type PackageReason = schema.Infer<typeof PackageReason>;
 
 /** The call error code of each package failure: an invalid package, or one no host processes. */
-const CALL_CODES: Readonly<Record<PackageErrorCode, CallErrorCode>> = {
+const CALL_CODES: Readonly<Record<PackageReason, CallErrorCode>> = {
     INVALID_DEFINITION: "BAD_REQUEST",
     UNSUPPORTED_LANGUAGE: "UNPROCESSABLE_CONTENT",
     UNSUPPORTED_TARGET: "UNPROCESSABLE_CONTENT",
@@ -31,48 +34,58 @@ const CALL_CODES: Readonly<Record<PackageErrorCode, CallErrorCode>> = {
 
 /** A package failure with its original cause. */
 export class PackageError extends Error implements DomainError {
-    /** Stable failure code. */
-    readonly code: PackageErrorCode;
+    /** The failure's stable cause within its package. */
+    readonly reason: PackageReason;
 
-    /** Create a package error with its code, message and cause. */
-    constructor(code: PackageErrorCode, message: string, options?: ErrorOptions) {
+    /** Create a package error with its reason, message and cause. */
+    constructor(reason: PackageReason, message: string, options?: ErrorOptions) {
         super(message, options);
         this.name = "PackageError";
-        this.code = code;
+        this.reason = reason;
     }
 
     /** Convert the failure to the call error a caller receives. */
     toCallError(): Failure {
-        return { code: CALL_CODES[this.code], message: this.message };
+        return {
+            code: CALL_CODES[this.reason],
+            reason: this.reason,
+            domain: DOMAIN,
+            message: this.message,
+        };
     }
 }
 
 /** Why a host cannot grant a sandbox ability: it has none of its kind, or cannot enforce it. */
-export type SandboxErrorCode = "UNSUPPORTED" | "UNENFORCEABLE";
+export type SandboxReason = "ABILITY_UNSUPPORTED" | "ABILITY_UNENFORCEABLE";
 
 /** A workload's sandbox ability its host cannot grant, refused before the workload starts. */
 export class SandboxError extends Error implements DomainError {
-    /** Stable failure code. */
-    readonly code: SandboxErrorCode;
+    /** The failure's stable cause within its package. */
+    readonly reason: SandboxReason;
     /** The ability the host cannot grant. */
     readonly ability: SandboxName;
 
-    /** Create a sandbox error with its code, the ability and the gap. */
+    /** Create a sandbox error with its reason, the ability and the gap. */
     constructor(
-        code: SandboxErrorCode,
+        reason: SandboxReason,
         ability: SandboxName,
         message: string,
         options?: ErrorOptions,
     ) {
-        // keep the code and the ability beside the message
+        // keep the reason and the ability beside the message
         super(message, options);
         this.name = "SandboxError";
-        this.code = code;
+        this.reason = reason;
         this.ability = ability;
     }
 
     /** Report an ability no host grants as a workload the host cannot process. */
     toCallError(): Failure {
-        return { code: "UNPROCESSABLE_CONTENT", message: this.message };
+        return {
+            code: "UNPROCESSABLE_CONTENT",
+            reason: this.reason,
+            domain: DOMAIN,
+            message: this.message,
+        };
     }
 }

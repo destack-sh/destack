@@ -64,9 +64,9 @@ test("refuse a distributed file whose bytes differ from its listing, and an unli
         await refusal(serving(longer).load("src/notes.js")),
         await refusal(build.load("src/missing.js")),
     ]).toEqual([
-        ["INVALID_FILE", "file digest mismatch: src/notes.js"],
-        ["INVALID_FILE", "file size mismatch: src/notes.js"],
-        ["INVALID_FILE", "package file not listed: src/missing.js"],
+        ["BAD_REQUEST", "INVALID_FILE", "file digest mismatch: src/notes.js"],
+        ["BAD_REQUEST", "INVALID_FILE", "file size mismatch: src/notes.js"],
+        ["BAD_REQUEST", "INVALID_FILE", "package file not listed: src/missing.js"],
     ]);
 });
 

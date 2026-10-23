@@ -12,8 +12,10 @@ export interface Declaration {
 /** The state a resource declaration requires of its resource. */
 export type ResourceState = JsonObject;
 
-/** A resource a package requires, described by the state it must have. */
+/** A resource a package requires, described by its kind and the state it must have. */
 export interface ResourceRequirement extends Declaration {
+    /** The resource kind, such as database. */
+    readonly kind: DeclarationName;
     /** Describe the state the resource must have. */
     readonly state: () => ResourceState;
 }
