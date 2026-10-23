@@ -4,6 +4,14 @@ import { CALL_ERROR_STATUSES, CallErrorCode, DomainError } from "./error.ts";
 /** The call error codes, in the order their statuses declare them. */
 const CALL_ERROR_CODES = Object.keys(CALL_ERROR_STATUSES).filter((code) => CallErrorCode.is(code));
 
+/** The codes of failures a later or rerouted attempt may not meet (RFC 9110, 6585). */
+const TRANSIENT_CODES: ReadonlySet<CallErrorCode> = new Set([
+    "TIMEOUT",
+    "MISDIRECTED_REQUEST",
+    "TOO_MANY_REQUESTS",
+    "SERVICE_UNAVAILABLE",
+]);
+
 /** The domain of failures without a package's reason: HTTP, whose status code is their reason. */
 export const HTTP_DOMAIN = "http";
 
@@ -61,6 +69,14 @@ export const Failure = Object.assign(failureSchema, {
                 ...data,
             };
         }
+        // read a refused connection as the peer being unavailable
+        else if (
+            error instanceof Error &&
+            "code" in error &&
+            (error.code === "ECONNREFUSED" || error.code === "ConnectionRefused")
+        ) {
+            return Failure.http("SERVICE_UNAVAILABLE", error.message);
+        }
         // read an error with only an HTTP status by the status's code
         else if (error instanceof Error && "status" in error && typeof error.status === "number") {
             return Failure.http(CallErrorCode.of(error.status), error.message);
@@ -71,6 +87,11 @@ export const Failure = Object.assign(failureSchema, {
 
             return Failure.http("INTERNAL_SERVER_ERROR", message);
         }
+    },
+
+    /** Report whether a later or rerouted attempt may succeed: a timeout, move, limit or outage. */
+    isTransient(failure: Pick<Failure, "code">): boolean {
+        return TRANSIENT_CODES.has(failure.code);
     },
 
     /** Describe a failure no package gave a reason, as HTTP's: its code is its reason. */

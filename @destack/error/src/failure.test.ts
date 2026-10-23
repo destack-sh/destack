@@ -16,7 +16,7 @@ class NoteError extends Error implements DomainError {
     }
 }
 
-test("describe a domain error as its call error, a call error by its code and reason, a status by its code, and anything else as internal", () => {
+test("describe a domain error as its call error, a call error by its code and reason, a refused connection as unavailable, a status by its code, and anything else as internal", () => {
     const coded = Object.assign(new Error("moved"), { code: "MISDIRECTED_REQUEST", data: [1] });
     const reasoned = Object.assign(new Error("taken"), {
         code: "CONFLICT",
@@ -50,8 +50,8 @@ test("describe a domain error as its call error, a call error by its code and re
         },
         { code: "CONFLICT", reason: "NAME_TAKEN", domain: "@destack/note", message: "taken" },
         {
-            code: "INTERNAL_SERVER_ERROR",
-            reason: "INTERNAL_SERVER_ERROR",
+            code: "SERVICE_UNAVAILABLE",
+            reason: "SERVICE_UNAVAILABLE",
             domain: "http",
             message: "closed",
         },
@@ -118,6 +118,22 @@ test("read each status's HTTP reason code, else its class's", () => {
         "CONFLICT",
         "GONE",
         "INTERNAL_SERVER_ERROR",
+    ]);
+});
+
+test("read a refused connection as the peer unavailable, and that as transient", () => {
+    const refused = Failure.of(
+        Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" }),
+    );
+
+    expect([refused, Failure.isTransient(refused)]).toEqual([
+        {
+            code: "SERVICE_UNAVAILABLE",
+            reason: "SERVICE_UNAVAILABLE",
+            domain: "http",
+            message: "connect ECONNREFUSED",
+        },
+        true,
     ]);
 });
 
