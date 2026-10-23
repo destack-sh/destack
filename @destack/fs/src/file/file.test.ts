@@ -16,13 +16,11 @@ test("read a file's text, nothing for a missing file, and fail on any other erro
         await readOptional(join(directory, "present.json")),
         await readOptional(join(directory, "missing.json")),
     ]).toEqual(["{}", undefined]);
-    const failure = await readOptional(directory).catch((error: unknown) => error);
-    expect(failure).toBeInstanceOf(FileSystemError);
-    expect(failure).toMatchObject({
-        operation: "read",
-        path: directory,
-        code: "EISDIR",
-        message: `cannot read ${directory}: EISDIR`,
-        cause: { code: "EISDIR" },
-    });
+    const failure = await readOptional(directory).then(
+        () => undefined,
+        (error: FileSystemError) => error,
+    );
+    expect(failure).toEqual(
+        new FileSystemError("read", directory, "EISDIR", { cause: failure?.cause }),
+    );
 });

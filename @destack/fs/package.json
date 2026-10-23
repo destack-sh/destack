@@ -18,6 +18,7 @@
     },
     "dependencies": {
         "@destack/schema": "workspace:*",
-        "@destack/error": "workspace:*"
+        "@destack/error": "workspace:*",
+        "@destack/package": "workspace:*"
     }
 }

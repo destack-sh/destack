@@ -82,21 +82,15 @@ test("reject invalid paths without changing the filesystem", async () => {
     const directory = await mkdtemp(join(tmpdir(), "destack-file-lock-"));
     try {
         const path = join(directory, "missing", "owner.lock");
-        await expect(FileLock.tryAcquire(path)).rejects.toMatchObject({
-            name: "FileSystemError",
-            operation: "open",
-            path,
-            code: process.platform === "win32" ? 3 : "ENOENT",
-        } satisfies Partial<FileSystemError>);
+        await expect(FileLock.tryAcquire(path)).rejects.toEqual(
+            new FileSystemError("open", path, process.platform === "win32" ? 3 : "ENOENT"),
+        );
 
         // preserve native string termination across both platform implementations
         const invalid = join(directory, "owner.lock") + "\0suffix";
-        await expect(FileLock.tryAcquire(invalid)).rejects.toMatchObject({
-            name: "FileSystemError",
-            operation: "open",
-            path: invalid,
-            code: "EINVAL",
-        } satisfies Partial<FileSystemError>);
+        await expect(FileLock.tryAcquire(invalid)).rejects.toEqual(
+            new FileSystemError("open", invalid, "EINVAL"),
+        );
     } finally {
         await rm(directory, { recursive: true });
     }

@@ -1,4 +1,5 @@
 import type { DomainError, Failure } from "@destack/error";
+import type {} from "@destack/package/import-meta";
 
 /** A failed host filesystem operation. */
 export class FileSystemError extends Error implements DomainError {
@@ -21,6 +22,11 @@ export class FileSystemError extends Error implements DomainError {
 
     /** Report every host filesystem failure as the host's own. */
     toCallError(): Failure {
-        return { code: "INTERNAL_SERVER_ERROR", message: this.message };
+        return {
+            code: "INTERNAL_SERVER_ERROR",
+            reason: "FILE_SYSTEM_FAILED",
+            domain: import.meta.destack.package.name,
+            message: this.message,
+        };
     }
 }
