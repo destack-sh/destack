@@ -2,13 +2,11 @@ import { frame } from "./frame.stylex";
 import { media } from "@destack/style/media.stylex";
 import { color, font, stroke, weight } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
-import { createSignal, For } from "@destack/view";
 
-import { agentPrompt, installCommand } from "../content/site";
 import { Goo } from "../effect/goo";
+import { Syllables } from "../home/entry/entry";
 import { lattice } from "./lattice.stylex";
 import { Mark } from "./mark";
-import { caret } from "./footer.stylex";
 import {
     type Destination,
     isExternal,
@@ -19,28 +17,35 @@ import {
 } from "./navigation";
 import { typeScale, tracking } from "./type.stylex";
 
-/** Close every page with a colophon in starry space: what Destack is, its install, its links. */
+/** Close every page with a colophon in starry space: the verb's entry, the links, the headword. */
 export function Footer() {
     return (
         <footer data-component="SiteFooter" {...style.attrs(styles.root)}>
             <Goo xstyle={styles.band}>
                 <div {...style.attrs(lattice.frame, styles.colophon)}>
-                    {/* what Destack is, and the two lines that install it */}
-                    <div {...style.attrs(styles.lead)}>
-                        <span {...style.attrs(styles.brand)}>
+                    {/* the verb's dictionary entry, as each section heads with one */}
+                    <div {...style.attrs(styles.cell, styles.entry)}>
+                        <p {...style.attrs(styles.kicker)}>
                             <Mark />
-                            Destack
-                        </span>
-                        <p {...style.attrs(styles.statement)}>Reconquer your software.</p>
-                        <div {...style.attrs(styles.lines)}>
-                            <CopyLine name="agent prompt" mark=">" text={agentPrompt} />
-                            <CopyLine name="install command" mark="$" text={installCommand} />
-                        </div>
+                            <b {...style.attrs(styles.word)}>
+                                <Syllables syllables={["de", "stack"]} />
+                            </b>
+                            <span>/diːˈstak/</span>
+                            <i>verb</i>
+                        </p>
+                        <p {...style.attrs(styles.definition)}>to reconquer your software</p>
                     </div>
 
                     {/* the site's menu, and the community off the site */}
-                    {columns.map(([title, destinations]) => (
-                        <nav aria-label={title} {...style.attrs(styles.column)}>
+                    {columns.map(([title, destinations], index) => (
+                        <nav
+                            aria-label={title}
+                            {...style.attrs(
+                                styles.cell,
+                                styles.column,
+                                index === 0 && styles.firstColumn,
+                            )}
+                        >
                             <h2 {...style.attrs(styles.heading)}>{title}</h2>
                             {destinations.map((destination) => (
                                 <FooterLink destination={destination} />
@@ -48,12 +53,21 @@ export function Footer() {
                         </nav>
                     ))}
 
-                    {/* who makes Destack, and how to reach them */}
+                    {/* who makes Destack, its license, and how to reach them */}
                     <div {...style.attrs(styles.fine)}>
-                        <span>© 2026 {company.name}</span>
+                        <span>© 2026 {company.name} · MIT licensed</span>
                         <a href={`mailto:${company.mail}`} {...style.attrs(styles.link)}>
                             Contact
                         </a>
+                    </div>
+
+                    {/* close on the headword itself, edge to edge and fading into the sky */}
+                    <div aria-hidden="true" {...style.attrs(styles.poster)}>
+                        <span {...style.attrs(styles.headword)}>
+                            de
+                            <span {...style.attrs(styles.dot)} />
+                            stack
+                        </span>
                     </div>
                 </div>
             </Goo>
@@ -74,7 +88,7 @@ const columns: readonly (readonly [
 function FooterLink(properties: { destination: Destination | PendingDestination }) {
     const destination = properties.destination;
 
-    // name a pending destination without a link
+    // show a pending destination without a link
     if (!isLive(destination)) {
         return (
             <span title="Soon" {...style.attrs(styles.link, styles.pending)}>
@@ -102,105 +116,6 @@ const company = {
     mail: "florian@symbol.industries",
 };
 
-/** Show one line of terminal that copies itself when pressed. */
-function CopyLine(properties: { name: string; mark: string; text: string }) {
-    const [copiedAt, setCopiedAt] = createSignal<number>();
-
-    // copy the line and acknowledge it briefly
-    const copy = async () => {
-        // write the command to the clipboard
-        await navigator.clipboard.writeText(properties.text);
-
-        // replay the acknowledgement on every press
-        const at = performance.now();
-        setCopiedAt(at);
-        setTimeout(
-            () => setCopiedAt((current) => (current === at ? undefined : current)),
-            copiedTime,
-        );
-    };
-
-    return (
-        <button
-            type="button"
-            aria-label={`Copy ${properties.name}`}
-            title={copiedAt() === undefined ? "Copy" : "Copied"}
-            data-silent
-            onClick={() => void copy()}
-            {...style.attrs(styles.line)}
-        >
-            {/* sweep a selection across the line each time it copies */}
-            <For each={copiedAt() === undefined ? [] : [copiedAt()]}>
-                {() => <span aria-hidden="true" {...style.attrs(styles.sweep)} />}
-            </For>
-            <code {...style.attrs(styles.code)}>
-                <span {...style.attrs(styles.prompt)}>{properties.mark}</span> {properties.text}
-                <span aria-hidden="true" {...style.attrs(styles.caret)} />
-            </code>
-
-            {/* turn the copy icon into a check that draws itself, and float a note up */}
-            <span {...style.attrs(styles.copyIcon)}>
-                <svg
-                    aria-hidden="true"
-                    width="15"
-                    height="15"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.75"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                >
-                    {copiedAt() !== undefined ? (
-                        <path d="M20 6 9 17l-5-5" pathLength="1" {...style.attrs(styles.check)} />
-                    ) : (
-                        <>
-                            <rect x="8" y="8" width="13" height="13" rx="1" />
-                            <path d="M4 16V4a1 1 0 0 1 1-1h11" />
-                        </>
-                    )}
-                </svg>
-                <For each={copiedAt() === undefined ? [] : [copiedAt()]}>
-                    {() => (
-                        <span aria-hidden="true" {...style.attrs(styles.note)}>
-                            Copied
-                        </span>
-                    )}
-                </For>
-            </span>
-        </button>
-    );
-}
-
-/** The milliseconds the copied acknowledgement stays. */
-const copiedTime = 1600;
-
-/** A selection sweeping across the command from left to right, then fading. */
-const sweepAcross = style.keyframes({
-    from: { opacity: 1, transform: "scaleX(0)" },
-    "45%": { opacity: 1, transform: "scaleX(1)" },
-    to: { opacity: 0, transform: "scaleX(1)" },
-});
-
-/** A check mark drawing itself in one stroke. */
-const draw = style.keyframes({
-    from: { strokeDashoffset: 1 },
-    to: { strokeDashoffset: 0 },
-});
-
-/** A small note rising and fading. */
-const rise = style.keyframes({
-    from: { opacity: 0, transform: "translate(-50%, 4px)" },
-    "25%": { opacity: 1, transform: "translate(-50%, -4px)" },
-    to: { opacity: 0, transform: "translate(-50%, -14px)" },
-});
-
-/** A terminal cursor blinking. */
-const blink = style.keyframes({
-    "0%, 49%": { backgroundColor: color.primary },
-    "50%, 100%": { backgroundColor: "transparent" },
-});
-
 /** The footer styles. */
 const styles = style.create({
     root: {
@@ -216,140 +131,52 @@ const styles = style.create({
     colophon: {
         borderInlineWidth: 0,
         color: color.foreground,
+        containerType: "inline-size",
         fontFamily: font.text,
-        paddingBlockStart: { default: "3.5rem", [media.maxMd]: "2.5rem" },
-        rowGap: { default: "2.5rem", [media.maxMd]: "2rem" },
     },
-    lead: {
+    cell: {
         alignContent: "start",
+        borderColor: `color-mix(in srgb, ${color.foreground} 14%, transparent)`,
+        borderStyle: "solid",
+        borderWidth: 0,
+        borderInlineStartWidth: stroke.border,
         display: "grid",
-        gridColumn: { default: "1 / span 6", [media.maxMd]: "1 / -1" },
-        justifyItems: "start",
+        minWidth: 0,
+        paddingBlock: { default: "3rem", [media.maxMd]: "2rem" },
         paddingInline: frame.inset,
         rowGap: "0.75rem",
     },
-    brand: {
+    entry: {
+        borderInlineStartWidth: 0,
+        gridColumn: { default: "span 6", [media.maxMd]: "1 / -1" },
+    },
+    kicker: {
         alignItems: "center",
-        columnGap: "0.5rem",
+        color: `color-mix(in srgb, ${color.foreground} 60%, transparent)`,
+        columnGap: "0.625rem",
         display: "flex",
-        fontSize: typeScale.body,
-        fontWeight: weight.semibold,
-    },
-    lines: {
-        display: "grid",
-        justifySelf: "start",
-    },
-    statement: {
-        color: `color-mix(in srgb, ${color.foreground} 70%, transparent)`,
+        flexWrap: "wrap",
         fontSize: typeScale.body,
         margin: 0,
     },
-    line: {
-        alignItems: "center",
-        alignSelf: "center",
-        backgroundColor: "transparent",
-        borderColor: {
-            default: "transparent",
-            ":hover": {
-                default: null,
-                [media.hover]: `color-mix(in srgb, ${color.foreground} 25%, transparent)`,
-            },
-        },
-        borderStyle: "solid",
-        borderWidth: "1px",
-        color: "inherit",
-        cursor: "pointer",
-        display: "flex",
-        gap: "0.75rem",
-        justifyContent: "space-between",
-        marginInlineStart: "-0.625rem",
-        minWidth: 0,
-        paddingBlock: "0.375rem",
-        paddingInline: "0.625rem",
-        position: "relative",
-        transform: { default: null, ":active": "translateY(1px)" },
-        transition: "border-color 200ms ease",
-        [caret.opacity]: {
-            default: "0",
-            ":hover": { default: null, [media.hover]: "1" },
-            ":focus-visible": "1",
-        },
-        [caret.play]: {
-            default: "paused",
-            ":hover": { default: null, [media.hover]: "running" },
-            ":focus-visible": "running",
-        },
-    },
-    sweep: {
-        animationDuration: "700ms",
-        animationFillMode: "forwards",
-        animationName: { default: sweepAcross, [media.motionReduce]: "none" },
-        animationTimingFunction: "cubic-bezier(0.3, 0.7, 0.4, 1)",
-        backgroundColor: `color-mix(in srgb, ${color.primary} 28%, transparent)`,
-        inset: 0,
-        pointerEvents: "none",
-        position: "absolute",
-        transformOrigin: "left",
-        opacity: { default: null, [media.motionReduce]: 0 },
-    },
-    caret: {
-        animationDuration: "1.1s",
-        animationIterationCount: "infinite",
-        animationName: { default: blink, [media.motionReduce]: "none" },
-        animationPlayState: caret.play,
-        opacity: { default: caret.opacity, [media.motionReduce]: 0 },
-        display: "inline-block",
-        height: "0.95em",
-        marginInlineStart: "0.35em",
-        verticalAlign: "-0.12em",
-        width: "0.5em",
-    },
-    copyIcon: {
-        color: `color-mix(in srgb, ${color.foreground} 60%, transparent)`,
-        display: "flex",
-        flexShrink: 0,
-        position: "relative",
-    },
-    check: {
-        animationDuration: "320ms",
-        animationFillMode: "both",
-        animationName: { default: draw, [media.motionReduce]: "none" },
-        animationTimingFunction: "ease-out",
+    word: {
         color: color.primary,
-        strokeDasharray: 1,
-    },
-    note: {
-        animationDuration: "1100ms",
-        animationFillMode: "forwards",
-        animationName: { default: rise, [media.motionReduce]: "none" },
-        animationTimingFunction: "ease-out",
-        bottom: "100%",
-        color: color.primary,
-        fontFamily: font.code,
-        fontSize: typeScale.label,
         fontWeight: weight.semibold,
-        left: "50%",
-        pointerEvents: "none",
-        position: "absolute",
-        whiteSpace: "nowrap",
-        opacity: { default: null, [media.motionReduce]: 0 },
     },
-    code: {
-        fontFamily: font.code,
-        fontSize: { default: typeScale.small, [media.maxSm]: typeScale.label },
-        fontWeight: weight.semibold,
-        whiteSpace: "nowrap",
-    },
-    prompt: {
-        color: color.primary,
+    definition: {
+        fontSize: typeScale.display,
+        fontWeight: weight.medium,
+        letterSpacing: tracking.display,
+        lineHeight: 1.15,
+        margin: 0,
     },
     column: {
-        alignContent: "start",
-        display: "grid",
+        borderTopWidth: { default: 0, [media.maxMd]: stroke.border },
         gridColumn: { default: "span 3", [media.maxMd]: "span 2" },
         justifyItems: "start",
-        paddingInline: frame.inset,
-        rowGap: "0.625rem",
+    },
+    firstColumn: {
+        borderInlineStartWidth: { default: stroke.border, [media.maxMd]: 0 },
     },
     heading: {
         color: `color-mix(in srgb, ${color.foreground} 55%, transparent)`,
@@ -382,7 +209,38 @@ const styles = style.create({
         fontSize: typeScale.small,
         gridColumn: "1 / -1",
         justifyContent: "space-between",
-        minHeight: frame.bar,
+        paddingBlock: "1.25rem",
         paddingInline: frame.inset,
+    },
+    poster: {
+        gridColumn: "1 / -1",
+        overflow: "hidden",
+        paddingBlockStart: "1rem",
+    },
+    headword: {
+        color: color.foreground,
+        display: "block",
+        // fill the frame edge to edge: the word's ink is 3.69em wide at this weight and tracking
+        fontSize: "calc(100cqi / 3.69)",
+        fontWeight: weight.bold,
+        // show the word down to its baseline, which sits 0.775em down a 0.8 line
+        height: "0.78em",
+        letterSpacing: "-0.045em",
+        lineHeight: 0.8,
+        // pull the d's left side bearing out past the frame edge
+        marginBlockStart: "-0.035em",
+        marginInlineStart: "-0.043em",
+        overflow: "hidden",
+        whiteSpace: "nowrap",
+    },
+    dot: {
+        backgroundColor: color.primary,
+        borderRadius: "50%",
+        display: "inline-block",
+        height: "0.13em",
+        marginInlineEnd: "0.09em",
+        marginInlineStart: "0.07em",
+        verticalAlign: "0.19em",
+        width: "0.13em",
     },
 });
