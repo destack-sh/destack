@@ -52,7 +52,9 @@ export class NativeLock {
                 throw cause;
             }
 
-            throw new FileSystemError("open", path, cause.code, { cause });
+            throw FileSystemError.of("FILE_SYSTEM_FAILED", `cannot open ${path}: ${cause.code}`, {
+                cause,
+            });
         }
     }
 
@@ -68,7 +70,7 @@ export class NativeLock {
         if (code === WOULD_BLOCK) {
             return false;
         }
-        throw new FileSystemError("lock", this.path, code);
+        throw FileSystemError.of("FILE_SYSTEM_FAILED", `cannot lock ${this.path}: ${code}`);
     }
 
     /** Close the file description and release its lock. */
@@ -79,7 +81,11 @@ export class NativeLock {
                 throw cause;
             }
 
-            throw new FileSystemError("close", this.path, cause.code, { cause });
+            throw FileSystemError.of(
+                "FILE_SYSTEM_FAILED",
+                `cannot close ${this.path}: ${cause.code}`,
+                { cause },
+            );
         });
 
         return this.closing;

@@ -60,7 +60,10 @@ export class NativeLock {
 
         // retain the native failure before issuing another system call
         if (handle === INVALID_HANDLE) {
-            throw new FileSystemError("open", path, SYSTEM.symbols.GetLastError());
+            throw FileSystemError.of(
+                "FILE_SYSTEM_FAILED",
+                `cannot open ${path}: ${SYSTEM.symbols.GetLastError()}`,
+            );
         }
 
         return new NativeLock(path, handle);
@@ -98,14 +101,17 @@ export class NativeLock {
         if (code === ERROR_LOCK_VIOLATION) {
             return false;
         }
-        throw new FileSystemError("lock", this.path, code);
+        throw FileSystemError.of("FILE_SYSTEM_FAILED", `cannot lock ${this.path}: ${code}`);
     }
 
     /** Unlock the complete range. */
     #unlock(): void {
         const overlapped = new Uint8Array(32);
         if (SYSTEM.symbols.UnlockFileEx(this.handle, 0, 0xffffffff, 0xffffffff, overlapped) === 0) {
-            throw new FileSystemError("unlock", this.path, SYSTEM.symbols.GetLastError());
+            throw FileSystemError.of(
+                "FILE_SYSTEM_FAILED",
+                `cannot unlock ${this.path}: ${SYSTEM.symbols.GetLastError()}`,
+            );
         }
     }
 
@@ -117,7 +123,10 @@ export class NativeLock {
         }
 
         if (SYSTEM.symbols.CloseHandle(this.handle) === 0) {
-            throw new FileSystemError("close", this.path, SYSTEM.symbols.GetLastError());
+            throw FileSystemError.of(
+                "FILE_SYSTEM_FAILED",
+                `cannot close ${this.path}: ${SYSTEM.symbols.GetLastError()}`,
+            );
         }
 
         this.isClosed = true;

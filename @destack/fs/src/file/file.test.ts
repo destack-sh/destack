@@ -1,8 +1,7 @@
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, test, refusal } from "@destack/test";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { FileSystemError } from "../error/index.ts";
 import { readOptional } from "./file.ts";
 
 test("read a file's text, nothing for a missing file, and fail on any other error", async () => {
@@ -16,11 +15,9 @@ test("read a file's text, nothing for a missing file, and fail on any other erro
         await readOptional(join(directory, "present.json")),
         await readOptional(join(directory, "missing.json")),
     ]).toEqual(["{}", undefined]);
-    const failure = await readOptional(directory).then(
-        () => undefined,
-        (error: FileSystemError) => error,
-    );
-    expect(failure).toEqual(
-        new FileSystemError("read", directory, "EISDIR", { cause: failure?.cause }),
-    );
+    expect(await refusal(readOptional(directory))).toEqual([
+        "INTERNAL_SERVER_ERROR",
+        "FILE_SYSTEM_FAILED",
+        `cannot read ${directory}: EISDIR`,
+    ]);
 });

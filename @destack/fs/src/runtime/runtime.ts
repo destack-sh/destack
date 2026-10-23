@@ -39,7 +39,10 @@ export async function runtimeDirectory(options: RuntimeDirectoryOptions = {}): P
 
     // refuse a link, another user's directory, and one the group or others may open
     if (!status.isDirectory() || status.uid !== user || (status.mode & SHARED_MODE) !== 0) {
-        throw new FileSystemError("trust runtime directory", directory, "EACCES");
+        throw FileSystemError.of(
+            "FILE_SYSTEM_FAILED",
+            `cannot trust runtime directory ${directory}: EACCES`,
+        );
     }
 
     return directory;
@@ -58,6 +61,10 @@ async function createPrivate(directory: string): Promise<Stats> {
         }
 
         // report any other failure with its operation and path
-        throw new FileSystemError("create runtime directory", directory, cause.code, { cause });
+        throw FileSystemError.of(
+            "FILE_SYSTEM_FAILED",
+            `cannot create runtime directory ${directory}: ${cause.code}`,
+            { cause },
+        );
     }
 }

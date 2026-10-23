@@ -44,14 +44,14 @@ const text = await readOptional("/path/to/installation.json"); // undefined befo
 
 ## Errors
 
-A failed operation throws a `FileSystemError` with the operation, the path and the operating-system error code, and a caller receives it as an internal server error.
+A failed operation throws a `FileSystemError` failure with the reason `FILE_SYSTEM_FAILED`, its message giving the operation, the path and the operating-system error code, and a caller receives it as an internal server error.
 
 ```ts
 import { FileSystemError } from "@destack/fs/error";
 
-if (error instanceof FileSystemError && error.code === "EACCES") {
-    report(`cannot ${error.operation} ${error.path}`);
+if (FileSystemError.is(error, "FILE_SYSTEM_FAILED")) {
+    report(error.message); // cannot read /notes/today.md: EACCES
 }
-// { code: "INTERNAL_SERVER_ERROR", … }
-new FileSystemError("read", "/notes/today.md", "ENOENT").toCallError();
+// { code: "INTERNAL_SERVER_ERROR", reason: "FILE_SYSTEM_FAILED", domain: "@destack/fs", … }
+FileSystemError.of("FILE_SYSTEM_FAILED", "cannot read /notes/today.md: ENOENT").toCallError();
 ```

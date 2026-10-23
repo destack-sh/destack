@@ -1,32 +1,11 @@
-import type { DomainError, Failure } from "@destack/error";
+import { defineErrorFamily, type ReasonOf } from "@destack/error";
 import type {} from "@destack/package/import-meta";
 
-/** A failed host filesystem operation. */
-export class FileSystemError extends Error implements DomainError {
-    /** The failed filesystem operation. */
-    readonly operation: string;
-    /** The affected absolute path. */
-    readonly path: string;
-    /** The operating-system error identifier. */
-    readonly code: string | number;
+/** The fs package's failures, each reason with the call error code it answers. */
+export const FileSystemError = defineErrorFamily(import.meta.destack.package, {
+    // internal server error
+    FILE_SYSTEM_FAILED: { code: "INTERNAL_SERVER_ERROR" },
+});
 
-    /** Retain the operation, path, and operating-system failure. */
-    constructor(operation: string, path: string, code: string | number, options?: ErrorOptions) {
-        // describe the failure and keep its operation, path and code
-        super(`cannot ${operation} ${path}: ${code}`, options);
-        this.operation = operation;
-        this.path = path;
-        this.code = code;
-        this.name = "FileSystemError";
-    }
-
-    /** Report every host filesystem failure as the host's own. */
-    toCallError(): Failure {
-        return {
-            code: "INTERNAL_SERVER_ERROR",
-            reason: "FILE_SYSTEM_FAILED",
-            domain: import.meta.destack.package.name,
-            message: this.message,
-        };
-    }
-}
+/** A stable cause of fs failures. */
+export type FileSystemReason = ReasonOf<typeof FileSystemError>;

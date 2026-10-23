@@ -1,4 +1,4 @@
-import { expect, test } from "@destack/test";
+import { expect, test, refusal } from "@destack/test";
 import { spawn } from "node:child_process";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -6,7 +6,6 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createInterface } from "node:readline";
 import { FileLock } from "./lock.ts";
-import { FileSystemError } from "../error/index.ts";
 import { setTimeout } from "node:timers/promises";
 
 test.for(["release", "terminate"] as const)(
@@ -20,6 +19,8 @@ test.for(["release", "terminate"] as const)(
             [
                 "run",
                 "--no-env-file",
+                "--preload",
+                Bun.resolveSync("@destack/package/bun/preload", import.meta.dirname),
                 fileURLToPath(new URL("./tests/hold.ts", import.meta.url)),
                 path,
             ],
@@ -82,15 +83,19 @@ test("reject invalid paths without changing the filesystem", async () => {
     const directory = await mkdtemp(join(tmpdir(), "destack-file-lock-"));
     try {
         const path = join(directory, "missing", "owner.lock");
-        await expect(FileLock.tryAcquire(path)).rejects.toEqual(
-            new FileSystemError("open", path, process.platform === "win32" ? 3 : "ENOENT"),
-        );
+        expect(await refusal(FileLock.tryAcquire(path))).toEqual([
+            "INTERNAL_SERVER_ERROR",
+            "FILE_SYSTEM_FAILED",
+            `cannot open ${path}: ${process.platform === "win32" ? 3 : "ENOENT"}`,
+        ]);
 
         // preserve native string termination across both platform implementations
         const invalid = join(directory, "owner.lock") + "\0suffix";
-        await expect(FileLock.tryAcquire(invalid)).rejects.toEqual(
-            new FileSystemError("open", invalid, "EINVAL"),
-        );
+        expect(await refusal(FileLock.tryAcquire(invalid))).toEqual([
+            "INTERNAL_SERVER_ERROR",
+            "FILE_SYSTEM_FAILED",
+            `cannot open ${invalid}: EINVAL`,
+        ]);
     } finally {
         await rm(directory, { recursive: true });
     }

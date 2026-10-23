@@ -1,8 +1,7 @@
 import { chmod, mkdir, mkdtemp, rm, stat, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { expect, onTestFinished, test } from "@destack/test";
-import { FileSystemError } from "../error/index.ts";
+import { expect, onTestFinished, test, refusal } from "@destack/test";
 import { runtimeDirectory } from "./runtime.ts";
 
 /** The process's user, which every test system has. */
@@ -37,25 +36,31 @@ test("refuse a per-user directory another user owns, the group or others may ope
     // refuse the directory of another user's identifier
     const owned = await temporary();
     const other = USER + 1;
-    await expect(
-        runtimeDirectory({ environment: {}, temporary: owned, user: other }),
-    ).rejects.toThrow(
-        new FileSystemError("trust runtime directory", join(owned, `destack-${other}`), "EACCES"),
-    );
+    expect(
+        await refusal(runtimeDirectory({ environment: {}, temporary: owned, user: other })),
+    ).toEqual([
+        "INTERNAL_SERVER_ERROR",
+        "FILE_SYSTEM_FAILED",
+        `cannot trust runtime directory ${join(owned, `destack-${other}`)}: EACCES`,
+    ]);
 
     // refuse the person's directory opened to others
     const opened = await temporary();
     await mkdir(join(opened, `destack-${USER}`), { mode: 0o700 });
     await chmod(join(opened, `destack-${USER}`), 0o755);
-    await expect(runtimeDirectory({ environment: {}, temporary: opened })).rejects.toThrow(
-        new FileSystemError("trust runtime directory", join(opened, `destack-${USER}`), "EACCES"),
-    );
+    expect(await refusal(runtimeDirectory({ environment: {}, temporary: opened }))).toEqual([
+        "INTERNAL_SERVER_ERROR",
+        "FILE_SYSTEM_FAILED",
+        `cannot trust runtime directory ${join(opened, `destack-${USER}`)}: EACCES`,
+    ]);
 
     // refuse a link to a private directory elsewhere
     const linked = await temporary();
     await mkdir(join(linked, "elsewhere"), { mode: 0o700 });
     await symlink(join(linked, "elsewhere"), join(linked, `destack-${USER}`));
-    await expect(runtimeDirectory({ environment: {}, temporary: linked })).rejects.toThrow(
-        new FileSystemError("trust runtime directory", join(linked, `destack-${USER}`), "EACCES"),
-    );
+    expect(await refusal(runtimeDirectory({ environment: {}, temporary: linked }))).toEqual([
+        "INTERNAL_SERVER_ERROR",
+        "FILE_SYSTEM_FAILED",
+        `cannot trust runtime directory ${join(linked, `destack-${USER}`)}: EACCES`,
+    ]);
 });

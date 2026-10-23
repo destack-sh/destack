@@ -16,7 +16,9 @@ export async function readOptional(path: string): Promise<string | undefined> {
         }
         // report any other failure with its operation and path
         else {
-            throw new FileSystemError("read", path, cause.code, { cause });
+            throw FileSystemError.of("FILE_SYSTEM_FAILED", `cannot read ${path}: ${cause.code}`, {
+                cause,
+            });
         }
     }
 }
