@@ -316,6 +316,54 @@ test("replicate several scopes in one replica recorded elsewhere, storing each s
     ]);
 });
 
+test("promote a replica of scope rows so the transaction promoting it finds them copied by no replica", async () => {
+    // follow the inbox's scope row and notes into a local replica
+    const tables = [Scope.table, ...TABLES];
+    const source = await open(tables);
+    const local = await openReplica(tables);
+    await source.insert(Scope.table).values({
+        scope: "inbox",
+        parent: Scope.universe.id,
+        partition: Scope.universe.id,
+        packageId: Scope.universe.packageId,
+        type: "folder",
+    });
+    await source.insert(note).values(first);
+    const inbox = new Replica({ name: "inbox", scope: "inbox", tables: [Scope.table, note] });
+    const feed = new Feed(source, [Scope.table, note, replicaPosition], { clock: Clock.system });
+    const controller = new AbortController();
+    const following = inbox.follow(
+        local,
+        (from, signal) => feed.subscribe(inbox.queries, from.after, signal),
+        controller.signal,
+        { synced: () => {}, clock: Clock.system },
+    );
+    await Replica.wait(local, "inbox", await source.log.position(), AbortSignal.timeout(5000));
+    controller.abort();
+    await following;
+
+    // read the scope row's copy record before and within the promoting transaction
+    const scopeKey = {
+        table: Scope.table[TABLE].sqlName,
+        key: Key.name(Scope.table, { scope: "inbox" }),
+    };
+    const copied = async (snapshot: Pick<Snapshot, "read">) => [
+        (await snapshot.read(replicaKey).findFirst({ where: scopeKey })) !== undefined,
+        await Replica.isReplicated(snapshot, "inbox", Scope.table),
+    ];
+    const before = await copied(Snapshot.live(local));
+    const within = await Transaction.run(local, async (transaction) => {
+        await inbox.promote(transaction);
+
+        return copied(transaction.view());
+    });
+    expect({ before, within, after: await copied(Snapshot.live(local)) }).toEqual({
+        before: [true, true],
+        within: [false, false],
+        after: [false, false],
+    });
+});
+
 test("replicate a whole database: follow its logged rows, then capture every column once its source stops writing", async () => {
     // store entries of several scopes with sensitive and binary columns, an unlogged cache and a machine-bound key
     const tables = [entry, cache, machineKey, ...replicaTables];

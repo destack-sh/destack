@@ -1133,6 +1133,14 @@ export class Replica {
             });
         }
         await transaction.write({ table: replicaPosition, before: position, after: null });
+
+        // drop its keys of copied scope rows now too, so the promoted scopes are this database's own within the transaction
+        const copied = await transaction
+            .read(replicaKey)
+            .findMany({ where: { ...key, table: scopeTable[TABLE].sqlName } });
+        for (const row of copied) {
+            await transaction.write({ table: replicaKey, before: row, after: null });
+        }
         transaction.record(async (database) => {
             await database.delete(replicaPage).where(this.#match(replicaPage));
             await database.delete(replicaResult).where(this.#match(replicaResult));
