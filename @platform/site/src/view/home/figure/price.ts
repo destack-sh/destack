@@ -323,7 +323,7 @@ export const prices: Readonly<Record<string, Price>> = {
         ({ people, users }) => 20 * people + cdnAt(users * REQUESTS_PER_USER),
     ),
 
-    // the alternatives fig. 3 turns through, priced the same way
+    // the alternatives fig. 2 turns through, priced the same way
     Clerk: metered(
         "Pro",
         "$25/mo + $0.02/MAU past 10K",
@@ -578,7 +578,7 @@ export const workloads: Readonly<Record<string, Workload>> = {
             requests: EVENTS_PER_USER,
         },
     }),
-    // the alternatives fig. 3 turns through, each doing the same job as its row's first
+    // the alternatives fig. 2 turns through, each doing the same job as its row's first
     Clerk: workloadFrom({ perUser: { database: 0.025 * MB, requests: SIGN_IN_REQUESTS } }),
     Auth0: workloadFrom({ perUser: { database: 0.025 * MB, requests: SIGN_IN_REQUESTS } }),
     "1Password": workloadFrom({ shared: { database: 2 * MB } }),

@@ -133,7 +133,7 @@ export function Noun(properties: { isOpen: boolean }) {
         >
             <Entry form={noun} />
             <FigureLabel
-                number={3}
+                number={2}
                 isOpen={properties.isOpen}
                 stacked="a simple app gluing eight services"
                 destacked="a simple app on Destack"

@@ -52,10 +52,10 @@ const HOURS = [9, 10, 11, 12, 13, 14, 15, 16];
 /** The weekdays your week shows, with their dates. */
 const DAYS = ["Mon 20", "Tue 21", "Wed 22", "Thu 23", "Fri 24"];
 
-/** The workflow your agent adds in fig. 5, lit once it lands. */
+/** The workflow your agent adds in fig. 4, lit once it lands. */
 const ASKED_WORKFLOW = "asked-to-board";
 
-/** How far your agent has got in fig. 5: not yet, its board built, or its workflow added. */
+/** How far your agent has got in fig. 4: not yet, its board built, or its workflow added. */
 export type Change = "start" | "boarded" | "automated";
 
 /** The task states in the order the list groups them, with their names and marks. */

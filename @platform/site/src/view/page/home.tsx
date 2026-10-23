@@ -17,8 +17,8 @@ import "../home/figure/figure.css";
 /** The figures' entries in page order, each the anchor of the section it heads. */
 const FIGURES = [
     "verb",
-    "past-participle",
     "noun",
+    "past-participle",
     "imperative",
     "adjective",
     "present-participle",
@@ -116,8 +116,8 @@ export function Home() {
         <>
             <Metadata alternates={{ canonical: "/" }} />
             <Verb isOpen={isOpenAt(0)} picks={picks()} onChoose={choose} />
-            <PastParticiple isOpen={isOpenAt(1)} onChange={setIsOpen} />
-            <Noun isOpen={isOpenAt(2)} />
+            <Noun isOpen={isOpenAt(1)} />
+            <PastParticiple isOpen={isOpenAt(2)} onChange={setIsOpen} />
             <Command isOpen={isOpenAt(3)} />
             <Adjective isOpen={isOpenAt(4)} />
             <Participle

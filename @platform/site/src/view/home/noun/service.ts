@@ -18,7 +18,7 @@ export type ServiceCategory =
 /** A service an app rents: its name, which is also its plan's, what it is for, and its mark. */
 export type Service = { name: string; category: ServiceCategory; mark: OptionMark };
 
-/** Every service fig. 3 rents, grouped by category, the most common one first. */
+/** Every service fig. 2 rents, grouped by category, the most common one first. */
 export const vendors: readonly Service[] = [
     // identity
     { name: "WorkOS", category: "identity", mark: { logo: "workos.png" } },
@@ -59,7 +59,7 @@ export const vendors: readonly Service[] = [
     { name: "Bitbucket", category: "code", mark: { icon: "bitbucket", tint: "#0052cc" } },
 ];
 
-/** One row of fig. 3: what the app rents, what renting means, and the engine's part for it. */
+/** One row of fig. 2: what the app rents, what renting means, and the engine's part for it. */
 type Slot = {
     /** What the app rents a service for. */
     category: ServiceCategory;
@@ -143,7 +143,7 @@ const slots: readonly Slot[] = [
     },
 ];
 
-/** The rows of fig. 3, as many as the services the app rents. */
+/** The rows of fig. 2, as many as the services the app rents. */
 export const serviceCount = slots.length;
 
 /** The label of each row, as the x-ray tags the parts. */

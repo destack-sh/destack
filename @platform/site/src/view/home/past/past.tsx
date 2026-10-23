@@ -29,7 +29,7 @@ export function PastParticiple(properties: {
             <section {...style.attrs(lattice.frame, lattice.ruled)}>
                 <Entry form={destacked} />
                 <FigureLabel
-                    number={2}
+                    number={3}
                     isOpen={properties.isOpen}
                     stacked="every app on its own stack"
                     destacked="every app in one stack"
