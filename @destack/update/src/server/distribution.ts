@@ -1,6 +1,6 @@
 import type { ObjectStore } from "@destack/object/server";
 import type { Identifier } from "@destack/schema";
-import type { Controller } from "@destack/db";
+import type { ReconcileController } from "@destack/db";
 import type { Distribution } from "../distribution/index.ts";
 import { UpdateError } from "../error/index.ts";
 import { distribution } from "../object/index.ts";
@@ -65,7 +65,7 @@ export function serveDistributions(host: DistributionHost | undefined) {
 }
 
 /** Keep this machine's distribution row and stage the feed's latest release daily. */
-export class DistributionController implements Controller {
+export class DistributionController implements ReconcileController {
     /** The controller's name in reports. */
     readonly name = "distribution";
     /** The store keeping the distribution row. */
