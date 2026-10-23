@@ -138,6 +138,7 @@ test("replicate the profiles in the scopes of the people a space reads, each dec
     for (const id of people) {
         await new AccessFixture(home.database).replicateScope(
             person.reference(Scope.universe.id, id),
+            person.policy,
         );
     }
     await home.database.insert(person.table).values(
@@ -265,8 +266,14 @@ test("replicate the badges a space is shown from the scopes of teams without rep
     const now = 1;
     const ada = personId(1);
     const crew = schema.identifier("team").parse("team-01996ab0-0000-7000-8000-000000000001");
-    await new AccessFixture(home.database).replicateScope(person.reference(Scope.universe.id, ada));
-    await new AccessFixture(home.database).replicateScope(team.reference(Scope.universe.id, crew));
+    await new AccessFixture(home.database).replicateScope(
+        person.reference(Scope.universe.id, ada),
+        person.policy,
+    );
+    await new AccessFixture(home.database).replicateScope(
+        team.reference(Scope.universe.id, crew),
+        team.policy,
+    );
     const at = { createdAt: now, updatedAt: now };
     await home.database
         .insert(person.table)
@@ -375,6 +382,7 @@ test("replicate each person once the space may read them at the change's positio
     for (const id of [ada, bob]) {
         await new AccessFixture(home.database).replicateScope(
             person.reference(Scope.universe.id, id),
+            person.policy,
         );
         await home.database.insert(person.table).values({ id, name: id, ...at });
     }
@@ -434,6 +442,7 @@ test("replicate each person once the space may read them at the change's positio
     await home.database.transaction(async (transaction) => {
         await new AccessFixture(transaction).replicateScope(
             person.reference(Scope.universe.id, cy),
+            person.policy,
         );
         await transaction.insert(person.table).values({ id: cy, name: cy, ...at });
         await join(transaction, cy);

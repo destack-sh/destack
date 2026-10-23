@@ -57,12 +57,15 @@ test("challenge a hand-written procedure's caller for its elevated permission, t
         },
     );
     onTestFinished(() => storage.close());
-    await new AccessFixture(storage.database).replicateScope({
-        packageId: hosting.package.id,
-        type: "space",
-        scope: "universe",
-        id: hosting.scope,
-    });
+    await new AccessFixture(storage.database).replicateScope(
+        {
+            packageId: hosting.package.id,
+            type: "space",
+            scope: "universe",
+            id: hosting.scope,
+        },
+        space,
+    );
     await storage.database
         .insert(vaults)
         .values({ id: "main", scope: hosting.scope, owner: "alice" });

@@ -157,7 +157,7 @@ async function serveSpace(partition?: string) {
     // create a private space of alice, read by bob
     const object = space.reference(Scope.universe.id, SPACE_ID);
     const fixture = new AccessFixture(storage.database);
-    await fixture.replicateScope(object, "self");
+    await fixture.replicateScope(object, space.policy);
     await fixture.bindOwner(object, alice);
     await fixture.replicateRelationship(object, "reader", bob);
     await storage.database

@@ -183,7 +183,7 @@ test("find nothing when a call asks for a scope its objects do not live in, thou
     // insert a room anyone reads
     const roomId = schema.identifier("room").parse(`room-${v7()}`);
     const object = room.reference(Scope.universe.id, roomId);
-    await new AccessFixture(database).replicateScope(object);
+    await new AccessFixture(database).replicateScope(object, room.policy);
     await database.insert(accessRelationship).values(
         Relationship.encode({
             id: schema.identifier("relationship").parse(`relationship-${v7()}`),

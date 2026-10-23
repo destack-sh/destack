@@ -34,6 +34,7 @@ const space = defineObject({
     plural: "spaces",
     scope: "universe",
     isScope: true,
+    partition: true,
     fields: {},
     permissions: { read: none() },
 });
@@ -81,7 +82,7 @@ test("decide again after changes of the caller's access, and leave other identit
     const database = storage.database;
     await new AccessFixture(database).replicateScope(
         space.reference(Scope.universe.id, spaceId),
-        "self",
+        space.policy,
     );
     const at = { scope: spaceId, createdAt: 1, updatedAt: 1 };
     await database.insert(space.table).values({ ...at, id: spaceId, scope: Scope.universe.id });
@@ -238,7 +239,7 @@ test("decide again once a relationship an arrow follows changes, and leave anoth
     const { database } = storage;
     await new AccessFixture(database).replicateScope(
         space.reference(Scope.universe.id, spaceId),
-        "self",
+        space.policy,
     );
     const at = { scope: spaceId, createdAt: 1, updatedAt: 1 };
     await database.insert(space.table).values({ ...at, id: spaceId, scope: Scope.universe.id });
@@ -306,7 +307,7 @@ test("drop a notebook from a live replica once the relationship sharing it expir
     const database = storage.database;
     await new AccessFixture(database).replicateScope(
         space.reference(Scope.universe.id, spaceId),
-        "self",
+        space.policy,
     );
     const at = { scope: spaceId, createdAt: 1, updatedAt: 1 };
     await database.insert(space.table).values({ ...at, id: spaceId, scope: Scope.universe.id });
@@ -389,6 +390,7 @@ test("pass the keys an account hands down to its space for listing, and only tho
         plural: "rooms",
         scope: account,
         isScope: true,
+        partition: true,
         fields: {},
         permissions: { read: none() },
     });
@@ -414,8 +416,8 @@ test("pass the keys an account hands down to its space for listing, and only tho
     const accountId = newId("account");
     const roomId = newId("room");
     const access = new AccessFixture(database);
-    await access.replicateScope(account.reference(Scope.universe.id, accountId));
-    await access.replicateScope(room.reference(accountId, roomId), "self");
+    await access.replicateScope(account.reference(Scope.universe.id, accountId), account.policy);
+    await access.replicateScope(room.reference(accountId, roomId), room.policy);
     const bob = principal.user.reference(Scope.universe.id, "bob");
     const keys = [
         { id: newId("key"), name: "Ada's", consumer: ada },

@@ -129,7 +129,10 @@ test("follow an installation's root chain from its machine, and a partition's ch
     const storage = await TestDatabase.create(roomsDatabase, { isMigrated: true });
     onTestFinished(() => storage.close());
     await openSpace(storage.database, spaceId);
-    await new AccessFixture(storage.database).replicateScope(room.reference(spaceId, ROOM), "self");
+    await new AccessFixture(storage.database).replicateScope(
+        room.reference(spaceId, ROOM),
+        room.policy,
+    );
 
     // serve the installation at its root and in the room, recording the publishers it calls
     const called: string[] = [];

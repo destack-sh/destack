@@ -365,10 +365,12 @@ test("key an index within the enclosing scope it is unique across", async () => 
         if (folderId !== "folder-2") {
             await new AccessFixture(storage.database).replicateScope(
                 account.reference(Scope.universe.id, accountId),
+                account.policy,
             );
         }
         await new AccessFixture(storage.database).replicateScope(
             folder.reference(accountId, folderId),
+            folder.policy,
         );
     }
 

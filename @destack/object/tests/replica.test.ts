@@ -493,7 +493,7 @@ test("answer a replicated type's query over its replica rows, and refuse its mut
     const realmId = Identifier.create("realm");
     const owner = principal.user.reference(Scope.universe.id, users.owner);
     const access = new AccessFixture(database);
-    await access.replicateScope(realm.reference(Scope.universe.id, realmId), "self");
+    await access.replicateScope(realm.reference(Scope.universe.id, realmId), realm.policy);
     await access.bindOwner(realm.reference(Scope.universe.id, realmId), owner);
     await database.insert(realm.table).values({
         id: realmId,

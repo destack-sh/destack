@@ -108,8 +108,8 @@ async function serveHomes() {
     });
     const alice = principal.user.reference(Scope.universe.id, users.alice);
     const fixture = new AccessFixture(homeStorage.database);
-    await fixture.replicateScope(person.reference(Scope.universe.id, personId), "self");
-    await fixture.replicateScope(room.reference(personId, roomId));
+    await fixture.replicateScope(person.reference(Scope.universe.id, personId), person.policy);
+    await fixture.replicateScope(room.reference(personId, roomId), room.policy);
     await fixture.bindOwner(person.reference(Scope.universe.id, personId), alice);
     await homeStorage.database
         .insert(person.table)

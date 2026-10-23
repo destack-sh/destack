@@ -123,7 +123,7 @@ async function serveHome() {
     for (const database of [home.database, replicating.database]) {
         // store ada's scope and her joining the space, at home and in the space's access replica
         const access = new AccessFixture(database);
-        await access.replicateScope(person.reference(Scope.universe.id, adaId));
+        await access.replicateScope(person.reference(Scope.universe.id, adaId), person.policy);
         await access.replicateRelationship(
             person.reference(Scope.universe.id, adaId),
             "joined",

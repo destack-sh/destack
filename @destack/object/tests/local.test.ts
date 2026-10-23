@@ -210,7 +210,7 @@ test("serve a device's local objects at its store to the people signed in on it 
         },
     );
     onTestFinished(() => storage.close());
-    await new AccessFixture(storage.database).replicateScope(laptop);
+    await new AccessFixture(storage.database).replicateScope(laptop, device.policy);
 
     // serve them at the laptop's store
     const store = new ObjectStore({

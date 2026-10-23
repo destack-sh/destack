@@ -212,8 +212,14 @@ test("authorize a caller bound to a space in the scopes inside it, refusing the 
     onTestFinished(() => storage.close());
     const { database } = storage;
     const fixture = new AccessFixture(database);
-    await fixture.replicateScope({ packageId, type: "space", scope: "universe", id: spaceId });
-    await fixture.replicateScope({ packageId, type: "folder", scope: spaceId, id: folderId });
+    await fixture.replicateScope(
+        { packageId, type: "space", scope: "universe", id: spaceId },
+        space,
+    );
+    await fixture.replicateScope(
+        { packageId, type: "folder", scope: spaceId, id: folderId },
+        folder,
+    );
 
     // call the space with a credential bound to it
     const alice = authenticateUser("alice");
@@ -362,12 +368,15 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     );
     onTestFinished(() => storage.close());
     const database = storage.database;
-    await new AccessFixture(database).replicateScope({
-        packageId,
-        type: "space",
-        scope: "universe",
-        id: spaceId,
-    });
+    await new AccessFixture(database).replicateScope(
+        {
+            packageId,
+            type: "space",
+            scope: "universe",
+            id: spaceId,
+        },
+        space,
+    );
     await database
         .insert(noteTable)
         .values(

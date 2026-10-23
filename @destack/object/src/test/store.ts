@@ -478,8 +478,7 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
     ): Promise<void> {
         // record the scope in its own partition or its parent's, as its policy declares, and bind its owners
         const fixture = new AccessFixture(store.database);
-        const isPartition = store.authorizer.policy(object).definition.partition === true;
-        await fixture.replicateScope(object, isPartition ? "self" : "parent");
+        await fixture.replicateScope(object, store.authorizer.policy(object));
         for (const owner of [Subject.parse(object), ...owners]) {
             await fixture.bindOwner(object, owner, 0);
         }

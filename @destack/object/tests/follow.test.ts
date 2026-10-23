@@ -108,6 +108,7 @@ const space = defineObject({
     plural: "spaces",
     scope: account,
     isScope: true,
+    partition: true,
     fields: {},
     relations: {
         reader: { subjects: [principal.installation], grantedBy: null },
@@ -218,8 +219,8 @@ test("decide calls over a relayed replica of access as the holder does, through 
     const carol = principal.user.reference("universe", users.carol);
     const accountObject = account.reference(Scope.universe.id, accountId);
     const access = new AccessFixture(home.database);
-    await access.replicateScope(accountObject);
-    await access.replicateScope(space.reference(accountId, spaceId), "self");
+    await access.replicateScope(accountObject, account.policy);
+    await access.replicateScope(space.reference(accountId, spaceId), space.policy);
     await access.bindOwner(accountObject, alice);
     await access.replicateRole(
         accountObject,
@@ -605,9 +606,9 @@ test("report a follow its source refuses, and drop its replica once a change of 
         await Promise.all([home.close(), machine.close()]);
     });
     const access = new AccessFixture(home.database);
-    await access.replicateScope(account.reference(Scope.universe.id, accountId));
-    await access.replicateScope(space.reference(accountId, spaceId), "self");
-    await access.replicateScope(space.reference(accountId, otherSpaceId), "self");
+    await access.replicateScope(account.reference(Scope.universe.id, accountId), account.policy);
+    await access.replicateScope(space.reference(accountId, spaceId), space.policy);
+    await access.replicateScope(space.reference(accountId, otherSpaceId), space.policy);
     const requesting = Identifier.create("document");
     await machine.database.insert(document.table).values({
         id: requesting,
@@ -718,8 +719,8 @@ test("replicate a person's grant to an installation of the space from the univer
         await Promise.all([home.close(), machine.close()]);
     });
     const access = new AccessFixture(home.database);
-    await access.replicateScope(account.reference(Scope.universe.id, accountId));
-    await access.replicateScope(space.reference(accountId, spaceId), "self");
+    await access.replicateScope(account.reference(Scope.universe.id, accountId), account.policy);
+    await access.replicateScope(space.reference(accountId, spaceId), space.policy);
     const alice = principal.user.reference(Scope.universe.id, users.alice);
     const granted = await access.replicateGrant(
         alice,
@@ -794,8 +795,8 @@ test("serve a woken store only once its home confirms the replicas it stored unh
         await Promise.all([home.close(), installed.close()]);
     });
     const access = new AccessFixture(home.database);
-    await access.replicateScope(account.reference(Scope.universe.id, accountId));
-    await access.replicateScope(space.reference(accountId, spaceId), "self");
+    await access.replicateScope(account.reference(Scope.universe.id, accountId), account.policy);
+    await access.replicateScope(space.reference(accountId, spaceId), space.policy);
 
     // serve the space over the installation's database under an hour's heartbeat
     const events = await testEvents(installed.database);
@@ -912,8 +913,8 @@ test("follow replicates as a server without methods, journal or call key", async
         await Promise.all([home.close(), follower.close()]);
     });
     const access = new AccessFixture(home.database);
-    await access.replicateScope(account.reference(Scope.universe.id, accountId));
-    await access.replicateScope(space.reference(accountId, spaceId), "self");
+    await access.replicateScope(account.reference(Scope.universe.id, accountId), account.policy);
+    await access.replicateScope(space.reference(accountId, spaceId), space.policy);
 
     // follow the universe's rows the space reads, without a journal
     const feed = new Feed(home.database, accessTables, { clock: Clock.system });
@@ -976,12 +977,15 @@ test("replicate the chains of an installation's two served spaces in one replica
         await Promise.all([home.close(), installed.close()]);
     });
     const access = new AccessFixture(home.database);
-    await access.replicateScope(account.reference(Scope.universe.id, accountId));
-    await access.replicateScope(account.reference(Scope.universe.id, otherAccountId));
+    await access.replicateScope(account.reference(Scope.universe.id, accountId), account.policy);
+    await access.replicateScope(
+        account.reference(Scope.universe.id, otherAccountId),
+        account.policy,
+    );
     for (const id of [spaceId, otherSpaceId]) {
         await new AccessFixture(home.database).replicateScope(
             space.reference(accountId, id),
-            "self",
+            space.policy,
         );
         await home.database
             .insert(space.table)
@@ -1097,8 +1101,8 @@ test("refuse a chain follow with no via to a caller without replicate on the sco
     );
     onTestFinished(() => home.close());
     const access = new AccessFixture(home.database);
-    await access.replicateScope(account.reference(Scope.universe.id, accountId));
-    await access.replicateScope(space.reference(accountId, spaceId), "self");
+    await access.replicateScope(account.reference(Scope.universe.id, accountId), account.policy);
+    await access.replicateScope(space.reference(accountId, spaceId), space.policy);
     await home.database
         .insert(space.table)
         .values({ id: spaceId, scope: accountId, createdAt: 1, updatedAt: 1 });
@@ -1195,8 +1199,8 @@ test("replicate a partition's chain via its installation's space, whose source h
     );
     onTestFinished(() => home.close());
     const access = new AccessFixture(home.database);
-    await access.replicateScope(account.reference(Scope.universe.id, accountId));
-    await access.replicateScope(space.reference(accountId, spaceId), "self");
+    await access.replicateScope(account.reference(Scope.universe.id, accountId), account.policy);
+    await access.replicateScope(space.reference(accountId, spaceId), space.policy);
     await home.database
         .insert(space.table)
         .values({ id: spaceId, scope: accountId, createdAt: 1, updatedAt: 1 });
@@ -1444,9 +1448,9 @@ test("replicate a scoped table an installation's database declares beside its fo
         await Promise.all([home.close(), installed.close()]);
     });
     const access = new AccessFixture(home.database);
-    await access.replicateScope(account.reference(Scope.universe.id, accountId));
+    await access.replicateScope(account.reference(Scope.universe.id, accountId), account.policy);
     for (const id of [spaceId, otherSpaceId]) {
-        await access.replicateScope(space.reference(accountId, id), "self");
+        await access.replicateScope(space.reference(accountId, id), space.policy);
         await home.database
             .insert(space.table)
             .values({ id, scope: accountId, createdAt: 1, updatedAt: 1 });
@@ -1583,7 +1587,7 @@ test("replicate the chains of the accounts an installation's rows relate to, bes
     });
     const access = new AccessFixture(home.database);
     for (const id of [accountId, otherAccountId]) {
-        await access.replicateScope(account.reference(Scope.universe.id, id));
+        await access.replicateScope(account.reference(Scope.universe.id, id), account.policy);
         await home.database
             .insert(account.table)
             .values({ id, scope: Scope.universe.id, createdAt: 1, updatedAt: 1 });
@@ -1676,7 +1680,7 @@ test("replicate the chain of an account another replica brought first, once the 
         await Promise.all([home.close(), installed.close()]);
     });
     const access = new AccessFixture(home.database);
-    await access.replicateScope(account.reference(Scope.universe.id, accountId));
+    await access.replicateScope(account.reference(Scope.universe.id, accountId), account.policy);
     await home.database
         .insert(account.table)
         .values({ id: accountId, scope: Scope.universe.id, createdAt: 1, updatedAt: 1 });
