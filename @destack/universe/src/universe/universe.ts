@@ -7,6 +7,7 @@ import {
 import { IdentityKeystore, IdentityRegistry } from "@destack/account/identity";
 import { claim, Residency } from "@destack/account/object";
 import accountPackage, { OAUTH_PATH } from "@destack/account/package";
+import { TokenLifetime } from "@destack/account/oauth";
 import { accountServer, DnsOverHttps, Platform, UniverseRole } from "@destack/account/server";
 import type { Bucket } from "@destack/bucket";
 import { type DatabaseConnection, defineDatabase, Snapshot } from "@destack/db";
@@ -144,14 +145,13 @@ export class Universe implements AsyncDisposable {
             const steps = [
                 {
                     name: "residencies",
-                    apply: (objects: ObjectStore, at: number) =>
-                        Residency.apply(objects, definition.residencies, at),
+                    apply: (at: number) => Residency.apply(store, definition.residencies, at),
                 },
-                ...new Platform(definition.platform, definition.stacks.residency).steps(),
+                ...new Platform(store, definition.platform, definition.stacks.residency).steps(),
             ];
             for (const each of steps) {
                 await step.run(each.name, schema.null(), async () => {
-                    await each.apply(store, clock.now());
+                    await each.apply(clock.now());
 
                     return null;
                 });
@@ -232,7 +232,7 @@ export class Universe implements AsyncDisposable {
                 providers: {},
                 objects: store,
                 events,
-                lifetimes: options.lifetimes,
+                lifetime: new TokenLifetime(options.lifetimes),
                 mail: options.mail,
             }),
         );
@@ -251,7 +251,7 @@ export class Universe implements AsyncDisposable {
         const ready = async (signal: AbortSignal) => {
             const run = await applying.ended(database, signal);
             if (run.state !== "completed") {
-                throw new UniverseError(
+                throw UniverseError.of(
                     "DEFINITION_NOT_APPLIED",
                     `the run applying the definition ${digest} is ${run.state}`,
                     { cause: run.failure },

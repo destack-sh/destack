@@ -1,6 +1,15 @@
 import { Issuer } from "@destack/account/native";
 import accountPackage, { OAUTH_PATH } from "@destack/account/package";
-import { Inbox, OPERATOR_EMAIL, STACKS, TestPerson } from "@destack/account/test";
+import { sudo } from "@destack/account/authentication";
+import {
+    authenticatorCode,
+    Enrollment,
+    TestBrowser,
+    TestMail,
+    OPERATOR_EMAIL,
+    STACKS,
+    TestPerson,
+} from "@destack/account/test";
 import { MemoryBucket } from "@destack/bucket/test";
 import { TestDatabase } from "@destack/db/test";
 import { Clock, Network } from "@destack/environment";
@@ -27,6 +36,21 @@ const TEST_ORIGIN = "https://universe.test";
 
 /** The residency a test universe's people live in by default. */
 const TEST_RESIDENCY = "eu";
+
+/** The loopback redirect a stepped-up native client returns to, which the step-up stops at. */
+const STEP_UP_REDIRECT = "http://127.0.0.1:53682/callback";
+
+/** The redirects a browser follows at most, the Fetch standard's limit. */
+const FETCH_REDIRECTS = 20;
+
+/** The button a person presses on each page a step-up passes. */
+const STEP_UP_ACTIONS = [
+    ["/sign-in", "continue"],
+    ["/consent", "approve"],
+] as const;
+
+/** The language the universe's browsers ask for. */
+const BROWSER_LANGUAGE = "en";
 
 /** The kind and hardware of the personal machines a test universe enrolls. */
 const PERSONAL_MACHINE = {
@@ -77,7 +101,7 @@ export class TestUniverse implements AsyncDisposable {
     /** The test database. */
     readonly storage: TestDatabase;
     /** The mail the universe sends. */
-    readonly inbox: Inbox;
+    readonly mail: TestMail;
     /** The clock it runs at. */
     readonly clock: Clock;
     /** The origin the universe answers at, which no request leaves the process for. */
@@ -90,6 +114,8 @@ export class TestUniverse implements AsyncDisposable {
     readonly #disposables: AsyncDisposableStack;
     /** The issuer people sign in with, as native clients reach it. */
     readonly #issuer: Issuer;
+    /** The authenticator each stepped-up person enrolled, by person. */
+    readonly #authenticators = new Map<string, string>();
     /** The failures the universe reported to no one, which settling throws. */
     readonly #failures: unknown[];
     /** The object types the universe serves by name, each with its package. */
@@ -102,7 +128,7 @@ export class TestUniverse implements AsyncDisposable {
     private constructor(
         universe: Universe,
         storage: TestDatabase,
-        inbox: Inbox,
+        mail: TestMail,
         clock: Clock,
         machines: ReadonlyMap<ResidencyCode, DeclaredMachine>,
         failures: unknown[],
@@ -111,7 +137,7 @@ export class TestUniverse implements AsyncDisposable {
         // keep the universe and the adapters standing in for mail, storage and time
         this.universe = universe;
         this.storage = storage;
-        this.inbox = inbox;
+        this.mail = mail;
         this.clock = clock;
         this.#machines = machines;
         this.#disposables = disposables;
@@ -140,7 +166,7 @@ export class TestUniverse implements AsyncDisposable {
         opening.defer(() => storage.close());
         const keyring = await LocalKeyring.read(LocalKeyring.generate());
         const key = CallKey.of(keyring);
-        const inbox = new Inbox();
+        const mail = new TestMail();
         const failures: unknown[] = [];
         const failed = Promise.withResolvers<never>();
 
@@ -187,7 +213,7 @@ export class TestUniverse implements AsyncDisposable {
                 database: storage.database,
                 keyring,
                 callKey: () => key,
-                mail: inbox,
+                mail,
                 events: new MemoryBucket(clock),
                 ipAddress: { disableIpTracking: true },
                 environment: {
@@ -221,30 +247,123 @@ export class TestUniverse implements AsyncDisposable {
             failed.promise,
         ]);
 
-        return new TestUniverse(
-            universe,
-            storage,
-            inbox,
-            clock,
-            machines,
-            failures,
-            opening.move(),
-        );
+        return new TestUniverse(universe, storage, mail, clock, machines, failures, opening.move());
     }
 
     /** Sign a person up or in with a mailed code, as a native client does, on a new client. */
     signIn(email: string): Promise<TestPerson> {
-        return TestPerson.signIn(
-            {
-                issuer: this.#issuer,
-                inbox: this.inbox,
-                origin: TEST_ORIGIN,
-                fetch: (request) => this.universe.fetch(request),
-                clock: this.clock,
-                residencyId: TEST_RESIDENCY,
-            },
-            email,
+        return TestPerson.signIn(this.#signIn(), email);
+    }
+
+    /** Describe where people sign in as native clients do: issuer, mail and residency. */
+    #signIn() {
+        return {
+            issuer: this.#issuer,
+            mail: this.mail,
+            origin: TEST_ORIGIN,
+            fetch: (request: Request) => this.universe.fetch(request),
+            clock: this.clock,
+            residencyId: TEST_RESIDENCY,
+        };
+    }
+
+    /** Step a person up with their authenticator in a browser on a new client, as RFC 9470 does. */
+    async elevate(person: TestPerson): Promise<TestPerson> {
+        // enroll an authenticator the first time, in a browser the person's link signs in
+        const browser = this.#browser();
+        const enrolled =
+            this.#authenticators.get(person.id) ?? (await this.#enroll(person, this.#browser()));
+
+        // ask the issuer to sign the person in again with their second factor
+        const clientId = Identifier.create("client");
+        const authorization = await this.#issuer.authorize(
+            clientId,
+            STEP_UP_REDIRECT,
+            "step-up",
+            this.clock.now(),
+            sudo,
         );
+        const asked = new URL(TestBrowser.location(await browser.fetch(authorization.url)));
+
+        // sign in by the mailed link, and answer the second-factor challenge with the authenticator's code
+        await browser.fetch(
+            asked.href,
+            new URLSearchParams({ action: "link", email: person.email }),
+        );
+        const linked = await browser.fetch(await this.#link());
+        const verified = await browser.fetch(
+            TestBrowser.location(linked),
+            new URLSearchParams({
+                action: "totp",
+                code: authenticatorCode(enrolled, this.clock.now()),
+            }),
+        );
+
+        // follow the issuer back to the new client, continuing the sign-in and approving its consent
+        let next = TestBrowser.location(verified);
+        for (let passed = 0; !next.startsWith(STEP_UP_REDIRECT); passed += 1) {
+            if (passed >= FETCH_REDIRECTS) {
+                throw new TypeError(`the step-up redirected more than ${FETCH_REDIRECTS} times`);
+            }
+            const url = new URL(next);
+            const action = STEP_UP_ACTIONS.find(([path]) => url.pathname.endsWith(path))?.[1];
+            const answered = await browser.fetch(
+                url.href,
+                action === undefined ? undefined : new URLSearchParams({ action }),
+            );
+            next = TestBrowser.location(answered);
+        }
+
+        // redeem the code for the new client's tokens
+        const code = present(new URL(next).searchParams.get("code"), "the authorization code");
+        const { tokens } = await this.#issuer.redeem(
+            clientId,
+            code,
+            authorization.verifier,
+            STEP_UP_REDIRECT,
+        );
+
+        return new TestPerson(this.#signIn(), {
+            id: person.id,
+            email: person.email,
+            handle: person.handle,
+            clientId,
+            tokens,
+        });
+    }
+
+    /** Enroll a person's authenticator in a browser their link signs in, returning its URI. */
+    async #enroll(person: TestPerson, browser: TestBrowser): Promise<string> {
+        // sign the browser in by the person's link
+        await browser.fetch("/sign-in/magic-link", { email: person.email, callbackURL: "/" });
+        await browser.fetch(await this.#link());
+
+        // enable an authenticator and verify its first code
+        const enabled = Enrollment.parse(
+            await (await browser.fetch("/two-factor/enable", {})).json(),
+        );
+        await browser.fetch("/two-factor/verify-totp", {
+            code: authenticatorCode(enabled.totpURI, this.clock.now()),
+        });
+        this.#authenticators.set(person.id, enabled.totpURI);
+
+        return enabled.totpURI;
+    }
+
+    /** Open a browser on the issuer's pages, reaching the universe in process. */
+    #browser(): TestBrowser {
+        return new TestBrowser(
+            `${PackageMount.url(TEST_ORIGIN, accountPackage.id)}${OAUTH_PATH}`,
+            (request) => this.universe.fetch(request),
+            BROWSER_LANGUAGE,
+        );
+    }
+
+    /** Read the last link the universe mailed. */
+    async #link(): Promise<string> {
+        const links = await this.mail.links();
+
+        return present(links.at(-1), "a mailed link").url;
     }
 
     /** Make an example's calls in the person's account as the person, each through their client. */
