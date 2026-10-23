@@ -3,28 +3,34 @@ import { principal } from "@destack/access";
 import { eq, Snapshot } from "@destack/db";
 import { PackageId } from "@destack/package";
 import { TOKEN_LIFETIME_MILLISECONDS, TokenVerifier } from "@destack/access/token";
-import { afterAll, beforeAll, expect, refusal, test } from "@destack/test";
-import { decodeJwt } from "jose";
-import { found, Identifier, schema } from "@destack/schema";
+import { expect, refusal, test } from "@destack/test";
+import { found, Identifier, present, schema } from "@destack/schema";
 import { MachineIdentity } from "../src/client/index.ts";
 import { TOKEN_PATH } from "../src/authentication/path.ts";
 import { Identity, key, machine } from "../src/object/index.ts";
 import { JWT_BEARER } from "../src/oauth/index.ts";
 import accountPackage from "../src/package.ts";
 import { MemoryKeychain } from "@destack/identity";
-import { AccountFixture, ids, ISSUER, TestDirectory, outcome } from "../src/test/index.ts";
-import { Tokens } from "./fixture.ts";
-import { Clock } from "@destack/environment";
-import { VirtualClock } from "@destack/environment/simulation";
-
-/** The refusal of an assertion without a standing key behind it. */
-const NO_STANDING_KEY = "invalid_grant: assertion has no standing key";
+import {
+    TestAccountStore,
+    TestJwt,
+    type TestPerson,
+    ids,
+    ISSUER,
+    OPERATOR_EMAIL,
+    OWNER_EMAIL,
+    STRANGER_EMAIL,
+} from "../src/test/index.ts";
+import { ANY_STRING, Tokens } from "./fixture.ts";
 
 /** The token endpoint every assertion is for. */
 const ENDPOINT = `${ISSUER}${TOKEN_PATH}`;
 
-/** A token endpoint's refusal (RFC 6749 5.2). */
-const Refusal = schema.looseObject({ error: schema.string(), error_description: schema.string() });
+/** The refusal of an assertion without a standing key behind it. */
+const NO_STANDING_KEY = [
+    400,
+    { error: "invalid_grant", error_description: "assertion has no standing key" },
+];
 
 /** The package receiving the machines' requests. */
 const AUDIENCE = PackageId.parse("package-019f7480-0000-7000-8000-00000000e002");
@@ -37,19 +43,12 @@ const StoredKey = schema.looseObject({
     y: schema.string(),
 });
 
-/** The account package every scenario enrolls its machines in. */
-let accounts: AccountFixture;
-
-beforeAll(async () => {
-    accounts = await AccountFixture.open();
-});
-
-afterAll(async () => {
-    await accounts[Symbol.asyncDispose]();
-});
-
-/** Ask the token endpoint for a token of the audience with an assertion, answering its refusal. */
-async function ask(assertion: string, spaceId?: Identifier<"space">): Promise<string> {
+/** Ask the token endpoint for a token of the audience by an assertion, answering a refusal. */
+async function ask(
+    accounts: TestAccountStore,
+    assertion: string,
+    spaceId?: Identifier<"space">,
+): Promise<"done" | readonly [number, unknown]> {
     const response = await accounts.fetch(
         new Request(ENDPOINT, {
             method: "POST",
@@ -61,42 +60,107 @@ async function ask(assertion: string, spaceId?: Identifier<"space">): Promise<st
             }),
         }),
     );
-    // answer issued tokens, read to their end, or the refusal
+    const body: unknown = await response.json();
+
+    // answer issued tokens as done, and a refusal as its status and body
     if (response.ok) {
-        Tokens.parse(await response.json());
+        Tokens.parse(body);
 
-        return "executed";
+        return "done";
     }
-    const refused = Refusal.parse(await response.json());
 
-    return `${refused.error}: ${refused.error_description}`;
+    return [response.status, body];
 }
 
 /** Grant a machine a token for the audience by a fresh assertion, in a space when given. */
-async function grant(signer: MachineIdentity, spaceId?: Identifier<"space">): Promise<string> {
-    return ask(await signer.assert(ENDPOINT), spaceId);
+async function grant(
+    accounts: TestAccountStore,
+    signer: MachineIdentity,
+    spaceId?: Identifier<"space">,
+): Promise<"done" | readonly [number, unknown]> {
+    return ask(accounts, await signer.assert(ENDPOINT), spaceId);
+}
+
+/** Refuse a machine a token in a space other machines serve. */
+function placedElsewhere(spaceId: Identifier<"space">) {
+    return [
+        400,
+        { error: "invalid_grant", error_description: `${spaceId} is placed on other machines` },
+    ];
+}
+
+/** Create a space in the owner's account, placed on a machine. */
+async function place(
+    accounts: TestAccountStore,
+    owner: TestPerson,
+    id: Identifier<"space">,
+    machineId: Identifier<"machine">,
+): Promise<void> {
+    await owner.client(accountPackage).space.create({
+        accountId: ids.account,
+        id,
+        requestId: RequestId.create(accounts.clock.now()),
+        name: `space-${id.slice(-12)}`,
+        machine: machineId,
+    });
+}
+
+/** Enroll a cloud machine of the platform as the operator, its first key stored apart. */
+async function enrollCloud(accounts: TestAccountStore) {
+    // enroll the machine with a keychain of its own
+    const operator = await accounts.signIn(OPERATOR_EMAIL);
+    const keys = new MemoryKeychain();
+    const identity = new MachineIdentity(Identifier.create("machine"), keys, accounts.clock);
+    await identity.enroll(operator.client(accountPackage), {
+        scope: accounts.platform,
+        requestId: RequestId.create(accounts.clock.now()),
+        name: "edge",
+        kind: "cloud",
+        residencyId: "eu",
+        providerCode: "cloudflare",
+        location: "eu",
+    });
+    accounts.register(identity);
+
+    // copy the first key to a keychain the machine's rotations leave alone
+    const keychain = new MemoryKeychain();
+    keychain.secrets.set(identity.machineId, found(keys.secrets, identity.machineId));
+    const first = new MachineIdentity(identity.machineId, keychain, accounts.clock);
+    const enrolled = present(
+        await Snapshot.live(accounts.database)
+            .read(key.table)
+            .findFirst({ where: { parentId: identity.machineId } }),
+        "the enrolled machine's key",
+    );
+
+    return { operator, identity, first, enrolled };
 }
 
 test("enroll a machine as its account's owner, authenticate it across a key rotation, and refuse its tokens once revoked", async () => {
-    const accountId = ids.account;
-
     // enroll a machine under the owner's account and read itself by its token
-    const identity = await accounts.enroll(accountId);
+    await using accounts = await TestAccountStore.open();
+    const owner = await accounts.signIn(OWNER_EMAIL);
+    const stranger = await accounts.signIn(STRANGER_EMAIL);
+    const accountId = ids.account;
+    const identity = await accounts.enroll(accountId, owner);
     const itself = () =>
-        outcome(
-            accounts.machine(identity).machine.get({ scope: accountId, id: identity.machineId }),
+        refusal(
+            accounts
+                .as(identity)
+                .client(accountPackage)
+                .machine.get({ scope: accountId, id: identity.machineId }),
         );
-    expect(await itself()).toBe("executed");
+    expect(await itself()).toBe("done");
 
     // refuse a stranger enrolling a machine into the account and a proof for another machine
-    const stranger = new MachineIdentity(
+    const stray = new MachineIdentity(
         Identifier.create("machine"),
         new MemoryKeychain(),
-        Clock.system,
+        accounts.clock,
     );
     const enrolling = {
         scope: accountId,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(accounts.clock.now()),
         name: "stray",
         kind: "personal" as const,
         platform: "macOS" as const,
@@ -106,13 +170,13 @@ test("enroll a machine as its account's owner, authenticate it across a key rota
     const other = new MachineIdentity(
         Identifier.create("machine"),
         new MemoryKeychain(),
-        Clock.system,
+        accounts.clock,
     );
     const { publicKey } = await other.generate();
     expect([
-        await outcome(stranger.enroll(accounts.user(ids.stranger, accountPackage), enrolling)),
-        await outcome(
-            accounts.user(ids.owner, accountPackage).machine.enroll({
+        await refusal(stray.enroll(stranger.client(accountPackage), enrolling)),
+        await refusal(
+            owner.client(accountPackage).machine.enroll({
                 ...enrolling,
                 id: Identifier.create("machine"),
                 publicKey,
@@ -120,115 +184,103 @@ test("enroll a machine as its account's owner, authenticate it across a key rota
             }),
         ),
     ]).toEqual([
-        `NOT_FOUND: no scope ${accountId}`,
-        "BAD_REQUEST: key proof is for another subject or time",
+        ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${accountId} not found`],
+        ["BAD_REQUEST", "INVALID_PROOF", "key proof is for another subject or time"],
     ]);
 
     // number a taken name at enrollment and refuse taken names and branch separators
     const namesake = new MachineIdentity(
         Identifier.create("machine"),
         new MemoryKeychain(),
-        Clock.system,
+        accounts.clock,
     );
-    const taken = (
-        await accounts.machine(identity).machine.get({ scope: accountId, id: identity.machineId })
-    ).name;
+    const read = () =>
+        accounts
+            .as(identity)
+            .client(accountPackage)
+            .machine.get({ scope: accountId, id: identity.machineId });
+    const taken = (await read()).name;
     const rename = (name: string) =>
-        outcome(
-            accounts.machine(identity).machine.rename({
-                scope: accountId,
-                id: identity.machineId,
-                requestId: RequestId.create(Date.now()),
-                name,
-            }),
+        refusal(
+            accounts
+                .as(identity)
+                .client(accountPackage)
+                .machine.rename({
+                    scope: accountId,
+                    id: identity.machineId,
+                    requestId: RequestId.create(accounts.clock.now()),
+                    name,
+                }),
         );
     expect([
-        await outcome(
-            namesake.enroll(accounts.user(ids.owner, accountPackage), {
+        await refusal(
+            namesake.enroll(owner.client(accountPackage), {
                 ...enrolling,
-                requestId: RequestId.create(Date.now()),
+                requestId: RequestId.create(accounts.clock.now()),
                 name: taken,
             }),
         ),
         await rename(`${taken}-2`),
         await rename("studio"),
         await rename("studio--main"),
-        await outcome(
-            accounts.user(ids.owner, accountPackage).machine.rename({
+        await refusal(
+            owner.client(accountPackage).machine.rename({
                 scope: accountId,
                 id: identity.machineId,
-                requestId: RequestId.create(Date.now()),
+                requestId: RequestId.create(accounts.clock.now()),
                 name: "atelier",
             }),
         ),
         await rename("studio"),
+        (await read()).name,
     ]).toEqual([
-        "executed",
-        "CONFLICT: another machine has the same scope and name",
-        "executed",
-        "BAD_REQUEST: invalid input: name: labels are lowercase letters, digits and single inner hyphens",
-        "executed",
-        "executed",
+        "done",
+        ["CONFLICT", "DUPLICATE", "another machine has the same scope and name"],
+        "done",
+        [
+            "BAD_REQUEST",
+            "INVALID_INPUT",
+            "invalid input: name: labels are lowercase letters, digits and single inner hyphens",
+        ],
+        "done",
+        "done",
+        "studio",
     ]);
-    expect(
-        (await accounts.machine(identity).machine.get({ scope: accountId, id: identity.machineId }))
-            .name,
-    ).toBe("studio");
 
     // rotate the machine's key as the machine and refuse the owner registering a key for it
-    await identity.rotate(accounts.machine(identity), accountId);
-    expect(await itself()).toBe("executed");
-    const impostor = new MachineIdentity(identity.machineId, new MemoryKeychain(), Clock.system);
+    await identity.rotate(accounts.as(identity).client(accountPackage), accountId);
+    expect(await itself()).toBe("done");
+    const impostor = new MachineIdentity(identity.machineId, new MemoryKeychain(), accounts.clock);
     const { publicKey: foreign, proof } = await impostor.generate();
     expect(
-        await outcome(
-            accounts.user(ids.owner, accountPackage).key.create({
+        await refusal(
+            owner.client(accountPackage).key.create({
                 scope: accountId,
-                requestId: RequestId.create(Date.now()),
+                requestId: RequestId.create(accounts.clock.now()),
                 parent: { ...machine.typeReference, id: identity.machineId },
                 publicKey: foreign,
                 proof,
             }),
         ),
-    ).toBe("FORBIDDEN: permission denied: rotate");
+    ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: rotate"]);
 
     // revoke the machine as the owner
-    await accounts.user(ids.owner, accountPackage).machine.revoke({
+    await owner.client(accountPackage).machine.revoke({
         scope: accountId,
         id: identity.machineId,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(accounts.clock.now()),
     });
-    expect(await grant(identity)).toBe(NO_STANDING_KEY);
+    expect(await grant(accounts, identity)).toEqual(NO_STANDING_KEY);
 });
 
-test("grant a cloud machine tokens for a minute as itself alone, spending each assertion once, until the machine rotates its key, is disabled or is revoked", async () => {
-    // enroll a cloud machine of the residency and store its first key apart
-    const accountId = accounts.platform;
-    const keys = new MemoryKeychain();
-    const identity = new MachineIdentity(Identifier.create("machine"), keys, Clock.system);
-    await identity.enroll(accounts.user(ids.operator, accountPackage), {
-        scope: accountId,
-        requestId: RequestId.create(Date.now()),
-        name: "edge",
-        kind: "cloud",
-        residencyId: "eu",
-        providerCode: "cloudflare",
-        location: "eu",
-    });
-    const keychain = new MemoryKeychain();
-    keychain.secrets.set(identity.machineId, found(keys.secrets, identity.machineId));
-    const first = new MachineIdentity(identity.machineId, keychain, Clock.system);
-    const [enrolled] = await accounts.database
-        .select()
-        .from(key.table)
-        .where(eq(key.table.parentId, identity.machineId));
-    if (enrolled === undefined) {
-        throw new TypeError("the enrolled machine has no key");
-    }
-
-    // act as the machine alone
+test("grant a cloud machine a token for a minute as itself alone, by its enrolled key", async () => {
+    // enroll a cloud machine of the residency and take a token as it
+    await using accounts = await TestAccountStore.open();
+    const { identity, enrolled } = await enrollCloud(accounts);
     const fetch = (request: Request) => accounts.fetch(request);
     const accessToken = await identity.token(AUDIENCE, { url: ISSUER }, fetch);
+
+    // verify the token as the machine alone, by its key's thumbprint
     const verifier = new TokenVerifier({
         authority: { kind: "universe" },
         issuer: ISSUER,
@@ -239,9 +291,8 @@ test("grant a cloud machine tokens for a minute as itself alone, spending each a
         new Request("https://edge.test/spaces", {
             headers: { authorization: `Bearer ${accessToken}` },
         }),
-        Date.now(),
+        accounts.clock.now(),
     );
-    const subject = principal.machine.reference(Scope.universe.id, identity.machineId);
     const { credential } = verified;
     expect([
         { kind: credential.kind, id: credential.id },
@@ -250,73 +301,87 @@ test("grant a cloud machine tokens for a minute as itself alone, spending each a
         credential.expiresAt - credential.verifiedAt,
     ]).toEqual([
         { kind: "machine-key", id: enrolled.thumbprint },
-        subject,
+        principal.machine.reference(Scope.universe.id, identity.machineId),
         [],
         TOKEN_LIFETIME_MILLISECONDS,
     ]);
+});
 
-    // refuse a replayed assertion and one for another endpoint
+test("spend each of a machine's assertions once, and refuse an assertion for another endpoint", async () => {
+    // assert twice for the token endpoint and once for another
+    await using accounts = await TestAccountStore.open();
+    const { identity } = await enrollCloud(accounts);
     const assertion = await identity.assert(ENDPOINT);
     const other = await identity.assert("https://elsewhere.test/oauth2/token");
-    expect([await ask(assertion), await ask(assertion), await ask(other)]).toEqual([
-        "executed",
-        "invalid_grant: assertion was used before",
-        "invalid_grant: invalid assertion",
-    ]);
 
-    // rotate the key and refuse revoking the first again
-    await identity.rotate(accounts.machine(identity), accountId);
-    expect(
-        await outcome(
-            accounts.machine(identity).key.revoke({
+    // grant the first use alone
+    expect([
+        await ask(accounts, assertion),
+        await ask(accounts, assertion),
+        await ask(accounts, other),
+    ]).toEqual([
+        "done",
+        [400, { error: "invalid_grant", error_description: "assertion was already used" }],
+        [400, { error: "invalid_grant", error_description: "invalid assertion" }],
+    ]);
+});
+
+test("refuse a machine's assertions by its first key once it rotates, and revoking the rotated key again", async () => {
+    // rotate the cloud machine's key as the machine
+    await using accounts = await TestAccountStore.open();
+    const { identity, first, enrolled } = await enrollCloud(accounts);
+    const accountId = accounts.platform;
+    await identity.rotate(accounts.as(identity).client(accountPackage), accountId);
+
+    // refuse revoking the first key again, and its assertions, and grant the new key's
+    const revoked = await refusal(
+        accounts
+            .as(identity)
+            .client(accountPackage)
+            .key.revoke({
                 scope: accountId,
                 id: enrolled.id,
-                requestId: RequestId.create(Date.now()),
+                requestId: RequestId.create(accounts.clock.now()),
             }),
-        ),
-    ).toBe("CONFLICT: key is revoked");
+    );
+    expect([revoked, await grant(accounts, first), await grant(accounts, identity)]).toEqual([
+        ["CONFLICT", "REVOKED", "key is revoked"],
+        NO_STANDING_KEY,
+        "done",
+    ]);
+});
 
-    // refuse the first key's assertions and accept the new key's
-    expect([await grant(first), await grant(identity)]).toEqual([NO_STANDING_KEY, "executed"]);
-
-    // refuse every grant while the machine is disabled and grant again once enabled
-    const status = (method: "disable" | "enable") =>
-        accounts.user(ids.operator, accountPackage).machine[method]({
-            scope: accountId,
-            id: identity.machineId,
-            requestId: RequestId.create(Date.now()),
-        });
-    await status("disable");
-    const disabled = await grant(identity);
-    await status("enable");
-    expect([disabled, await grant(identity)]).toEqual([NO_STANDING_KEY, "executed"]);
-
-    // refuse every grant once the operator revokes the machine
-    await accounts.user(ids.operator, accountPackage).machine.revoke({
-        scope: accountId,
+test("refuse a cloud machine's grants while the operator disables it and once the operator revokes it", async () => {
+    // disable the cloud machine, grant once enabled again, then revoke it
+    await using accounts = await TestAccountStore.open();
+    const { operator, identity } = await enrollCloud(accounts);
+    const target = () => ({
+        scope: accounts.platform,
         id: identity.machineId,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(accounts.clock.now()),
     });
-    expect(await grant(identity)).toBe(NO_STANDING_KEY);
+    await operator.client(accountPackage).machine.disable(target());
+    const disabled = await grant(accounts, identity);
+    await operator.client(accountPackage).machine.enable(target());
+    const enabled = await grant(accounts, identity);
+    await operator.client(accountPackage).machine.revoke(target());
+
+    // refuse every grant but the enabled one
+    expect([disabled, enabled, await grant(accounts, identity)]).toEqual([
+        NO_STANDING_KEY,
+        "done",
+        NO_STANDING_KEY,
+    ]);
 });
 
 test("issue a machine's token at the store clock's time, verifiable after the clock advances to it", async () => {
-    // run the account package ten minutes ahead of real time
-    const clock = new VirtualClock(Date.now()).resume();
-    clock.advance(10 * 60_000);
-    await using fixture = await AccountFixture.open({ signIn: { clock } });
+    // run the account package ten minutes ahead of real time, standing still there
+    await using fixture = await TestAccountStore.open();
+    fixture.clock.advance(10 * 60_000);
+    fixture.clock.pause();
 
-    // enroll a cloud machine on the same clock and take its token
-    const identity = new MachineIdentity(Identifier.create("machine"), new MemoryKeychain(), clock);
-    await identity.enroll(fixture.user(ids.operator, accountPackage), {
-        scope: fixture.platform,
-        requestId: RequestId.create(Date.now()),
-        name: "edge",
-        kind: "cloud",
-        residencyId: "eu",
-        providerCode: "cloudflare",
-        location: "eu",
-    });
+    // declare a cloud machine on the same clock and take its token
+    const identity = await fixture.declareCloudMachine(fixture.platform, "eu");
     const fetch = (request: Request) => fixture.fetch(request);
     const accessToken = await identity.token(AUDIENCE, { url: ISSUER }, fetch);
 
@@ -331,14 +396,18 @@ test("issue a machine's token at the store clock's time, verifiable after the cl
         new Request("https://edge.test/spaces", {
             headers: { authorization: `Bearer ${accessToken}` },
         }),
-        clock.now(),
+        fixture.clock.now(),
     );
-    const verifiedAt = Math.floor(clock.now() / 1000);
+    const declared = present(
+        await Snapshot.live(fixture.database)
+            .read(key.table)
+            .findFirst({ where: { parentId: identity.machineId } }),
+        "the declared machine's key",
+    );
+    const issuedAt = Math.floor(fixture.clock.now() / 1000);
     const subject = principal.machine.reference(Scope.universe.id, identity.machineId);
-    const { jti, caller, iat = 0, ...claims } = decodeJwt(accessToken);
-    expect([verified.caller.subject, verifiedAt - iat <= 1, claims]).toEqual([
+    expect([verified.caller.subject, TestJwt.claims(accessToken)]).toEqual([
         subject,
-        true,
         {
             sub: identity.machineId,
             aud: PackageId.resource(AUDIENCE),
@@ -346,17 +415,31 @@ test("issue a machine's token at the store clock's time, verifiable after the cl
             azp: identity.machineId,
             scope: "",
             iss: ISSUER,
-            exp: iat + TOKEN_LIFETIME_MILLISECONDS / 1000,
+            iat: issuedAt,
+            exp: issuedAt + TOKEN_LIFETIME_MILLISECONDS / 1000,
+            jti: ANY_STRING,
+            caller: {
+                subject,
+                groups: [],
+                contacts: [],
+                credential: {
+                    kind: "machine-key",
+                    id: declared.thumbprint,
+                    assurance: { level: 3, authenticatedAt: fixture.clock.now() },
+                },
+            },
         },
     ]);
-    expect([typeof jti, typeof caller]).toEqual(["string", "object"]);
 });
 
 test("reuse a machine's token for several calls to one package, exchanging it once", async () => {
     // count the machine's exchanges at the token endpoint
-    const identity = await accounts.enroll(ids.account);
+    await using accounts = await TestAccountStore.open();
+    const owner = await accounts.signIn(OWNER_EMAIL);
+    const identity = await accounts.enroll(ids.account, owner);
     const exchanged: string[] = [];
     const fetch = (request: Request) => {
+        // record each request to the token endpoint
         if (new URL(request.url).pathname.endsWith(TOKEN_PATH)) {
             exchanged.push(request.url);
         }
@@ -371,114 +454,123 @@ test("reuse a machine's token for several calls to one package, exchanging it on
     const later = await identity.token(AUDIENCE, { url: ISSUER }, fetch);
     const other = await identity.token(accountPackage.id, { url: ISSUER }, fetch);
 
+    // send the first token every time for the package, and another one for the other package
     expect({
-        distinct: new Set([...tokens, later]).size,
-        isOther: other !== later,
-        exchanged: exchanged.length,
+        tokens,
+        audiences: [TestJwt.claims(later).aud, TestJwt.claims(other).aud],
+        exchanged,
     }).toEqual({
-        distinct: 1,
-        isOther: true,
-        exchanged: 2,
+        tokens: [later, later, later],
+        audiences: [PackageId.resource(AUDIENCE), PackageId.resource(accountPackage.id)],
+        exchanged: [ENDPOINT, ENDPOINT],
     });
 });
 
 test("grant a machine tokens for the spaces it serves, receives or works in, and refuse others", async () => {
-    // enroll an account's machine and a cloud machine and place a space on each
-    const laptop = await accounts.enroll(ids.account);
-    const cloud = await accounts.enroll(accounts.platform, { residencyId: "eu" });
+    // enroll an account's machine, take the residency's shared cloud machine and place a space on each
+    await using accounts = await TestAccountStore.open();
+    const owner = await accounts.signIn(OWNER_EMAIL);
+    const laptop = await accounts.enroll(ids.account, owner);
+    const cloud = accounts.cloud(ids.machine);
     const movedId = Identifier.create("space");
     const served = Identifier.create("space");
     const elsewhere = Identifier.create("space");
-    const placement = { id: movedId, scope: ids.account, machine: laptop.machineId, epoch: 1 };
-    await TestDirectory.place(accounts.database, placement);
-    const placed = { id: served, scope: ids.account, machine: cloud.machineId, epoch: 1 };
-    await TestDirectory.place(accounts.database, placed);
+    await place(accounts, owner, movedId, laptop.machineId);
+    await place(accounts, owner, served, cloud.machineId);
 
-    // grant tokens in the spaces each machine serves
-    const grantIn = (signer: MachineIdentity, spaceId: Identifier<"space">) =>
-        grant(signer, spaceId);
+    // refuse tokens in the spaces other machines serve
     const refused = [
-        await grantIn(laptop, served),
-        await grantIn(cloud, elsewhere),
-        await grantIn(cloud, movedId),
+        await grant(accounts, laptop, served),
+        await grant(accounts, cloud, elsewhere),
+        await grant(accounts, cloud, movedId),
     ];
 
     // grant a token in a space giving the machine work, until the space withdraws it
-    await TestDirectory.assign(accounts.database, served, laptop.machineId, true);
-    const assigned = await grantIn(laptop, served);
-    await TestDirectory.assign(accounts.database, served, laptop.machineId, false);
-    const withdrawn = await grantIn(laptop, served);
+    const work = {
+        accountId: ids.account,
+        id: served,
+        epoch: 1,
+        machine: laptop.machineId,
+        requestId: RequestId.create(accounts.clock.now()),
+    };
+    await accounts.as(cloud).client(accountPackage).placement.assign(work);
+    const assigned = await grant(accounts, laptop, served);
+    await accounts
+        .as(cloud)
+        .client(accountPackage)
+        .placement.unassign({ ...work, requestId: RequestId.create(accounts.clock.now()) });
+    const withdrawn = await grant(accounts, laptop, served);
 
     // grant a token in a space moving to the machine
-    await TestDirectory.place(accounts.database, placement, {
-        target: cloud.machineId,
-        transferId: Identifier.create("transfer"),
-    });
+    await accounts
+        .as(laptop)
+        .client(accountPackage)
+        .placement.move({
+            accountId: ids.account,
+            id: movedId,
+            epoch: 1,
+            target: cloud.machineId,
+            transferId: Identifier.create("transfer"),
+            requestId: RequestId.create(accounts.clock.now()),
+        });
     expect([
-        await grantIn(laptop, movedId),
-        await grantIn(cloud, served),
+        await grant(accounts, laptop, movedId),
+        await grant(accounts, cloud, served),
         refused,
-        await grantIn(cloud, movedId),
+        await grant(accounts, cloud, movedId),
         [assigned, withdrawn],
     ]).toEqual([
-        "executed",
-        "executed",
-        [
-            `invalid_grant: ${served} is served and received elsewhere`,
-            `invalid_grant: ${elsewhere} is served and received elsewhere`,
-            `invalid_grant: ${movedId} is served and received elsewhere`,
-        ],
-        "executed",
-        ["executed", `invalid_grant: ${served} is served and received elsewhere`],
+        "done",
+        "done",
+        [placedElsewhere(served), placedElsewhere(elsewhere), placedElsewhere(movedId)],
+        "done",
+        ["done", placedElsewhere(served)],
     ]);
 });
 
 test("disable, drain and enable a machine, refusing its token grants while disabled", async () => {
-    const identity = await accounts.enroll(ids.account);
-    const change = (userId: string, name: "disable" | "drain" | "enable") =>
-        outcome(
-            accounts.user(userId, accountPackage).machine[name]({
+    // enroll a machine of the owner's account
+    await using accounts = await TestAccountStore.open();
+    const owner = await accounts.signIn(OWNER_EMAIL);
+    const stranger = await accounts.signIn(STRANGER_EMAIL);
+    const identity = await accounts.enroll(ids.account, owner);
+    const change = (person: TestPerson, name: "disable" | "drain" | "enable") =>
+        refusal(
+            person.client(accountPackage).machine[name]({
                 scope: ids.account,
                 id: identity.machineId,
-                requestId: RequestId.create(Date.now()),
+                requestId: RequestId.create(accounts.clock.now()),
             }),
         );
-    const verify = () => grant(identity);
 
     // refuse the machine's grants while disabled and grant them while draining and enabled
     const outcomes = [];
     for (const name of ["disable", "drain", "enable"] as const) {
-        outcomes.push(await change(ids.owner, name), await verify());
+        outcomes.push(await change(owner, name), await grant(accounts, identity));
     }
-    expect(outcomes).toEqual([
-        "executed",
-        NO_STANDING_KEY,
-        "executed",
-        "executed",
-        "executed",
-        "executed",
-    ]);
+    expect(outcomes).toEqual(["done", NO_STANDING_KEY, "done", "done", "done", "done"]);
 
     // refuse a stranger changing the status and any change once the machine is revoked
-    const stranger = await change(ids.stranger, "disable");
-    await accounts.user(ids.owner, accountPackage).machine.revoke({
+    const refused = await change(stranger, "disable");
+    await owner.client(accountPackage).machine.revoke({
         scope: ids.account,
         id: identity.machineId,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(accounts.clock.now()),
     });
-    expect([stranger, await change(ids.owner, "enable")]).toEqual([
-        `NOT_FOUND: no scope ${ids.account}`,
-        "CONFLICT: machine is revoked",
+    expect([refused, await change(owner, "enable")]).toEqual([
+        ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${ids.account} not found`],
+        ["CONFLICT", "REVOKED", "machine is revoked"],
     ]);
 });
 
 test("store one key when two processes generate a machine's first key at once, both adopting the one stored first", async () => {
     // generate the first key from two identities sharing one keychain
+    await using accounts = await TestAccountStore.open();
     const keys = new MemoryKeychain();
     const machineId = Identifier.create("machine");
     const generated = await Promise.all([
-        new MachineIdentity(machineId, keys, Clock.system).generate(),
-        new MachineIdentity(machineId, keys, Clock.system).generate(),
+        new MachineIdentity(machineId, keys, accounts.clock).generate(),
+        new MachineIdentity(machineId, keys, accounts.clock).generate(),
     ]);
 
     // answer the stored key's public half to both
@@ -490,51 +582,59 @@ test("store one key when two processes generate a machine's first key at once, b
 });
 
 test("rotate once for two identities of one machine rotating at once, ending on the key the universe has as current", async () => {
-    // enroll a machine and rotate its key from two of its identities
+    // enroll a machine at a clock standing still
+    await using accounts = await TestAccountStore.open();
+    accounts.clock.pause();
+    const owner = await accounts.signIn(OWNER_EMAIL);
     const accountId = ids.account;
     const keys = new MemoryKeychain();
-    const identity = new MachineIdentity(Identifier.create("machine"), keys, Clock.system);
-    await identity.enroll(accounts.user(ids.owner, accountPackage), {
+    const identity = new MachineIdentity(Identifier.create("machine"), keys, accounts.clock);
+    await identity.enroll(owner.client(accountPackage), {
         scope: accountId,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(accounts.clock.now()),
         name: "racer",
         kind: "personal",
         platform: "macOS",
         architecture: "arm64",
         model: "Mac14,2",
     });
+    accounts.register(identity);
+    const enrolled = StoredKey.parse(JSON.parse(found(keys.secrets, identity.machineId)));
+
+    // rotate its key from two of its identities at once
     const rotations = [
-        new MachineIdentity(identity.machineId, keys, Clock.system),
-        new MachineIdentity(identity.machineId, keys, Clock.system),
+        new MachineIdentity(identity.machineId, keys, accounts.clock),
+        new MachineIdentity(identity.machineId, keys, accounts.clock),
     ];
     await Promise.all(
-        rotations.map((rotation) => rotation.rotate(accounts.machine(rotation), accountId)),
+        rotations.map((rotation) =>
+            rotation.rotate(accounts.as(rotation).client(accountPackage), accountId),
+        ),
     );
 
-    // register one new key and end on the key the universe has not revoked
+    // register one new key, revoking the enrolled one, and end on the key the keychain stores
     const registered = await accounts.database
-        .select()
+        .select({ publicKey: key.table.publicKey, revokedAt: key.table.revokedAt })
         .from(key.table)
-        .where(eq(key.table.parentId, identity.machineId));
+        .where(eq(key.table.parentId, identity.machineId))
+        .orderBy(key.table.createdAt);
     const { kty, crv, x, y } = StoredKey.parse(JSON.parse(found(keys.secrets, identity.machineId)));
-    expect({
-        registered: registered.length,
-        active: registered
-            .filter((entry) => entry.revokedAt === null)
-            .map((entry) => entry.publicKey),
-    }).toEqual({ registered: 2, active: [{ kty, crv, x, y }] });
+    expect(registered).toEqual([
+        {
+            publicKey: { kty: enrolled.kty, crv: enrolled.crv, x: enrolled.x, y: enrolled.y },
+            revokedAt: accounts.clock.now(),
+        },
+        { publicKey: { kty, crv, x, y }, revokedAt: null },
+    ]);
 });
 
 test("authenticate a machine's token in a space it serves while its key stands, and refuse it once the machine is revoked", async () => {
     // enroll a machine serving a space, and grant it a token there by its assertion
-    const identity = await accounts.enroll(ids.account);
+    await using accounts = await TestAccountStore.open();
+    const owner = await accounts.signIn(OWNER_EMAIL);
+    const identity = await accounts.enroll(ids.account, owner);
     const spaceId = Identifier.create("space");
-    await TestDirectory.place(accounts.database, {
-        id: spaceId,
-        scope: ids.account,
-        machine: identity.machineId,
-        epoch: 1,
-    });
+    await place(accounts, owner, spaceId, identity.machineId);
     const response = await accounts.fetch(
         new Request(ENDPOINT, {
             method: "POST",
@@ -553,17 +653,22 @@ test("authenticate a machine's token in a space it serves while its key stands, 
         Identity.authenticate(
             Snapshot.live(accounts.database),
             new Request("https://machine.test/", { headers: { authorization: `Bearer ${token}` } }),
-            { audience: AUDIENCE, universe: ISSUER, scope: spaceId, now: Date.now() },
+            {
+                audience: AUDIENCE,
+                universe: ISSUER,
+                scope: spaceId,
+                now: accounts.clock.now(),
+            },
         );
-    const standing = (await authenticate())?.caller.subject;
-    await accounts.user(ids.owner, accountPackage).machine.revoke({
+    const standing = present(await authenticate(), "the standing machine's authentication");
+    await owner.client(accountPackage).machine.revoke({
         scope: ids.account,
         id: identity.machineId,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(accounts.clock.now()),
     });
 
-    expect({ standing, revoked: await refusal(authenticate()) }).toEqual({
+    expect({ standing: standing.caller.subject, revoked: await refusal(authenticate()) }).toEqual({
         standing: principal.machine.reference(Scope.universe.id, identity.machineId),
-        revoked: ["UNAUTHORIZED", "machine token's key no longer authenticates"],
+        revoked: ["UNAUTHORIZED", "KEY_REVOKED", "the machine token's key is no longer valid"],
     });
 });

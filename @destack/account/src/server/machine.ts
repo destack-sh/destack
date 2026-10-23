@@ -1,7 +1,6 @@
 import { principal, Relationship } from "@destack/access";
 import { present } from "@destack/schema";
 import type { MethodContext, MethodContextOf, NextOf, ResultOf } from "@destack/object";
-import { CallError } from "@destack/object";
 import { Scope } from "@destack/sync";
 import { Revocation } from "../credential/revocation.ts";
 import { Proof, type PublicKey } from "@destack/identity";
@@ -11,6 +10,8 @@ import { key, Key } from "../object/key.ts";
 import { machine, Machine } from "../object/machine.ts";
 import { relationship } from "@destack/object";
 import { residency } from "../object/residency.ts";
+import type {} from "@destack/package/import-meta";
+import { AccountError } from "../error/error.ts";
 
 /** Implement machines. */
 export function implementMachine(): typeof machine {
@@ -42,9 +43,10 @@ async function enroll(
 
     // require the machine's proof by the key it registers
     if (context.id === undefined) {
-        throw new CallError("BAD_REQUEST", {
-            message: "a machine enrolls under the identifier its proof carries",
-        });
+        throw AccountError.of(
+            "PROOF_MISMATCH",
+            "a machine must enroll under the identifier in its proof",
+        );
     }
     const proof = Proof.read(input.proof);
     await proof.verify(input.publicKey, context.id, context.now);
@@ -171,14 +173,11 @@ async function leaveResidency(context: MethodContext, row: Machine): Promise<voi
     }
     const { object, relation, subject } = residencyServer(row);
     const [related] = await Relationship.readOn(context, object, { relation, subject });
+    const server = present(related, `the server relationship of ${row.id}`);
 
     // revoke it as the store
     await context.mutate(context.self, [
-        relationship.call("delete", {
-            ...relationship.in(Scope.universe.id),
-            object,
-            relationshipId: present(related, `the server relationship of ${row.id}`).id,
-        }),
+        relationship.call("delete", { ...relationship.in(server.scope), id: server.id }),
     ]);
 }
 

@@ -1,20 +1,21 @@
 import { Scope } from "@destack/sync";
 import type { MethodContext, MethodContextOf, NextOf, ResultOf } from "@destack/object";
 import { type Identifier, present, schema } from "@destack/schema";
-import { CallError } from "@destack/object";
 import { SpaceAddress } from "../address/address.ts";
 import { account } from "../object/account.ts";
 import { machine } from "../object/machine.ts";
 import { Placement, placement } from "../object/placement.ts";
 import { Space, space } from "../object/space.ts";
 import type { SpaceKind, StackSource } from "../object/stack-source.ts";
+import type {} from "@destack/package/import-meta";
+import { AccountError } from "../error/error.ts";
 
 /** Implement spaces, born with the platform's space stack unless given one. */
 export function implementSpace(stacks: Readonly<Record<SpaceKind, StackSource>>): typeof space {
     return space.implement({
         methods: {
             create: {
-                // make the space the owner of itself, written at its home as it is born
+                // make the space the owner of itself
                 creation: (_call, created) =>
                     Space.creation({ id: schema.identifier("space").parse(created.id) }),
                 handle: (context, next) => create(context, next, stacks),
@@ -80,7 +81,7 @@ async function pickMachine(
     // place it on the enabled shared machine of the account's residency scoring highest for it
     const owner = await context.read(account).findFirst({ where: { id: accountId } });
     if (owner === undefined) {
-        throw new CallError("NOT_FOUND", { message: `no account ${accountId}` });
+        throw AccountError.of("ACCOUNT_NOT_FOUND", `account ${accountId} not found`);
     }
     const shared = await context.read(machine).findMany({
         where: {
@@ -96,9 +97,10 @@ async function pickMachine(
         shared.map((row) => row.id),
     );
     if (picked === undefined) {
-        throw new CallError("UNAVAILABLE", {
-            message: `no cloud machine serves the residency ${owner.residencyId}`,
-        });
+        throw AccountError.of(
+            "NO_CLOUD_MACHINE",
+            `residency ${owner.residencyId} has no cloud machine`,
+        );
     }
 
     return schema.identifier("machine").parse(picked);

@@ -1,48 +1,36 @@
-import { Scope } from "@destack/sync";
-import { Snapshot } from "@destack/db";
-import { claimTable, Claim } from "@destack/object";
-import { Identifier } from "@destack/schema";
+import accountPackage from "../src/package.ts";
+import { RequestId } from "@destack/sync";
 import { expect, test } from "@destack/test";
-import { account } from "../src/object/account.ts";
 import { AccountHandle } from "../src/address/handle.ts";
-import { AccountFixture } from "../src/test/index.ts";
+import { TestAccountStore } from "../src/test/index.ts";
 
-/** Suggest the first free number of a stem past a whole batch of taken ones. */
-test("suggest the first free handle past a hundred taken numbers of the stem", async () => {
-    await using fixture = await AccountFixture.open();
-    const owner = await fixture.person("crowded@example.com");
-
-    // take the stem and its numbers 2 to 100 with accounts of the owner
-    const now = Date.now();
-    const { database } = fixture.storage;
-    const rows = Array.from({ length: 100 }, (_, index) => ({
-        id: Identifier.create("account"),
-        createdAt: now,
-        updatedAt: now,
+test("suggest the first free number of a person's email stem past the handles accounts take", async () => {
+    // take the stem's handle at sign-up and its second number with another account
+    await using fixture = await TestAccountStore.open();
+    const owner = await fixture.signIn("crowded@example.com");
+    const personal = await owner.client(accountPackage).account.get({
         scope: owner.id,
-        handle: index === 0 ? "crowded" : `crowded-${index + 1}`,
+        id: owner.account,
+    });
+    await owner.client(accountPackage).account.update({
+        scope: owner.id,
+        id: owner.account,
+        requestId: RequestId.create(fixture.clock.now()),
+        revision: personal.revision,
+        handle: "crowded",
+    });
+    await owner.client(accountPackage).account.create({
+        scope: owner.id,
+        requestId: RequestId.create(fixture.clock.now()),
+        handle: "crowded-2",
         name: "Crowded",
-        residencyId: "eu" as const,
-    }));
-    await database.insert(account.table).values(rows);
+        kind: "shared",
+        residencyId: "eu",
+    });
 
-    // claim their handles in one write
-    const snapshot = Snapshot.live(database);
-    const claims = await Promise.all(rows.map((row) => Claim.list(account, row, snapshot)));
-    await database.insert(claimTable).values(
-        claims.flat().map((claim) => ({
-            ...claim,
-            id: Identifier.create("claim"),
-            scope: Scope.universe.id,
-            state: "active" as const,
-            requestId: null,
-            expiresAt: null,
-        })),
-    );
-
-    // suggest the number the second batch of candidates finds free
-    expect(await owner.client.user.suggestHandle({ id: owner.id })).toEqual({
-        handle: "crowded-101",
+    // suggest the third number
+    expect(await owner.client(accountPackage).user.suggestHandle({ id: owner.id })).toEqual({
+        handle: "crowded-3",
     });
 });
 

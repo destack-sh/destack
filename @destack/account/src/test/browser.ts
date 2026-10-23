@@ -1,7 +1,8 @@
 import type { Fetch } from "@destack/object";
+import { present } from "@destack/schema";
 
 /** Retain browser cookies across real authentication HTTP requests. */
-export class Browser {
+export class TestBrowser {
     /** The URL the browser's paths are relative to: the issuer's pages and endpoints. */
     readonly base: string;
     /** Send a request to the served origin. */
@@ -16,6 +17,11 @@ export class Browser {
         this.base = base;
         this.send = send;
         this.language = language;
+    }
+
+    /** Read the page a redirect response sends a browser to. */
+    static location(response: Response): string {
+        return present(response.headers.get("location"), "the redirect location");
     }
 
     /** Send a request to a path below the base or to a URL, posting a JSON body or a form. */

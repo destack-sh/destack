@@ -66,12 +66,8 @@ const Nesting = {
         // revoke each as the store
         await context.mutate(
             context.self,
-            rows.map(({ id }) =>
-                relationship.call("delete", {
-                    ...relationship.in(row.scope),
-                    object: parent,
-                    relationshipId: id,
-                }),
+            rows.map((related) =>
+                relationship.call("delete", { ...relationship.in(related.scope), id: related.id }),
             ),
         );
     },

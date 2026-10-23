@@ -1,4 +1,4 @@
-import { TagMap } from "@destack/object";
+import { TagMap } from "@destack/resource";
 import { PermissionReference } from "@destack/access/declare";
 import { DeclarationName, ModuleMetadata, type Package } from "@destack/package";
 import { Instant, schema } from "@destack/schema";
@@ -74,7 +74,7 @@ export function defineAccount(
     // require each role a binding refers to by name in the same declaration
     for (const binding of Object.values(account.bindings ?? {})) {
         if (typeof binding.role === "string" && !Object.hasOwn(account.roles ?? {}, binding.role)) {
-            throw new PackageError("INVALID_DEFINITION", `unknown role: ${binding.role}`);
+            throw PackageError.of("INVALID_DEFINITION", `unknown role: ${binding.role}`);
         }
     }
 

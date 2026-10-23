@@ -6,7 +6,6 @@ export * from "./hostname.ts";
 export * from "./group.ts";
 export * from "./key.ts";
 export * from "./machine.ts";
-export * from "./member.ts";
 export * from "./oauth-client.ts";
 export * from "./oauth-consent.ts";
 export * from "./organisation.ts";

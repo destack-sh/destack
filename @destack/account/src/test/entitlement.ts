@@ -3,7 +3,7 @@ import { PackageId } from "@destack/package";
 import type { FeatureReference } from "@destack/object";
 import { Identifier } from "@destack/schema";
 import { type Publisher, replica, replicaPosition, Scope, type Subscription } from "@destack/sync";
-import { until } from "@destack/environment";
+import { type Clock, until } from "@destack/environment";
 import {
     entitlement,
     type Entitlement,
@@ -31,9 +31,10 @@ export const TestEntitlement = {
         accountId: Identifier<"account">,
         granted: EntitlementResource | { readonly feature: FeatureReference },
         terms: Pick<Entitlement, "kind"> & Partial<Pick<Entitlement, "value" | "limit" | "state">>,
+        clock: Clock,
     ): Promise<void> {
         // mark the account's replica complete once
-        const now = Date.now();
+        const now = clock.now();
         const key = {
             name: entitlementShape.replicaName({
                 scope: Scope.universe.id,

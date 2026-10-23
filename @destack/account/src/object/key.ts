@@ -9,6 +9,8 @@ import { Digest, schema } from "@destack/schema";
 import { CompactProof, IdentityError, type Proof, PublicKey } from "@destack/identity";
 import { Revocation } from "../credential/revocation.ts";
 import { CallError } from "@destack/object";
+import type {} from "@destack/package/import-meta";
+import { AccountError } from "../error/error.ts";
 
 /** How long a key authenticates, a year in milliseconds. */
 const LIFETIME_MILLISECONDS = 365 * 24 * 60 * 60 * 1000;
@@ -143,9 +145,7 @@ export const Key = {
             where: { AND: [{ thumbprint: credential.id }, Key.authenticates(now)] },
         });
         if (standing.length === 0) {
-            throw new CallError("UNAUTHORIZED", {
-                message: "machine token's key no longer authenticates",
-            });
+            throw AccountError.of("KEY_REVOKED", "the machine token's key is no longer valid");
         }
     },
 
@@ -162,7 +162,7 @@ export const Key = {
             ])
             .catch((error: unknown) => {
                 throw CallError.of(error)?.code === "CONFLICT"
-                    ? new IdentityError("INVALID_PROOF", "key proof was used before")
+                    ? IdentityError.of("INVALID_PROOF", "key proof was already used")
                     : error;
             });
     },

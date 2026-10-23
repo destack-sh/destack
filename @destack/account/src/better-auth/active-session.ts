@@ -6,6 +6,7 @@ import type { AuthenticationAssurance } from "@destack/access";
 import { schema } from "@destack/schema";
 import { passkey } from "../object/passkey.ts";
 import { AUTHENTICATION_METHODS, session, type Session } from "../object/session.ts";
+import { AccountError } from "../error/error.ts";
 
 /** The maximum age of a ceremony used to change authentication credentials. */
 const FRESHNESS_MILLISECONDS = 5 * 60 * 1000;
@@ -126,7 +127,10 @@ export class ActiveSession {
         // require the user's private fields
         const { twoFactorEnabled, email, emailVerified } = active;
         if (twoFactorEnabled === null || email === null || emailVerified === null) {
-            throw new TypeError(`user ${active.userId} has its private fields concealed`);
+            throw AccountError.of(
+                "PRIVATE_FIELDS_CONCEALED",
+                `user ${active.userId} has its private fields concealed`,
+            );
         }
 
         return new ActiveSession({ ...active, twoFactorEnabled, email, emailVerified });

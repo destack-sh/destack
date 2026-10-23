@@ -1,3 +1,4 @@
+import type { TokenLifetime } from "./resource.ts";
 import {
     type ClientDiscovery,
     DEVICE_CODE_GRANT_TYPE,
@@ -7,7 +8,6 @@ import {
 import { type Authentication, type Authorizer, principal, Caller } from "@destack/access";
 import type { DatabaseConnection } from "@destack/db";
 import type { ObjectStore } from "@destack/object/server";
-import type { PackageId } from "@destack/package";
 import type { JWTPayload } from "jose";
 import { Scope } from "@destack/sync";
 import { AccountAuthentication } from "../better-auth/authentication.ts";
@@ -42,8 +42,8 @@ export interface OAuthExtensionOptions {
     readonly endpoint: string;
     /** The clock tokens are issued at. */
     readonly clock: Clock;
-    /** The lifetimes of the packages' tokens, a minute when absent. */
-    readonly lifetimes: ReadonlyMap<PackageId, number>;
+    /** How long the packages' tokens live. */
+    readonly lifetime: TokenLifetime;
     /** Sign claims with the universe's active key, as the provider signs its tokens. */
     readonly sign: (claims: JWTPayload, header: { readonly typ: string }) => Promise<string>;
 }

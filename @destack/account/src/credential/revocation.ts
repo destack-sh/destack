@@ -1,4 +1,5 @@
-import { CallError } from "@destack/object";
+import type {} from "@destack/package/import-meta";
+import { AccountError } from "../error/error.ts";
 
 /** Withdrawals of credentials and machines, as the time each was revoked at. */
 export const Revocation = {
@@ -8,7 +9,7 @@ export const Revocation = {
         noun: string,
     ): Target {
         if (target.revokedAt !== null) {
-            throw new CallError("CONFLICT", { message: `${noun} is revoked` });
+            throw AccountError.of("REVOKED", `${noun} is revoked`);
         }
 
         return target;

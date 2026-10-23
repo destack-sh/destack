@@ -1,8 +1,6 @@
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import type { StepUp } from "@destack/access";
 import type { ObjectClient } from "@destack/object/client";
 import { Identifier, schema } from "@destack/schema";
-import { CallError } from "@destack/object";
 import { RequestId } from "@destack/sync";
 import { until } from "@destack/environment";
 import { client, type ClientRegistration } from "../object/client.ts";
@@ -12,16 +10,15 @@ import { type LoginRow, login } from "./login.ts";
 import type { ClientKey } from "./client-key.ts";
 import type { SessionStore } from "./session.ts";
 import type { SignUp } from "../better-auth/sign-up.ts";
-import type { Clock } from "@destack/environment";
+import type { Environment, Listener, Network } from "@destack/environment";
+import type {} from "@destack/package/import-meta";
+import { AccountError } from "../error/error.ts";
 
 /** The loopback path a browser sign-in returns to (RFC 8252 7.3). */
 const REDIRECT_PATH = "/callback";
 
 /** The loopback address the redirect listens on (RFC 8252 7.3). */
 const LOOPBACK = "127.0.0.1";
-
-/** How long a device flow waits between polls, in milliseconds: five seconds (RFC 8628 3.2). */
-const POLL_MILLISECONDS = 5000;
 
 /** How much longer each slow down makes a device flow wait: five seconds (RFC 8628 3.5). */
 const SLOW_DOWN_MILLISECONDS = 5000;
@@ -39,8 +36,8 @@ export interface NativeSignInOptions {
     readonly keys: ClientKey;
     /** The native device's local logins. */
     readonly logins: LoginClient;
-    /** The clock sign-ins are timed by. */
-    readonly clock: Clock;
+    /** The clock sign-ins are timed by and the network their redirects listen on. */
+    readonly environment: Environment;
     /** What the client a sign-in registers in the person's account reports about itself. */
     readonly client: Omit<ClientRegistration, "id"> & {
         /** The processor architecture, such as arm64. */
@@ -85,8 +82,9 @@ export class NativeSignIn {
         signal?: AbortSignal,
     ): Promise<LoginRow> {
         // listen for the redirect on a free loopback port
-        const { issuer, clock } = this.#options;
-        await using redirect = await LoopbackRedirect.listen();
+        const { issuer, environment } = this.#options;
+        const { clock } = environment;
+        await using redirect = LoopbackRedirect.listen(environment.network);
 
         // send the person to the issuer as a new client, and fail once the browser cannot open
         const clientId = Identifier.create("client");
@@ -102,9 +100,9 @@ export class NativeSignIn {
         const opening = open(authorization.url);
         opening.catch((error: unknown) => browserFailure.abort(error));
 
-        // wait for the browser to return with this sign-in's state
+        // wait for the browser to return with this sign-in's state until it expires
         const stop = AbortSignal.any([
-            AbortSignal.timeout(Math.max(0, authorization.expiresAt - clock.now())),
+            clock.timeout(Math.max(0, authorization.expiresAt - clock.now())),
             browserFailure.signal,
             ...(signal === undefined ? [] : [signal]),
         ]);
@@ -115,7 +113,7 @@ export class NativeSignIn {
         if (code === null || callback.url.searchParams.get("iss") !== issuer.url) {
             callback.answer(400, "Sign-in failed. Start it again from Destack.");
             await opening;
-            throw new CallError("UNAUTHORIZED", { message: "the sign-in did not complete" });
+            throw AccountError.of("SIGN_IN_INCOMPLETE", "the sign-in did not complete");
         }
 
         // redeem the code for the client's tokens and sign the person in
@@ -155,13 +153,7 @@ export class NativeSignIn {
             }
 
             // wait the delay the poll returned
-            await until(
-                AbortSignal.any([
-                    AbortSignal.timeout(result),
-                    ...(signal === undefined ? [] : [signal]),
-                ]),
-            );
-            signal?.throwIfAborted();
+            await this.#options.environment.clock.sleep(result, signal);
         }
     }
 
@@ -171,11 +163,11 @@ export class NativeSignIn {
         const clientId = Identifier.create("client");
         const authorization = await this.#options.issuer.device(
             clientId,
-            this.#options.clock.now(),
+            this.#options.environment.clock.now(),
         );
 
         // poll at the issuer's pace, slowing down when asked
-        let interval = POLL_MILLISECONDS;
+        let interval = authorization.interval;
         const poll = async (): Promise<number | LoginRow> => {
             // sign the person in once granted
             const result = await this.#poll(clientId, authorization);
@@ -194,7 +186,7 @@ export class NativeSignIn {
             }
             // fail a refused or expired sign-in
             else {
-                throw new CallError("UNAUTHORIZED", { message: "the sign-in did not complete" });
+                throw AccountError.of("SIGN_IN_INCOMPLETE", "the sign-in did not complete");
             }
         };
 
@@ -248,7 +240,7 @@ export class NativeSignIn {
     /** Poll a device code once, and refuse an expired code. */
     #poll(clientId: Identifier<"client">, authorization: DeviceAuthorization): Promise<DevicePoll> {
         // refuse an expired code
-        if (authorization.expiresAt <= this.#options.clock.now()) {
+        if (authorization.expiresAt <= this.#options.environment.clock.now()) {
             return Promise.resolve({ status: "refused" });
         }
 
@@ -299,7 +291,8 @@ export class NativeSignIn {
         userId: Identifier<"user">,
         clientId: Identifier<"client">,
     ): Promise<void> {
-        const { client: described, clock } = this.#options;
+        const { client: described, environment } = this.#options;
+        const { clock } = environment;
         await accounts.client.update({
             userId,
             id: clientId,
@@ -322,7 +315,7 @@ export class NativeSignIn {
             await accounts.client.revoke({
                 userId,
                 id: clientId,
-                requestId: RequestId.create(this.#options.clock.now()),
+                requestId: RequestId.create(this.#options.environment.clock.now()),
             });
         }
     }
@@ -345,7 +338,7 @@ export class NativeSignIn {
         const { id } = await mutation.predicted;
         const row = await logins.query.login.findFirst({ where: { id } });
         if (row === undefined) {
-            throw new TypeError(`the sign-in wrote no login ${id}`);
+            throw AccountError.of("LOGIN_NOT_WRITTEN", `the sign-in did not write login ${id}`);
         }
 
         return row;
@@ -364,39 +357,26 @@ interface Callback {
 class LoopbackRedirect implements AsyncDisposable {
     /** The redirect URL the issuer returns the browser to. */
     readonly url: string;
-    /** The listening server. */
-    readonly #server: ReturnType<typeof createServer>;
+    /** The listener the network serves. */
+    readonly #listener: Listener<never>;
     /** The returned browsers that wait to be taken. */
     readonly #callbacks: Callback[] = [];
     /** Wake a waiting receive once a browser returns. */
     #wake: (() => void) | undefined;
 
-    /** Store a listening server and its redirect URL. */
-    private constructor(server: ReturnType<typeof createServer>, port: number) {
-        this.#server = server;
-        this.url = `http://${LOOPBACK}:${port}${REDIRECT_PATH}`;
+    /** Listen on a free loopback port of a network, taking each request to the redirect. */
+    private constructor(network: Network) {
+        this.#listener = network.serve<never>({
+            hostname: LOOPBACK,
+            port: 0,
+            fetch: (request) => this.#take(request),
+        });
+        this.url = `http://${LOOPBACK}:${this.#listener.url.port}${REDIRECT_PATH}`;
     }
 
-    /** Listen on a free loopback port. */
-    static async listen(): Promise<LoopbackRedirect> {
-        // listen on a free port
-        const server = createServer();
-        await new Promise<void>((resolve, reject) => {
-            server.once("error", reject);
-            server.listen(0, LOOPBACK, () => resolve());
-        });
-
-        // read the port the server listens on
-        const address = server.address();
-        if (address === null || typeof address === "string") {
-            throw new TypeError("the redirect listens on no port");
-        }
-
-        // take each request to the redirect
-        const redirect = new LoopbackRedirect(server, address.port);
-        server.on("request", (request, response) => redirect.#take(request, response));
-
-        return redirect;
+    /** Listen on a free loopback port of a network. */
+    static listen(network: Network): LoopbackRedirect {
+        return new LoopbackRedirect(network);
     }
 
     /** Wait for the browser with a sign-in's state until a signal aborts, and turn others away. */
@@ -422,27 +402,22 @@ class LoopbackRedirect implements AsyncDisposable {
     }
 
     /** Take a request at the redirect path, answering any other with not found. */
-    #take(request: IncomingMessage, response: ServerResponse): void {
+    #take(request: Request): Promise<Response> {
         // answer another path at once
-        const url = new URL(request.url ?? "/", this.url);
+        const url = new URL(request.url);
         if (url.pathname !== REDIRECT_PATH) {
-            answer(response, 404, "No sign-in waits for this page.");
-
-            return;
+            return Promise.resolve(answer(404, "No sign-in waits for this page."));
         }
 
         // queue it for the waiting sign-in, which answers once at most
-        let isAnswered = false;
+        const answered = Promise.withResolvers<Response>();
         this.#callbacks.push({
             url,
-            answer: (status, text) => {
-                if (!isAnswered) {
-                    isAnswered = true;
-                    answer(response, status, text);
-                }
-            },
+            answer: (status, text) => answered.resolve(answer(status, text)),
         });
         this.#wake?.();
+
+        return answered.promise;
     }
 
     /** Answer the browsers still waiting and stop listening. */
@@ -452,21 +427,15 @@ class LoopbackRedirect implements AsyncDisposable {
             callback.answer(400, "No sign-in waits for this page.");
         }
 
-        // close the listener once its idle connections end
-        const closing = new Promise<void>((resolve) => {
-            this.#server.close(() => resolve());
-        });
-        this.#server.closeIdleConnections();
-        await closing;
+        // stop listening once the answers are sent
+        await this.#listener.stop();
     }
 }
 
 /** Answer a browser with a short plain page. */
-function answer(response: ServerResponse, status: number, text: string): void {
-    // write an uncached plain page
-    response.writeHead(status, {
-        "content-type": "text/plain; charset=utf-8",
-        "cache-control": "no-store",
+function answer(status: number, text: string): Response {
+    return new Response(text, {
+        status,
+        headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" },
     });
-    response.end(text);
 }

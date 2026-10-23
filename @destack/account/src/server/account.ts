@@ -23,7 +23,7 @@ export function implementAccount(stacks: Readonly<Record<SpaceKind, StackSource>
     });
 }
 
-/** Create an account with its owner's residency and its home space running its stack. */
+/** Create an account with its home space running its stack. */
 async function create(
     context: MethodContextOf<typeof account, "create">,
     next: NextOf<typeof account, "create">,
@@ -33,10 +33,9 @@ async function create(
     const owner = await Scope.object(context, context.scope);
     const isUser = !organisation.is(owner);
 
-    // create the account in its residency
-    const residencyId = await Account.residency(context, context.scope, context.input.residencyId);
+    // create the account
     const { stack: given, ...input } = context.input;
-    const created = await next(context.with({ input: { ...input, residencyId } }));
+    const created = await next(context.with({ input }));
 
     // create its home with its stack as the universe, a personal home's by default
     const stack = given ?? (created.kind === "personal" ? stacks.person : undefined);
@@ -77,11 +76,7 @@ export async function residentCalls(
 
     return [
         ...left.map((row) =>
-            relationship.call("delete", {
-                ...relationship.in(Scope.universe.id),
-                object,
-                relationshipId: row.id,
-            }),
+            relationship.call("delete", { ...relationship.in(row.scope), id: row.id }),
         ),
         ...lacking.map((residencyId) =>
             relationship.call("create", {

@@ -1,46 +1,22 @@
 import type { Select } from "@destack/db";
-import {
-    Invitation,
-    none,
-    permission,
-    principal,
-    relation,
-    Relationship,
-    union,
-} from "@destack/access";
+import { none, permission, principal, relation, union } from "@destack/access";
 import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
-import { Subject } from "@destack/sync";
 import { StackSource } from "./stack-source.ts";
 import { AccountHandle } from "../address/handle.ts";
 import { residency, ResidencyCode } from "./residency.ts";
 import { sudo } from "../authentication/sudo.ts";
 import { DisplayName } from "./display-name.ts";
 
-/** The longest invitation purpose, in characters: a short paragraph. */
-const PURPOSE_LENGTH = 1000;
+/** A membership in an organisation: a relation to its users, granted by its managers. */
+const MEMBERSHIP = { subjects: [principal.user], grantedBy: "manage" };
 
-/** The roles a member has in its organisation, from the most to the least access. */
-export const MEMBER_ROLES = ["owner", "admin", "billing", "member", "guest"] as const;
+/** The relations of an organisation's members. */
+export const MEMBERSHIPS = ["owner", "admin", "billing", "member", "guest"] as const;
+/** A relation of an organisation's members. */
+export type Membership = (typeof MEMBERSHIPS)[number];
 
-/** The role a member joins with when none is given. */
-export const DEFAULT_MEMBER_ROLE = "member";
-
-/** A role a member has in its organisation. */
-export const MemberRole = schema.enum(MEMBER_ROLES);
-/** A role a member has in its organisation. */
-export type MemberRole = schema.Infer<typeof MemberRole>;
-
-/** The relation to the users of active members in a role below owner. */
-const SEATS = { subjects: [principal.user], grantedBy: "manage" };
-
-/** The input selecting one invitation to the organisation. */
-const InvitationInput = schema.object({
-    /** The invitation's identifier. */
-    invitationId: schema.identifier("invitation"),
-});
-
-/** An organisation with accounts, and members in its roles. */
+/** An organisation with accounts, and the people who are its members. */
 export const organisation = defineObject(
     {
         name: "organisation",
@@ -59,15 +35,15 @@ export const organisation = defineObject(
         },
         recoverable: { within: { days: 30 }, by: "delete" },
         relations: {
-            // relate each active member's user by its role, and the machines publishing as the platform
-            owner: { ...SEATS, grantedBy: "administer" },
+            // add members by relation, at least one owner, and the machines publishing as the platform
+            owner: { ...MEMBERSHIP, grantedBy: "administer", isRequired: true },
             admin: {
                 subjects: [principal.user, residency.members("machine")],
                 grantedBy: "manage",
             },
-            billing: SEATS,
-            member: SEATS,
-            guest: SEATS,
+            billing: MEMBERSHIP,
+            member: MEMBERSHIP,
+            guest: MEMBERSHIP,
             // relate the servers of each residency of its accounts
             resident: { subjects: [residency.members("server")], grantedBy: "place" },
         },
@@ -107,27 +83,6 @@ export const organisation = defineObject(
             isPredicted: false,
         }),
         update: method.update("update", { fields: ["name", "image", "kind", "payer"] }),
-
-        // change invitations under the invitation's access
-        invite: method.mutation({
-            permission: "manage",
-            target: "id",
-            input: schema.object({
-                /** The role of the accepted seat. */
-                relation: MemberRole,
-                /** The invited user, or the contact of the invited email. */
-                subject: Subject,
-                /** Why the organisation invites. */
-                purpose: schema.string().min(1).max(PURPOSE_LENGTH).exactOptional(),
-            }),
-            output: Invitation.schema,
-        }),
-        accept: method.mutation({
-            permission: "read",
-            target: "id",
-            input: InvitationInput,
-            output: Relationship.schema,
-        }),
     }),
 );
 /** A persisted organisation. */

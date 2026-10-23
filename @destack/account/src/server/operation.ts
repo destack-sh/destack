@@ -1,7 +1,8 @@
 import type { MethodContextOf, NextOf, ResultOf } from "@destack/object";
 import { IdentityOperation, type PublicKey } from "@destack/identity";
-import { CallError } from "@destack/object";
 import { Identity, operation, type Operation } from "../object/identity.ts";
+import type {} from "@destack/package/import-meta";
+import { AccountError } from "../error/error.ts";
 
 /** How long a higher-priority rotation key may nullify operations a lower one signed. */
 export const RECOVERY_MILLISECONDS = 72 * 60 * 60 * 1000;
@@ -24,9 +25,10 @@ async function create(
     const claims = IdentityOperation.read(signed);
     const log = await Identity.log(context, subject);
     if (claims.subject !== subject) {
-        throw new CallError("BAD_REQUEST", {
-            message: `the operation changes ${claims.subject}, not ${subject}`,
-        });
+        throw AccountError.of(
+            "SUBJECT_MISMATCH",
+            `the operation changes ${claims.subject}, not ${subject}`,
+        );
     }
 
     // sign the first by its rotation keys, a later one by the keys of the operation it follows
@@ -44,9 +46,10 @@ async function create(
         previous === undefined ? [] : current.filter((entry) => entry.sequence > previous.sequence);
     const [first] = later;
     if (first !== undefined && !isRecoverable(first, priority, context.now)) {
-        throw new CallError("CONFLICT", {
-            message: `the operation cannot nullify the later operations of ${subject}`,
-        });
+        throw AccountError.of(
+            "NULLIFY_REFUSED",
+            `the operation cannot nullify the later operations of ${subject}`,
+        );
     }
     await context.mutate(
         context.caller,
@@ -73,9 +76,10 @@ async function create(
 /** Read the keys of the current operation an operation follows, refusing none. */
 function following(previous: Operation | undefined, subject: string) {
     if (previous === undefined) {
-        throw new CallError("CONFLICT", {
-            message: `the operation follows no current operation of ${subject}`,
-        });
+        throw AccountError.of(
+            "NO_CURRENT_OPERATION",
+            `the operation does not follow a current operation of ${subject}`,
+        );
     }
 
     return IdentityOperation.read(previous.operation);
@@ -85,9 +89,10 @@ function following(previous: Operation | undefined, subject: string) {
 async function signer(signed: string, rotationKeys: readonly PublicKey[]): Promise<number> {
     const priority = await IdentityOperation.verify(signed, rotationKeys);
     if (priority === undefined) {
-        throw new CallError("UNAUTHORIZED", {
-            message: "no rotation key of the identity signed the operation",
-        });
+        throw AccountError.of(
+            "UNSIGNED_OPERATION",
+            "the operation is not signed by a rotation key of the identity",
+        );
     }
 
     return priority;

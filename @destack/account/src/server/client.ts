@@ -9,7 +9,6 @@ import {
 } from "@destack/object";
 import { Identifier, schema } from "@destack/schema";
 import { ObjectReference, Scope } from "@destack/sync";
-import { CallError } from "@destack/object";
 import { Placement } from "../object/placement.ts";
 import { account } from "../object/account.ts";
 import { organisation } from "../object/organisation.ts";
@@ -19,6 +18,8 @@ import { Proof } from "@destack/identity";
 import { client } from "../object/client.ts";
 import { key, Key } from "../object/key.ts";
 import { session, type Session } from "../object/session.ts";
+import type {} from "@destack/package/import-meta";
+import { AccountError } from "../error/error.ts";
 
 /** The longest token lifetime, 366 days in milliseconds so a leap year fits. */
 const LIFETIME_MILLISECONDS = 366 * 24 * 60 * 60 * 1000;
@@ -98,9 +99,10 @@ async function attach(
         },
     });
     if (found === undefined) {
-        throw new CallError("FORBIDDEN", {
-            message: "key proof refers to no active key of the client",
-        });
+        throw AccountError.of(
+            "KEY_PROOF_REFUSED",
+            "key proof does not match an active key of the client",
+        );
     }
 
     // verify the proof and attach the calling session
@@ -121,7 +123,7 @@ async function subscribe(
     const { target } = context;
     Revocation.requireUnrevoked(target, "client");
     if (target.kind !== "browser") {
-        throw new CallError("BAD_REQUEST", { message: "only browsers subscribe to push" });
+        throw AccountError.of("PUSH_BROWSER_ONLY", "only browsers can subscribe to push");
     }
 
     return context.update({ push: context.input.push });
@@ -161,7 +163,7 @@ function callingSession(context: MethodContext): Session["id"] {
     // read the session credential the call presented
     const { credential } = context.caller;
     if (credential?.kind !== "session") {
-        throw new CallError("FORBIDDEN", { message: "a client attaches a signed-in session" });
+        throw AccountError.of("SESSION_REQUIRED", "the call has no signed-in session");
     }
 
     return session.identifier(credential.id);
@@ -172,17 +174,19 @@ async function requireIssuable(context: MethodContextOf<typeof client, "issue">)
     // require an expiry in the future within the longest lifetime
     const issued = context.input;
     if (issued.expiresAt <= context.now || issued.expiresAt > context.now + LIFETIME_MILLISECONDS) {
-        throw new CallError("BAD_REQUEST", {
-            message: "token expiry must lie within 366 days from now",
-        });
+        throw AccountError.of(
+            "INVALID_TOKEN_EXPIRY",
+            "token expiry must be within 366 days from now",
+        );
     }
 
     // require permissions in one scope each, declared by the served objects
     for (const permission of issued.permissions) {
         if (permission.scope === undefined) {
-            throw new CallError("BAD_REQUEST", {
-                message: `token permission ${permission.type}.${permission.name} names no scope`,
-            });
+            throw AccountError.of(
+                "PERMISSION_WITHOUT_SCOPE",
+                `token permission ${permission.type}.${permission.name} has no scope`,
+            );
         }
         const served = context.objects.filter(
             (object) => object.typeReference.packageId === permission.packageId,
@@ -202,9 +206,10 @@ async function requireIssuable(context: MethodContextOf<typeof client, "issue">)
                     ),
                 ));
         if (served.length > 0 && !isDeclared) {
-            throw new CallError("BAD_REQUEST", {
-                message: `unknown permission ${permission.type}.${permission.name}`,
-            });
+            throw AccountError.of(
+                "UNKNOWN_PERMISSION",
+                `unknown permission ${permission.type}.${permission.name}`,
+            );
         }
     }
 
@@ -213,7 +218,7 @@ async function requireIssuable(context: MethodContextOf<typeof client, "issue">)
     const usable = await userScopes(context, scopes);
     const unusable = scopes.find((scope) => !usable.includes(scope));
     if (unusable !== undefined) {
-        throw new CallError("BAD_REQUEST", { message: `token cannot act in ${unusable}` });
+        throw AccountError.of("UNUSABLE_SCOPE", `token cannot act in ${unusable}`);
     }
 }
 

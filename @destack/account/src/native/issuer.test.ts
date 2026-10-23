@@ -1,7 +1,6 @@
 import type { Fetch } from "@destack/object";
-import { expect, test } from "@destack/test";
+import { expect, refusal, test } from "@destack/test";
 import { schema } from "@destack/schema";
-import { outcome } from "../test/outcome.ts";
 import { Issuer } from "./issuer.ts";
 
 /** The client polling for its device code. */
@@ -43,7 +42,7 @@ test("poll a device code into a grant, a wait, a slow down, a refusal, or a loud
     ];
     expect({
         polled: await Promise.all(answers.map(poll)),
-        failed: await outcome(poll("invalid_client")),
+        failed: await refusal(poll("invalid_client")),
     }).toEqual({
         polled: [
             {
@@ -62,6 +61,6 @@ test("poll a device code into a grant, a wait, a slow down, a refusal, or a loud
             { status: "refused" },
             { status: "refused" },
         ],
-        failed: "BAD_GATEWAY: the issuer refused the device code: invalid_client",
+        failed: ["BAD_REQUEST", "INVALID_CLIENT", "the token endpoint refused the request: invalid_client"],
     });
 });

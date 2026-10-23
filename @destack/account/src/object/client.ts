@@ -1,7 +1,6 @@
 import { AccessContext, Caller, GrantPermission, none, principal, through } from "@destack/access";
 import { type DatabaseConnection, type Select, Snapshot } from "@destack/db";
 import type { ObjectStore } from "@destack/object/server";
-import { CallError } from "@destack/object";
 import { RequestId, Scope } from "@destack/sync";
 import { defineObject, field } from "@destack/object";
 import { Digest, Instant, schema } from "@destack/schema";
@@ -13,6 +12,8 @@ import { user } from "./user.ts";
 import { DisplayName } from "./display-name.ts";
 import { sudo } from "../authentication/sudo.ts";
 import { PushSubscription } from "./recipient.ts";
+import type {} from "@destack/package/import-meta";
+import { AccountError } from "../error/error.ts";
 
 /** The name a device's client starts with, which its program renames once it signs in. */
 export const DEVICE_CLIENT_NAME = "Destack app";
@@ -193,7 +194,7 @@ export const Client = {
             .read(client.table)
             .findFirst({ where: { id } });
         if (row !== undefined && row.scope !== userId) {
-            throw new CallError("FORBIDDEN", { message: `${id} is another person's client` });
+            throw AccountError.of("FOREIGN_CLIENT", `client ${id} belongs to another person`);
         } else if (row !== undefined) {
             return;
         }

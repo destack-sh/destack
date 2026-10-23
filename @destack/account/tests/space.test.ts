@@ -1,98 +1,117 @@
-import { accessRelationship } from "@destack/access";
+import accountPackage from "../src/package.ts";
+import { accessRelationship, Role } from "@destack/access";
 import { eq, Snapshot } from "@destack/db";
-import { RequestId } from "@destack/sync";
-import { expect, test } from "@destack/test";
-import { Account, placement, space } from "../src/object/index.ts";
-import { AccountFixture, ids, outcome } from "../src/test/index.ts";
-
 import { Claim } from "@destack/object";
+import { RequestId } from "@destack/sync";
+import { expect, test, refusal } from "@destack/test";
+import { Account, placement, space } from "../src/object/index.ts";
+import { TestAccountStore, ids, OWNER_EMAIL, type TestPerson } from "../src/test/index.ts";
+import type { Identifier } from "@destack/schema";
 
-test("create a space placed in the same transaction on its account's residency cloud machine or a named machine of the account or residency, and refuse a taken name leaving no placement", async () => {
+/** Create a space of a name in a person's personal account, on a machine when given. */
+function create(
+    fixture: TestAccountStore,
+    person: TestPerson,
+    name: string,
+    machine?: Identifier<"machine">,
+) {
+    return person.client(accountPackage).space.create({
+        accountId: person.account,
+        requestId: RequestId.create(fixture.clock.now()),
+        name,
+        ...(machine === undefined ? {} : { machine }),
+    });
+}
+
+/** Read the placements of a person's personal account, in the order of their spaces. */
+function placements(fixture: TestAccountStore, person: TestPerson) {
+    return fixture.database
+        .select({
+            id: placement.table.id,
+            scope: placement.table.scope,
+            machine: placement.table.machineId,
+            epoch: placement.table.epoch,
+        })
+        .from(placement.table)
+        .where(eq(placement.table.scope, person.account))
+        .orderBy(placement.table.id);
+}
+
+test("place a new space on its account's residency cloud machine, on a machine of the account, or on a named cloud machine of the residency", async () => {
     // let a person create spaces in their personal account, with their machine enrolled in it
-    await using fixture = await AccountFixture.open();
-    const owner = await fixture.person("owner@example.com");
-    const laptop = await fixture.enroll(owner.account, { client: owner.client });
-    const outsider = await fixture.enroll(ids.account);
-    const create = (name: string, machine?: typeof laptop.machineId) =>
-        owner.client.space.create({
-            accountId: owner.account,
-            requestId: RequestId.create(Date.now()),
-            name,
-            ...(machine === undefined ? {} : { machine }),
-        });
+    await using fixture = await TestAccountStore.open();
+    const person = await fixture.signIn("person@example.com");
+    const laptop = await fixture.enroll(person.account, person);
 
     // place one on the residency's cloud machine, one on the person's machine and one on the named cloud machine
-    const cloud = await create("work");
-    const local = await create("notes", laptop.machineId);
-    const shared = await create("shared", ids.machine);
+    const cloud = await create(fixture, person, "work");
+    const local = await create(fixture, person, "notes", laptop.machineId);
+    const shared = await create(fixture, person, "shared", ids.machine);
 
-    // refuse a taken name and a machine of another account
-    const taken = await outcome(create("work"));
-    const foreign = await outcome(create("other", outsider.machineId));
+    // store each placement beside the home's, and claim each name for its space
+    const owners = {
+        owner: async (index: string, key: string) =>
+            (await person.client(accountPackage).claim.owner({ index, key })) ?? undefined,
+    };
     expect({
-        placements: await fixture.database
-            .select({
-                id: placement.table.id,
-                scope: placement.table.scope,
-                machine: placement.table.machineId,
-                epoch: placement.table.epoch,
-            })
-            .from(placement.table)
-            .where(eq(placement.table.scope, owner.account))
-            .orderBy(placement.table.id),
-        claimed: await Claim.lookup(
-            space,
-            {
-                owner: async (index, key) =>
-                    (await owner.client.claim.owner({ index, key })) ?? undefined,
-            },
-            "name",
-            ["work"],
-            owner.account,
-        ),
-        taken,
-        foreign,
+        placements: await placements(fixture, person),
+        claimed: await Claim.lookup(space, owners, "name", ["work"], person.account),
     }).toEqual({
         placements: [
             {
-                id: Account.home(owner.account),
-                scope: owner.account,
+                id: Account.home(person.account),
+                scope: person.account,
                 machine: ids.machine,
                 epoch: 1,
             },
-            { id: cloud.id, scope: owner.account, machine: ids.machine, epoch: 1 },
-            { id: local.id, scope: owner.account, machine: laptop.machineId, epoch: 1 },
-            { id: shared.id, scope: owner.account, machine: ids.machine, epoch: 1 },
+            { id: cloud.id, scope: person.account, machine: ids.machine, epoch: 1 },
+            { id: local.id, scope: person.account, machine: laptop.machineId, epoch: 1 },
+            { id: shared.id, scope: person.account, machine: ids.machine, epoch: 1 },
         ],
-        claimed: { scope: owner.account, id: cloud.id },
-        taken: "CONFLICT: name is taken",
-        foreign: `BAD_REQUEST: ${outsider.machineId} is no standing machine of the space's account nor of its residency`,
+        claimed: { scope: person.account, id: cloud.id },
+    });
+});
+
+test("refuse a space under a taken name or on another account's machine, placing nothing", async () => {
+    // let a person create a space, and enroll a machine of the owner's account
+    await using fixture = await TestAccountStore.open();
+    const person = await fixture.signIn("person@example.com");
+    const owner = await fixture.signIn(OWNER_EMAIL);
+    const elsewhere = await fixture.enroll(ids.account, owner);
+    const work = await create(fixture, person, "work");
+
+    // refuse the taken name and the other account's machine
+    expect({
+        taken: await refusal(create(fixture, person, "work")),
+        foreign: await refusal(create(fixture, person, "other", elsewhere.machineId)),
+        placements: (await placements(fixture, person)).map((placed) => placed.id),
+    }).toEqual({
+        taken: ["CONFLICT", "NAME_TAKEN", "name is taken"],
+        foreign: [
+            "BAD_REQUEST",
+            "UNKNOWN_MACHINE",
+            `${elsewhere.machineId} is not a standing machine of the space's account or residency`,
+        ],
+        placements: [Account.home(person.account), work.id],
     });
 });
 
 test("rename a space to a free address in its account, releasing the old one, and refuse a taken or malformed one", async () => {
     // let a person create two spaces in their personal account
-    await using fixture = await AccountFixture.open();
-    const owner = await fixture.person("owner@example.com");
-    const create = (name: string) =>
-        owner.client.space.create({
-            accountId: owner.account,
-            requestId: RequestId.create(Date.now()),
-            name,
-        });
-    const first = await create("first");
-    const second = await create("second");
+    await using fixture = await TestAccountStore.open();
+    const owner = await fixture.signIn(OWNER_EMAIL);
+    const first = await create(fixture, owner, "first");
+    const second = await create(fixture, owner, "second");
     const rename = async (id: string, name: string) => {
-        const renamed = owner.client.space.rename({
+        const renamed = owner.client(accountPackage).space.rename({
             accountId: owner.account,
             id,
-            requestId: RequestId.create(Date.now()),
+            requestId: RequestId.create(fixture.clock.now()),
             name,
         });
+        const settled = await refusal(renamed);
 
-        const settled = await outcome(renamed);
-
-        return settled === "executed" ? (await renamed).name : settled;
+        return settled === "done" ? (await renamed).name : settled;
     };
 
     // move the first space to a free address, refuse it to the second while taken, then release it
@@ -109,37 +128,65 @@ test("rename a space to a free address in its account, releasing the old one, an
     ];
 
     // refuse each by the address pattern
-    const refused =
-        "BAD_REQUEST: invalid input: name: labels are lowercase letters, digits and single inner hyphens";
+    const refused = [
+        "BAD_REQUEST",
+        "INVALID_INPUT",
+        "invalid input: name: labels are lowercase letters, digits and single inner hyphens",
+    ];
     expect({ moved, taken, away, released, malformed }).toEqual({
         moved: "notes",
-        taken: "CONFLICT: name is taken",
+        taken: ["CONFLICT", "NAME_TAKEN", "name is taken"],
         away: "personal",
         released: "notes",
         malformed: [refused, refused, refused],
     });
 });
 
-test("create a space at the universe with its row alone, leaving its access to its home", async () => {
-    // let a person create a space in their account
-    await using fixture = await AccountFixture.open();
-    const owner = await fixture.person("owner@example.com");
-    const created = await owner.client.space.create({
-        accountId: owner.account,
-        requestId: RequestId.create(Date.now()),
-        name: "work",
-    });
+test("create a space at the universe with its row and its own access, the space owning itself", async () => {
+    // let a person create a space in their account at a clock standing still
+    await using fixture = await TestAccountStore.open();
+    fixture.clock.pause();
+    const owner = await fixture.signIn(OWNER_EMAIL);
+    const created = await create(fixture, owner, "work");
 
-    // store the row and its placement, and none of its relationships, at the universe
+    // store the row, its placement and the space's owner binding to itself at the universe
     const snapshot = Snapshot.live(fixture.database);
+    const now = fixture.clock.now();
     expect({
-        row: (await snapshot.read(space.table).findMany({ where: { id: created.id } })).map(
-            (row) => row.name,
-        ),
-        placed: (await snapshot.read(placement.table).findMany({ where: { id: created.id } }))
-            .length,
-        tuples: await snapshot
-            .read(accessRelationship)
-            .findMany({ where: { objectId: created.id } }),
-    }).toEqual({ row: ["work"], placed: 1, tuples: [] });
+        row: await fixture.database
+            .select({ id: space.table.id, scope: space.table.scope, name: space.table.name })
+            .from(space.table)
+            .where(eq(space.table.id, created.id)),
+        placed: await fixture.database
+            .select({
+                id: placement.table.id,
+                scope: placement.table.scope,
+                machineId: placement.table.machineId,
+                epoch: placement.table.epoch,
+                targetId: placement.table.targetId,
+                transferId: placement.table.transferId,
+                createdAt: placement.table.createdAt,
+                updatedAt: placement.table.updatedAt,
+            })
+            .from(placement.table)
+            .where(eq(placement.table.id, created.id)),
+        tuples: (
+            await snapshot.read(accessRelationship).findMany({ where: { objectId: created.id } })
+        ).map((row) => [row.scope, row.roleId, row.subjectType, row.subjectId]),
+    }).toEqual({
+        row: [{ id: created.id, scope: owner.account, name: "work" }],
+        placed: [
+            {
+                id: created.id,
+                scope: owner.account,
+                machineId: ids.machine,
+                epoch: 1,
+                targetId: null,
+                transferId: null,
+                createdAt: now,
+                updatedAt: now,
+            },
+        ],
+        tuples: [[owner.account, Role.OWNER, "space", created.id]],
+    });
 });

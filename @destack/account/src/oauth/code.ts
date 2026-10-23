@@ -1,16 +1,17 @@
 import type { OAuthExtensionGrantHandler } from "@better-auth/oauth-provider";
-import { principal, Caller } from "@destack/access";
 import { type DatabaseConnection, Snapshot } from "@destack/db";
 import type { ObjectStore } from "@destack/object/server";
-import type { PackageId } from "@destack/package";
 import { present, schema } from "@destack/schema";
 import { isAPIError } from "better-auth/api";
-import { Scope } from "@destack/sync";
 import { Client } from "../object/client.ts";
+import { session } from "../object/session.ts";
+import { RequestId } from "@destack/sync";
 import { user } from "../object/user.ts";
 import { Issuance } from "./issuance.ts";
-import { PackageResource } from "./resource.ts";
+import { PackageResource, type TokenLifetime } from "./resource.ts";
 import { SignUp } from "../better-auth/sign-up.ts";
+import { ActiveSession } from "../better-auth/active-session.ts";
+import { AccountAuthentication } from "../better-auth/authentication.ts";
 import type { Clock } from "@destack/environment";
 
 /** The grant type of a mailed sign-in code exchanged for a person's tokens on a new client. */
@@ -49,13 +50,13 @@ export interface CodeOptions {
     /** The account database with the people and their clients. */
     readonly database: DatabaseConnection;
     /** The account objects, which register the device's client for the person. */
-    readonly objects: Pick<ObjectStore, "mutate" | "database">;
+    readonly objects: Pick<ObjectStore, "mutate" | "database" | "serving">;
     /** The check of mailed sign-in codes. */
     readonly check: CodeCheck;
     /** The clock tokens are issued at. */
     readonly clock: Clock;
-    /** The lifetimes of the packages' tokens, a minute when absent. */
-    readonly lifetimes: ReadonlyMap<PackageId, number>;
+    /** How long the packages' tokens live. */
+    readonly lifetime: TokenLifetime;
 }
 
 /** Exchange a mailed sign-in code for a person's tokens on a device's new client. */
@@ -116,27 +117,28 @@ export function codeGrant(options: CodeOptions): OAuthExtensionGrantHandler {
         await internalAdapter.updateSession(signedIn.token, {
             authenticatedAt: now,
             authenticationMethod: "email-otp",
-            clientId,
+        });
+        await options.objects.mutate(options.objects.serving(session), {
+            id: RequestId.create(now),
+            calls: [
+                session.call("attach", {
+                    ...session.target({ scope: userId, id: signedIn.id }),
+                    clientId,
+                }),
+            ],
         });
 
-        // issue the person's tokens to the client
-        const subject = principal.user.reference(Scope.universe.id, userId);
+        // issue the person's tokens to the client, described through the session the code proved
+        const active = await ActiveSession.read(signedIn.id, options.database, now);
+        const described = AccountAuthentication.activeSession(active, audience, now);
         const authentication = {
-            caller: Caller.of(subject),
-            credential: {
-                kind: "client",
-                id: clientId,
-                client: clientId,
-                audience,
-                verifiedAt: now,
-                expiresAt: now,
-                assurance: { level: 1, authenticatedAt: now },
-            },
+            ...described,
+            credential: { ...described.credential, client: clientId },
         };
 
         return Issuance.issue(input, authentication, {
             now,
-            lifetimes: options.lifetimes,
+            lifetime: options.lifetime,
             scopes: CODE_SCOPES,
             session: signedIn.id,
         });

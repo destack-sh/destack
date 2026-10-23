@@ -1,15 +1,16 @@
 import type { Snapshot } from "@destack/db";
 import { Claim, claimTable, type ObjectType } from "@destack/object";
-import { schema, type Identifier } from "@destack/schema";
+import { nth, schema, type Identifier } from "@destack/schema";
 import { type Fetch, PackageMount, SpaceMount } from "@destack/object";
 import { createClient } from "@destack/object/client";
-import { CallError } from "@destack/object";
 import objectPackage from "@destack/object/package";
 import type { ObjectReference, Publisher } from "@destack/sync";
 import { account } from "../object/account.ts";
 import { Endpoint, endpoint } from "../object/endpoint.ts";
 import { placement, type PlacementEndpoint } from "../object/placement.ts";
 import { SpaceAddress } from "./address.ts";
+import type {} from "@destack/package/import-meta";
+import { AccountError } from "../error/error.ts";
 
 /** The directory: handles, space addresses `<name>--<handle>`, placements and machines. */
 export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
@@ -31,6 +32,17 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
         return owner !== undefined && account.identifies(owner.objectId)
             ? account.identifier(owner.objectId)
             : undefined;
+    }
+
+    /** Find the handle an account claims, none for an account claiming none. */
+    async handle(accountId: string): Promise<string | undefined> {
+        const [claimed] = await this.snapshot.read(claimTable).findMany({
+            where: { index: Claim.index(account, "handle"), objectId: accountId },
+        });
+
+        return claimed === undefined
+            ? undefined
+            : schema.string().parse(nth(Claim.values(claimed), 0));
     }
 
     /** Find the object at an address among an account's objects of a type, absent for none. */
@@ -67,7 +79,7 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
         // find the object, then where its space answers
         const named = await this.find(type, address);
         if (named === undefined) {
-            throw new CallError("NOT_FOUND", { message: `nothing answers at ${address}` });
+            throw AccountError.of("ADDRESS_NOT_FOUND", `nothing responds at ${address}`);
         }
         const located = await this.locate(schema.identifier("space").parse(named.id), now);
 
@@ -81,7 +93,7 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
             .read(placement.table)
             .findFirst({ where: { id: spaceId } });
         if (placed === undefined) {
-            throw new CallError("NOT_FOUND", { message: `nothing answers for ${spaceId}` });
+            throw AccountError.of("SPACE_NOT_PLACED", `nothing responds for ${spaceId}`);
         }
         const { machineId } = placed;
         const url = await this.answering(machineId, now);
@@ -126,7 +138,10 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
             .read(endpoint.table)
             .findFirst({ where: { id: machineId } });
         if (published === undefined || !Endpoint.isAnswering(published, now)) {
-            throw new CallError("NOT_FOUND", { message: `machine ${machineId} answers nowhere` });
+            throw AccountError.of(
+                "MACHINE_NOT_PUBLISHED",
+                `machine ${machineId} has no published endpoint`,
+            );
         }
 
         return published.url;

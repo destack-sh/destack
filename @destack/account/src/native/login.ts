@@ -11,7 +11,6 @@ import { defineObject, device, field, ListPage } from "@destack/object";
 import type { PackageId } from "@destack/package";
 import { type Fetch, PACKAGE_PATH, PackageMount, type PackageHandle } from "@destack/object";
 import { type ClientOptions, createClient } from "@destack/object/client";
-import { CallError } from "@destack/object";
 import { RequestId, ObjectReference, Scope, type Subject } from "@destack/sync";
 import { canonicalize, type Identifier, schema } from "@destack/schema";
 import { Account } from "../object/account.ts";
@@ -20,6 +19,9 @@ import objectPackage from "@destack/object/package";
 import accountPackage from "../package.ts";
 import { Issuer, type TokenBinding } from "./issuer.ts";
 import type { SessionStore } from "./session.ts";
+import type {} from "@destack/package/import-meta";
+import { AccountError } from "../error/error.ts";
+import { ACCESS_TOKEN_TYPE } from "../oauth/exchange.ts";
 
 /** A person signed in on a computer's native device, the keychain storing their refresh token. */
 export const login = defineObject({
@@ -65,7 +67,7 @@ export class Login {
     constructor(row: LoginRow, sessions: SessionStore, fetch: Fetch, clock: Clock) {
         // require a person still signed in
         if (row.status !== "authenticated") {
-            throw new CallError("UNAUTHORIZED", { message: "the person is not signed in" });
+            throw AccountError.of("NOT_SIGNED_IN", "the person is not signed in");
         }
 
         // store the login, its issuer, the keychain, the fetch and the clock
@@ -108,7 +110,7 @@ export class Login {
         });
         const [personal] = items;
         if (personal === undefined) {
-            throw new CallError("NOT_FOUND", { message: "the person has no personal account" });
+            throw AccountError.of("NO_PERSONAL_ACCOUNT", "the person has no personal account");
         }
 
         return personal.id;
@@ -148,14 +150,16 @@ export class Login {
         }
 
         // exchange it for the package's token, cached per package and binding
-        return this.#sessions
-            .accessTokens(this.row)
-            .token(
-                canonicalize([audience, bound]),
-                this.#clock.now(),
-                async () => this.issuer.exchange(await this.#accountToken(stepUp), audience, bound),
-                stepUp,
-            );
+        return this.#sessions.accessTokens(this.row).token(
+            canonicalize([audience, bound]),
+            this.#clock.now(),
+            async () => {
+                const token = await this.#accountToken(stepUp);
+
+                return this.issuer.exchange({ token, type: ACCESS_TOKEN_TYPE }, audience, bound);
+            },
+            stepUp,
+        );
     }
 
     /** Find the person's unexpiring grant of exactly some permissions to a delegate. */
@@ -215,7 +219,7 @@ export class Login {
                 // read the refresh token the keychain stores, refusing a signed-out person
                 const refreshToken = await this.#sessions.load(this.row);
                 if (refreshToken === undefined) {
-                    throw new CallError("UNAUTHORIZED", { message: "the person signed out" });
+                    throw AccountError.of("SIGNED_OUT", "the person signed out");
                 }
 
                 // refresh, storing the refresh token the issuer rotates to

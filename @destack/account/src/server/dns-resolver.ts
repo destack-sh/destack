@@ -1,6 +1,7 @@
 import { present, schema } from "@destack/schema";
 import type { Fetch } from "@destack/object";
-import { CallError } from "@destack/object";
+import type {} from "@destack/package/import-meta";
+import { AccountError } from "../error/error.ts";
 
 /** The resource record type of TXT records (RFC 1035 3.2.2). */
 const TXT = 16;
@@ -34,8 +35,8 @@ export class DnsOverHttps implements DnsResolver {
     /** The fetch sending the resolver's requests. */
     readonly #fetch: Fetch;
 
-    /** Resolve through an endpoint, Cloudflare's by default. */
-    constructor(endpoint = new URL("https://cloudflare-dns.com/dns-query"), send: Fetch = fetch) {
+    /** Resolve through a fetch at an endpoint, Cloudflare's by default. */
+    constructor(send: Fetch, endpoint = new URL("https://cloudflare-dns.com/dns-query")) {
         this.endpoint = endpoint;
         this.#fetch = send;
     }
@@ -53,9 +54,10 @@ export class DnsOverHttps implements DnsResolver {
             }),
         );
         if (!response.ok) {
-            throw new CallError("SERVICE_UNAVAILABLE", {
-                message: `the DNS resolver answered the lookup of ${name} with HTTP ${response.status}`,
-            });
+            throw AccountError.of(
+                "DNS_RESOLVER_FAILED",
+                `the DNS resolver responded to the lookup of ${name} with HTTP ${response.status}`,
+            );
         }
 
         // read the records of a found or missing name, joining each record's unescaped strings
@@ -71,9 +73,10 @@ export class DnsOverHttps implements DnsResolver {
         }
         // refuse a failed lookup
         else {
-            throw new CallError("SERVICE_UNAVAILABLE", {
-                message: `the DNS lookup of ${name} failed with status ${answer.Status}`,
-            });
+            throw AccountError.of(
+                "DNS_LOOKUP_FAILED",
+                `the DNS lookup of ${name} failed with status ${answer.Status}`,
+            );
         }
     }
 }

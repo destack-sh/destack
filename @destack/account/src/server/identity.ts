@@ -2,10 +2,11 @@ import { Caller, principal } from "@destack/access";
 import type { MethodContextOf, NextOf, ResultOf } from "@destack/object";
 import { IdentityOperation } from "@destack/identity";
 import { schema } from "@destack/schema";
-import { CallError } from "@destack/object";
 import { Scope, Subject } from "@destack/sync";
 import { identity, Identity, operation } from "../object/identity.ts";
 import { placement } from "../object/placement.ts";
+import type {} from "@destack/package/import-meta";
+import { AccountError } from "../error/error.ts";
 
 /** Implement identities. */
 export function implementIdentity(): typeof identity {
@@ -26,9 +27,10 @@ async function create(
     const subject = context.id;
     const claims = IdentityOperation.read(context.input.operation);
     if (claims.subject !== subject || claims.previous !== null) {
-        throw new CallError("BAD_REQUEST", {
-            message: `the operation starts no identity of ${subject}`,
-        });
+        throw AccountError.of(
+            "IDENTITY_NOT_STARTED",
+            `the operation does not start an identity of ${subject}`,
+        );
     }
 
     // require the universe for itself, else the machine serving the space
@@ -45,9 +47,10 @@ async function create(
         principal.machine.is(sender) &&
         sender.id === served.machineId;
     if (!isUniverse && !isServing) {
-        throw new CallError("FORBIDDEN", {
-            message: `only the machine serving ${subject} starts its identity`,
-        });
+        throw AccountError.of(
+            "FOREIGN_IDENTITY_START",
+            `only the machine serving ${subject} can start its identity`,
+        );
     }
 
     // create the identity and append its first operation

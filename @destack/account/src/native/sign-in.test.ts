@@ -5,18 +5,17 @@ import { MemoryKeychain } from "@destack/identity";
 import { ObjectClient } from "@destack/object/client";
 import { present, schema } from "@destack/schema";
 import { ObjectReference, Scope } from "@destack/sync";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, refusal, single, test } from "@destack/test";
 import { account } from "../object/account.ts";
 import { client } from "../object/client.ts";
 import { SignUp } from "../better-auth/sign-up.ts";
-import { AccountFixture, type Browser, ISSUER, outcome, type Person } from "../test/index.ts";
+import { TestAccountStore, TestBrowser, ISSUER, type TestPerson } from "../test/index.ts";
 import { Issuer } from "./issuer.ts";
 import { ClientKey } from "./client-key.ts";
 import { SessionStore } from "./session.ts";
 import { login, Login } from "./login.ts";
 import { NativeSignIn } from "./sign-in.ts";
-import { Clock } from "@destack/environment";
-import { VirtualClock } from "@destack/environment/simulation";
+import { Simulation, VirtualClock } from "@destack/environment/simulation";
 
 /** The time the native device's clock reads, in UTC epoch milliseconds: 2026-01-01. */
 const NOW = 1_767_225_600_000;
@@ -30,88 +29,176 @@ const WRITER = principal.device.reference(Scope.universe.id, DEVICE);
 /** The person signed in on the issuer's pages. */
 const EMAIL = "ada@example.com";
 
-test("ask the issuer for the challenged assurance and recency in a step-up sign-in", async () => {
-    await using accounts = await AccountFixture.open();
+/** Allow a browser sign-in on the issuer's consent page, returning the loopback redirect. */
+async function consent(browser: TestBrowser, url: string): Promise<string> {
+    // follow the authorization to the consent page and allow it
+    const page = TestBrowser.location(await browser.fetch(url));
+    const allowed = await browser.fetch(page, new URLSearchParams({ action: "approve" }));
+
+    return TestBrowser.location(allowed);
+}
+
+/** The login a sign-in writes for a person on the native device. */
+function loginRow(signedIn: { id: string; clientId: string }, person: TestPerson) {
+    return {
+        id: signedIn.id,
+        scope: DEVICE,
+        issuer: ISSUER,
+        subjectId: person.id,
+        clientId: signedIn.clientId,
+        name: EMAIL,
+        status: "authenticated",
+        tags: {},
+        createdAt: NOW,
+        ...ObjectReference.columns("createdBy", WRITER),
+        updatedAt: NOW,
+        ...ObjectReference.columns("updatedBy", WRITER),
+        revision: 1,
+    };
+}
+
+/** Read the clients of a person, oldest first. */
+async function nativeClients(accounts: TestAccountStore, person: TestPerson) {
+    const rows = await accounts.database
+        .select({ id: client.table.id, revokedAt: client.table.revokedAt })
+        .from(client.table)
+        .where(and(eq(client.table.scope, person.id), eq(client.table.kind, "native")))
+        .orderBy(client.table.createdAt, client.table.id);
+
+    return rows.map((row) => ({ id: row.id, isRevoked: row.revokedAt !== null }));
+}
+
+/** Sign people in on a native device against the fixture's issuer. */
+async function native(accounts: TestAccountStore) {
+    // store the device's logins in a local database
+    const database = await connectBunSqlite(":memory:");
+    onTestFinished(() => database.close());
+    const subject = principal.device.reference(Scope.universe.id, DEVICE);
+    const logins = await ObjectClient.open({
+        database,
+        objects: { login },
+        clock: new VirtualClock(NOW),
+        scope: DEVICE,
+        caller: subject,
+        device: subject,
+        endpoint: {
+            url: "http://local.invalid/",
+            fetch: async () => {
+                throw new TypeError("local objects cannot call a server");
+            },
+        },
+        reconnect: () => {
+            throw new TypeError("local objects move nowhere");
+        },
+    });
+    onTestFinished(() => logins.close());
+
+    // reach the laptop's own loopback through its simulated network
+    const network = new Simulation({ seed: 1, start: NOW }).network.of("laptop");
+
+    // sign people in with the keychain's refresh tokens
+    const issuer = new Issuer(ISSUER, (request) => accounts.fetch(request));
+    const sessions = new SessionStore(new MemoryKeychain());
+    const signIn = new NativeSignIn({
+        issuer,
+        sessions,
+        keys: new ClientKey(new MemoryKeychain(), accounts.store.clock),
+        logins,
+        environment: { clock: accounts.store.clock, network },
+        client: {
+            name: "laptop",
+            platform: "macOS",
+            architecture: "arm64",
+            version: "2026.9.0",
+        },
+    });
+
+    return { signIn, issuer, logins, sessions, network };
+}
+
+test("ask the issuer for a fresh sign-in within the challenged age in a step-up, which takes every factor the person enrolled", async () => {
+    await using accounts = await TestAccountStore.open();
     const { signIn } = await native(accounts);
 
-    // open the browser at the issuer and stop before it returns
-    let opened: URL | undefined;
+    // open the browser at the issuer and stop the sign-in before it returns
+    const opened: URL[] = [];
     const stopping = new AbortController();
     const signedIn = signIn.browser(
         async (url) => {
-            opened = new URL(url);
+            opened.push(new URL(url));
             stopping.abort();
         },
         { assurance: 2, maxAge: 900_000 },
         stopping.signal,
     );
-    await signedIn.catch(() => undefined);
+    const stopped = await signedIn.then(
+        () => "signed in",
+        (error: unknown) => error,
+    );
+    expect(stopped).toBe(stopping.signal.reason);
 
-    // expect a fresh sign-in within fifteen minutes asked for
-    const asked = opened?.searchParams;
-    expect([asked?.get("prompt"), asked?.get("max_age")]).toEqual(["login", "900"]);
+    // ask for a fresh sign-in within fifteen minutes
+    const asked = single(opened).searchParams;
+    expect([asked.get("prompt"), asked.get("max_age")]).toEqual(["login", "900"]);
 });
 
 test("sign a person in through a browser redirect with PKCE as a new client, and sign them out revoking its refresh token", async () => {
-    await using accounts = await AccountFixture.open();
-    const owner = await accounts.signInWithLink(EMAIL);
-    const { signIn, issuer, logins, sessions } = await native(accounts);
+    await using accounts = await TestAccountStore.open();
+    const { person: owner, browser: ownerBrowser } = await accounts.signInWithLink(EMAIL);
+    const { signIn, issuer, logins, sessions, network } = await native(accounts);
     const before = await nativeClients(accounts, owner);
 
     // allow the sign-in on the consent page and return to the loopback redirect
-    let callback = "";
-    let answered: Response | undefined;
+    const callbacks: string[] = [];
+    const pages: Response[] = [];
     const signedIn = await signIn.browser(async (url) => {
-        callback = await consent(owner.browser, url);
-        answered = await fetch(callback);
+        const callback = await consent(ownerBrowser, url);
+        callbacks.push(callback);
+        pages.push(await network.fetch(new Request(callback)));
     });
+    const callback = single(callbacks);
+    const page = single(pages);
 
     // expect a login of the new client, storing its refresh token in the keychain
     const person = { issuer: ISSUER, subjectId: owner.id };
-    const refreshToken = await sessions.load(person);
+    const refreshToken = present(await sessions.load(person), "the stored refresh token");
     expect({
-        page: [answered?.status, await answered?.text()],
+        page: [page.status, await page.text()],
         rows: await logins.query.login.findMany(),
         clients: await nativeClients(accounts, owner),
-        isRetained: refreshToken !== undefined,
     }).toEqual({
         page: [200, "Signed in. You can close this window."],
         rows: [loginRow(signedIn, owner)],
         clients: [...before, { id: signedIn.clientId, isRevoked: false }],
-        isRetained: true,
     });
 
     // refuse a second use of the redirect, whose listener closed with the sign-in
-    const again = await fetch(callback).then(
-        () => "answered",
-        () => "refused",
+    const origin = new URL(callback).origin;
+    await expect(network.fetch(new Request(callback))).rejects.toThrow(
+        `fetch failed: nothing serves ${origin}`,
     );
 
     // sign out, forgetting the refresh token the issuer no longer refreshes
     await signIn.signOut(signedIn);
     const registration = schema.identifier("client").parse(signedIn.clientId);
     expect({
-        again,
         rows: await logins.query.login.findMany(),
         session: await sessions.load(person),
-        refreshed: await outcome(
-            issuer.refresh(registration, present(refreshToken, "the refresh token")),
-        ),
+        refreshed: await refusal(issuer.refresh(registration, refreshToken)),
     }).toEqual({
-        again: "refused",
         rows: [],
         session: undefined,
-        refreshed: "UNAUTHORIZED: the issuer refused the refresh token: invalid refresh token",
+        refreshed: ["BAD_REQUEST", "INVALID_GRANT", "the token endpoint refused the request: invalid_grant: invalid refresh token"],
     });
 });
 
-test("fail a browser sign-in another issuer answers", async () => {
-    await using accounts = await AccountFixture.open();
-    const { signIn, logins } = await native(accounts);
+test("fail a browser sign-in whose redirect names another issuer", async () => {
+    await using accounts = await TestAccountStore.open();
+    const { signIn, logins, network } = await native(accounts);
 
     // answer the redirect with another issuer
-    let answered: Response | undefined;
-    const failed = await outcome(
+    const pages: Response[] = [];
+    const failed = await refusal(
         signIn.browser(async (url) => {
             const asked = new URL(url).searchParams;
             const callback = new URL(present(asked.get("redirect_uri"), "the redirect"));
@@ -120,25 +207,26 @@ test("fail a browser sign-in another issuer answers", async () => {
                 state: present(asked.get("state"), "the state"),
                 iss: "https://mixup.test",
             }).toString();
-            answered = await fetch(callback);
+            pages.push(await network.fetch(new Request(callback)));
         }),
     );
 
     // fail the sign-in without a login
+    const page = single(pages);
     expect({
-        page: [answered?.status, await answered?.text()],
+        page: [page.status, await page.text()],
         failed,
         rows: await logins.query.login.findMany(),
     }).toEqual({
         page: [400, "Sign-in failed. Start it again from Destack."],
-        failed: "UNAUTHORIZED: the sign-in did not complete",
+        failed: ["UNAUTHORIZED", "SIGN_IN_INCOMPLETE", "the sign-in did not complete"],
         rows: [],
     });
 });
 
 test("sign a person in with a device code once they approve it, and replace the client an earlier sign-in here registered", async () => {
-    await using accounts = await AccountFixture.open();
-    const owner = await accounts.signInWithLink(EMAIL);
+    await using accounts = await TestAccountStore.open();
+    const { person: owner, browser } = await accounts.signInWithLink(EMAIL);
     const { signIn, logins } = await native(accounts);
     const before = await nativeClients(accounts, owner);
 
@@ -147,16 +235,10 @@ test("sign a person in with a device code once they approve it, and replace the 
     const pending = await waiting.poll();
 
     // approve each code on the verification page before its first poll, as the issuer paces polls
-    const signInWithCode = async () => {
-        const started = await signIn.startDevice();
-        await owner.browser.fetch(started.url, new URLSearchParams({ action: "approve" }));
-        const granted = await started.poll();
-        if (typeof granted === "number") {
-            throw new TypeError("the approved sign-in waits");
-        }
-
-        return granted;
-    };
+    const signInWithCode = () =>
+        signIn.device(async (started) => {
+            await browser.fetch(started.url, new URLSearchParams({ action: "approve" }));
+        });
     const first = await signInWithCode();
     const second = await signInWithCode();
 
@@ -180,29 +262,29 @@ test("sign a person in with a device code once they approve it, and replace the 
 });
 
 test("sign a person in with a mailed code as a new client, refusing a wrong code", async () => {
-    await using accounts = await AccountFixture.open();
-    const owner = await accounts.person(EMAIL);
+    await using accounts = await TestAccountStore.open();
+    const owner = await accounts.signIn(EMAIL);
     const { signIn, logins } = await native(accounts);
     const before = await nativeClients(accounts, owner);
 
     // mail a code, refuse a wrong one, and sign in with the mailed one
     const started = await signIn.startEmail(EMAIL);
-    const { otp } = present((await accounts.codes()).at(-1), "the mailed code");
-    const wrong = await outcome(started.verify(otp === "000000" ? "111111" : "000000"));
+    const otp = await accounts.code();
+    const wrong = await refusal(started.verify(otp === "000000" ? "111111" : "000000"));
     const signedIn = await started.verify(otp);
     expect({
         wrong,
         rows: await logins.query.login.findMany(),
         clients: await nativeClients(accounts, owner),
     }).toEqual({
-        wrong: "UNAUTHORIZED: the issuer refused the code: the code is wrong or expired",
+        wrong: ["BAD_REQUEST", "INVALID_GRANT", "the token endpoint refused the request: invalid_grant: the code is wrong or expired"],
         rows: [loginRow(signedIn, owner)],
         clients: [...before, { id: signedIn.clientId, isRevoked: false }],
     });
 });
 
 test("sign a new person up with a mailed code and their handle, refusing a new email without one", async () => {
-    await using accounts = await AccountFixture.open();
+    await using accounts = await TestAccountStore.open();
     const { signIn, logins } = await native(accounts);
     const email = "bea@example.com";
     const signUp = SignUp.parse({
@@ -214,7 +296,7 @@ test("sign a new person up with a mailed code and their handle, refusing a new e
     });
 
     // refuse a new email's code without a handle, then sign the person up with one
-    const refused = await outcome((await signIn.startEmail(email)).verify(await accounts.code()));
+    const refused = await refusal((await signIn.startEmail(email)).verify(await accounts.code()));
     await (await signIn.startEmail(email, signUp)).verify(await accounts.code());
 
     // read the login and the personal account the sign-up created together
@@ -224,14 +306,18 @@ test("sign a new person up with a mailed code and their handle, refusing a new e
         .from(account.table)
         .where(eq(account.table.handle, "bea"));
     expect({ refused, personal }).toEqual({
-        refused: `UNAUTHORIZED: the issuer refused the code: nobody signed up as ${email}: sign up with a handle`,
+        refused: [
+            "BAD_REQUEST",
+            "INVALID_GRANT",
+            `the token endpoint refused the request: invalid_grant: nobody signed up as ${email}: sign up with a handle`,
+        ],
         personal: [{ scope: present(signedIn, "the login").subjectId, kind: "personal" }],
     });
 });
 
-test("act as a person a mailed code signed in, refreshing their client's tokens without a browser session", async () => {
-    await using accounts = await AccountFixture.open();
-    const owner = await accounts.person(EMAIL);
+test("read a person's account through tokens refreshed after a mailed code signed them in, without a browser session", async () => {
+    await using accounts = await TestAccountStore.open();
+    const owner = await accounts.signIn(EMAIL);
     const { signIn, sessions } = await native(accounts);
 
     // sign in with the mailed code and read the person's account through a refreshed token
@@ -241,92 +327,7 @@ test("act as a person a mailed code signed in, refreshing their client's tokens 
         signedIn,
         sessions,
         (request) => accounts.fetch(request),
-        Clock.system,
+        accounts.store.clock,
     );
     expect(await person.account()).toBe(owner.account);
 });
-
-/** Allow a browser sign-in on the issuer's consent page, returning the loopback redirect. */
-async function consent(browser: Browser, url: string): Promise<string> {
-    // follow the authorization to the consent page and allow it
-    const asked = await browser.fetch(url);
-    const page = present(asked.headers.get("location"), "the consent page");
-    const allowed = await browser.fetch(page, new URLSearchParams({ action: "approve" }));
-
-    return present(allowed.headers.get("location"), "the loopback redirect");
-}
-
-/** The login a sign-in writes for a person on the native device. */
-function loginRow(signedIn: { id: string; clientId: string }, person: Person) {
-    return {
-        id: signedIn.id,
-        scope: DEVICE,
-        issuer: ISSUER,
-        subjectId: person.id,
-        clientId: signedIn.clientId,
-        name: EMAIL,
-        status: "authenticated",
-        tags: {},
-        createdAt: NOW,
-        ...ObjectReference.columns("createdBy", WRITER),
-        updatedAt: NOW,
-        ...ObjectReference.columns("updatedBy", WRITER),
-        revision: 1,
-    };
-}
-
-/** Read the clients of a person, oldest first. */
-async function nativeClients(accounts: AccountFixture, person: Person) {
-    const rows = await accounts.database
-        .select({ id: client.table.id, revokedAt: client.table.revokedAt })
-        .from(client.table)
-        .where(and(eq(client.table.scope, person.id), eq(client.table.kind, "native")))
-        .orderBy(client.table.createdAt, client.table.id);
-
-    return rows.map((row) => ({ id: row.id, isRevoked: row.revokedAt !== null }));
-}
-
-/** Sign people in on a native device against the fixture's issuer. */
-async function native(accounts: AccountFixture) {
-    // store the device's logins in a local database
-    const database = await connectBunSqlite(":memory:");
-    onTestFinished(() => database.close());
-    const subject = principal.device.reference(Scope.universe.id, DEVICE);
-    const logins = await ObjectClient.open({
-        database,
-        objects: { login },
-        clock: new VirtualClock(NOW),
-        scope: DEVICE,
-        caller: subject,
-        device: subject,
-        endpoint: {
-            url: "http://local.invalid/",
-            fetch: async () => {
-                throw new TypeError("local objects reach no server");
-            },
-        },
-        reconnect: () => {
-            throw new TypeError("local objects move nowhere");
-        },
-    });
-    onTestFinished(() => logins.close());
-
-    // sign people in with the keychain's refresh tokens
-    const issuer = new Issuer(ISSUER, (request) => accounts.fetch(request));
-    const sessions = new SessionStore(new MemoryKeychain());
-    const signIn = new NativeSignIn({
-        issuer,
-        sessions,
-        keys: new ClientKey(new MemoryKeychain(), Clock.system),
-        logins,
-        clock: Clock.system,
-        client: {
-            name: "laptop",
-            platform: "macOS",
-            architecture: "arm64",
-            version: "2026.9.0",
-        },
-    });
-
-    return { signIn, issuer, logins, sessions };
-}

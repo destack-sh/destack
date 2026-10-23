@@ -19,6 +19,7 @@ import {
 } from "@destack/identity";
 import { Assertion, TokenCache } from "@destack/access/token";
 import { principal } from "@destack/access";
+import { AccountError } from "../error/error.ts";
 
 /** The label a cloud machine's key derives from its process's keyring under. */
 const MACHINE_KEY_LABEL = { label: "@destack/account/machine-key", context: "" } as const;
@@ -249,7 +250,7 @@ export class MachineIdentity {
         // read the private half from the store
         const stored = await this.#keys.load(this.machineId);
         if (stored === undefined) {
-            throw new TypeError(`machine ${this.machineId} has no key`);
+            throw AccountError.of("NO_MACHINE_KEY", `machine ${this.machineId} has no key`);
         }
         this.#pair = await KeyPair.read(stored);
 

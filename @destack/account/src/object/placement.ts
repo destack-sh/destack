@@ -2,10 +2,11 @@ import { contained, none, principal, relation, through, union } from "@destack/a
 import type { Snapshot } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { Digest, Identifier, present, schema } from "@destack/schema";
-import { CallError } from "@destack/object";
 import { Scope } from "@destack/sync";
 import { account } from "./account.ts";
 import { machine } from "./machine.ts";
+import type {} from "@destack/package/import-meta";
+import { AccountError } from "../error/error.ts";
 
 /** Where a space runs: the machine serving its databases at an epoch. */
 const PlacementSchema = schema.object({
@@ -76,9 +77,10 @@ export const Placement = Object.assign(PlacementSchema, {
                     `the account ${row.scope}`,
                 ).residencyId;
         if (!isAccountMachine && !isShared) {
-            throw new CallError("BAD_REQUEST", {
-                message: `${target} is no standing machine of the space's account nor of its residency`,
-            });
+            throw AccountError.of(
+                "UNKNOWN_MACHINE",
+                `${target} is not a standing machine of the space's account or residency`,
+            );
         }
 
         return target;
@@ -102,18 +104,14 @@ export const Placement = Object.assign(PlacementSchema, {
         // refuse a machine neither serving nor receiving the space, nor working in it
         const isPlaced = machineId === placed?.machineId || machineId === placed?.targetId;
         if (!isPlaced && assigned === undefined) {
-            throw new CallError("FORBIDDEN", {
-                message: `${spaceId} is served and received elsewhere`,
-            });
+            throw AccountError.of("PLACED_ELSEWHERE", `${spaceId} is placed on other machines`);
         }
     },
 
     /** Refuse a call at an epoch other than the space's current epoch. */
     requireServed(row: Pick<Placement, "id" | "epoch">, epoch: number): void {
         if (row.epoch !== epoch) {
-            throw new CallError("CONFLICT", {
-                message: `${row.id} is no longer placed at epoch ${epoch}`,
-            });
+            throw AccountError.of("STALE_EPOCH", `${row.id} is no longer placed at epoch ${epoch}`);
         }
     },
 });

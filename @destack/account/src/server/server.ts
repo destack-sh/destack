@@ -3,6 +3,7 @@ import type { BetterAuthAuthenticator } from "../better-auth/authenticator.ts";
 import type { DnsResolver } from "./dns-resolver.ts";
 import type { SpaceKind, StackSource } from "../object/stack-source.ts";
 import { claim } from "../object/claim.ts";
+import { environment } from "../object/environment.ts";
 import accountPackage from "../package.ts";
 import { implementAccount } from "./account.ts";
 import { implementClient } from "./client.ts";
@@ -13,7 +14,6 @@ import { implementIdentity } from "./identity.ts";
 import { implementOperation } from "./operation.ts";
 import { implementKey } from "./key.ts";
 import { implementMachine } from "./machine.ts";
-import { implementMember } from "./member.ts";
 import { implementOAuthClient } from "./oauth-client.ts";
 import { implementOAuthConsent } from "./oauth-consent.ts";
 import { implementOrganisation } from "./organisation.ts";
@@ -39,7 +39,6 @@ export function accountServer(options: AccountOptions): PackageImplementation {
             implementUser(),
             implementAccount(options.stacks),
             implementOrganisation(),
-            implementMember(),
             implementGroup(),
             implementClient(),
             implementKey(),
@@ -53,6 +52,8 @@ export function accountServer(options: AccountOptions): PackageImplementation {
             implementOperation(),
             implementResidency(),
             implementPlacement(),
+            // apply the environments an account's stack declares
+            environment.implement({ declaration: {} }),
             claim,
         ],
         adapters: { oauth: async (request) => (await options.signIn).handler(request) },

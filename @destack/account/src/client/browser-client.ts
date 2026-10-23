@@ -2,10 +2,11 @@ import { principal } from "@destack/access";
 import { Proof, PROOF_HEADER, PublicKey } from "@destack/identity";
 import { Identifier, schema } from "@destack/schema";
 import { Scope, type Subject } from "@destack/sync";
-import type { Fetch } from "@destack/object";
+import { Environment } from "@destack/environment";
 import type { ClientRegistration } from "../object/client.ts";
 import { KeyRegistration } from "../object/key.ts";
 import { Platform } from "../object/platform.ts";
+import { AccountError } from "../error/error.ts";
 
 /** The IndexedDB database and object store of the browser's client. */
 const DATABASE = "destack-client";
@@ -81,8 +82,8 @@ export class BrowserClient {
     readonly #path: string;
     /** The origin whose host registers and binds the client. */
     readonly #origin: string;
-    /** The fetch that calls the host. */
-    readonly #fetch: Fetch;
+    /** The clock proofs are timed by and the network that calls the host. */
+    readonly #environment: Environment;
 
     /** Read a browser's client from a store and call its host at a path of an origin. */
     constructor(options: {
@@ -92,14 +93,14 @@ export class BrowserClient {
         readonly store?: ClientStore;
         /** The origin whose host registers and binds the client, the page's by default. */
         readonly origin?: string;
-        /** The fetch that calls the host, the page's by default. */
-        readonly fetch?: Fetch;
+        /** The clock and network that time proofs and call the host, the page's by default. */
+        readonly environment?: Environment;
     }) {
-        // set the store, the host's path and origin, and the fetch that calls it
+        // set the store, the host's path and origin, and the environment that calls it
         this.#path = options.path;
         this.#store = options.store ?? BrowserClient.indexedStore();
         this.#origin = options.origin ?? location.origin;
-        this.#fetch = options.fetch ?? ((request) => fetch(request));
+        this.#environment = options.environment ?? Environment.system;
     }
 
     /** Describe a browser by its User-Agent Client Hints, else its user agent. */
@@ -185,7 +186,10 @@ export class BrowserClient {
         await this.#store.clear();
         const again = await this.#bind(await this.#registered(registration));
         if (again === undefined) {
-            throw new TypeError("the host removed the client it just registered");
+            throw AccountError.of(
+                "HOST_CONTRADICTED",
+                "the host removed the client it just registered",
+            );
         }
 
         return again;
@@ -229,13 +233,16 @@ export class BrowserClient {
             await this.#post(this.#path, { ...registration, id: record.id }, CREATED),
         );
         if (client !== record.id) {
-            throw new TypeError(`the host registered client ${client} for client ${record.id}`);
+            throw AccountError.of(
+                "HOST_CONTRADICTED",
+                `expected the host to register client ${record.id}, got ${client}`,
+            );
         }
         const proof = await Proof.sign(
             record.keys.privateKey,
             record.publicKey,
             record.id,
-            Date.now(),
+            this.#environment.clock.now(),
         );
         await this.#post(`${this.#path}/key`, { client, publicKey: record.publicKey, proof }, OK);
         const registered = { ...record, isRegistered: true };
@@ -252,13 +259,13 @@ export class BrowserClient {
             record.keys.privateKey,
             record.publicKey,
             record.id,
-            Date.now(),
+            this.#environment.clock.now(),
             {
                 method: "POST",
                 url,
             },
         );
-        const response = await this.#fetch(
+        const response = await this.#environment.network.fetch(
             new Request(url, { method: "POST", headers: { [PROOF_HEADER]: proof } }),
         );
 
@@ -268,7 +275,10 @@ export class BrowserClient {
         }
         // refuse any other failure
         else if (!response.ok) {
-            throw new TypeError(`binding the client answered ${response.status}`);
+            throw AccountError.of(
+                "HOST_REFUSED",
+                `the host responded to binding the client with HTTP ${response.status}`,
+            );
         }
         // read the bound client
         else {
@@ -279,7 +289,7 @@ export class BrowserClient {
     /** Post JSON to a path of the host, requiring an expected status. */
     async #post(path: string, body: unknown, expected: number): Promise<unknown> {
         // post the body and refuse an unexpected status
-        const response = await this.#fetch(
+        const response = await this.#environment.network.fetch(
             new Request(new URL(path, this.#origin), {
                 method: "POST",
                 headers: { "content-type": "application/json" },
@@ -287,7 +297,10 @@ export class BrowserClient {
             }),
         );
         if (response.status !== expected) {
-            throw new TypeError(`${path} answered ${response.status}: ${await response.text()}`);
+            throw AccountError.of(
+                "HOST_REFUSED",
+                `the host responded to ${path} with HTTP ${response.status}: ${await response.text()}`,
+            );
         }
 
         return response.json();
@@ -328,7 +341,7 @@ async function transact<Value>(
             transaction.addEventListener("complete", () => {
                 // refuse a transaction that settled no value
                 if (settled === undefined) {
-                    reject(new TypeError("the client's transaction settled no value"));
+                    reject(new TypeError("the client's transaction returned no value"));
                 }
                 // answer the settled value
                 else {

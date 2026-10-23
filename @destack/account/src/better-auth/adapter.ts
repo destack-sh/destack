@@ -1,4 +1,4 @@
-import { AccessContext, Authorization, type Authorizer, Caller, principal } from "@destack/access";
+import { AccessContext, Authorization, Caller, principal } from "@destack/access";
 import { RequestId, Scope } from "@destack/sync";
 import { user, User } from "../object/user.ts";
 import { createAdapterFactory, type CleanedWhere, type CustomAdapter } from "better-auth/adapters";
@@ -44,11 +44,17 @@ import { session } from "../object/session.ts";
 import { twoFactor } from "../object/two-factor.ts";
 import { oauthClient } from "../object/oauth-client.ts";
 import { oauthConsent } from "../object/oauth-consent.ts";
-import { CLIENT_RESOURCE_MODEL, PackageResource, RESOURCE_MODEL } from "../oauth/resource.ts";
-import type { PackageId } from "@destack/package";
+import {
+    CLIENT_RESOURCE_MODEL,
+    PackageResource,
+    RESOURCE_MODEL,
+    type TokenLifetime,
+} from "../oauth/resource.ts";
 import { CallError } from "@destack/object";
 import { BetterAuthWhere } from "./where.ts";
 import type { Clock } from "@destack/environment";
+import type {} from "@destack/package/import-meta";
+import { AccountError } from "../error/error.ts";
 
 /** The authentication tables the adapter accepts. */
 const TABLES: Readonly<Record<string, Table>> = {
@@ -90,9 +96,8 @@ const TOKEN_TABLES: ReadonlySet<Table> = new Set([oauthAccessToken, oauthRefresh
 /** Bind Better Auth's adapter protocol to the account database. */
 export function betterAuthAdapter(
     database: DatabaseConnection,
-    users: Authorizer,
-    objects: Pick<ObjectStore, "mutate" | "claims">,
-    lifetimes: ReadonlyMap<PackageId, number>,
+    objects: Pick<ObjectStore, "mutate" | "claims" | "authorizer">,
+    lifetime: TokenLifetime,
     clock: Clock,
 ): DBAdapterInstance {
     return (options) =>
@@ -109,13 +114,7 @@ export function betterAuthAdapter(
                     database.transaction(
                         (transaction) =>
                             callback(
-                                betterAuthAdapter(
-                                    transaction,
-                                    users,
-                                    objects,
-                                    lifetimes,
-                                    clock,
-                                )(options),
+                                betterAuthAdapter(transaction, objects, lifetime, clock)(options),
                             ),
                         { isolationLevel: "read committed" },
                     ),
@@ -134,31 +133,30 @@ export function betterAuthAdapter(
                         : value;
                 },
             },
-            adapter: () => adapter(database, users, objects, lifetimes, clock),
+            adapter: () => adapter(database, objects, lifetime, clock),
         })(options);
 }
 
 /** Implement atomic authentication reads and writes over portable SQL. */
 function adapter(
     database: DatabaseConnection,
-    users: Authorizer,
-    objects: Pick<ObjectStore, "mutate" | "claims">,
-    lifetimes: ReadonlyMap<PackageId, number>,
+    objects: Pick<ObjectStore, "mutate" | "claims" | "authorizer">,
+    lifetime: TokenLifetime,
     clock: Clock,
 ): CustomAdapter {
-    return { ...reads(database, lifetimes), ...writes(database, users, objects, clock) };
+    return { ...reads(database, lifetime), ...writes(database, objects, clock) };
 }
 
 /** Read, page and count authentication rows. */
 function reads(
     database: DatabaseConnection,
-    lifetimes: ReadonlyMap<PackageId, number>,
+    lifetime: TokenLifetime,
 ): Pick<CustomAdapter, "findOne" | "findMany" | "count"> {
     return {
         async findOne({ model, where, select }) {
             // answer a resource as the package it identifies
             if (model === RESOURCE_MODEL) {
-                const resource = PackageResource.of(identifierOf(where), lifetimes);
+                const resource = PackageResource.of(identifierOf(where), lifetime);
 
                 return resource === undefined ? null : asRecord(resource);
             }
@@ -176,7 +174,7 @@ function reads(
         async findMany({ model, where, select, limit, offset, sortBy }) {
             // answer the packages a resource lookup asks for, and no client-resource link
             if (model === RESOURCE_MODEL) {
-                const resource = PackageResource.of(identifierOf(where), lifetimes);
+                const resource = PackageResource.of(identifierOf(where), lifetime);
 
                 return resource === undefined ? [] : [asRecord(resource)];
             } else if (model === CLIENT_RESOURCE_MODEL) {
@@ -210,9 +208,7 @@ function reads(
                 .from(source)
                 .where(filter(database, source, where));
             if (row === undefined) {
-                throw new CallError("INTERNAL_SERVER_ERROR", {
-                    message: `counting ${model} returned no row`,
-                });
+                throw AccountError.of("NO_COUNT", `counting ${model} returned no row`);
             }
 
             return row.count;
@@ -271,15 +267,14 @@ function standing(database: DatabaseConnection, source: Table): SQL | undefined 
 /** Create, change, consume and delete authentication rows, each change one statement. */
 function writes(
     database: DatabaseConnection,
-    users: Authorizer,
-    objects: Pick<ObjectStore, "mutate" | "claims">,
+    objects: Pick<ObjectStore, "mutate" | "claims" | "authorizer">,
     clock: Clock,
 ): Omit<CustomAdapter, "findOne" | "findMany" | "count"> {
     return {
         async create({ model, data }) {
             // insert a person with their personal account
             if (model === "user") {
-                return asRecord(await createUser(database, users, objects, data, clock.now()));
+                return asRecord(await createUser(database, objects, data, clock.now()));
             }
             // insert any other row
             else {
@@ -413,8 +408,7 @@ async function incrementRow(
 /** Insert a person as the owner of their scope. */
 async function createUser(
     database: DatabaseConnection,
-    users: Authorizer,
-    objects: Pick<ObjectStore, "mutate" | "claims">,
+    objects: Pick<ObjectStore, "mutate" | "claims" | "authorizer">,
     data: unknown,
     now: number,
 ): Promise<Row> {
@@ -436,7 +430,10 @@ async function createUser(
         // make it the owner of its scope, its public profile shown to anyone
         const self = principal.user.reference(Scope.universe.id, userId);
         const caller = AccessContext.of(Caller.of(self), now);
-        await new Authorization(users, transaction, () => caller).create(self, User.creation(self));
+        await new Authorization(objects.authorizer, transaction, () => caller).create(
+            self,
+            User.creation(self),
+        );
 
         // create its personal account and home as the person
         await objects.mutate(
@@ -486,7 +483,7 @@ async function createUser(
 /** Report a taken name as Better Auth reports a taken handle. */
 function handleTaken(error: unknown): never {
     throw CallError.of(error)?.code === "CONFLICT"
-        ? new APIError("CONFLICT", { code: "HANDLE_TAKEN", message: "the handle is taken" })
+        ? new APIError("CONFLICT", { code: "HANDLE_TAKEN", message: "the handle is already taken" })
         : error;
 }
 
@@ -543,9 +540,10 @@ function one(database: DatabaseConnection, source: Table, where: CleanedWhere[])
 function identifierOf(where: CleanedWhere[] | undefined): string {
     const [only, ...others] = where ?? [];
     if (only?.field !== "identifier" || others.length > 0 || typeof only.value !== "string") {
-        throw new CallError("PRECONDITION_FAILED", {
-            message: "resources are looked up by their identifier alone",
-        });
+        throw AccountError.of(
+            "LOOKUP_BY_IDENTIFIER_ONLY",
+            "resources can only be looked up by identifier",
+        );
     }
 
     return only.value;
@@ -556,9 +554,10 @@ function table(name: string): Table {
     // refuse an unknown table
     const match = Object.hasOwn(TABLES, name) ? TABLES[name] : undefined;
     if (match === undefined) {
-        throw new CallError("PRECONDITION_FAILED", {
-            message: `unknown authentication table: ${name}`,
-        });
+        throw AccountError.of(
+            "UNKNOWN_AUTHENTICATION_TABLE",
+            `unknown authentication table: ${name}`,
+        );
     }
 
     return match;

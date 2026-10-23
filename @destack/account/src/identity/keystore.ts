@@ -18,10 +18,11 @@ import type { Fetch } from "@destack/object";
 import { present } from "@destack/schema";
 import { Scope, type Subject } from "@destack/sync";
 import type { Rewrapper } from "@destack/resource";
-import { CallError } from "@destack/object";
 import type { Digest } from "@destack/schema";
 import { SignJWT, type JWTPayload } from "jose";
 import type { Clock } from "@destack/environment";
+import type {} from "@destack/package/import-meta";
+import { AccountError } from "../error/error.ts";
 
 /** How long a verifier caches a key set before reading it again: 10 minutes, a JWKS cache's age. */
 export const KEY_SET_MILLISECONDS = 10 * 60_000;
@@ -367,7 +368,7 @@ export class IdentityKeystore {
             signingKeys.find((key) => key.publishedAt + KEY_SET_MILLISECONDS <= now) ??
             signingKeys.at(-1);
         if (active === undefined) {
-            throw new CallError("INTERNAL_SERVER_ERROR", { message: "no signing key is stored" });
+            throw AccountError.of("NO_SIGNING_KEY", "no signing key is stored");
         }
 
         return active;
@@ -377,9 +378,7 @@ export class IdentityKeystore {
     async #require(database: DatabaseConnection, subject: string): Promise<IdentityKey> {
         const row = await this.#find(database, subject);
         if (row === undefined) {
-            throw new CallError("NOT_FOUND", {
-                message: `this process has no keys of ${subject}`,
-            });
+            throw AccountError.of("NO_LOCAL_KEYS", `this process has no keys for ${subject}`);
         }
 
         return row;
@@ -445,7 +444,7 @@ export class IdentityKeystore {
     async #identity(subject: string) {
         const identity = await this.registry.find(subject);
         if (identity === undefined) {
-            throw new CallError("NOT_FOUND", { message: `${subject} has no identity` });
+            throw AccountError.of("IDENTITY_NOT_FOUND", `${subject} has no identity`);
         }
 
         return identity;

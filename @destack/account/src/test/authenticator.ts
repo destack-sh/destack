@@ -1,8 +1,17 @@
 import { createHmac } from "node:crypto";
-import { present } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 
-/** Generate the RFC 6238 code an authenticator would display for an enrollment URI. */
-export function authenticatorCode(uri: string): string {
+/** An authenticator enrollment: its TOTP URI and backup codes. */
+export const Enrollment = schema.looseObject({
+    /** The URI an authenticator app enrolls from. */
+    totpURI: schema.string(),
+    /** The single-use recovery codes. */
+    backupCodes: schema.array(schema.string()),
+});
+
+/** Generate the RFC 6238 code an authenticator would display for an enrollment URI at a time. */
+export function authenticatorCode(uri: string, now: number): string {
+    // decode the enrolled base32 secret into bytes
     const secret = present(new URL(uri).searchParams.get("secret"), "the enrollment secret");
     const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
     const bits = Array.from(secret)
@@ -12,9 +21,9 @@ export function authenticatorCode(uri: string): string {
         Number.parseInt(bits.slice(index * 8, index * 8 + 8), 2),
     );
 
-    // sign the current thirty-second counter with the enrolled secret
+    // sign the time's thirty-second counter with the enrolled secret
     const counter = Buffer.alloc(8);
-    counter.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30_000)));
+    counter.writeBigUInt64BE(BigInt(Math.floor(now / 30_000)));
     const signature = createHmac("sha1", Buffer.from(bytes)).update(counter).digest();
     const offset = signature.readUInt8(signature.length - 1) & 15;
     const code = (signature.readUInt32BE(offset) & 0x7fffffff) % 1_000_000;
@@ -160,6 +169,7 @@ function encode(bytes: Uint8Array): string {
 
 /** Join byte arrays. */
 function concat(...arrays: Uint8Array[]): Uint8Array<ArrayBuffer> {
+    // copy each array after the ones before it
     const joined = new Uint8Array(arrays.reduce((total, array) => total + array.length, 0));
     let offset = 0;
     for (const array of arrays) {
@@ -211,6 +221,7 @@ function head(major: number, argument: number): Uint8Array<ArrayBuffer> {
 function der(raw: Uint8Array): Uint8Array<ArrayBuffer> {
     // encode each half as a minimal positive integer
     const integer = (half: Uint8Array) => {
+        // skip the leading zero bytes
         let start = 0;
         while (start < half.length - 1 && half[start] === 0) {
             start++;

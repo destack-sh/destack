@@ -1,63 +1,124 @@
-import { session } from "../src/object/session.ts";
-import { Subject, ObjectReference, RequestId } from "@destack/sync";
+import { ObjectReference, RequestId } from "@destack/sync";
 import { Account, account } from "../src/object/account.ts";
 import { expect, refusal, test } from "@destack/test";
 import { eq, Snapshot } from "@destack/db";
 import accountPackage from "../src/package.ts";
-import { SESSION_TOKEN_TYPE } from "../src/oauth/index.ts";
+import { ANY_STRING } from "./fixture.ts";
 import { placement } from "../src/object/placement.ts";
-import { AccountFixture, ids, type Person, SIGN_UP, outcome } from "../src/test/index.ts";
-import { claims } from "./fixture.ts";
-import { nth, Identifier, schema } from "@destack/schema";
-import { principal } from "@destack/access";
+import { PackageId } from "@destack/package";
+import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/access/token";
+import {
+    ids,
+    ISSUER,
+    SIGN_UP,
+    TestAccountStore,
+    TestJwt,
+    type TestPerson,
+    OWNER_EMAIL,
+    STRANGER_EMAIL,
+} from "../src/test/index.ts";
+import { present, schema } from "@destack/schema";
 
-test("create a person's shared accounts beside their personal one, refuse a second personal one, hide them from others, and refuse exchanging a revoked session", async () => {
-    await using fixture = await AccountFixture.open();
-    const database = fixture.storage.database;
-    const owner = await fixture.person("owner@example.com");
-    const client = owner.client;
-
-    // rename the user
+test("rename a user as themselves", async () => {
+    // rename the user at a clock standing still
+    await using fixture = await TestAccountStore.open();
+    fixture.clock.pause();
+    const owner = await fixture.signIn(OWNER_EMAIL);
+    const client = owner.client(accountPackage);
     const person = await client.user.get({ id: owner.id });
     const renamed = await client.user.update({
         id: owner.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(fixture.clock.now()),
         revision: person.revision,
         name: "Florian",
     });
 
-    // create a shared account beside the personal one, and refuse a second personal one
+    // store the new name in a new revision
+    expect(renamed).toEqual({
+        ...person,
+        ...ObjectReference.columns("updatedBy", owner.subject),
+        name: "Florian",
+        revision: person.revision + 1,
+        updatedAt: fixture.clock.now(),
+    });
+});
+
+test("change a user's time zone and locale, and refuse an unknown time zone", async () => {
+    // change the time zone to an unknown one, then to a known one with a locale
+    await using fixture = await TestAccountStore.open();
+    fixture.clock.pause();
+    const owner = await fixture.signIn(OWNER_EMAIL);
+    const users = owner.client(accountPackage).user;
+    const current = await users.get({ id: owner.id });
+    const change = { id: owner.id, revision: current.revision };
+    const unknown = await refusal(
+        users.update({
+            ...change,
+            requestId: RequestId.create(fixture.clock.now()),
+            timeZone: "Mars/Olympus",
+        }),
+    );
+    const changed = await users.update({
+        ...change,
+        requestId: RequestId.create(fixture.clock.now()),
+        timeZone: "Europe/London",
+        locale: "en-GB",
+    });
+
+    // store the known one alone
+    expect({ unknown, changed }).toEqual({
+        unknown: ["BAD_REQUEST", "UNKNOWN_TIME_ZONE", "unknown time zone Mars/Olympus"],
+        changed: {
+            ...current,
+            ...ObjectReference.columns("updatedBy", owner.subject),
+            timeZone: "Europe/London",
+            locale: "en-GB",
+            revision: current.revision + 1,
+            updatedAt: fixture.clock.now(),
+        },
+    });
+});
+
+test("create a person's shared account beside their personal one, and refuse a second personal one", async () => {
+    // create a shared account, and another personal one
+    await using fixture = await TestAccountStore.open();
+    const owner = await fixture.signIn("person@example.com");
+    const client = owner.client(accountPackage);
     const creation = {
         scope: owner.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(fixture.clock.now()),
         handle: "florian",
         name: "Personal",
         residencyId: "eu" as const,
         kind: "shared" as const,
     };
     const shared = await client.account.create(creation);
-    const personal = await outcome(
+    const personal = await refusal(
         client.account.create({
             ...creation,
-            requestId: RequestId.create(Date.now()),
+            requestId: RequestId.create(fixture.clock.now()),
             handle: "second",
             kind: "personal",
         }),
     );
+
+    // list both accounts, and store the shared one as created
     const { items } = await client.account.list({ scope: owner.id, limit: 10 });
     expect({
-        name: renamed.name,
         shared,
         personal,
         listed: items.map((item) => [item.handle, item.kind]),
     }).toEqual({
-        name: "Florian",
         shared: {
             id: shared.id,
             createdAt: shared.createdAt,
             ...ObjectReference.columns("createdBy", owner.subject),
             updatedAt: shared.createdAt,
             ...ObjectReference.columns("updatedBy", owner.subject),
+            managerInstallationId: null,
+            managerPackageId: null,
+            managerName: null,
+            detachedAt: null,
             ...ObjectReference.columns("deletedBy", undefined),
             revision: 1,
             tags: {},
@@ -68,158 +129,182 @@ test("create a person's shared accounts beside their personal one, refuse a seco
             deletedAt: null,
             scope: owner.id,
         },
-        personal: "CONFLICT: another account has the same scope",
+        personal: ["CONFLICT", "DUPLICATE", "another account has the same scope"],
         listed: [
             [owner.handle, "personal"],
             ["florian", "shared"],
         ],
     });
+});
 
-    // show the owner's public profile to another signed-in user, and hide their accounts
-    const update = {
-        scope: owner.id,
-        requestId: RequestId.create(Date.now()),
-        id: shared.id,
-        revision: shared.revision,
-        name: "Home",
-    };
-    const outsider = await fixture.person("other@example.com");
+test("show a person's public profile to another signed-in user, and hide their accounts", async () => {
+    // create a shared account of the owner
+    await using fixture = await TestAccountStore.open();
+    const owner = await fixture.signIn(OWNER_EMAIL);
+    const shared = await fixture.createAccount(owner);
+    const outsider = await fixture.signIn(STRANGER_EMAIL);
+    const outsiders = outsider.client(accountPackage);
+
+    // read, rename, create in and list the owner's accounts as the outsider
     const hidden = await Promise.all(
         [
-            outsider.client.user.get({ id: owner.id }),
-            outsider.client.account.get({ scope: owner.id, id: shared.id }),
-            outsider.client.account.update(update),
-            outsider.client.account.create({
-                ...creation,
-                requestId: RequestId.create(Date.now()),
-                handle: "intruder",
+            outsiders.user.get({ id: owner.id }),
+            outsiders.account.get({ scope: owner.id, id: shared.id }),
+            outsiders.account.update({
+                scope: owner.id,
+                requestId: RequestId.create(fixture.clock.now()),
+                id: shared.id,
+                revision: shared.revision,
+                name: "Home",
             }),
-        ].map((attempt) => outcome(attempt)),
+            outsiders.account.create({
+                scope: owner.id,
+                requestId: RequestId.create(fixture.clock.now()),
+                handle: "intruder",
+                name: "Intruder",
+                residencyId: "eu",
+                kind: "shared",
+            }),
+        ].map((attempt) => refusal(attempt)),
     );
-    const listed = await outsider.client.account.list({ scope: owner.id, limit: 10 });
+    const listed = await outsiders.account.list({ scope: owner.id, limit: 10 });
     expect({ hidden, listed: listed.items }).toEqual({
         hidden: [
-            "executed",
-            `NOT_FOUND: no account ${shared.id}`,
-            `NOT_FOUND: no account ${shared.id}`,
-            "NOT_FOUND: account not found",
+            "done",
+            ["NOT_FOUND", "NOT_FOUND", `account ${shared.id} not found`],
+            ["NOT_FOUND", "NOT_FOUND", `account ${shared.id} not found`],
+            ["NOT_FOUND", "NOT_FOUND", "account not found"],
         ],
         listed: [],
     });
-
-    // refuse exchanging the owner's session once it is revoked
-    await database
-        .update(session.table)
-        .set({ revokedAt: Date.now() })
-        .where(eq(session.table.userId, owner.id));
-    expect(
-        await outcome(
-            fixture.exchangeToken(owner.session, SESSION_TOKEN_TYPE, {
-                audience: accountPackage.id,
-            }),
-        ),
-    ).toBe("BAD_REQUEST: invalid_grant: session is no longer authorized");
 });
 
-/** Act as another user only with authority it lent or as an elevated administrator. */
+test("refuse exchanging a person's token once they revoke the client it was issued to", async () => {
+    // revoke the client the owner signed in on
+    await using fixture = await TestAccountStore.open();
+    const owner = await fixture.signIn(OWNER_EMAIL);
+    await owner.client(accountPackage).client.revoke({
+        userId: owner.id,
+        id: owner.clientId,
+        requestId: RequestId.create(fixture.clock.now()),
+    });
+
+    // refuse the next exchange
+    expect(await refusal(fixture.issuer.exchange(owner.token, accountPackage.id, {}))).toEqual([
+        "BAD_REQUEST",
+        "INVALID_GRANT",
+        "the token endpoint refused the request: invalid_grant: the person's session ended",
+    ]);
+});
+
 test("exchange tokens acting as a user through lent authority or account administration", async () => {
-    await using fixture = await AccountFixture.open();
-    const administrator = await fixture.person("administrator@example.com");
-    const member = await fixture.person("member@example.com");
-    const assistant = await fixture.person("assistant@example.com");
+    await using fixture = await TestAccountStore.open();
+    let administrator = await fixture.signIn("administrator@example.com");
+    let member = await fixture.signIn("member@example.com");
+    let assistant = await fixture.signIn("assistant@example.com");
 
     // create an account with a space and make the member belong to it
     const { accountId, spaceId } = await fixture.createSpace(administrator);
-    await administrator.client.account.grant({
+    await administrator.client(accountPackage).account.grant({
         scope: administrator.id,
         id: accountId,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(fixture.store.clock.now()),
         relation: "editor",
         subject: member.subject,
     });
 
     // read who a token represents and who acts in it
-    const exchange = async (acting: Person, space = spaceId) => {
-        const token = await fixture.exchangeToken(acting.session, SESSION_TOKEN_TYPE, {
-            audience: accountPackage.id,
-            space,
-            subject: Subject.key(member.subject),
+    const exchange = async (acting: TestPerson, space = spaceId) => {
+        const token = await fixture.issuer.exchange(acting.token, accountPackage.id, {
+            spaceId: space,
+            subject: member.subject,
         });
-        const claimed = claims(token.accessToken);
+        const claimed = TestJwt.claims(token.accessToken);
 
         return [claimed.caller.subject, claimed.act];
     };
-    const acting = (who: Person) => [member.subject, [who.subject]];
+    const acting = (who: TestPerson) => [member.subject, [who.subject]];
 
     // let the administrator act as the member only once elevated
-    const refused = "BAD_REQUEST: invalid_grant: acting as another user is not allowed";
-    expect(await outcome(exchange(administrator))).toBe(refused);
-    await fixture.elevate(administrator.id);
+    const refused = [
+        "BAD_REQUEST",
+        "INVALID_GRANT",
+        "the token endpoint refused the request: invalid_grant: acting as another user is not allowed",
+    ];
+    expect(await refusal(exchange(administrator))).toEqual(refused);
+    administrator = await fixture.elevate(administrator);
     expect(await exchange(administrator)).toEqual(acting(administrator));
 
     // refuse the administrator acting as the member in another account's space
     const elsewhere = await fixture.createSpace(administrator);
-    expect(await outcome(exchange(administrator, elsewhere.spaceId))).toBe(refused);
+    expect(await refusal(exchange(administrator, elsewhere.spaceId))).toEqual(refused);
 
     // let the assistant act as the member only with lent authority and elevation
-    expect(await outcome(exchange(assistant))).toBe(refused);
+    expect(await refusal(exchange(assistant))).toEqual(refused);
     const lending = {
         id: member.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(fixture.store.clock.now()),
         relation: "delegate",
         subject: assistant.subject,
-        expiresAt: Date.now() + 60_000,
+        expiresAt: fixture.store.clock.now() + 60_000,
     };
-    expect(await outcome(member.client.user.grant(lending))).toBe(
-        "INSUFFICIENT_AUTHENTICATION: authentication assurance is too low: authenticate again",
-    );
-    await fixture.elevate(member.id);
-    const lent = await member.client.user.grant(lending);
-    await fixture.elevate(assistant.id);
+    expect(await refusal(member.client(accountPackage).user.grant(lending))).toEqual([
+        "UNAUTHORIZED",
+        "INSUFFICIENT_AUTHENTICATION",
+        "authentication assurance is too low: authenticate again",
+    ]);
+    member = await fixture.elevate(member);
+    const lent = await member.client(accountPackage).user.grant(lending);
+    assistant = await fixture.elevate(assistant);
     expect(await exchange(assistant)).toEqual(acting(assistant));
-    await member.client.user.revoke({
+    await member.client(accountPackage).user.revoke({
         id: member.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(fixture.store.clock.now()),
         relationshipId: schema.identifier("relationship").parse(lent.id),
     });
-    expect(await outcome(exchange(assistant))).toBe(refused);
+    expect(await refusal(exchange(assistant))).toEqual(refused);
 });
 
-/** Describe an impersonation in a space as the member, with its memberships and the acting user. */
 test("exchange a token acting as a member in the account's space, with the member's memberships and the acting administrator", async () => {
-    await using fixture = await AccountFixture.open();
-    const administrator = await fixture.person("administrator@example.com");
-    const member = await fixture.person("member@example.com");
+    await using fixture = await TestAccountStore.open();
+    fixture.clock.pause();
+    let administrator = await fixture.signIn("administrator@example.com");
+    const member = await fixture.signIn("member@example.com");
 
     // create an account's space and make the member belong to it
     const { accountId, spaceId } = await fixture.createSpace(administrator);
-    await administrator.client.account.grant({
+    await administrator.client(accountPackage).account.grant({
         scope: administrator.id,
         id: accountId,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(fixture.store.clock.now()),
         relation: "editor",
         subject: member.subject,
     });
-    await fixture.elevate(administrator.id);
+    administrator = await fixture.elevate(administrator);
 
     // exchange the administrator's session for a token acting as the member in the space
-    const acting = await fixture.exchangeToken(administrator.session, SESSION_TOKEN_TYPE, {
-        audience: accountPackage.id,
-        space: spaceId,
-        subject: Subject.key(member.subject),
+    const acting = await fixture.issuer.exchange(administrator.token, accountPackage.id, {
+        spaceId,
+        subject: member.subject,
     });
-    const sessions = await fixture.storage.database
-        .select({ id: session.table.id, authenticatedAt: session.table.authenticatedAt })
-        .from(session.table)
-        .where(eq(session.table.userId, administrator.id));
-    const signedIn = nth(sessions, 0);
+    const signedIn = TestJwt.claims(administrator.token.token).caller.credential;
+    const assurance = present(signedIn.assurance, "the administrator's assurance");
 
     // read the member, their memberships, the administrator's assurance and the administrator acting
-    const claimed = claims(acting.accessToken);
-    expect([claimed.space, claimed.act, claimed.caller]).toEqual([
-        spaceId,
-        [administrator.subject],
-        {
+    const issuedAt = Math.floor(fixture.clock.now() / 1000);
+    expect(TestJwt.claims(acting.accessToken)).toEqual({
+        iss: ISSUER,
+        sub: member.id,
+        aud: PackageId.resource(accountPackage.id),
+        client_id: administrator.clientId,
+        azp: administrator.clientId,
+        scope: "",
+        jti: ANY_STRING,
+        iat: issuedAt,
+        exp: issuedAt + TOKEN_LIFETIME_MILLISECONDS / 1000,
+        space: spaceId,
+        act: [administrator.subject],
+        caller: {
             subject: member.subject,
             groups: [
                 { ...account.reference(administrator.id, accountId), relation: "editor" },
@@ -229,29 +314,30 @@ test("exchange a token acting as a member in the account's space, with the membe
             credential: {
                 kind: "session",
                 id: signedIn.id,
-                assurance: { level: 2, authenticatedAt: signedIn.authenticatedAt },
+                assurance: { level: 2, authenticatedAt: assurance.authenticatedAt },
             },
         },
-    ]);
+    });
 });
 
 test("resolve the paying account: an organisation's payer for it and its accounts, and a person's account itself", async () => {
-    await using fixture = await AccountFixture.open();
-    const founder = await fixture.person("founder@example.com");
+    await using fixture = await TestAccountStore.open();
+    const founder = await fixture.signIn("founder@example.com");
 
     // create an organisation paying through its account, with a second account in it
-    const acme = await founder.client.organisation.create({
-        requestId: RequestId.create(Date.now()),
+    const acme = await founder.client(accountPackage).organisation.create({
+        requestId: RequestId.create(fixture.store.clock.now()),
         name: "Acme",
         handle: "acme-pays",
         residencyId: "us",
     });
-    const second = await founder.client.account.create({
+    const second = await founder.client(accountPackage).account.create({
         scope: acme.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(fixture.store.clock.now()),
         handle: "acme-second",
         name: "Acme",
         kind: "shared",
+        residencyId: "us",
     });
 
     // charge the organisation and both its accounts to its payer, and the person's account to itself
@@ -264,25 +350,25 @@ test("resolve the paying account: an organisation's payer for it and its account
     ]).toEqual([acme.payer, acme.payer, acme.payer, founder.account]);
 });
 
-/** Root an organisation's accounts at its owners, with the organisation's residency. */
 test("create accounts in an organisation, administered by its owner members", async () => {
-    await using fixture = await AccountFixture.open();
-    const founder = await fixture.person("founder@example.com");
-    const partner = await fixture.person("partner@example.com");
+    await using fixture = await TestAccountStore.open();
+    let founder = await fixture.signIn("founder@example.com");
+    const partner = await fixture.signIn("partner@example.com");
 
     // create an organisation with its account, and another account in it
-    const acme = await founder.client.organisation.create({
-        requestId: RequestId.create(Date.now()),
+    const acme = await founder.client(accountPackage).organisation.create({
+        requestId: RequestId.create(fixture.store.clock.now()),
         name: "Acme",
         handle: "acme-inc",
         residencyId: "us",
     });
-    const created = await founder.client.account.create({
+    const created = await founder.client(accountPackage).account.create({
         scope: acme.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(fixture.store.clock.now()),
         handle: "initech",
         name: "Acme",
         kind: "shared",
+        residencyId: "us",
     });
     expect(created).toEqual({
         id: created.id,
@@ -290,6 +376,10 @@ test("create accounts in an organisation, administered by its owner members", as
         ...ObjectReference.columns("createdBy", founder.subject),
         updatedAt: created.createdAt,
         ...ObjectReference.columns("updatedBy", founder.subject),
+        managerInstallationId: null,
+        managerPackageId: null,
+        managerName: null,
+        detachedAt: null,
         ...ObjectReference.columns("deletedBy", undefined),
         revision: 1,
         tags: {},
@@ -301,33 +391,27 @@ test("create accounts in an organisation, administered by its owner members", as
         scope: acme.id,
     });
 
-    // hide the account from the partner until the partner has an owner seat
-    const rename = (person: Person) =>
-        person.client.account.update({
+    // hide the account from the partner until the partner is an owner
+    const rename = (person: TestPerson) =>
+        person.client(accountPackage).account.update({
             scope: acme.id,
             id: created.id,
-            requestId: RequestId.create(Date.now()),
+            requestId: RequestId.create(fixture.store.clock.now()),
             revision: created.revision,
             name: "Acme Inc",
         });
-    expect(await outcome(rename(partner))).toBe(`NOT_FOUND: no scope ${acme.id}`);
-    await fixture.elevate(founder.id);
-    await founder.client.organisation.update({
+    expect(await refusal(rename(partner))).toEqual([
+        "NOT_FOUND",
+        "SCOPE_NOT_FOUND",
+        `scope ${acme.id} not found`,
+    ]);
+    founder = await fixture.elevate(founder);
+    await founder.client(accountPackage).organisation.update({
         id: acme.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(fixture.store.clock.now()),
         payer: created.id,
     });
-    const invitation = await founder.client.organisation.invite({
-        id: acme.id,
-        requestId: RequestId.create(Date.now()),
-        relation: "owner",
-        subject: partner.subject,
-    });
-    await partner.client.organisation.accept({
-        id: acme.id,
-        invitationId: invitation.id,
-        requestId: RequestId.create(Date.now()),
-    });
+    await fixture.join(founder, partner, acme.id, "owner");
     const renamed = await rename(partner);
     expect(renamed).toEqual({
         ...created,
@@ -339,84 +423,90 @@ test("create accounts in an organisation, administered by its owner members", as
 });
 
 test("create a person's home with their personal account at sign-up, placed on a cloud machine of their residency, which a machine reads", async () => {
-    await using fixture = await AccountFixture.open();
-    const owner = await fixture.person("owner@example.com");
+    await using fixture = await TestAccountStore.open();
+    const owner = await fixture.signIn(OWNER_EMAIL);
     const { machine } = await fixture.createSpace(owner);
 
     // read the home as a machine and find it placed on the residency's cloud machine
-    const read = (await machine.client.user.get({ id: owner.id })).homeId;
-    const placed = await Snapshot.live(fixture.database)
-        .read(placement.table)
-        .findFirst({ where: { id: read } });
-    expect([
-        read,
-        placed && {
-            id: placed.id,
-            scope: placed.scope,
-            machineId: placed.machineId,
-            epoch: placed.epoch,
-            targetId: placed.targetId,
-            transferId: placed.transferId,
-        },
-    ]).toEqual([
+    const read = await machine.client(accountPackage).user.get({ id: owner.id });
+    const placed = await fixture.database
+        .select({
+            id: placement.table.id,
+            scope: placement.table.scope,
+            machineId: placement.table.machineId,
+            epoch: placement.table.epoch,
+            targetId: placement.table.targetId,
+            transferId: placement.table.transferId,
+        })
+        .from(placement.table)
+        .where(eq(placement.table.id, read.homeId));
+    expect([read.homeId, placed]).toEqual([
         Account.home(owner.account),
-        {
-            id: Account.home(owner.account),
-            scope: owner.account,
-            machineId: ids.machine,
-            epoch: 1,
-            targetId: null,
-            transferId: null,
-        },
+        [
+            {
+                id: Account.home(owner.account),
+                scope: owner.account,
+                machineId: ids.machine,
+                epoch: 1,
+                targetId: null,
+                transferId: null,
+            },
+        ],
     ]);
 });
 
 test("show a person's public profile with their locale to anyone signed in, and their private fields to themselves alone", async () => {
-    await using fixture = await AccountFixture.open();
-    const owner = await fixture.person("owner@example.com");
-    const stranger = await fixture.person("stranger@example.com");
+    await using fixture = await TestAccountStore.open();
+    const owner = await fixture.signIn("person@example.com");
+    const stranger = await fixture.signIn(STRANGER_EMAIL);
 
     // read the owner as themselves and as a stranger
-    const self = await owner.client.user.get({ id: owner.id });
-    const shown = await stranger.client.user.get({ id: owner.id });
+    const self = await owner.client(accountPackage).user.get({ id: owner.id });
+    const shown = await stranger.client(accountPackage).user.get({ id: owner.id });
+    const { email, emailVerified, login, timeZone, twoFactorEnabled, suspendedAt, ...profile } =
+        self;
     expect({
-        self: [self.name, self.email, self.locale],
-        shown: [shown.name, shown.email, shown.locale, shown.timeZone],
+        private: { email, emailVerified, login, timeZone, twoFactorEnabled, suspendedAt },
+        shown,
     }).toEqual({
-        self: ["owner@example.com", "owner@example.com", SIGN_UP.locale],
-        shown: ["owner@example.com", undefined, SIGN_UP.locale, undefined],
+        private: {
+            email: "person@example.com",
+            emailVerified: true,
+            login: null,
+            timeZone: SIGN_UP.timeZone,
+            twoFactorEnabled: false,
+            suspendedAt: null,
+        },
+        shown: { ...profile, name: "Person", locale: SIGN_UP.locale },
     });
 });
 
-test("refuse where a person receives notifications to another home's installations and to other people", async () => {
-    await using fixture = await AccountFixture.open();
-    const owner = await fixture.person("owner@example.com");
-    const other = await fixture.person("other@example.com");
+test("refuse where a person receives notifications to another person's home and to other people", async () => {
+    await using fixture = await TestAccountStore.open();
+    const owner = await fixture.signIn(OWNER_EMAIL);
+    const other = await fixture.signIn(STRANGER_EMAIL);
 
-    // act as an installation of the other person's home
-    const stranger = fixture.installation(
-        principal.installation.reference(
-            Account.home(other.account),
-            Identifier.create("installation"),
-        ),
-    );
+    // act as the other person's home, whose identity its machine started
+    const home = await fixture.personalHome(other);
+    await fixture.startIdentity(home.spaceId, home.machine);
+    const stranger = fixture.as(home.spaceId).client(accountPackage);
 
-    // refuse the recipient to another home's installation and to the other person
+    // refuse the recipient to another person's home and to the other person
     expect({
         stranger: await refusal(stranger.user.recipient({ id: owner.id })),
-        other: await refusal(other.client.user.recipient({ id: owner.id })),
+        other: await refusal(other.client(accountPackage).user.recipient({ id: owner.id })),
     }).toEqual({
-        stranger: ["FORBIDDEN", "permission denied: recipient"],
-        other: ["FORBIDDEN", "permission denied: recipient"],
+        stranger: ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: recipient"],
+        other: ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: recipient"],
     });
 });
 
 test("let the machine serving an account read its spaces, whose rows its replicas follow", async () => {
-    await using fixture = await AccountFixture.open();
-    const owner = await fixture.person("owner@example.com");
+    await using fixture = await TestAccountStore.open();
+    const owner = await fixture.signIn(OWNER_EMAIL);
     const { accountId, spaceId, machine } = await fixture.personalHome(owner);
 
-    // read the home as the cloud machine serving it
-    const read = await machine.client.space.get({ accountId, id: spaceId });
-    expect([read.id, read.scope]).toEqual([spaceId, accountId]);
+    // read the home as the cloud machine serving it, as its owner reads it
+    const read = await machine.client(accountPackage).space.get({ accountId, id: spaceId });
+    expect(read).toEqual(await owner.client(accountPackage).space.get({ accountId, id: spaceId }));
 });

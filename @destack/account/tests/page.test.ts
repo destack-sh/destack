@@ -1,12 +1,17 @@
+import accountPackage from "../src/package.ts";
 import { inArray } from "@destack/db";
-import { Identifier } from "@destack/schema";
+import { Identifier, present } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { expect, test } from "@destack/test";
-import { authenticatorCode } from "./authenticator.ts";
-import type { Browser } from "../src/test/index.ts";
-import { AccountFixture, ISSUER } from "../src/test/index.ts";
+import {
+    authenticatorCode,
+    Enrollment,
+    ISSUER,
+    TestAccountStore,
+    TestBrowser,
+} from "../src/test/index.ts";
 import { DEVICE_CLIENT_NAME, user } from "../src/object/index.ts";
-import { at, DeviceGrant, Enrollment, locationOf, Tokens } from "./fixture.ts";
+import { DeviceGrant, Tokens } from "./fixture.ts";
 
 /** The path of the issuer's pages, which their forms post to. */
 const PAGES = new URL(ISSUER).pathname;
@@ -18,10 +23,97 @@ const SESSION_COOKIE = "better-auth.session_token";
 const POLICY =
     "default-src 'none'; script-src 'sha256-eZ9dPUSZvzZuzsdc+Rt5v76cmD+uc20qSM6f7h4EPAs='; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'";
 
-/** Sign a device client's browser in on the sign-in page by an emailed link and code. */
+/** Sign a browser in on the sign-in page by an emailed link. */
+async function signIn(
+    fixture: TestAccountStore,
+    browser: TestBrowser,
+    query: URLSearchParams,
+): Promise<void> {
+    await browser.fetch(
+        `/sign-in?${query}`,
+        new URLSearchParams({ action: "link", email: "ada@example.com" }),
+    );
+    await browser.fetch(await fixture.link());
+}
+
+/** Write the main element of the sign-up form with its values. */
+function signUpForm(values: {
+    email: string;
+    name: string;
+    handle: string;
+    residency: "eu" | "us";
+    alert: string;
+}): string {
+    const option = (value: "eu" | "us", label: string) =>
+        value === values.residency
+            ? `<option value="${value}" selected>${label}</option>`
+            : `<option value="${value}">${label}</option>`;
+
+    return [
+        "<main><h1>Sign up to Destack</h1>",
+        `<p role="alert">${values.alert}</p>`,
+        `<form method="post" action="${PAGES}/sign-up">`,
+        `<label for="email">Email</label>`,
+        `<input id="email" name="email" type="email" autocomplete="email" required autofocus value="${values.email}" />`,
+        `<label for="name">Name</label>`,
+        `<input id="name" name="name" autocomplete="name" maxlength="200" required value="${values.name}" />`,
+        `<label for="handle">Handle</label>`,
+        `<input id="handle" name="handle" autocapitalize="none" spellcheck="false" required value="${values.handle}" />`,
+        `<label for="residency">Where your data lives</label>`,
+        `<select id="residency" name="residency" required>`,
+        option("eu", "European Union"),
+        option("us", "United States"),
+        "</select>",
+        timeZoneField(),
+        `<button name="action" value="link">Email me a sign-up link</button>`,
+        `<button name="action" value="code">Email me a code</button>`,
+        "</form></main>",
+    ].join("");
+}
+
+/** Read a page's main element with whitespace collapsed. */
+async function main(response: Response): Promise<string> {
+    const [element] = present(/<main>.*<\/main>/su.exec(await response.text()), "the main element");
+
+    return element.replace(/\s+/gu, " ").replace(/> </gu, "><");
+}
+
+/** Write the main element of the sign-in form posting to an action. */
+function signInForm(action: string): string {
+    return [
+        "<main><h1>Sign in to Destack</h1>",
+        `<form method="post" action="${action}">`,
+        `<label for="email">Email</label>`,
+        `<input id="email" name="email" type="email" autocomplete="email" required autofocus />`,
+        `<button name="action" value="link">Email me a sign-in link</button>`,
+        `<button name="action" value="code">Email me a code</button>`,
+        "</form></main>",
+    ].join("");
+}
+
+/** Write the sign-up form's time zone field, a list of zones without scripts. */
+function timeZoneField(): string {
+    const options = Intl.supportedValuesOf("timeZone").map(
+        (zone) => `<option value="${zone}">${zone}</option>`,
+    );
+
+    return [
+        `<noscript><label> Time zone <select name="timeZone" required>`,
+        `<option value="">Choose your time zone</option>`,
+        ...options,
+        `</select></label></noscript>`,
+        `<input type="hidden" name="timeZone" />`,
+    ].join("");
+}
+
+/** Escape a value as the pages write it into attributes. */
+function escapeAttribute(value: string): string {
+    return value.replaceAll("&", "&amp;");
+}
+
 test("sign in on the sign-in page by link and by code", async () => {
-    await using fixture = await AccountFixture.open();
-    await fixture.person("ada@example.com");
+    await using fixture = await TestAccountStore.open();
+    await fixture.signIn("ada@example.com");
 
     // send a signed-out browser from a device client's authorization to the sign-in page
     const browser = fixture.browser();
@@ -34,12 +126,28 @@ test("sign in on the sign-in page by link and by code", async () => {
         code_challenge_method: "S256",
     })}`;
     const away = await browser.fetch(authorize);
-    const page = new URL(locationOf(away));
+    const page = new URL(TestBrowser.location(away));
     const query = page.searchParams;
-    expect([away.status, `${page.origin}${page.pathname}`, query.has("sig")]).toEqual([
+    expect([
+        away.status,
+        `${page.origin}${page.pathname}`,
+        [...new Set(query.keys())].toSorted((left, right) => left.localeCompare(right)),
+    ]).toEqual([
         302,
         `${ISSUER}/sign-in`,
-        true,
+        [
+            "ba_iat",
+            "ba_param",
+            "client_id",
+            "code_challenge",
+            "code_challenge_method",
+            "exp",
+            "redirect_uri",
+            "response_type",
+            "scope",
+            "sig",
+            "state",
+        ],
     ]);
 
     // render the email form running only the time zone script
@@ -53,7 +161,7 @@ test("sign in on the sign-in page by link and by code", async () => {
         status: 200,
         type: "text/html; charset=utf-8",
         policy: POLICY,
-        main: signInForm(`${PAGES}/sign-in?${escape(query.toString())}`),
+        main: signInForm(`${PAGES}/sign-in?${escapeAttribute(query.toString())}`),
     });
 
     // email a link that signs the browser in and returns to the sign-in page
@@ -65,23 +173,23 @@ test("sign in on the sign-in page by link and by code", async () => {
         200,
         "<main><h1>Check your email</h1><p>We sent a sign-in link to <strong>ada@example.com</strong>.</p></main>",
     ]);
-    const followed = await browser.fetch(at(await fixture.links(), -1).url);
-    expect([
-        followed.status,
-        followed.headers.get("location"),
-        browser.cookies.has(SESSION_COOKIE),
-    ]).toEqual([302, `${ISSUER}/sign-in?${query}`, true]);
+    const followed = await browser.fetch(await fixture.link());
+    expect([followed.status, TestBrowser.location(followed), [...browser.cookies.keys()]]).toEqual([
+        302,
+        `${ISSUER}/sign-in?${query}`,
+        [SESSION_COOKIE],
+    ]);
 
     // return a replayed link to the sign-in page with its error and callback
     const stranger = fixture.browser();
-    const replayed = await stranger.fetch(at(await fixture.links(), -1).url);
-    const failed = new URL(locationOf(replayed));
+    const replayed = await stranger.fetch(await fixture.link());
+    const failed = new URL(TestBrowser.location(replayed));
     expect([replayed.status, failed.href]).toEqual([
         302,
         `${ISSUER}/sign-in?${query}&error=INVALID_TOKEN`,
     ]);
     expect(await main(await stranger.fetch(failed.href))).toEqual(
-        signInForm(`${PAGES}/sign-in?${escape(query.toString())}`).replace(
+        signInForm(`${PAGES}/sign-in?${escapeAttribute(query.toString())}`).replace(
             "<form",
             `<p role="alert">Sign-in failed: INVALID_TOKEN.</p><form`,
         ),
@@ -95,7 +203,7 @@ test("sign in on the sign-in page by link and by code", async () => {
     );
     const codeForm = [
         "<p>We sent a code to <strong>ada@example.com</strong>.</p>",
-        `<form method="post" action="${PAGES}/sign-in?${escape(query.toString())}">`,
+        `<form method="post" action="${PAGES}/sign-in?${escapeAttribute(query.toString())}">`,
         `<input type="hidden" name="email" value="ada@example.com" />`,
         `<label for="otp">Code</label>`,
         `<input id="otp" name="otp" inputmode="numeric" autocomplete="one-time-code" required autofocus />`,
@@ -106,7 +214,7 @@ test("sign in on the sign-in page by link and by code", async () => {
         200,
         `<main><h1>Enter your code</h1>${codeForm}`,
     ]);
-    const code = at(await fixture.codes(), -1);
+    const code = present((await fixture.codes()).at(-1), "the mailed code");
     const wrong = await other.fetch(
         `/sign-in?${query}`,
         new URLSearchParams({ action: "verify", email: "ada@example.com", otp: "000000" }),
@@ -118,15 +226,11 @@ test("sign in on the sign-in page by link and by code", async () => {
     expect({
         code: [code.email, code.purpose],
         wrong: [wrong.status, await main(wrong)],
-        signedIn: [
-            signedIn.status,
-            signedIn.headers.get("location"),
-            other.cookies.has(SESSION_COOKIE),
-        ],
+        signedIn: [signedIn.status, TestBrowser.location(signedIn), [...other.cookies.keys()]],
     }).toEqual({
         code: ["ada@example.com", "sign-in"],
         wrong: [400, `<main><h1>Enter your code</h1><p role="alert">Invalid OTP</p>${codeForm}`],
-        signedIn: [303, `${PAGES}/sign-in?${query}`, true],
+        signedIn: [303, `${PAGES}/sign-in?${query}`, [SESSION_COOKIE]],
     });
 
     // escape the query a page passes
@@ -148,9 +252,8 @@ test("sign in on the sign-in page by link and by code", async () => {
     });
 });
 
-/** Sign people up with their name, handle, residency, time zone and language. */
 test("sign up on the sign-up page with a name in the posted time zone and the browser's language", async () => {
-    await using fixture = await AccountFixture.open();
+    await using fixture = await TestAccountStore.open();
     const browser = fixture.browser("x y, fr-ch;q=0.9, en;q=0.5");
     const chosen = {
         email: "ada@example.com",
@@ -200,8 +303,8 @@ test("sign up on the sign-up page with a name in the posted time zone and the br
         email: "eve@example.com",
         callbackURL: "/",
     });
-    const opened = await browser.fetch(at(await fixture.links(), -1).url);
-    const failed = new URL(locationOf(opened));
+    const opened = await browser.fetch(await fixture.link());
+    const failed = new URL(TestBrowser.location(opened));
     expect([direct.status, opened.status, Object.fromEntries(failed.searchParams)]).toEqual([
         200,
         302,
@@ -216,7 +319,7 @@ test("sign up on the sign-up page with a name in the posted time zone and the br
         "/sign-up",
         new URLSearchParams({ action: "link", ...chosen, timeZone: "America/New_York" }),
     );
-    await browser.fetch(at(await fixture.links(), -1).url);
+    await browser.fetch(await fixture.link());
 
     // sign up by a code in the language of the pages for a browser asking for none
     const other = fixture.browser("*");
@@ -228,7 +331,7 @@ test("sign up on the sign-up page with a name in the posted time zone and the br
         timeZone: "Asia/Tokyo",
     };
     await other.fetch("/sign-up", new URLSearchParams({ action: "code", ...code }));
-    const { otp } = at(await fixture.codes(), -1);
+    const otp = await fixture.code();
     await other.fetch("/sign-up", new URLSearchParams({ action: "verify", otp, ...code }));
 
     // store each new user's name, time zone and locale
@@ -253,9 +356,8 @@ test("sign up on the sign-up page with a name in the posted time zone and the br
     ]);
 });
 
-/** Offer the configured providers on the sign-in page, sending the browser to the chosen one. */
 test("sign in with a provider on the sign-in page", async () => {
-    await using fixture = await AccountFixture.open({
+    await using fixture = await TestAccountStore.open({
         signIn: {
             providers: { github: { clientId: "github-client", clientSecret: "github-secret" } },
         },
@@ -283,36 +385,36 @@ test("sign in with a provider on the sign-in page", async () => {
         `/sign-in?${query}`,
         new URLSearchParams({ action: "provider", provider: "github" }),
     );
-    const page = new URL(locationOf(started));
+    const page = new URL(TestBrowser.location(started));
     expect({
         status: started.status,
         page: `${page.origin}${page.pathname}`,
         client: page.searchParams.get("client_id"),
-        hasState: browser.cookies.has("better-auth.state"),
+        cookies: [...browser.cookies.keys()],
     }).toEqual({
         status: 303,
         page: "https://github.com/login/oauth/authorize",
         client: "github-client",
-        hasState: true,
+        cookies: ["better-auth.state"],
     });
 });
 
-/** Approve another application's scopes on the consent page, returning to it with a code. */
 test("approve an application on the consent page", async () => {
-    await using fixture = await AccountFixture.open();
-    const owner = await fixture.signInWithLink("ada@example.com");
+    await using fixture = await TestAccountStore.open();
+    const { person: owner, browser: ownerBrowser } =
+        await fixture.signInWithLink("ada@example.com");
 
     // register and authorize an application and send the user to the consent page
     const redirect = "https://notes.test/callback";
-    const client = await owner.client.oauthClient.create({
+    const client = await owner.client(accountPackage).oauthClient.create({
         scope: owner.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(fixture.store.clock.now()),
         name: "Notes <&>",
         redirectUris: [redirect],
         tokenEndpointAuthMethod: "none",
         grantTypes: ["authorization_code", "refresh_token"],
     });
-    const authorized = await owner.browser.fetch(
+    const authorized = await ownerBrowser.fetch(
         `/oauth2/authorize?${new URLSearchParams({
             response_type: "code",
             client_id: client.clientId,
@@ -323,50 +425,42 @@ test("approve an application on the consent page", async () => {
             code_challenge_method: "S256",
         })}`,
     );
-    const page = new URL(locationOf(authorized));
+    const page = new URL(TestBrowser.location(authorized));
 
     // show the application's escaped name and the scopes it asks for
-    const shown = await owner.browser.fetch(page.href);
+    const shown = await ownerBrowser.fetch(page.href);
     expect([shown.status, await main(shown)]).toEqual([
         200,
         [
             "<main><h1>Authorize</h1>",
             "<p><strong>Notes &lt;&amp;&gt;</strong> asks to:</p>",
             "<ul><li><code>openid</code></li><li><code>email</code></li></ul>",
-            `<form method="post" action="${PAGES}/consent?${escape(page.searchParams.toString())}">`,
+            `<form method="post" action="${PAGES}/consent?${escapeAttribute(page.searchParams.toString())}">`,
             `<button name="action" value="approve">Allow</button>`,
             `<button name="action" value="deny">Deny</button>`,
             "</form></main>",
         ].join(""),
     ]);
 
-    // allow and return the browser to the application with a code for its state
-    const allowed = await owner.browser.fetch(
-        page.href,
-        new URLSearchParams({ action: "approve" }),
-    );
-    const callback = new URL(locationOf(allowed));
-    expect({
-        status: allowed.status,
-        page: `${callback.origin}${callback.pathname}`,
-        state: callback.searchParams.get("state"),
-        issuer: callback.searchParams.get("iss"),
-        hasCode: callback.searchParams.has("code"),
-    }).toEqual({
-        status: 303,
-        page: redirect,
+    // allow on the page, returning to the application with a code it redeems for tokens
+    const redeemed = await fixture.authorize(ownerBrowser, {
+        clientId: client.clientId,
+        redirectUri: redirect,
+        scope: "openid email",
         state: "state-1",
-        issuer: ISSUER,
-        hasCode: true,
+        resource: null,
     });
+    expect([redeemed.status, Tokens.parse(await redeemed.json()).scope]).toEqual([
+        200,
+        "openid email",
+    ]);
 });
 
-/** Sign in and approve a device client's code on the verification page. */
 test("approve a device code on the verification page", async () => {
-    await using fixture = await AccountFixture.open();
+    await using fixture = await TestAccountStore.open();
     const native = fixture.browser();
     const browser = fixture.browser();
-    await fixture.person("ada@example.com");
+    await fixture.signIn("ada@example.com");
 
     // request a device code as a device's new client
     const deviceClient = Identifier.create("client");
@@ -404,7 +498,7 @@ test("approve a device code on the verification page", async () => {
         [
             "<main><h1>Approve a device</h1>",
             `<p> Sign in to <strong>${DEVICE_CLIENT_NAME}</strong> with the code <strong>${grant.user_code}</strong>? </p>`,
-            `<form method="post" action="${PAGES}${escape(here)}">`,
+            `<form method="post" action="${PAGES}${escapeAttribute(here)}">`,
             `<button name="action" value="approve">Approve</button>`,
             `<button name="action" value="deny">Deny</button>`,
             "</form></main>",
@@ -431,15 +525,16 @@ test("approve a device code on the verification page", async () => {
     ]);
 });
 
-/** Complete an enrolled authenticator's code on the second-factor page. */
 test("verify an authenticator code on the second-factor page", async () => {
-    await using fixture = await AccountFixture.open();
-    const owner = await fixture.signInWithLink("ada@example.com");
+    await using fixture = await TestAccountStore.open();
+    const { browser: ownerBrowser } = await fixture.signInWithLink("ada@example.com");
 
     // enroll an authenticator
-    const enrollment = await owner.browser.fetch("/two-factor/enable", {});
+    const enrollment = await ownerBrowser.fetch("/two-factor/enable", {});
     const { totpURI } = Enrollment.parse(await enrollment.json());
-    await owner.browser.fetch("/two-factor/verify-totp", { code: authenticatorCode(totpURI) });
+    await ownerBrowser.fetch("/two-factor/verify-totp", {
+        code: authenticatorCode(totpURI, fixture.store.clock.now()),
+    });
 
     // stop a link's sign-in at the second-factor page
     const browser = fixture.browser();
@@ -448,8 +543,8 @@ test("verify an authenticator code on the second-factor page", async () => {
         `/sign-in?${query}`,
         new URLSearchParams({ action: "link", email: "ada@example.com" }),
     );
-    const challenged = await browser.fetch(at(await fixture.links(), -1).url);
-    const page = new URL(locationOf(challenged));
+    const challenged = await browser.fetch(await fixture.link());
+    const page = new URL(TestBrowser.location(challenged));
     const next = new URLSearchParams({ callbackURL: `${ISSUER}/sign-in?${query}` });
     expect([challenged.status, page.href]).toEqual([302, `${ISSUER}/sign-in/two-factor?${next}`]);
 
@@ -458,7 +553,7 @@ test("verify an authenticator code on the second-factor page", async () => {
     expect(await main(shown)).toEqual(
         [
             "<main><h1>Verify it is you</h1>",
-            `<form method="post" action="${PAGES}/sign-in/two-factor?${escape(next.toString())}">`,
+            `<form method="post" action="${PAGES}/sign-in/two-factor?${escapeAttribute(next.toString())}">`,
             `<label for="code">Code from your authenticator app, or a backup code</label>`,
             `<input id="code" name="code" autocomplete="one-time-code" required autofocus />`,
             `<button name="action" value="totp">Verify</button>`,
@@ -470,100 +565,45 @@ test("verify an authenticator code on the second-factor page", async () => {
     // verify the authenticator's code
     const verified = await browser.fetch(
         page.href,
-        new URLSearchParams({ action: "totp", code: authenticatorCode(totpURI) }),
+        new URLSearchParams({
+            action: "totp",
+            code: authenticatorCode(totpURI, fixture.store.clock.now()),
+        }),
     );
-    expect([
-        verified.status,
-        verified.headers.get("location"),
-        browser.cookies.has(SESSION_COOKIE),
-    ]).toEqual([303, `${ISSUER}/sign-in?${query}`, true]);
+    expect([verified.status, TestBrowser.location(verified), [...browser.cookies.keys()]]).toEqual([
+        303,
+        `${ISSUER}/sign-in?${query}`,
+        [SESSION_COOKIE],
+    ]);
 });
 
-/** Sign a browser in on the sign-in page by an emailed link. */
-async function signIn(
-    fixture: AccountFixture,
-    browser: Browser,
-    query: URLSearchParams,
-): Promise<void> {
-    await browser.fetch(
-        `/sign-in?${query}`,
-        new URLSearchParams({ action: "link", email: "ada@example.com" }),
-    );
-    await browser.fetch(at(await fixture.links(), -1).url);
-}
+test("send a person asked to sign in again back to sign in until they do, and refuse a forged request", async () => {
+    await using fixture = await TestAccountStore.open();
+    const { browser } = await fixture.signInWithLink("ada@example.com");
 
-/** Write the main element of the sign-up form with its values. */
-function signUpForm(values: {
-    email: string;
-    name: string;
-    handle: string;
-    residency: "eu" | "us";
-    alert: string;
-}): string {
-    const option = (value: "eu" | "us", label: string) =>
-        value === values.residency
-            ? `<option value="${value}" selected>${label}</option>`
-            : `<option value="${value}">${label}</option>`;
+    // ask the signed-in browser to sign in again for a new client
+    const authorize = `/oauth2/authorize?${new URLSearchParams({
+        response_type: "code",
+        client_id: Identifier.create("client"),
+        redirect_uri: "http://127.0.0.1:53682/callback",
+        state: "state-1",
+        code_challenge: "c".repeat(43),
+        code_challenge_method: "S256",
+        prompt: "login",
+        max_age: "900",
+    })}`;
+    const asked = new URL(TestBrowser.location(await browser.fetch(authorize)));
 
-    return [
-        "<main><h1>Sign up to Destack</h1>",
-        `<p role="alert">${values.alert}</p>`,
-        `<form method="post" action="${PAGES}/sign-up">`,
-        `<label for="email">Email</label>`,
-        `<input id="email" name="email" type="email" autocomplete="email" required autofocus value="${values.email}" />`,
-        `<label for="name">Name</label>`,
-        `<input id="name" name="name" autocomplete="name" maxlength="200" required value="${values.name}" />`,
-        `<label for="handle">Handle</label>`,
-        `<input id="handle" name="handle" autocapitalize="none" spellcheck="false" required value="${values.handle}" />`,
-        `<label for="residency">Where your data lives</label>`,
-        `<select id="residency" name="residency" required>`,
-        option("eu", "European Union"),
-        option("us", "United States"),
-        "</select>",
-        timeZoneField(),
-        `<button name="action" value="link">Email me a sign-up link</button>`,
-        `<button name="action" value="code">Email me a code</button>`,
-        "</form></main>",
-    ].join("");
-}
-
-/** Read a page's main element with whitespace collapsed. */
-async function main(response: Response): Promise<string> {
-    const text = await response.text();
-    const element = text.slice(text.indexOf("<main>"), text.indexOf("</main>") + "</main>".length);
-
-    return element.replace(/\s+/gu, " ").replace(/> </gu, "><");
-}
-
-/** Write the main element of the sign-in form posting to an action. */
-function signInForm(action: string): string {
-    return [
-        "<main><h1>Sign in to Destack</h1>",
-        `<form method="post" action="${action}">`,
-        `<label for="email">Email</label>`,
-        `<input id="email" name="email" type="email" autocomplete="email" required autofocus />`,
-        `<button name="action" value="link">Email me a sign-in link</button>`,
-        `<button name="action" value="code">Email me a code</button>`,
-        "</form></main>",
-    ].join("");
-}
-
-/** Write the sign-up form's time zone field, a list of zones without scripts. */
-function timeZoneField(): string {
-    const options = Intl.supportedValuesOf("timeZone").map(
-        (zone) => `<option value="${zone}">${zone}</option>`,
-    );
-
-    return [
-        `<noscript><label> Time zone <select name="timeZone" required>`,
-        `<option value="">Choose your time zone</option>`,
-        ...options,
-        `</select></label></noscript>`,
-        `<input type="hidden" name="timeZone" />`,
-    ].join("");
-}
-
-/** Escape a value as the pages write it into attributes. */
-function escape(value: string): string {
-    return value.replaceAll("&", "&amp;");
-}
+    // continue with the older session, and with a forged request time
+    const stale = await browser.fetch(asked.href, new URLSearchParams({ action: "continue" }));
+    const forged = new URL(asked);
+    forged.searchParams.set("ba_iat", "1");
+    const refused = await browser.fetch(forged.href, new URLSearchParams({ action: "continue" }));
+    expect({
+        stale: [stale.status, new URL(TestBrowser.location(stale)).pathname],
+        refused: [refused.status, await main(refused)],
+    }).toEqual({
+        stale: [303, `${PAGES}/sign-in`],
+        refused: [400, '<main><h1>Sign-in failed</h1><p role="alert">invalid_signature</p></main>'],
+    });
+});

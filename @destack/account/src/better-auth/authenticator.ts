@@ -1,19 +1,17 @@
+import type { JWTPayload } from "jose";
 import { betterAuth, type BetterAuthOptions } from "better-auth/minimal";
 import { Journal } from "@destack/object/server";
 import type { BetterAuthPlugin } from "better-auth";
 import type { CallKey } from "@destack/object";
 import type { Fetch } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
-import { Authorizer } from "@destack/access";
 import { and, eq, type DatabaseConnection, Snapshot } from "@destack/db";
 import type { EventStore } from "@destack/event";
-import type { PackageId } from "@destack/package";
 import { magicLink, emailOTP, jwt } from "better-auth/plugins";
 import { passkey } from "@better-auth/passkey";
 import { oauthDeviceAuthorization, oauthProvider } from "@better-auth/oauth-provider";
 import type { IdentityKeystore } from "../identity/index.ts";
 import type { Keyring } from "@destack/identity";
-import { CallError } from "@destack/object";
 import { Scope } from "@destack/sync";
 import { betterAuthAdapter } from "./adapter.ts";
 import { betterAuthSessionPolicy } from "./session-policy.ts";
@@ -27,12 +25,21 @@ import { Client } from "../object/client.ts";
 import { Identity } from "../object/identity.ts";
 import type { CodeCheck } from "../oauth/code.ts";
 import { oauthExtension } from "../oauth/oauth.ts";
-import { user, User } from "../object/user.ts";
+import { TokenLifetime } from "../oauth/resource.ts";
+import { User } from "../object/user.ts";
 import { account } from "../object/account.ts";
 import { SignUp } from "./sign-up.ts";
 import { Digest, Identifier, present, schema } from "@destack/schema";
 import type { KeySet } from "@destack/identity";
 import type { Clock } from "@destack/environment";
+import type {} from "@destack/package/import-meta";
+import { AccountError } from "../error/error.ts";
+
+/** The lifetime of a person's access token, in seconds: ten minutes, as RFC 9068 practice. */
+const PERSON_TOKEN_SECONDS = 10 * 60;
+
+/** The milliseconds in a second, converting the store's time to a token's seconds. */
+const SECOND_MILLISECONDS = 1000;
 
 /** The sign-in pages below the issuer's URL. */
 const SIGN_IN_PATHS = {
@@ -51,9 +58,6 @@ const SIGN_IN_CODE = "sign-in-otp-";
 
 /** The code Better Auth refuses a valid sign-in code of an email no person has with. */
 const USER_NOT_FOUND = "USER_NOT_FOUND";
-
-/** How long an OAuth access token lives, ten minutes in seconds. */
-const ACCESS_TOKEN_SECONDS = 10 * 60;
 
 /** How long a Better Auth JWT lives, a minute: one exchange with clock skew to spare. */
 const JWT_LIFETIME = "60s";
@@ -173,8 +177,8 @@ export interface BetterAuthAuthenticatorOptions {
     objects: Pick<ObjectStore, "mutate" | "claims" | "authorizer" | "database" | "serving">;
     /** The event log the journal stores audited calls in. */
     events: EventStore;
-    /** The lifetimes of the packages' access tokens, in milliseconds, a minute when absent. */
-    lifetimes: ReadonlyMap<PackageId, number>;
+    /** How long the packages' access tokens live. */
+    lifetime: TokenLifetime;
     /** The clock sign-in reads time at. */
     clock: Clock;
     /** The transport mailing sign-in links and codes. */
@@ -187,7 +191,7 @@ type Providers = BetterAuthAuthenticatorOptions["providers"];
 /** The universe's sign-in through Better Auth, answering below the issuer's URL. */
 export class BetterAuthAuthenticator {
     /** The Better Auth instance storing sessions, codes and provider sign-ins. */
-    readonly auth: Authentication;
+    readonly auth: BetterAuth;
     /** The authoritative database for sessions and account permissions. */
     readonly database: DatabaseConnection;
     /** The clock sign-in reads time at. */
@@ -204,7 +208,7 @@ export class BetterAuthAuthenticator {
     /** Answer sign-in through a Better Auth instance, its pages and its audited protocol. */
     private constructor(
         options: BetterAuthAuthenticatorOptions,
-        auth: Authentication,
+        auth: BetterAuth,
         pages: SignInPage,
         protocol: Fetch,
     ) {
@@ -269,7 +273,7 @@ export class BetterAuthAuthenticator {
                 // read the person the request's session signs in
                 const current = await auth.api.getSession({ headers: request.headers });
                 if (current === null) {
-                    throw new CallError("UNAUTHORIZED", { message: "the person is not signed in" });
+                    throw AccountError.of("NOT_SIGNED_IN", "the person is not signed in");
                 }
 
                 await Client.register(
@@ -313,7 +317,7 @@ export class BetterAuthAuthenticator {
 }
 
 /** The Better Auth instance of the universe's sign-in. */
-type Authentication = ReturnType<typeof configure>;
+type BetterAuth = ReturnType<typeof configure>;
 
 /** Configure Better Auth with audited sessions over the account tables. */
 function configure(
@@ -390,9 +394,6 @@ function settings(
     audit: BetterAuthAudit,
     secrets: NonNullable<BetterAuthOptions["secrets"]>,
 ) {
-    // decide the users' records through the user policy
-    const users = new Authorizer([user.policy], [user.mapping]);
-
     return {
         appName: "Destack",
         baseURL: new URL(options.issuer).origin,
@@ -400,9 +401,8 @@ function settings(
         secrets,
         database: betterAuthAdapter(
             options.database,
-            users,
             options.objects,
-            options.lifetimes,
+            options.lifetime,
             options.clock,
         ),
         trustedOrigins: options.trustedOrigins,
@@ -480,12 +480,12 @@ function plugins(
                     issuer: options.issuer,
                     endpoint: `${options.issuer}${TOKEN_PATH}`,
                     clock: options.clock,
-                    lifetimes: options.lifetimes,
+                    lifetime: options.lifetime,
                     sign: (claims, header) =>
                         options.keystore.sign(options.database, Scope.universe.id, claims, header),
                 }),
             ],
-            accessTokenExpiresIn: ACCESS_TOKEN_SECONDS,
+            accessTokenExpiresIn: PERSON_TOKEN_SECONDS,
             storeClientSecret: { hash: (secret) => Digest.of(secret) },
             clientPrivileges: () => false,
             resourcePrivileges: () => false,
@@ -531,9 +531,28 @@ function jwtPlugin(options: BetterAuthAuthenticatorOptions) {
             issuer: options.issuer,
             expirationTime: JWT_LIFETIME,
             sign: (payload, header) =>
-                options.keystore.sign(options.database, Scope.universe.id, payload, header),
+                options.keystore.sign(
+                    options.database,
+                    Scope.universe.id,
+                    restamp(payload, options.clock.now()),
+                    header,
+                ),
         },
     });
+}
+
+/** Restamp a token Better Auth timed on the wall clock at the store's time. */
+function restamp(payload: JWTPayload, now: number): JWTPayload {
+    // leave a token without both times as Better Auth built it
+    const { iat, exp } = payload;
+    if (iat === undefined || exp === undefined) {
+        return payload;
+    }
+
+    // issue it now for as long as Better Auth meant
+    const issuedAt = Math.floor(now / SECOND_MILLISECONDS);
+
+    return { ...payload, iat: issuedAt, exp: issuedAt + (exp - iat) };
 }
 
 /** Build the passkey plugin for the platform origin. */
@@ -613,9 +632,10 @@ function withProfile<Options extends { readonly mapProfileToUser?: unknown }>(
 ) {
     // refuse a profile mapping the deployment declares
     if (options.mapProfileToUser !== undefined) {
-        throw new CallError("PRECONDITION_FAILED", {
-            message: `the authenticator maps the profiles of provider ${id}`,
-        });
+        throw AccountError.of(
+            "UNMAPPED_PROVIDER",
+            `provider ${id} declares a profile mapping, but the authenticator maps its profiles`,
+        );
     }
 
     return {
@@ -671,9 +691,10 @@ function generateIdentifier(model: string): string {
     // refuse an unknown model
     const prefix = Object.hasOwn(MODEL_PREFIXES, model) ? MODEL_PREFIXES[model] : undefined;
     if (prefix === undefined) {
-        throw new CallError("INTERNAL_SERVER_ERROR", {
-            message: `unknown authentication model: ${model}`,
-        });
+        throw AccountError.of(
+            "UNKNOWN_AUTHENTICATION_MODEL",
+            `unknown authentication model: ${model}`,
+        );
     }
 
     return Identifier.create(prefix);
@@ -695,8 +716,9 @@ async function mail(
 
     // refuse a message the transport retried or failed
     if (outcome.kind !== "sent") {
-        throw new CallError("UNAVAILABLE", {
-            message: `sign-in mail to ${address} was not sent: ${outcome.error.message}`,
-        });
+        throw AccountError.of(
+            "MAIL_UNSENT",
+            `sign-in mail to ${address} was not sent: ${outcome.error.message}`,
+        );
     }
 }

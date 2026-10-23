@@ -5,12 +5,13 @@ import { claimTable } from "@destack/object";
 import { present, schema } from "@destack/schema";
 import { alert, html, type Markup, redirect, render, timeZoneField } from "./markup.ts";
 import { SignUp } from "./sign-up.ts";
-import { CallError } from "@destack/object";
 import { Account } from "../object/account.ts";
 import { client } from "../object/client.ts";
 import { HANDLE_LENGTH, type HandleAvailability } from "../address/handle.ts";
 import { DisplayName, NAME_LENGTH } from "../object/display-name.ts";
 import { Residency, type ResidencyCode } from "../object/residency.ts";
+import type {} from "@destack/package/import-meta";
+import { AccountError } from "../error/error.ts";
 
 /** The query parameters Better Auth adds to the sign-in page after a failed sign-in. */
 const ERROR_PARAMETERS = ["error", "error_description"];
@@ -36,6 +37,7 @@ const Redirection = schema.looseObject({ url: schema.string().min(1) });
 const Failure = schema.looseObject({
     message: schema.string().exactOptional(),
     error_description: schema.string().exactOptional(),
+    error: schema.string().exactOptional(),
 });
 
 /** A Better Auth answer describing an OAuth client. */
@@ -53,8 +55,14 @@ const SignedIn = schema.looseObject({ twoFactorRedirect: schema.boolean().exactO
 
 /** A Better Auth answer with the browser's session, null when signed out. */
 const Session = schema
-    .looseObject({ user: schema.looseObject({ email: schema.string() }) })
+    .looseObject({
+        user: schema.looseObject({ email: schema.string() }),
+        session: schema.looseObject({ createdAt: schema.string() }),
+    })
     .nullable();
+
+/** The parameters Better Auth signs an authorization request it sends to a sign-in page with. */
+const SIGNED_PARAMETERS = ["sig", "exp", "ba_iat", "ba_param", "ba_pl"];
 
 /** An emailed sign-in: the address, the form that asked for it and the sign-up it includes. */
 interface EmailSignIn {
@@ -264,7 +272,7 @@ export class SignInPage {
         }
         // refuse an action the form does not offer
         else {
-            throw new CallError("BAD_REQUEST", { message: `unknown sign-in action: ${action}` });
+            throw AccountError.of("UNKNOWN_ACTION", `unknown sign-in action: ${action}`);
         }
     }
 
@@ -432,13 +440,13 @@ export class SignInPage {
         }
         // refuse an action the form does not offer
         else {
-            throw new CallError("BAD_REQUEST", { message: `unknown sign-up action: ${action}` });
+            throw AccountError.of("UNKNOWN_ACTION", `unknown sign-up action: ${action}`);
         }
     }
 
     /** Continue the provider's authorization as the signed-in person. */
     async #continueAuthorization(request: Request, query: URLSearchParams): Promise<Response> {
-        // continue the authorization
+        // continue through Better Auth, which checks the request's signature first
         const response = await this.#forward(request, "/oauth2/continue", {
             selected: true,
             oauth_query: query.toString(),
@@ -446,8 +454,54 @@ export class SignInPage {
         if (!response.ok) {
             return render("Sign-in failed", alert(await failure(response)), response.status);
         }
+        const { url } = Redirection.parse(await response.json());
 
-        return follow(response);
+        // answer a login prompt that sends the person back to sign in, by a newer session
+        const answered = await this.#answerLogin(request, query, new URL(url, this.signIn));
+
+        return redirect(answered ?? url, response.headers.getSetCookie());
+    }
+
+    /** Clear a signed request's login prompt once a session newer than the request answers it. */
+    async #answerLogin(
+        request: Request,
+        query: URLSearchParams,
+        next: URL,
+    ): Promise<string | undefined> {
+        // leave every other continuation to Better Auth
+        const prompts = (query.get("prompt") ?? "").split(" ").filter((prompt) => prompt !== "");
+        const asked = Number(query.get("ba_iat"));
+        if (
+            next.pathname !== this.signIn.pathname ||
+            !prompts.includes("login") ||
+            !Number.isSafeInteger(asked) ||
+            asked <= 0
+        ) {
+            return undefined;
+        }
+
+        // require a session newer than the request, as Better Auth's consent does
+        const session = await this.#session(request);
+        if (session === null || Date.parse(session.session.createdAt) < asked) {
+            return undefined;
+        }
+
+        // authorize again without the login prompt and its age limit, which the session meets
+        const answered = new URLSearchParams(query);
+        for (const name of [...SIGNED_PARAMETERS, "max_age"]) {
+            answered.delete(name);
+        }
+        const others = prompts.filter((prompt) => prompt !== "login");
+        // drop a prompt that asked for the login alone
+        if (others.length === 0) {
+            answered.delete("prompt");
+        }
+        // keep the prompts beside it
+        else {
+            answered.set("prompt", others.join(" "));
+        }
+
+        return `${this.endpoint}/oauth2/authorize?${answered}`;
     }
 
     /** Submit a code of the enrolled authenticator or a backup code. */
@@ -466,9 +520,7 @@ export class SignInPage {
         }
         // refuse an action the form does not offer
         else {
-            throw new CallError("BAD_REQUEST", {
-                message: `unknown second-factor action: ${action}`,
-            });
+            throw AccountError.of("UNKNOWN_ACTION", `unknown second-factor action: ${action}`);
         }
 
         // verify the code and return to the continuation
@@ -790,7 +842,9 @@ export class SignInPage {
     }
 
     /** Read the browser's session. */
-    async #session(request: Request): Promise<{ user: { email: string } } | null> {
+    async #session(
+        request: Request,
+    ): Promise<{ user: { email: string }; session: { createdAt: string } } | null> {
         // read the session through Better Auth
         const response = await this.#forward(request, "/get-session");
 
@@ -800,9 +854,10 @@ export class SignInPage {
         }
         // refuse any other failure
         else if (!response.ok) {
-            throw new CallError("INTERNAL_SERVER_ERROR", {
-                message: `session read failed: ${await failure(response)}`,
-            });
+            throw AccountError.of(
+                "SESSION_READ_FAILED",
+                `session read failed: ${await failure(response)}`,
+            );
         }
 
         return Session.parse(await response.json());
@@ -875,7 +930,7 @@ function parseResidency(
     // refuse an unknown residency
     const residency = residencies.find((known) => known.id === value);
     if (residency === undefined) {
-        throw new CallError("BAD_REQUEST", { message: `unknown residency: ${value}` });
+        throw AccountError.of("UNKNOWN_RESIDENCY", `unknown residency: ${value}`);
     }
 
     return residency.id;
@@ -893,7 +948,7 @@ function isApproval(action: string): boolean {
     }
     // refuse any other action
     else {
-        throw new CallError("BAD_REQUEST", { message: `unknown approval action: ${action}` });
+        throw AccountError.of("UNKNOWN_ACTION", `unknown approval action: ${action}`);
     }
 }
 
@@ -902,7 +957,7 @@ function field(form: { readonly get: (name: string) => unknown }, name: string):
     // refuse a missing field
     const value = form.get(name);
     if (typeof value !== "string") {
-        throw new CallError("BAD_REQUEST", { message: `missing form field: ${name}` });
+        throw AccountError.of("MISSING_FORM_FIELD", `missing form field: ${name}`);
     }
 
     return value;
@@ -913,7 +968,7 @@ function parameter(query: URLSearchParams, name: string): string {
     // refuse a missing parameter
     const value = query.get(name);
     if (value === null) {
-        throw new CallError("BAD_REQUEST", { message: `missing query parameter: ${name}` });
+        throw AccountError.of("MISSING_QUERY_PARAMETER", `missing query parameter: ${name}`);
     }
 
     return value;
@@ -932,10 +987,15 @@ async function failure(response: Response): Promise<string> {
     else if (body.error_description !== undefined) {
         return body.error_description;
     }
-    // refuse an error without either
+    // read an OAuth error's code (RFC 6749 5.2)
+    else if (body.error !== undefined) {
+        return body.error;
+    }
+    // refuse an error without any
     else {
-        throw new CallError("INTERNAL_SERVER_ERROR", {
-            message: `authentication failed without a message: ${response.status}`,
-        });
+        throw AccountError.of(
+            "AUTHENTICATION_FAILED",
+            `authentication failed without a message: ${response.status}`,
+        );
     }
 }

@@ -16,7 +16,9 @@ import type { Subject } from "@destack/sync";
 import { TOKEN_PATH } from "../authentication/path.ts";
 import { TokenResponse } from "../authentication/token.ts";
 import { JWT_BEARER } from "../oauth/bearer.ts";
+import { ACCESS_TOKEN_TYPE } from "../oauth/exchange.ts";
 import type { IdentityKeystore } from "./keystore.ts";
+import { AccountError } from "../error/error.ts";
 
 /** The milliseconds in a second, as JWTs count times in seconds. */
 const SECOND_MILLISECONDS = 1000;
@@ -94,8 +96,9 @@ export class TokenSource {
             // bind the token to the space below the request's mount, refusing a request to no space
             const scope = SpaceMount.parse(new URL(request.url).pathname)?.spaceId;
             if (scope === undefined) {
-                throw new TypeError(
-                    `${this.subject.id} signs calls to spaces alone, not ${request.url}`,
+                throw AccountError.of(
+                    "SPACE_REQUIRED",
+                    `${this.subject.id} can only sign calls to spaces, not ${request.url}`,
                 );
             }
 
@@ -126,7 +129,11 @@ export class TokenSource {
     async exchange(audience: PackageId, bound: TokenBinding): Promise<ExchangedToken> {
         const accountToken = await this.grantedToken(accountPackage.id);
 
-        return new Issuer(this.issuer, this.send).exchange(accountToken, audience, bound);
+        return new Issuer(this.issuer, this.send).exchange(
+            { token: accountToken, type: ACCESS_TOKEN_TYPE },
+            audience,
+            bound,
+        );
     }
 
     /** Sign an assertion of the subject for a token endpoint (RFC 7523). */
@@ -183,7 +190,10 @@ export class TokenSource {
         }
         // refuse anyone else
         else {
-            throw new TypeError(`${subject.type} ${subject.id} signs as no universe or space`);
+            throw AccountError.of(
+                "NOT_A_SIGNER",
+                `${subject.type} ${subject.id} is not a universe or space signer`,
+            );
         }
     }
 }

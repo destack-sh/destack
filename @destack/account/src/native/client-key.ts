@@ -1,7 +1,8 @@
 import { type Keychain, KeyPair, Proof } from "@destack/identity";
-import { CallError } from "@destack/object";
 import { type Identifier, schema } from "@destack/schema";
 import type { Clock } from "@destack/environment";
+import type {} from "@destack/package/import-meta";
+import { AccountError } from "../error/error.ts";
 
 /** The keychain service storing the keys of the clients registered on a computer, by client. */
 export const CLIENT_KEYS = "app.destack.client";
@@ -38,9 +39,7 @@ export class ClientKey {
         const read = Proof.read(proof);
         const client = schema.identifier("client").safeParse(read.subject);
         if (!client.success || (await this.#keys.load(client.data)) === undefined) {
-            throw new CallError("UNAUTHORIZED", {
-                message: "no client of this computer signed it",
-            });
+            throw AccountError.of("UNKNOWN_CLIENT_KEY", "no client of this computer signed it");
         }
 
         // verify it with the client's key now
@@ -59,7 +58,7 @@ export class ClientKey {
     async #load(client: Identifier<"client">): Promise<KeyPair> {
         const secret = await this.#keys.load(client);
         if (secret === undefined) {
-            throw new TypeError(`client ${client} has no key on this computer`);
+            throw AccountError.of("NO_CLIENT_KEY", `client ${client} has no key on this computer`);
         }
 
         return KeyPair.read(secret);

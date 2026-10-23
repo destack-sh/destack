@@ -3,6 +3,9 @@ import { Identifier, present } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { SessionStore } from "./session.ts";
 
+/** The time the sessions refresh their tokens at, in UTC epoch milliseconds: 2026-01-01. */
+const NOW = 1_767_225_600_000;
+
 test("save the first of two racing sign-ins' sessions for both, and replace it on a later sign-in", async () => {
     // store two sessions of one person at once and a third after both settled
     const keychain = new MemoryKeychain();
@@ -25,7 +28,7 @@ test("save the first of two racing sign-ins' sessions for both, and replace it o
     ]);
 });
 
-test("forget a signed-out person's session, leaving the session a racing sign-in saved after sign-out read it", async () => {
+test("keep the session a racing sign-in saves after sign-out reads the old one, and forget it once signed out", async () => {
     // read the session as sign-out does and store a new one as a racing sign-in does
     const sessions = new SessionStore(new MemoryKeychain());
     const person = {
@@ -61,17 +64,17 @@ test("refresh a session's access token once for every caller at once, and anew o
     const refresh = async () => {
         refreshed += 1;
 
-        return { accessToken: `access-${refreshed}`, expiresAt: Date.now() + 60_000 };
+        return { accessToken: `access-${refreshed}`, expiresAt: NOW + 60_000 };
     };
     const tokens = await Promise.all([
-        sessions.accessTokens(person).token("account", Date.now(), refresh),
-        sessions.accessTokens(person).token("account", Date.now(), refresh),
+        sessions.accessTokens(person).token("account", NOW, refresh),
+        sessions.accessTokens(person).token("account", NOW, refresh),
     ]);
-    const cached = await sessions.accessTokens(person).token("account", Date.now(), refresh);
+    const cached = await sessions.accessTokens(person).token("account", NOW, refresh);
 
     // forget the session as signing out does, and refresh again for the next caller
     await sessions.forget(person);
-    const renewed = await sessions.accessTokens(person).token("account", Date.now(), refresh);
+    const renewed = await sessions.accessTokens(person).token("account", NOW, refresh);
 
     expect({ tokens, cached, renewed, refreshed }).toEqual({
         tokens: ["access-1", "access-1"],

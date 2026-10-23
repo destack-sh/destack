@@ -1,4 +1,4 @@
-import { CallErrorCode } from "@destack/error";
+import { CallErrorCode, Failure } from "@destack/error";
 import { AuditCaller, defineAuditAction } from "@destack/object";
 import { AuditRecorder, type Journal } from "@destack/object/server";
 import { Scope } from "@destack/sync";
@@ -219,7 +219,7 @@ export class BetterAuthAudit {
             const outcome = isRejected
                 ? {
                       kind: "failure" as const,
-                      error: { code, message: "authentication rejected" },
+                      error: Failure.http(code, "authentication rejected"),
                   }
                 : { kind: "success" as const };
             await recorder.append(recorder.finish(attempt, outcome));
@@ -246,7 +246,7 @@ export class BetterAuthAudit {
                     await recorder.append(
                         recorder.finish(attempt, {
                             kind: "failure",
-                            error: { code: "INTERNAL_SERVER_ERROR", message: "internal error" },
+                            error: Failure.http("INTERNAL_SERVER_ERROR", "internal error"),
                         }),
                     );
                 } catch (auditError) {

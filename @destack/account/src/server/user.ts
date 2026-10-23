@@ -1,3 +1,4 @@
+import { Subject } from "@destack/sync";
 import { nth, present, TimeZone, zip } from "@destack/schema";
 import {
     type MethodContextOf,
@@ -6,25 +7,35 @@ import {
     Claim,
     claimTable,
 } from "@destack/object";
-import { CallError } from "@destack/object";
 import { Account, account } from "../object/account.ts";
-import { HANDLE_LENGTH, type HandleAvailability } from "../address/handle.ts";
+import { AccountHandle, type HandleAvailability } from "../address/handle.ts";
 import { user } from "../object/user.ts";
 import { client } from "../object/client.ts";
 import { Recipient } from "../object/recipient.ts";
 import { invited } from "./invitation.ts";
+import type {} from "@destack/package/import-meta";
+import { AccountError } from "../error/error.ts";
 
 /** The candidate handles one suggestion reads at once. */
 const SUGGESTION_BATCH = 100;
-
-/** The handle suggested when nothing else yields one. */
-const DEFAULT_HANDLE_STEM = "user";
 
 /** Implement users. */
 export function implementUser(): typeof user {
     return user.implement({
         methods: {
             update,
+            suspend: (call) => {
+                // refuse an operator suspending themselves, which could leave none to resume them
+                if (Subject.same(call.caller.subject, call.reference())) {
+                    throw AccountError.of(
+                        "SELF_SUSPENSION",
+                        "an operator cannot suspend themselves",
+                    );
+                }
+
+                return call.update({ suspendedAt: call.now });
+            },
+            resume: (call) => call.update({ suspendedAt: null }),
             suggestHandle,
             checkHandle,
             invited,
@@ -48,7 +59,7 @@ async function update(
     // refuse an unknown time zone
     const timeZone = context.input.timeZone;
     if (typeof timeZone === "string" && !TimeZone.isKnown(timeZone)) {
-        throw new CallError("BAD_REQUEST", { message: `unknown time zone ${timeZone}` });
+        throw AccountError.of("UNKNOWN_TIME_ZONE", `unknown time zone ${timeZone}`);
     }
 
     return next();
@@ -61,21 +72,13 @@ async function suggestHandle(
     // make the stem a valid handle
     const { target } = context;
     if (target.email === null) {
-        throw new TypeError(`user ${target.id} has its email concealed`);
+        throw AccountError.of("EMAIL_CONCEALED", `user ${target.id} has its email concealed`);
     }
-    const from = target.login ?? nth(target.email.split("@"), 0);
-    const stem =
-        from
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/gu, "-")
-            .slice(0, HANDLE_LENGTH)
-            .replace(/^-+|-+$/gu, "") || DEFAULT_HANDLE_STEM;
+    const stem = AccountHandle.stem(target.login ?? nth(target.email.split("@"), 0));
 
     // read which of the stem and its numbers are claimed, by a trashed account too
     for (let first = 1; ; first += SUGGESTION_BATCH) {
-        const candidates = Array.from({ length: SUGGESTION_BATCH }, (_, index) =>
-            numbered(stem, first + index),
-        );
+        const candidates = AccountHandle.candidates(stem, first, SUGGESTION_BATCH);
         const keys = candidates.map((candidate) => Claim.key(account, "handle", [candidate]).key);
         const claimed = await Claim.claimed(context.read(claimTable), {
             index: Claim.index(account, "handle"),
@@ -86,14 +89,6 @@ async function suggestHandle(
             return { handle: free };
         }
     }
-}
-
-/** Number a handle stem within the handle length. */
-function numbered(stem: string, number: number): string {
-    const suffix = number === 1 ? "" : `-${number}`;
-    const trimmed = stem.slice(0, HANDLE_LENGTH - suffix.length).replace(/-+$/u, "");
-
-    return `${trimmed}${suffix}`;
 }
 
 /** Report to a user whether a handle is free, claimed by an account, or not a handle at all. */

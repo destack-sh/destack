@@ -1,11 +1,12 @@
 import type { MethodContextOf, NextOf, ResultOf } from "@destack/object";
 import { schema } from "@destack/schema";
-import { CallError } from "@destack/object";
 import type { DnsResolver } from "./dns-resolver.ts";
 import { account } from "../object/account.ts";
 import { Entitlement } from "../object/entitlement.ts";
 import { Domain, DomainChallenge, domain } from "../object/domain.ts";
 import { hostname } from "../object/hostname.ts";
+import type {} from "@destack/package/import-meta";
+import { AccountError } from "../error/error.ts";
 
 /** What domain claims verify with: the resolver reading their challenge records. */
 export interface DomainOptions {
@@ -45,22 +46,21 @@ async function verify(
 
     // refuse a claim verified before
     if (claimed.verifiedAt !== null) {
-        throw new CallError("CONFLICT", { message: `${claimed.name} is verified` });
+        throw AccountError.of("DOMAIN_VERIFIED", `${claimed.name} is already verified`);
     }
     // refuse a domain another owner verified
     else if (verified !== undefined) {
-        throw new CallError("CONFLICT", {
-            message: `another owner verified ${claimed.name}`,
-        });
+        throw AccountError.of("DOMAIN_TAKEN", `another owner verified ${claimed.name}`);
     }
 
     // require the challenge record
     const challenge = DomainChallenge.of(claimed);
     const records = await options.resolver.txt(challenge.name);
     if (!records.includes(challenge.value)) {
-        throw new CallError("PRECONDITION_FAILED", {
-            message: `publish a TXT record ${challenge.name} with ${challenge.value} first`,
-        });
+        throw AccountError.of(
+            "CHALLENGE_UNPUBLISHED",
+            `publish a TXT record ${challenge.name} with ${challenge.value} first`,
+        );
     }
 
     return challenge;
@@ -85,9 +85,10 @@ async function remove(
         .map((row) => row.name)
         .toSorted();
     if (covered.length > 0) {
-        throw new CallError("PRECONDITION_FAILED", {
-            message: `hostnames serve below ${name}: ${covered.join(", ")}`,
-        });
+        throw AccountError.of(
+            "HOSTNAMES_IN_USE",
+            `hostnames below ${name} are in use: ${covered.join(", ")}`,
+        );
     }
 
     return next();

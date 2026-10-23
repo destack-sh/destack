@@ -11,10 +11,11 @@ import {
 import { PackageId } from "@destack/package";
 import type { FeatureReference } from "@destack/object";
 import { type Identifier, present, schema } from "@destack/schema";
-import { CallError } from "@destack/object";
 import { Replica, Scope } from "@destack/sync";
 import { Account, account } from "./account.ts";
 import { space, Space, type SpaceResource } from "./space.ts";
+import type {} from "@destack/package/import-meta";
+import { AccountError } from "../error/error.ts";
 
 /** The platform resources a feature allows, which machines and spaces enforce. */
 export const ENTITLEMENT_RESOURCES = [
@@ -135,12 +136,18 @@ export const entitlementShape = defineShape({
     ],
 });
 
-/** The condition of a use before an account's entitlements finish replicating. */
+/** The condition of a use before an account's entitlements finish replicating: not yet known. */
 const PENDING: Condition = {
-    status: "true",
+    status: "unknown",
     reason: "Pending",
     message: "waiting for the account's plan",
 };
+
+/** The fields of an entitlement that decide a use. */
+export type EntitlementTerms = Pick<
+    Entitlement,
+    "packageId" | "feature" | "resource" | "value" | "limit" | "state"
+>;
 
 /** A use a machine checks against an account's entitlements. */
 export type EntitlementUse =
@@ -154,46 +161,61 @@ export const Entitlement = {
     async read(
         reader: Pick<Snapshot, "read">,
         accountId: Identifier<"account">,
-        granted: EntitlementResource | { readonly feature: FeatureReference },
+        use: EntitlementResource | EntitlementUse,
     ): Promise<Entitlement | undefined> {
-        const where =
-            typeof granted === "string"
-                ? { scope: accountId, resource: granted }
-                : {
-                      scope: accountId,
-                      packageId: granted.feature.packageId,
-                      feature: granted.feature.name,
-                  };
+        const rows = await reader.read(entitlement.table).findMany({ where: { scope: accountId } });
 
-        return reader.read(entitlement.table).findFirst({ where });
+        return rows.find((row) => Entitlement.matches(row, use));
     },
 
-    /** Decide the condition of a use by an account's spaces from its replicated entitlements. */
-    async check(
+    /** Report whether an entitlement grants a use: its resource, its tenancy or its feature. */
+    matches(
+        entry: Pick<EntitlementTerms, "resource" | "packageId" | "feature">,
+        use: EntitlementResource | EntitlementUse,
+    ): boolean {
+        // match a resource by name
+        if (typeof use === "string") {
+            return entry.resource === use;
+        }
+        // match a tenancy by its resource
+        else if ("tenancy" in use) {
+            return entry.resource === "tenancy";
+        }
+        // match a feature by package and name
+        else {
+            return entry.packageId === use.feature.packageId && entry.feature === use.feature.name;
+        }
+    },
+
+    /** Read an account's replicated entitlements, absent until the replica first completes. */
+    async replicated(
         database: DatabaseConnection,
         accountId: Identifier<"account">,
-        use: EntitlementUse,
-    ): Promise<Condition> {
+    ): Promise<readonly Entitlement[] | undefined> {
         // wait for the replica's first complete snapshot of the account's entitlements, wherever it lives
-        const [replicated] = await entitlementShape.replicas(database, {
-            account: accountId,
-        });
+        const [replica] = await entitlementShape.replicas(database, { account: accountId });
         if (
-            replicated === undefined ||
-            !(await Replica.isSynced(database, replicated.name, replicated.scope))
+            replica === undefined ||
+            !(await Replica.isSynced(database, replica.name, replica.scope))
         ) {
+            return undefined;
+        }
+
+        return Snapshot.live(database)
+            .read(entitlement.table)
+            .findMany({ where: { scope: accountId } });
+    },
+
+    /** Decide the condition of a use from an account's replicated entitlements. */
+    decide(rows: readonly EntitlementTerms[] | undefined, use: EntitlementUse): Condition {
+        // wait while the entitlements replicate
+        if (rows === undefined) {
             return PENDING;
         }
 
-        // read the account's entitlement to the resource or feature
-        const granted = typeof use === "string" ? use : "tenancy" in use ? "tenancy" : use;
-        const row = await Entitlement.read(Snapshot.live(database), accountId, granted);
-        const used =
-            typeof use === "string"
-                ? use
-                : "tenancy" in use
-                  ? `${use.tenancy} tenancy`
-                  : `feature ${use.feature.name}`;
+        // find the entitlement to the resource or feature
+        const row = rows.find((entry) => Entitlement.matches(entry, use));
+        const used = Entitlement.describe(use);
 
         // refuse a use no plan grants, and a tenancy the plan leaves out
         const listed = schema.array(schema.string()).safeParse(row?.value);
@@ -217,6 +239,31 @@ export const Entitlement = {
         // allow any other use
         else {
             return { status: "true", reason: "Within", message: `${used} within the plan` };
+        }
+    },
+
+    /** Decide the condition of one use by an account's spaces from its replicated entitlements. */
+    async check(
+        database: DatabaseConnection,
+        accountId: Identifier<"account">,
+        use: EntitlementUse,
+    ): Promise<Condition> {
+        return Entitlement.decide(await Entitlement.replicated(database, accountId), use);
+    },
+
+    /** Describe a use as people read it. */
+    describe(use: EntitlementUse): string {
+        // describe a resource by its name
+        if (typeof use === "string") {
+            return use;
+        }
+        // describe a tenancy
+        else if ("tenancy" in use) {
+            return `${use.tenancy} tenancy`;
+        }
+        // describe a feature
+        else {
+            return `feature ${use.feature.name}`;
         }
     },
 
@@ -246,13 +293,13 @@ export const Entitlement = {
         database: DatabaseConnection,
         now: number,
     ): Promise<Readonly<Record<SpaceResource, Condition>>> {
-        // decide each resource's condition
-        const accountId = account.identifier(row.scope);
+        // decide each resource's condition from one read of the account's entitlements
+        const rows = await Entitlement.replicated(database, account.identifier(row.scope));
         const conditions = {
-            database: await Entitlement.check(database, accountId, "database"),
-            storage: await Entitlement.check(database, accountId, "storage"),
-            compute: await Entitlement.check(database, accountId, "compute"),
-            network: await Entitlement.check(database, accountId, "network"),
+            database: Entitlement.decide(rows, "database"),
+            storage: Entitlement.decide(rows, "storage"),
+            compute: Entitlement.decide(rows, "compute"),
+            network: Entitlement.decide(rows, "network"),
         };
 
         // refuse writes within the space while its database is exceeded
@@ -276,9 +323,10 @@ export const Entitlement = {
             "domain",
         );
         if (row === undefined) {
-            throw new CallError("QUOTA_EXCEEDED", {
-                message: `the plan of ${context.scope} allows no custom domains`,
-            });
+            throw AccountError.of(
+                "CUSTOM_DOMAINS_UNENTITLED",
+                `the plan of ${context.scope} does not allow custom domains`,
+            );
         }
     },
 };

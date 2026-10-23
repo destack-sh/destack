@@ -22,10 +22,18 @@ test("refuse a token request as its endpoint's status says, with its OAuth error
     );
 
     expect(refusals).toEqual([
-        ["BAD_REQUEST", "invalid_grant: assertion has no standing key"],
-        ["UNAUTHORIZED", "invalid_client"],
-        ["FORBIDDEN", "access_denied: machine is disabled"],
-        ["BAD_GATEWAY", "the token endpoint answered 404: not found"],
-        ["BAD_GATEWAY", "the token endpoint answered 500: upstream failed"],
+        ["BAD_REQUEST", "INVALID_GRANT", "the token endpoint refused the request: invalid_grant: assertion has no standing key"],
+        ["UNAUTHORIZED", "INVALID_CLIENT", "the token endpoint refused the request: invalid_client"],
+        ["FORBIDDEN", "ACCESS_DENIED", "the token endpoint refused the request: access_denied: machine is disabled"],
+        [
+            "BAD_GATEWAY",
+            "TOKEN_ENDPOINT_FAILED",
+            "the token endpoint responded with 404: not found",
+        ],
+        [
+            "BAD_GATEWAY",
+            "TOKEN_ENDPOINT_FAILED",
+            "the token endpoint responded with 500: upstream failed",
+        ],
     ]);
 });

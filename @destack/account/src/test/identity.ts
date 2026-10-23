@@ -21,10 +21,9 @@ export const TestIdentityRegistry = {
     async open(database: DatabaseConnection, clock: Clock, machineId: Identifier<"machine">) {
         // store the machine, and let machines start and extend identities as the universe's machine role does
         const serving = principal.machine.reference(Scope.universe.id, machineId);
-        await TestDirectory.publish(database, machineId, Scope.universe.id, null);
+        await TestDirectory.publish(database, machineId, Scope.universe.id, null, clock);
         const access = new AccessFixture(database);
         await access.replicateRelationship(
-            Scope.universe.id,
             Scope.universe,
             "machine",
             principal.machine.reference("*", "*"),
@@ -64,12 +63,16 @@ export const TestIdentityRegistry = {
             /** Place a new space on the machine, and return it. */
             place: async (): Promise<Identifier<"space">> => {
                 const space = Identifier.create("space");
-                await TestDirectory.place(database, {
-                    id: space,
-                    scope: Identifier.create("account"),
-                    machine: machineId,
-                    epoch: 1,
-                });
+                await TestDirectory.place(
+                    database,
+                    {
+                        id: space,
+                        scope: Identifier.create("account"),
+                        machine: machineId,
+                        epoch: 1,
+                    },
+                    clock,
+                );
 
                 return space;
             },

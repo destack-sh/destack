@@ -9,7 +9,6 @@ export * from "./key.ts";
 export * from "./oauth-client.ts";
 export * from "./oauth-consent.ts";
 export * from "./organisation.ts";
-export * from "./member.ts";
 export * from "./account.ts";
 export * from "./environment.ts";
 export * from "./group.ts";

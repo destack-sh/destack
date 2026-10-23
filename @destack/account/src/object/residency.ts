@@ -4,9 +4,10 @@ import { defineObject, field } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
 import { RequestId, Scope, Subject } from "@destack/sync";
 import { type Identifier, schema } from "@destack/schema";
-import { CallError } from "@destack/object";
 import { AccountHandle } from "../address/handle.ts";
 import { DisplayName } from "./display-name.ts";
+import type {} from "@destack/package/import-meta";
+import { AccountError } from "../error/error.ts";
 
 /** A residency's code, a lowercase DNS label such as eu or us. */
 export const ResidencyCode = schema.string().regex(/^[a-z]{2,16}$/u);
@@ -23,10 +24,10 @@ export const ServingMachine = schema.object({
 /** A cloud machine serving a residency, with the URL it answers at. */
 export type ServingMachine = schema.Infer<typeof ServingMachine>;
 
-/** The relations of a residency's servers: cloud machines, its home and the installations in it. */
-const SERVERS = ["machine", "home", "installation"] as const;
+/** The relations of a residency's servers: its cloud machines and its home. */
+const SERVERS = ["machine", "home"] as const;
 
-/** A jurisdiction Destack stores data in, which the platform's installations in it serve. */
+/** A jurisdiction Destack stores data in, served by its cloud machines and its home. */
 export const residency = defineObject(
     {
         name: "residency",
@@ -36,25 +37,21 @@ export const residency = defineObject(
         fields: {
             /** The name people read, such as European Union. */
             name: field.string(DisplayName),
-            /** The space serving the residency's platform installations. */
+            /** The space hosting the residency's platform installations. */
             home: field.string(schema.identifier("space")).optional().guard({ read: "locate" }),
         },
         relations: {
-            // the residency's cloud machines, its home and the platform installations in its home
+            // the residency's cloud machines and its home
             machine: { subjects: [principal.machine], grantedBy: "operate" },
             home: { subjects: [principal.space], grantedBy: "operate" },
-            installation: {
-                subjects: [principal.installation, principal.installation.all()],
-                grantedBy: "operate",
-            },
             // everyone choosing a residency while signing up
             public: { subjects: [anyone.all()] },
         },
         permissions: {
             read: relation("public"),
-            server: union(relation("machine"), relation("home"), relation("installation")),
-            // let its cloud machines and the installations in its home claim names in its accounts
-            claim: union(relation("machine"), relation("installation")),
+            server: union(relation("machine"), relation("home")),
+            // let its cloud machines and its home claim names in its accounts
+            claim: union(relation("machine"), relation("home")),
             locate: none(),
             operate: none(),
         },
@@ -120,7 +117,7 @@ export const Residency = {
         return { ...residency.reference(Scope.universe.id, code), relation: "server" };
     },
 
-    /** Read the platform installations claiming names in a residency's accounts, as a set. */
+    /** Read the principals claiming names in a residency's accounts, as a set. */
     claimants(code: ResidencyCode): Subject {
         return { ...residency.reference(Scope.universe.id, code), relation: "claim" };
     },
@@ -133,7 +130,7 @@ export const Residency = {
             .orderBy(residency.table.id);
     },
 
-    /** Read the residency a platform installation or cloud machine serves, if any. */
+    /** Read the residency a cloud machine or home space serves, if any. */
     async of(database: DatabaseConnection, server: Subject): Promise<ResidencyCode | undefined> {
         const relationships = await Relationship.readBySubject(Snapshot.live(database), [server]);
         const found = relationships.find(
@@ -158,24 +155,11 @@ export const Residency = {
     },
 
     /** Read a residency's home, and refuse a residency without one. */
-    async home(
-        residencies: {
-            readonly get: (input: {
-                readonly id: ResidencyCode;
-            }) => Promise<{ readonly home?: Identifier<"space"> | null }>;
-        },
-        code: ResidencyCode,
-    ): Promise<Identifier<"space">> {
-        // refuse a home hidden from the reader
-        const { home } = await residencies.get({ id: code });
-        if (home === undefined) {
-            throw new CallError("FORBIDDEN", { message: `the home of ${code} is hidden` });
-        }
+    async home(reader: Pick<Snapshot, "read">, code: ResidencyCode): Promise<Identifier<"space">> {
         // refuse a residency without a home
-        else if (home === null) {
-            throw new CallError("NOT_FOUND", {
-                message: `no home serves the residency ${code}`,
-            });
+        const { home } = await Residency.require(reader, code);
+        if (home === null) {
+            throw AccountError.of("NO_RESIDENCY_HOME", `residency ${code} has no home`);
         }
 
         return home;
@@ -188,7 +172,7 @@ export const Residency = {
             .read(residency.table)
             .findFirst({ where: { id: ResidencyCode.parse(code) } });
         if (row === undefined) {
-            throw new CallError("NOT_FOUND", { message: `no residency ${code}` });
+            throw AccountError.of("RESIDENCY_NOT_FOUND", `residency ${code} not found`);
         }
 
         return row;

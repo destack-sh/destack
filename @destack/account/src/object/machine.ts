@@ -160,7 +160,8 @@ export const machine = defineObject(
             serve: relation("self"),
             revoke: relation("self"),
             update: none(),
-            share: none(),
+            // let the account's managers share the machine with another account's members as tenants
+            share: through("account", "manage"),
             declare: none(),
         },
         reserved: ["rotate", "publish", "serve"],

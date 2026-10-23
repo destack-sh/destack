@@ -6,7 +6,6 @@
     "sideEffects": false,
     "description": "Administer Destack accounts and sessions.",
     "exports": {
-        ".": "./src/index.ts",
         "./package": "./src/package.ts",
         "./inspect": "./src/inspect/index.ts",
         "./client": "./src/client/index.ts",
@@ -20,6 +19,7 @@
         "./stack": "./src/stack/index.ts",
         "./declare": "./src/declare/index.ts",
         "./object": "./src/object/index.ts",
+        "./error": "./src/error/index.ts",
         "./identity": "./src/identity/index.ts",
         "./address": "./src/address/index.ts",
         "./test": "./src/test/index.ts"

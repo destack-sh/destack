@@ -1,4 +1,5 @@
 import { defineAdapter, definePackage } from "@destack/object";
+import { AccountError } from "./error/error.ts";
 import {
     account,
     entitlement,
@@ -13,7 +14,6 @@ import {
     identity,
     key,
     machine,
-    member,
     oauthClient,
     oauthConsent,
     operation,
@@ -40,7 +40,7 @@ import { identityKey } from "./identity/key.ts";
 /** The path the oauth adapter answers below the account package's mount. */
 export const OAUTH_PATH = "/oauth";
 
-/** The account package: its objects, its authentication records and its OAuth adapter. */
+/** The account package: its objects, authentication records, OAuth adapter and errors. */
 export default definePackage({
     objects: {
         // people, their sign-ins and the programs they sign in through
@@ -54,9 +54,8 @@ export default definePackage({
         oauthClient,
         oauthConsent,
 
-        // organisations and their members
+        // organisations
         organisation,
-        member,
 
         // accounts, their access, domains and machines
         account,
@@ -90,4 +89,5 @@ export default definePackage({
         identityKey,
     ],
     adapters: { oauth: defineAdapter("oauth", { path: OAUTH_PATH }) },
+    errors: AccountError,
 });

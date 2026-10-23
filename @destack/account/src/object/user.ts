@@ -1,4 +1,4 @@
-import { anyone, Invitation, principal, relation, union } from "@destack/access";
+import { anyone, Invitation, none, principal, relation, union } from "@destack/access";
 import {
     and,
     type DatabaseConnection,
@@ -11,12 +11,13 @@ import {
 import { defineObject, field } from "@destack/object";
 import { LocaleTag } from "@destack/locale";
 import { type Identifier, schema, TimeZone } from "@destack/schema";
-import { CallError } from "@destack/object";
 import { Subject } from "@destack/sync";
 import { AccountHandle, HandleAvailability } from "../address/handle.ts";
 import { sudo } from "../authentication/sudo.ts";
 import { DisplayName } from "./display-name.ts";
 import { Recipient } from "./recipient.ts";
+import type {} from "@destack/package/import-meta";
+import { AccountError } from "../error/error.ts";
 
 /** The longest text a handle check accepts, beyond which nothing is a handle. */
 const HANDLE_INPUT_LENGTH = 256;
@@ -72,9 +73,12 @@ export const user = defineObject(
             delegate: relation("self"),
             impersonate: relation("delegate"),
             delete: relation("self"),
+            // the platform's operators alone, never the person
+            suspend: none(),
         },
+        reserved: ["suspend"],
         shareable: { by: "delegate" },
-        elevated: { delegate: sudo, impersonate: sudo, delete: sudo },
+        elevated: { delegate: sudo, impersonate: sudo, delete: sudo, suspend: sudo },
         constraints: {
             email: { kind: "unique", on: ["email"] },
         },
@@ -101,6 +105,11 @@ export const user = defineObject(
         update: method.update("update", {
             fields: ["name", "image", "timeZone", "locale"],
         }),
+
+        /** Refuse the person's sign-ins and tokens until resumed. */
+        suspend: method.mutation({ permission: "suspend", isPredicted: false }),
+        /** Let a suspended person sign in again. */
+        resume: method.mutation({ permission: "suspend", isPredicted: false }),
         suggestHandle: method.query({
             permission: "read",
             output: schema.object({ handle: AccountHandle }),
@@ -146,7 +155,7 @@ export const User = {
     identify(key: string): Identifier<"user"> {
         const subject = Subject.read(key);
         if (!principal.user.is(subject)) {
-            throw new CallError("NOT_FOUND", { message: `${key} is no person` });
+            throw AccountError.of("NOT_A_PERSON", `${key} is not a person`);
         }
 
         return schema.identifier("user").parse(subject.id);

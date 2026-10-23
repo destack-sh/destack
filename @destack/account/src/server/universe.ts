@@ -14,7 +14,6 @@ import { RequestId, Scope, Subject } from "@destack/sync";
 import type { Authorization, ObjectStore } from "@destack/object/server";
 import { canonicalize, type Identifier, present, schema } from "@destack/schema";
 import { PublicKey } from "@destack/identity";
-import { CallError } from "@destack/object";
 import { Account, account } from "../object/account.ts";
 import { residentCalls } from "./account.ts";
 import { AccountHandle } from "../address/handle.ts";
@@ -26,14 +25,17 @@ import { claim } from "../object/claim.ts";
 import { placement } from "../object/placement.ts";
 import { Residency, residency, ResidencyCode } from "../object/residency.ts";
 import { space } from "../object/space.ts";
+import { user } from "../object/user.ts";
 import { StackSource } from "../object/stack-source.ts";
 import { Claim, type ResultsOf } from "@destack/object";
+import type {} from "@destack/package/import-meta";
+import { AccountError } from "../error/error.ts";
 
 /** The universe role of the operating organisation's owners. */
 const OPERATOR_ROLE = {
     name: "operator",
-    description: "Operate the cloud machines serving Destack's residencies",
-    permissions: [residency.permission("operate")],
+    description: "Operate the cloud machines serving Destack's residencies, and suspend people",
+    permissions: [residency.permission("operate"), user.permission("suspend")],
 } as const satisfies RoleRequest;
 
 /** The universe role of every residency's servers, which route its names and serve its people. */
@@ -77,9 +79,10 @@ const SIGNED_IN_ROLE = {
 const UNIVERSE_ROLE = {
     name: "universe",
     description:
-        "Operate residencies, place accounts and organisations in them, seat organisations' owners, enroll its machines' keys and apply its homes' declared stacks",
+        "Operate residencies, place accounts and organisations in them, add organisations' owners, suspend people, enroll its machines' keys and apply its homes' declared stacks",
     permissions: [
         residency.permission("operate"),
+        user.permission("suspend"),
         account.permission("place"),
         organisation.permission("place"),
         organisation.permission("administer"),
@@ -141,8 +144,8 @@ export type PlatformDefinition = schema.Infer<typeof PlatformDefinition>;
 export interface PlatformStep {
     /** The step's name, unique among the steps. */
     readonly name: string;
-    /** Apply the step through the universe's store at a time. */
-    readonly apply: (objects: PlatformStore, now: number) => Promise<void>;
+    /** Apply the step at a time. */
+    readonly apply: (now: number) => Promise<void>;
 }
 
 /** The universe's inherent role. */
@@ -187,13 +190,16 @@ export const UniverseRole = {
 
 /** The organisation operating the universe, applied with the stack of its homes. */
 export class Platform {
+    /** The universe's store the platform is applied through, as the universe. */
+    readonly store: PlatformStore;
     /** The operating organisation and its machines as declared. */
     readonly definition: PlatformDefinition;
     /** The stack each residency's home runs. */
     readonly stack: StackSource;
 
-    /** Create the platform from its definition and its homes' stack. */
-    constructor(definition: PlatformDefinition, stack: StackSource) {
+    /** Create the platform from its definition and its homes' stack, applied through a store. */
+    constructor(store: PlatformStore, definition: PlatformDefinition, stack: StackSource) {
+        this.store = store;
         this.definition = definition;
         this.stack = stack;
     }
@@ -203,41 +209,41 @@ export class Platform {
         definition: Pick<PlatformDefinition, "handle" | "residencyId">,
         code: ResidencyCode,
     ): AccountHandle {
-        return AccountHandle.parse(
-            code === definition.residencyId ? definition.handle : `${definition.handle}-${code}`,
-        );
+        const { handle, residencyId } = definition;
+
+        return AccountHandle.parse(code === residencyId ? handle : `${handle}-${code}`);
     }
 
     /** List the steps applying the definition, in order. */
     steps(): readonly PlatformStep[] {
         return [
-            { name: "machines", apply: (store, now) => this.declareMachines(store, now) },
-            { name: "organisation", apply: (store, now) => this.upsertOrganisation(store, now) },
-            { name: "roles", apply: (store, now) => this.bindRoles(store, now) },
-            { name: "names", apply: (store, now) => this.reserveNames(store, now) },
-            { name: "homes", apply: (store, now) => this.serveResidencies(store, now) },
-            { name: "invitation", apply: (store, now) => this.inviteOperator(store, now) },
+            { name: "machines", apply: (now) => this.declareMachines(now) },
+            { name: "organisation", apply: (now) => this.upsertOrganisation(now) },
+            { name: "roles", apply: (now) => this.bindRoles(now) },
+            { name: "names", apply: (now) => this.reserveNames(now) },
+            { name: "homes", apply: (now) => this.serveResidencies(now) },
+            { name: "invitation", apply: (now) => this.inviteOperator(now) },
         ];
     }
 
     /** Apply every step, as a start without durable steps does, answering the organisation. */
-    async apply(store: PlatformStore, now: number): Promise<Identifier<"organisation">> {
+    async apply(now: number): Promise<Identifier<"organisation">> {
         for (const step of this.steps()) {
-            await step.apply(store, now);
+            await step.apply(now);
         }
 
-        return requireOrganisation(store);
+        return this.#organisation();
     }
 
     /** Create the missing declared cloud machines in the universe, publishing their origins. */
-    async declareMachines(store: PlatformStore, now: number): Promise<void> {
+    async declareMachines(now: number): Promise<void> {
         // skip an empty definition
         if (this.definition.machines.length === 0) {
             return;
         }
 
         // read the declared machines that exist, refusing one stored at another origin than declared
-        const snapshot = Snapshot.live(store.database);
+        const snapshot = Snapshot.live(this.store.database);
         const ids = this.definition.machines.map((entry) => entry.id);
         const existing = await snapshot
             .read(machine.table)
@@ -252,9 +258,10 @@ export class Platform {
             );
             const origin = published.find((entry) => entry.id === row.id)?.url;
             if (origin !== declared.origin) {
-                throw new CallError("CONFLICT", {
-                    message: `cloud machine ${row.id} is published at ${origin ?? "no origin"}, not its declared ${declared.origin}`,
-                });
+                throw AccountError.of(
+                    "ORIGIN_MISMATCH",
+                    `cloud machine ${row.id} is published at ${origin ?? "no origin"}, not its declared ${declared.origin}`,
+                );
             }
         }
         const missing = this.definition.machines.filter(
@@ -262,8 +269,7 @@ export class Platform {
         );
 
         // store the missing ones in the universe, publishing their declared origins
-        await mutate(
-            store,
+        await this.#mutate(
             missing.flatMap((entry) => [
                 machine.call("declare", {
                     ...machine.target({ scope: Scope.universe.id, id: entry.id }),
@@ -286,31 +292,33 @@ export class Platform {
     }
 
     /** Create the operating organisation with its account once, as the universe. */
-    async upsertOrganisation(store: PlatformStore, now: number): Promise<void> {
+    async upsertOrganisation(now: number): Promise<void> {
         // take the organisation with its handle, created once
         const organisationId =
-            (await this.#claimedOrganisation(store)) ??
-            (await this.#createOrganisation(store, now));
+            (await this.#claimedOrganisation()) ?? (await this.#createOrganisation(now));
 
         // make its owners the universe's operators
-        await authorize(store, Scope.universe.id, now, async (authorization) => {
+        await this.#authorize(Scope.universe.id, now, async (authorization) => {
             const operator = await Role.upsert(Scope.universe, OPERATOR_ROLE, authorization);
             await Role.assign(
                 Scope.universe,
                 operator.id,
-                { ...organisation.reference(Scope.universe.id, organisationId), relation: "owner" },
+                [
+                    {
+                        ...organisation.reference(Scope.universe.id, organisationId),
+                        relation: "owner",
+                    },
+                ],
                 authorization,
             );
         });
     }
 
     /** Find the organisation with the operating account's handle, refusing any other owner. */
-    async #claimedOrganisation(
-        store: PlatformStore,
-    ): Promise<Identifier<"organisation"> | undefined> {
+    async #claimedOrganisation(): Promise<Identifier<"organisation"> | undefined> {
         // read the live shared account with the handle
         const { handle } = this.definition;
-        const [claimed] = await store.database
+        const [claimed] = await this.store.database
             .select({ scope: account.table.scope })
             .from(account.table)
             .where(
@@ -327,21 +335,18 @@ export class Platform {
         // refuse a handle another kind of scope has
         const owner = schema.identifier("organisation").safeParse(claimed.scope);
         if (!owner.success) {
-            throw new CallError("CONFLICT", {
-                message: `handle ${handle} belongs to ${claimed.scope}`,
-            });
+            throw AccountError.of(
+                "HANDLE_TAKEN",
+                `handle ${handle} already belongs to ${claimed.scope}`,
+            );
         }
 
         return owner.data;
     }
 
     /** Create the operating organisation as the universe, claiming its handle by itself. */
-    async #createOrganisation(
-        store: PlatformStore,
-        now: number,
-    ): Promise<Identifier<"organisation">> {
-        const [created] = await mutate(
-            store,
+    async #createOrganisation(now: number): Promise<Identifier<"organisation">> {
+        const [created] = await this.#mutate(
             [
                 organisation.call("create", {
                     ...organisation.in(Scope.universe.id),
@@ -358,31 +363,56 @@ export class Platform {
     }
 
     /** Bind the universe's roles to residency servers, machines and signed-in callers. */
-    async bindRoles(store: PlatformStore, now: number): Promise<void> {
+    async bindRoles(now: number): Promise<void> {
         // bind the roles of the residencies' servers, of every machine and of every signed-in caller
-        await authorize(store, Scope.universe.id, now, async (authorization) => {
-            // bind each role once
-            await bindServers(authorization, SERVER_ROLE);
-            await relateWildcards(authorization);
-            await bindRole(authorization, MACHINE_ROLE, [
+        await this.#authorize(Scope.universe.id, now, async (authorization) => {
+            // bind the servers' role to each residency's machines and home
+            const residencies = await authorization.transaction.read(residency.table).findMany();
+            const servers = residencies.flatMap((entry) =>
+                ["machine", "home"].map((relation) => ({
+                    ...residency.reference(Scope.universe.id, entry.id),
+                    relation,
+                })),
+            );
+            await Platform.#bind(authorization, SERVER_ROLE, servers);
+
+            // relate every machine and every signed-in caller to the universe through wildcards
+            const wildcards = [
+                { relation: "machine", subject: principal.machine.reference("*", "*") },
+                ...SIGNED_IN.map((subject) => ({ relation: "signed-in", subject })),
+            ];
+            for (const { relation, subject } of wildcards) {
+                await Relationship.touch(
+                    { object: Scope.universe, relation, subject },
+                    authorization,
+                );
+            }
+
+            // bind the machines' and signed-in callers' roles to them
+            await Platform.#bind(authorization, MACHINE_ROLE, [
                 { ...Scope.universe, relation: "machine" },
             ]);
-            await bindRole(authorization, SIGNED_IN_ROLE, [
+            await Platform.#bind(authorization, SIGNED_IN_ROLE, [
                 { ...Scope.universe, relation: "signed-in" },
             ]);
         });
 
         // relate the platform's residency's cloud machines as the organisation's publishing administrators
-        const organisationId = await requireOrganisation(store);
-        await authorize(store, organisationId, now, (authorization) =>
-            relatePublishingMachines(authorization, this.definition, organisationId),
+        const organisationId = await this.#organisation();
+        const object = organisation.reference(Scope.universe.id, organisationId);
+        const subject = {
+            ...residency.reference(Scope.universe.id, this.definition.residencyId),
+            relation: "machine",
+        };
+        await this.#authorize(organisationId, now, (authorization) =>
+            Relationship.touch({ object, relation: "admin", subject }, authorization),
         );
     }
 
     /** Claim the reserved handles for the organisation, and create its publisher accounts. */
-    async reserveNames(store: PlatformStore, now: number): Promise<void> {
+    async reserveNames(now: number): Promise<void> {
         // claim each reserved handle for the organisation, which lives in the universe
-        const organisationId = await requireOrganisation(store);
+        const organisationId = await this.#organisation();
         const owner = Scope.universe.id;
         const claims = this.definition.reserved.map((handle) => ({
             ...Claim.key(account, "handle", [handle]),
@@ -399,15 +429,16 @@ export class Platform {
         };
 
         // replace the organisation's names, refusing a handle another object claims
-        const [conflict] = await Claim.replace(store.database, claimant);
+        const [conflict] = await Claim.replace(this.store.database, claimant);
         if (conflict !== undefined) {
-            throw new CallError("CONFLICT", {
-                message: `reserved handle ${conflict.key} is claimed outside the operating organisation ${organisationId}`,
-            });
+            throw AccountError.of(
+                "RESERVED_HANDLE_TAKEN",
+                `reserved handle ${conflict.key} is claimed outside the operating organisation ${organisationId}`,
+            );
         }
 
         // create the missing publishers as the organisation's shared accounts
-        const existing = await store.database
+        const existing = await this.store.database
             .select({ handle: account.table.handle })
             .from(account.table)
             .where(inArray(account.table.handle, [...this.definition.publishers]));
@@ -415,8 +446,7 @@ export class Platform {
             (handle) => !existing.some((row) => row.handle === handle),
         );
         if (missing.length > 0) {
-            await mutate(
-                store,
+            await this.#mutate(
                 missing.map((handle) =>
                     account.call("create", {
                         ...account.in(organisationId),
@@ -432,12 +462,12 @@ export class Platform {
     }
 
     /** Serve each residency from the platform's account's home there, with its declared stack. */
-    async serveResidencies(store: PlatformStore, now: number): Promise<void> {
-        const organisationId = await requireOrganisation(store);
-        for (const entry of await Residency.list(store.database)) {
+    async serveResidencies(now: number): Promise<void> {
+        const organisationId = await this.#organisation();
+        for (const entry of await Residency.list(this.store.database)) {
             // read the platform's account in the residency
             const handle = Platform.handle(this.definition, entry.id);
-            const [existing] = await store.database
+            const [existing] = await this.store.database
                 .select({ id: account.table.id })
                 .from(account.table)
                 .where(eq(account.table.handle, handle));
@@ -445,8 +475,7 @@ export class Platform {
             // create the account when missing
             const [created] =
                 existing === undefined
-                    ? await mutate(
-                          store,
+                    ? await this.#mutate(
                           [
                               account.call("create", {
                                   ...account.in(organisationId),
@@ -463,14 +492,13 @@ export class Platform {
             const accountId = present(created, `the platform's account in ${entry.id}`).id;
 
             // move its home to the declared stack
-            await upgradeHome(store, Account.home(accountId), this.stack, now);
+            await this.#upgradeHome(Account.home(accountId), now);
 
             // make its home the residency's once
-            const stored = await Residency.require(Snapshot.live(store.database), entry.id);
+            const stored = await Residency.require(Snapshot.live(this.store.database), entry.id);
             const home = stored.home ?? Account.home(accountId);
             if (stored.home === null) {
-                await mutate(
-                    store,
+                await this.#mutate(
                     [
                         residency.call("update", {
                             ...residency.target({ scope: Scope.universe.id, id: entry.id }),
@@ -481,27 +509,32 @@ export class Platform {
                 );
             }
 
-            // serve the residency with every installation of its home
-            await authorize(store, Scope.universe.id, now, (authorization) =>
-                relateInstallations(authorization, entry.id, home),
+            // serve the residency with its home
+            const served = residency.reference(Scope.universe.id, entry.id);
+            const subject = principal.space.reference(Scope.universe.id, home);
+            await this.#authorize(Scope.universe.id, now, (authorization) =>
+                Relationship.touch({ object: served, relation: "home", subject }, authorization),
             );
         }
 
         // relate the organisation to the servers of its accounts' residencies
-        await mutate(
-            store,
-            await residentCalls(Snapshot.live(store.database), organisationId),
+        await this.#mutate(
+            await residentCalls(Snapshot.live(this.store.database), organisationId),
             now,
         );
     }
 
     /** Invite the operator as an owner unless an invitation to them was accepted or still waits. */
-    async inviteOperator(store: PlatformStore, now: number): Promise<void> {
+    async inviteOperator(now: number): Promise<void> {
         // read the invitations to the operator's email on the organisation
-        const organisationId = await requireOrganisation(store);
+        const organisationId = await this.#organisation();
         const object = organisation.reference(Scope.universe.id, organisationId);
         const contact = Contact.subject(Contact.email(this.definition.operator));
-        const invitations = await Invitation.readOn(Snapshot.live(store.database), object, contact);
+        const invitations = await Invitation.readOn(
+            Snapshot.live(this.store.database),
+            object,
+            contact,
+        );
 
         // stop at an accepted or pending invitation
         const isInvited = invitations.some(
@@ -512,181 +545,79 @@ export class Platform {
         }
 
         // invite the operator as the universe
-        await authorize(store, organisationId, now, (authorization) =>
+        await this.#authorize(organisationId, now, (authorization) =>
             Invitation.create(
                 { relationship: { object, relation: "owner", subject: contact } },
                 authorization,
             ),
         );
     }
-}
 
-/** Read the operating organisation, refusing a universe without one. */
-async function requireOrganisation(
-    objects: Pick<ObjectStore, "database">,
-): Promise<Identifier<"organisation">> {
-    return present(
-        await UniverseRole.operating(Snapshot.live(objects.database)),
-        "the operating organisation",
-    );
-}
+    /** Read the operating organisation, refusing a universe without one. */
+    async #organisation(): Promise<Identifier<"organisation">> {
+        return present(
+            await UniverseRole.operating(Snapshot.live(this.store.database)),
+            "the operating organisation",
+        );
+    }
 
-/** Run calls as the universe in one request. */
-function mutate<const Calls extends readonly Call[]>(
-    objects: PlatformStore,
-    calls: Calls,
-    now: number,
-): Promise<ResultsOf<Calls>> {
-    return objects.mutate(
-        objects.serving(account),
-        { id: RequestId.create(now), calls },
-        { component: PLATFORM_COMPONENT },
-    );
-}
+    /** Run calls as the universe in one request. */
+    #mutate<const Calls extends readonly Call[]>(
+        calls: Calls,
+        now: number,
+    ): Promise<ResultsOf<Calls>> {
+        return this.store.mutate(
+            this.store.serving(account),
+            { id: RequestId.create(now), calls },
+            { component: PLATFORM_COMPONENT },
+        );
+    }
 
-/** Run work in one transaction, authorized as the universe in a scope. */
-function authorize<Value>(
-    objects: PlatformStore,
-    scope: string,
-    now: number,
-    work: (authorization: Authorization) => Promise<Value>,
-): Promise<Value> {
-    return Transaction.run(objects.database, async (transaction) =>
-        work(await objects.authorize(transaction, scope, objects.serving(account), { now })),
-    );
-}
+    /** Run work in one transaction, authorized as the universe in a scope. */
+    #authorize<Value>(
+        scope: string,
+        now: number,
+        work: (authorization: Authorization) => Promise<Value>,
+    ): Promise<Value> {
+        return Transaction.run(this.store.database, async (transaction) =>
+            work(
+                await this.store.authorize(transaction, scope, this.store.serving(account), {
+                    now,
+                }),
+            ),
+        );
+    }
 
-/** Bind a role to the machines and the installations serving each residency once. */
-async function bindServers(authorization: Authorization, request: RoleRequest): Promise<void> {
-    const residencies = await authorization.transaction.read(residency.table).findMany();
-    await bindRole(
-        authorization,
-        request,
-        residencies.flatMap((entry) =>
-            ["machine", "installation"].map((relation) => ({
-                ...residency.reference(Scope.universe.id, entry.id),
-                relation,
-            })),
-        ),
-    );
-}
+    /** Move a home to the declared stack once it has another. */
+    async #upgradeHome(spaceId: Identifier<"space">, now: number): Promise<void> {
+        // read the home's stack
+        const [home] = await this.store.database
+            .select({ scope: space.table.scope, stack: space.table.stack })
+            .from(space.table)
+            .where(eq(space.table.id, spaceId));
+        const existing = present(home, `the home ${spaceId}`);
 
-/** Bind a universe role to some subjects once. */
-async function bindRole(
-    authorization: Authorization,
-    request: RoleRequest,
-    subjects: readonly Subject[],
-): Promise<void> {
-    // read the subjects the role is bound to
-    const role = await Role.upsert(Scope.universe, request, authorization);
-    const bindings = await Relationship.readOn(authorization.transaction.view(), Scope.universe, {
-        role: role.id,
-    });
-    const bound = bindings.map((row) => Relationship.subjectOf(row));
-
-    // bind it to the others
-    for (const subject of subjects) {
-        if (!bound.some((existing) => Subject.same(existing, subject))) {
-            await Relationship.grant(
-                { object: Scope.universe, role: role.id, subject },
-                authorization,
+        // move it to the declared one
+        if (canonicalize(existing.stack) !== canonicalize(this.stack)) {
+            await this.#mutate(
+                [
+                    space.call("upgrade", {
+                        ...space.target({ scope: existing.scope, id: spaceId }),
+                        stack: this.stack,
+                    }),
+                ],
+                now,
             );
         }
     }
-}
 
-/** Relate every machine and every signed-in caller to the universe once, through wildcards. */
-async function relateWildcards(authorization: Authorization): Promise<void> {
-    // list the wildcards of every machine and every signed-in caller
-    const wanted = [
-        { relation: "machine", subject: principal.machine.reference("*", "*") },
-        ...SIGNED_IN.map((subject) => ({ relation: "signed-in", subject })),
-    ];
-
-    // relate each missing one
-    for (const { relation, subject } of wanted) {
-        const related = await Relationship.readOn(
-            authorization.transaction.view(),
-            Scope.universe,
-            { relation, subject },
-        );
-        if (related.length === 0) {
-            await Relationship.grant({ object: Scope.universe, relation, subject }, authorization);
-        }
-    }
-}
-
-/** Make the platform's residency's cloud machines the organisation's administrators. */
-async function relatePublishingMachines(
-    authorization: Authorization,
-    definition: PlatformDefinition,
-    organisationId: Identifier<"organisation">,
-): Promise<void> {
-    // read the administrators the residency's machines are
-    const object = organisation.reference(Scope.universe.id, organisationId);
-    const subject = {
-        ...residency.reference(Scope.universe.id, definition.residencyId),
-        relation: "machine",
-    };
-    const related = await Relationship.readOn(authorization.transaction.view(), object, {
-        relation: "admin",
-        subject,
-    });
-
-    // relate them once
-    if (related.length === 0) {
-        await Relationship.grant({ object, relation: "admin", subject }, authorization);
-    }
-}
-
-/** Move a home to a stack once it has another. */
-async function upgradeHome(
-    objects: PlatformStore,
-    spaceId: Identifier<"space">,
-    stack: StackSource,
-    now: number,
-): Promise<void> {
-    // read the home's stack
-    const [home] = await objects.database
-        .select({ scope: space.table.scope, stack: space.table.stack })
-        .from(space.table)
-        .where(eq(space.table.id, spaceId));
-    const existing = present(home, `the home ${spaceId}`);
-
-    // move it to the declared one
-    if (canonicalize(existing.stack) !== canonicalize(stack)) {
-        await mutate(
-            objects,
-            [
-                space.call("upgrade", {
-                    ...space.target({ scope: existing.scope, id: spaceId }),
-                    stack,
-                }),
-            ],
-            now,
-        );
-    }
-}
-
-/** Relate a residency's home and its installations to the residency as its servers. */
-async function relateInstallations(
-    authorization: Authorization,
-    code: ResidencyCode,
-    home: Identifier<"space">,
-): Promise<void> {
-    // relate the home itself and its installations through their wildcard, each once
-    const object = residency.reference(Scope.universe.id, code);
-    const servers = [
-        { relation: "home", subject: principal.space.reference(Scope.universe.id, home) },
-        { relation: "installation", subject: principal.installation.reference(home, "*") },
-    ];
-    for (const { relation, subject } of servers) {
-        const related = await Relationship.readOn(authorization.transaction.view(), object, {
-            relation,
-            subject,
-        });
-        if (related.length === 0) {
-            await Relationship.grant({ object, relation, subject }, authorization);
-        }
+    /** Bind a universe role to exactly some subjects, revoking the bindings no longer declared. */
+    static async #bind(
+        authorization: Authorization,
+        request: RoleRequest,
+        subjects: readonly Subject[],
+    ): Promise<void> {
+        const role = await Role.upsert(Scope.universe, request, authorization);
+        await Role.assign(Scope.universe, role.id, subjects, authorization);
     }
 }

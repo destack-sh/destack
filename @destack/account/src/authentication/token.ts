@@ -1,8 +1,14 @@
 import { CallError } from "@destack/object";
 import { schema } from "@destack/schema";
+import type {} from "@destack/package/import-meta";
+import type { FamilyError } from "@destack/error";
+import { AccountError, type AccountReason } from "../error/error.ts";
 
 /** The milliseconds in a second, as OAuth counts expiries in seconds. */
 const SECOND_MILLISECONDS = 1000;
+
+/** The domain of the token errors RFC 6749 section 5.2 defines, such as INVALID_GRANT. */
+const OAUTH_DOMAIN = "oauth";
 
 /** The call error of each status a token endpoint refuses with an OAuth error (RFC 6749 5.2). */
 const REFUSALS: ReadonlyMap<number, "BAD_REQUEST" | "UNAUTHORIZED" | "FORBIDDEN"> = new Map([
@@ -44,13 +50,16 @@ export const TokenResponse = Object.assign(
         },
 
         /** Read a token endpoint's refusal as a call error by its status, with its OAuth error. */
-        async refusal(response: Response): Promise<CallError<string, unknown>> {
+        async refusal(
+            response: Response,
+        ): Promise<FamilyError<AccountReason> | CallError<string, unknown>> {
             // fail as a bad gateway on an answer without an RFC 6749 error, such as a failure
             const code = REFUSALS.get(response.status);
             if (code === undefined) {
-                return new CallError("BAD_GATEWAY", {
-                    message: `the token endpoint answered ${response.status}: ${await response.text()}`,
-                });
+                return AccountError.of(
+                    "TOKEN_ENDPOINT_FAILED",
+                    `the token endpoint responded with ${response.status}: ${await response.text()}`,
+                );
             }
 
             // refuse as the status says, with the OAuth error the endpoint answers
@@ -59,7 +68,12 @@ export const TokenResponse = Object.assign(
             );
 
             return new CallError(code, {
-                message: description === undefined ? error : `${error}: ${description}`,
+                reason: error.toUpperCase(),
+                domain: OAUTH_DOMAIN,
+                message:
+                    description === undefined
+                        ? `the token endpoint refused the request: ${error}`
+                        : `the token endpoint refused the request: ${error}: ${description}`,
             });
         },
     },

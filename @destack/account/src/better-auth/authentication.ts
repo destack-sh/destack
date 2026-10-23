@@ -10,13 +10,13 @@ import { and, eq, isNull, Snapshot, type DatabaseConnection } from "@destack/db"
 import type { PackageId } from "@destack/package";
 import { Digest } from "@destack/schema";
 import { Bearer, TokenVerifier } from "@destack/access/token";
-import { CallError } from "@destack/object";
 import { ObjectReference, Scope } from "@destack/sync";
 import { Identity } from "../object/identity.ts";
 import { client } from "../object/client.ts";
-import { session } from "../object/session.ts";
 import { user, User } from "../object/user.ts";
 import { ActiveSession } from "./active-session.ts";
+import type {} from "@destack/package/import-meta";
+import { AccountError } from "../error/error.ts";
 
 /** The callers of account's packages: access tokens, and the credentials exchanged for them. */
 export const AccountAuthentication = {
@@ -50,35 +50,6 @@ export const AccountAuthentication = {
         });
 
         return tokens.verify(Bearer.require(request.headers), verifier.now);
-    },
-
-    /** Verify a session's token as its person acting through the session's client. */
-    async session(
-        token: string,
-        database: DatabaseConnection,
-        audience: PackageId,
-        now: number,
-    ): Promise<Authentication> {
-        // find the session by its token
-        const [found] = await database
-            .select({ id: session.table.id, clientId: session.table.clientId })
-            .from(session.table)
-            .where(eq(session.table.token, token))
-            .limit(1);
-        if (found === undefined) {
-            throw new CallError("UNAUTHORIZED", { message: "invalid session" });
-        }
-
-        // require it active, and describe its person with its assurance and verified email
-        const active = await ActiveSession.read(found.id, database, now).catch(() => {
-            throw new CallError("UNAUTHORIZED", { message: "session is no longer authorized" });
-        });
-        const authentication = AccountAuthentication.activeSession(active, audience, now);
-        const { credential } = authentication;
-
-        return found.clientId === null
-            ? authentication
-            : { ...authentication, credential: { ...credential, client: found.clientId } };
     },
 
     /** Authenticate a person signed in through an active session, with its assurance and email. */
@@ -123,7 +94,7 @@ export const AccountAuthentication = {
             )
             .limit(1);
         if (row === undefined) {
-            throw new CallError("UNAUTHORIZED", { message: "invalid personal access token" });
+            throw AccountError.of("INVALID_PERSONAL_TOKEN", "invalid personal access token");
         }
 
         // read the user's unexpired grant to it
@@ -138,7 +109,7 @@ export const AccountAuthentication = {
                 },
             });
         if (grant === undefined) {
-            throw new CallError("UNAUTHORIZED", { message: "invalid personal access token" });
+            throw AccountError.of("INVALID_PERSONAL_TOKEN", "invalid personal access token");
         }
 
         // act as the user through the token, under the grant until it lapses

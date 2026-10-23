@@ -15,7 +15,8 @@ import {
     combine,
 } from "@destack/db";
 import type { CleanedWhere } from "better-auth/adapters";
-import { CallError } from "@destack/object";
+import type {} from "@destack/package/import-meta";
+import { AccountError } from "../error/error.ts";
 
 /** Better Auth's where clauses as SQL over the account tables. */
 export const BetterAuthWhere = {
@@ -32,9 +33,10 @@ function column(source: Table, name: string): Column {
     const columns = source[TABLE].columns;
     const match = Object.hasOwn(columns, name) ? columns[name] : undefined;
     if (match === undefined) {
-        throw new CallError("PRECONDITION_FAILED", {
-            message: `unknown authentication column: ${name}`,
-        });
+        throw AccountError.of(
+            "UNKNOWN_AUTHENTICATION_COLUMN",
+            `unknown authentication column: ${name}`,
+        );
     }
 
     return match;
@@ -93,9 +95,10 @@ function comparison(source: Table, where: CleanedWhere) {
         case "not_in": {
             // refuse a value other than a list
             if (!Array.isArray(value)) {
-                throw new CallError("PRECONDITION_FAILED", {
-                    message: `authentication operator ${where.operator} takes a list`,
-                });
+                throw AccountError.of(
+                    "OPERATOR_TAKES_LIST",
+                    `authentication operator ${where.operator} takes a list`,
+                );
             }
 
             // bind each item, lowered when case insensitive
@@ -121,8 +124,9 @@ function comparison(source: Table, where: CleanedWhere) {
             return sql`substr(${left}, length(${left}) - length(${value}) + 1) = ${value}`;
         // refuse unknown operators
         default:
-            throw new CallError("PRECONDITION_FAILED", {
-                message: `unknown authentication operator: ${String(where.operator)}`,
-            });
+            throw AccountError.of(
+                "UNKNOWN_AUTHENTICATION_OPERATOR",
+                `unknown authentication operator: ${String(where.operator)}`,
+            );
     }
 }

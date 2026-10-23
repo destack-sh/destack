@@ -1,3 +1,4 @@
+import { nth, present } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import {
     DOMAINS,
@@ -57,10 +58,8 @@ test("read and write the origins of views and branches under a domain, and nothi
     ]);
 
     // write back the hostnames the origins were read from
-    const [, branched, local] = origins;
-    if (branched === undefined || local === undefined) {
-        throw new TypeError("the branch and local origins are unread");
-    }
+    const branched = present(origins[1], "the branch's origin");
+    const local = present(origins[2], "the local origin");
     expect([
         InstallationOrigin.format(branched, "destack.space"),
         InstallationOrigin.format(local, "localhost"),
@@ -154,9 +153,9 @@ test("write a branch's label readable while it fits 63 characters, else by the d
 
     // read the readable branch back whole, and the digests as the labels write them
     expect([
-        InstallationOrigin.parse(labels[0] ?? "", DOMAINS.space),
-        InstallationOrigin.parse(labels[1] ?? "", DOMAINS.space),
-        SpaceOrigin.parse(labels[2] ?? "", DOMAINS.space),
+        InstallationOrigin.parse(nth(labels, 0), DOMAINS.space),
+        InstallationOrigin.parse(nth(labels, 1), DOMAINS.space),
+        SpaceOrigin.parse(nth(labels, 2), DOMAINS.space),
     ]).toEqual([
         fitting,
         { digest: "5446050461", space: longest.space, handle: longest.handle },

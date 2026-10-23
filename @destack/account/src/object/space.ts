@@ -11,7 +11,6 @@ import { placement } from "./placement.ts";
 import { defineObject, field, type KeyFields, ObjectWatch } from "@destack/object";
 import { RISKS } from "@destack/resource";
 import { type Identifier, present, schema } from "@destack/schema";
-import { CallError } from "@destack/object";
 import { replica, Scope } from "@destack/sync";
 import { account } from "./account.ts";
 import { organisation } from "./organisation.ts";
@@ -30,6 +29,7 @@ import {
 } from "@destack/access";
 import { SPACE_NAME_LENGTH, SpaceName } from "../address/address.ts";
 import { Label } from "../address/label.ts";
+import { AccountError } from "../error/error.ts";
 
 /** The longest space title, in characters: a line of a sidebar with room to spare. */
 const TITLE_LENGTH = 128;
@@ -141,7 +141,7 @@ export const THROTTLED_RESOURCES = [
 
 /** The space checks, reads and replicates of a serving machine. */
 export const Space = {
-    /** Build the access a space's home writes at its birth: the space is the owner of itself. */
+    /** Build the access a space's creation writes: the space is the owner of itself. */
     creation(row: Pick<Space, "id">): Creation {
         return { owner: principal.space.reference(Scope.universe.id, row.id) };
     },
@@ -232,9 +232,10 @@ export const Space = {
         // refuse an exceeded resource with its condition's message
         if (Space.isExceeded(row, resource)) {
             const { message } = present(row.conditions[resource], `the ${resource} condition`);
-            throw new CallError("QUOTA_EXCEEDED", {
-                message: `space ${row.id} exceeds its entitlement: ${message}`,
-            });
+            throw AccountError.of(
+                "ENTITLEMENT_EXCEEDED",
+                `space ${row.id} exceeds its entitlement: ${message}`,
+            );
         }
     },
 

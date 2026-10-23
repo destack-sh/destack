@@ -1,51 +1,69 @@
 import { SpaceMount } from "@destack/object";
 import { LocalKeyring, MemoryKeychain, Recipient } from "@destack/identity";
 import { type DatabaseConnection, eq, Snapshot } from "@destack/db";
-import { PackageId, Package } from "@destack/package";
+import { PackageId } from "@destack/package";
 import { Identifier, present, schema } from "@destack/schema";
 import { SPACE_KEY, TokenVerifier } from "@destack/access/token";
 import { principal, universe } from "@destack/access";
-import { AccessFixture } from "@destack/access/test";
-import { ObjectStore } from "@destack/object/server";
-import { testEvents, serversOf } from "@destack/object/test";
-import { testCallKey } from "@destack/object/test";
 import { Scope } from "@destack/sync";
 import accountPackage from "../src/package.ts";
-import { implementIdentity, implementOperation } from "../src/server/index.ts";
-import { expect, onTestFinished, test } from "@destack/test";
-import { createLocalJWKSet, decodeProtectedHeader, jwtVerify } from "jose";
+import { expect, onTestFinished, refusal, single, test } from "@destack/test";
+import { createLocalJWKSet, decodeProtectedHeader, errors, jwtVerify } from "jose";
 import {
     identityKey,
     IdentityKeystore,
     IdentityRegistry,
     KEY_SET_MILLISECONDS,
 } from "../src/identity/index.ts";
-import { identity, Identity, placement } from "../src/object/index.ts";
-import { AccountFixture, outcome, TestIdentityRegistry } from "../src/test/index.ts";
-import type { Clock } from "@destack/environment";
-import { VirtualClock } from "@destack/environment/simulation";
+import { Identity } from "../src/object/index.ts";
+import { TestAccountStore, OWNER_EMAIL } from "../src/test/index.ts";
+import { accountDatabase } from "../src/stack/index.ts";
+import { TestDatabase } from "@destack/db/test";
+import { RequestId } from "@destack/sync";
 
 /** Read the key of a token. */
 function kid(token: string): string | undefined {
     return decodeProtectedHeader(token).kid;
 }
 
-/** Open an account database with a machine serving spaces and a keystore of their identities. */
-async function openKeystore(clock: Clock) {
-    const storage = await AccountFixture.storage();
-    onTestFinished(() => storage.close());
-    const { registry, place } = await TestIdentityRegistry.open(
-        storage.database,
-        clock,
-        Identifier.create("machine"),
-    );
+/** Serve a person's spaces on a machine, with a keystore of the spaces' identities. */
+async function openKeystore() {
+    // place a person's space on a machine they enroll, which starts and extends the identities of what it serves
+    const accounts = await TestAccountStore.open();
+    onTestFinished(() => accounts[Symbol.asyncDispose]());
+    const { clock } = accounts;
+    const owner = await accounts.signIn(OWNER_EMAIL);
+    const { accountId, machine } = await accounts.createSpace(owner);
+    const registry = IdentityRegistry.client(machine.client(accountPackage), clock);
+
+    // place each further space on the same machine
+    const place = async (): Promise<Identifier<"space">> => {
+        const spaceId = Identifier.create("space");
+        await owner.client(accountPackage).space.create({
+            accountId,
+            id: spaceId,
+            requestId: RequestId.create(clock.now()),
+            name: `space-${spaceId.slice(-12)}`,
+            machine: schema.identifier("machine").parse(machine.subject.id),
+        });
+
+        return spaceId;
+    };
     const keystore = new IdentityKeystore(
         await LocalKeyring.read(LocalKeyring.generate()),
         registry,
         clock,
     );
 
-    return { database: storage.database, registry, place, keystore };
+    return { accounts, clock, database: accounts.database, registry, place, keystore };
+}
+
+/** Open an account database holding a copy of a space's keys, as a move's other machine does. */
+async function openKeys(): Promise<TestDatabase> {
+    const storage = await TestDatabase.create(accountDatabase, { isMigrated: true });
+    onTestFinished(() => storage.close());
+
+    return storage;
 }
 
 /** Read the key set verifying what a space signs, as a verifier reads it now. */
@@ -53,10 +71,22 @@ async function keySet(database: DatabaseConnection, space: string) {
     return createLocalJWKSet(await Identity.keys(Snapshot.live(database), space));
 }
 
+/** Derive 32 bytes under a label from a space's root secret in a keystore, as hexadecimal. */
+async function derive(
+    keystore: IdentityKeystore,
+    database: DatabaseConnection,
+    space: Identifier<"space">,
+    label: string,
+): Promise<string> {
+    const root = present(await keystore.deriver(database, space), "the space's root");
+
+    return (await root.derive({ label, context: "" })).toHex();
+}
+
 test("sign with the active key until every verifier read the next one, verifying tokens of every published key with a key set a verifier caches", async () => {
     // start a space's identity on a clock the test moves
-    const clock = new VirtualClock(Date.now());
-    const { database, place, keystore, registry } = await openKeystore(clock);
+    const { clock, database, place, keystore, registry } = await openKeystore();
+    clock.pause();
     const subject = await place();
     await keystore.generate(database, subject);
     const sign = () => keystore.sign(database, subject, { sub: "user-1" });
@@ -73,23 +103,23 @@ test("sign with the active key until every verifier read the next one, verifying
     clock.advance(KEY_SET_MILLISECONDS);
     const after = await sign();
 
-    // verify every token with the key set the verifier read again once it aged
+    // sign with the first published key until the next, and verify every token with the key set read again once it aged
+    const { keys } = await Identity.keys(Snapshot.live(database), subject);
+    const firstKey = kid(first);
+    const nextKey = single(keys.filter((key) => key.kid !== firstKey)).kid;
+    const published = present(await registry.find(subject), "the published identity");
     expect([
-        kid(during) === kid(first),
-        kid(after) === kid(first),
+        [kid(first), kid(during), kid(after)],
         await verified(first),
         await verified(after),
-        (await registry.find(subject))?.signingKeys.length,
-    ]).toEqual([true, false, "user-1", "user-1", 2]);
+        published.signingKeys.length,
+    ]).toEqual([[firstKey, firstKey, nextKey], "user-1", "user-1", 2]);
 });
 
 test("rekey an identity once a move completes, so the keys its source stored neither sign for it nor rotate it", async () => {
     // start a space's identity, storing a replica of its keys as a move's source stores them
-    const { database, place, keystore, registry } = await openKeystore(
-        new VirtualClock(Date.now()),
-    );
-    const source = await AccountFixture.storage();
-    onTestFinished(() => source.close());
+    const { database, place, keystore, registry } = await openKeystore();
+    const source = await openKeys();
     const subject = await place();
     await keystore.generate(database, subject);
     const keys = await database.select().from(identityKey);
@@ -104,20 +134,20 @@ test("rekey an identity once a move completes, so the keys its source stored nei
         (await jwtVerify(token, await keySet(database, subject))).payload.sub;
 
     // verify the fresh key alone, and refuse the source's rotation
-    expect([
-        await verified(after),
-        await outcome(verified(before)),
-        await outcome(moved.rotate(source.database, subject)),
-    ]).toEqual([
+    await expect(verified(before)).rejects.toThrow(errors.JWKSNoMatchingKey);
+    expect([await verified(after), await refusal(moved.rotate(source.database, subject))]).toEqual([
         "user-1",
-        "ERR_JWKS_NO_MATCHING_KEY: no applicable key found in the JSON Web Key Set",
-        "UNAUTHORIZED: no rotation key of the identity signed the operation",
+        [
+            "UNAUTHORIZED",
+            "UNSIGNED_OPERATION",
+            "the operation is not signed by a rotation key of the identity",
+        ],
     ]);
 });
 
 test("sign an installation's request for the space it goes to by its space's key, and refuse a request to no space", async () => {
     // start a space's identity on its machine
-    const { database, place, keystore } = await openKeystore(new VirtualClock(Date.now()));
+    const { database, place, keystore } = await openKeystore();
     const space = await place();
     await keystore.generate(database, space);
 
@@ -140,9 +170,7 @@ test("sign an installation's request for the space it goes to by its space's key
         .fetchSigned(audience);
     const target = "space-01996ab0-0000-7000-8000-0000000000aa";
     await send(new Request(SpaceMount.url("https://machine.test/", target)));
-    const unscoped = await send(new Request("https://notes.test/")).catch((error: unknown) =>
-        String(error),
-    );
+    const unscoped = await refusal(send(new Request("https://notes.test/")));
 
     // verify what arrives by the space's keys, as a receiver in another space does
     const verifier = new TokenVerifier({
@@ -151,7 +179,10 @@ test("sign an installation's request for the space it goes to by its space's key
         audience,
         keys: await Identity.keys(Snapshot.live(database), space),
     });
-    const verified = await verifier.authenticate(present(received, "the sent request"), Date.now());
+    const verified = await verifier.authenticate(
+        present(received, "the sent request"),
+        keystore.clock.now(),
+    );
     expect([
         verified.caller.subject,
         verified.credential.kind,
@@ -163,29 +194,20 @@ test("sign an installation's request for the space it goes to by its space's key
         SPACE_KEY,
         target,
         undefined,
-        `TypeError: ${installation.id} signs calls to spaces alone, not https://notes.test/`,
+        [
+            "BAD_REQUEST",
+            "SPACE_REQUIRED",
+            `${installation.id} can only sign calls to spaces, not https://notes.test/`,
+        ],
     ]);
 });
 
-/** Derive 32 bytes under a label from a space's root secret in a keystore, as hexadecimal. */
-async function derive(
-    keystore: IdentityKeystore,
-    database: DatabaseConnection,
-    space: Identifier<"space">,
-    label: string,
-): Promise<string> {
-    const root = present(await keystore.deriver(database, space), "the space's root");
-
-    return (await root.derive({ label, context: "" })).toHex();
-}
-
 test("derive one key per space and label, the same after a move rewraps the space's secret", async () => {
     // store two spaces' keys under the source machine's keyring
-    const clock = new VirtualClock(Date.now());
-    const opened = await openKeystore(clock);
+    const opened = await openKeystore();
+    const { clock } = opened;
     const source = opened.database;
-    const targetStorage = await AccountFixture.storage();
-    onTestFinished(() => targetStorage.close());
+    const targetStorage = await openKeys();
     const target = targetStorage.database;
     const sourceKeystore = new IdentityKeystore(
         await LocalKeyring.open(new MemoryKeychain(), "source"),
@@ -231,17 +253,9 @@ test("derive one key per space and label, the same after a move rewraps the spac
 });
 
 test("send a request as the universe bound to the space it goes to, which a verifier of the universe's keys accepts for that space alone", async () => {
-    // start the universe's identity in its registry
-    const storage = await AccountFixture.storage();
-    onTestFinished(() => storage.close());
-    const { database } = storage;
-    const clock = new VirtualClock(Date.now());
-    const keystore = new IdentityKeystore(
-        await LocalKeyring.read(LocalKeyring.generate()),
-        await universeRegistry(database, clock),
-        clock,
-    );
-    await keystore.generate(database, Scope.universe.id);
+    // take the universe's identity, which its start generates
+    await using accounts = await TestAccountStore.open();
+    const { clock, database, keystore } = accounts;
 
     // call a package in a space as the universe
     const issuer = "https://universe.test/package-01996ab0-0000-7000-8000-0000000000a1/oauth";
@@ -275,44 +289,15 @@ test("send a request as the universe bound to the space it goes to, which a veri
     const verified = await verify(space);
     expect({
         verified: [verified.caller.subject, verified.credential.kind, verified.credential.scope],
-        elsewhere: await outcome(verify("space-01996ab0-0000-7000-8000-000000000013")),
-        spaceless: await universeFetch(new Request("https://machine.test/package-x")).catch(
-            (error: unknown) => (error instanceof TypeError ? error.message : error),
-        ),
+        elsewhere: await refusal(verify("space-01996ab0-0000-7000-8000-000000000013")),
+        spaceless: await refusal(universeFetch(new Request("https://machine.test/package-x"))),
     }).toEqual({
         verified: [universe.reference(Scope.universe.id, Scope.universe.id), "universe-key", space],
-        elsewhere: "UNAUTHORIZED: invalid access token claims",
-        spaceless: `${Scope.universe.id} signs calls to spaces alone, not https://machine.test/package-x`,
+        elsewhere: ["UNAUTHORIZED", "INVALID_TOKEN", "invalid access token claims"],
+        spaceless: [
+            "BAD_REQUEST",
+            "SPACE_REQUIRED",
+            `${Scope.universe.id} can only sign calls to spaces, not https://machine.test/package-x`,
+        ],
     });
 });
-
-/** Serve the universe's identity registry as the universe, which may start its identity. */
-async function universeRegistry(database: DatabaseConnection, clock: Clock) {
-    // let the universe start and extend identities, as the platform role does
-    const self = universe.reference(Scope.universe.id, Scope.universe.id);
-    await new AccessFixture(database).replicateRole(
-        Scope.universe,
-        {
-            name: "universe",
-            description: "Start and extend the universe's identity",
-            permissions: [identity.permission("start"), identity.permission("extend")],
-        },
-        self,
-        clock.now(),
-    );
-
-    // serve the identities as the universe
-    const store = new ObjectStore({
-        chain: async () => undefined,
-        clock,
-        principal: Scope.universe,
-        servers: serversOf([implementIdentity(), implementOperation()]),
-        policies: [placement],
-        database,
-        callKey: testCallKey,
-        events: await testEvents(database, [], clock),
-        origin: { package: Package.of(accountPackage) },
-    });
-
-    return IdentityRegistry.of(store);
-}

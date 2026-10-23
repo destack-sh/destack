@@ -1,81 +1,65 @@
-import { defineDatabase } from "@destack/db";
-import { TestDatabase } from "@destack/db/test";
-import { replica, replicaPosition, Scope } from "@destack/sync";
-import { expect, onTestFinished, test } from "@destack/test";
-import { Identifier } from "@destack/schema";
-import { account, entitlement, Entitlement, entitlementShape } from "../src/object/index.ts";
+import { expect, test } from "@destack/test";
+import { Entitlement, type EntitlementTerms, type EntitlementUse } from "../src/object/index.ts";
 import { PackageId } from "@destack/package";
-
-/** The account whose entitlements a machine checks. */
-const ACCOUNT = account.identifier("account-019f5530-8000-7000-8000-000000000501");
 
 /** The package declaring the platform's features. */
 const PRICING = PackageId.parse("package-019f5530-8000-7000-8000-000000000503");
 
+/** The uses a machine decides for a space: its four resources and two tenancies. */
+const USES: readonly EntitlementUse[] = [
+    "database",
+    "storage",
+    "compute",
+    "network",
+    { tenancy: "shared" },
+    { tenancy: "dedicated" },
+];
+
 /** A metered entitlement to a resource with a limit of 1000, blocked at it or within it. */
-function metered(resource: "database" | "storage" | "network", state: "blocked" | "within") {
-    return { resource, kind: "metered" as const, limit: 1000, state };
+function metered(
+    resource: "database" | "storage" | "network",
+    state: "blocked" | "within",
+): EntitlementTerms {
+    return { packageId: PRICING, feature: resource, resource, value: null, limit: 1000, state };
 }
 
-test("decide a use from an account's replicated entitlements: pending until replicated, blocked at its limit, unentitled without a grant, and by tenancy", async () => {
-    // open a machine's replicas of the account's entitlements
-    const storage = await TestDatabase.create(
-        defineDatabase({ name: "machine", tables: [...entitlement.tables, replica] }),
-        { isMigrated: true },
-    );
-    onTestFinished(() => storage.close());
-    const { database } = storage;
-    const decide = async () =>
-        Promise.all(
-            (
-                [
-                    "database",
-                    "storage",
-                    "compute",
-                    "network",
-                    { tenancy: "shared" },
-                    { tenancy: "dedicated" },
-                ] as const
-            ).map(async (use) => (await Entitlement.check(database, ACCOUNT, use)).reason),
-        );
-
-    // decide before the replica completes
-    const pending = await decide();
-
-    // replicate blocked database and network entitlements, storage within its limit, and the shared tenancy
-    const now = Date.now();
-    const key = {
-        name: entitlementShape.replicaName({
-            scope: Scope.universe.id,
-            account: ACCOUNT,
-        }),
-        scope: Scope.universe.id,
-    };
-    await database.insert(replica).values({ ...key, tables: [] });
-    await database
-        .insert(replicaPosition)
-        .values({ ...key, log: "log", epoch: "epoch", sequence: 1, confirmedAt: now });
+test("decide a use from an account's entitlements: unknown until replicated, blocked at its limit, unentitled without a grant, and by tenancy", () => {
+    // entitle blocked database and network, storage within its limit, and the shared and local tenancies
     const rows = [
         metered("database", "blocked"),
         metered("storage", "within"),
         metered("network", "blocked"),
-        { resource: "tenancy" as const, kind: "static" as const, value: ["shared", "local"] },
-    ];
-    for (const row of rows) {
-        await database.insert(entitlement.table).values({
-            ...row,
-            id: Identifier.create("entitlement"),
-            scope: ACCOUNT,
+        {
             packageId: PRICING,
-            feature: row.resource,
-            createdAt: now,
-            updatedAt: now,
-        });
-    }
+            feature: "tenancy",
+            resource: "tenancy" as const,
+            value: ["shared", "local"],
+            limit: null,
+            state: null,
+        },
+    ];
 
-    // decide each use from the replicated entitlements
-    expect({ pending, replicated: await decide() }).toEqual({
-        pending: ["Pending", "Pending", "Pending", "Pending", "Pending", "Pending"],
-        replicated: ["Blocked", "Within", "Unentitled", "Blocked", "Within", "Unentitled"],
+    // decide each use before the entitlements replicate, then from them
+    expect({
+        pending: USES.map((use) => Entitlement.decide(undefined, use).status),
+        replicated: USES.map((use) => Entitlement.decide(rows, use)),
+    }).toEqual({
+        pending: ["unknown", "unknown", "unknown", "unknown", "unknown", "unknown"],
+        replicated: [
+            { status: "false", reason: "Blocked", message: "database reached its limit of 1000" },
+            { status: "true", reason: "Within", message: "storage within the plan" },
+            {
+                status: "false",
+                reason: "Unentitled",
+                message: "no plan of the account grants compute",
+            },
+            { status: "false", reason: "Blocked", message: "network reached its limit of 1000" },
+            { status: "true", reason: "Within", message: "shared tenancy within the plan" },
+            {
+                status: "false",
+                reason: "Unentitled",
+                message: "no plan of the account grants dedicated tenancy",
+            },
+        ],
     });
 });

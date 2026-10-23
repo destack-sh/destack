@@ -15,17 +15,19 @@ import { and, type DatabaseConnection, eq, isNull, Snapshot, Transaction } from 
 import { PackageId } from "@destack/package";
 import { type Identifier, nth, schema } from "@destack/schema";
 import { TOKEN_LIFETIME_MILLISECONDS, TokenVerifier } from "@destack/access/token";
-import { CallError } from "@destack/object";
 import { ObjectReference, Scope, Subject } from "@destack/sync";
 import { AccountAuthentication } from "../better-auth/authentication.ts";
 import { account, type Account } from "../object/account.ts";
 import { Identity } from "../object/identity.ts";
-import * as object from "../object/index.ts";
+import { session } from "../object/session.ts";
+import { user } from "../object/user.ts";
 import { Placement } from "../object/placement.ts";
 import accountPackage from "../package.ts";
 import { Issuance } from "./issuance.ts";
-import { PackageResource } from "./resource.ts";
+import { PackageResource, type TokenLifetime } from "./resource.ts";
 import type { Clock } from "@destack/environment";
+import type {} from "@destack/package/import-meta";
+import { AccountError } from "../error/error.ts";
 
 /** The grant type of a token exchanged for another (RFC 8693 2.1). */
 export const TOKEN_EXCHANGE = "urn:ietf:params:oauth:grant-type:token-exchange";
@@ -36,19 +38,25 @@ export const ACCESS_TOKEN_TYPE = "urn:ietf:params:oauth:token-type:access_token"
 /** The type of a subject token that is a person's personal access token. */
 export const PERSONAL_ACCESS_TOKEN_TYPE = "urn:destack:token-type:personal-access-token";
 
-/** The type of a subject token that is a signed-in person's session token. */
-export const SESSION_TOKEN_TYPE = "urn:destack:token-type:session";
+/** The kinds of token a person's client exchanges for a package's (RFC 8693 3). */
+export const SubjectTokenType = schema.enum([ACCESS_TOKEN_TYPE, PERSONAL_ACCESS_TOKEN_TYPE]);
+/** A kind of token a person's client exchanges. */
+export type SubjectTokenType = schema.Infer<typeof SubjectTokenType>;
+
+/** A token a client exchanges and its kind (RFC 8693 2.1: subject_token and subject_token_type). */
+export interface SubjectToken {
+    /** The token. */
+    readonly token: string;
+    /** Its kind. */
+    readonly type: SubjectTokenType;
+}
 
 /** A token exchange request: the subject token, the package and space, and whom to act for. */
 const ExchangeRequest = schema.looseObject({
     /** The token exchanged. */
     subject_token: schema.string().min(1),
     /** The kind of the token exchanged. */
-    subject_token_type: schema.enum([
-        ACCESS_TOKEN_TYPE,
-        SESSION_TOKEN_TYPE,
-        PERSONAL_ACCESS_TOKEN_TYPE,
-    ]),
+    subject_token_type: SubjectTokenType,
     /** The package the token is for, as its resource (RFC 8707). */
     resource: schema.string().min(1),
     /** The space the token acts in, absent under a grant toward a universe package. */
@@ -76,8 +84,8 @@ export interface ExchangeOptions {
     readonly issuer: string;
     /** The clock tokens are verified at. */
     readonly clock: Clock;
-    /** The lifetimes of the packages' tokens, a minute when absent. */
-    readonly lifetimes: ReadonlyMap<PackageId, number>;
+    /** How long the packages' tokens live. */
+    readonly lifetime: TokenLifetime;
 }
 
 /** Exchange a person's, machine's or installation's token for a token of a package (RFC 8693). */
@@ -98,10 +106,7 @@ export function exchangeGrant(options: ExchangeOptions): OAuthExtensionGrantHand
         const now = options.clock.now();
         const { authentication, lapse } = await describe(options, asked, audience, now).catch(
             (error: unknown) => {
-                const refused = CallError.of(error);
-                throw refused === undefined
-                    ? error
-                    : Issuance.refusal("invalid_grant", refused.message);
+                throw Issuance.grantRefusal(error);
             },
         );
 
@@ -124,7 +129,7 @@ export function exchangeGrant(options: ExchangeOptions): OAuthExtensionGrantHand
 
         return Issuance.issue(input, stamped, {
             now,
-            lifetimes: options.lifetimes,
+            lifetime: options.lifetime,
             scopes: [],
             ...(lapse === undefined ? {} : { lapse }),
         });
@@ -158,7 +163,7 @@ async function describe(
             now,
         );
         const expiries = granted.map((grant) => grant.expiresAt ?? Number.POSITIVE_INFINITY);
-        const ending =
+        const boundEnds =
             asked.session === undefined
                 ? []
                 : [
@@ -169,6 +174,21 @@ async function describe(
                           now,
                       ),
                   ];
+
+        // end the token with the session it was issued in
+        const presented = verified.credential;
+        const issuedEnds =
+            presented.kind === "session"
+                ? [
+                      await sessionEnd(
+                          transaction,
+                          session.identifier(presented.id),
+                          verified.caller.subject,
+                          now,
+                      ),
+                  ]
+                : [];
+        const ending = [...boundEnds, ...issuedEnds];
         const lapse = Math.min(...lapses, ...expiries, ...ending);
         const lapsing = Number.isFinite(lapse) ? { lapse } : {};
         if (granted.length > 0 && asked.space === undefined) {
@@ -180,9 +200,10 @@ async function describe(
         // describe the caller toward a universe package, outside any space
         else if (asked.space === undefined) {
             if (subject !== undefined) {
-                throw new CallError("BAD_REQUEST", {
-                    message: "a token acting as another person acts in a space",
-                });
+                throw AccountError.of(
+                    "ACTING_OUTSIDE_SPACE",
+                    "a token acting as another person must act in a space",
+                );
             }
             const { scope: _scope, ...credential } = verified.credential;
 
@@ -230,12 +251,10 @@ async function subjectOf(
     asked: schema.Infer<typeof ExchangeRequest>,
     now: number,
 ): Promise<Authentication> {
-    // verify a personal access token or a session against the account's records
+    // verify a personal access token against the account's records
     const { subject_token: token, subject_token_type: type } = asked;
     if (type === PERSONAL_ACCESS_TOKEN_TYPE) {
         return AccountAuthentication.personalToken(token, options.database, accountPackage.id, now);
-    } else if (type === SESSION_TOKEN_TYPE) {
-        return AccountAuthentication.session(token, options.database, accountPackage.id, now);
     }
 
     // verify an access token for the account package by the universe's current keys, refusing a machine's
@@ -250,9 +269,10 @@ async function subjectOf(
     // refuse a token for the machine itself, which it asks with its assertion
     const verified = await verifier.verify(token, now);
     if (principal.machine.is(verified.caller.subject)) {
-        throw new CallError("FORBIDDEN", {
-            message: "a machine asks its tokens with its assertion",
-        });
+        throw AccountError.of(
+            "MACHINE_ASSERTION_REQUIRED",
+            "a machine must request its tokens with its assertion",
+        );
     }
 
     return verified;
@@ -349,9 +369,9 @@ class SpaceVerification {
             .filter(
                 (entry) =>
                     entry.relation !== undefined &&
-                    entry.packageId === object.account.typeReference.packageId &&
+                    entry.packageId === account.typeReference.packageId &&
                     (entry.scope === accountId ||
-                        (entry.type === object.account.name && entry.id === accountId)),
+                        (entry.type === account.name && entry.id === accountId)),
             )
             .toSorted((left, right) => (Subject.key(left) < Subject.key(right) ? -1 : 1));
     }
@@ -369,7 +389,7 @@ class SpaceVerification {
             !principal.user.is(subject) ||
             Subject.same(acting, subject)
         ) {
-            throw new CallError("FORBIDDEN", { message: "only a user acts as another user" });
+            throw AccountError.of("ACTOR_NOT_USER", "only a user can act as another user");
         }
 
         // describe the represented user within the space's account
@@ -377,8 +397,8 @@ class SpaceVerification {
         const accountId = await this.#account();
         const isMember = represented.caller.groups.some(
             (entry) =>
-                entry.packageId === object.account.typeReference.packageId &&
-                entry.type === object.account.name &&
+                entry.packageId === account.typeReference.packageId &&
+                entry.type === account.name &&
                 entry.id === accountId &&
                 entry.relation === "member",
         );
@@ -391,7 +411,7 @@ class SpaceVerification {
             AccessContext.of(verified.caller, now, { credential: verified.credential }),
         );
         const lent = await authorization.check(
-            object.user.permission("impersonate"),
+            user.permission("impersonate"),
             principal.user.reference(Scope.universe.id, subject.id),
         );
         const isLent = lent.isAllowed;
@@ -399,14 +419,12 @@ class SpaceVerification {
             isMember &&
             (
                 await authorization.check(
-                    object.account.permission("impersonate"),
+                    account.permission("impersonate"),
                     await Scope.object(Snapshot.live(this.transaction), accountId),
                 )
             ).isAllowed;
         if (!isLent && !isAdministered) {
-            throw new CallError("FORBIDDEN", {
-                message: "acting as another user is not allowed",
-            });
+            throw AccountError.of("ACTING_REFUSED", "acting as another user is not allowed");
         }
 
         return { ...represented, caller: { ...represented.caller, actors: [acting] } };
@@ -452,9 +470,10 @@ class SpaceVerification {
             schema.identifier("space").parse(acting.scope),
         ]);
         if (placement?.scope !== accountId) {
-            throw new CallError("FORBIDDEN", {
-                message: "the installation belongs to another account",
-            });
+            throw AccountError.of(
+                "FOREIGN_INSTALLATION",
+                "the installation belongs to another account",
+            );
         }
     }
 
@@ -488,7 +507,7 @@ class SpaceVerification {
                       )
                       .get();
         if (selected === undefined) {
-            throw new CallError("FORBIDDEN", { message: "the space has no active account" });
+            throw AccountError.of("NO_ACTIVE_ACCOUNT", "the space has no active account");
         }
 
         return selected.accountId;
@@ -556,12 +575,12 @@ async function readGrants(
 
         // refuse none or several
         if (only === undefined || others.length > 0) {
-            throw new CallError("FORBIDDEN", {
-                message:
-                    live.length === 0
-                        ? `${parties.delegator.id} has no grant to ${caller.subject.id}`
-                        : `${parties.delegator.id} has ${live.length} grants to ${caller.subject.id}, name one`,
-            });
+            throw AccountError.of(
+                "NO_LIVE_GRANT",
+                live.length === 0
+                    ? `${parties.delegator.id} has no grant to ${caller.subject.id}`
+                    : `${parties.delegator.id} has ${live.length} grants to ${caller.subject.id}, name one`,
+            );
         }
 
         return [Grant.require(only, only.id, parties, now)];
@@ -569,9 +588,10 @@ async function readGrants(
     // read the caller's chain to a delegate, as the caller acting as itself
     else if (input.grants !== undefined) {
         if (Caller.isDelegated(caller)) {
-            throw new CallError("FORBIDDEN", {
-                message: "a delegate acts under its grants alone",
-            });
+            throw AccountError.of(
+                "DELEGATE_OUTSIDE_GRANTS",
+                "a delegate can only act under its own grants",
+            );
         }
 
         return requireChain(snapshot, input.grants, caller.subject, undefined, now);
@@ -611,7 +631,7 @@ async function sessionEnd(
 ): Promise<number> {
     // require the person's session, unrevoked and unexpired
     const found = await Transaction.reading(transaction)
-        .read(object.session.table)
+        .read(session.table)
         .findFirst({ where: { id: sessionId } });
     const isActive =
         found !== undefined &&
@@ -620,7 +640,7 @@ async function sessionEnd(
         found.revokedAt === null &&
         found.expiresAt > now;
     if (!isActive) {
-        throw new CallError("UNAUTHORIZED", { message: "the person's session ended" });
+        throw AccountError.of("SESSION_ENDED", "the person's session ended");
     }
 
     return found.expiresAt;

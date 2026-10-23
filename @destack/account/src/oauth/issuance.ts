@@ -1,16 +1,12 @@
 import { type Authentication, Caller, principal } from "@destack/access";
+import type { TokenLifetime } from "./resource.ts";
 import type {
     OAuthExtensionGrantHandlerInput,
     OAuthTokenResponse,
 } from "@better-auth/oauth-provider";
 import type { JWTPayload } from "jose";
 import { PackageId } from "@destack/package";
-import {
-    ACCESS_TOKEN_TYPE,
-    TOKEN_LIFETIME_MILLISECONDS,
-    TokenIdentity,
-    TokenIssuerAuthority,
-} from "@destack/access/token";
+import { ACCESS_TOKEN_TYPE, TokenIdentity, TokenIssuerAuthority } from "@destack/access/token";
 import { APIError } from "better-auth/api";
 import { CallError } from "@destack/object";
 
@@ -36,8 +32,8 @@ export const Issuance = {
         terms: {
             /** The time of the issuance. */
             readonly now: number;
-            /** The lifetimes of the packages' tokens, a minute when absent. */
-            readonly lifetimes: ReadonlyMap<PackageId, number>;
+            /** How long the packages' tokens live. */
+            readonly lifetime: TokenLifetime;
             /** When the session or grant the token acts under lapses, none for neither. */
             readonly lapse?: number;
             /** The OAuth scopes granted beside the package: none, or a person's sign-in's. */
@@ -49,7 +45,7 @@ export const Issuance = {
         // refuse a token the provider would let outlive the session or grant it acts under
         const { caller, credential } = authentication;
         const { audience } = credential;
-        const lifetime = terms.lifetimes.get(audience) ?? TOKEN_LIFETIME_MILLISECONDS;
+        const lifetime = terms.lifetime.of(audience);
         if (terms.lapse !== undefined && terms.lapse < terms.now + lifetime) {
             throw Issuance.refusal(
                 "invalid_grant",
@@ -98,8 +94,8 @@ export const Issuance = {
         terms: {
             /** The time of the issuance. */
             readonly now: number;
-            /** The lifetimes of the packages' tokens, a minute when absent. */
-            readonly lifetimes: ReadonlyMap<PackageId, number>;
+            /** How long the packages' tokens live. */
+            readonly lifetime: TokenLifetime;
             /** The universe's issuer, which its tokens include. */
             readonly issuer: string;
             /** Sign claims with the universe's active key, as the provider signs its tokens. */
@@ -112,7 +108,7 @@ export const Issuance = {
         // time the token by the package's lifetime, capped at the provider's machine default
         const { caller, credential } = authentication;
         const { audience } = credential;
-        const lifetime = terms.lifetimes.get(audience) ?? TOKEN_LIFETIME_MILLISECONDS;
+        const lifetime = terms.lifetime.of(audience);
         const issuedAt = Math.floor(terms.now / SECOND_MILLISECONDS);
         const expiresAt =
             issuedAt + Math.min(lifetime / SECOND_MILLISECONDS, MACHINE_TOKEN_SECONDS);

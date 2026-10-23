@@ -5,19 +5,23 @@ import { PackageId } from "@destack/package";
 import { type Identifier, schema } from "@destack/schema";
 import { Subject } from "@destack/sync";
 import { createClient } from "@destack/object/client";
-import { CallError } from "@destack/object";
 import { Pkce } from "@destack/access/token";
 import { DEVICE_CODE_GRANT_TYPE } from "@better-auth/oauth-provider";
 import { TOKEN_PATH } from "../authentication/path.ts";
 import { ErrorResponse, TokenResponse } from "../authentication/token.ts";
 import { EMAIL_CODE } from "../oauth/code.ts";
-import { ACCESS_TOKEN_TYPE, TOKEN_EXCHANGE } from "../oauth/exchange.ts";
+import { type SubjectToken, TOKEN_EXCHANGE } from "../oauth/exchange.ts";
 import accountPackage from "../package.ts";
 import type { Residency } from "../object/residency.ts";
 import type { SignUp } from "../better-auth/sign-up.ts";
+import type {} from "@destack/package/import-meta";
+import { AccountError } from "../error/error.ts";
 
 /** The milliseconds in a second, as OAuth counts expiries and ages in seconds. */
 const SECOND_MILLISECONDS = 1000;
+
+/** The default wait between device polls, in seconds (RFC 8628 3.2). */
+const DEVICE_INTERVAL_SECONDS = 5;
 
 /** How long a browser sign-in may take, in milliseconds: ten minutes for the person to sign in. */
 const BROWSER_MILLISECONDS = 10 * 60_000;
@@ -43,6 +47,8 @@ const DeviceResponse = schema.looseObject({
     verification_uri_complete: schema.url().exactOptional(),
     /** The lifetime of the codes, in seconds. */
     expires_in: schema.number().int().positive(),
+    /** How long the device waits between polls, in seconds. */
+    interval: schema.number().int().positive().exactOptional(),
 });
 
 /** The claims of an ID token the native device reads: the signed-in person (OIDC Core 2). */
@@ -69,6 +75,8 @@ export interface DeviceAuthorization {
     readonly userCode: string;
     /** The device code the client polls with. */
     readonly deviceCode: string;
+    /** How long the client waits between polls, in milliseconds. */
+    readonly interval: number;
     /** The end of the sign-in, in UTC epoch milliseconds. */
     readonly expiresAt: number;
 }
@@ -116,12 +124,12 @@ export class Issuer {
     readonly #fetch: Fetch;
 
     /** Call an issuer through a fetch. */
-    constructor(url: string, fetch: Fetch = globalThis.fetch) {
+    constructor(url: string, fetch: Fetch) {
         this.url = url.replace(/\/$/u, "");
         this.#fetch = fetch;
     }
 
-    /** Start a browser sign-in of a client that returns to a loopback redirect with a state. */
+    /** Start a browser sign-in returning to a loopback redirect, fresh for a step-up. */
     async authorize(
         clientId: Identifier<"client">,
         redirect: string,
@@ -168,13 +176,7 @@ export class Issuer {
             code_verifier: verifier,
         });
         if (!response.ok) {
-            const { error, error_description: description } = await Issuer.#read(
-                response,
-                ErrorResponse,
-            );
-            throw new CallError("UNAUTHORIZED", {
-                message: `the issuer refused the code: ${description ?? error}`,
-            });
+            throw await TokenResponse.refusal(response);
         }
 
         return Issuer.#signedIn(await Issuer.#read(response, TokenResponse));
@@ -191,9 +193,10 @@ export class Issuer {
             }),
         );
         if (!response.ok) {
-            throw new CallError("BAD_GATEWAY", {
-                message: `the issuer refused to mail a code with status ${response.status}`,
-            });
+            throw AccountError.of(
+                "MAIL_FAILED",
+                `the issuer refused to mail a code with status ${response.status}`,
+            );
         }
 
         // read the answer to its end
@@ -225,13 +228,7 @@ export class Issuer {
                   }),
         });
         if (!response.ok) {
-            const { error, error_description: description } = await Issuer.#read(
-                response,
-                ErrorResponse,
-            );
-            throw new CallError("UNAUTHORIZED", {
-                message: `the issuer refused the code: ${description ?? error}`,
-            });
+            throw await TokenResponse.refusal(response);
         }
 
         return Issuer.#signedIn(await Issuer.#read(response, TokenResponse));
@@ -246,9 +243,10 @@ export class Issuer {
             resource: PackageId.resource(accountPackage.id),
         });
         if (!response.ok) {
-            throw new CallError("BAD_GATEWAY", {
-                message: `the issuer refused a device code with status ${response.status}`,
-            });
+            throw AccountError.of(
+                "DEVICE_CODE_FAILED",
+                `the issuer refused a device code with status ${response.status}`,
+            );
         }
 
         // show the page with the code filled in and poll with the device code
@@ -258,6 +256,7 @@ export class Issuer {
             url: device.verification_uri_complete ?? device.verification_uri,
             userCode: device.user_code,
             deviceCode: device.device_code,
+            interval: (device.interval ?? DEVICE_INTERVAL_SECONDS) * SECOND_MILLISECONDS,
             expiresAt: now + device.expires_in * SECOND_MILLISECONDS,
         };
     }
@@ -278,10 +277,8 @@ export class Issuer {
         }
 
         // wait while the person decides
-        const { error, error_description: description } = await Issuer.#read(
-            response,
-            ErrorResponse,
-        );
+        const body = await response.text();
+        const { error } = await Issuer.#read(new Response(body, response), ErrorResponse);
         if (error === "authorization_pending") {
             return { status: "pending" };
         }
@@ -293,33 +290,32 @@ export class Issuer {
         else if (error === "access_denied" || error === "expired_token") {
             return { status: "refused" };
         }
-        // fail loudly on any other error
+        // fail as the issuer refused on any other error
         else {
-            throw new CallError("BAD_GATEWAY", {
-                message: `the issuer refused the device code: ${description ?? error}`,
-            });
+            throw await TokenResponse.refusal(new Response(body, response));
         }
     }
 
     /** Refresh a client's tokens with its refresh token. */
     refresh(clientId: Identifier<"client">, refreshToken: string): Promise<Tokens> {
-        return this.#tokens(
-            { grant_type: "refresh_token", refresh_token: refreshToken, client_id: clientId },
-            "the issuer refused the refresh token",
-        );
+        return this.#tokens({
+            grant_type: "refresh_token",
+            refresh_token: refreshToken,
+            client_id: clientId,
+        });
     }
 
-    /** Exchange an access token for one of a package, in a space or under a grant (RFC 8693). */
+    /** Exchange a person's token for one of a package, in a space or under a grant (RFC 8693). */
     async exchange(
-        accessToken: string,
+        subject: SubjectToken,
         audience: PackageId,
         bound: TokenBinding,
     ): Promise<{ readonly accessToken: string; readonly expiresAt: number }> {
-        // post the person's access token for the package's resource
+        // post the person's token for the package's resource
         const response = await this.#post(TOKEN_PATH, {
             grant_type: TOKEN_EXCHANGE,
-            subject_token: accessToken,
-            subject_token_type: ACCESS_TOKEN_TYPE,
+            subject_token: subject.token,
+            subject_token_type: subject.type,
             resource: PackageId.resource(audience),
             ...(bound.spaceId === undefined ? {} : { space: bound.spaceId }),
             ...(bound.subject === undefined ? {} : { subject: Subject.key(bound.subject) }),
@@ -327,13 +323,7 @@ export class Issuer {
             ...(bound.session === undefined ? {} : { session: bound.session }),
         });
         if (!response.ok) {
-            const { error, error_description: description } = await Issuer.#read(
-                response,
-                ErrorResponse,
-            );
-            throw new CallError("UNAUTHORIZED", {
-                message: `the issuer refused the exchange: ${description ?? error}`,
-            });
+            throw await TokenResponse.refusal(response);
         }
 
         return TokenResponse.granted(await Issuer.#read(response, TokenResponse));
@@ -348,9 +338,10 @@ export class Issuer {
             client_id: clientId,
         });
         if (!response.ok) {
-            throw new CallError("BAD_GATEWAY", {
-                message: `the issuer refused the revocation with status ${response.status}`,
-            });
+            throw AccountError.of(
+                "REVOCATION_FAILED",
+                `the issuer refused the revocation with status ${response.status}`,
+            );
         }
 
         // read the answer to its end, which RFC 7009 leaves without content
@@ -375,15 +366,11 @@ export class Issuer {
         });
     }
 
-    /** Post a token request, refusing a refused one with a reason. */
-    async #tokens(form: Readonly<Record<string, string>>, refusal: string): Promise<Tokens> {
+    /** Post a token request, refusing a refused one as the issuer refused it. */
+    async #tokens(form: Readonly<Record<string, string>>): Promise<Tokens> {
         const response = await this.#post(TOKEN_PATH, form);
         if (!response.ok) {
-            const { error, error_description: description } = await Issuer.#read(
-                response,
-                ErrorResponse,
-            );
-            throw new CallError("UNAUTHORIZED", { message: `${refusal}: ${description ?? error}` });
+            throw await TokenResponse.refusal(response);
         }
 
         return Issuer.#granted(await Issuer.#read(response, TokenResponse));
@@ -392,7 +379,7 @@ export class Issuer {
     /** Read granted tokens, refusing a grant without a refresh token. */
     static #granted(tokens: TokenResponse): Tokens {
         if (tokens.refresh_token === undefined) {
-            throw new CallError("BAD_GATEWAY", { message: "the issuer granted no refresh token" });
+            throw AccountError.of("NO_REFRESH_TOKEN", "the issuer returned no refresh token");
         }
 
         return { ...TokenResponse.granted(tokens), refreshToken: tokens.refresh_token };
@@ -402,15 +389,13 @@ export class Issuer {
     static #signedIn(granted: TokenResponse): SignedIn {
         // refuse a sign-in without an ID token
         if (granted.id_token === undefined) {
-            throw new CallError("BAD_GATEWAY", { message: "the issuer granted no ID token" });
+            throw AccountError.of("NO_ID_TOKEN", "the issuer returned no ID token");
         }
 
         // refuse an ID token without a payload
         const [, payload] = granted.id_token.split(".");
         if (payload === undefined) {
-            throw new CallError("BAD_GATEWAY", {
-                message: "the issuer granted a malformed ID token",
-            });
+            throw AccountError.of("MALFORMED_ID_TOKEN", "the issuer returned a malformed ID token");
         }
 
         // read the person from its claims, trusted as the token endpoint's answer (OIDC Core 3.1.3.7)
@@ -452,9 +437,10 @@ export class Issuer {
         // answer a bad gateway for a value outside the schema
         const parsed = definition.safeParse(value);
         if (!parsed.success) {
-            throw new CallError("BAD_GATEWAY", {
-                message: `the issuer answered ${response.status} with an unreadable body`,
-            });
+            throw AccountError.of(
+                "UNREADABLE_ANSWER",
+                `the issuer responded with ${response.status} and an unreadable body`,
+            );
         }
 
         return parsed.data;

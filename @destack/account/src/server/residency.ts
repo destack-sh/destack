@@ -26,7 +26,7 @@ export function implementResidency(): typeof residency {
 }
 
 /** Locate the space serving the residency an account stores its data in. */
-function locate(
+async function locate(
     context: MethodContextOf<typeof residency, "locate">,
 ): Promise<ResultOf<typeof residency, "locate">> {
     return Account.locate(context, context.input.account);

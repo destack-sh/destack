@@ -1,12 +1,13 @@
 import type { MethodContext, MethodContextOf, NextOf, ResultOf } from "@destack/object";
 import { schema } from "@destack/schema";
-import { CallError } from "@destack/object";
 import type { ObjectReference } from "@destack/sync";
 import { Revocation } from "../credential/revocation.ts";
 import { Proof, PublicKey } from "@destack/identity";
 import { client } from "../object/client.ts";
 import { key, Key } from "../object/key.ts";
 import { machine } from "../object/machine.ts";
+import type {} from "@destack/package/import-meta";
+import { AccountError } from "../error/error.ts";
 
 /** Implement keys. */
 export function implementKey(): typeof key {
@@ -76,14 +77,14 @@ async function holderOf(context: MethodContext, parent: ObjectReference) {
     }
     // refuse any other parent
     else {
-        throw new CallError("BAD_REQUEST", { message: `a ${parent.type} has no keys` });
+        throw AccountError.of("NO_KEYS", `a ${parent.type} has no keys`);
     }
 }
 
 /** Require a key's holder to exist. */
 function requireFound<Row>(row: Row | undefined, parent: { readonly type: string }): Row {
     if (row === undefined) {
-        throw new CallError("NOT_FOUND", { message: `${parent.type} not found` });
+        throw AccountError.of("PARENT_NOT_FOUND", `${parent.type} not found`);
     }
 
     return row;

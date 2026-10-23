@@ -10,6 +10,7 @@ import { organisation } from "./organisation.ts";
 import { assignment, placement } from "./placement.ts";
 import { ResidencyCode } from "./residency.ts";
 import { space } from "./space.ts";
+import { user } from "./user.ts";
 
 /** One space's rows as a machine serves it: its row, placement, assignments and the machine. */
 export const spaceShape = defineShape({
@@ -103,6 +104,14 @@ export const residentsShape = defineShape({
     queries: ({ residency: residencyId }) => [
         account.query({ scopes: "every", where: { residencyId } }),
     ],
+});
+
+/** One person's public profile, which a space follows for each person related to it. */
+export const profileShape = defineShape({
+    name: "profile",
+    parameters: schema.object({ user: schema.identifier("user") }),
+    objects: [user],
+    queries: ({ user: id }) => [user.query({ scopes: "every", where: { id } })],
 });
 
 /** The spaces of an account. */

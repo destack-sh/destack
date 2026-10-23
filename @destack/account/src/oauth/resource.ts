@@ -36,6 +36,25 @@ export interface PackageResource {
     readonly disabled: false;
 }
 
+/** How long each package's access tokens live, a minute unless the universe sets the package's. */
+export class TokenLifetime {
+    /** The lifetime of a token for no package, in seconds: the default minute. */
+    static readonly DEFAULT_SECONDS = TOKEN_LIFETIME_MILLISECONDS / SECOND_MILLISECONDS;
+
+    /** The lifetimes the universe sets, in milliseconds, by package. */
+    readonly #byPackage: ReadonlyMap<PackageId, number>;
+
+    /** Keep the lifetimes the universe sets. */
+    constructor(byPackage: ReadonlyMap<PackageId, number>) {
+        this.#byPackage = byPackage;
+    }
+
+    /** Read how long a package's tokens live, in milliseconds. */
+    of(audience: PackageId): number {
+        return this.#byPackage.get(audience) ?? TOKEN_LIFETIME_MILLISECONDS;
+    }
+}
+
 /** The packages as the resources Better Auth issues tokens for. */
 export const PackageResource = {
     /** Read the package of a resource identifier, absent for any other identifier. */
@@ -47,7 +66,7 @@ export const PackageResource = {
     },
 
     /** Answer a resource identifier as its package's resource, absent for any other identifier. */
-    of(identifier: string, lifetimes: ReadonlyMap<PackageId, number>): PackageResource | undefined {
+    of(identifier: string, lifetime: TokenLifetime): PackageResource | undefined {
         // refuse anything but a package
         const id = PackageResource.package(identifier);
         if (id === undefined) {
@@ -55,13 +74,13 @@ export const PackageResource = {
         }
 
         // live as long as the package's verifiers accept
-        const lifetime = lifetimes.get(id) ?? TOKEN_LIFETIME_MILLISECONDS;
+        const seconds = lifetime.of(id) / SECOND_MILLISECONDS;
 
         return {
             id: identifier,
             identifier,
             name: id,
-            accessTokenTtl: lifetime / SECOND_MILLISECONDS,
+            accessTokenTtl: seconds,
             refreshTokenTtl: null,
             signingAlgorithm: null,
             signingKeyId: null,

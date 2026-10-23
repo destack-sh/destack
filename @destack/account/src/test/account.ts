@@ -1,54 +1,23 @@
-import {
-    and,
-    eq,
-    type Database,
-    type DatabaseConnection,
-    type Dialect,
-    Snapshot,
-} from "@destack/db";
+import { eq, type DatabaseConnection, type Dialect, Snapshot } from "@destack/db";
 import { type ImageIndex, TestDatabase, TestTemplate } from "@destack/db/test";
-import {
-    Replica,
-    replicaPosition,
-    Scope,
-    type ObjectReference,
-    type Subject,
-    type Subscription,
-    RequestId,
-} from "@destack/sync";
-import {
-    AccessContext,
-    anyone,
-    type Authentication,
-    Caller,
-    type PermissionReference,
-    type Policy,
-    principal,
-    Relationship,
-} from "@destack/access";
-import { AccessFixture } from "@destack/access/test";
+import { Scope, Subject, RequestId } from "@destack/sync";
+import { AccessContext, Caller, type Policy, principal, type Relationship } from "@destack/access";
 import { type Keychain, type Keyring, LocalKeyring, MemoryKeychain } from "@destack/identity";
 import { claim } from "../object/claim.ts";
 import { placement } from "../object/placement.ts";
+import objectPackage from "@destack/object/package";
 import objectServer, { ObjectStore } from "@destack/object/server";
-import { testEvents, testCallKey } from "@destack/object/test";
+import {
+    testEvents,
+    testCallKey,
+    type TestCaller,
+    TestObjectStore,
+    type TestSigner,
+} from "@destack/object/test";
 import { Package, PackageId } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
-import { ResourceContext } from "@destack/resource/context";
-import {
-    canonicalize,
-    Digest,
-    found,
-    Identifier,
-    type JsonValue,
-    present,
-    schema,
-} from "@destack/schema";
-import { PackageMount, CallError } from "@destack/object";
-import { Health, Server, type PackageHandler } from "@destack/object/server";
-import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/access/token";
-import { createClient, type ClientOf, type ClientTarget } from "@destack/object/client";
-import type { ProcedureRouter } from "@destack/object";
+import { Digest, found, Identifier, type JsonValue, present, schema } from "@destack/schema";
+import { PackageMount, CallError, type FeatureReference, type Fetch } from "@destack/object";
 import { Setting } from "@destack/setting";
 import { settingServer } from "@destack/setting/server";
 import {
@@ -58,45 +27,68 @@ import {
     type SignUp,
 } from "../better-auth/index.ts";
 import { MachineIdentity } from "../client/index.ts";
-import { IdentityKeystore, IdentityRegistry } from "../identity/index.ts";
+import { Issuer } from "../native/index.ts";
+import { IdentityKeystore, IdentityRegistry, type TokenSource } from "../identity/index.ts";
 import {
     account,
     Account,
-    client,
+    entitlement,
+    Entitlement,
+    type EntitlementResource,
     machine,
+    type Membership,
+    organisation,
     ProviderCode,
     Residency,
-    residency,
     type ResidencyCode,
     type ResidencyDefinition,
-    session,
     SpaceKind,
     StackSource,
-    user,
-    User,
 } from "../object/index.ts";
-import { JWT_BEARER, SESSION_TOKEN_TYPE, TOKEN_EXCHANGE } from "../oauth/index.ts";
 import accountPackage, { OAUTH_PATH } from "../package.ts";
 import { accountServer, Platform, PlatformDefinition, UniverseRole } from "../server/index.ts";
 import { accountDatabase } from "../stack/index.ts";
-import { TOKEN_PATH } from "../authentication/path.ts";
-import { TokenResponse } from "../authentication/token.ts";
-import { Browser } from "./browser.ts";
-import { TestEntitlement } from "./entitlement.ts";
+import { TokenLifetime } from "../oauth/index.ts";
+import { TestBrowser } from "./browser.ts";
+import { TestDns } from "./dns.ts";
+import type { DnsResolver } from "../server/dns-resolver.ts";
+import { freshHandle, TestPerson, type TestSignIn } from "./person.ts";
+import { authenticatorCode, Enrollment } from "./authenticator.ts";
+import { sudo } from "../authentication/sudo.ts";
 import type { Mail, MailOutcome, MailTransport } from "../better-auth/index.ts";
-import { Clock } from "@destack/environment";
+import { VirtualClock } from "@destack/environment/simulation";
+import { Pkce } from "@destack/access/token";
+import { createLocalJWKSet, type JWTPayload, jwtVerify } from "jose";
 
 /** The universe's origin. */
 export const ORIGIN = "http://localhost:3210";
 
+/** The loopback redirect a stepped-up native client returns to, which the step-up stops at. */
+const STEP_UP_REDIRECT = "http://127.0.0.1:53682/callback";
+
+/** The redirects a browser follows at most, the Fetch standard's limit. */
+const FETCH_REDIRECTS = 20;
+
+/** The button a person presses on each page a step-up passes. */
+const STEP_UP_ACTIONS = [
+    ["/sign-in", "continue"],
+    ["/consent", "approve"],
+] as const;
+
 /** The URL the fixture's users, machines and installations call the account package at. */
-export const ACCOUNTS_URL = PackageMount.url(ORIGIN, accountPackage.id);
+const ACCOUNTS_URL = PackageMount.url(ORIGIN, accountPackage.id);
 
 /** The universe's issuer: the account package's oauth adapter. */
 export const ISSUER = `${ACCOUNTS_URL}${OAUTH_PATH}`;
 
 /** The email of the person operating the fixture's universe. */
 export const OPERATOR_EMAIL = "operator@example.com";
+
+/** The email of the person owning the fixture's accounts, the handle acme's. */
+export const OWNER_EMAIL = "acme@example.test";
+
+/** The email of a person outside the fixture's accounts. */
+export const STRANGER_EMAIL = "stranger@example.test";
 
 /** The time zone and locale the fixture's people sign up with. */
 export const SIGN_UP: Pick<SignUp, "timeZone" | "locale"> = {
@@ -115,6 +107,12 @@ export const ids = {
     owner: OWNER,
     stranger: schema.identifier("user").parse("user-01996ab0-0000-7000-8000-00000000000b"),
     operator: schema.identifier("user").parse("user-01996ab0-0000-7000-8000-00000000000c"),
+    founder: schema.identifier("user").parse("user-01996ab0-0000-7000-8000-00000000000d"),
+    administrator: schema.identifier("user").parse("user-01996ab0-0000-7000-8000-00000000000e"),
+    member: schema.identifier("user").parse("user-01996ab0-0000-7000-8000-00000000000f"),
+    assistant: schema.identifier("user").parse("user-01996ab0-0000-7000-8000-000000000010"),
+    partner: schema.identifier("user").parse("user-01996ab0-0000-7000-8000-000000000011"),
+    person: schema.identifier("user").parse("user-01996ab0-0000-7000-8000-000000000012"),
     account: Account.personal(OWNER),
     other: schema.identifier("account").parse("account-01996ab0-0000-7000-8000-000000000002"),
     machine: schema.identifier("machine").parse("machine-01996ab0-0000-7000-8000-000000000004"),
@@ -158,18 +156,6 @@ export const STACKS: Readonly<Record<SpaceKind, StackSource>> = {
     },
 };
 
-/** The header with the user, space or installation a test request acts as, instead of its proof. */
-const CALLER_HEADER = "x-caller";
-
-/** How long a platform installation's replicas take at most to catch up with accounts. */
-const SETTLE_MILLISECONDS = 5000;
-
-/** How long a stopping fixture server drains its requests, in milliseconds. */
-const DRAIN_MILLISECONDS = 1000;
-
-/** How long before its expiry the fixture exchanges a person's token again, in milliseconds. */
-const TOKEN_REFRESH_MILLISECONDS = 10_000;
-
 /** The provider running the platform's cloud machines. */
 const PROVIDER = ProviderCode.parse("cloudflare");
 
@@ -184,8 +170,8 @@ const PERSONAL_MACHINE = {
     model: "Mac14,2",
 } as const;
 
-/** The creation and update times of the rows the fixture stores. */
-const RECORD_TIMES = { createdAt: 1, updatedAt: 1 };
+/** The package declaring the features a test entitles accounts to by resource. */
+const ENTITLED_PACKAGE = PackageId.parse("package-019f5530-8000-7000-8000-0000000000f9");
 
 /** The residencies of the universe, as the platform's bootstrap declares them. */
 const RESIDENCIES: readonly ResidencyDefinition[] = [
@@ -193,29 +179,88 @@ const RESIDENCIES: readonly ResidencyDefinition[] = [
     { code: "us", name: "United States" },
 ];
 
-/** The people the account package stores from its start, with their names and emails. */
-const PEOPLE = [
-    { id: ids.owner, name: "Owner", email: `${ids.owner}@example.test` },
-    { id: ids.stranger, name: "Stranger", email: `${ids.stranger}@example.test` },
-    { id: ids.operator, name: "Platform", email: OPERATOR_EMAIL },
+/** The people who sign up at the account package's start, and whether they step up. */
+export const PEOPLE = [
+    { id: ids.owner, name: "Owner", email: OWNER_EMAIL, handle: "acme", isEnrolled: true },
+    {
+        id: ids.stranger,
+        name: "Stranger",
+        email: STRANGER_EMAIL,
+        handle: "stranger",
+        isEnrolled: false,
+    },
+    {
+        id: ids.operator,
+        name: "Platform",
+        email: OPERATOR_EMAIL,
+        handle: "operator",
+        isEnrolled: true,
+    },
+    {
+        id: ids.founder,
+        name: "Founder",
+        email: "founder@example.com",
+        handle: "founder",
+        isEnrolled: true,
+    },
+    {
+        id: ids.administrator,
+        name: "Administrator",
+        email: "administrator@example.com",
+        handle: "administrator",
+        isEnrolled: true,
+    },
+    {
+        id: ids.member,
+        name: "Member",
+        email: "member@example.com",
+        handle: "member",
+        isEnrolled: true,
+    },
+    {
+        id: ids.assistant,
+        name: "Assistant",
+        email: "assistant@example.com",
+        handle: "assistant",
+        isEnrolled: true,
+    },
+    {
+        id: ids.partner,
+        name: "Partner",
+        email: "partner@example.com",
+        handle: "partner",
+        isEnrolled: false,
+    },
+    {
+        id: ids.person,
+        name: "Person",
+        email: "person@example.com",
+        handle: "person",
+        isEnrolled: false,
+    },
 ] as const;
 
-/** The owner's accounts the account package stores from its start, with their handles and kinds. */
-const ACCOUNTS = [
-    { id: ids.account, handle: "acme", kind: "personal" },
-    { id: ids.other, handle: "rival", kind: "shared" },
-] as const;
-
-/** A token endpoint's refusal (RFC 6749 5.2). */
-const Refusal = schema.looseObject({
-    /** The error code. */
-    error: schema.string(),
-    /** What went wrong. */
-    error_description: schema.string(),
+/** A person's client, which their sign-ins refresh, and the authenticator they step up with. */
+const TestSession = schema.object({
+    /** The person's user. */
+    userId: schema.identifier("user"),
+    /** The handle of the person's personal account. */
+    handle: schema.string(),
+    /** The client the person signed in on. */
+    clientId: schema.identifier("client"),
+    /** The client's current refresh token. */
+    refreshToken: schema.string(),
+    /** The URI the person's authenticator enrolled from. */
+    authenticator: schema.string(),
 });
+/** A person's client, which their sign-ins refresh, and the authenticator they step up with. */
+type TestSession = schema.Infer<typeof TestSession>;
+
+/** The owner's further accounts the account package stores from its start. */
+const ACCOUNTS = [{ id: ids.other, handle: "rival", kind: "shared" }] as const;
 
 /** How a test serves the account package. */
-export interface AccountFixtureOptions {
+export interface TestAccountStoreOptions {
     /** Open the release declaring a setting value. */
     readonly openRelease?: (packageId: PackageId, version: string) => Promise<BuildReader>;
     /** The policies of other packages' types. */
@@ -224,12 +269,16 @@ export interface AccountFixtureOptions {
     readonly signIn?: Partial<BetterAuthAuthenticatorOptions>;
     /** The template images to copy from, the run's when absent. */
     readonly images?: ImageIndex;
+    /** The DNS domain claims verify through, none answering by default. */
+    readonly resolver?: DnsResolver;
     /** The database the images are of, the test project's when absent. */
     readonly dialect?: Dialect;
 }
 
-/** How a test serves the account package over its template's stacks and homes. */
-type ServeOptions = AccountFixtureOptions & {
+/** How a test serves the account package over its template's stacks and homes, at its clock. */
+type ServeOptions = TestAccountStoreOptions & {
+    /** The clock the store runs at. */
+    readonly clock: VirtualClock;
     /** The stacks spaces are born with. */
     readonly stacks: Readonly<Record<SpaceKind, StackSource>>;
     /** Who serves the residencies' homes. */
@@ -247,13 +296,13 @@ export interface AccountTemplateOptions<World extends JsonValue> {
     /** The dialects tests copy it in, every test dialect by default. */
     readonly dialects?: readonly Dialect[];
     /** How the template's write serves the account package. */
-    readonly serve?: AccountFixtureOptions;
+    readonly serve?: TestAccountStoreOptions;
     /** Write a world on the fixture's rows, returning what its copies share. */
     readonly world: {
         /** What the world's copies share, as its JSON form crosses to the tests. */
         readonly value: schema.Schema<World>;
         /** Write the world over the served fixture, storing files in a run's directory. */
-        readonly write: (accounts: AccountFixture, directory: string) => Promise<World>;
+        readonly write: (accounts: TestAccountStore, directory: string) => Promise<World>;
     };
 }
 
@@ -261,6 +310,8 @@ export interface AccountTemplateOptions<World extends JsonValue> {
 export type AccountTemplateValue<World extends JsonValue> = {
     /** The keychains' secrets the write ended with. */
     readonly keys: AccountKeysValue;
+    /** The sessions of the people with an authenticator, by email. */
+    readonly sessions: Readonly<Record<string, TestSession>>;
     /** The stacks spaces are born with. */
     readonly stacks: Readonly<Record<SpaceKind, StackSource>>;
     /** Who serves the residencies' homes. */
@@ -272,37 +323,43 @@ export type AccountTemplateValue<World extends JsonValue> = {
 /** The universe's store, sign-in and servers, as one fixture serves them. */
 interface Served {
     /** The universe's object store. */
-    readonly objects: ObjectStore;
+    readonly store: ObjectStore;
     /** The universe's sign-in. */
     readonly authenticator: BetterAuthAuthenticator;
-    /** Open another sign-in over the same store and inbox with a keyring. */
+    /** Open another sign-in over the same store and mail with a keyring. */
     readonly authenticate: (keyring: Keyring) => Promise<BetterAuthAuthenticator>;
-    /** The servers of the universe's packages, by package. */
-    readonly servers: ReadonlyMap<PackageId, Server>;
-    /** The fixture-verified callers, by identity. */
-    readonly callers: Map<string, Verification>;
+    /** The universe's packages served over HTTP to bearers, signed by each caller's key. */
+    readonly served: TestObjectStore;
+    /** The machines tests act as, by machine. */
+    readonly machines: Map<string, MachineIdentity>;
     /** The published releases declaring settings, by package and version. */
     readonly releases: Map<string, Promise<BuildReader>>;
     /** The email sign-in mailed. */
-    readonly inbox: Inbox;
+    readonly mail: TestMail;
+    /** The issuer as native clients call it. */
+    readonly issuer: Issuer;
+    /** Route a request of the universe's origin to the package mounted at its path. */
+    readonly fetch: (request: Request) => Promise<Response>;
 }
 
-/** The account package in one database, served as the universe serves it. */
-export class AccountFixture implements AsyncDisposable {
+/** The account package in one database, served as the universe serves it, with its people. */
+export class TestAccountStore implements AsyncDisposable {
     /** The account package's test database. */
     readonly storage: TestDatabase;
     /** The account database. */
     readonly database: DatabaseConnection;
     /** The sign-in over the database. */
     readonly authenticator: BetterAuthAuthenticator;
-    /** The servers of the account and setting packages, by package. */
-    readonly servers: ReadonlyMap<PackageId, Server>;
+    /** The account and setting packages served over HTTP, running their controllers. */
+    readonly served: TestObjectStore;
     /** The universe's object store. */
-    readonly objects: ObjectStore;
+    readonly store: ObjectStore;
+    /** The clock the store runs at, flowing from the system's time until a test pauses it. */
+    readonly clock: VirtualClock;
     /** The keys of the universe and of the residencies' home spaces, signing their tokens. */
     readonly keystore: IdentityKeystore;
-    /** The users, spaces and installations tests act as, verified by the fixture, by identity. */
-    readonly callers: Map<string, Verification>;
+    /** The issuer as native clients call it: sign-in, refresh and token exchange. */
+    readonly issuer: Issuer;
     /** The published releases declaring settings, by package and version. */
     readonly releases: Map<string, Promise<BuildReader>>;
     /** The platform's account, whose home serves its residency. */
@@ -310,15 +367,21 @@ export class AccountFixture implements AsyncDisposable {
     /** Who serves the residencies' homes. */
     readonly homes: HomeServer;
     /** The email sign-in mailed. */
-    readonly #inbox: Inbox;
+    readonly #mail: TestMail;
+    /** The authenticator enrollments of the people who step up, by user. */
+    readonly #authenticators: Map<Identifier<"user">, string>;
+    /** The sessions of the people with an authenticator, by email, refreshed at each sign-in. */
+    readonly #sessions: Map<string, TestSession>;
+    /** The machines tests act as: the declared and the enrolled ones, by machine. */
+    readonly #machines: Map<string, MachineIdentity>;
     /** The keychains storing the keys of the declared cloud machines, by machine. */
     readonly #cloudKeychains: ReadonlyMap<Identifier<"machine">, Keychain>;
     /** The keychain of the universe's keyring. */
     readonly #keychain: MemoryKeychain;
-    /** Open another sign-in over the same store and inbox with a keyring. */
+    /** Open another sign-in over the same store and mail with a keyring. */
     readonly #authenticate: (keyring: Keyring) => Promise<BetterAuthAuthenticator>;
-    /** The access tokens exchanged for sessions, by session token, audience and space. */
-    readonly #tokens = new Map<string, Promise<{ accessToken: string; expiresAt: number }>>();
+    /** Route a request of the universe's origin to the package mounted at its path. */
+    readonly #fetch: (request: Request) => Promise<Response>;
 
     /** Store a served account package. */
     private constructor(
@@ -329,29 +392,40 @@ export class AccountFixture implements AsyncDisposable {
             readonly platform: Identifier<"account">;
             /** Who serves the residencies' homes. */
             readonly homes: HomeServer;
+            /** The clock the store runs at. */
+            readonly clock: VirtualClock;
             /** The keychains storing the keys of the declared cloud machines, by machine. */
             readonly cloudKeychains: ReadonlyMap<Identifier<"machine">, Keychain>;
             /** The keychain of the universe's keyring. */
             readonly keychain: MemoryKeychain;
+            /** The sessions of the people with an authenticator, by email. */
+            readonly sessions: Readonly<Record<string, TestSession>>;
         },
     ) {
         // store the served store, sign-in and servers over the database
         this.storage = storage;
         this.database = storage.database;
-        this.objects = served.objects;
+        this.store = served.store;
         this.authenticator = served.authenticator;
-        this.servers = served.servers;
+        this.served = served.served;
         this.keystore = served.authenticator.keystore;
 
         // store what tests read and change
-        this.callers = served.callers;
+        this.issuer = served.issuer;
         this.releases = served.releases;
         this.platform = state.platform;
         this.homes = state.homes;
-        this.#inbox = served.inbox;
+        this.clock = state.clock;
+        this.#mail = served.mail;
+        this.#machines = served.machines;
         this.#cloudKeychains = state.cloudKeychains;
         this.#keychain = state.keychain;
+        this.#sessions = new Map(Object.entries(state.sessions));
+        this.#authenticators = new Map(
+            Object.values(state.sessions).map((session) => [session.userId, session.authenticator]),
+        );
         this.#authenticate = served.authenticate;
+        this.#fetch = served.fetch;
     }
 
     /** Define a template of the fixture's rows, and of a world a further write puts on them. */
@@ -369,300 +443,117 @@ export class AccountFixture implements AsyncDisposable {
             ...(options.dialects === undefined ? {} : { dialects: options.dialects }),
             value: schema.object({
                 keys: AccountKeys.schema,
+                sessions: schema.record(schema.string(), TestSession),
                 stacks: schema.record(SpaceKind, StackSource),
                 homes: schema.enum(["fixture", "machine"]),
                 world: world.value,
             }),
             write: async (storage, directory) => {
                 // write and serve the fixture's rows, then the world over them
-                const served = { ...options.serve, stacks, homes };
-                const keys = await AccountFixture.#write(storage, served);
-                const accounts = await AccountFixture.#over(
+                const clock = new VirtualClock(Date.now()).resume();
+                const served = { ...options.serve, stacks, homes, clock };
+                const { keys, sessions } = await TestAccountStore.#write(storage, served);
+                const accounts = await TestAccountStore.#over(
                     storage,
-                    await AccountFixture.#serve(storage, keys, served),
+                    await TestAccountStore.#serve(storage, keys, served),
                     keys,
-                    homes,
+                    { ...served, sessions },
                 );
                 const value = await world.write(accounts, directory);
                 await accounts.close();
 
-                return { keys: keys.value(), stacks, homes, world: value };
+                return { keys: keys.value(), sessions, stacks, homes, world: value };
             },
         });
     }
 
     /** Write and serve the fixture's rows in a fresh database, as a simulation builds one. */
     static async create(
-        options: AccountFixtureOptions &
+        options: TestAccountStoreOptions &
             Partial<Pick<AccountTemplateOptions<null>, "stacks" | "homes">> = {},
-    ): Promise<AccountFixture> {
+    ): Promise<TestAccountStore> {
         // write the fixture's rows with the given stacks and homes, the defaults when absent
         const storage = await TestDatabase.create(accountDatabase, { isMigrated: true });
         const { stacks = STACKS, homes = "fixture", ...rest } = options;
-        const served = { ...rest, stacks, homes };
-        const keys = await AccountFixture.#write(storage, served);
+        const clock = new VirtualClock(Date.now()).resume();
+        const served = { ...rest, stacks, homes, clock };
+        const { keys, sessions } = await TestAccountStore.#write(storage, served);
 
         // serve them
-        return await AccountFixture.#over(
+        return await TestAccountStore.#over(
             storage,
-            await AccountFixture.#serve(storage, keys, served),
+            await TestAccountStore.#serve(storage, keys, served),
             keys,
-            served.homes,
+            { ...served, sessions },
         );
     }
 
     /** Serve the account package with the owner's accounts and the platform's organisation. */
-    static async open(options: AccountFixtureOptions = {}): Promise<AccountFixture> {
-        return (await AccountFixture.copy(ACCOUNT_TEMPLATE, options)).accounts;
+    static async open(options: TestAccountStoreOptions = {}): Promise<TestAccountStore> {
+        return (await TestAccountStore.copy(ACCOUNT_TEMPLATE, options)).accounts;
     }
 
     /** Serve a copy of a template's rows, with the world its write put on them. */
     static async copy<World extends JsonValue>(
         template: TestTemplate<AccountTemplateValue<World>>,
-        options: AccountFixtureOptions = {},
-    ): Promise<{ readonly accounts: AccountFixture; readonly world: World }> {
-        // copy the template, confirming its replicas as of now
+        options: TestAccountStoreOptions = {},
+    ): Promise<{ readonly accounts: TestAccountStore; readonly world: World }> {
+        // copy the template
         const { storage, value } = await TestDatabase.copy(template, {
             ...(options.images === undefined ? {} : { images: options.images }),
             ...(options.dialect === undefined ? {} : { dialect: options.dialect }),
         });
-        await storage.database.update(replicaPosition).set({ confirmedAt: Date.now() });
 
-        // serve it with the keys, stacks and homes the template's write ended with
+        // serve it with the keys, stacks and homes the template's write ended with, on a new clock
         const keys = AccountKeys.of(value.keys);
-        const { stacks, homes } = value;
-        const served = await AccountFixture.#serve(storage, keys, { ...options, stacks, homes });
+        const { stacks, homes, sessions } = value;
+        const serving = { ...options, stacks, homes, clock: new VirtualClock(Date.now()).resume() };
+        const served = await TestAccountStore.#serve(storage, keys, serving);
 
         return {
-            accounts: await AccountFixture.#over(storage, served, keys, homes),
+            accounts: await TestAccountStore.#over(storage, served, keys, { ...serving, sessions }),
             world: value.world,
         };
     }
 
-    /** Open a migrated account database with the universe's residencies. */
-    static async storage(definition: Database = accountDatabase): Promise<TestDatabase> {
-        const storage = await TestDatabase.create(definition, { isMigrated: true });
-        await AccountFixture.#insertResidencies(storage.database);
-
-        return storage;
-    }
-
     /** Read a residency's home space, the home of the platform's account in it. */
     async home(residencyId: ResidencyCode): Promise<Identifier<"space">> {
-        const snapshot = Snapshot.live(this.database);
-
-        return Residency.home(
-            { get: (input) => Residency.require(snapshot, input.id) },
-            residencyId,
-        );
+        return Residency.home(Snapshot.live(this.database), residencyId);
     }
 
     /** Route a request of the universe's origin to the package mounted at its path. */
     fetch(request: Request): Promise<Response> {
-        // find the mounted package, refusing a path of none served
-        const mount = PackageMount.of(request);
-        const packageId = PackageId.safeParse(mount?.packageId);
-        const server = packageId.success ? this.servers.get(packageId.data) : undefined;
-        if (mount === undefined || server === undefined) {
-            return Promise.resolve(new Response(null, { status: 404 }));
+        return this.#fetch(request);
+    }
+
+    /** Sign a person in on their kept client, else up or in with a mailed code on a new one. */
+    async signIn(email: string): Promise<TestPerson> {
+        // read the kept client of a person with an authenticator
+        const session = this.#sessions.get(email);
+
+        // sign a person without an authenticator up or in with a mailed code, as the CLI does
+        if (session === undefined) {
+            return TestPerson.signIn(this.#signIn(), email);
         }
 
-        return server.fetch(mount.request);
-    }
+        // refresh the client of a person with one, whom a mailed code no longer signs in
+        const tokens = await this.issuer.refresh(session.clientId, session.refreshToken);
+        this.#sessions.set(email, { ...session, refreshToken: tokens.refreshToken });
 
-    /** Store a verified person with their eu personal account, a session and a client. */
-    async person(email: string, handle: string = freshHandle()): Promise<Person> {
-        // store the user and their personal account as the sign-up creates them
-        const context = await this.authenticator.auth.$context;
-        const created = await context.internalAdapter.createUser(
-            { email, name: email, emailVerified: true, ...SIGN_UP, handle, residencyId: "eu" },
-            { method: "magic-link" },
-        );
-        const userId = schema.identifier("user").parse(created.id);
-        const token = await this.signIn(userId);
-
-        return {
-            id: userId,
-            subject: principal.user.reference(Scope.universe.id, userId),
-            ...(await this.#accountOf(userId)),
-            session: token,
-            client: this.sessionClient(token, accountPackage),
-        };
-    }
-
-    /** Sign a stored user in on a new client as an email sign-in does, returning the session. */
-    async signIn(userId: Identifier<"user">): Promise<string> {
-        // create the session and record the email sign-in as its ceremony
-        const context = await this.authenticator.auth.$context;
-        const created = await context.internalAdapter.createSession(userId);
-        await context.internalAdapter.updateSession(created.token, {
-            authenticatedAt: this.objects.clock.now(),
-            authenticationMethod: "magic-link",
+        return new TestPerson(this.#signIn(), {
+            id: session.userId,
+            email,
+            handle: session.handle,
+            clientId: session.clientId,
+            tokens,
         });
-
-        // register the client the person signed in on, and attach the session to it
-        const clientId = Identifier.create("client");
-        const now = this.objects.clock.now();
-        await this.database.insert(client.table).values({
-            id: clientId,
-            scope: userId,
-            name: "Test client",
-            kind: "native",
-            createdAt: now,
-            updatedAt: now,
-        });
-        await this.database
-            .update(session.table)
-            .set({ clientId })
-            .where(eq(session.table.token, created.token));
-
-        return created.token;
-    }
-
-    /** Connect a typed client acting as a stored user through a new session's access tokens. */
-    async session(userId: Identifier<"user">): Promise<ClientOf<typeof accountPackage>> {
-        return this.sessionClient(await this.signIn(userId), accountPackage);
-    }
-
-    /** Connect a typed client of a universe package acting through a session's tokens. */
-    sessionClient<Handle extends ClientTarget<ProcedureRouter> & { readonly id: PackageId }>(
-        sessionToken: string,
-        handle: Handle,
-    ): ClientOf<Handle> {
-        return createClient<Handle["router"]>(handle, {
-            url: PackageMount.url(ORIGIN, handle.id),
-            fetch: async (request: Request) => {
-                // replace the request's credential with the session's access token
-                const { accessToken } = await this.exchange(sessionToken, handle.id);
-                const headers = new Headers(request.headers);
-                headers.set("authorization", `Bearer ${accessToken}`);
-
-                return this.fetch(new Request(request, { headers }));
-            },
-        });
-    }
-
-    /** Exchange a session for a package's token, in a space when given, reusing a fresh one. */
-    exchange(
-        sessionToken: string,
-        audience: PackageId,
-        spaceId?: string,
-    ): Promise<{ accessToken: string; expiresAt: number }> {
-        // reuse a fresh token
-        const key = JSON.stringify([sessionToken, audience, spaceId ?? null]);
-        const cached = this.#tokens.get(key);
-        const exchanging = (async () => {
-            // answer the cached token while it lives
-            const current = await cached;
-            if (
-                current !== undefined &&
-                current.expiresAt - TOKEN_REFRESH_MILLISECONDS > this.objects.clock.now()
-            ) {
-                return current;
-            }
-
-            // exchange the session at the token endpoint
-            return this.exchangeToken(sessionToken, SESSION_TOKEN_TYPE, {
-                audience,
-                ...(spaceId === undefined ? {} : { space: spaceId }),
-            });
-        })();
-        this.#tokens.set(key, exchanging);
-        exchanging.catch(() => this.#tokens.delete(key));
-
-        return exchanging;
-    }
-
-    /** Exchange a subject token at the token endpoint (RFC 8693), refusing as it refuses. */
-    async exchangeToken(
-        subjectToken: string,
-        type: string,
-        asked: {
-            /** The package the token is for. */
-            readonly audience: PackageId;
-            /** The space it acts in. */
-            readonly space?: string;
-            /** The person to act as or for, as a subject key. */
-            readonly subject?: string;
-            /** The chain of grants to act under, space-delimited. */
-            readonly grants?: string;
-            /** The person's session the token lives within. */
-            readonly session?: string;
-        },
-    ): Promise<{ accessToken: string; expiresAt: number }> {
-        // post the subject token for the package's resource
-        const { audience, ...parameters } = asked;
-        const response = await this.fetch(
-            new Request(`${ISSUER}${TOKEN_PATH}`, {
-                method: "POST",
-                body: new URLSearchParams({
-                    grant_type: TOKEN_EXCHANGE,
-                    subject_token: subjectToken,
-                    subject_token_type: type,
-                    resource: PackageId.resource(audience),
-                    ...parameters,
-                }),
-            }),
-        );
-
-        // refuse as the endpoint refused, by its error and description
-        if (!response.ok) {
-            const refused = Refusal.parse(await response.json());
-            throw new CallError("BAD_REQUEST", {
-                message: `${refused.error}: ${refused.error_description}`,
-            });
-        }
-
-        return TokenResponse.granted(TokenResponse.parse(await response.json()));
-    }
-
-    /** Start a space's identity as the machine serving it, its keys in the fixture's keystore. */
-    async startIdentity(spaceId: Identifier<"space">, serving: Actor): Promise<void> {
-        const registry = IdentityRegistry.client(serving.client, this.objects.clock);
-        const keystore = new IdentityKeystore(this.keystore.keyring, registry, this.objects.clock);
-        await keystore.generate(this.database, spaceId);
-    }
-
-    /** Exchange an installation's space-signed assertion for a package's token in it (RFC 7523). */
-    async installationToken(
-        installation: Subject,
-        audience: PackageId = accountPackage.id,
-    ): Promise<string> {
-        // post the assertion for the package's resource
-        const endpoint = `${ISSUER}${TOKEN_PATH}`;
-        const response = await this.fetch(
-            new Request(endpoint, {
-                method: "POST",
-                body: new URLSearchParams({
-                    grant_type: JWT_BEARER,
-                    assertion: await this.keystore
-                        .source(this.database, installation, {
-                            issuer: ISSUER,
-                            send: (request) => this.fetch(request),
-                        })
-                        .assertion(endpoint),
-                    resource: PackageId.resource(audience),
-                    space: installation.scope,
-                }),
-            }),
-        );
-
-        // refuse as the endpoint refused
-        if (!response.ok) {
-            const refused = Refusal.parse(await response.json());
-            throw new CallError("BAD_REQUEST", {
-                message: `${refused.error}: ${refused.error_description}`,
-            });
-        }
-
-        return TokenResponse.parse(await response.json()).access_token;
     }
 
     /** Sign a person up with an eu personal account through a mailed link in a new browser. */
     async signInWithLink(
         email: string,
         handle: string = freshHandle(),
-    ): Promise<Person & { readonly browser: Browser }> {
+    ): Promise<{ readonly person: TestPerson; readonly browser: TestBrowser }> {
         // follow the mailed link
         const browser = this.browser();
         await browser.fetch("/sign-in/magic-link", {
@@ -670,92 +561,272 @@ export class AccountFixture implements AsyncDisposable {
             callbackURL: "/",
             metadata: { ...SIGN_UP, name: email, handle, residencyId: "eu" },
         });
-        const links = await this.links();
-        await browser.fetch(present(links.at(-1), "the mailed link").url);
+        await browser.fetch(await this.link());
 
-        // read the signed-in user through the browser's session
-        const current = schema
-            .looseObject({ user: schema.looseObject({ id: schema.identifier("user") }) })
-            .parse(await (await browser.fetch("/get-session")).json());
-        const userId = current.user.id;
+        // sign the same person in on a native client too, for calls beside the browser's pages
+        return { person: await this.signIn(email), browser };
+    }
 
-        // sign the person in on a client too
-        const token = await this.signIn(userId);
+    /** Start a space's identity as the machine serving it, its keys in the fixture's keystore. */
+    async startIdentity(spaceId: Identifier<"space">, serving: TestCaller): Promise<void> {
+        const registry = IdentityRegistry.client(serving.client(accountPackage), this.store.clock);
+        const keystore = new IdentityKeystore(this.keystore.keyring, registry, this.store.clock);
+        await keystore.generate(this.database, spaceId);
+    }
 
-        return {
-            browser,
-            session: token,
-            client: this.sessionClient(token, accountPackage),
-            id: userId,
-            subject: principal.user.reference(Scope.universe.id, userId),
-            ...(await this.#accountOf(userId)),
+    /** Call out as a space or installation by its space's key, as the machine serving it does. */
+    source(subject: Subject): TokenSource {
+        return this.keystore.source(this.database, subject, {
+            issuer: ISSUER,
+            send: (request) => this.fetch(request),
+        });
+    }
+
+    /** Step a person up with their authenticator in a browser on a new client, as RFC 9470 does. */
+    async elevate(person: TestPerson, browser: TestBrowser = this.browser()): Promise<TestPerson> {
+        // enroll an authenticator the first time, in a browser the person's link signs in
+        const enrolled =
+            this.#authenticators.get(person.id) ?? (await this.#enroll(person, this.browser()));
+
+        // ask the issuer to sign the person in again with their second factor, as a step-up does
+        const clientId = Identifier.create("client");
+        const authorization = await this.issuer.authorize(
+            clientId,
+            STEP_UP_REDIRECT,
+            "step-up",
+            this.store.clock.now(),
+            sudo,
+        );
+        const asked = new URL(TestBrowser.location(await browser.fetch(authorization.url)));
+
+        // sign in by the mailed link, and answer the second-factor challenge with the authenticator's code
+        await browser.fetch(
+            asked.href,
+            new URLSearchParams({ action: "link", email: person.email }),
+        );
+        const linked = await browser.fetch(await this.link());
+        const challenge = TestBrowser.location(linked);
+        const verified = await browser.fetch(
+            challenge,
+            new URLSearchParams({
+                action: "totp",
+                code: authenticatorCode(enrolled, this.store.clock.now()),
+            }),
+        );
+
+        // follow the issuer back to the new client, continuing the sign-in and approving its consent
+        let next = TestBrowser.location(verified);
+        const passed: string[] = [];
+        while (!next.startsWith(STEP_UP_REDIRECT)) {
+            const url = new URL(next);
+            passed.push(`${url.pathname}${url.search}`);
+            if (passed.length > FETCH_REDIRECTS) {
+                throw new TypeError(`the step-up redirected too often: ${passed.join(" -> ")}`);
+            }
+            const action = STEP_UP_ACTIONS.find(([path]) => url.pathname.endsWith(path))?.[1];
+            const answered = await browser.fetch(
+                url.href,
+                action === undefined ? undefined : new URLSearchParams({ action }),
+            );
+            next = TestBrowser.location(answered);
+        }
+
+        // redeem the code for the new client's tokens
+        const code = present(new URL(next).searchParams.get("code"), "the authorization code");
+        const { tokens } = await this.issuer.redeem(
+            clientId,
+            code,
+            authorization.verifier,
+            STEP_UP_REDIRECT,
+        );
+
+        return new TestPerson(this.#signIn(), {
+            id: person.id,
+            email: person.email,
+            handle: person.handle,
+            clientId,
+            tokens,
+        });
+    }
+
+    /** Enroll a person's authenticator in a browser their link signs in, returning its URI. */
+    async #enroll(person: TestPerson, browser: TestBrowser): Promise<string> {
+        // sign the browser in by the person's link
+        await browser.fetch("/sign-in/magic-link", { email: person.email, callbackURL: "/" });
+        await browser.fetch(await this.link());
+
+        // enable an authenticator and verify its first code
+        const enabled = Enrollment.parse(
+            await (await browser.fetch("/two-factor/enable", {})).json(),
+        );
+        await browser.fetch("/two-factor/verify-totp", {
+            code: authenticatorCode(enabled.totpURI, this.store.clock.now()),
+        });
+        this.#authenticators.set(person.id, enabled.totpURI);
+
+        return enabled.totpURI;
+    }
+
+    /** Open another sign-in over the database, the universe's root key rotated, for browsers. */
+    async rotate(): Promise<Fetch> {
+        // open the sign-in on the rotated root key
+        const keyring = await LocalKeyring.rotate(this.#keychain, "account");
+        const authenticator = await this.#authenticate(keyring);
+
+        // send each request with its path below the issuer's, as the oauth adapter mounts it
+        const prefix = new URL(ISSUER).pathname;
+
+        return (request) => {
+            const url = new URL(request.url);
+            const below = `${ORIGIN}${url.pathname.slice(prefix.length)}${url.search}`;
+
+            return authenticator.handler(new Request(below, request));
         };
     }
 
-    /** Record a second factor as the last ceremony of a user's sessions. */
-    async elevate(userId: Identifier<"user">): Promise<void> {
-        await this.database
-            .update(session.table)
-            .set({ authenticationMethod: "totp", authenticatedAt: this.objects.clock.now() })
-            .where(eq(session.table.userId, userId));
-        this.#tokens.clear();
-    }
-
-    /** Open another sign-in over the database, the universe's root key rotated. */
-    async rotate(): Promise<BetterAuthAuthenticator> {
-        return this.#authenticate(await LocalKeyring.rotate(this.#keychain, "account"));
-    }
-
-    /** Sign a stored user's access token for a package in a space through a new session. */
-    async token(userId: Identifier<"user">, audience: PackageId, spaceId: string): Promise<string> {
-        return (await this.exchange(await this.signIn(userId), audience, spaceId)).accessToken;
-    }
-
     /** Read the sign-in links mailed so far, oldest first. */
-    links(): ReturnType<Inbox["links"]> {
-        return this.#inbox.links();
+    links(): ReturnType<TestMail["links"]> {
+        return this.#mail.links();
     }
 
     /** Read the one-use codes mailed so far with what each is for, oldest first. */
-    codes(): ReturnType<Inbox["codes"]> {
-        return this.#inbox.codes();
+    codes(): ReturnType<TestMail["codes"]> {
+        return this.#mail.codes();
+    }
+
+    /** Read the last sign-in link the issuer mailed. */
+    async link(): Promise<string> {
+        const links = await this.#mail.links();
+
+        return present(links.at(-1), "a mailed link").url;
     }
 
     /** Read the last one-use code the issuer mailed. */
     async code(): Promise<string> {
-        const codes = await this.#inbox.codes();
+        const codes = await this.#mail.codes();
 
         return present(codes.at(-1), "a mailed code").otp;
     }
 
-    /** Open a browser of the issuer's pages and protocol. */
-    browser(language: string = SIGN_UP.locale): Browser {
-        return new Browser(ISSUER, (request) => this.fetch(request), language);
+    /** Open a browser of the issuer's pages, sent through the universe or another sign-in. */
+    browser(
+        language: string = SIGN_UP.locale,
+        send: Fetch = (request) => this.fetch(request),
+    ): TestBrowser {
+        return new TestBrowser(ISSUER, send, language);
     }
 
-    /** Place a new space in a new shared account of a person, on a machine enrolled in it. */
-    async createSpace(person: Person, residencyId: ResidencyCode = "eu") {
-        const created = await person.client.account.create({
+    /** Authorize a client with PKCE in a signed-in browser, approve it, and redeem its code. */
+    async authorize(browser: TestBrowser, client: TestAuthorization): Promise<Response> {
+        // authorize with a fresh verifier, which sends the signed-in browser to the consent page
+        const verifier = Pkce.verifier();
+        const resource = client.resource === null ? {} : { resource: client.resource };
+        const query = new URLSearchParams({
+            response_type: "code",
+            client_id: client.clientId,
+            redirect_uri: client.redirectUri,
+            scope: client.scope,
+            state: client.state,
+            code_challenge: await Pkce.challenge(verifier),
+            code_challenge_method: "S256",
+            ...resource,
+        });
+        const consent = TestBrowser.location(await browser.fetch(`/oauth2/authorize?${query}`));
+
+        // approve on the consent page, which returns the browser to the client with a code
+        const approved = await browser.fetch(consent, new URLSearchParams({ action: "approve" }));
+        const callback = new URL(TestBrowser.location(approved));
+        const code = present(callback.searchParams.get("code"), "the authorization code");
+
+        // redeem the code with its verifier as the client
+        const form = new URLSearchParams({
+            grant_type: "authorization_code",
+            code,
+            redirect_uri: client.redirectUri,
+            client_id: client.clientId,
+            code_verifier: verifier,
+            ...resource,
+        });
+
+        return this.fetch(new Request(`${ISSUER}/oauth2/token`, { method: "POST", body: form }));
+    }
+
+    /** Verify an ID token with the keys the issuer publishes, returning its claims. */
+    async verifyIdToken(token: string): Promise<JWTPayload> {
+        const keys = createLocalJWKSet(await this.authenticator.keys());
+
+        return (await jwtVerify(token, keys, { issuer: ISSUER })).payload;
+    }
+
+    /** Create a new shared account of a person in a residency. */
+    createAccount(person: TestPerson, residencyId: ResidencyCode = "eu"): Promise<Account> {
+        return person.client(accountPackage).account.create({
             kind: "shared",
             scope: person.id,
-            requestId: RequestId.create(this.objects.clock.now()),
+            requestId: RequestId.create(this.store.clock.now()),
             handle: freshHandle(),
             name: "Account",
             residencyId,
         });
+    }
+
+    /** Place a new space in a new shared account of a person, on a machine enrolled in it. */
+    async createSpace(person: TestPerson, residencyId: ResidencyCode = "eu") {
+        const created = await this.createAccount(person, residencyId);
 
         return this.#place(person, created, Identifier.create("space"));
     }
 
     /** Read a person's home, placed at sign-up, with the cloud machine serving it as a caller. */
-    async personalHome(person: Person) {
+    async personalHome(person: TestPerson) {
         const spaceId = Account.home(person.account);
 
         return {
             accountId: person.account,
             spaceId,
-            machine: this.caller(await this.serving(spaceId)),
+            machine: this.as(await this.serving(spaceId)),
         };
+    }
+
+    /** Entitle an account to a resource or feature as finance does, replacing its terms. */
+    async entitle(
+        accountId: Identifier<"account">,
+        granted: EntitlementResource | { readonly feature: FeatureReference },
+        terms: Pick<Entitlement, "kind"> & Partial<Pick<Entitlement, "value" | "limit" | "state">>,
+    ): Promise<void> {
+        // name a resource's entitlement by a test feature of its name
+        const feature =
+            typeof granted === "string"
+                ? { packageId: ENTITLED_PACKAGE, name: granted, resource: granted }
+                : { ...granted.feature, resource: null };
+
+        // act as the account's residency home, whose installations provide entitlements
+        const snapshot = Snapshot.live(this.database);
+        const home = await Account.locate(snapshot, accountId);
+        const provider = principal.space.reference(Scope.universe.id, home);
+        const now = this.store.clock.now();
+
+        // replace the one the account has with one of the terms
+        const existing = await Entitlement.read(snapshot, accountId, granted);
+        const created = entitlement.call("create", {
+            ...entitlement.in(accountId),
+            packageId: feature.packageId,
+            feature: feature.name,
+            resource: feature.resource,
+            value: null,
+            limit: null,
+            state: null,
+            ...terms,
+        });
+        await this.store.mutate(AccessContext.of(Caller.of(provider), now), {
+            id: RequestId.create(now),
+            calls: [
+                ...(existing === undefined
+                    ? []
+                    : [entitlement.call("delete", entitlement.target(existing))]),
+                created,
+            ],
+        });
     }
 
     /** Act as the cloud machine a space is placed on. */
@@ -766,26 +837,59 @@ export class AccountFixture implements AsyncDisposable {
                 .findFirst({ where: { id: spaceId } }),
             `the placement of ${spaceId}`,
         );
-        const machineId = placed.machineId;
 
-        return new MachineIdentity(machineId, this.cloudKeychain(machineId), this.objects.clock);
+        return this.cloud(placed.machineId);
     }
 
-    /** Enroll a new machine of an account through the machine API, and return its identity. */
+    /** Act as a cloud machine the platform declares, such as a residency's shared machine. */
+    cloud(machineId: Identifier<"machine">): MachineIdentity {
+        return found(this.#machines, machineId);
+    }
+
+    /** Read the keychain storing a declared cloud machine's key. */
+    cloudKeychain(machineId: Identifier<"machine">): Keychain {
+        return found(this.#cloudKeychains, machineId);
+    }
+
+    /** Add a person to an organisation through an accepted invitation, returning the membership. */
+    async join(
+        inviter: TestPerson,
+        person: TestPerson,
+        organisationId: string,
+        relation: Membership,
+    ): Promise<Relationship> {
+        // invite the person to the relation on the organisation, and accept as them
+        const object = organisation.reference(Scope.universe.id, organisationId);
+        const invitation = await inviter.client(objectPackage).invitation.create({
+            scope: Scope.universe.id,
+            requestId: RequestId.create(this.store.clock.now()),
+            object,
+            relationship: { relation, subject: person.subject },
+        });
+
+        return await person.client(objectPackage).invitation.accept({
+            scope: Scope.universe.id,
+            requestId: RequestId.create(this.store.clock.now()),
+            object,
+            invitationId: invitation.id,
+        });
+    }
+
+    /** Enroll a new machine of an account as a person, and act as it from then on. */
     async enroll(
         accountId: Identifier<"account">,
+        person: TestPerson,
         options: MachineEnrollment = {},
     ): Promise<MachineIdentity> {
-        // enroll a new identity as the client given, else the account's owner or the platform's operator
+        // enroll a new identity, acting as it from then on
         const identity = new MachineIdentity(
             Identifier.create("machine"),
             new MemoryKeychain(),
-            this.objects.clock,
+            this.store.clock,
         );
-        const enroller = accountId === this.platform ? ids.operator : ids.owner;
-        await identity.enroll(options.client ?? this.user(enroller, accountPackage), {
+        await identity.enroll(person.client(accountPackage), {
             scope: accountId,
-            requestId: RequestId.create(this.objects.clock.now()),
+            requestId: RequestId.create(this.store.clock.now()),
             name: options.name ?? `machine-${identity.machineId.slice(-12)}`,
             ...(options.residencyId === undefined
                 ? PERSONAL_MACHINE
@@ -796,6 +900,7 @@ export class AccountFixture implements AsyncDisposable {
                       location: LOCATION,
                   }),
         });
+        this.#machines.set(identity.machineId, identity);
 
         return identity;
     }
@@ -809,11 +914,11 @@ export class AccountFixture implements AsyncDisposable {
         const identity = new MachineIdentity(
             Identifier.create("machine"),
             new MemoryKeychain(),
-            this.objects.clock,
+            this.store.clock,
         );
         const { publicKey } = await identity.generate();
-        await this.objects.mutate(this.objects.serving(machine), {
-            id: RequestId.create(this.objects.clock.now()),
+        await this.store.mutate(this.store.serving(machine), {
+            id: RequestId.create(this.store.clock.now()),
             calls: [
                 machine.call("declare", {
                     ...machine.target({ scope: accountId, id: identity.machineId }),
@@ -826,214 +931,24 @@ export class AccountFixture implements AsyncDisposable {
                 }),
             ],
         });
+        this.#machines.set(identity.machineId, identity);
 
         return identity;
     }
 
-    /** Connect to the account package as a machine, with the tokens its key proves. */
-    machine(identity: MachineIdentity): ClientOf<typeof accountPackage> {
-        return createClient(accountPackage, {
-            url: ACCOUNTS_URL,
-            fetch: identity.fetch((request) => this.fetch(request), accountPackage.id, {
-                url: ISSUER,
-            }),
-        });
+    /** Act as a machine a test enrolled outside the fixture, by the identity holding its key. */
+    register(identity: MachineIdentity): void {
+        this.#machines.set(identity.machineId, identity);
     }
 
-    /** Connect a caller acting as a machine, with the tokens its key proves. */
-    caller(identity: MachineIdentity): Actor {
-        return {
-            id: identity.machineId,
-            subject: principal.machine.reference(Scope.universe.id, identity.machineId),
-            client: this.machine(identity),
-        };
-    }
-
-    /** Connect to a universe package as a stored user, verified by the fixture. */
-    user<Handle extends ClientTarget<ProcedureRouter> & { readonly id: PackageId }>(
-        userId: string,
-        handle: Handle,
-    ): ClientOf<Handle> {
-        const subject = principal.user.reference(Scope.universe.id, userId);
-        this.callers.set(userId, { kind: "fixture", id: userId, subject });
-
-        return this.connect(() => ({ [CALLER_HEADER]: userId }), handle);
-    }
-
-    /** Connect a typed client with an access token. */
-    bearer(token: string): ClientOf<typeof accountPackage> {
-        return this.connect(() => ({ authorization: `Bearer ${token}` }), accountPackage);
-    }
-
-    /** Install a platform installation in a residency's home space. */
-    async install(
-        permissions: readonly PermissionReference[] = [],
-        residencyId: ResidencyCode = "eu",
-    ): Promise<Subject> {
-        // take a new installation of the home space, which serves the residency as every installation there does
-        const installationId = Identifier.create("installation");
-        const installation = principal.installation.reference(
-            await this.home(residencyId),
-            installationId,
-        );
-
-        // bind it a universe role with the permissions
-        if (permissions.length > 0) {
-            await new AccessFixture(this.database).replicateRole(
-                Scope.universe,
-                {
-                    name: `installation-${installationId.slice(-12)}`,
-                    description: "Serves a residency",
-                    permissions: [...permissions],
-                },
-                installation,
-            );
-        }
-
-        return installation;
-    }
-
-    /** Connect to the account package as an installation, verified by the fixture in its space. */
-    installation(installation: Subject): ClientOf<typeof accountPackage> {
-        this.callers.set(installation.id, {
-            kind: "space-key",
-            id: installation.scope,
-            subject: installation,
-        });
-
-        return this.connect(() => ({ [CALLER_HEADER]: installation.id }), accountPackage);
-    }
-
-    /** Connect a caller that acts as a space or one of its installations. */
-    space(spaceId: string, installationId?: string): Actor {
-        // verify the caller as the space or its installation alone
-        const subject =
-            installationId === undefined
-                ? principal.space.reference(Scope.universe.id, spaceId)
-                : principal.installation.reference(spaceId, installationId);
-        this.callers.set(subject.id, { kind: "space-key", id: spaceId, subject });
-
-        return {
-            id: subject.id,
-            subject,
-            client: this.connect(() => ({ [CALLER_HEADER]: subject.id }), accountPackage),
-        };
-    }
-
-    /** Connect a typed client of a universe package sending the given headers. */
-    connect<Handle extends ClientTarget<ProcedureRouter> & { readonly id: PackageId }>(
-        headers: () => Record<string, string>,
-        handle: Handle,
-    ): ClientOf<Handle> {
-        return createClient<Handle["router"]>(handle, {
-            url: PackageMount.url(ORIGIN, handle.id),
-            headers,
-            fetch: (request) => this.fetch(request),
-        });
-    }
-
-    /** Wait until an installation's replicas from the account package catch up, or fail. */
-    async settle(objects: ObjectStore, failure?: AbortSignal): Promise<void> {
-        // wait for each replica the installation requests from the account package, while it requests new ones
-        const timeout = AbortSignal.timeout(SETTLE_MILLISECONDS);
-        const signal = failure === undefined ? timeout : AbortSignal.any([timeout, failure]);
-        const head = await this.database.log.position();
-        const done = new Set<string>();
-        for (let isGrowing = true; isGrowing;) {
-            // follow the replicas of the account package the store requests now, as it follows them
-            const requests = await AccountFixture.#requests(objects);
-            const pending = requests.filter((request) => !done.has(canonicalize(request)));
-
-            // wait for each to catch up and to complete a run of the request it has then
-            for (const request of pending) {
-                const isCaught = await objects.wait({ scope: request.scope, ...head }, signal);
-                const isCurrent = await objects.database.log.until(async () => {
-                    const latest = (await AccountFixture.#requests(objects)).find(
-                        (each) => each.name === request.name && each.scope === request.scope,
-                    );
-
-                    return (
-                        latest === undefined ||
-                        (await Replica.confirmedAt(objects.database, latest)) !== undefined
-                    );
-                }, signal);
-
-                // fail with the failure aborting the wait, or on a replica left behind
-                failure?.throwIfAborted();
-                if (!isCaught || !isCurrent) {
-                    throw new Error(
-                        `the replica ${request.name} did not catch up with the account package`,
-                    );
-                }
-                done.add(canonicalize(request));
-            }
-            isGrowing = pending.length > 0;
-        }
-    }
-
-    /** Relate a subject to an object by a relation or a role, as a grant in a scope. */
-    static async relate(
-        database: DatabaseConnection,
-        scope: string,
-        object: ObjectReference,
-        binding: string | { readonly role: string },
-        subject: Subject,
-    ): Promise<void> {
-        const relationship = {
-            id: Identifier.create("relationship"),
-            object,
-            ...(typeof binding === "string" ? { relation: binding } : binding),
-            subject,
-            createdAt: 1,
-            expiresAt: null,
-        };
-        await Relationship.insert(database, relationship, scope);
-    }
-
-    /** Read the keychain storing a declared cloud machine's key. */
-    cloudKeychain(machineId: Identifier<"machine">): Keychain {
-        return found(this.#cloudKeychains, machineId);
-    }
-
-    /** Serve a package to the callers the fixture verifies and to bearers of access tokens. */
-    static serve(
-        implementation: PackageHandler,
-        database: DatabaseConnection,
-        callers: ReadonlyMap<string, Verification>,
-        clock: Clock,
-    ): Server {
-        const audience = implementation.package.id;
-
-        return Server.start({
-            ...implementation,
-            clock,
-            resources: new ResourceContext(),
-            health: new Health(implementation.package.name),
-            drainTimeout: DRAIN_MILLISECONDS,
-            authorizeMachine: async () => {},
-            authenticate: async (request) => {
-                // act as a caller the fixture verifies now, toward the served package
-                const callerName = request.headers.get(CALLER_HEADER);
-                if (callerName !== null) {
-                    return verified(found(callers, callerName), audience, clock.now());
-                }
-
-                // verify an access token by the universe's keys, else call anonymously
-                return AccountAuthentication.bearer(request, {
-                    database,
-                    issuer: ISSUER,
-                    audience,
-                    now: clock.now(),
-                });
-            },
-        });
+    /** Call as a registered machine, a space or an installation, signed by its key. */
+    as(caller: MachineIdentity | string | Subject): TestCaller {
+        return this.served.as(caller instanceof MachineIdentity ? caller.machineId : caller);
     }
 
     /** Stop serving the packages. */
     async close(): Promise<void> {
-        for (const server of this.servers.values()) {
-            await server.close();
-        }
+        await this.served[Symbol.asyncDispose]();
     }
 
     /** Open a fixture over a storage the account package serves with some keys. */
@@ -1041,86 +956,88 @@ export class AccountFixture implements AsyncDisposable {
         storage: TestDatabase,
         served: Served,
         keys: AccountKeys,
-        homes: HomeServer,
-    ): Promise<AccountFixture> {
-        return new AccountFixture(storage, served, {
-            platform: await AccountFixture.#platform(storage.database),
-            homes,
+        options: Pick<ServeOptions, "homes" | "clock"> & {
+            /** The sessions of the people with an authenticator, by email. */
+            readonly sessions: Readonly<Record<string, TestSession>>;
+        },
+    ): Promise<TestAccountStore> {
+        return new TestAccountStore(storage, served, {
+            platform: await TestAccountStore.#platform(storage.database),
+            homes: options.homes,
+            clock: options.clock,
             cloudKeychains: keys.cloud,
             keychain: keys.universe,
+            sessions: options.sessions,
         });
     }
 
     /** Store the residencies, the people, the platform, its homes and the owner's accounts. */
-    static async #write(storage: TestDatabase, options: ServeOptions): Promise<AccountKeys> {
-        // store the residencies and the people
-        await AccountFixture.#insertResidencies(storage.database);
-        await AccountFixture.#insertPeople(storage.database);
-
+    static async #write(
+        storage: TestDatabase,
+        options: ServeOptions,
+    ): Promise<{
+        readonly keys: AccountKeys;
+        readonly sessions: Readonly<Record<string, TestSession>>;
+    }> {
         // serve the account package with new keys, storing the platform before the universe's identity
         const keys = AccountKeys.create();
-        const definition = await AccountFixture.#platformDefinition(keys.cloud);
-        const served = await AccountFixture.#serve(storage, keys, options, definition);
-        const fixture = await AccountFixture.#over(storage, served, keys, options.homes);
+        const definition = await TestAccountStore.#platformDefinition(keys.cloud, options.clock);
+        const served = await TestAccountStore.#serve(storage, keys, options, definition);
+        const fixture = await TestAccountStore.#over(storage, served, keys, {
+            ...options,
+            sessions: {},
+        });
 
-        // seat the operator, start the homes' identities and store the owner's accounts, then stop serving
-        await fixture.#seatOperator();
+        // sign the people up, add the operator, start the homes' identities and store the owner's accounts
+        await fixture.#signUpPeople();
+        await fixture.#joinOperator();
         if (options.homes === "fixture") {
             await fixture.#serveHomes();
         }
         await fixture.#createAccounts();
+
+        // enroll the authenticators of the people who step up, then stop serving
+        const sessions = await fixture.#enrollPeople();
         await fixture.close();
 
-        return keys;
+        return { keys, sessions };
     }
 
-    /** Store each residency of the universe, shown to anyone. */
-    static async #insertResidencies(database: DatabaseConnection): Promise<void> {
-        const access = new AccessFixture(database);
-        for (const declared of RESIDENCIES) {
-            await database
-                .insert(residency.table)
-                .values({ ...RECORD_TIMES, id: declared.code, name: declared.name });
-            await access.replicateRelationship(
-                Scope.universe.id,
-                residency.reference(Scope.universe.id, declared.code),
-                "public",
-                anyone.reference("*", "*"),
+    /** Sign up the fixture's people, as sign-up stores them. */
+    async #signUpPeople(): Promise<void> {
+        const context = await this.authenticator.auth.$context;
+        for (const { isEnrolled: _, ...person } of PEOPLE) {
+            // seed each person proven, as no mailbox answers the template's write
+            await context.internalAdapter.createUser(
+                { ...person, emailVerified: true, ...SIGN_UP, residencyId: "eu" },
+                { method: "magic-link" },
             );
         }
     }
 
-    /** Store the owner of the accounts, a stranger and the operator, each shown to anyone. */
-    static async #insertPeople(database: DatabaseConnection): Promise<void> {
-        for (const person of PEOPLE) {
-            // store the user
-            await database.insert(user.table).values({
-                ...RECORD_TIMES,
-                ...person,
-                ...SIGN_UP,
-                emailVerified: true,
-                homeId: Account.home(Account.personal(person.id)),
-            });
-
-            // make the user the owner of its scope and show its profile to anyone
-            const subject = principal.user.reference(Scope.universe.id, person.id);
-            const access = new AccessFixture(database);
-            await access.replicateScope(subject);
-            await access.bindOwner(subject, subject);
-            for (const relationship of User.creation(subject).relationships) {
-                await access.replicateRelationship(
-                    person.id,
-                    subject,
-                    relationship.relation,
-                    relationship.subject,
-                );
-            }
+    /** Sign the people who step up in on a client each, and enroll their authenticators. */
+    async #enrollPeople(): Promise<Record<string, TestSession>> {
+        // sign each in with a mailed code first, which no longer signs them in once enrolled
+        const sessions: Record<string, TestSession> = {};
+        for (const { email } of PEOPLE.filter((person) => person.isEnrolled)) {
+            const person = await this.signIn(email);
+            const authenticator = await this.#enroll(person, this.browser());
+            sessions[email] = {
+                userId: person.id,
+                handle: person.handle,
+                clientId: person.clientId,
+                refreshToken: person.refreshToken,
+                authenticator,
+            };
         }
+
+        return sessions;
     }
 
     /** Declare the platform with a cloud machine per residency. */
     static async #platformDefinition(
         cloudKeychains: Map<Identifier<"machine">, MemoryKeychain>,
+        clock: VirtualClock,
     ): Promise<PlatformDefinition> {
         return {
             name: "Destack",
@@ -1130,8 +1047,8 @@ export class AccountFixture implements AsyncDisposable {
             publishers: [],
             handle: PLATFORM_HANDLE,
             machines: [
-                await cloudMachine(cloudKeychains, ids.machine, "eu-central", "eu"),
-                await cloudMachine(cloudKeychains, ids.usMachine, "us-east", "us"),
+                await cloudMachine(cloudKeychains, clock, ids.machine, "eu-central", "eu"),
+                await cloudMachine(cloudKeychains, clock, ids.usMachine, "us-east", "us"),
             ],
         };
     }
@@ -1145,21 +1062,26 @@ export class AccountFixture implements AsyncDisposable {
     ): Promise<Served> {
         // compose the universe's store of the account and setting packages, signing in once it exists
         const { database } = storage;
-        const clock = options.signIn?.clock ?? Clock.system;
+        const { clock } = options;
         const releases = new Map<string, Promise<BuildReader>>();
         const signIn = Promise.withResolvers<BetterAuthAuthenticator>();
         const events = await testEvents(database, [], clock);
-        const opening = options.openRelease ?? AccountFixture.#opening(releases);
+        const opening = options.openRelease ?? TestAccountStore.#opening(releases);
         const store = new ObjectStore({
             servers: [
                 objectServer,
                 accountServer({
-                    resolver: { txt: async () => [] },
+                    resolver: options.resolver ?? new TestDns(),
                     stacks: options.stacks,
                     signIn: signIn.promise,
                 }),
                 settingServer({
-                    declared: Setting.declared((value) => opening(value.packageId, value.release)),
+                    declared: Setting.declared((value) =>
+                        opening(
+                            value.packageId,
+                            present(value.release, `the release of ${value.name}`),
+                        ),
+                    ),
                     after: [],
                 }),
             ],
@@ -1173,19 +1095,17 @@ export class AccountFixture implements AsyncDisposable {
             callKey: testCallKey,
             events,
             origin: { package: Package.of(accountPackage) },
-            // follow the residencies' homes through a publisher that sends nothing, as no finance runs here
-            publisher: () => TestEntitlement.publisher,
         });
-        const { packages } = store;
 
-        // bind the universe as its owner, then store the platform before its identity
-        await UniverseRole.trust(store, clock.now());
+        // bind the universe as its owner and store the platform before its identity, once at the write
         if (platform !== undefined) {
-            await new Platform(platform, options.stacks.residency).apply(store, clock.now());
+            await UniverseRole.trust(store, clock.now());
+            await Residency.apply(store, RESIDENCIES, clock.now());
+            await new Platform(store, platform, options.stacks.residency).apply(clock.now());
         }
 
-        // sign in with the universe's identity, mailing links and codes into an inbox
-        const inbox = new Inbox();
+        // sign in with the universe's identity, mailing links and codes to the test mail
+        const mail = new TestMail();
         const authenticate = async (keyring: Keyring) =>
             BetterAuthAuthenticator.create({
                 keystore: await IdentityKeystore.universe(
@@ -1202,27 +1122,118 @@ export class AccountFixture implements AsyncDisposable {
                 providers: {},
                 objects: store,
                 events,
-                lifetimes: new Map(),
-                mail: inbox,
+                lifetime: new TokenLifetime(new Map()),
+                mail,
                 clock,
                 ...options.signIn,
             });
         const authenticator = await authenticate(await LocalKeyring.open(keys.universe, "account"));
         signIn.resolve(authenticator);
 
-        // serve each package to the callers the fixture verifies and to access tokens
-        const callers = new Map<string, Verification>();
-        const servers = new Map(
-            packages.map((implementation) => [
-                implementation.package.id,
-                AccountFixture.serve(implementation, database, callers, clock),
-            ]),
+        // act as the declared cloud machines with their keys
+        const machines = new Map(
+            [...keys.cloud].map(([id, keychain]) => [id, new MachineIdentity(id, keychain, clock)]),
         );
-        for (const served of servers.values()) {
-            await AccountFixture.#serving(served);
+
+        // serve each package to bearers, signing machines by their keys and spaces by their space's
+        const fetch = (request: Request) => TestAccountStore.#route(store, served, request);
+        const issuer = new Issuer(ISSUER, fetch);
+        const sources = new Map<string, TokenSource>();
+        const served: TestObjectStore = TestObjectStore.serve(store, {
+            credential: {
+                sign: async (request, signer) => {
+                    // send the token the caller's key proves
+                    const token = await TestAccountStore.#token(signer, {
+                        machines,
+                        sources,
+                        keystore: authenticator.keystore,
+                        database,
+                        send: fetch,
+                    });
+                    const headers = new Headers(request.headers);
+                    headers.set("authorization", `Bearer ${token}`);
+
+                    return new Request(request, { headers });
+                },
+                authenticate: (request, audience) =>
+                    AccountAuthentication.bearer(request, {
+                        database,
+                        issuer: ISSUER,
+                        audience,
+                        now: clock.now(),
+                    }),
+            },
+        });
+        await served.serving();
+
+        return {
+            store,
+            authenticator,
+            authenticate,
+            served,
+            machines,
+            releases,
+            mail,
+            issuer,
+            fetch,
+        };
+    }
+
+    /** Route a request of the universe's origin to the served package mounted at its path. */
+    static #route(
+        store: ObjectStore,
+        served: TestObjectStore,
+        request: Request,
+    ): Promise<Response> {
+        // find the mounted package, refusing a path of none served
+        const mount = PackageMount.of(request);
+        const handler = store.packages.find(
+            (implementation) => implementation.package.id === mount?.packageId,
+        );
+        if (mount === undefined || handler === undefined) {
+            return Promise.resolve(new Response(null, { status: 404 }));
         }
 
-        return { objects: store, authenticator, authenticate, servers, callers, releases, inbox };
+        return served.server(handler.package).fetch(mount.request);
+    }
+
+    /** Read a machine's, space's or installation's token for a package, signed by its key. */
+    static async #token(
+        signer: TestSigner,
+        keys: {
+            /** The machines tests act as, by machine. */
+            readonly machines: ReadonlyMap<string, MachineIdentity>;
+            /** The token sources of the spaces and installations tests act as, by subject. */
+            readonly sources: Map<string, TokenSource>;
+            /** The keystore storing the spaces' keys. */
+            readonly keystore: IdentityKeystore;
+            /** The account database. */
+            readonly database: DatabaseConnection;
+            /** Send a request to the universe's packages. */
+            readonly send: (request: Request) => Promise<Response>;
+        },
+    ): Promise<string> {
+        // refuse a second factor, which keys do not prove
+        const { subject, audience, isSteppedUp } = signer;
+        if (isSteppedUp) {
+            throw new TypeError(`${subject.id} signs with a key, which proves no second factor`);
+        }
+
+        // sign a machine with its key
+        if (principal.machine.is(subject)) {
+            const identity = found(keys.machines, subject.id);
+
+            return identity.token(audience, { url: ISSUER }, keys.send);
+        }
+
+        // sign a space or installation with its space's key, keeping its granted tokens
+        const key = Subject.key(subject);
+        const source =
+            keys.sources.get(key) ??
+            keys.keystore.source(keys.database, subject, { issuer: ISSUER, send: keys.send });
+        keys.sources.set(key, source);
+
+        return source.grantedToken(audience);
     }
 
     /** Open the releases a test publishes, by package and version, refusing any other. */
@@ -1232,22 +1243,13 @@ export class AccountFixture implements AsyncDisposable {
         return async (packageId, version) => {
             const reader = releases.get(`${packageId}@${version}`);
             if (reader === undefined) {
-                throw new CallError("NOT_FOUND", {
-                    message: `no release ${version} of ${packageId}`,
+                throw CallError.http("NOT_FOUND", {
+                    message: `release ${version} of ${packageId} not found`,
                 });
             }
 
             return reader;
         };
-    }
-
-    /** Wait until a served package serves, its replicas synced. */
-    static async #serving(server: Server): Promise<void> {
-        for await (const { status } of server.health.watch()) {
-            if (status === "serving") {
-                return;
-            }
-        }
     }
 
     /** Read the platform's account, which the seed stores. */
@@ -1260,78 +1262,63 @@ export class AccountFixture implements AsyncDisposable {
         return present(row, "the platform's account").id;
     }
 
-    /** Read the personal account a person's sign-up created, with its handle. */
-    async #accountOf(
-        userId: Identifier<"user">,
-    ): Promise<{ readonly account: Identifier<"account">; readonly handle: string }> {
-        const [personal] = await this.database
-            .select({ account: account.table.id, handle: account.table.handle })
-            .from(account.table)
-            .where(and(eq(account.table.scope, userId), eq(account.table.kind, "personal")));
-
-        return present(personal, `the personal account of ${userId}`);
-    }
-
     /** Place a space in an account of a person on a machine the person enrolls in it. */
     async #place(
-        person: Person,
+        person: TestPerson,
         target: { readonly id: Identifier<"account">; readonly handle: string },
         spaceId: Identifier<"space">,
     ) {
         // enroll a machine, then create the space in the account, placed on it as creation places it
-        const serving = this.caller(await this.enroll(target.id, { client: person.client }));
-        await person.client.space.create({
+        const enrolled = await this.enroll(target.id, person);
+        await person.client(accountPackage).space.create({
             accountId: target.id,
             id: spaceId,
-            requestId: RequestId.create(this.objects.clock.now()),
+            requestId: RequestId.create(this.store.clock.now()),
             name: `space-${spaceId.slice(-12)}`,
-            machine: schema.identifier("machine").parse(serving.id),
+            machine: enrolled.machineId,
         });
 
-        return { accountId: target.id, handle: target.handle, spaceId, machine: serving };
-    }
-
-    /** List the replicas an installation requests now from the account package, its uplink. */
-    static async #requests(objects: ObjectStore): Promise<Subscription[]> {
-        const subscriber = present(objects.subscriber, "the installation's subscriber");
-
-        return (await subscriber.subscriptions(Snapshot.live(objects.database)))
-            .filter((entry) => entry.publisher === subscriber.uplink)
-            .map((entry) => entry.subscription);
+        return {
+            accountId: target.id,
+            handle: target.handle,
+            spaceId,
+            machine: this.as(enrolled),
+        };
     }
 
     /** Create the owner's eu accounts as the owner. */
     async #createAccounts(): Promise<void> {
-        const owner = principal.user.reference(Scope.universe.id, ids.owner);
-        await this.objects.mutate(AccessContext.of(Caller.of(owner), this.objects.clock.now()), {
-            id: RequestId.create(this.objects.clock.now()),
-            calls: ACCOUNTS.map((declared) =>
-                account.call("create", {
-                    ...account.target({ scope: ids.owner, id: declared.id }),
-                    handle: declared.handle,
-                    name: declared.handle,
-                    kind: declared.kind,
-                    residencyId: "eu",
-                }),
-            ),
-        });
+        const owner = (await this.signIn(OWNER_EMAIL)).client(accountPackage);
+        for (const declared of ACCOUNTS) {
+            await owner.account.create({
+                scope: ids.owner,
+                id: declared.id,
+                requestId: RequestId.create(this.store.clock.now()),
+                handle: declared.handle,
+                name: declared.handle,
+                kind: declared.kind,
+                residencyId: "eu",
+            });
+        }
     }
 
-    /** Seat the operator as the platform organisation's owner through the invitation it stores. */
-    async #seatOperator(): Promise<void> {
+    /** Add the operator as the platform organisation's owner through the invitation it stores. */
+    async #joinOperator(): Promise<void> {
         // sign the operator in and find the platform organisation
-        const operator = await this.session(ids.operator);
+        const operator = await this.signIn(OPERATOR_EMAIL);
         const organisationId = present(
             await UniverseRole.operating(Snapshot.live(this.database)),
             "the platform organisation",
         );
 
         // accept the invitation the platform stores for the operator
-        const [invited] = (await operator.user.invited({ id: ids.operator })).items;
-        await operator.organisation.accept({
-            id: organisationId,
+        const [invited] = (await operator.client(accountPackage).user.invited({ id: ids.operator }))
+            .items;
+        await operator.client(objectPackage).invitation.accept({
+            scope: Scope.universe.id,
+            object: organisation.reference(Scope.universe.id, organisationId),
             invitationId: present(invited, "the invitation to operate").id,
-            requestId: RequestId.create(this.objects.clock.now()),
+            requestId: RequestId.create(this.store.clock.now()),
         });
     }
 
@@ -1339,15 +1326,20 @@ export class AccountFixture implements AsyncDisposable {
     async #serveHomes(): Promise<void> {
         for (const entry of await Residency.list(this.database)) {
             const home = await this.home(entry.id);
-            const serving = await this.serving(home);
-            const registry = IdentityRegistry.client(this.machine(serving), this.objects.clock);
-            const keystore = new IdentityKeystore(
-                this.keystore.keyring,
-                registry,
-                this.objects.clock,
-            );
-            await keystore.generate(this.database, home);
+            await this.startIdentity(home, this.as(await this.serving(home)));
         }
+    }
+
+    /** Read where people sign in: the issuer, its mail, the origin, the clock and the residency. */
+    #signIn(): TestSignIn {
+        return {
+            issuer: this.issuer,
+            mail: this.#mail,
+            origin: ORIGIN,
+            fetch: (request) => this.fetch(request),
+            clock: this.store.clock,
+            residencyId: "eu",
+        };
     }
 
     /** Stop serving the packages, then close the database. */
@@ -1357,54 +1349,30 @@ export class AccountFixture implements AsyncDisposable {
     }
 }
 
-/** How a test enrolls a machine: as whom and under which name. */
+/** How a test enrolls a machine: its name and the residency a cloud machine serves. */
 export interface MachineEnrollment {
-    /** The client enrolling the machine. */
-    readonly client?: ClientOf<typeof accountPackage>;
     /** The proposed name. */
     readonly name?: string;
     /** The residency a cloud machine serves. */
     readonly residencyId?: ResidencyCode;
 }
 
-/** A person signed in: their user and the typed client acting as them. */
-export interface Person {
-    /** The typed client acting as the person through a session's access tokens. */
-    readonly client: ClientOf<typeof accountPackage>;
-    /** The person's session token, which the token endpoint exchanges. */
-    readonly session: string;
-    /** The user's identifier. */
-    readonly id: Identifier<"user">;
-    /** The user as a principal. */
-    readonly subject: Subject;
-    /** The person's personal account, which their sign-up created. */
-    readonly account: Identifier<"account">;
-    /** The handle of the person's personal account. */
-    readonly handle: string;
-}
-
-/** A caller the fixture verifies at each request: its credential and subject. */
-export interface Verification {
-    /** The credential's kind, such as a space key. */
-    readonly kind: string;
-    /** The credential's identifier. */
-    readonly id: string;
-    /** The subject it verifies. */
-    readonly subject: Subject;
-}
-
-/** A machine, space or installation a test acts as: its identity, principal and typed client. */
-export interface Actor {
-    /** The caller's identity. */
-    readonly id: string;
-    /** The caller as a principal. */
-    readonly subject: Subject;
-    /** The typed client acting as the caller. */
-    readonly client: ClientOf<typeof accountPackage>;
+/** A client a test authorizes with PKCE: its redirect, scopes, state and package. */
+export interface TestAuthorization {
+    /** The client. */
+    readonly clientId: string;
+    /** The page the client receives its code at. */
+    readonly redirectUri: string;
+    /** The scopes it asks for, space separated. */
+    readonly scope: string;
+    /** The state it gets back with its code. */
+    readonly state: string;
+    /** The package its tokens are for as a resource, none for a registered client's own tokens. */
+    readonly resource: string | null;
 }
 
 /** The email sign-in mailed, stored as the platform's account would send it. */
-export class Inbox implements MailTransport {
+export class TestMail implements MailTransport {
     /** The mailed emails, oldest first. */
     readonly #mail: { readonly email: string; readonly text: string }[] = [];
 
@@ -1436,37 +1404,17 @@ export class Inbox implements MailTransport {
     }
 }
 
-/** Make a free handle for a person or an account a test creates. */
-function freshHandle(): string {
-    return `account-${Identifier.create("account").slice(-12)}`;
-}
-
-/** Verify a fixture caller at a time, for a token's lifetime toward an audience. */
-function verified(verification: Verification, audience: PackageId, now: number): Authentication {
-    const { kind, id, subject } = verification;
-
-    return {
-        caller: Caller.of(subject),
-        credential: {
-            kind,
-            id,
-            audience,
-            verifiedAt: now,
-            expiresAt: now + TOKEN_LIFETIME_MILLISECONDS,
-        },
-    };
-}
-
 /** Declare a cloud machine of the universe serving a residency, storing its keychain. */
 async function cloudMachine(
     keychains: Map<Identifier<"machine">, MemoryKeychain>,
+    clock: VirtualClock,
     id: Identifier<"machine">,
     name: string,
     residencyId: ResidencyCode,
 ): Promise<PlatformDefinition["machines"][number]> {
     // generate its key, storing its keychain for tests to act as it and run it
     const keychain = new MemoryKeychain();
-    const { publicKey } = await new MachineIdentity(id, keychain, Clock.system).generate();
+    const { publicKey } = await new MachineIdentity(id, keychain, clock).generate();
     keychains.set(id, keychain);
 
     return {
@@ -1547,7 +1495,7 @@ class AccountKeys {
 type AccountKeysValue = schema.Infer<typeof AccountKeys.schema>;
 
 /** The account fixture's rows with the default stacks and the fixture's homes, which tests copy. */
-export const ACCOUNT_TEMPLATE = AccountFixture.template({
+export const ACCOUNT_TEMPLATE = TestAccountStore.template({
     name: "account",
     world: { value: schema.null(), write: async () => null },
 });

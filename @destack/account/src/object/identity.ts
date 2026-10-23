@@ -8,7 +8,8 @@ import { defineObject, field } from "@destack/object";
 import { IdentityOperation, KeySet, PublicKey } from "@destack/identity";
 import { Key } from "./key.ts";
 import { Digest, schema } from "@destack/schema";
-import { CallError } from "@destack/object";
+import type {} from "@destack/package/import-meta";
+import { AccountError } from "../error/error.ts";
 
 /** The longest signed operation, in characters: eight public keys with room to spare. */
 const OPERATION_LENGTH = 16_384;
@@ -156,7 +157,7 @@ export const Identity = {
     async keys(reader: Pick<Snapshot, "read">, subject: string): Promise<KeySet> {
         const found = Identity.current(await Identity.log(reader, subject));
         if (found === undefined) {
-            throw new CallError("NOT_FOUND", { message: `${subject} has no identity` });
+            throw AccountError.of("IDENTITY_NOT_FOUND", `${subject} has no identity`);
         }
 
         return PublicKey.keySet(found.signingKeys);
@@ -200,7 +201,7 @@ export const Identity = {
                     }
                   : undefined;
         if (!issuer.success || signer === undefined) {
-            throw new CallError("UNAUTHORIZED", { message: "invalid access token" });
+            throw AccountError.of("INVALID_TOKEN", "invalid access token");
         }
 
         // verify the token by the signer's keys

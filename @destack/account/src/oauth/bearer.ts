@@ -3,7 +3,6 @@ import type { JWTPayload } from "jose";
 import { CONTAINED, principal } from "@destack/access";
 import { Scope, type Subject, RequestId } from "@destack/sync";
 import { type DatabaseConnection, Snapshot } from "@destack/db";
-import type { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
 import { type AssertionKey, AssertionVerifier } from "@destack/access/token";
 import { Identity } from "../object/identity.ts";
@@ -14,7 +13,7 @@ import { user } from "../object/user.ts";
 import { Placement } from "../object/placement.ts";
 import accountPackage from "../package.ts";
 import { Issuance } from "./issuance.ts";
-import { PackageResource } from "./resource.ts";
+import { PackageResource, type TokenLifetime } from "./resource.ts";
 import { proof } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
 import type { Clock } from "@destack/environment";
@@ -42,8 +41,8 @@ export interface BearerOptions {
     readonly endpoint: string;
     /** The clock assertions are verified at. */
     readonly clock: Clock;
-    /** The lifetimes of the packages' tokens, a minute when absent. */
-    readonly lifetimes: ReadonlyMap<PackageId, number>;
+    /** How long the packages' tokens live. */
+    readonly lifetime: TokenLifetime;
     /** The universe's issuer, which its tokens include. */
     readonly issuer: string;
     /** Sign claims with the universe's active key, as the provider signs its tokens. */
@@ -112,7 +111,7 @@ export function bearerGrant(options: BearerOptions): OAuthExtensionGrantHandler 
         return Issuance.sign(
             input,
             { caller: { ...asserted, groups }, credential: scoped },
-            { now, lifetimes: options.lifetimes, issuer: options.issuer, sign: options.sign },
+            { now, lifetime: options.lifetime, issuer: options.issuer, sign: options.sign },
         );
     };
 }

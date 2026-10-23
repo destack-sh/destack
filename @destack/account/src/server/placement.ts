@@ -1,8 +1,9 @@
 import { Caller } from "@destack/access";
 import type { MethodContextOf, ResultOf } from "@destack/object";
 import { schema } from "@destack/schema";
-import { CallError } from "@destack/object";
 import { assignment, Placement, placement } from "../object/placement.ts";
+import type {} from "@destack/package/import-meta";
+import { AccountError } from "../error/error.ts";
 
 /** Implement placements. */
 export function implementPlacement(): typeof placement {
@@ -26,9 +27,10 @@ async function place(
 
     // refuse any other epoch or machine
     if (!isRetained && !isAdvanced) {
-        throw new CallError("CONFLICT", {
-            message: `${current.id} is neither placed on ${caller} at epoch ${epoch} nor moving there`,
-        });
+        throw AccountError.of(
+            "PLACEMENT_MISMATCH",
+            `${current.id} is not placed on or moving to ${caller} at epoch ${epoch}`,
+        );
     }
 
     // serve the space at the epoch, ending any move

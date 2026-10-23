@@ -13,7 +13,6 @@ import { Scope, type ObjectReference, type Subject } from "@destack/sync";
 import { Snapshot, type Select, type RelationalQueryBuilder } from "@destack/db";
 import { Claim, claimTable, defineObject, field, type MethodContext } from "@destack/object";
 import { Identifier, schema } from "@destack/schema";
-import { CallError } from "@destack/object";
 import { Label } from "../address/label.ts";
 import { AccountHandle, HANDLE_LENGTH, type HandleAvailability } from "../address/handle.ts";
 import { organisation } from "./organisation.ts";
@@ -22,6 +21,7 @@ import { StackSource } from "./stack-source.ts";
 import { user } from "./user.ts";
 import { sudo } from "../authentication/sudo.ts";
 import { DisplayName } from "./display-name.ts";
+import { AccountError } from "../error/error.ts";
 
 /** The name of every account's home space. */
 export const HOME_SPACE = "home";
@@ -67,7 +67,7 @@ export const account = defineObject(
             replicate: union(contained(principal.space), relation("resident")),
             // let the residency's servers, the account's home and the account's machines serve it
             serve: union(relation("resident"), relation("home"), contained(principal.machine)),
-            // let the residency's platform installations claim names in the account
+            // let the residency's machines and home claim names in the account
             claim: relation("claimant"),
             // let the person or the organisation's managers found accounts in their scope
             create: union(through("user", "self"), through("organisation", "manage")),
@@ -95,10 +95,8 @@ export const account = defineObject(
     (method) => ({
         list: method.list("list"),
         create: method.create("create", {
-            fields: ["handle", "name", "kind"],
+            fields: ["handle", "name", "kind", "residencyId"],
             input: schema.object({
-                /** The jurisdiction the account stores data in, its owner's when absent. */
-                residencyId: ResidencyCode.exactOptional(),
                 /** The stack of the account's home. */
                 stack: StackSource.exactOptional(),
             }),
@@ -112,34 +110,25 @@ export type Account = Select<typeof account.table>;
 
 /** The residency, relations and payers of accounts. */
 export const Account = {
-    /** Read the account paying for a scope. */
+    /** Read the account of a scope: a person's personal one, an organisation's payer, or itself. */
+    async of(reader: Pick<Snapshot, "read">, scope: string): Promise<Account> {
+        // refuse a scope without an account
+        const found = await findAccount(reader, scope);
+        if (found === undefined) {
+            throw AccountError.of("ACCOUNT_NOT_FOUND", `${scope} has no account`);
+        }
+
+        return found;
+    },
+
+    /** Read the account paying for a scope: an organisation's account is paid by its payer. */
     async payer(reader: Pick<Snapshot, "read">, scope: string): Promise<Identifier<"account">> {
-        // read an account's owner scope, or take the organisation itself
-        const accountId = schema.identifier("account").safeParse(scope);
-        const owner = accountId.success
-            ? (await reader.read(account.table).findFirst({ where: { id: accountId.data } }))?.scope
-            : scope;
-        if (owner === undefined) {
-            throw new CallError("NOT_FOUND", { message: `no account ${scope}` });
-        }
+        const owned = await Account.of(reader, scope);
+        const payer = organisation.identifies(owned.scope)
+            ? await Account.of(reader, owned.scope)
+            : owned;
 
-        // let a user's account pay for itself
-        const organisationId = schema.identifier("organisation").safeParse(owner);
-        if (accountId.success && !organisationId.success) {
-            return accountId.data;
-        }
-
-        // read the organisation's payer
-        const paying = organisationId.success
-            ? await reader
-                  .read(organisation.table)
-                  .findFirst({ where: { id: organisationId.data } })
-            : undefined;
-        if (paying === undefined) {
-            throw new CallError("NOT_FOUND", { message: `no payer of ${scope}` });
-        }
-
-        return paying.payer;
+        return payer.id;
     },
 
     /** Report whether a handle is free, or claimed by an account, a trashed one too. */
@@ -194,113 +183,22 @@ export const Account = {
         );
     },
 
-    /** Read the residency a new account stores data in. */
-    async residency(
-        reader: Pick<Snapshot, "read">,
-        scope: string,
-        chosen: ResidencyCode | undefined,
-    ): Promise<ResidencyCode> {
-        // require a chosen residency to exist
-        if (chosen !== undefined) {
-            return (await Residency.require(reader, chosen)).id;
-        }
-
-        // read the residency of the owner organisation's payer
-        const owner = await Scope.object(reader, scope);
-        let paying: Pick<Account, "residencyId"> | null | undefined;
-        if (organisation.is(owner)) {
-            const id = schema.identifier("organisation").parse(owner.id);
-            const found = await reader.read(organisation.table).findFirst({ where: { id } });
-            paying =
-                found === undefined
-                    ? undefined
-                    : await reader.read(account.table).findFirst({ where: { id: found.payer } });
-        }
-        // read the residency of the owner's personal account
-        else {
-            const person = schema.identifier("user").parse(owner.id);
-            [paying] = await reader
-                .read(account.table)
-                .findMany({ where: { scope: person, kind: "personal" } });
-        }
-
-        // refuse an owner without such an account
-        if (paying === null || paying === undefined) {
-            throw new CallError("NOT_FOUND", { message: `no account owner ${owner.id}` });
-        }
-
-        return paying.residencyId;
+    /** Read the home space of the account a scope belongs to. */
+    async homeOf(reader: Pick<Snapshot, "read">, scope: string): Promise<Identifier<"space">> {
+        return Account.home((await Account.of(reader, scope)).id);
     },
 
-    /** Locate the space serving an account's residency, refusing a residency without one yet. */
-    async locate(
-        reader: Pick<Snapshot, "read">,
-        accountId: Identifier<"account">,
-    ): Promise<Identifier<"space">> {
-        // read the account's residency
-        const existing = await reader.read(account.table).findFirst({ where: { id: accountId } });
-        const found =
-            existing === undefined
-                ? undefined
-                : await reader
-                      .read(residency.table)
-                      .findFirst({ where: { id: existing.residencyId } });
-
-        // refuse an unknown account and a residency without its home yet
-        if (found?.home === undefined || found.home === null) {
-            throw new CallError("NOT_FOUND", { message: `no residency home serves ${accountId}` });
-        }
-
-        return found.home;
-    },
-
-    /** Read the home space of a person's or organisation's paying account, or an account's. */
-    async homeOf(reader: Pick<Snapshot, "read">, owner: string): Promise<Identifier<"space">> {
-        // read a person's personal account
-        let found: Pick<Account, "id"> | null | undefined;
-        if (user.identifies(owner)) {
-            [found] = await reader.read(account.table).findMany({
-                where: {
-                    scope: user.identifier(owner),
-                    kind: "personal",
-                },
-            });
-        }
-        // read an organisation's payer
-        else if (organisation.identifies(owner)) {
-            const paying = await reader.read(organisation.table).findFirst({
-                where: {
-                    id: organisation.identifier(owner),
-                },
-            });
-            found = paying === undefined ? null : { id: paying.payer };
-        }
-        // read the account itself
-        else {
-            found = await reader
-                .read(account.table)
-                .findFirst({ where: { id: account.identifier(owner) } });
-        }
-
-        // refuse an owner without an account
-        if (found === null || found === undefined) {
-            throw new CallError("NOT_FOUND", { message: `no ${owner}` });
-        }
-
-        return Account.home(found.id);
+    /** Locate the home of the residency the account a scope belongs to stores its data in. */
+    async locate(reader: Pick<Snapshot, "read">, scope: string): Promise<Identifier<"space">> {
+        return Residency.home(reader, (await Account.of(reader, scope)).residencyId);
     },
 
     /** Relate a new account's owner, home and residency servers. */
     async creation(context: MethodContext, object: ObjectReference): Promise<Creation> {
-        // resolve the residency before the handler runs
-        const chosen = context.input["residencyId"];
-        const residencyId = await Account.residency(
-            context,
-            context.scope,
-            chosen === undefined ? undefined : ResidencyCode.parse(chosen),
-        );
+        // read the residency the account stores data in
+        const residencyId = ResidencyCode.parse(context.input["residencyId"]);
 
-        // relate the servers of the residency, its platform installations claiming names, and the home
+        // relate the residency's servers and claimants, and the account's home
         const resident = { relation: "resident", subject: Residency.servers(residencyId) };
         const claimant = { relation: "claimant", subject: Residency.claimants(residencyId) };
         const home = {
@@ -317,7 +215,7 @@ export const Account = {
         // require a creator of a user's account
         const creator = context.caller.subject;
         if (creator === undefined) {
-            throw new CallError("FORBIDDEN", { message: "account needs a creator" });
+            throw AccountError.of("CREATOR_REQUIRED", "account needs a creator");
         }
 
         return {
@@ -326,3 +224,34 @@ export const Account = {
         };
     },
 };
+
+/** Find the account of a scope, absent for a scope without one. */
+async function findAccount(
+    reader: Pick<Snapshot, "read">,
+    scope: string,
+): Promise<Account | undefined> {
+    // read an account itself
+    if (account.identifies(scope)) {
+        return reader.read(account.table).findFirst({ where: { id: account.identifier(scope) } });
+    }
+    // read an organisation's payer
+    else if (organisation.identifies(scope)) {
+        const owner = await reader
+            .read(organisation.table)
+            .findFirst({ where: { id: organisation.identifier(scope) } });
+
+        return owner === undefined
+            ? undefined
+            : reader.read(account.table).findFirst({ where: { id: owner.payer } });
+    }
+    // read a person's personal account
+    else if (user.identifies(scope)) {
+        return reader.read(account.table).findFirst({
+            where: { scope: user.identifier(scope), kind: "personal" },
+        });
+    }
+    // find none for any other scope
+    else {
+        return undefined;
+    }
+}
