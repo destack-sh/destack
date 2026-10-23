@@ -7,7 +7,7 @@ import {
     type System,
     systemOfAgent,
 } from "./catalog.ts";
-import { captureException } from "../../../telemetry.ts";
+import { captureException } from "../telemetry.ts";
 
 /** The one request for the published downloads that every download control on the page shares. */
 let published: Promise<Download[]> | undefined;

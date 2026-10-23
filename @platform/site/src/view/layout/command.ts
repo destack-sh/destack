@@ -19,7 +19,7 @@ import { collectionAt } from "../../../content";
 import type { SearchEntry, SearchEntryKind } from "../content/search";
 import type { PageFormats } from "../content/source";
 import { agentPrompt, installCommand } from "../content/site";
-import type { Download } from "../home/participle/download/catalog";
+import type { Download } from "../install/catalog";
 import { destinations, isExternal } from "./navigation";
 
 /** The global DOM events dispatched by site commands. */

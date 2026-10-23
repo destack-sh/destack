@@ -53,7 +53,7 @@ export function Syllables(properties: { syllables: readonly string[] }) {
 }
 
 /** Head a section with a dictionary entry. */
-export function Entry(properties: { form: Form; isTitle?: boolean }) {
+export function Entry(properties: { form: Form; isTitle?: boolean; children?: JSX.Element }) {
     return (
         <header id={anchorOf(properties.form)} {...style.attrs(lattice.cell, styles.entry)}>
             <p {...style.attrs(styles.kicker)}>
@@ -76,6 +76,7 @@ export function Entry(properties: { form: Form; isTitle?: boolean }) {
                 </h2>
             )}
             <p {...style.attrs(styles.sentence)}>{properties.form.sense.sentence}</p>
+            {properties.children}
         </header>
     );
 }

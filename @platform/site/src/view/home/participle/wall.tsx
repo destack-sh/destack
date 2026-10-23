@@ -14,7 +14,7 @@ import * as style from "@destack/style";
 import { createEffect, createSignal } from "@destack/view";
 import { createVisibilityObserver } from "@destack/view/primitives/intersection-observer";
 
-import { agentPrompt, setupGuide } from "../../content/site";
+import { agentPromptOf } from "../../content/site";
 import { Favicon } from "../figure/glyph";
 import { Tile } from "../figure/tile";
 import { Glyph } from "../figure/glyph";
@@ -473,9 +473,7 @@ export function promptOf(picks: readonly Tool[]) {
         ...(linked === "" ? [] : [`connect my ${linked}`]),
     ];
 
-    return asks.length === 0
-        ? agentPrompt
-        : `Set up my Destack, ${asks.join(" and ")}: ${setupGuide}`;
+    return agentPromptOf(asks);
 }
 
 /** Name tools in a list a person would write. */

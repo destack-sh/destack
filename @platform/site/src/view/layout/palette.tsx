@@ -38,7 +38,7 @@ import {
 import { loadSearchEntries, type SearchEntry } from "../content/search";
 import { siteSearchEntries } from "../content/site";
 import type { PageFormats } from "../content/source";
-import { createDownloads } from "../home/participle/download/download";
+import { createDownloads } from "../install/download";
 import { createEventListener } from "@destack/view/primitives/event-listener";
 import { typeScale, tracking } from "./type.stylex";
 

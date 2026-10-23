@@ -8,11 +8,14 @@ import { media } from "@destack/style/media.stylex";
 import { color, font, stroke, weight } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 import { Button } from "@destack/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@destack/ui/popover";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@destack/ui/sheet";
 import { createEffect, createMemo, createSignal } from "@destack/view";
 import { createAppearance } from "@destack/view/document";
 import { Link, useLocation } from "@destack/view/router";
 
+import { agentPrompt } from "../content/site";
+import { InstallList } from "../install/install";
 import { CommandPalette } from "./palette";
 import { frame } from "./frame.stylex";
 import { Mark } from "./mark";
@@ -89,7 +92,7 @@ export function TopBar() {
                             ))}
                         </nav>
 
-                        {/* keep search, appearance, your home space and sign in together at the row's end */}
+                        {/* keep search, appearance, your home space, sign in and the install together at the row's end */}
                         {/* TODO #Incomplete: open your home space and the Destack account sign in once accounts are live */}
                         <div {...style.attrs(styles.tools)}>
                             <CommandPalette appearance={appearance} />
@@ -99,7 +102,7 @@ export function TopBar() {
                                 size="icon"
                                 disabled
                                 aria-label="Your home space, soon"
-                                xstyle={styles.idle}
+                                xstyle={[styles.idle, styles.home]}
                             >
                                 <Icon icon={house} xstyle={styles.tool} />
                             </Button>
@@ -112,6 +115,14 @@ export function TopBar() {
                             >
                                 <Icon icon={user} xstyle={styles.tool} />
                             </Button>
+                            <Popover>
+                                <PopoverTrigger size="sm" xstyle={styles.get}>
+                                    Get Destack
+                                </PopoverTrigger>
+                                <PopoverContent side="bottom" align="end" xstyle={styles.install}>
+                                    <InstallList prompt={agentPrompt} />
+                                </PopoverContent>
+                            </Popover>
                             <SheetTrigger
                                 variant="ghost"
                                 size="icon"
@@ -298,6 +309,16 @@ const styles = style.create({
         columnGap: "0.25rem",
         display: "flex",
         marginInlineStart: "auto",
+    },
+    get: {
+        marginInlineStart: { default: "0.5rem", [media.maxMd]: "0.25rem" },
+        whiteSpace: "nowrap",
+    },
+    install: {
+        width: "auto",
+    },
+    home: {
+        display: { default: "inline-flex", [media.maxMd]: "none" },
     },
     idle: {
         opacity: { default: 1, ":disabled": 1 },

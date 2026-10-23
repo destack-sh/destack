@@ -30,6 +30,10 @@ import { sources } from "./source";
 import { type Lineup, lineupAt, type Tool, toolsOf } from "../tool/tool";
 import type { Option } from "../figure/picker";
 import { screen } from "../../layout/screen.stylex";
+import { agentPrompt } from "../../content/site";
+import { AgentField } from "../../install/install";
+import { media } from "@destack/style/media.stylex";
+import { typeScale } from "../../layout/type.stylex";
 
 /** The milliseconds the pointer rests on a holding before the browser turns to its page. */
 const settleIn = 80;
@@ -257,7 +261,15 @@ export function Verb(properties: {
                 styles.section,
             )}
         >
-            <Entry form={verb} isTitle />
+            <Entry form={verb} isTitle>
+                {/* offer the agent prompt at once, and the other ways at the page's end */}
+                <div {...style.attrs(styles.install)}>
+                    <AgentField prompt={agentPrompt} />
+                    <a href="#present-participle" {...style.attrs(styles.jump)}>
+                        or download ↓
+                    </a>
+                </div>
+            </Entry>
             <FigureLabel
                 number={1}
                 isOpen={properties.isOpen}
@@ -333,6 +345,24 @@ export function Verb(properties: {
 
 /** The verb section styles. */
 const styles = style.create({
+    install: {
+        alignItems: "center",
+        columnGap: "1.25rem",
+        display: "grid",
+        gridTemplateColumns: { default: "minmax(0, 1fr) auto", [media.maxSm]: "minmax(0, 1fr)" },
+        marginBlockStart: "0.5rem",
+        maxWidth: "34rem",
+        rowGap: "0.75rem",
+    },
+    jump: {
+        color: {
+            default: color.mutedForeground,
+            ":hover": { default: null, [media.hover]: color.primary },
+        },
+        fontSize: typeScale.small,
+        textDecorationLine: "none",
+        whiteSpace: "nowrap",
+    },
     section: {
         gridTemplateRows: { default: "auto auto minmax(0, 1fr)", [screen.belowDesktop]: "auto" },
     },

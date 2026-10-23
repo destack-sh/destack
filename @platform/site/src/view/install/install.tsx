@@ -1,17 +1,17 @@
-import { frame } from "../../layout/frame.stylex";
+import { frame } from "../layout/frame.stylex";
 import { media } from "@destack/style/media.stylex";
 import { color, font, stroke } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 import { type JSX, Show } from "@destack/view";
 
-import { installCommand } from "../../content/site";
-import { lattice } from "../../layout/lattice.stylex";
-import { type Download, type System, systems } from "./download/catalog";
-import { createDownloads } from "./download/download";
-import { Glyph } from "../figure/glyph";
-import { screen } from "../../layout/screen.stylex";
-import { createCopy } from "../../layout/copy";
-import { typeScale } from "../../layout/type.stylex";
+import { installCommand } from "../content/site";
+import { lattice } from "../layout/lattice.stylex";
+import { type Download, type System, systems } from "./catalog";
+import { createDownloads } from "./download";
+import { Glyph } from "../home/figure/glyph";
+import { screen } from "../layout/screen.stylex";
+import { createCopy } from "../layout/copy";
+import { typeScale } from "../layout/type.stylex";
 
 /** The detected system and published build the download field shows. */
 type Desktop = Pick<ReturnType<typeof createDownloads>, "system" | "selected">;
@@ -103,19 +103,36 @@ function CopyField(properties: { name: string; text: string; children: JSX.Eleme
     );
 }
 
+/** Offer the agent prompt as one field that copies itself. */
+export function AgentField(properties: { prompt: string }) {
+    return (
+        <CopyField name="prompt" text={properties.prompt}>
+            <span {...style.attrs(styles.text)}>
+                <span {...style.attrs(styles.prompt)}>&gt; </span>
+                {properties.prompt}
+            </span>
+        </CopyField>
+    );
+}
+
+/** Offer the install command as one field that copies itself. */
+export function TerminalField() {
+    return (
+        <CopyField name="command" text={installCommand}>
+            <code {...style.attrs(styles.text)}>
+                <span {...style.attrs(styles.prompt)}>$ </span>
+                {installCommand}
+            </code>
+        </CopyField>
+    );
+}
+
 /** Build the three ways to install, the agent prompt listing the tools you picked. */
 function waysOf(prompt: string, desktop: Desktop): readonly Way[] {
     return [
         {
             name: () => "Ask your Agent",
-            field: () => (
-                <CopyField name="prompt" text={prompt}>
-                    <span {...style.attrs(styles.text)}>
-                        Set up my Destack.
-                        <span {...style.attrs(styles.more)}>…</span>
-                    </span>
-                </CopyField>
-            ),
+            field: () => <AgentField prompt={prompt} />,
         },
         {
             name: () => {
@@ -127,15 +144,7 @@ function waysOf(prompt: string, desktop: Desktop): readonly Way[] {
         },
         {
             name: () => "Install via Terminal",
-            field: () => (
-                <CopyField name="command" text={installCommand}>
-                    <code {...style.attrs(styles.text)}>
-                        <span {...style.attrs(styles.prompt)}>$ </span>
-                        curl destack.sh/install | sh
-                        <span {...style.attrs(styles.more)}>…</span>
-                    </code>
-                </CopyField>
-            ),
+            field: () => <TerminalField />,
         },
     ];
 }
@@ -155,6 +164,23 @@ export function InstallWays(properties: { prompt: string }) {
                             or
                         </span>
                     )}
+                    <span {...style.attrs(styles.title)}>{way.name()}</span>
+                    {way.field()}
+                </li>
+            ))}
+        </ul>
+    );
+}
+
+/** Show the three ways to install stacked, for the menu every page opens from its top bar. */
+export function InstallList(properties: { prompt: string }) {
+    // detect this machine's system and its published build once for the download field
+    const desktop = createDownloads();
+
+    return (
+        <ul {...style.attrs(styles.list)}>
+            {waysOf(properties.prompt, desktop).map((way) => (
+                <li {...style.attrs(styles.item)}>
                     <span {...style.attrs(styles.title)}>{way.name()}</span>
                     {way.field()}
                 </li>
@@ -243,6 +269,18 @@ const styles = style.create({
         width: "100%",
         ":active": { transform: "scale(0.99)" },
     },
+    list: {
+        display: "grid",
+        listStyle: "none",
+        margin: 0,
+        padding: 0,
+        rowGap: "1rem",
+        width: "min(22rem, calc(100vw - 2rem))",
+    },
+    item: {
+        display: "grid",
+        gap: "0.5rem",
+    },
     unavailable: {
         backgroundColor: "transparent",
         cursor: "not-allowed",
@@ -270,7 +308,7 @@ const styles = style.create({
     text: {
         flexGrow: 1,
         fontFamily: font.code,
-        fontSize: typeScale.small,
+        fontSize: { default: typeScale.small, [media.maxSm]: typeScale.label },
         minWidth: 0,
         overflow: "hidden",
         textOverflow: "ellipsis",
@@ -278,13 +316,6 @@ const styles = style.create({
     },
     prompt: {
         color: color.primary,
-    },
-    more: {
-        borderRadius: "4px",
-        cursor: "help",
-        marginLeft: "0.5rem",
-        opacity: { default: 0.55, ":hover": { default: null, [media.hover]: 1 } },
-        paddingInline: "0.25rem",
     },
     key: {
         alignItems: "center",

@@ -3,7 +3,7 @@ import * as style from "@destack/style";
 import { lattice } from "../../layout/lattice.stylex";
 import { screen } from "../../layout/screen.stylex";
 import { Entry, type Form } from "../entry/entry";
-import { InstallWays } from "./install";
+import { InstallWays } from "../../install/install";
 import type { Tool } from "../tool/tool";
 import { Tally } from "./tally";
 

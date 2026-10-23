@@ -13,8 +13,16 @@ export const setupGuide = "https://destack.me";
 /** The public installation command. */
 export const installCommand = `curl -fsSL ${origin}/install | sh`;
 
-/** The prompt that has a coding agent install Destack. */
-export const agentPrompt = `Set up my Destack: ${setupGuide}`;
+/** Write the prompt that has a coding agent set up Destack, with any further asks. */
+export function agentPromptOf(asks: readonly string[]) {
+    const request =
+        asks.length === 0 ? "Set up my Destack" : `Set up my Destack, ${asks.join(" and ")}`;
+
+    return `${request}: ${setupGuide}`;
+}
+
+/** The prompt that has a coding agent set up Destack. */
+export const agentPrompt = agentPromptOf([]);
 
 /** Searchable content outside the generated documentation and blog collections. */
 export const siteSearchEntries: readonly SearchEntry[] = [
