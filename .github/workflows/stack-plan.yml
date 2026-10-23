@@ -1,8 +1,8 @@
-name: Plan stack
+name: Plan deployments
 
 on:
     pull_request:
-        paths: ["@platform/stack/**"]
+        paths: ["@platform/release/**"]
 
 permissions:
     contents: read
@@ -13,7 +13,7 @@ env:
 
 jobs:
     plan:
-        name: Plan stack
+        name: Plan deployments
         if: github.event.pull_request.head.repo.full_name == github.repository
         permissions:
             id-token: write
@@ -60,24 +60,24 @@ jobs:
                       done
                   }
                   while IFS= read -r file; do
-                      case "${file#@platform/stack/}" in
+                      case "${file#@platform/release/}" in
                           src/shared/* | deployment/shared.tfvars) add shared ;;
                           src/universe/*.tf | src/universe/.terraform.lock.hcl) add production/universe ;;
                           src/residency/*) add production/eu production/us ;;
                           src/database/*) add production/universe production/eu production/us ;;
                           deployment/production/*.tfvars)
-                              name="${file#@platform/stack/deployment/}"
+                              name="${file#@platform/release/deployment/}"
                               add "${name%.tfvars}"
                               ;;
-                          src/main.ts | src/command/* | src/cloudflare/credential.ts | src/deployment/* | package.json | justfile)
+                          src/main.ts | src/cloudflare/credential.ts | src/cloudflare/script.ts | src/deployment/* | package.json | justfile)
                               add shared production/universe production/eu production/us
                               ;;
                       esac
-                  done < <(git diff --name-only "$BASE...$HEAD" -- "@platform/stack")
+                  done < <(git diff --name-only "$BASE...$HEAD" -- "@platform/release")
                   echo "deployments=${selected[*]}" >> "$GITHUB_OUTPUT"
 
             - name: Plan deployments
-              working-directory: "@platform/stack"
+              working-directory: "@platform/release"
               env:
                   DEPLOYMENTS: ${{ steps.select.outputs.deployments }}
               run: |

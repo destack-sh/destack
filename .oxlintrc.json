@@ -117,10 +117,6 @@
             "rules": { "destack/no-overload-cast": "off" }
         },
         {
-            "files": ["@destack/connection/src/test/fixture.ts"],
-            "rules": { "destack/valid-declaration": "off" }
-        },
-        {
             "files": ["@destack/forge/tests/fixture/consumer/run.js"],
             "rules": { "eslint/no-console": "off", "typescript/no-unsafe-call": "off" }
         },

@@ -460,6 +460,7 @@
       "version": "2026.9.0",
       "dependencies": {
         "@destack/error": "workspace:*",
+        "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
       },
       "devDependencies": {
@@ -500,6 +501,7 @@
       "dependencies": {
         "@destack/error": "workspace:*",
         "@destack/fs": "workspace:*",
+        "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
         "jose": "6.2.12",
       },
@@ -793,6 +795,7 @@
       "dependencies": {
         "@anthropic-ai/sandbox-runtime": "0.0.77",
         "@destack/error": "workspace:*",
+        "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
       },
       "devDependencies": {
@@ -899,6 +902,7 @@
       "devDependencies": {
         "@destack/check": "workspace:*",
         "@destack/test": "workspace:*",
+        "@destack/universe": "workspace:*",
         "@template/stack": "workspace:*",
         "@types/node": "26.6.1",
         "miniflare": "4.20260730.0",
@@ -906,9 +910,11 @@
       },
       "peerDependencies": {
         "@destack/test": "workspace:*",
+        "@destack/universe": "workspace:*",
       },
       "optionalPeers": [
         "@destack/test",
+        "@destack/universe",
       ],
     },
     "@destack/style": {
@@ -947,6 +953,12 @@
         "@destack/test": "workspace:*",
         "@types/node": "26.6.1",
       },
+      "peerDependencies": {
+        "@destack/test": "workspace:*",
+      },
+      "optionalPeers": [
+        "@destack/test",
+      ],
     },
     "@destack/telemetry": {
       "name": "@destack/telemetry",
@@ -975,6 +987,7 @@
       "name": "@destack/test",
       "version": "2026.9.0",
       "dependencies": {
+        "@destack/error": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
         "@vitest/coverage-v8": "5.0.1",
@@ -1030,21 +1043,16 @@
         "@destack/db": "workspace:*",
         "@destack/environment": "workspace:*",
         "@destack/event": "workspace:*",
-        "@destack/forge": "workspace:*",
         "@destack/identity": "workspace:*",
-        "@destack/message": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
-        "@destack/relay": "workspace:*",
         "@destack/resource": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/setting": "workspace:*",
         "@destack/sync": "workspace:*",
-        "@destack/telemetry": "workspace:*",
         "@destack/workflow": "workspace:*",
       },
       "devDependencies": {
-        "@cloudflare/workers-types": "5.20260917.1",
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.2",
       },
@@ -1087,16 +1095,18 @@
       },
       "devDependencies": {
         "@destack/environment": "workspace:*",
-        "@destack/event": "workspace:*",
         "@destack/test": "workspace:*",
+        "@destack/universe": "workspace:*",
       },
       "peerDependencies": {
         "@destack/environment": "workspace:*",
-        "@destack/event": "workspace:*",
+        "@destack/test": "workspace:*",
+        "@destack/universe": "workspace:*",
       },
       "optionalPeers": [
         "@destack/environment",
-        "@destack/event",
+        "@destack/test",
+        "@destack/universe",
       ],
     },
     "@destack/view": {
@@ -1257,6 +1267,7 @@
         "@destack/setting": "workspace:*",
         "@destack/stack": "workspace:*",
         "@destack/sync": "workspace:*",
+        "@destack/telemetry": "workspace:*",
         "@destack/universe": "workspace:*",
         "@destack/update": "workspace:*",
         "@destack/vault": "workspace:*",

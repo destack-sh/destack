@@ -121,7 +121,7 @@ postgres action:
 
 # serve the local universe, a cloud machine per residency and the dev channel's machine (dev reset drops their state)
 dev *arguments: (postgres "up")
-    just @platform/stack/dev {{arguments}}
+    just @platform/release/dev {{arguments}}
 
 # version
 version:

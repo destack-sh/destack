@@ -3,20 +3,12 @@ name: Release
 on:
     schedule:
         - cron: "17 2 * * *"
-    push:
-        tags: ["v*"]
     workflow_dispatch:
-        inputs:
-            channel:
-                description: Channel to publish, stable from a version tag and nightly from main
-                type: choice
-                options: [nightly, stable]
-                default: nightly
 
 permissions: {}
 
 env:
-    DESTACK_RELEASE_CHANNEL: ${{ inputs.channel || (github.ref_type == 'tag' && 'stable') || 'nightly' }}
+    DESTACK_RELEASE_CHANNEL: stable
 
 concurrency:
     group: release-${{ github.ref }}
@@ -35,7 +27,6 @@ jobs:
             contents: read
         outputs:
             version: ${{ steps.release.outputs.version }}
-            channel: ${{ steps.release.outputs.channel }}
             build: ${{ steps.release.outputs.build }}
             publish: ${{ steps.release.outputs.publish }}
             targets: ${{ steps.release.outputs.targets }}
@@ -43,8 +34,8 @@ jobs:
             unsigned: ${{ steps.release.outputs.unsigned }}
             installers: ${{ steps.release.outputs.installers }}
             names: ${{ steps.release.outputs.names }}
-            renewals: ${{ steps.release.outputs.renewals }}
-            checks: ${{ steps.release.outputs.checks }}
+            renew: ${{ steps.release.outputs.renew }}
+            check: ${{ steps.release.outputs.check }}
         steps:
             - name: Check out repository
               uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
@@ -56,7 +47,7 @@ jobs:
             - name: Install dependencies
               working-directory: ${{ github.workspace }}
               run: bun install --frozen-lockfile
-            - name: Select release version, channel and work
+            - name: Select release version and work
               id: release
               run: bun run src/github/prepare.ts
 
@@ -122,7 +113,7 @@ jobs:
         if: needs.prepare.outputs.publish == 'true'
         runs-on: ${{ matrix.runner }}
         timeout-minutes: 40
-        environment: release-${{ needs.prepare.outputs.channel }}
+        environment: release-stable
         permissions:
             contents: read
         strategy:
@@ -184,7 +175,7 @@ jobs:
             (needs.sign.result == 'success' || (needs.prepare.outputs.publish != 'true' && needs.sign.result == 'skipped'))
         runs-on: ${{ matrix.runner }}
         timeout-minutes: 40
-        environment: ${{ needs.prepare.outputs.publish == 'true' && format('release-{0}', needs.prepare.outputs.channel) || 'build' }}
+        environment: ${{ needs.prepare.outputs.publish == 'true' && 'release-stable' || 'build' }}
         permissions:
             contents: read
         strategy:
@@ -239,13 +230,13 @@ jobs:
         if: needs.prepare.outputs.publish == 'true'
         runs-on: ubuntu-24.04
         timeout-minutes: 20
-        environment: release-${{ needs.prepare.outputs.channel }}
+        environment: release-stable
         permissions:
             contents: read
             id-token: write
             attestations: write
         concurrency:
-            group: update-repository-${{ needs.prepare.outputs.channel }}
+            group: update-repository
             cancel-in-progress: false
         env:
             DESTACK_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
@@ -300,28 +291,56 @@ jobs:
               if: always()
               run: bun run src/github/credential.ts remove
 
-    deploy:
-        name: Deploy ${{ needs.prepare.outputs.channel == 'stable' && 'production' || 'development' }}
+    record:
+        name: Record release
         needs: [prepare, publish]
+        if: needs.prepare.outputs.publish == 'true'
+        runs-on: ubuntu-24.04
+        timeout-minutes: 5
+        permissions:
+            contents: write
+        env:
+            DESTACK_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+            GH_TOKEN: ${{ github.token }}
+        steps:
+            - name: Check out repository
+              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              with:
+                  persist-credentials: false
+                  fetch-depth: 0
+            - name: Set up Bun
+              uses: ./.github/actions/setup-bun
+            - name: Install dependencies
+              working-directory: ${{ github.workspace }}
+              run: bun install --frozen-lockfile
+            - name: Tag the release and publish its notes
+              run: bun run src/github/record.ts
+
+    deploy:
+        name: Deploy production
+        needs: [prepare, publish]
+        if: needs.prepare.outputs.publish == 'true'
         runs-on: ubuntu-24.04
         timeout-minutes: 60
-        environment: ${{ needs.prepare.outputs.channel == 'stable' && 'production' || 'development' }}
+        environment: production
         permissions:
             contents: read
             id-token: write
         concurrency:
-            group: deploy-${{ needs.prepare.outputs.channel }}
+            group: deploy-production
             cancel-in-progress: false
         env:
             AWS_REGION: eu-central-1
             TF_IN_AUTOMATION: "true"
-            DEPLOYMENT: ${{ needs.prepare.outputs.channel == 'stable' && 'production' || 'development' }}
             CLOUDFLARE_COMPANY_API_TOKEN: ${{ secrets.CLOUDFLARE_COMPANY_API_TOKEN }}
             PLANETSCALE_SERVICE_TOKEN_ID: ${{ secrets.PLANETSCALE_SERVICE_TOKEN_ID }}
             PLANETSCALE_SERVICE_TOKEN: ${{ secrets.PLANETSCALE_SERVICE_TOKEN }}
+            DESTACK_ROOT_KEY: ${{ secrets.DESTACK_ROOT_KEY }}
+            DESTACK_OPERATOR: ${{ vars.DESTACK_OPERATOR }}
+            STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
         defaults:
             run:
-                working-directory: "@platform/stack"
+                working-directory: "@platform/release"
         steps:
             - name: Check out repository
               uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
@@ -335,22 +354,13 @@ jobs:
                   role-to-assume: arn:aws:iam::903685415634:role/destack-deploy
                   role-session-name: deploy-${{ github.run_id }}
                   aws-region: ${{ env.AWS_REGION }}
-            - name: Apply shared
-              if: env.DEPLOYMENT == 'development'
-              run: bun run src/main.ts deploy shared
-            - name: Apply universe
-              run: bun run src/main.ts deploy "$DEPLOYMENT" universe
-            - name: Apply eu
-              run: bun run src/main.ts deploy "$DEPLOYMENT" eu
-            - name: Apply us
-              run: bun run src/main.ts deploy "$DEPLOYMENT" us
-            - name: Release
-              run: bun run src/main.ts release "$DEPLOYMENT"
+            - name: Deploy production
+              run: bun run src/main.ts deploy production
 
     drift:
         name: Check production drift
         needs: [prepare]
-        if: needs.prepare.outputs.channel == 'nightly'
+        if: github.event_name == 'schedule'
         runs-on: ubuntu-24.04
         timeout-minutes: 30
         environment: drift
@@ -365,7 +375,7 @@ jobs:
             PLANETSCALE_SERVICE_TOKEN: ${{ secrets.PLANETSCALE_SERVICE_TOKEN }}
         defaults:
             run:
-                working-directory: "@platform/stack"
+                working-directory: "@platform/release"
         steps:
             - name: Check out repository
               uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
@@ -387,23 +397,17 @@ jobs:
               run: bun run src/main.ts drift production us
 
     renew:
-        name: Renew release metadata (${{ matrix.channel }})
+        name: Renew release metadata
         needs: [prepare]
-        if: needs.prepare.outputs.renewals != '[]'
+        if: needs.prepare.outputs.renew == 'true'
         runs-on: ubuntu-24.04
         timeout-minutes: 10
-        environment: renewal-${{ matrix.channel }}
+        environment: renewal-stable
         permissions:
             contents: read
         concurrency:
-            group: update-repository-${{ matrix.channel }}
+            group: update-repository
             cancel-in-progress: false
-        strategy:
-            fail-fast: false
-            matrix:
-                channel: ${{ fromJSON(needs.prepare.outputs.renewals) }}
-        env:
-            DESTACK_RELEASE_CHANNEL: ${{ matrix.channel }}
         steps:
             - name: Check out repository
               uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
@@ -430,19 +434,13 @@ jobs:
               run: bun run src/github/credential.ts remove
 
     check-expiry:
-        name: Check release metadata expiry (${{ matrix.channel }})
+        name: Check release metadata expiry
         needs: [prepare, publish, renew]
-        if: ${{ !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.checks != '[]' }}
+        if: ${{ !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.check == 'true' }}
         runs-on: ubuntu-24.04
         timeout-minutes: 5
         permissions:
             contents: read
-        strategy:
-            fail-fast: false
-            matrix:
-                channel: ${{ fromJSON(needs.prepare.outputs.checks) }}
-        env:
-            DESTACK_RELEASE_CHANNEL: ${{ matrix.channel }}
         steps:
             - name: Check out repository
               uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
