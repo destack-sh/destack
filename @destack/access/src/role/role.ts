@@ -62,7 +62,7 @@ export const Role = {
             },
         });
         if (record === undefined || record.scope !== scope) {
-            throw new AccessError("NOT_FOUND", "role not found");
+            throw new AccessError("ROLE_NOT_FOUND", "role not found");
         }
 
         return record;
@@ -209,7 +209,7 @@ export const Role = {
         });
         const role = defined?.id ?? (await Role.define(transaction, scope.id, request, now, null));
         if (role === undefined) {
-            throw new AccessError("CONFLICT", "role name is already in use");
+            throw new AccessError("ROLE_NAME_TAKEN", "role name is already in use");
         }
         if (defined !== undefined) {
             await Role.replace(transaction, role, scope.id, request.permissions);
@@ -301,7 +301,7 @@ export const Role = {
                 authorization.manager,
             );
             if (id === undefined) {
-                throw new AccessError("CONFLICT", "role name is already in use");
+                throw new AccessError("ROLE_NAME_TAKEN", "role name is already in use");
             }
             const record = await Role.read(authorization.transaction, scope.id, id);
 
@@ -321,7 +321,7 @@ export const Role = {
             const context = authorization.context();
             const record = await Role.read(authorization.transaction, scope.id, id);
             if (record.revision !== changes.revision) {
-                throw new AccessError("CONFLICT", "role revision has changed");
+                throw new AccessError("STALE_REVISION", "role revision has changed");
             }
             await authorization.authorizeRole(
                 scope,
@@ -372,7 +372,7 @@ export const Role = {
             // require an editable role at the revision and permission to delete roles
             const record = await Role.read(authorization.transaction, scope.id, id);
             if (record.revision !== revision) {
-                throw new AccessError("CONFLICT", "role revision has changed");
+                throw new AccessError("STALE_REVISION", "role revision has changed");
             }
             await authorization.authorizeRole(scope, [policies.role.permission("delete")], record);
 
@@ -391,7 +391,7 @@ export const Role = {
                 limit: 1,
             });
             if (bindings.length > 0) {
-                throw new AccessError("CONFLICT", "role is still bound or included");
+                throw new AccessError("ROLE_IN_USE", "role is still bound or included");
             }
 
             // delete the role with its permissions
@@ -432,8 +432,11 @@ export const Role = {
                 [policies.role.permission("update"), ...request.permissions],
                 existing,
             );
-            if (!isManagedBy(existing, authorization.manager)) {
-                throw new AccessError("CONFLICT", "role name is already in use");
+
+            // refuse a role of the name the declaration does not manage
+            const { manager } = authorization;
+            if (manager !== null && !Manager.manages(existing, manager)) {
+                throw new AccessError("ROLE_NAME_TAKEN", "role name is already in use");
             }
             const granted = await Role.permissions(authorization.transaction, existing.id);
             const isGranted = isSamePermissions(granted, request.permissions);
@@ -569,17 +572,6 @@ function isBinding(
         Subject.same(relationship.subject, request.subject) &&
         relationship.expiresAt === null &&
         relationship.linkSecret === undefined
-    );
-}
-
-/** Report whether a role is under a manager, or under none for null. */
-function isManagedBy(record: Select<typeof accessRole>, manager: Manager | null): boolean {
-    const columns = Manager.values(manager);
-
-    return (
-        record.managerInstallationId === columns.managerInstallationId &&
-        record.managerPackageId === columns.managerPackageId &&
-        record.managerName === columns.managerName
     );
 }
 

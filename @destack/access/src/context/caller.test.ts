@@ -27,7 +27,11 @@ test("forward a caller with its credential to a runner and read them back, refus
     // read back the forwarded and absent callers, and refuse a header that is not a JSON caller
     const read = Caller.forwarded(new Request("http://runner.test", { headers }));
     const absent = Caller.forwarded(new Request("http://runner.test"));
-    const malformed = ["INVALID_CONTEXT", "the forwarded caller is malformed"];
+    const malformed = [
+        "BAD_REQUEST",
+        "INVALID_FORWARDED_CALLER",
+        "the forwarded caller is malformed",
+    ];
 
     expect([read, absent, await refusedHeader("{}"), await refusedHeader("{")]).toEqual([
         { caller: alice, credential: session },
@@ -51,9 +55,13 @@ test("require a credential current for its audience and scope until it lapses", 
         scope: await current(NOW, "space-b"),
     }).toEqual({
         live: "done",
-        lapsed: ["UNAUTHORIZED", "caller authentication is not current"],
-        early: ["UNAUTHORIZED", "caller authentication is not current"],
-        scope: ["UNAUTHORIZED", "caller authentication has a different audience or scope"],
+        lapsed: ["UNAUTHORIZED", "AUTHENTICATION_EXPIRED", "caller authentication is not current"],
+        early: ["UNAUTHORIZED", "AUTHENTICATION_EXPIRED", "caller authentication is not current"],
+        scope: [
+            "UNAUTHORIZED",
+            "AUDIENCE_MISMATCH",
+            "caller authentication has a different audience or scope",
+        ],
     });
 });
 
@@ -97,9 +105,9 @@ test("require a grant per actor or none, and actors to act for an identified sub
         "done",
         "done",
         "done",
-        ["INVALID_CONTEXT", "a delegation chain needs a grant per actor"],
-        ["INVALID_CONTEXT", "a delegation chain needs a grant per actor"],
-        ["INVALID_CONTEXT", "delegation chain is inconsistent"],
+        ["UNAUTHORIZED", "INVALID_DELEGATION", "a delegation chain needs a grant per actor"],
+        ["UNAUTHORIZED", "INVALID_DELEGATION", "a delegation chain needs a grant per actor"],
+        ["UNAUTHORIZED", "INVALID_DELEGATION", "delegation chain is inconsistent"],
     ]);
 });
 

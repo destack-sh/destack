@@ -1,3 +1,4 @@
+import { Failure } from "@destack/error";
 import { expect, refusal, test } from "@destack/test";
 import { Caller, KEY_ASSURANCE } from "../context/index.ts";
 import { principal } from "../declare/index.ts";
@@ -7,7 +8,6 @@ import { Identifier } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { SignJWT } from "jose";
 import { Assertion, AssertionVerifier, type AssertionKey } from "./assertion.ts";
-import { AccessError } from "../error/index.ts";
 import { MACHINE_KEY } from "./token.ts";
 
 /** The package serving the token endpoint. */
@@ -81,12 +81,12 @@ test("authenticate a machine by its assertion once, refusing replayed, expired, 
             },
         },
         refusals: [
-            ["UNAUTHORIZED", "assertion was used before"],
-            ["UNAUTHORIZED", "assertion expired"],
-            ["UNAUTHORIZED", "invalid assertion"],
-            ["UNAUTHORIZED", "assertion has no standing key"],
-            ["UNAUTHORIZED", "invalid assertion"],
-            ["UNAUTHORIZED", "invalid assertion"],
+            ["UNAUTHORIZED", "ASSERTION_REUSED", "assertion was used before"],
+            ["UNAUTHORIZED", "ASSERTION_EXPIRED", "assertion expired"],
+            ["UNAUTHORIZED", "INVALID_ASSERTION", "invalid assertion"],
+            ["UNAUTHORIZED", "ASSERTION_KEY_UNKNOWN", "assertion has no standing key"],
+            ["UNAUTHORIZED", "INVALID_ASSERTION", "invalid assertion"],
+            ["UNAUTHORIZED", "INVALID_ASSERTION", "invalid assertion"],
         ],
     });
 });
@@ -159,7 +159,11 @@ test("authenticate a space and its installation by the space's key, refusing a s
             spaceId,
         ],
         space: [principal.space.reference(Scope.universe.id, spaceId), "space-key", undefined],
-        refused: ["UNAUTHORIZED", "assertion subject is outside its key's authority"],
+        refused: [
+            "UNAUTHORIZED",
+            "ASSERTION_OUTSIDE_AUTHORITY",
+            "assertion subject is outside its key's authority",
+        ],
     });
 });
 
@@ -170,7 +174,12 @@ function spending(): (digest: string) => Promise<void> {
     return async (digest) => {
         // refuse a digest spent before, and record this one
         if (spent.has(digest)) {
-            throw new AccessError("CONFLICT", "proof was used before");
+            throw Failure.error({
+                code: "CONFLICT",
+                reason: "DUPLICATE",
+                domain: "@destack/object",
+                message: "proof was used before",
+            });
         }
         spent.add(digest);
     };

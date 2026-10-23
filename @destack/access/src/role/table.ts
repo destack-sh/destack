@@ -1,16 +1,7 @@
-import {
-    check,
-    defineTable,
-    identifier,
-    index,
-    integer,
-    text,
-    unique,
-    uniqueIndex,
-    type Column,
-} from "@destack/db";
+import { defineTable, identifier, index, integer, text, unique, uniqueIndex } from "@destack/db";
 import { schema } from "@destack/schema";
 import { nameCheck } from "../declare/expression.ts";
+import { Manager } from "../manager/manager.ts";
 
 /** The one owner role, bound in each scope to its owners: every permission but reserved ones. */
 export const OWNER_ROLE = {
@@ -18,10 +9,7 @@ export const OWNER_ROLE = {
     createdAt: 0,
     updatedAt: 0,
     revision: 1,
-    managerInstallationId: null,
-    managerPackageId: null,
-    managerName: null,
-    detachedAt: null,
+    ...Manager.values(null),
     scope: "universe",
     name: "owner",
     description: "Every permission in the scope it is bound in except reserved ones",
@@ -57,7 +45,7 @@ export const accessRole = defineTable(
     {
         log: { retention: "history", isShared: true },
         constraints: (role) => [
-            ...managerChecks("role", role),
+            ...Manager.constraints("role", role),
             unique("role_scope_name").on(role.scope, role.name),
         ],
         predefined: [OWNER_ROLE],
@@ -102,44 +90,3 @@ export const accessRolePermission = defineTable(
         ],
     },
 );
-
-/** Require a full manager or none, detachment only when managed, and one row per declaration. */
-export function managerChecks(
-    name: string,
-    columns: {
-        /** The managing installation. */
-        readonly managerInstallationId: Column;
-        /** The managing package. */
-        readonly managerPackageId: Column;
-        /** The managing declaration's name. */
-        readonly managerName: Column;
-        /** The time the declaration stopped managing the row. */
-        readonly detachedAt: Column;
-    },
-) {
-    return [
-        check(`${name}_manager`, {
-            OR: [
-                {
-                    managerInstallationId: { isNull: true },
-                    managerPackageId: { isNull: true },
-                    managerName: { isNull: true },
-                },
-                {
-                    managerInstallationId: { isNotNull: true },
-                    managerPackageId: { isNotNull: true },
-                    managerName: { isNotNull: true },
-                },
-            ],
-        }),
-        check(`${name}_detached`, {
-            OR: [
-                { detachedAt: { isNull: true } },
-                { managerInstallationId: { isNotNull: true }, detachedAt: { gte: 0 } },
-            ],
-        }),
-        uniqueIndex(`${name}_manager`)
-            .on(columns.managerInstallationId, columns.managerPackageId, columns.managerName)
-            .where({ managerInstallationId: { isNotNull: true }, detachedAt: { isNull: true } }),
-    ];
-}

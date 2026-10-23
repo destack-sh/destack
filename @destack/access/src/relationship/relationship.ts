@@ -316,27 +316,21 @@ export const Relationship = {
         if ("objects" in selection) {
             covered = Relationship.heldThrough(selection);
         }
-        // select the relationships the declaration being applied manages
+        // select the relationships the declaration being applied manages now
         else if (manager !== null) {
-            covered = Relationship.managedBy(manager);
+            covered = Manager.condition(manager);
         }
         // refuse a caller applying no declaration
         else {
-            throw new AccessError("INVALID_CONTEXT", "only a declaration can manage relationships");
+            throw new AccessError(
+                "MANAGER_REQUIRED",
+                "only a declaration can manage relationships",
+            );
         }
 
         return transaction
             .read(accessRelationship)
             .findMany({ where: { scope: selection.scope, ...covered } });
-    },
-
-    /** Match the relationships one declaration manages. */
-    managedBy(manager: Manager): Condition<Select<typeof accessRelationship>> {
-        return {
-            managerInstallationId: manager.installationId,
-            managerPackageId: manager.packageId,
-            managerName: manager.name,
-        };
     },
 
     /** Match the relationships a subject has through a relation on objects of some types. */
@@ -431,7 +425,7 @@ export const Relationship = {
                 },
             });
             if (!row) {
-                throw new AccessError("NOT_FOUND", "relationship not found");
+                throw new AccessError("RELATIONSHIP_NOT_FOUND", "relationship not found");
             }
 
             // require permission to revoke what it grants, and leave an owner
@@ -539,7 +533,7 @@ export const Relationship = {
             .read(accessRelationship)
             .findMany({ where: Relationship.equal(row), limit: 1 });
         if (same.length > 0) {
-            throw new AccessError("CONFLICT", "relationship already exists");
+            throw new AccessError("RELATIONSHIP_EXISTS", "relationship already exists");
         }
         await authorization.transaction.write({
             table: accessRelationship,
@@ -551,7 +545,7 @@ export const Relationship = {
     },
 };
 
-/** The relationships of a scope that `replaceRelationships` covers. */
+/** The relationships of a scope that `Relationship.replace` covers. */
 export type RelationshipSelection = {
     /** The scope the relationships live in. */
     readonly scope: string;
@@ -601,6 +595,6 @@ async function requireRemainingOwner(
 
     // refuse removing the only such binding
     if (owners.length === 1 && nth(owners, 0).id === row.id) {
-        throw new AccessError("CONFLICT", "the last owner cannot be removed");
+        throw new AccessError("LAST_OWNER", "the last owner cannot be removed");
     }
 }

@@ -93,7 +93,7 @@ export const Invitation = {
         // require a bounded page
         if (!Number.isInteger(page.limit) || page.limit < 1 || page.limit > INVITATION_PAGE) {
             throw new AccessError(
-                "INVALID_CONTEXT",
+                "INVALID_PAGE",
                 `invitation page limit must be 1 to ${INVITATION_PAGE}`,
             );
         }
@@ -131,12 +131,12 @@ export const Invitation = {
             },
         });
         if (!row) {
-            throw new AccessError("NOT_FOUND", "invitation not found");
+            throw new AccessError("INVITATION_NOT_FOUND", "invitation not found");
         }
 
         // refuse a settled invitation
         if (row.status !== "pending") {
-            throw new AccessError("CONFLICT", `invitation is ${row.status}`);
+            throw new AccessError("INVITATION_NOT_PENDING", `invitation is ${row.status}`);
         }
 
         return Invitation.decode(row);
@@ -253,7 +253,10 @@ export const Invitation = {
             );
             const expiresAt = request.expiresAt ?? context.now + INVITATION_LIFETIME_MILLISECONDS;
             if (!Number.isFinite(expiresAt) || expiresAt <= context.now) {
-                throw new AccessError("FORBIDDEN", "invitation must expire in the future");
+                throw new AccessError(
+                    "INVALID_INVITATION_EXPIRY",
+                    "invitation must expire in the future",
+                );
             }
 
             // let a principal ask for itself, and require grant authority to offer to anyone else
@@ -263,7 +266,10 @@ export const Invitation = {
                     invited.subject.id === "*" ||
                     invited.subject.scope === "*"
                 ) {
-                    throw new AccessError("FORBIDDEN", "invitation subject must be one principal");
+                    throw new AccessError(
+                        "INVALID_INVITATION_SUBJECT",
+                        "invitation subject must be one principal",
+                    );
                 }
                 await authorization.authorizeGrant(invited);
             }
@@ -306,7 +312,7 @@ export const Invitation = {
             const context = authorization.context();
             const invitation = await Invitation.read(authorization.transaction, object, id);
             if (invitation.expiresAt <= context.now) {
-                throw new AccessError("FORBIDDEN", "invitation has lapsed");
+                throw new AccessError("INVITATION_LAPSED", "invitation has lapsed");
             }
 
             // require a grantor for a request
@@ -320,9 +326,15 @@ export const Invitation = {
             else {
                 const accepting = Caller.principal(context);
                 if (Caller.isAnonymous(context)) {
-                    throw new AccessError("FORBIDDEN", "accepting an offer needs an identity");
+                    throw new AccessError(
+                        "IDENTITY_REQUIRED",
+                        "accepting an offer needs an identity",
+                    );
                 } else if (!Invitation.addresses(invitation, accepting, context)) {
-                    throw new AccessError("FORBIDDEN", "invitation is addressed to someone else");
+                    throw new AccessError(
+                        "INVITATION_ADDRESSEE_MISMATCH",
+                        "invitation is addressed to someone else",
+                    );
                 }
                 subject = accepting;
                 await requireInviter(invitation, context.now, authorization);
@@ -436,7 +448,7 @@ async function settle(
         .read(accessInvitation)
         .findFirst({ where: { id: Invitation.id(id) } });
     if (row === undefined || row.status !== "pending") {
-        throw new AccessError("CONFLICT", "invitation is no longer pending");
+        throw new AccessError("INVITATION_NOT_PENDING", "invitation is no longer pending");
     }
 
     // mark it settled

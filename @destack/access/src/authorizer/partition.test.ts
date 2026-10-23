@@ -136,7 +136,7 @@ test("store a space's access in its partition, its home, refusing it where its r
         ),
     ).rejects.toEqual(
         new AccessError(
-            "FORBIDDEN",
+            "ACCESS_NOT_LOCAL",
             "cannot write the access of space personal here: it lives at its home",
         ),
     );

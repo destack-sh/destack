@@ -1,4 +1,4 @@
-import { expect, test } from "@destack/test";
+import { expect, refusal, test } from "@destack/test";
 import { v7 } from "uuid";
 import {
     defineTable,
@@ -94,25 +94,24 @@ databaseTest("authorize notes, ranges and world entities", async ({ fixture }) =
             )
             .orderBy(item.id),
     ).toEqual([{ id: "b" }]);
-    await expect(
-        Authorization.run(
-            authorizer,
-            database,
-            () => bob,
-            (authorization) =>
-                Relationship.grant(
-                    {
-                        object: node.reference("personal", "b"),
-                        relation: "editor",
-                        subject: userSubject("alice"),
-                    },
-                    authorization,
-                ),
+    expect(
+        await refusal(
+            Authorization.run(
+                authorizer,
+                database,
+                () => bob,
+                (authorization) =>
+                    Relationship.grant(
+                        {
+                            object: node.reference("personal", "b"),
+                            relation: "editor",
+                            subject: userSubject("alice"),
+                        },
+                        authorization,
+                    ),
+            ),
         ),
-    ).rejects.toMatchObject({
-        code: "FORBIDDEN",
-        message: "permission denied: share",
-    });
+    ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: share"]);
 
     // select each example's editable rows for its caller
     const elevated = {
@@ -187,7 +186,7 @@ databaseTest("authorize notes, ranges and world entities", async ({ fixture }) =
                     entity.reference("personal", "a"),
                     access,
                 )
-                .catch((error: AccessError) => [error.code, error.message, error.stepUp]),
+                .catch((error: AccessError) => [error.reason, error.message, error.stepUp]),
         );
     }
     expect(refusals).toEqual([
@@ -196,7 +195,7 @@ databaseTest("authorize notes, ranges and world entities", async ({ fixture }) =
             "authentication assurance is too low: authenticate again",
             { assurance: 2, maxAge: 15 * 60 * 1000 },
         ],
-        ["FORBIDDEN", "permission denied: edit", undefined],
+        ["PERMISSION_DENIED", "permission denied: edit", undefined],
     ]);
 });
 
@@ -309,25 +308,24 @@ databaseTest(
                 ),
         );
         expect(second.id).not.toBe(first.id);
-        await expect(
-            Authorization.run(
-                authorizer,
-                database,
-                () => alice,
-                (authorization) =>
-                    Relationship.grant(
-                        {
-                            object: node.reference("personal", "b"),
-                            relation: "editor",
-                            subject: userSubject("bob"),
-                        },
-                        authorization,
-                    ),
+        expect(
+            await refusal(
+                Authorization.run(
+                    authorizer,
+                    database,
+                    () => alice,
+                    (authorization) =>
+                        Relationship.grant(
+                            {
+                                object: node.reference("personal", "b"),
+                                relation: "editor",
+                                subject: userSubject("bob"),
+                            },
+                            authorization,
+                        ),
+                ),
             ),
-        ).rejects.toMatchObject({
-            code: "CONFLICT",
-            message: "relationship already exists",
-        });
+        ).toEqual(["CONFLICT", "RELATIONSHIP_EXISTS", "relationship already exists"]);
     },
 );
 
@@ -401,50 +399,47 @@ databaseTest(
                     ),
             ),
         ).toEqual([]);
-        await expect(
-            Authorization.run(
-                authorizer,
-                database,
-                () => alice,
-                (authorization) =>
-                    Invitation.list(
-                        { object: node.reference("personal", "c") },
-                        { limit: 101 },
-                        authorization,
-                    ),
+        expect(
+            await refusal(
+                Authorization.run(
+                    authorizer,
+                    database,
+                    () => alice,
+                    (authorization) =>
+                        Invitation.list(
+                            { object: node.reference("personal", "c") },
+                            { limit: 101 },
+                            authorization,
+                        ),
+                ),
             ),
-        ).rejects.toMatchObject({
-            code: "INVALID_CONTEXT",
-            message: "invitation page limit must be 1 to 100",
-        });
-        await expect(
-            Authorization.run(
-                authorizer,
-                database,
-                () => carol,
-                (authorization) =>
-                    Invitation.accept(asked.relationship.object, asked.id, authorization),
+        ).toEqual(["BAD_REQUEST", "INVALID_PAGE", "invitation page limit must be 1 to 100"]);
+        expect(
+            await refusal(
+                Authorization.run(
+                    authorizer,
+                    database,
+                    () => carol,
+                    (authorization) =>
+                        Invitation.accept(asked.relationship.object, asked.id, authorization),
+                ),
             ),
-        ).rejects.toMatchObject({
-            code: "FORBIDDEN",
-            message: "permission denied: share",
-        });
-        await expect(
-            Authorization.run(
-                authorizer,
-                database,
-                () => carol,
-                (authorization) =>
-                    Invitation.list(
-                        { object: node.reference("personal", "c") },
-                        { limit: 10 },
-                        authorization,
-                    ),
+        ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: share"]);
+        expect(
+            await refusal(
+                Authorization.run(
+                    authorizer,
+                    database,
+                    () => carol,
+                    (authorization) =>
+                        Invitation.list(
+                            { object: node.reference("personal", "c") },
+                            { limit: 10 },
+                            authorization,
+                        ),
+                ),
             ),
-        ).rejects.toMatchObject({
-            code: "FORBIDDEN",
-            message: "permission denied: share",
-        });
+        ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: share"]);
         await Authorization.run(
             authorizer,
             database,
@@ -471,57 +466,64 @@ databaseTest(
                     authorization,
                 ),
         );
-        await expect(
-            Authorization.run(
-                authorizer,
-                database,
-                () => dave,
-                (authorization) =>
-                    Invitation.create(
-                        {
-                            relationship: {
-                                object: node.reference("personal", "a"),
-                                relation: "editor",
-                                subject: Contact.subject(Contact.email("dave@example.com")),
+        expect(
+            await refusal(
+                Authorization.run(
+                    authorizer,
+                    database,
+                    () => dave,
+                    (authorization) =>
+                        Invitation.create(
+                            {
+                                relationship: {
+                                    object: node.reference("personal", "a"),
+                                    relation: "editor",
+                                    subject: Contact.subject(Contact.email("dave@example.com")),
+                                },
                             },
-                        },
-                        authorization,
-                    ),
+                            authorization,
+                        ),
+                ),
             ),
-        ).rejects.toMatchObject({
-            code: "FORBIDDEN",
-            message: "permission denied: share",
-        });
-        await expect(
-            Authorization.run(
-                authorizer,
-                database,
-                () => dave,
-                (authorization) =>
-                    Invitation.accept(offered.relationship.object, offered.id, authorization),
+        ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: share"]);
+        expect(
+            await refusal(
+                Authorization.run(
+                    authorizer,
+                    database,
+                    () => dave,
+                    (authorization) =>
+                        Invitation.accept(offered.relationship.object, offered.id, authorization),
+                ),
             ),
-        ).rejects.toMatchObject({
-            code: "FORBIDDEN",
-            message: "invitation is addressed to someone else",
-        });
+        ).toEqual([
+            "FORBIDDEN",
+            "INVITATION_ADDRESSEE_MISMATCH",
+            "invitation is addressed to someone else",
+        ]);
         const agent = principal.installation.reference("personal", "assistant");
-        await expect(
-            Authorization.run(
-                authorizer,
-                database,
-                () => ({
-                    ...carol,
-                    subject: userSubject("carol"),
-                    actors: [agent],
-                    grants: [{ id: Identifier.create("grant"), scope: "carol", permissions: [] }],
-                }),
-                (authorization) =>
-                    Invitation.accept(offered.relationship.object, offered.id, authorization),
+        expect(
+            await refusal(
+                Authorization.run(
+                    authorizer,
+                    database,
+                    () => ({
+                        ...carol,
+                        subject: userSubject("carol"),
+                        actors: [agent],
+                        grants: [
+                            { id: Identifier.create("grant"), scope: "carol", permissions: [] },
+                        ],
+                    }),
+                    (authorization) =>
+                        Invitation.accept(offered.relationship.object, offered.id, authorization),
+                ),
             ),
-        ).rejects.toMatchObject({
-            code: "FORBIDDEN",
-            message: "invitation is addressed to someone else",
-        });
+        ).toEqual([
+            "FORBIDDEN",
+            "INVITATION_ADDRESSEE_MISMATCH",
+            "invitation is addressed to someone else",
+        ]);
         await Authorization.run(
             authorizer,
             database,
@@ -571,18 +573,21 @@ databaseTest(
                     authorization,
                 ),
         );
-        await expect(
-            Authorization.run(
-                authorizer,
-                database,
-                () => carol,
-                (authorization) =>
-                    Invitation.withdraw(rejected.relationship.object, rejected.id, authorization),
+        expect(
+            await refusal(
+                Authorization.run(
+                    authorizer,
+                    database,
+                    () => carol,
+                    (authorization) =>
+                        Invitation.withdraw(
+                            rejected.relationship.object,
+                            rejected.id,
+                            authorization,
+                        ),
+                ),
             ),
-        ).rejects.toMatchObject({
-            code: "FORBIDDEN",
-            message: "permission denied: share",
-        });
+        ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: share"]);
         await Authorization.run(
             authorizer,
             database,
@@ -691,12 +696,12 @@ databaseTest(
         }).toEqual({
             delegateScopes: ["personal", "personal"],
             refusals: [
-                "FORBIDDEN: a principal can grant only its own authority",
-                "FORBIDDEN: a grant needs one other principal as delegate",
+                "FOREIGN_AUTHORITY: a principal can grant only its own authority",
+                "DELEGATE_REQUIRED: a grant needs one other principal as delegate",
             ],
-            elsewhere: `UNAUTHORIZED: grant ${forBob.id} belongs to another delegate`,
-            lapsed: `UNAUTHORIZED: grant ${forAlice.id} expired`,
-            revoked: `UNAUTHORIZED: grant ${forAlice.id} is revoked`,
+            elsewhere: `GRANT_DELEGATE_MISMATCH: grant ${forBob.id} belongs to another delegate`,
+            lapsed: `GRANT_EXPIRED: grant ${forAlice.id} expired`,
+            revoked: `GRANT_REVOKED: grant ${forAlice.id} is revoked`,
             remaining: "resolved",
         });
     },
@@ -748,9 +753,9 @@ databaseTest(
         }).toEqual({
             grants: [later.id],
             caller: [alice.subject, [assistant], [Grant.claim(later)]],
-            lapsed: "FORBIDDEN: installation assistant acts for user alice under no grant",
+            lapsed: "GRANT_REQUIRED: installation assistant acts for user alice under no grant",
             unlinked:
-                "FORBIDDEN: installation subagent acts for installation assistant under no grant",
+                "GRANT_REQUIRED: installation subagent acts for installation assistant under no grant",
         });
     },
 );
@@ -967,7 +972,7 @@ async function outcome(promise: Promise<unknown>): Promise<string> {
             throw error;
         }
 
-        return `${error.code}: ${error.message}`;
+        return `${error.reason}: ${error.message}`;
     }
 }
 
@@ -1150,7 +1155,7 @@ test("refuse binding a role to a scope relation a field decides", () => {
     expect(bind("member")).not.toThrow();
     expect(bind("lead")).toThrow(
         new AccessError(
-            "FORBIDDEN",
+            "ROLE_SUBJECT_REFUSED",
             "a role cannot bind to workspace#lead: roles bind to subject sets and scope relations",
         ),
     );
@@ -1193,7 +1198,7 @@ databaseTest(
                 }),
         );
         const refused = new AccessError(
-            "FORBIDDEN",
+            "SUBJECT_OUTSIDE_CHAIN",
             "group#member in account-2 is outside the scope chain of personal",
         );
         await expect(share("account-2")).rejects.toEqual(refused);

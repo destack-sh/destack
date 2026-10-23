@@ -1,6 +1,6 @@
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { type ObjectReference, Subject } from "@destack/sync";
-import { nth } from "@destack/schema";
+import { nth, present } from "@destack/schema";
 import { Snapshot, asc, eq } from "@destack/db";
 import {
     ACCESS_MAPPINGS,
@@ -261,17 +261,19 @@ test("replace a subject's relationships through a relation with exactly the want
     expect(await related()).toEqual(["b:bob"]);
 
     // refuse bob, who edits b without sharing it
-    await expect(
-        Authorization.run(
-            fixture.authorizer,
-            fixture.database,
-            () => fixture.bob,
-            (authorization) => Relationship.replace(selection, wanting(second), authorization),
+    expect(
+        await refusal(
+            Authorization.run(
+                fixture.authorizer,
+                fixture.database,
+                () => fixture.bob,
+                (authorization) => Relationship.replace(selection, wanting(second), authorization),
+            ),
         ),
-    ).rejects.toMatchObject({ code: "FORBIDDEN", message: "permission denied: share" });
+    ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: share"]);
 });
 
-test("store the relationships a declaration manages under stable identifiers, change them through it, and refuse a caller revoking them outside it", async () => {
+test("store a declaration's relationships under stable identifiers, refuse revoking them from anyone else, and leave them once released", async () => {
     // open the fixture, where alice is the owner of every node
     const fixture = await openFixture();
     onTestFinished(() => fixture.close());
@@ -291,7 +293,7 @@ test("store the relationships a declaration manages under stable identifiers, ch
                 .select({ id: accessRelationship.id, objectId: accessRelationship.objectId })
                 .from(accessRelationship)
                 .where(eq(accessRelationship.managerName, "editor"))
-        ).map((row) => [row.objectId, row.id]);
+        ).map((row) => [row.objectId, row.id] as const);
 
     // store carol's managed grant on a twice under the same identifier
     await declaring((authorization) =>
@@ -303,21 +305,43 @@ test("store the relationships a declaration manages under stable identifiers, ch
     );
     expect([first.length, nth(first, 0)[0], await managed()]).toEqual([1, "a", first]);
 
-    // refuse alice revoking the managed grant herself, and move it through its declaration
-    const refusal = {
-        code: "CONFLICT",
-        message: "record is managed by its source declaration",
-    };
+    // refuse alice and another declaration of the package revoking the managed grant, and move it through its declaration
     const id = nth(nth(first, 0), 1);
-    await expect(
-        owner((authorization) =>
-            Relationship.revoke(node.reference("personal", "a"), id, authorization),
-        ),
-    ).rejects.toMatchObject(refusal);
+    const revoke = (authorization: Authorization) =>
+        Relationship.revoke(node.reference("personal", "a"), id, authorization);
+    const other = { ...manager, name: "viewer" };
+    const refused = [
+        await refusal(owner(revoke)),
+        await refusal(owner((authorization) => revoke(authorization.applying(other)))),
+    ];
     await declaring((authorization) =>
         Relationship.replace(selection, [carolEditing("c")], authorization),
     );
-    expect((await managed()).map(([objectId]) => objectId)).toEqual(["c"]);
+    const moved = await managed();
+
+    // release the grant as its stack does, then keep it through the declaration's next replace and let alice revoke it
+    const [, released] = present(moved[0], "the moved grant");
+    await fixture.database
+        .update(accessRelationship)
+        .set({ detachedAt: 1 })
+        .where(eq(accessRelationship.id, released));
+    await declaring((authorization) => Relationship.replace(selection, [], authorization));
+    const kept = await managed();
+    const revoked = await refusal(
+        owner((authorization) =>
+            Relationship.revoke(node.reference("personal", "c"), released, authorization),
+        ),
+    );
+    const message = "relationship is managed by its declaration: detach it before changing it";
+    expect({ refused, moved: moved.map(([objectId]) => objectId), kept, revoked }).toEqual({
+        refused: [
+            ["CONFLICT", "MANAGED", message],
+            ["CONFLICT", "MANAGED", message],
+        ],
+        moved: ["c"],
+        kept: moved,
+        revoked: "done",
+    });
 });
 
 /** Request carol's editing of one personal node. */

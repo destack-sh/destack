@@ -29,7 +29,7 @@ export const Bearer = {
     require(headers: Headers): string {
         const token = Bearer.read(headers);
         if (token === undefined) {
-            throw new AccessError("UNAUTHORIZED", "invalid bearer credential");
+            throw new AccessError("INVALID_BEARER", "invalid bearer credential");
         }
 
         return token;
@@ -49,7 +49,7 @@ export const Bearer = {
     },
 
     /** Answer a failed verification of a signed token. */
-    refusal(error: unknown, message: string): Error {
+    refusal(error: unknown, reason: "INVALID_ASSERTION" | "INVALID_TOKEN", message: string): Error {
         // pass on a refusal the key source answered
         if (DomainError.is(error) || (error instanceof Error && "status" in error)) {
             return error;
@@ -65,7 +65,7 @@ export const Bearer = {
             error instanceof errors.JOSENotSupported ||
             error instanceof errors.JWKSNoMatchingKey
         ) {
-            return new AccessError("UNAUTHORIZED", message, { cause: error });
+            return new AccessError(reason, message, { cause: error });
         }
         // answer any other failure as unavailable keys
         else {

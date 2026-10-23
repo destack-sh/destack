@@ -1,4 +1,4 @@
-import { expect, test } from "@destack/test";
+import { expect, refusal, test } from "@destack/test";
 import { Scope, type Subject } from "@destack/sync";
 import { exportJWK, generateKeyPair, SignJWT, type JWTPayload } from "jose";
 import { ACCESS_TOKEN_TYPE, INSTALLATION_KEY, SPACE_KEY, TokenVerifier } from "./token.ts";
@@ -81,10 +81,15 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         subject,
         principal.installation.reference("universe", "installation-example"),
     ]) {
-        await expect(impersonate(impersonator)).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+        expect(await refusal(impersonate(impersonator))).toEqual([
+            "UNAUTHORIZED",
+            "INVALID_DELEGATION",
+            "invalid token delegation",
+        ]);
     }
 
     // reject changed claims signed by a trusted key
+    const changedRefusals = [];
     for (const changed of [
         { iss: "https://other.example" },
         { aud: audience },
@@ -105,14 +110,32 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         const token = await new SignJWT({ ...claims, ...changed })
             .setProtectedHeader({ alg: "ES256", kid: "current", typ: ACCESS_TOKEN_TYPE })
             .sign(keys.privateKey);
-        await expect(
-            verifier.authenticate(
-                new Request(request, { headers: { authorization: `Bearer ${token}` } }),
-                issuedAt * 1000,
-                spaceId,
+        changedRefusals.push(
+            await refusal(
+                verifier.authenticate(
+                    new Request(request, { headers: { authorization: `Bearer ${token}` } }),
+                    issuedAt * 1000,
+                    spaceId,
+                ),
             ),
-        ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+        );
     }
+    // refuse the issuer, the audiences and the issue time by verifying the token, the rest by its claims
+    const unverified = ["UNAUTHORIZED", "INVALID_TOKEN", "invalid access token"];
+    const unclaimed = ["UNAUTHORIZED", "INVALID_TOKEN", "invalid access token claims"];
+    expect(changedRefusals).toEqual([
+        unverified,
+        unverified,
+        unverified,
+        unclaimed,
+        unclaimed,
+        unverified,
+        unclaimed,
+        unclaimed,
+        unclaimed,
+        unclaimed,
+        unclaimed,
+    ]);
 
     // accept the audience among several, bound to the user's client, and refuse an untyped token
     const typed = async (payload: JWTPayload, typ: string) =>
@@ -132,23 +155,31 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         ACCESS_TOKEN_TYPE,
     );
     expect(several.credential.client).toBe(claims.client_id);
-    await expect(typed(claims, "JWT")).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    expect(await refusal(typed(claims, "JWT"))).toEqual([
+        "UNAUTHORIZED",
+        "INVALID_TOKEN",
+        "invalid access token",
+    ]);
 
     // reject a token signed by an untrusted key
     const attacker = await generateKeyPair("ES256");
     const forged = await new SignJWT(claims)
         .setProtectedHeader({ alg: "ES256", kid: "current", typ: ACCESS_TOKEN_TYPE })
         .sign(attacker.privateKey);
-    await expect(
-        verifier.authenticate(
-            new Request(request, { headers: { authorization: `Bearer ${forged}` } }),
-            Date.now(),
-            spaceId,
+    expect(
+        await refusal(
+            verifier.authenticate(
+                new Request(request, { headers: { authorization: `Bearer ${forged}` } }),
+                Date.now(),
+                spaceId,
+            ),
         ),
-    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
-    await expect(
-        verifier.authenticate(request, (issuedAt + 60) * 1000, spaceId),
-    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    ).toEqual(["UNAUTHORIZED", "INVALID_TOKEN", "invalid access token"]);
+    expect(await refusal(verifier.authenticate(request, (issuedAt + 60) * 1000, spaceId))).toEqual([
+        "UNAUTHORIZED",
+        "AUTHENTICATION_EXPIRED",
+        "caller authentication is not current",
+    ]);
 
     // reuse cached public keys during an outage
     let isAvailable = true;
@@ -170,9 +201,11 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
     isAvailable = false;
     await remote.authenticate(request, (issuedAt + 30) * 1000, spaceId);
     expect(reads).toBe(1);
-    await expect(
-        remote.authenticate(request, (issuedAt + 60) * 1000, spaceId),
-    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    expect(await refusal(remote.authenticate(request, (issuedAt + 60) * 1000, spaceId))).toEqual([
+        "UNAUTHORIZED",
+        "AUTHENTICATION_EXPIRED",
+        "caller authentication is not current",
+    ]);
 
     // require discovery without cached public keys
     const disconnected = new TokenVerifier({
@@ -182,9 +215,11 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         keys: new URL(`${issuer}/jwks`),
         fetch: async () => new Response(null, { status: 503 }),
     });
-    await expect(
-        disconnected.authenticate(request, issuedAt * 1000, spaceId),
-    ).rejects.toMatchObject({ code: "KEYS_UNAVAILABLE" });
+    expect(await refusal(disconnected.authenticate(request, issuedAt * 1000, spaceId))).toEqual([
+        "SERVICE_UNAVAILABLE",
+        "KEYS_UNAVAILABLE",
+        "authentication keys are unavailable",
+    ]);
 
     // sign and verify workload identity, delegates and their grants
     const actor: Subject = principal.installation.reference(spaceId, "software-example");
@@ -271,23 +306,26 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         chainedAccess.actors,
         Caller.sender(chainedAccess),
     ]).toEqual([chain.credential.deployments, [actor, secondActor], secondActor]);
-    await expect(
-        authority.issue(
-            {
-                ...chain,
-                credential: {
-                    ...chain.credential,
-                    deployments: [
-                        { subject: secondActor, id: secondDeployment },
-                        { subject: secondActor, id: deploymentId },
-                    ],
+    expect(
+        await refusal(
+            authority.issue(
+                {
+                    ...chain,
+                    credential: {
+                        ...chain.credential,
+                        deployments: [
+                            { subject: secondActor, id: secondDeployment },
+                            { subject: secondActor, id: deploymentId },
+                        ],
+                    },
                 },
-            },
-            issuedAt * 1000,
+                issuedAt * 1000,
+            ),
         ),
-    ).rejects.toMatchObject({ code: "UNAUTHORIZED", message: "invalid workload token identity" });
+    ).toEqual(["UNAUTHORIZED", "INVALID_WORKLOAD_IDENTITY", "invalid workload token identity"]);
 
     // reject malformed chains signed outside TokenIssuer, and a delegate acting without a grant unless a person impersonates
+    const chainRefusals = [];
     for (const act of [
         [],
         [actor, actor],
@@ -310,31 +348,51 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
             },
             { typ: ACCESS_TOKEN_TYPE },
         );
-        await expect(
-            verifier.authenticate(
-                new Request(request, {
-                    headers: { authorization: `Bearer ${token}` },
-                }),
-                issuedAt * 1000,
-                spaceId,
+        chainRefusals.push(
+            await refusal(
+                verifier.authenticate(
+                    new Request(request, {
+                        headers: { authorization: `Bearer ${token}` },
+                    }),
+                    issuedAt * 1000,
+                    spaceId,
+                ),
             ),
-        ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+        );
     }
+    // refuse an empty chain by its claims, a repeated or self chain as a delegation, and an unexpected actor as identity
+    const delegation = ["UNAUTHORIZED", "INVALID_DELEGATION", "invalid token delegation"];
+    const identity = [
+        "UNAUTHORIZED",
+        "INVALID_WORKLOAD_IDENTITY",
+        "unexpected workload token identity",
+    ];
+    expect(chainRefusals).toEqual([
+        ["UNAUTHORIZED", "INVALID_TOKEN", "invalid access token claims"],
+        delegation,
+        delegation,
+        identity,
+        identity,
+    ]);
 
     // reject space authorities delegating for global users
     const local = new TokenIssuer({ ...signing, authority: { kind: "space", space: spaceId } });
-    await expect(local.issue(delegated, issuedAt * 1000)).rejects.toMatchObject({
-        code: "UNAUTHORIZED",
-    });
+    expect(await refusal(local.issue(delegated, issuedAt * 1000))).toEqual([
+        "UNAUTHORIZED",
+        "TOKEN_OUTSIDE_AUTHORITY",
+        "token exceeds issuer authority",
+    ]);
     const localVerifier = new TokenVerifier({
         authority: { kind: "space", space: spaceId },
         issuer,
         audience,
         keys: { keys: [publicKey] },
     });
-    await expect(
-        localVerifier.authenticate(request, issuedAt * 1000, spaceId),
-    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    expect(await refusal(localVerifier.authenticate(request, issuedAt * 1000, spaceId))).toEqual([
+        "UNAUTHORIZED",
+        "TOKEN_OUTSIDE_AUTHORITY",
+        "token exceeds issuer authority",
+    ]);
 
     // accept only the space's deployed software
     const workload = {
@@ -358,9 +416,11 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
     expect(received.credential.deployments).toEqual([{ subject: actor, id: deploymentId }]);
     const { deployments: _deployments, ...undeployed } = workload.credential;
     const withoutDeployments = { ...workload, credential: undeployed };
-    await expect(local.issue(withoutDeployments, issuedAt * 1000)).rejects.toMatchObject({
-        code: "UNAUTHORIZED",
-    });
+    expect(await refusal(local.issue(withoutDeployments, issuedAt * 1000))).toEqual([
+        "UNAUTHORIZED",
+        "INVALID_WORKLOAD_IDENTITY",
+        "invalid workload token identity",
+    ]);
 
     // accept the installation its key authenticated without a deployment
     const keyed = {
@@ -381,21 +441,20 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         actor,
         undefined,
     ]);
-    await expect(
-        local.issue(
-            {
-                ...keyed,
-                credential: {
-                    ...keyed.credential,
-                    deployments: [{ subject: actor, id: deploymentId }],
+    expect(
+        await refusal(
+            local.issue(
+                {
+                    ...keyed,
+                    credential: {
+                        ...keyed.credential,
+                        deployments: [{ subject: actor, id: deploymentId }],
+                    },
                 },
-            },
-            issuedAt * 1000,
+                issuedAt * 1000,
+            ),
         ),
-    ).rejects.toMatchObject({
-        code: "UNAUTHORIZED",
-        message: "unexpected workload token identity",
-    });
+    ).toEqual(["UNAUTHORIZED", "INVALID_WORKLOAD_IDENTITY", "unexpected workload token identity"]);
 
     // accept the installation its space's key authenticated without a deployment, as its host forwards its writes
     const spaceKeyed = {

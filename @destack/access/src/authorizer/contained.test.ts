@@ -214,7 +214,11 @@ test("resolve a credential bound to a scope within that scope and the scopes ins
     );
 
     // resolve the realm and its district, refusing the other realm, its district and the universe above
-    const refused = ["UNAUTHORIZED", "the caller's credential applies to near only"];
+    const refused = [
+        "UNAUTHORIZED",
+        "CREDENTIAL_CONFINED",
+        "the caller's credential applies to near only",
+    ];
     expect(resolved).toEqual(["done", "done", refused, refused, refused]);
 });
 

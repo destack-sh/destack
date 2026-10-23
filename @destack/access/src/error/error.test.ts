@@ -6,7 +6,9 @@ test("challenge a caller with the step-up an insufficient authentication names",
         stepUp: { assurance: 3 },
     });
     expect(refused.toCallError()).toEqual({
-        code: "INSUFFICIENT_AUTHENTICATION",
+        code: "UNAUTHORIZED",
+        reason: "INSUFFICIENT_AUTHENTICATION",
+        domain: "@destack/access",
         message: "authenticate again",
         data: { assurance: 3 },
     });

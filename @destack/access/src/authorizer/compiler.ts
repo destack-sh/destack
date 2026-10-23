@@ -160,7 +160,7 @@ export class Compiler {
         const isScope =
             object !== undefined && ObjectReference.key(object) === ObjectReference.key(target);
         if (target.scope !== access.scope && !isScope) {
-            throw new AccessError("INVALID_CONTEXT", "target is outside the resolved scope");
+            throw new AccessError("TARGET_OUTSIDE_SCOPE", "target is outside the resolved scope");
         }
         const mapping = this.#authorizer.requireMapping(target);
         const compilation = Compiler.#compilation(access);

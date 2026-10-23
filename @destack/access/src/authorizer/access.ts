@@ -146,7 +146,7 @@ export class Access {
     ): Promise<Access> {
         // reject invalid request time before reading expiring records
         if (!Number.isFinite(context.now)) {
-            throw new AccessError("INVALID_CONTEXT", "request time must be finite");
+            throw new AccessError("INVALID_REQUEST_TIME", "request time must be finite");
         }
 
         // read the chain, unless the caller read it in the same snapshot already
@@ -158,7 +158,7 @@ export class Access {
         const confined = context.credential?.scope;
         if (confined !== undefined && !chain.includes(confined)) {
             throw new AccessError(
-                "UNAUTHORIZED",
+                "CREDENTIAL_CONFINED",
                 `the caller's credential applies to ${confined} only`,
             );
         }
@@ -647,7 +647,7 @@ export class Access {
             if (now - origin.confirmedAt > lag) {
                 throw new AccessError(
                     "STALE",
-                    `access of ${scope} was last confirmed by its home ${now - origin.confirmedAt} ms ago`,
+                    `access of ${scope} is unconfirmed by its home for over ${lag} ms`,
                 );
             }
         }

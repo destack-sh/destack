@@ -101,7 +101,7 @@ export const Grant = {
             const live = await Grant.find(reader, { delegator, delegate }, now);
             if (live === undefined) {
                 throw new AccessError(
-                    "FORBIDDEN",
+                    "GRANT_REQUIRED",
                     `${delegate.type} ${delegate.id} acts for ${delegator.type} ${delegator.id} under no grant`,
                 );
             }
@@ -121,9 +121,9 @@ export const Grant = {
     ): Grant {
         // refuse a revoked or lapsed grant
         if (grant === undefined) {
-            throw new AccessError("UNAUTHORIZED", `grant ${id} is revoked`);
+            throw new AccessError("GRANT_REVOKED", `grant ${id} is revoked`);
         } else if (grant.expiresAt !== null && grant.expiresAt <= now) {
-            throw new AccessError("UNAUTHORIZED", `grant ${id} expired`);
+            throw new AccessError("GRANT_EXPIRED", `grant ${id} expired`);
         }
 
         // refuse a grant of another delegator or to another delegate
@@ -131,7 +131,10 @@ export const Grant = {
             !Subject.same(ObjectReference.at("delegator", grant), parties.delegator) ||
             !Subject.same(ObjectReference.at("delegate", grant), parties.delegate)
         ) {
-            throw new AccessError("UNAUTHORIZED", `grant ${id} belongs to another delegate`);
+            throw new AccessError(
+                "GRANT_DELEGATE_MISMATCH",
+                `grant ${id} belongs to another delegate`,
+            );
         }
 
         return grant;
@@ -150,7 +153,10 @@ export const Grant = {
         const context = authorization.context();
         const delegator = Caller.principal(context);
         if (delegator === undefined || Caller.isDelegated(context) || delegator.id !== scope.id) {
-            throw new AccessError("FORBIDDEN", "a principal can grant only its own authority");
+            throw new AccessError(
+                "FOREIGN_AUTHORITY",
+                "a principal can grant only its own authority",
+            );
         }
 
         // grant to one other principal, until a later time
@@ -161,9 +167,12 @@ export const Grant = {
             delegate.scope === "*" ||
             Subject.same(delegate, delegator)
         ) {
-            throw new AccessError("FORBIDDEN", "a grant needs one other principal as delegate");
+            throw new AccessError(
+                "DELEGATE_REQUIRED",
+                "a grant needs one other principal as delegate",
+            );
         } else if (request.expiresAt !== undefined && request.expiresAt <= context.now) {
-            throw new AccessError("CONFLICT", "a grant must expire after its creation");
+            throw new AccessError("INVALID_GRANT_EXPIRY", "a grant must expire after its creation");
         }
 
         // replace the delegator's earlier grant to the delegate, live or lapsed
@@ -210,13 +219,13 @@ export const Grant = {
         const delegator = Caller.principal(context);
         const grant = await Grant.read(authorization.snapshot, id);
         if (grant === undefined || grant.scope !== scope.id) {
-            throw new AccessError("NOT_FOUND", `no grant ${id}`);
+            throw new AccessError("GRANT_NOT_FOUND", `no grant ${id}`);
         } else if (
             delegator === undefined ||
             Caller.isDelegated(context) ||
             !Subject.same(delegator, ObjectReference.at("delegator", grant))
         ) {
-            throw new AccessError("FORBIDDEN", "only the delegator can revoke a grant");
+            throw new AccessError("DELEGATOR_REQUIRED", "only the delegator can revoke a grant");
         }
 
         // delete it

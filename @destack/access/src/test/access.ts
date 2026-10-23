@@ -36,7 +36,7 @@ export class AccessFixture {
                       .from(Scope.table)
                       .where(eq(Scope.table.scope, scope.scope));
         if (parent === undefined) {
-            throw new AccessError("NOT_FOUND", `unknown scope: ${scope.scope}`);
+            throw new AccessError("SCOPE_NOT_FOUND", `unknown scope: ${scope.scope}`);
         }
 
         // record the scope below it

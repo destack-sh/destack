@@ -9,7 +9,8 @@ import {
     type Select,
     type SQLWrapper,
 } from "@destack/db";
-import { accessRole, managerChecks } from "../role/table.ts";
+import { accessRole } from "../role/table.ts";
+import { Manager } from "../manager/manager.ts";
 import { nameCheck } from "../declare/expression.ts";
 
 /** Relate an object to a subject through a declared relation or a bound role. */
@@ -72,7 +73,7 @@ export const accessRelationship = defineTable(
         constraints: (relationship) => [
             index("relationship_expiry").on(relationship.expiresAt),
             index("relationship_object_key").on(relationship.objectKey),
-            ...managerChecks("relationship", relationship),
+            ...Manager.constraints("relationship", relationship),
             uniqueIndex("relationship_tuple")
                 .on(
                     relationship.objectPackageId,

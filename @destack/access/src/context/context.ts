@@ -139,7 +139,7 @@ export const Credential = Object.assign(credentialSchema, {
             credential.verifiedAt > now + CLOCK_TOLERANCE_MILLISECONDS ||
             now >= credential.expiresAt
         ) {
-            throw new AccessError("UNAUTHORIZED", "caller authentication is not current");
+            throw new AccessError("AUTHENTICATION_EXPIRED", "caller authentication is not current");
         }
     },
 
@@ -151,7 +151,7 @@ export const Credential = Object.assign(credentialSchema, {
             (credential.scope !== undefined && credential.scope !== scope)
         ) {
             throw new AccessError(
-                "UNAUTHORIZED",
+                "AUDIENCE_MISMATCH",
                 "caller authentication has a different audience or scope",
             );
         }
@@ -252,9 +252,12 @@ export const Caller = {
     /** Require a grant per actor or none, and actors to act for an identified subject. */
     requireChain(caller: Caller): void {
         if (caller.grants.length > 0 && caller.grants.length !== caller.actors.length) {
-            throw new AccessError("INVALID_CONTEXT", "a delegation chain needs a grant per actor");
+            throw new AccessError(
+                "INVALID_DELEGATION",
+                "a delegation chain needs a grant per actor",
+            );
         } else if (caller.actors.length > 0 && Caller.isAnonymous(caller)) {
-            throw new AccessError("INVALID_CONTEXT", "delegation chain is inconsistent");
+            throw new AccessError("INVALID_DELEGATION", "delegation chain is inconsistent");
         }
     },
 
@@ -274,7 +277,7 @@ export const Caller = {
         // refuse a header that is not a JSON caller with its credential
         const parsed = Authentication.safeParse(JsonValue.parse(forwarded));
         if (!parsed.success) {
-            throw new AccessError("INVALID_CONTEXT", "the forwarded caller is malformed");
+            throw new AccessError("INVALID_FORWARDED_CALLER", "the forwarded caller is malformed");
         }
 
         return parsed.data;
@@ -355,7 +358,7 @@ export const AccessContext = {
             : undefined;
         if (value === undefined || (typeof value === "number" && !Number.isFinite(value))) {
             throw new AccessError(
-                "INVALID_CONTEXT",
+                "INVALID_ATTRIBUTE",
                 `missing or invalid context attribute: ${name}`,
             );
         }

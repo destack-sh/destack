@@ -1,4 +1,4 @@
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { Snapshot, Transaction } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { principal } from "../declare/principal.ts";
@@ -47,12 +47,11 @@ test("fence a scope for a transfer, moving it and the scopes below it until unfe
     expect(await moved()).toEqual([undefined, undefined]);
 
     // refuse fencing a scope the database does not store
-    await expect(
-        Transaction.run(database, (transaction) =>
-            Scope.fence(transaction, "account-z", "machine-b", 2000),
+    expect(
+        await refusal(
+            Transaction.run(database, (transaction) =>
+                Scope.fence(transaction, "account-z", "machine-b", 2000),
+            ),
         ),
-    ).rejects.toMatchObject({
-        code: "NOT_FOUND",
-        message: "unknown scope: account-z",
-    });
+    ).toEqual(["NOT_FOUND", "NOT_FOUND", "unknown scope: account-z"]);
 });

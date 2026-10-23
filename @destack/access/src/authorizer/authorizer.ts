@@ -876,7 +876,7 @@ export class Authorizer {
                 ? "it lives at its home"
                 : "this database has a replica";
             throw new AccessError(
-                "FORBIDDEN",
+                "ACCESS_NOT_LOCAL",
                 `cannot write the access of ${object.type} ${object.id} here: ${reason}`,
             );
         }
@@ -1032,7 +1032,7 @@ export class Authorizer {
         }
         // refuse a type that is neither inherited, a scope nor replicated through its scopes
         else if (mapping.policy.definition.scope !== true) {
-            throw new AccessError("NOT_FOUND", `no inherited rows of ${type.type}`);
+            throw new AccessError("NO_INHERITED_ROWS", `no inherited rows of ${type.type}`);
         }
         // replicate the scope objects' rows whose identifiers are of the scope type
         else {
@@ -1049,7 +1049,7 @@ export class Authorizer {
     #replicatedTable(type: ObjectTypeReference): Table {
         const mapping = this.#mappings.get(ObjectTypeReference.key(type));
         if (mapping === undefined || mapping.table === Scope.table) {
-            throw new AccessError("NOT_FOUND", `no object type ${type.type} to replicate`);
+            throw new AccessError("NO_REPLICATED_TYPE", `no object type ${type.type} to replicate`);
         }
 
         return mapping.table;
@@ -1123,7 +1123,6 @@ export class Authorizer {
                 ...Relationship.encode(relationship, scope),
                 revision: 1,
                 ...Manager.values(null),
-                detachedAt: null,
             };
         });
     }
@@ -1149,13 +1148,13 @@ export class Authorizer {
             !accepts(this.relation(this.policy(request.object), request.relation), subject)
         ) {
             throw new AccessError(
-                "FORBIDDEN",
+                "SUBJECT_REFUSED",
                 `relation ${request.relation} does not accept the subject`,
             );
         }
         // refuse a wildcard as a role's subject
         else if (isRole && subject !== undefined && (subject.id === "*" || subject.scope === "*")) {
-            throw new AccessError("FORBIDDEN", "a role cannot bind to a wildcard");
+            throw new AccessError("WILDCARD_ROLE", "a role cannot bind to a wildcard");
         }
         // require a role's subject set to be one that caller resolution expands
         else if (
@@ -1169,13 +1168,16 @@ export class Authorizer {
             )
         ) {
             throw new AccessError(
-                "FORBIDDEN",
+                "ROLE_SUBJECT_REFUSED",
                 `a role cannot bind to ${subject.type}#${subject.relation}: roles bind to subject sets and scope relations`,
             );
         }
         // require a future expiry
         else if (expiresAt !== null && (!Number.isFinite(expiresAt) || expiresAt <= now)) {
-            throw new AccessError("FORBIDDEN", "a relationship must expire in the future");
+            throw new AccessError(
+                "INVALID_RELATIONSHIP_EXPIRY",
+                "a relationship must expire in the future",
+            );
         }
     }
 
@@ -1400,7 +1402,7 @@ export class Authorizer {
         // find the scope's object on the access's chain, which lives in its enclosing scope
         const scoped = access.scopes.find((link) => link.id === scope);
         if (scoped === undefined) {
-            throw new AccessError("INVALID_CONTEXT", `access is not resolved in ${scope}`);
+            throw new AccessError("ACCESS_UNRESOLVED", `access is not resolved in ${scope}`);
         }
 
         // list the subjects the authority matches in the scope and its enclosing scope
@@ -1513,7 +1515,7 @@ export class Authorizer {
         // read the object as a row of its type
         if (permission.packageId !== target.packageId || permission.type !== target.type) {
             throw new AccessError(
-                "INVALID_CONTEXT",
+                "PERMISSION_TYPE_MISMATCH",
                 "the permission must belong to the object's type",
             );
         }
@@ -1521,7 +1523,7 @@ export class Authorizer {
         const reader = this.reader(snapshot, access.scopes);
         const found = await reader.row(mapping, target);
         if (found === undefined) {
-            throw new AccessError("NOT_FOUND", `no ${target.type} ${target.id}`);
+            throw new AccessError("OBJECT_NOT_FOUND", `no ${target.type} ${target.id}`);
         }
 
         // decide the authority by the permission's tree, and by each tuple alone
@@ -1579,7 +1581,7 @@ export class Authorizer {
                 { stepUp },
             );
         }
-        throw new AccessError("FORBIDDEN", `permission denied: ${permission.name}`);
+        throw new AccessError("PERMISSION_DENIED", `permission denied: ${permission.name}`);
     }
 
     /** Read the gate a request fails on a row before any grant. */

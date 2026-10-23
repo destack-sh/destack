@@ -1,4 +1,4 @@
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { Snapshot, asc, eq, type DatabaseConnection } from "@destack/db";
 import { Feed, Replica, Scope, type Subscription } from "@destack/sync";
 import { nth } from "@destack/schema";
@@ -162,11 +162,13 @@ test("relay an account's access through the space's database into an app's, and 
     const revoked = await global.database.log.position();
     const impatient = new Authorizer(policies, mappings, { lag: 50 });
     const late = { ...carol, now: Date.now() + 60 };
-    await expect(
-        impatient.resolve(Snapshot.live(app.database), "personal", late),
-    ).rejects.toMatchObject({
-        code: "STALE",
-    });
+    expect(await refusal(impatient.resolve(Snapshot.live(app.database), "personal", late))).toEqual(
+        [
+            "SERVICE_UNAVAILABLE",
+            "STALE",
+            "access of account-1 is unconfirmed by its home for over 50 ms",
+        ],
+    );
 
     // relay the revocation: carol reads nothing, and the app's replica reflects the account's position
     await relay();
@@ -192,7 +194,7 @@ test("relay an account's access through the space's database into an app's, and 
         ),
     ).rejects.toEqual(
         new AccessError(
-            "FORBIDDEN",
+            "ACCESS_NOT_LOCAL",
             "cannot write the access of account account-1 here: this database has a replica",
         ),
     );
@@ -270,7 +272,7 @@ test("write a home's access at the home as it is born, beside the chain it repli
     await grant(spaces, home.database);
     await expect(grant(accounts, global.database)).rejects.toEqual(
         new AccessError(
-            "FORBIDDEN",
+            "ACCESS_NOT_LOCAL",
             "cannot write the access of space personal here: it lives at its home",
         ),
     );

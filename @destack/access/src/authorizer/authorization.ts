@@ -53,6 +53,8 @@ export class Authorization {
     readonly transaction: Transaction;
     /** The database as its decisions read it: the transaction's view, recording each read. */
     readonly snapshot: Snapshot;
+    /** The applied declaration writing its rows, null for direct access changes. */
+    readonly manager: Manager | null;
     /** Read the verified caller at the time it acts. */
     readonly #context: () => AccessContext;
     /** The caller's access resolved in each scope during this call, until renewed. */
@@ -61,20 +63,24 @@ export class Authorization {
     readonly #below: Map<string, Map<string, Access | undefined>>;
     /** The transaction's writes to the deciding tables when the resolved access was read. */
     #writes: number;
-    /** The applied declaration, the only writer of its rows, null for direct access changes. */
-    #manager: Manager | null;
 
     /** Authorize one caller in a transaction, with access in some scope. */
     constructor(
         authorizer: Authorizer,
         transaction: Transaction,
         context: () => AccessContext,
-        resolved?: Access,
+        options: {
+            /** The caller's access already resolved in one scope. */
+            readonly resolved?: Access;
+            /** The applied declaration writing the rows. */
+            readonly manager?: Manager;
+        } = {},
     ) {
         // start with empty state
+        const { resolved, manager = null } = options;
         this.#resolved = new Map<string, Promise<Access>>();
         this.#below = new Map<string, Map<string, Access | undefined>>();
-        this.#manager = null;
+        this.manager = manager;
         this.#writes = transaction.changes.writes(authorizer.decidingTables);
 
         // take the caller, reusing the access resolved in one scope
@@ -101,15 +107,7 @@ export class Authorization {
 
     /** Authorize the caller to apply a declaration that manages its rows. */
     applying(manager: Manager): Authorization {
-        const applying = new Authorization(this.authorizer, this.transaction, this.#context);
-        applying.#manager = manager;
-
-        return applying;
-    }
-
-    /** The applied declaration writing its rows, null for direct access changes. */
-    get manager(): Manager | null {
-        return this.#manager;
+        return new Authorization(this.authorizer, this.transaction, this.#context, { manager });
     }
 
     /** Read the verified caller as it acts now. */
@@ -314,13 +312,16 @@ export class Authorization {
             .read(accessRelationship)
             .findMany({ where: Relationship.objectColumns(object), limit: 1 });
         if (related.length > 0) {
-            throw new AccessError("INVALID_CONTEXT", "a relationship needs a grant after creation");
+            throw new AccessError(
+                "INVALID_RELATIONSHIP",
+                "a relationship needs a grant after creation",
+            );
         }
 
         // refuse owners of an object that is not a scope
         const definition = this.authorizer.policy(object).definition;
         if (definition.scope !== true && creation.owner !== undefined) {
-            throw new AccessError("INVALID_CONTEXT", "only a scope can have owners");
+            throw new AccessError("SCOPE_REQUIRED", "only a scope can have owners");
         }
         const context = this.context();
 
@@ -377,7 +378,7 @@ export class Authorization {
     async #parent(scope: string): Promise<RowImage<typeof Scope.table>> {
         const [row] = await Scope.read(this.snapshot, [scope]);
         if (row === undefined) {
-            throw new AccessError("NOT_FOUND", `unknown scope: ${scope}`);
+            throw new AccessError("SCOPE_NOT_FOUND", `unknown scope: ${scope}`);
         }
 
         return row;
@@ -412,7 +413,7 @@ export class Authorization {
         // write only the roles of a local scope, and refuse a managed role outside its declaration until detached
         await this.authorizer.requireLocal(this.transaction, scope);
         if (record !== undefined) {
-            Authorization.#requireChangeable(record, this.#manager);
+            Manager.requireChangeable(record, this.manager, "role");
         }
 
         // require every permission in the scope
@@ -432,7 +433,7 @@ export class Authorization {
             ![Scope.universe.id, object.scope, ...chain].includes(subject.scope);
         if (isOutside && !(await this.authorizer.isHome(this.snapshot, subject.scope))) {
             throw new AccessError(
-                "FORBIDDEN",
+                "SUBJECT_OUTSIDE_CHAIN",
                 `${subject.type}#${subject.relation} in ${subject.scope} is outside the scope chain of ${object.scope}`,
             );
         }
@@ -458,7 +459,7 @@ export class Authorization {
         // prevent escalation: bind only scope chain roles with permissions the caller has
         const grants = role === undefined ? undefined : access.grants.get(role);
         if (role !== undefined && grants === undefined) {
-            throw new AccessError("NOT_FOUND", "role not found");
+            throw new AccessError("ROLE_NOT_FOUND", "role not found");
         }
         required.push(...(grants?.permissions ?? []));
         await this.authorizer.require(this.snapshot, required, request.object, access);
@@ -468,7 +469,10 @@ export class Authorization {
             grants?.isOwner === true &&
             !(await this.authorizer.isOwner(this.snapshot, request.object, access))
         ) {
-            throw new AccessError("FORBIDDEN", "only owners may bind a role granting everything");
+            throw new AccessError(
+                "OWNER_REQUIRED",
+                "only owners may bind a role granting everything",
+            );
         }
     }
 
@@ -480,7 +484,7 @@ export class Authorization {
         // write only the access of a local object, and refuse a managed relationship outside its declaration until detached
         await this.authorizer.requireLocal(this.transaction, request.object);
         if (record !== undefined) {
-            Authorization.#requireChangeable(record, this.#manager);
+            Manager.requireChangeable(record, this.manager, "relationship");
         }
 
         // require the relation's grant permission
@@ -508,7 +512,7 @@ export class Authorization {
                 ? policy.definition.grantedBy
                 : this.authorizer.relation(policy, relation).grantedBy;
         if (grant === undefined) {
-            throw new AccessError("FORBIDDEN", "relationship cannot be granted");
+            throw new AccessError("UNGRANTABLE", "relationship cannot be granted");
         }
 
         return policy.permission(grant);
@@ -522,7 +526,7 @@ export class Authorization {
         // require a local scope
         await this.authorizer.requireLocal(this.transaction, object);
         if (this.authorizer.policy(object).definition.scope !== true) {
-            throw new AccessError("INVALID_CONTEXT", `${object.type} is not a scope`);
+            throw new AccessError("SCOPE_REQUIRED", `${object.type} is not a scope`);
         }
 
         // mark the scope's record
@@ -530,32 +534,13 @@ export class Authorization {
             .read(Scope.table)
             .findFirst({ where: { scope: object.id } });
         if (row === undefined) {
-            throw new AccessError("NOT_FOUND", `unknown scope: ${object.id}`);
+            throw new AccessError("SCOPE_NOT_FOUND", `unknown scope: ${object.id}`);
         }
         await this.transaction.write({
             table: Scope.table,
             before: row,
             after: { ...row, ...changes },
         });
-    }
-
-    /** Refuse changing a declaration's managed row until detached. */
-    static #requireChangeable(
-        record: {
-            readonly managerInstallationId: string | null;
-            readonly managerPackageId: string | null;
-            readonly detachedAt: number | null;
-        },
-        manager: Manager | null,
-    ): void {
-        const isManaged = record.managerInstallationId !== null && record.detachedAt === null;
-        const isDeclaring =
-            manager !== null &&
-            record.managerInstallationId === manager.installationId &&
-            record.managerPackageId === manager.packageId;
-        if (isManaged && !isDeclaring) {
-            throw new AccessError("CONFLICT", "record is managed by its source declaration");
-        }
     }
 
     /** Read the relation a relationship relates through, absent for a role binding. */

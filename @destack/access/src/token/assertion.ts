@@ -87,7 +87,7 @@ export class AssertionVerifier {
                 ? undefined
                 : await this.options.keys(kid, iss, now);
         if (key === undefined) {
-            throw new AccessError("UNAUTHORIZED", "assertion has no standing key");
+            throw new AccessError("ASSERTION_KEY_UNKNOWN", "assertion has no standing key");
         }
 
         // verify the signature, the type, and the claims of the key's principal and this endpoint
@@ -103,14 +103,14 @@ export class AssertionVerifier {
         });
         const { payload } = await verifying.catch((error: unknown) => {
             throw error instanceof errors.JWTExpired
-                ? new AccessError("UNAUTHORIZED", "assertion expired", { cause: error })
-                : Bearer.refusal(error, "invalid assertion");
+                ? new AccessError("ASSERTION_EXPIRED", "assertion expired", { cause: error })
+                : Bearer.refusal(error, "INVALID_ASSERTION", "invalid assertion");
         });
         const { sub, iat, exp, jti } = payload;
         if (sub === undefined || iat === undefined || exp === undefined || jti === undefined) {
-            throw new AccessError("UNAUTHORIZED", "invalid assertion");
+            throw new AccessError("INVALID_ASSERTION", "invalid assertion");
         } else if ((exp - iat) * 1000 > ASSERTION_LIFETIME_MILLISECONDS) {
-            throw new AccessError("UNAUTHORIZED", "assertion lifetime exceeds five minutes");
+            throw new AccessError("ASSERTION_TOO_LONG", "assertion lifetime exceeds five minutes");
         }
 
         // spend it once under its key, refusing one spent before, and answer the key's principal
@@ -118,7 +118,7 @@ export class AssertionVerifier {
         const digest = await Digest.of(JSON.stringify([key.id, jti]));
         await this.options.spend(digest, expiresAt, now).catch((error: unknown) => {
             throw Failure.of(error).code === "CONFLICT"
-                ? new AccessError("UNAUTHORIZED", "assertion was used before", { cause: error })
+                ? new AccessError("ASSERTION_REUSED", "assertion was used before", { cause: error })
                 : error;
         });
 
@@ -185,7 +185,10 @@ function assertedSubject(key: AssertionKey, sub: string): Subject {
     }
 
     // refuse any other subject
-    throw new AccessError("UNAUTHORIZED", "assertion subject is outside its key's authority");
+    throw new AccessError(
+        "ASSERTION_OUTSIDE_AUTHORITY",
+        "assertion subject is outside its key's authority",
+    );
 }
 
 /** Read an assertion's header, refusing one that is not a compact JWS. */
@@ -196,6 +199,6 @@ function refused<Value>(read: () => Value): Value {
         if (!(error instanceof errors.JOSEError || error instanceof TypeError)) {
             throw error;
         }
-        throw new AccessError("UNAUTHORIZED", "invalid assertion", { cause: error });
+        throw new AccessError("INVALID_ASSERTION", "invalid assertion", { cause: error });
     }
 }
