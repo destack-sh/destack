@@ -86,7 +86,7 @@ export class Run {
                 rows.map((row) => {
                     const decision = deciding.get(row);
                     if (decision === undefined) {
-                        throw new TypeError("a row waits for a decision nobody asked for");
+                        throw new TypeError("a row has a decision that nobody requested");
                     }
 
                     return decision;
@@ -99,7 +99,7 @@ export class Run {
     isVisible(row: Row, permission?: string): boolean {
         const visible = Run.#under(this.#visible, permission).get(row);
         if (visible === undefined) {
-            throw new TypeError("a row's visibility is read before it is decided");
+            throw new TypeError("cannot read a row's visibility before it is decided");
         }
 
         return visible;

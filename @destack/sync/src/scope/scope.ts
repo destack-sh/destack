@@ -120,7 +120,7 @@ export const Scope = {
         ) {
             const id = current.scope;
             if (links.some((link) => link.object.id === id)) {
-                throw new SyncError("INVALID_SCOPE", `cyclic scope: ${id}`);
+                throw SyncError.of("INVALID_SCOPE", `cyclic scope: ${id}`);
             }
             links.push(Scope.link(current));
             current = current.parent === UNIVERSE_ID ? undefined : rows.get(current.parent);
@@ -148,7 +148,7 @@ export const Scope = {
     async object(reader: Pick<Snapshot, "read">, id: string): Promise<ObjectReference> {
         const [link] = await Scope.chain(reader, id);
         if (link === undefined) {
-            throw new SyncError("NOT_FOUND", `unknown scope: ${id}`);
+            throw SyncError.of("NOT_FOUND", `unknown scope: ${id}`);
         }
 
         return link.object;
@@ -182,7 +182,7 @@ export const Scope = {
     ): Promise<void> {
         const row = await transaction.read(scopeTable).findFirst({ where: { scope } });
         if (row === undefined) {
-            throw new SyncError("NOT_FOUND", `unknown scope: ${scope}`);
+            throw SyncError.of("NOT_FOUND", `unknown scope: ${scope}`);
         }
         await transaction.write({ table: scopeTable, before: row, after: { ...row, ...changes } });
     },

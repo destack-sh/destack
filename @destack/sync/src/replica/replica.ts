@@ -336,7 +336,7 @@ export class Replica {
     get captured(): Record<string, Query> {
         // refuse tables replicated across scopes
         if (this.within.size > 0) {
-            throw new SyncError(
+            throw SyncError.of(
                 "INVALID_SCOPE",
                 `replica ${this.name} replicates tables across scopes, but no capture can read them`,
             );
@@ -676,7 +676,7 @@ export class Replica {
         }
         // refuse a position of an outdated history
         else if (origin.position.epoch > position.epoch) {
-            throw new DatabaseError(
+            throw DatabaseError.of(
                 "STALE_EPOCH",
                 `${scope} started a new epoch after the position`,
             );
@@ -756,7 +756,7 @@ export class Replica {
     ): Promise<void> {
         const record = await Replica.#find(database, name, scope);
         if (record !== undefined && Replica.#origin(record) === undefined) {
-            throw new SyncError("STALE", `replica of ${scope} has no position yet`);
+            throw SyncError.of("STALE", `replica of ${scope} has no position yet`);
         }
     }
 
@@ -782,7 +782,7 @@ export class Replica {
         });
         if (cyclic !== undefined) {
             const table = found(this.#replicated, cyclic.shared)[TABLE].name;
-            throw new SyncError(
+            throw SyncError.of(
                 "CYCLE",
                 `replica ${this.name} of ${this.scope} would publish ${table} back to ${origin}, its source in replica ${cyclic.record.name} of ${cyclic.record.scope}`,
             );
@@ -1043,7 +1043,7 @@ export class Replica {
                 const query = row["query"];
                 const group = row["group"];
                 if (typeof query !== "string" || typeof group !== "string") {
-                    throw new TypeError("a retained group lacks its query or values");
+                    throw new TypeError("a retained group is missing its query or values");
                 }
 
                 return { query, group: GroupValues.parse(JSON.parse(group)) };
@@ -1119,7 +1119,7 @@ export class Replica {
             this.#recordedPosition({ ...position, layout: registration.layout }, layout) ===
                 undefined
         ) {
-            throw new SyncError("STALE", `replica of ${this.scope} has no position yet`);
+            throw SyncError.of("STALE", `replica of ${this.scope} has no position yet`);
         }
 
         // drop the replica's records now, and its staged pages, groups and rows on commit
@@ -1269,7 +1269,7 @@ export class Replica {
 
             // reject a stream that ends without a page
             if (!isReceived && !signal.aborted) {
-                throw new SyncError(
+                throw SyncError.of(
                     "INVALID_STREAM",
                     `the source of ${this.scope} ended a stream without a page`,
                 );
@@ -1307,9 +1307,9 @@ export class Replica {
         const isContinued =
             recorded?.log === page.position.log && recorded.epoch === page.position.epoch;
         if (!run.isSnapshot && recorded !== undefined && !isContinued) {
-            throw new DatabaseError(
+            throw DatabaseError.of(
                 "STALE_EPOCH",
-                `page of ${page.position.log}/${page.position.epoch} continues a replica of ${recorded.log}/${recorded.epoch}`,
+                `page of ${page.position.log}/${page.position.epoch} does not continue the replica of ${recorded.log}/${recorded.epoch}`,
             );
         }
 
@@ -1535,7 +1535,7 @@ export class Replica {
 
             // refuse a table outside the replica
             if (table === undefined) {
-                throw new SyncError(
+                throw SyncError.of(
                     "INVALID_STREAM",
                     `page has a table outside replica ${this.name}: ${change.table}`,
                 );
@@ -1560,7 +1560,7 @@ export class Replica {
                       ),
                   );
         if (origin === undefined) {
-            throw new DatabaseError("STALE_EPOCH", `source stopped replicating ${this.scope}`);
+            throw DatabaseError.of("STALE_EPOCH", `source stopped replicating ${this.scope}`);
         }
 
         return origin;
@@ -1603,7 +1603,7 @@ export class Replica {
             }
             // refuse a retained group without a row count
             else if (result.rows === undefined) {
-                throw new SyncError(
+                throw SyncError.of(
                     "INVALID_STREAM",
                     `page has a group of ${result.query} without its rows`,
                 );
@@ -2149,9 +2149,9 @@ export class Replica {
         const table = node.table[TABLE];
         const row = Table.decode(node.table, change.row);
         if (change.operation === "update" && change.before === undefined) {
-            throw new SyncError(
+            throw SyncError.of(
                 "INVALID_STREAM",
-                `predicted update of ${table.sqlName} lacks its before`,
+                `predicted update of ${table.sqlName} has no before row`,
             );
         }
 
@@ -2197,7 +2197,7 @@ export class Replica {
         }
         // refuse a page past a snapshot without the record the snapshot wrote
         else if (record === undefined) {
-            throw new TypeError("a replica's page past its snapshot has no record");
+            throw new TypeError("a replica page past its snapshot has no record");
         }
         // take the recorded position
         else {

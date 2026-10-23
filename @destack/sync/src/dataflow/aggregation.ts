@@ -270,7 +270,7 @@ export class Aggregation extends Pipeline {
                 this.node.relations.length === 0 ? undefined : this.relationView(run),
             );
             if (rows === undefined) {
-                throw new RangeError("an ordered read lacks its one window");
+                throw new RangeError("an ordered read needs exactly one window");
             }
             isDone = rows.length < this.context.pageSize;
             after = rows.at(-1);
@@ -512,7 +512,7 @@ export class Aggregation extends Pipeline {
         if ("value" in selected) {
             const [matched] = await this.matched([selected.value], run);
             if (matched === undefined) {
-                throw new RangeError("a partition read lacks its one partition");
+                throw new RangeError("a partition read needs exactly one partition");
             }
             rows = matched;
         } else {

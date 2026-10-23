@@ -66,7 +66,7 @@ export const RequestId = {
 
         // reject keys outside the retry period
         if (createdAt > now + CLIENT_CLOCK_TOLERANCE_MILLISECONDS || expiresAt <= now) {
-            throw new SyncError("EXPIRED", "request identifier is outside its retry period");
+            throw SyncError.of("EXPIRED", "request identifier is outside its retry period");
         }
 
         return expiresAt;

@@ -105,7 +105,7 @@ export class Selection extends Pipeline {
             run,
         );
         if (rows === undefined) {
-            throw new RangeError("a page read lacks its one window");
+            throw new RangeError("a page read needs exactly one window");
         }
         await this.decide(this.node.keyed(rows), run);
         await this.settle(run);
@@ -250,7 +250,7 @@ export class Selection extends Pipeline {
             // place the row in order, evicting the last row of a full window
             if (names.has(name)) {
                 if (row === null) {
-                    throw new TypeError(`${node.name} places a missing row ${key}`);
+                    throw new TypeError(`${node.name} cannot place missing row ${key}`);
                 }
                 const wasPresent = window.has(key);
                 const size = window.size;
@@ -292,7 +292,7 @@ export class Selection extends Pipeline {
         if (evictedKey !== undefined && evicted !== undefined) {
             this.#assign(evictedKey, null, Pipeline.without(evicted.partitions, name), run);
         } else if (evictedKey !== undefined && !isArranged) {
-            throw new TypeError(`window of ${this.node.name} pushed out absent row ${evictedKey}`);
+            throw new TypeError(`window of ${this.node.name} evicted absent row ${evictedKey}`);
         }
     }
 
@@ -323,7 +323,7 @@ export class Selection extends Pipeline {
             }
         } else if (member === undefined) {
             if (row === null) {
-                throw new TypeError(`${node.name} selects a missing row ${key}`);
+                throw new TypeError(`${node.name} cannot select missing row ${key}`);
             }
             this.members.set(key, {
                 partitions: names,
@@ -440,7 +440,7 @@ export class Selection extends Pipeline {
 
         // require the one window's rows
         if (rows === undefined) {
-            throw new RangeError("a refill read lacks its one window");
+            throw new RangeError("a refill read needs exactly one window");
         }
 
         return rows;
@@ -518,7 +518,7 @@ export class Selection extends Pipeline {
         // require the tree path the chains follow
         const chaining = this.#chaining;
         if (chaining === undefined) {
-            throw new TypeError(`${this.node.name} chains members without a tree path`);
+            throw new TypeError(`${this.node.name} chains members but has no tree path`);
         }
 
         // pair a present member with each of its partitions

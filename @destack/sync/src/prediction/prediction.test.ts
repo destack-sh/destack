@@ -211,7 +211,7 @@ test.skipIf(TestDatabase.target() !== "postgresql")(
                 result: undefined,
             })),
         ).rejects.toThrow(
-            "a prediction must run on SQLite, which sequences log changes within a transaction",
+            "a prediction must run on SQLite, which orders log changes within a transaction",
         );
     },
 );

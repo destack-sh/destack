@@ -257,7 +257,7 @@ export class Node {
             Object.hasOwn(definition.columns, computed),
         );
         if (shadowing !== undefined) {
-            throw new DatabaseError(
+            throw DatabaseError.of(
                 "INVALID_QUERY",
                 `computed value ${shadowing} shadows a column of ${definition.name}`,
             );
@@ -302,12 +302,12 @@ export class Node {
         const { via, where, values } = use;
         const relation = this.schema.get(this.table, via);
         if (relation.on.kind !== "key" && relation.on.kind !== "junction") {
-            throw new DatabaseError(
+            throw DatabaseError.of(
                 "INVALID_QUERY",
                 `relation ${via} of ${this.name} must follow a key or junction path`,
             );
         } else if (relation.table === this.table && rollups.some((rollup) => rollup.via === via)) {
-            throw new DatabaseError(
+            throw DatabaseError.of(
                 "INVALID_QUERY",
                 `rollup ${via} of ${this.name} must aggregate another table`,
             );
@@ -338,7 +338,7 @@ export class Node {
                 relation.key.length === 1 &&
                 relation.key[0] === path.column;
             if (!isKeyLookup) {
-                throw new DatabaseError(
+                throw DatabaseError.of(
                     "INVALID_QUERY",
                     `lookup ${via} of ${this.name} must follow a key path onto another table's key`,
                 );
@@ -564,7 +564,7 @@ export class Node {
         // find it once
         const found = this.#relations.get(JSON.stringify([via, where]));
         if (found === undefined) {
-            throw new DatabaseError("INVALID_QUERY", `${this.name} has no relation ${via}`);
+            throw DatabaseError.of("INVALID_QUERY", `${this.name} has no relation ${via}`);
         }
         const byCondition = this.#found.get(via) ?? new WeakMap<Condition, Node>();
         this.#found.set(via, byCondition.set(where, found));
@@ -611,7 +611,7 @@ export class Node {
     /** Note a logged column the parent node reads through this relation node. */
     #look(column: string): void {
         if (!Object.hasOwn(this.columns, column)) {
-            throw new DatabaseError(
+            throw DatabaseError.of(
                 "INVALID_QUERY",
                 `relation ${this.name} has no logged column ${column} of ${this.table[TABLE].name}`,
             );
@@ -737,7 +737,7 @@ export class Node {
     column(name: string): Column {
         const column = this.columns[name];
         if (column === undefined) {
-            throw new DatabaseError("INVALID_QUERY", `${this.name} does not read column ${name}`);
+            throw DatabaseError.of("INVALID_QUERY", `${this.name} does not read column ${name}`);
         }
 
         return column;
@@ -782,7 +782,10 @@ export class Node {
     #tree(): Tree {
         const tree = this.table[TABLE].tree;
         if (tree === undefined) {
-            throw new DatabaseError("INVALID_QUERY", `${this.name} follows a tree its table lacks`);
+            throw DatabaseError.of(
+                "INVALID_QUERY",
+                `${this.name} follows a tree, but its table has no tree`,
+            );
         }
 
         return tree;
@@ -792,7 +795,7 @@ export class Node {
     #treeKey(): string {
         const [key] = this.key;
         if (key === undefined || this.key.length !== 1) {
-            throw new DatabaseError(
+            throw DatabaseError.of(
                 "INVALID_QUERY",
                 `${this.name} must follow a tree by one key column`,
             );
@@ -804,7 +807,7 @@ export class Node {
     /** Read the node's aggregate, failing for a node that selects rows. */
     #aggregate(): Aggregate {
         if (this.aggregate === undefined) {
-            throw new TypeError(`${this.name} aggregates no rows`);
+            throw new TypeError(`${this.name} is not an aggregate`);
         }
 
         return this.aggregate;
@@ -814,7 +817,7 @@ export class Node {
     #requireLogged(names: ReadonlySet<string>): void {
         for (const name of names) {
             if (!Object.hasOwn(this.columns, name) && !Object.hasOwn(this.extras, name)) {
-                throw new DatabaseError(
+                throw DatabaseError.of(
                     "INVALID_QUERY",
                     `query column is not logged: ${this.table[TABLE].name}.${name}`,
                 );
@@ -834,11 +837,11 @@ export class Node {
             const joins = path.table[TABLE];
             const logged = path.table[TABLE].logged;
             if (describeLog(path.table) === undefined) {
-                throw new DatabaseError("INVALID_QUERY", `join table is not logged: ${joins.name}`);
+                throw DatabaseError.of("INVALID_QUERY", `join table is not logged: ${joins.name}`);
             }
             for (const name of [path.from.column, path.to.column]) {
                 if (!Object.hasOwn(logged, name)) {
-                    throw new DatabaseError(
+                    throw DatabaseError.of(
                         "INVALID_QUERY",
                         `join column is not logged: ${joins.name}.${name}`,
                     );
@@ -849,7 +852,7 @@ export class Node {
         }
         // require the selected row's table with one key column
         else if (parent.table !== this.table || this.key.length !== 1) {
-            throw new DatabaseError(
+            throw DatabaseError.of(
                 "INVALID_QUERY",
                 `a ${path.kind} path must follow one table keyed by one column: ${this.name}`,
             );
@@ -857,7 +860,7 @@ export class Node {
             this.table[TABLE].tree?.definition.parent !== path.column ||
             this.table[TABLE].tree.definition.id !== this.key[0]
         ) {
-            throw new DatabaseError(
+            throw DatabaseError.of(
                 "INVALID_QUERY",
                 `a ${path.kind} path must follow the tree index of its table's parent column: ${this.name}`,
             );
@@ -899,7 +902,7 @@ export class Node {
         // refuse order, limit and includes
         const aggregate = this.#aggregate();
         if (query.with !== undefined || query.orderBy !== undefined || query.limit !== undefined) {
-            throw new DatabaseError(
+            throw DatabaseError.of(
                 "INVALID_QUERY",
                 `aggregate query has no rows to order or include: ${this.name}`,
             );
@@ -925,7 +928,7 @@ export class Node {
                     (measure.function === "sum" || measure.function === "avg") &&
                     !SUMMED_KINDS.has(kind)
                 ) {
-                    throw new DatabaseError(
+                    throw DatabaseError.of(
                         "INVALID_QUERY",
                         `measure ${name} sums a non-numeric column`,
                     );
@@ -949,7 +952,7 @@ export class Node {
     /** Read a query's positive integer limit. */
     static #limit(query: Query | Include, name: string): number | undefined {
         if (query.limit !== undefined && (!Number.isInteger(query.limit) || query.limit < 1)) {
-            throw new DatabaseError(
+            throw DatabaseError.of(
                 "INVALID_QUERY",
                 `query limit must be a positive integer: ${name}`,
             );

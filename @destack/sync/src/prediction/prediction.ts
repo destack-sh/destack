@@ -359,7 +359,7 @@ export class Prediction {
         // require SQLite, which sequences log changes within a transaction
         if (transaction.dialect !== "sqlite") {
             throw new TypeError(
-                "a prediction must run on SQLite, which sequences log changes within a transaction",
+                "a prediction must run on SQLite, which orders log changes within a transaction",
             );
         }
 
@@ -403,7 +403,7 @@ export class Prediction {
         // restore the row before an update
         else if (change.operation === "update") {
             if (change.before === undefined) {
-                throw new TypeError(`a predicted update of ${change.table} lacks its before`);
+                throw new TypeError(`a predicted update of ${change.table} has no before row`);
             }
             await transaction.update(table).set(Table.decode(table, change.before)).where(matched);
         }
@@ -609,7 +609,7 @@ export class Prediction {
         if (change.operation !== "update") {
             return written;
         } else if (change.before === undefined) {
-            throw new TypeError(`a logged update of ${definition.name} lacks its before`);
+            throw new TypeError(`a logged update of ${definition.name} has no before row`);
         }
 
         return { ...written, before: definition.encode(change.before) };

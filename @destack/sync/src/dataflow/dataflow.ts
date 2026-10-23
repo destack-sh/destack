@@ -153,7 +153,7 @@ export class Dataflow implements Arrangement {
     #requireLogged(): void {
         for (const watch of this.watches()) {
             if (watch.table[TABLE].retention === "none") {
-                throw new DatabaseError(
+                throw DatabaseError.of(
                     "INVALID_QUERY",
                     `watched table is not logged: ${watch.table[TABLE].name}`,
                 );
@@ -167,7 +167,7 @@ export class Dataflow implements Arrangement {
             const concealable = audience.concealable(node.table);
             const read = node.reads().filter((name) => concealable.includes(name));
             if (read.length > 0) {
-                throw new DatabaseError(
+                throw DatabaseError.of(
                     "INVALID_QUERY",
                     `query ${node.name} reads concealable columns of ${node.table[TABLE].name}: ${read.join(", ")}`,
                 );
@@ -274,7 +274,7 @@ export class Dataflow implements Arrangement {
 
             // select the root's rows a page at a time
             if (!(pipeline instanceof Selection)) {
-                throw new TypeError(`root ${root.name} selects rows without a selection`);
+                throw new TypeError(`root ${root.name} selects rows but has no selection`);
             }
             let after = start;
             for (let isDone = false; !isDone;) {
@@ -355,9 +355,7 @@ export class Dataflow implements Arrangement {
             // require the upstream the mirror reads
             const upstream = this.#context.upstream;
             if (upstream === undefined) {
-                throw new TypeError(
-                    `mirror ${mirror.node.name} reads its groups without an upstream`,
-                );
+                throw new TypeError(`mirror ${mirror.node.name} reads groups but has no upstream`);
             }
 
             // refresh a mirror whose rows or groups changed
@@ -396,7 +394,9 @@ export class Dataflow implements Arrangement {
     #root(name: string): Pipeline {
         // require a materialized dataflow
         if (!this.#context.isMaterialized) {
-            throw new TypeError("a dataflow reads its results only when it materializes its rows");
+            throw new TypeError(
+                "cannot read results of a dataflow that does not materialize its rows",
+            );
         }
         const root = this.roots.find((entry) => entry.name === name);
         if (root === undefined) {
@@ -516,7 +516,7 @@ export class Dataflow implements Arrangement {
         // refuse rows and groups beyond the capacity
         const size = this.size;
         if (this.#capacity !== undefined && size > this.#capacity) {
-            throw new SyncError(
+            throw SyncError.of(
                 "OVER_CAPACITY",
                 `queries have ${size} rows and groups, more than ${this.#capacity}`,
             );
@@ -589,7 +589,7 @@ export class Dataflow implements Arrangement {
         // read the concealed columns of every selected row
         const current = this.#position;
         if (current === undefined) {
-            throw new TypeError("a dataflow reads its rows before its first hydration");
+            throw new TypeError("cannot read dataflow rows before the first hydration");
         }
         const rows = orders.map((keys) => keys.map(rowOf));
         const concealed = await this.#context.audience.conceals(node.table, rows.flat(), current);
@@ -830,7 +830,7 @@ export class Dataflow implements Arrangement {
                     through,
                 );
             } catch (error) {
-                if (error instanceof DatabaseError && error.reason === "CHANGES_COMPACTED") {
+                if (DatabaseError.is(error, "CHANGES_COMPACTED")) {
                     return undefined;
                 }
                 throw error;

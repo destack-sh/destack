@@ -89,7 +89,7 @@ export class Sink {
                 // refuse a present row missing at the position
                 if (row === null) {
                     throw new TypeError(
-                        `subscriber has ${key}, missing at ${run.view.position.sequence}`,
+                        `subscriber has row ${key}, but it is missing at ${run.view.position.sequence}`,
                     );
                 }
                 touched.row = row;
@@ -140,7 +140,7 @@ export class Sink {
     /** Read the row a touched present row has at the run's position. */
     static #touchedRow(key: string, touched: Touch): Row {
         if (touched.row === null) {
-            throw new TypeError(`present row ${key} is sent before it is read`);
+            throw new TypeError(`cannot send present row ${key} before reading it`);
         }
 
         return touched.row;

@@ -356,7 +356,7 @@ export class Tally implements Result {
         const left = (counts.get(value) ?? 0) - 1;
         if (left < 0) {
             const shown = typeof value === "bigint" ? `${value}n` : JSON.stringify(value);
-            throw new TypeError(`a tally counted out ${shown}, which it never counted in`);
+            throw new TypeError(`a tally removed ${shown}, which it never added`);
         }
         if (left === 0) {
             counts.delete(value);
@@ -398,7 +398,7 @@ export class Tally implements Result {
                 const partials = Tally.#grow(entry?.partials ?? [], sign * value);
                 this.#sums.set(column, { partials, count: (entry?.count ?? 0) + sign });
             } else {
-                throw new TypeError(`${column} sums values of a kind other than its sum`);
+                throw new TypeError(`${column} mixes number and bigint values in one sum`);
             }
         }
     }
@@ -612,7 +612,7 @@ export class Tally implements Result {
     /** Read an aggregate node's aggregate. */
     static #aggregate(node: Node): Aggregate {
         if (node.aggregate === undefined) {
-            throw new TypeError(`${node.name} aggregates no rows`);
+            throw new TypeError(`${node.name} is not an aggregate`);
         }
 
         return node.aggregate;

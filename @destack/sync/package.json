@@ -6,7 +6,8 @@
     "sideEffects": false,
     "description": "Keep shapes of database rows current in subscribers and local copies.",
     "exports": {
-        ".": "./src/index.ts"
+        ".": "./src/index.ts",
+        "./error": "./src/error/index.ts"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",

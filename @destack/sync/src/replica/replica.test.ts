@@ -41,7 +41,6 @@ import {
 import type { Query } from "../query/query.ts";
 import type { AggregateRow } from "../query/aggregate.ts";
 import type { Page } from "../query/page.ts";
-import { SyncError } from "../error/error.ts";
 import { Scope } from "../scope/scope.ts";
 import { Clock } from "@destack/environment";
 import { VirtualClock } from "@destack/environment/simulation";
@@ -233,22 +232,20 @@ test("refuse publishing a replicated table back to the database it replicates fr
     const homeOrigin = (await home.log.position()).log;
     const archive = new Replica({ name: "archive", scope: "archive", tables: [note] });
     await expect(inbox.requireAcyclic(other, "third")).resolves.toBeUndefined();
-    await expect(archive.requireAcyclic(other, homeOrigin)).rejects.toEqual(
-        new SyncError(
-            "CYCLE",
-            `replica archive of archive would publish note back to ${homeOrigin}, its source in replica inbox of inbox`,
-        ),
-    );
+    expect(await refusal(archive.requireAcyclic(other, homeOrigin))).toEqual([
+        "CONFLICT",
+        "CYCLE",
+        `replica archive of archive would publish note back to ${homeOrigin}, its source in replica inbox of inbox`,
+    ]);
 
     // refuse publishing the notes back once the replica from their home has none of them
     await other.delete(note);
     await other.delete(replicaKey);
-    await expect(archive.requireAcyclic(other, homeOrigin)).rejects.toEqual(
-        new SyncError(
-            "CYCLE",
-            `replica archive of archive would publish note back to ${homeOrigin}, its source in replica inbox of inbox`,
-        ),
-    );
+    expect(await refusal(archive.requireAcyclic(other, homeOrigin))).toEqual([
+        "CONFLICT",
+        "CYCLE",
+        `replica archive of archive would publish note back to ${homeOrigin}, its source in replica inbox of inbox`,
+    ]);
 });
 
 test("replicate several scopes in one replica recorded elsewhere, storing each scope with its row in the replica", async () => {
@@ -911,9 +908,11 @@ test("fail following once the source fails or ends a stream without a page", asy
         signal,
         { synced: () => {}, clock: Clock.system },
     );
-    await expect(empty).rejects.toEqual(
-        new SyncError("INVALID_STREAM", "the source of inbox ended a stream without a page"),
-    );
+    expect(await refusal(empty)).toEqual([
+        "BAD_GATEWAY",
+        "INVALID_STREAM",
+        "the source of inbox ended a stream without a page",
+    ]);
 });
 
 test("finish a snapshot of several pages past a drain, then resume from its completed position", async () => {

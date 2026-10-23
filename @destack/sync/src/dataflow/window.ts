@@ -121,7 +121,9 @@ export class Window {
         }
         const evicted = this.#at(this.#limit);
         if (evicted === undefined) {
-            throw new RangeError(`a window over its limit of ${this.#limit} lacks the evicted row`);
+            throw new RangeError(
+                `a window over its limit of ${this.#limit} is missing the evicted row`,
+            );
         }
         if (!this.isArranged) {
             this.remove(evicted.key);

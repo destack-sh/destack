@@ -48,7 +48,7 @@ export class Evaluation {
         // require the feed's tables
         for (const node of this.#dataflow.nodes) {
             if (!feed.tables.includes(node.table)) {
-                throw new DatabaseError(
+                throw DatabaseError.of(
                     "INVALID_QUERY",
                     `feed does not read ${node.table[TABLE].name}`,
                 );
@@ -173,7 +173,7 @@ export class Evaluation {
         const { sequence } = after;
         const read = await this.#feed.changes(this.#dataflow.watches(), sequence);
         if (read === undefined) {
-            throw new DatabaseError(
+            throw DatabaseError.of(
                 "CHANGES_COMPACTED",
                 `log no longer has changes after ${sequence}`,
             );

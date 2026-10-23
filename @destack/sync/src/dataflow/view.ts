@@ -258,7 +258,7 @@ export class View {
                 void this.#cache.windows.share(this.position.sequence, read(segment), async () => {
                     const window = (await windows)[index];
                     if (window === undefined) {
-                        throw new RangeError("a ranked read lacks one of its windows");
+                        throw new RangeError("a ranked read is missing one of its windows");
                     }
 
                     return { rows: window, until: await audience.until() };
@@ -429,7 +429,7 @@ export class View {
     /** Require a column's JSON form to be a present scalar, as keys and joins are. */
     static #scalar(json: unknown, column: string): Exclude<Scalar, null> {
         if (typeof json !== "string" && typeof json !== "number" && typeof json !== "boolean") {
-            throw new TypeError(`${column} has no scalar value to read by`);
+            throw new TypeError(`${column} has no scalar value`);
         }
 
         return json;
@@ -483,7 +483,7 @@ export class View {
     static #visibleSQL(audience: Audience, table: Table, permission?: string): SQL {
         const where = audience.where(table, permission);
         if (where === "memory") {
-            throw new DatabaseError(
+            throw DatabaseError.of(
                 "INVALID_QUERY",
                 `relations cannot read rows of ${table[TABLE].name}: the audience decides them in memory`,
             );

@@ -1,40 +1,28 @@
-import type { DomainError, CallErrorCode, Failure } from "@destack/error";
+import { defineErrorFamily, type ReasonOf } from "@destack/error";
 import type {} from "@destack/package/import-meta";
 
-/** The call error code per sync failure: capacity, readiness, stream, scope, cycle, expiry. */
-const CALL_CODES = {
-    OVERLOADED: "SERVICE_UNAVAILABLE",
-    OVER_CAPACITY: "UNPROCESSABLE_CONTENT",
-    STALE: "SERVICE_UNAVAILABLE",
-    INVALID_STREAM: "BAD_GATEWAY",
-    INVALID_SCOPE: "UNPROCESSABLE_CONTENT",
-    NOT_FOUND: "NOT_FOUND",
-    CYCLE: "CONFLICT",
-    EXPIRED: "PRECONDITION_FAILED",
-} as const satisfies Readonly<Record<string, CallErrorCode>>;
+/** The sync package's failures, each reason with the call error code it answers. */
+export const SyncError = defineErrorFamily(import.meta.destack.package, {
+    // not found
+    NOT_FOUND: { code: "NOT_FOUND" },
 
-/** A stable cause of failures of replicas, subscriptions and scopes. */
-export type SyncReason = keyof typeof CALL_CODES;
+    // conflict
+    CYCLE: { code: "CONFLICT" },
 
-/** A replica, subscription, scope or request the source cannot serve. */
-export class SyncError extends Error implements DomainError {
-    /** The failure's stable cause within its package. */
-    readonly reason: SyncReason;
+    // precondition failed
+    EXPIRED: { code: "PRECONDITION_FAILED" },
 
-    /** Create the error with its reason and cause. */
-    constructor(reason: SyncReason, message: string, options?: ErrorOptions) {
-        super(message, options);
-        this.name = "SyncError";
-        this.reason = reason;
-    }
+    // unprocessable content
+    INVALID_SCOPE: { code: "UNPROCESSABLE_CONTENT" },
+    OVER_CAPACITY: { code: "UNPROCESSABLE_CONTENT" },
 
-    /** Convert the failure to the call error a caller receives. */
-    toCallError(): Failure {
-        return {
-            code: CALL_CODES[this.reason],
-            reason: this.reason,
-            domain: import.meta.destack.package.name,
-            message: this.message,
-        };
-    }
-}
+    // bad gateway
+    INVALID_STREAM: { code: "BAD_GATEWAY" },
+
+    // service unavailable
+    OVERLOADED: { code: "SERVICE_UNAVAILABLE" },
+    STALE: { code: "SERVICE_UNAVAILABLE" },
+});
+
+/** A stable cause of sync failures. */
+export type SyncReason = ReasonOf<typeof SyncError>;

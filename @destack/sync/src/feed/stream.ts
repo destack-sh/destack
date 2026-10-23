@@ -125,7 +125,7 @@ export class Stream {
                     // start over after a lost position or epoch
                     if (
                         !(
-                            error instanceof DatabaseError &&
+                            DatabaseError.is(error) &&
                             (error.reason === "CHANGES_COMPACTED" || error.reason === "STALE_EPOCH")
                         )
                     ) {

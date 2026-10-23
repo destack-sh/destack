@@ -291,11 +291,7 @@ test("refuse subscribers beyond a feed's limit", async () => {
     await served.next();
     const refused = await refusal(feed.subscribe(query, undefined, signal).next());
     await served.return(undefined);
-    expect(refused).toEqual([
-        "SERVICE_UNAVAILABLE",
-        "OVERLOADED",
-        "feed serves 1 subscribers already",
-    ]);
+    expect(refused).toEqual(["SERVICE_UNAVAILABLE", "OVERLOADED", "feed already has 1 subscriber"]);
 });
 
 test("page catch-up changes between transactions", async () => {

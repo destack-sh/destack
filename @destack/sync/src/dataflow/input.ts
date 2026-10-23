@@ -438,7 +438,7 @@ export class TreeJoin extends Input {
     #closure(): Table {
         const closure = this.node.closure;
         if (closure === undefined) {
-            throw new TypeError(`${this.node.name} reads a tree index its node lacks`);
+            throw new TypeError(`${this.node.name} reads a tree index it does not have`);
         }
 
         return closure;

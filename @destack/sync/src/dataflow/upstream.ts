@@ -77,7 +77,9 @@ export class Trace implements Arrangement {
     ): Readonly<Record<string, Scalar>> {
         const groups = this.#loaded.get(run)?.get(relation);
         if (groups === undefined) {
-            throw new TypeError(`measures of ${relation.name} are read before they are prepared`);
+            throw new TypeError(
+                `cannot read measures of ${relation.name} before they are prepared`,
+            );
         }
 
         return groups.get(canonicalize(relation.groupFor(value))) ?? {};
