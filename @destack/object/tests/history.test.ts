@@ -132,7 +132,11 @@ test("group each caller's changes into activities, and read and revert a page as
         ["Plan", "outline"],
         ["Roadmap", "outline"],
     ]);
-    expect(await refusal(read(first.from))).toEqual(["NOT_FOUND", `no page ${created.id}`]);
+    expect(await refusal(read(first.from))).toEqual([
+        "NOT_FOUND",
+        "NOT_FOUND",
+        `no page ${created.id}`,
+    ]);
 
     // list the pages at a position as each caller could read them then and now
     const listed = async (position: LogPosition) =>
@@ -143,10 +147,18 @@ test("group each caller's changes into activities, and read and revert a page as
     expect([aliceListed, bobListed]).toEqual([["Plan"], []]);
 
     // find nothing for bob before he was granted the page, nor for carol ever
-    expect(await refusal(read(beforeGrant))).toEqual(["NOT_FOUND", `no page ${created.id}`]);
+    expect(await refusal(read(beforeGrant))).toEqual([
+        "NOT_FOUND",
+        "NOT_FOUND",
+        `no page ${created.id}`,
+    ]);
     expect(await read(third.from)).toEqual(["Roadmap", "outline"]);
     as(users.carol);
-    expect(await refusal(read(third.from))).toEqual(["NOT_FOUND", `no page ${created.id}`]);
+    expect(await refusal(read(third.from))).toEqual([
+        "NOT_FOUND",
+        "NOT_FOUND",
+        `no page ${created.id}`,
+    ]);
 
     // create a named checkpoint and read the page at it
     as(users.alice);

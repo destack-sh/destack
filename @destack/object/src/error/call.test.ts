@@ -1,32 +1,48 @@
-import { createORPCErrorFromJson, isORPCErrorJson } from "@orpc/client";
+import { ORPCError } from "@orpc/client";
 import { expect, test } from "@destack/test";
 import { schema } from "@destack/schema";
 import { CallError } from "./call.ts";
 
+import type {} from "@destack/package/import-meta";
+
 /** The machine a misdirected answer moves the scope to. */
 const MOVED = schema.identifier("machine").parse("machine-01996ab0-0000-7000-8000-0000000000e1");
 
-test("recognise a call error decoded from a response and refuse a plain error", () => {
+test("decode a call error from its body with its reason and domain, read oRPC's own failure as HTTP's, and refuse a plain error", () => {
     // decode the body a client reads from a refused call
     const sent = new CallError("MISDIRECTED_REQUEST", {
+        reason: "SCOPE_MOVED",
+        domain: import.meta.destack.package.name,
         message: "moved",
         data: { machine: "machine-1" },
     });
     const body: unknown = JSON.parse(JSON.stringify(sent.toJSON()));
-    const decoded = CallError.of(isORPCErrorJson(body) ? createORPCErrorFromJson(body) : body);
-    expect([
-        decoded === undefined ? undefined : [decoded.code, decoded.status, decoded.data],
-        CallError.of(new Error("moved")),
-    ]).toEqual([["MISDIRECTED_REQUEST", 421, { machine: "machine-1" }], undefined]);
+    const decoded = CallError.fromJson(body);
+    const foreign = CallError.of(
+        new ORPCError("MISDIRECTED_REQUEST", {
+            status: 421,
+            message: "moved",
+            data: { machine: "machine-1" },
+        }),
+    );
+    expect([read(decoded), read(foreign), CallError.of(new Error("moved"))]).toEqual([
+        ["MISDIRECTED_REQUEST", "SCOPE_MOVED", "@destack/object", 421, { machine: "machine-1" }],
+        ["MISDIRECTED_REQUEST", "MISDIRECTED_REQUEST", "http", 421, { machine: "machine-1" }],
+        undefined,
+    ]);
 });
 
 test("read a misdirected answer's declared data from a failure and a response, and nothing from another answer", async () => {
     // misdirect to a machine and to a partition, and answer otherwise
     const moved = new CallError("MISDIRECTED_REQUEST", {
+        reason: "SCOPE_MOVED",
+        domain: import.meta.destack.package.name,
         message: `space-1 moves to ${MOVED}`,
         data: { scope: "space-1", machine: MOVED },
     });
     const partitioned = new CallError("MISDIRECTED_REQUEST", {
+        reason: "PARTITION_MISDIRECTED",
+        domain: import.meta.destack.package.name,
         message: "room-1 is served by partition room-1",
         data: { scope: "room-1", partition: "room-1" },
     });
@@ -34,7 +50,7 @@ test("read a misdirected answer's declared data from a failure and a response, a
         CallError.data(moved, "MISDIRECTED_REQUEST"),
         await CallError.read(respond(partitioned), "MISDIRECTED_REQUEST"),
         CallError.data(
-            new CallError("NOT_FOUND", { message: "no space-1" }),
+            CallError.http("NOT_FOUND", { message: "no space-1" }),
             "MISDIRECTED_REQUEST",
         ),
         await CallError.read(new Response("misdirected", { status: 421 }), "MISDIRECTED_REQUEST"),
@@ -52,6 +68,8 @@ test("follow a misdirected answer once, handing the second attempt where its sco
     const answered = await CallError.follow(async (misdirected) => {
         attempts.push(misdirected);
         const error = new CallError("MISDIRECTED_REQUEST", {
+            reason: "SCOPE_MOVED",
+            domain: import.meta.destack.package.name,
             message: `space-1 moves to ${MOVED}`,
             data: { scope: "space-1", machine: MOVED },
         });
@@ -68,4 +86,11 @@ test("follow a misdirected answer once, handing the second attempt where its sco
 /** Answer a failure as a server answers it. */
 function respond(error: CallError<string, unknown>): Response {
     return Response.json(error.toJSON(), { status: error.status });
+}
+
+/** Read a call error's code, reason, domain, status and data. */
+function read(error: CallError<string, unknown> | undefined) {
+    return error === undefined
+        ? undefined
+        : [error.code, error.reason, error.domain, error.status, error.data];
 }

@@ -2,24 +2,32 @@ import {
     fallbackORPCErrorStatus,
     ORPCError,
     type ORPCErrorCode,
+    type ORPCErrorJSON,
     type ORPCErrorOptions,
 } from "@orpc/client";
 import { type MaybeOptionalOptions, resolveMaybeOptionalOptions } from "@orpc/shared";
+
 import { ValidationError, type SchemaIssue } from "@orpc/contract";
 import { JsonValue, schema } from "@destack/schema";
-import { DomainError, CALL_ERROR_STATUSES, type CallErrorCode } from "@destack/error";
+import {
+    DomainError,
+    CALL_ERROR_STATUSES,
+    Failure,
+    type CallErrorCode,
+    FailureReason,
+    HTTP_DOMAIN,
+} from "@destack/error";
+import type {} from "@destack/package/import-meta";
 
 /** The failures every procedure declares with their statuses and data. */
 export const DECLARED_ERRORS = {
     NOT_IMPLEMENTED: { status: CALL_ERROR_STATUSES.NOT_IMPLEMENTED },
     UNAUTHORIZED: { status: CALL_ERROR_STATUSES.UNAUTHORIZED },
-    INSUFFICIENT_AUTHENTICATION: { status: CALL_ERROR_STATUSES.INSUFFICIENT_AUTHENTICATION },
-    QUOTA_EXCEEDED: { status: CALL_ERROR_STATUSES.QUOTA_EXCEEDED },
+    PAYMENT_REQUIRED: { status: CALL_ERROR_STATUSES.PAYMENT_REQUIRED },
     FORBIDDEN: { status: CALL_ERROR_STATUSES.FORBIDDEN },
     NOT_FOUND: { status: CALL_ERROR_STATUSES.NOT_FOUND },
     CONFLICT: { status: CALL_ERROR_STATUSES.CONFLICT },
     PRECONDITION_FAILED: { status: CALL_ERROR_STATUSES.PRECONDITION_FAILED },
-    MANAGED: { status: CALL_ERROR_STATUSES.MANAGED },
     MISDIRECTED_REQUEST: {
         status: CALL_ERROR_STATUSES.MISDIRECTED_REQUEST,
         // where the call's scope is served: another machine, or another partition of the installation
@@ -39,18 +47,91 @@ export const DECLARED_ERRORS = {
     Record<CallErrorCode, { readonly status: number; readonly data?: schema.Schema }>
 >;
 
-/** The client failures worth attempting again (RFC 9110, 8470, 6585). */
-export const TRANSIENT_STATUSES: ReadonlySet<number> = new Set([408, 425, 429]);
+/** What a call failure has beside its code, as gRPC's ErrorInfo beside its status. */
+export type CallErrorOptions<Data> = ORPCErrorOptions<Data> & {
+    /** The failure's stable cause within its domain, such as STALE_REVISION. */
+    readonly reason: string;
+    /** The package whose reason it is, such as @destack/object, or http. */
+    readonly domain: string;
+    /** The readable message. */
+    readonly message: string;
+};
 
-/** A call failure: its code, the status the code declares, a message and details. */
+/** A failure's JSON body: oRPC's, with its reason and domain when a package gave one. */
+const CallErrorJson = schema.object({
+    /** Whether the procedure declares the failure. */
+    defined: schema.boolean(),
+    /** The call error code. */
+    code: schema.string().min(1),
+    /** The HTTP status. */
+    status: schema.number().int(),
+    /** The readable message. */
+    message: schema.string(),
+    /** The structured details. */
+    data: schema.unknown().exactOptional(),
+    /** The failure's stable cause within its domain. */
+    reason: FailureReason.exactOptional(),
+    /** The package whose reason it is. */
+    domain: schema.string().min(1).exactOptional(),
+});
+
+/** A call failure: its code and status, its reason within its domain, a message and details. */
 export class CallError<Code extends ORPCErrorCode, Data> extends ORPCError<Code, Data> {
+    /** The failure's stable cause within its domain. */
+    readonly reason: string;
+    /** The package whose reason it is. */
+    readonly domain: string;
+
     /** Create a failure with the status its code declares. */
-    constructor(code: Code, ...rest: MaybeOptionalOptions<ORPCErrorOptions<Data>>) {
+    constructor(code: Code, ...rest: MaybeOptionalOptions<CallErrorOptions<Data>>) {
+        // take the status and definition its code declares
         const options = resolveMaybeOptionalOptions(rest);
         super(code, {
             ...options,
             status: options.status ?? CallError.status(code),
             defined: options.defined ?? Object.hasOwn(DECLARED_ERRORS, code),
+        });
+
+        // record its reason within its domain
+        this.reason = FailureReason.parse(options.reason);
+        this.domain = options.domain;
+    }
+
+    /** Describe a failure no package gave a reason, as HTTP's: its code is its reason. */
+    static http<Code extends CallErrorCode>(
+        code: Code,
+        options: { readonly message: string; readonly cause?: unknown },
+    ): CallError<Code, undefined> {
+        return new CallError(code, { ...options, reason: code, domain: HTTP_DOMAIN });
+    }
+
+    /** Write the failure's body: oRPC's, with its reason and domain. */
+    override toJSON(): ORPCErrorJSON<Code, Data> & {
+        readonly reason: string;
+        readonly domain: string;
+    } {
+        return { ...super.toJSON(), reason: this.reason, domain: this.domain };
+    }
+
+    /** Read a failure from its body, a body without a reason as HTTP's. */
+    static fromJson(body: unknown): CallError<string, unknown> | undefined {
+        // leave a body of no failure to its reader
+        const parsed = CallErrorJson.safeParse(body);
+        if (!parsed.success) {
+            return undefined;
+        }
+
+        // read it with its reason, one without as HTTP's
+        const { reason, domain, ...read } = parsed.data;
+
+        return new CallError(read.code, {
+            ...(reason === undefined || domain === undefined
+                ? { reason: read.code, domain: HTTP_DOMAIN }
+                : { reason, domain }),
+            message: read.message,
+            data: read.data,
+            status: read.status,
+            defined: read.defined,
         });
     }
 
@@ -62,13 +143,13 @@ export class CallError<Code extends ORPCErrorCode, Data> extends ORPCError<Code,
     }
 
     /** Read the call error a failure is when it refuses for good, absent otherwise. */
-    static refusal(error: unknown): ORPCError<string, unknown> | undefined {
+    static refusal(error: unknown): CallError<string, unknown> | undefined {
         const known = CallError.of(error);
         const isRefused =
             known !== undefined &&
             known.status >= 400 &&
             known.status < 500 &&
-            !TRANSIENT_STATUSES.has(known.status);
+            !Failure.isTransient(Failure.of(known));
 
         return isRefused ? known : undefined;
     }
@@ -78,8 +159,10 @@ export class CallError<Code extends ORPCErrorCode, Data> extends ORPCError<Code,
         error: unknown,
         code: "MISDIRECTED_REQUEST",
     ): schema.Infer<typeof DECLARED_ERRORS.MISDIRECTED_REQUEST.data> | undefined {
-        return isCallError(error) && error.code === code
-            ? DECLARED_ERRORS[code].data.safeParse(error.data).data
+        const failure = CallError.of(error);
+
+        return failure?.code === code
+            ? DECLARED_ERRORS[code].data.safeParse(failure.data).data
             : undefined;
     }
 
@@ -125,16 +208,27 @@ export class CallError<Code extends ORPCErrorCode, Data> extends ORPCError<Code,
     }
 
     /** Read the call error a failure is or has, absent for a failure without one. */
-    static of(error: unknown): ORPCError<string, unknown> | undefined {
-        // take a call error as it is
-        if (isCallError(error)) {
+    static of(error: unknown): CallError<string, unknown> | undefined {
+        // take a call error as it is, and an oRPC failure as HTTP's with the failure it reports
+        if (error instanceof CallError) {
             return error;
+        } else if (isCallError(error)) {
+            return new CallError(error.code, {
+                reason: error.code,
+                domain: HTTP_DOMAIN,
+                message: error.message,
+                data: error.data,
+                status: error.status,
+                cause: error.cause,
+            });
         }
         // build a domain failure's call error with the failure as its cause
         else if (DomainError.is(error)) {
-            const { code, message, data } = error.toCallError();
+            const { code, reason, domain, message, data } = error.toCallError();
 
             return new CallError<CallErrorCode, JsonValue | undefined>(code, {
+                reason,
+                domain,
                 message,
                 data,
                 cause: error,
@@ -151,21 +245,23 @@ function isCallError(value: unknown): value is ORPCError<string, unknown> {
 }
 
 /** Hide a denial from the caller as a missing resource. */
-export function conceal(
-    denial: ORPCError<string, unknown>,
-    message: string,
-): ORPCError<"NOT_FOUND", unknown> {
-    return new ORPCError("NOT_FOUND", { message, cause: denial });
+export function conceal(denial: Error, message: string): CallError<"NOT_FOUND", unknown> {
+    return CallError.http("NOT_FOUND", {
+        message,
+        cause: denial,
+    });
 }
 
 /** Refuse input its schema rejects, as a procedure refuses invalid input. */
 export function refuseInput(
     input: unknown,
     issues: readonly SchemaIssue[],
-): ORPCError<"BAD_REQUEST", { readonly issues: readonly SchemaIssue[] }> {
+): CallError<"BAD_REQUEST", { readonly issues: readonly SchemaIssue[] }> {
     const message = describeIssues(issues);
 
-    return new ORPCError("BAD_REQUEST", {
+    return new CallError("BAD_REQUEST", {
+        reason: "INVALID_INPUT",
+        domain: import.meta.destack.package.name,
         message,
         data: { issues },
         cause: new ValidationError({ message, issues, data: input }),

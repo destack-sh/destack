@@ -97,11 +97,12 @@ test("report a create's conflicts only to callers the create permission allows, 
     // tell bob of the taken name and identifier only for a handle he may create
     expect(await refusal(create(users.bob, { holderId: users.bob, name: "notes" }))).toEqual([
         "CONFLICT",
+        "DUPLICATE",
         "another handle has the same scope and name",
     ]);
-    await expect(
-        create(users.bob, { holderId: users.bob, name: "tasks", id: taken.id }),
-    ).rejects.toMatchObject({ code: "CONFLICT", message: "handle identifier is taken" });
+    expect(
+        await refusal(create(users.bob, { holderId: users.bob, name: "tasks", id: taken.id })),
+    ).toEqual(["CONFLICT", "ID_TAKEN", "handle identifier is taken"]);
 
     // find nothing for a handle bob may not create, taken or free
     const refusals: unknown[] = [];
@@ -113,15 +114,15 @@ test("report a create's conflicts only to callers the create permission allows, 
         refusals.push(await refusal(create(users.bob, input)));
     }
     expect(refusals).toEqual([
-        ["NOT_FOUND", "handle not found"],
-        ["NOT_FOUND", "handle not found"],
-        ["NOT_FOUND", "handle not found"],
+        ["NOT_FOUND", "NOT_FOUND", "handle not found"],
+        ["NOT_FOUND", "NOT_FOUND", "handle not found"],
+        ["NOT_FOUND", "NOT_FOUND", "handle not found"],
     ]);
 
     // challenge bob before a conflict, and find nothing for alice's handle
     level = 1;
     await expect(create(users.bob, { holderId: users.bob, name: "notes" })).rejects.toMatchObject({
-        code: "INSUFFICIENT_AUTHENTICATION",
+        reason: "INSUFFICIENT_AUTHENTICATION",
         stepUp: RECENT,
     });
     await expect(create(users.bob, { holderId: users.alice, name: "notes" })).rejects.toMatchObject(
@@ -247,7 +248,11 @@ test("run only the one method a one-method grant includes, refusing every other 
 
     expect([created.name, read]).toEqual([
         "Core",
-        ["FORBIDDEN", `grant ${grantId} does not allow team.get in ${spaceId}`],
+        [
+            "FORBIDDEN",
+            "GRANT_REFUSES_METHOD",
+            `grant ${grantId} does not allow team.get in ${spaceId}`,
+        ],
     ]);
 });
 
@@ -375,7 +380,7 @@ test("create each variant of a sum type from its fields beside the shared ones, 
     expect([...columns, mixed]).toEqual([
         { label: "Mail", kind: "email", address: "alice@example.com", number: null, region: null },
         { label: "Desk", kind: "phone", address: null, number: "+4930123456", region: "de" },
-        ["BAD_REQUEST", 'invalid input: unrecognized key: "number"'],
+        ["BAD_REQUEST", "INVALID_INPUT", 'invalid input: unrecognized key: "number"'],
     ]);
 });
 
@@ -496,7 +501,7 @@ test("create an object under a natural key the creator chooses, refusing a taken
     // take the chosen key, and refuse it once taken
     expect([await create("Core"), await refusal(create("Again"))]).toEqual([
         "core",
-        ["CONFLICT", "channel identifier is taken"],
+        ["CONFLICT", "ID_TAKEN", "channel identifier is taken"],
     ]);
 });
 

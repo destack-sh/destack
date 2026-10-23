@@ -171,9 +171,14 @@ test("leave a sensitive input out of the rows, the journal, the audit events, th
         isTokenTraced: traces.rows.includes(token),
     }).toEqual({
         leaking: [],
-        refusal: ["BAD_REQUEST", "invalid input: key: invalid string: must match pattern /^sk-/u"],
+        refusal: [
+            "BAD_REQUEST",
+            "INVALID_INPUT",
+            "invalid input: key: invalid string: must match pattern /^sk-/u",
+        ],
         systemRefusal: [
             "BAD_REQUEST",
+            "INVALID_INPUT",
             "invalid input: key: invalid string: must match pattern /^sk-/u",
         ],
         audited: [

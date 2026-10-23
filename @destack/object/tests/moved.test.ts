@@ -124,7 +124,7 @@ test("allow the calls of moving permissions in a fenced scope and refuse every o
         (await database.select({ label: marker.table.label }).from(marker.table)).map(
             (row) => row.label,
         ),
-    ]).toEqual([["MISDIRECTED_REQUEST", `${spaceId} moves to ${moved}`], ["final"]]);
+    ]).toEqual([["MISDIRECTED_REQUEST", "SCOPE_MOVED", `${spaceId} moves to ${moved}`], ["final"]]);
 });
 
 /** Read the titles of the notes in a database. */

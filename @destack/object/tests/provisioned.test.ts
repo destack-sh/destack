@@ -355,6 +355,7 @@ test("provision a box, apply its consumers' growth, and apply a destructive shri
         stored: [{ state: { size: 1 } }],
         unknown: [
             "BAD_REQUEST",
+            "MISSING_DESIRED_STATE",
             `${spaceId} has no desired states ${await Digest.json({ size: 4 })}`,
         ],
     });
@@ -465,29 +466,17 @@ test("retain a deleted box for its window, retain it while an installation consu
     });
 });
 
-test("record a failed provisioning, provision on the next attempt, and observe a box declared at a reference without provisioning it", async () => {
+test("record a failed provisioning, and provision on the next attempt", async () => {
     const boxes = new Boxes();
     const { database, reconcile, read } = await serve(boxes);
     const now = Date.now();
-    await database.insert(box.table).values([
-        {
-            ...declared,
-            id: ids.first,
-            name: "first",
-            createdAt: now,
-            updatedAt: now,
-        },
-        {
-            ...declared,
-            id: ids.second,
-            name: "second",
-            origin: "declared",
-            provider: "memory",
-            reference: "memory:elsewhere",
-            createdAt: now,
-            updatedAt: now,
-        },
-    ]);
+    await database.insert(box.table).values({
+        ...declared,
+        id: ids.first,
+        name: "first",
+        createdAt: now,
+        updatedAt: now,
+    });
 
     // record and throw the failure and provision on the next attempt
     boxes.failures = 1;
@@ -498,19 +487,13 @@ test("record a failed provisioning, provision on the next attempt, and observe a
     const failure = present(await read(ids.first), "the failed box").conditions["ready"];
     await reconcile("box", ids.first);
     const provisioned = present(await read(ids.first), "the provisioned box").conditions["ready"];
-
-    // observe the declared box ready at its reference
-    await reconcile("box", ids.second);
-    const ready = present(await read(ids.second), "the declared box").conditions["ready"];
     expect({
         failed: [failed, failure?.reason, failure?.message],
         provisioned: provisioned?.reason,
-        declared: [ready?.status, ready?.reason, ready?.message],
         sizes: [...boxes.sizes.keys()],
     }).toEqual({
         failed: ["the disk is full", "ProvisioningFailed", "the disk is full"],
         provisioned: "Applied",
-        declared: ["true", "Declared", "declared at memory:elsewhere"],
         sizes: [ids.first],
     });
 });
@@ -560,7 +543,7 @@ test("set a resource's name after another kind's resource in its space, refusing
 
     expect({ names: [created?.name, linked?.name], taken }).toEqual({
         names: ["main", "main"],
-        taken: ["CONFLICT", "another box has the same scope and name"],
+        taken: ["CONFLICT", "DUPLICATE", "another box has the same scope and name"],
     });
 });
 

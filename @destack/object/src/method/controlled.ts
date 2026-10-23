@@ -1,5 +1,6 @@
 import { Table } from "@destack/db";
-import { CallError } from "../error/call.ts";
+import { ObjectError } from "../error/error.ts";
+
 import { Digest, schema } from "@destack/schema";
 
 import { MethodBuilder } from "./record.ts";
@@ -7,6 +8,8 @@ import { MethodBuilder } from "./record.ts";
 import { Observation, StatusCondition } from "../object/condition.ts";
 
 import type { TraitTable } from "../object/table.ts";
+
+import type {} from "@destack/package/import-meta";
 /** The method declarations of controlled objects. */
 export const controlledMethod = new MethodBuilder<TraitTable<{ readonly controlled: true }>>();
 
@@ -22,7 +25,7 @@ export const observe = controlledMethod
         // refuse an observation of a generation the record has not arrived at
         const { observedGeneration, conditions, fields } = context.input;
         if (observedGeneration > context.target.generation) {
-            throw new CallError("CONFLICT", {
+            throw new ObjectError("STALE_GENERATION", {
                 message: `${context.object.name} is at generation ${context.target.generation}, not ${observedGeneration}`,
             });
         }
@@ -56,7 +59,7 @@ export const finalize = controlledMethod
     .handle(async (context) => {
         // require a requested deletion
         if (context.target.deletedAt === null) {
-            throw new CallError("CONFLICT", {
+            throw new ObjectError("NOT_DELETING", {
                 message: `${context.object.name} is not being deleted`,
             });
         }

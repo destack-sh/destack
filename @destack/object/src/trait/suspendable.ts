@@ -1,3 +1,4 @@
+import { integer } from "@destack/db";
 import { type Method } from "../method/method.ts";
 import { method } from "../method/record.ts";
 import type { Gated, Trait } from "./trait.ts";
@@ -31,7 +32,7 @@ export const suspendable: Trait<Gated> & {
     key: "suspendable",
     storages: ["durable"],
     options: (definition) => definition.suspendable,
-    columns: () => ({}),
+    columns: () => suspensionColumns(),
     constraints: () => [],
     methods: (options) => ({
         suspend: suspendable.suspend(options.by),
@@ -49,10 +50,26 @@ export const suspendable: Trait<Gated> & {
         return Execution.handle(
             method.mutation({ permission, inverse, isPredicted: false }),
             async (call, execution) => {
-                await Execution.store(execution, call).authorization[action](call.reference());
+                // record it on the row, which the scope's home follows, and on the scope where it is home here
+                const store = Execution.store(execution, call);
+                const target = await call.update({
+                    suspendedAt: action === "suspend" ? call.now : null,
+                });
+                const reference = call.reference();
+                if (await store.store.authorizer.isHome(store.transaction.view(), reference.id)) {
+                    await store.authorization[action](reference);
+                }
 
-                return call.target;
+                return target;
             },
         );
     },
 };
+
+/** Build the column recording when a scope object was suspended. */
+export function suspensionColumns() {
+    return {
+        /** The time the scope was suspended, null while it runs. */
+        suspendedAt: integer("suspended_at"),
+    };
+}

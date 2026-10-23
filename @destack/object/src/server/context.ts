@@ -1,4 +1,5 @@
 import type { ObjectReference } from "@destack/sync";
+import { ObjectError } from "../error/error.ts";
 import type { PackageId } from "@destack/package";
 import {
     AccessContext,
@@ -12,8 +13,10 @@ import { type DatabaseConnection, Transaction } from "@destack/db";
 import type { ResourceContext } from "@destack/resource/context";
 import type { ProcedureContext } from "./procedure.ts";
 import { BOOKMARK_HEADER, Bookmark } from "../procedure/bookmark.ts";
-import { CallError } from "../error/index.ts";
+
 import { Clock } from "@destack/environment";
+
+import type {} from "@destack/package/import-meta";
 
 /** The header with the link secrets a request presents. */
 export const LINK_SECRET_HEADER = "Destack-Link-Secret";
@@ -134,7 +137,9 @@ export class RequestContext {
         if (this.authenticationError !== undefined) {
             throw this.authenticationError;
         } else if (credential === undefined) {
-            throw new CallError("UNAUTHORIZED", { message: "missing caller credential" });
+            throw new ObjectError("MISSING_CREDENTIAL", {
+                message: "missing caller credential",
+            });
         }
 
         return credential;

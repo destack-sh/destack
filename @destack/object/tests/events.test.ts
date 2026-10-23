@@ -174,7 +174,7 @@ test("list, get and fold the events a visitor may read, refusing a fold without 
         recorded: [{ ids: ["visit-1", "visit-2", "visit-3"] }],
         listed: ["visit-1", "visit-2"],
         visited: "about",
-        other: ["NOT_FOUND", "no visit visit-3"],
+        other: ["NOT_FOUND", "NOT_FOUND", "no visit visit-3"],
         folded: {
             series: [
                 {
@@ -187,8 +187,8 @@ test("list, get and fold the events a visitor may read, refusing a fold without 
                 },
             ],
         },
-        unfiltered: ["FORBIDDEN", "permission denied: read"],
-        foreign: ["FORBIDDEN", "permission denied: read"],
+        unfiltered: ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: read"],
+        foreign: ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: read"],
     });
 });
 
@@ -246,7 +246,7 @@ test("append a visitor's visit publicly, refusing another's, and read visits fro
     const counted = await store.query(alice, page.call("visits", { spaceId, title: "home" }));
 
     expect({ refused, counted }).toEqual({
-        refused: ["NOT_FOUND", "visit not found"],
+        refused: ["NOT_FOUND", "NOT_FOUND", "visit not found"],
         counted: { count: 1 },
     });
 });

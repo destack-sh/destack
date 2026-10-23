@@ -135,7 +135,10 @@ test("share presence on a board across instances, guarded by access, gone after 
         await refusal(
             alice.client.mutate(presence).create({ parent, activity: "viewing" }).confirmed,
         ),
-    ]).toEqual([true, ["CONFLICT", "another presence has the same parent and writerId"]]);
+    ]).toEqual([
+        true,
+        ["CONFLICT", "DUPLICATE", "another presence has the same parent and writerId"],
+    ]);
 
     // show the owner's moving cursor to the viewer's client on the other instance
     const bob = await openClient(west, users.bob);
@@ -160,7 +163,7 @@ test("share presence on a board across instances, guarded by access, gone after 
             carol.client.mutate(presence).create({ parent, activity: "viewing" }).confirmed,
         ),
         await stranger.read(),
-    ]).toEqual([["NOT_FOUND", `no board ${plans.id}`], []]);
+    ]).toEqual([["NOT_FOUND", "NOT_FOUND", `no board ${plans.id}`], []]);
 
     // remove the owner's presence after its linger, which another caller's stream under her writer never extends
     west.stream(users.bob, alice.client.writerId);
@@ -448,7 +451,7 @@ async function serveBoards() {
         return {
             store,
             /** Call the instance over HTTP as a user. */
-            endpoint: (as: Identifier<"user">) => served.endpoint(boardsPackage, as),
+            endpoint: (as: Identifier<"user">) => served.as(as).endpoint(boardsPackage),
             /** Call a method as a user. */
             call: async <Object extends ObjectType, Name extends CallableName<Object>>(
                 as: Identifier<"user">,

@@ -1,4 +1,5 @@
 import type { DatabaseConnection, Row } from "@destack/db";
+import { ObjectError } from "../error/error.ts";
 import {
     Event,
     EventCursor,
@@ -13,7 +14,7 @@ import {
 } from "@destack/event";
 import { schema, type JsonValue } from "@destack/schema";
 import { Caller } from "@destack/access";
-import { CallError } from "../error/call.ts";
+
 import { Page } from "../method/page.ts";
 import { Replica } from "@destack/sync";
 import type { MethodContext } from "../method/context.ts";
@@ -21,6 +22,8 @@ import type { Session } from "../method/reader.ts";
 import { type EventRequest, SeriesRecord } from "../hook/record.ts";
 import type { ListInput } from "./listing.ts";
 import { Execution, type StoreExecution } from "../method/execution.ts";
+
+import type {} from "@destack/package/import-meta";
 
 /** The list input fields only the SQL dataflow serves, which the event log refuses. */
 const DATAFLOW_FIELDS = ["extras", "with", "aggregate", "deleted", "at", "branch"] as const;
@@ -64,7 +67,7 @@ export const EventLog = {
         const kind = context.object.eventKind();
         const unserved = DATAFLOW_FIELDS.find((name) => input[name] !== undefined);
         if (unserved !== undefined) {
-            throw new CallError("BAD_REQUEST", {
+            throw new ObjectError("UNSERVED_EVENTS", {
                 message: `${context.object.name} lists from the event log, which cannot read ${unserved}`,
             });
         }
@@ -142,7 +145,7 @@ export const EventLog = {
         // read the time's direction, refusing any other field
         const [field, ...others] = Object.entries(orderBy ?? { time: "desc" });
         if (field === undefined || field[0] !== "time" || others.length > 0) {
-            throw new CallError("BAD_REQUEST", {
+            throw new ObjectError("TIME_ORDER_ONLY", {
                 message: `${context.object.name} lists in time order only`,
             });
         }

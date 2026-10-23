@@ -5,7 +5,7 @@ import { Authorizer } from "@destack/access";
 import { defineTable, text } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { expect, onTestFinished, test } from "@destack/test";
-import type { Controller } from "@destack/db";
+import type { Controller, FollowController } from "@destack/db";
 import { Health } from "../server/health.ts";
 import { Server } from "../server/index.ts";
 import { defineWorkload, type ServerContext } from "./workload.ts";
@@ -418,12 +418,13 @@ test("run one start's controllers at a time, stopping the previous start's befor
             name: "fixture",
             start: () => {
                 const start = ++starts;
-                const controller: Controller = {
+                const controller: FollowController = {
                     name: "follower",
                     mode: "follow",
                     list: async () => ["key"],
-                    reconcile: async (_key, { signal }) => {
+                    reconcile: async (_key, { signal, synced }) => {
                         events.push(`run ${start}`);
+                        synced();
                         running[start - 1]?.resolve();
                         await new Promise((resolve) => {
                             signal.addEventListener("abort", resolve, { once: true });

@@ -1,4 +1,4 @@
-import { test, expect } from "@destack/test";
+import { expect, refusal, test } from "@destack/test";
 import { ObjectError, CallEvent, defineAuditAction, journal } from "../src/index.ts";
 import { AuditStorage, documentRename, rename, INTEGRATION, document } from "./fixture/journal.ts";
 import { schema } from "@destack/schema";
@@ -41,7 +41,7 @@ test("commit and roll back application changes with their recorded calls", async
     let storage = await AuditStorage.open();
     try {
         // roll back application state and recorded calls together
-        const failure = new ObjectError("CONFLICT", "cancel change");
+        const failure = new ObjectError("INVALID_CALL", { message: "cancel change" });
         await expect(
             storage.database.transaction(async (transaction) => {
                 await transaction.insert(document).values({ name: "rolled back" });
@@ -86,15 +86,18 @@ test("record a running call, then its outcome once, accepting repeats and refusi
         expect(await journaled(storage)).toEqual([finished]);
 
         // refuse a finished call with other contents
-        await expect(
-            storage.recorder.append({
-                ...finished,
-                execution: { ...finished.execution, details: { name: "different" } },
-            }),
-        ).rejects.toMatchObject({
-            code: "CONFLICT",
-            message: `call ${finished.execution.id} has conflicting contents`,
-        });
+        expect(
+            await refusal(
+                storage.recorder.append({
+                    ...finished,
+                    execution: { ...finished.execution, details: { name: "different" } },
+                }),
+            ),
+        ).toEqual([
+            "CONFLICT",
+            "CALL_CONTENTS_DIFFER",
+            `call ${finished.execution.id} has conflicting contents`,
+        ]);
     } finally {
         await storage.close();
     }

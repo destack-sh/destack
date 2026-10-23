@@ -1,4 +1,5 @@
 import { Orderable } from "../trait/orderable.ts";
+import { ObjectError } from "../error/error.ts";
 import {
     AccessError,
     accessRelationship,
@@ -6,6 +7,7 @@ import {
     type Access,
     type Creation,
     type TupleReader,
+    Manager,
 } from "@destack/access";
 import {
     TABLE,
@@ -68,9 +70,11 @@ import { ListFields, QueryFields, ViewFields } from "../replica/replica.ts";
 import type { ObjectType, WrittenField } from "../object/object.ts";
 
 import { versioned } from "../trait/versioned.ts";
-import { declarable } from "../trait/declarable.ts";
+import { TagMap } from "@destack/resource";
 
 import { Execution, type StoreExecution } from "./execution.ts";
+
+import type {} from "@destack/package/import-meta";
 
 /** The most items one bulk creation takes, as many as one list page reads. */
 export const BATCH_LIMIT = 1000;
@@ -323,6 +327,7 @@ export type RecordProcedures<Object extends ObjectType, Declared extends Method>
                 ReplayFields<Object> &
                 typeof RevisionFields &
                 WrittenFields<Object, Declared, true> &
+                typeof TagFields &
                 InputFields<Declared>
         >,
         RowSchema<Object>
@@ -370,7 +375,11 @@ type CreateFields<Object extends ObjectType, Declared extends Method> = ScopeFie
     ParentFields<Object> &
     ReplayFields<Object> &
     WrittenFields<Object, Declared, false> &
+    typeof TagFields &
     InputFields<Declared>;
+
+/** The labels a creation or an update writes beside the fields, every record's. */
+const TagFields = { tags: TagMap.exactOptional() };
 
 /** The items of a bulk creation, each a creation's chosen identifier, parent and fields. */
 type ItemsSchema<
@@ -443,6 +452,7 @@ export const RecordMethod = {
             ...schemas.parent,
             ...schemas.replay,
             ...written,
+            ...TagFields,
             ...filled,
             ...(options.isInternal === true ? schemas.callers : {}),
             ...RecordMethod.fields(options.input),
@@ -518,7 +528,7 @@ export const RecordMethod = {
                     (host) => host.packageId === parent.packageId && host.type === parent.type,
                 )
             ) {
-                throw new CallError("BAD_REQUEST", {
+                throw new ObjectError("PARENT_TYPE_REFUSED", {
                     message: `${parent.type} cannot have ${context.object.plural}`,
                 });
             }
@@ -535,26 +545,30 @@ export const RecordMethod = {
                     },
                 });
             if (found === undefined) {
-                throw new CallError("NOT_FOUND", { message: `no ${parent.type} ${parent.id}` });
+                throw CallError.http("NOT_FOUND", {
+                    message: `no ${parent.type} ${parent.id}`,
+                });
             }
         }
 
-        // accept a receiving parent
+        // hide an unreadable parent, else require the permission, unless the parent receives
         const receive = authorizer.policy(parent).permission(declared.receive);
-        if ((await authorization.check(receive, parent, reader)).isAllowed) {
-            return;
+        if (!(await authorization.check(receive, parent, reader)).isAllowed) {
+            const host =
+                declared.object === "any"
+                    ? context.objects.find((object) => object.policy.is(parent))
+                    : declared.object;
+            const reading = host?.reading;
+            if (reading === undefined || !(await authorization.check(reading, parent)).isAllowed) {
+                throw CallError.http("NOT_FOUND", {
+                    message: `no ${parent.type} ${parent.id}`,
+                });
+            }
+            await authorization.require(receive, parent);
         }
 
-        // hide an unreadable parent, else require the permission
-        const host =
-            declared.object === "any"
-                ? context.objects.find((object) => object.policy.is(parent))
-                : declared.object;
-        const reading = host?.reading;
-        if (reading === undefined || !(await authorization.check(reading, parent)).isAllowed) {
-            throw new CallError("NOT_FOUND", { message: `no ${parent.type} ${parent.id}` });
-        }
-        await authorization.require(receive, parent);
+        // require the permitted parent ready for children
+        await RecordMethod.requireParentReady(context, parent.id);
     },
 
     /** Require each item's receiving parent and create permission, reading the grants once. */
@@ -583,7 +597,10 @@ export const RecordMethod = {
         const { object } = context;
         if (object.storage === "events" && execution.kind === "store") {
             const rows = await RecordMethod.eachItem(context, async (item) =>
-                RecordMethod.createdRow(object.table, await RecordMethod.createdValues(item)),
+                RecordMethod.createdRow(
+                    object.table,
+                    await RecordMethod.createdValues(item, execution),
+                ),
             );
             await EventLog.append(context, execution, rows);
 
@@ -635,7 +652,7 @@ export const RecordMethod = {
             const id = await RecordMethod.createdId(item, execution);
             const row = RecordMethod.createdRow(
                 context.object.table,
-                await RecordMethod.createdValues(item.with({ id })),
+                await RecordMethod.createdValues(item.with({ id }), execution),
             );
 
             return { item: item.with({ id }), id, row };
@@ -661,7 +678,7 @@ export const RecordMethod = {
         } catch (error) {
             // report the first item duplicating a stored row or an earlier item, as the caller sees it
             const index =
-                error instanceof DatabaseError && error.code === "DUPLICATE"
+                error instanceof DatabaseError && error.reason === "DUPLICATE"
                     ? await RecordMethod.duplicateIndex(context, execution, created, error)
                     : undefined;
             const failing = index === undefined ? undefined : created[index];
@@ -764,6 +781,8 @@ export const RecordMethod = {
         }
 
         return new CallError(failure.code, {
+            reason: failure.reason,
+            domain: failure.domain,
             status: failure.status,
             message: `items.${index}: ${failure.message}`,
             data: failure.data,
@@ -808,13 +827,9 @@ export const RecordMethod = {
         ];
     },
 
-    /** Refuse tracked, declarable and versioned objects, whose change records bulk calls skip. */
+    /** Refuse tracked and versioned objects, whose change records bulk calls skip. */
     requireUnrecorded(object: ObjectType): void {
-        if (
-            object.lifecycle.tracked !== undefined ||
-            object.lifecycle.declarationSchema !== undefined ||
-            object.lifecycle.versioned
-        ) {
+        if (object.lifecycle.tracked !== undefined || object.lifecycle.versioned) {
             throw new TypeError(
                 `object ${object.name} records each change, so it cannot apply many changes at once`,
             );
@@ -843,7 +858,7 @@ export const RecordMethod = {
         const rows = await RecordMethod.matchingRows(context, execution);
         const changes = rows.map((row) => {
             const each = context.at(row);
-            RecordMethod.requireUnmanaged(each);
+            RecordMethod.requireUnmanaged(each, execution);
 
             return {
                 table,
@@ -889,18 +904,20 @@ export const RecordMethod = {
             // refuse a missing or unpermitted object
             const target = targets.get(id);
             if (target === undefined) {
-                throw new CallError("NOT_FOUND", { message: `${context.object.name} not found` });
+                throw CallError.http("NOT_FOUND", {
+                    message: `${context.object.name} not found`,
+                });
             }
             // refuse a stale revision
             else if (RecordedRow.parse(target).revision !== revision) {
-                throw new CallError("CONFLICT", {
+                throw new ObjectError("STALE_REVISION", {
                     message: `${context.object.name} revision has changed`,
                 });
             }
 
             // write the item's fields over its target, refusing a managed object
             const each = context.at(target);
-            RecordMethod.requireUnmanaged(each);
+            RecordMethod.requireUnmanaged(each, execution);
             const values = RecordMethod.writtenValues(table, item, written);
 
             return {
@@ -936,7 +953,7 @@ export const RecordMethod = {
         const rows = await RecordMethod.matchingRows(context, execution);
         const targets = rows.map((row) => context.at(row));
         for (const target of targets) {
-            RecordMethod.requireUnmanaged(target);
+            RecordMethod.requireUnmanaged(target, execution);
         }
 
         // delete each match on a device as a separate deletion
@@ -1024,7 +1041,7 @@ export const RecordMethod = {
         // write the created row, then record its access
         const row = RecordMethod.createdRow(
             context.object.table,
-            await RecordMethod.createdValues(context),
+            await RecordMethod.createdValues(context, execution),
         );
         await Execution.write(execution, context, {
             table: context.object.table,
@@ -1047,7 +1064,7 @@ export const RecordMethod = {
     },
 
     /** Build the columns a created object is inserted with. */
-    async createdValues(context: MethodContext): Promise<InsertValue<Table>> {
+    async createdValues(context: MethodContext, execution: Execution): Promise<InsertValue<Table>> {
         // fill caller fields with a calling principal of the declared kinds, a reference by its identifier column
         const { object } = context;
         const caller = context.caller.subject;
@@ -1062,7 +1079,7 @@ export const RecordMethod = {
                 !(kinds === undefined ? isPrincipal(caller) : kinds.some((kind) => kind.is(caller)))
             ) {
                 const named = kinds?.map((kind) => kind.name).join(" or ") ?? "principal";
-                throw new CallError("FORBIDDEN", {
+                throw new ObjectError("CREATOR_KIND_REFUSED", {
                     message: `only a ${named} can create ${object.name}`,
                 });
             }
@@ -1100,6 +1117,8 @@ export const RecordMethod = {
         const columns = object.table[TABLE].columns;
         const isTimed = Object.hasOwn(columns, "createdAt");
         const isAuthored = Object.hasOwn(columns, "createdById");
+        const manager = execution.kind === "store" ? execution.authorization.manager : null;
+        const managed = manager === null || !object.isDeclarable() ? {} : Manager.values(manager);
 
         return {
             ...decoded,
@@ -1117,6 +1136,7 @@ export const RecordMethod = {
                       ...ObjectReference.columns("updatedBy", caller),
                   }
                 : {}),
+            ...managed,
         };
     },
 
@@ -1144,7 +1164,7 @@ export const RecordMethod = {
             const isConflict =
                 CallError.of(error)?.code === "CONFLICT" ||
                 (error instanceof DatabaseError &&
-                    (error.code === "DUPLICATE" || error.code === "BROKEN_REFERENCE"));
+                    (error.reason === "DUPLICATE" || error.reason === "BROKEN_REFERENCE"));
             if (isConflict) {
                 await RecordMethod.requireCreatable(context, execution);
             }
@@ -1166,7 +1186,7 @@ export const RecordMethod = {
         // build the row as it will be written, with column defaults
         const id = context.id ?? context.object.generateId();
         const definition = context.object.table[TABLE];
-        const values = await RecordMethod.createdValues(context.with({ id }));
+        const values = await RecordMethod.createdValues(context.with({ id }), execution);
         const row = definition.defaults(Table.values(context.object.table, Row.parse(values)));
 
         // grant the creation's first relationships, then check the permission on the row
@@ -1250,7 +1270,7 @@ export const RecordMethod = {
                 (await authorizer.checkRows(snapshot, reading, access, [row])).permitted.has(0));
 
         // refuse a reader, and hide the object from others
-        const denial = new CallError("FORBIDDEN", {
+        const denial = new ObjectError("PERMISSION_DENIED", {
             message: `permission denied: ${permission.name}`,
         });
         throw isReadable ? denial : conceal(denial, `${context.object.name} not found`);
@@ -1264,12 +1284,20 @@ export const RecordMethod = {
         const { object } = context;
         const target: Row = context.target;
         if (target["deletedAt"] !== undefined && target["deletedAt"] !== null) {
-            throw new CallError("CONFLICT", { message: `${object.name} is already deleted` });
+            throw new ObjectError("ALREADY_DELETED", {
+                message: `${object.name} is already deleted`,
+            });
         }
 
-        // request deletion when a trash or controller finishes it
+        // request deletion when a trash or controller finishes it, moving the children nested to the trash with it
         if (object.isTrashable()) {
-            await context.update(RecordMethod.trashed(context));
+            const trashed = RecordMethod.trashed(context);
+            await context.update(trashed);
+            await RecordMethod.trashChildren(
+                context,
+                schema.string().parse(target["id"]),
+                "delete",
+            );
 
             return {};
         }
@@ -1278,6 +1306,80 @@ export const RecordMethod = {
         await context.remove();
 
         return {};
+    },
+
+    /** Trash a deleted object's live children with it, or restore the ones it trashed. */
+    async trashChildren(
+        context: MethodContext<{ readonly table: Table }, unknown>,
+        parentId: string,
+        verb: "delete" | "restore",
+    ): Promise<void> {
+        // find the types moving to the trash with this one
+        const types = context.objects.filter(
+            (type) =>
+                type.parent?.delete === "trash" &&
+                type.parent.object !== "any" &&
+                type.parent.object.same(context.object),
+        );
+        for (const type of types) {
+            // read its live children, or those the parent's deletion moved to the trash
+            const where =
+                verb === "delete"
+                    ? { parentId, deletedAt: { isNull: true } }
+                    : { parentId, isTrashedWithParent: true };
+            const children = await context.read<Table>(type.table).findMany({ where });
+            if (children.length === 0) {
+                continue;
+            }
+
+            // run each child's verb as the parent's type, which the child's refusals still guard
+            const calls = children.map((child) =>
+                type.call(
+                    verb,
+                    type.target({ scope: context.scope, id: RecordedRow.parse(child).id }),
+                ),
+            );
+            await context.mutate(context.self, calls);
+
+            // mark them trashed with the parent, or no longer
+            const written = await context.read<Table>(type.table).findMany({
+                where: { id: { in: children.map((child) => RecordedRow.parse(child).id) } },
+            });
+            for (const child of written) {
+                await context
+                    .with({ object: type })
+                    .at(child)
+                    .update({ isTrashedWithParent: verb === "delete" });
+            }
+        }
+    },
+
+    /** Refuse a child under a missing parent or one in the trash. */
+    async requireParentReady(context: MethodContext, parentId: string | null): Promise<void> {
+        // check a child of a parent type with a trash
+        const declared = context.object.parent;
+        if (
+            declared === undefined ||
+            declared.object === "any" ||
+            !declared.object.isTrashable() ||
+            parentId === null
+        ) {
+            return;
+        }
+        const [parent] = await context
+            .read<Table>(declared.object.table)
+            .findMany({ where: { id: parentId } });
+
+        // refuse a missing parent and one in the trash
+        if (parent === undefined) {
+            throw CallError.http("NOT_FOUND", {
+                message: `no ${declared.object.name} ${parentId}`,
+            });
+        } else if (parent["deletedAt"] !== null) {
+            throw new ObjectError("IN_TRASH", {
+                message: `${declared.object.name} ${parentId} is in the trash`,
+            });
+        }
     },
 
     /** Accept a caller's unused identifier, or generate one, random in a prediction. */
@@ -1311,18 +1413,20 @@ export const RecordMethod = {
         if (isTaken) {
             await execution.transaction.requireCurrent();
             await execution.authorization.transaction.requireCurrent();
-            throw new CallError("CONFLICT", { message: `${object.name} identifier is taken` });
+            throw new ObjectError("ID_TAKEN", {
+                message: `${object.name} identifier is taken`,
+            });
         }
 
         return chosen;
     },
 
-    /** Refuse standard changes to managed objects. */
-    requireUnmanaged(context: MethodContext): void {
-        if (declarable.isManaging(context.target)) {
-            throw new CallError("MANAGED", {
-                message: `${context.object.name} is managed by its stack; detach it before changing it`,
-            });
+    /** Refuse changes to a managed object from anyone but its manager. */
+    requireUnmanaged(context: MethodContext, execution: Execution): void {
+        // let the record's manager through
+        const manager = execution.kind === "store" ? execution.authorization.manager : null;
+        if (context.isDeclarable() && context.target !== undefined) {
+            Manager.requireChangeable(context.target, manager, context.object.name);
         }
     },
 
@@ -1473,7 +1577,7 @@ export class MethodBuilder<
                 if (context.object.storage === "events") {
                     const row = RecordMethod.createdRow(
                         context.object.table,
-                        await RecordMethod.createdValues(context),
+                        await RecordMethod.createdValues(context, execution),
                     );
                     await EventLog.append(context, execution, [row]);
 
@@ -1574,6 +1678,7 @@ export class MethodBuilder<
                     ...schemas.replay,
                     ...RevisionFields,
                     ...schemas.written(options.fields, true),
+                    ...TagFields,
                     ...RecordMethod.fields(options.input),
                 }),
                 output: schemas.row,
@@ -1582,7 +1687,7 @@ export class MethodBuilder<
             inverse: (step) => RecordMethod.restoreUpdated(step),
             async execute(context, execution) {
                 // refuse managed objects and unwritable fields
-                RecordMethod.requireUnmanaged(context);
+                RecordMethod.requireUnmanaged(context, execution);
                 if (execution.kind === "store") {
                     await execution.authorization.requireWritable(context, context.id, execution);
                 }
@@ -1677,7 +1782,7 @@ export class MethodBuilder<
             },
             async execute(context, execution) {
                 // refuse managed objects
-                RecordMethod.requireUnmanaged(context);
+                RecordMethod.requireUnmanaged(context, execution);
 
                 return Method.handle(this, context, execution);
             },

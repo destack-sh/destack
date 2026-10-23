@@ -8,7 +8,7 @@ import {
     TABLE,
 } from "@destack/db";
 import { found } from "@destack/schema";
-import type { Controller } from "@destack/db";
+import type { ReconcileController } from "@destack/db";
 import { ObjectKey, ObjectType } from "../object/object.ts";
 import { type ClaimHome, Reservation } from "./reservation.ts";
 import { Claimant, Claim } from "./claim.ts";
@@ -18,7 +18,7 @@ import { Clock } from "@destack/environment";
 const RESERVATIONS = "reservations";
 
 /** Finishes the expired reservations of a database's indexed objects with their current names. */
-export class ClaimController implements Controller {
+export class ClaimController implements ReconcileController {
     /** The controller's name in reports. */
     readonly name = "claims";
     /** The indexed objects' tables. */

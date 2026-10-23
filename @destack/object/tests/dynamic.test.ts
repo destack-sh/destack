@@ -1,6 +1,6 @@
 import { defineObject, field, ObjectDescription, ObjectTypePool } from "../src/index.ts";
 import { users } from "./fixture/user.ts";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { TABLE } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
@@ -76,18 +76,21 @@ test("call and list objects by their descriptions, refusing input their methods'
     ]).toEqual([["Maps", "Tickets"], "Tickets"]);
 
     // refuse input the method's schema rejects, an unknown method and an unknown type
-    await expect(client.call("note", "create", { title: 5 })).rejects.toMatchObject({
-        code: "BAD_REQUEST",
-        message: "invalid input: title: invalid input: expected string, received number",
-    });
-    await expect(client.call("note", "archive", {})).rejects.toMatchObject({
-        code: "NOT_FOUND",
-        message: "note has no method archive",
-    });
-    await expect(client.list("page")).rejects.toMatchObject({
-        code: "NOT_FOUND",
-        message: "no object type page",
-    });
+    expect(await refusal(client.call("note", "create", { title: 5 }))).toEqual([
+        "BAD_REQUEST",
+        "INVALID_INPUT",
+        "invalid input: title: invalid input: expected string, received number",
+    ]);
+    expect(await refusal(client.call("note", "archive", {}))).toEqual([
+        "BAD_REQUEST",
+        "UNKNOWN_METHOD",
+        "note has no method archive",
+    ]);
+    expect(await refusal(client.list("page"))).toEqual([
+        "NOT_FOUND",
+        "UNKNOWN_TYPE",
+        "no object type page",
+    ]);
 });
 
 test("watch the rows a query selects through a replica of their table, after every change", async () => {
@@ -142,10 +145,11 @@ test("describe the served types with the types they refer to, declare them from 
         ["notebook", notebook.table[TABLE].sqlName],
         ["space", space.table[TABLE].sqlName],
     ]);
-    await expect(client.describe([unknown])).rejects.toMatchObject({
-        code: "NOT_FOUND",
-        message: `no object type page of ${note.package.id} is known here`,
-    });
+    expect(await refusal(client.describe([unknown]))).toEqual([
+        "NOT_FOUND",
+        "UNKNOWN_TYPE",
+        `no object type page of ${note.package.id} is known here`,
+    ]);
 });
 
 /** A shelf of a space: a separate scope, which bookmarks live in. */
@@ -226,8 +230,8 @@ test("read objects of a scope inside the space a client is bound to, refusing a 
         clock: Clock.system,
         objects: [shelf, bookmark],
         scope: spaceId,
-        endpoint: served.endpoint(shelves, users.alice),
-        homes: () => served.endpoint(shelves, users.alice),
+        endpoint: served.as(users.alice).endpoint(shelves),
+        homes: () => served.as(users.alice).endpoint(shelves),
     });
     const created = Identified.parse(await client.call("shelf", "create", { name: "Reading" }));
     const marked = Identified.parse(

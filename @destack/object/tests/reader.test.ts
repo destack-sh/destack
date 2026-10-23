@@ -2,7 +2,7 @@ import { defineObject, field, ObjectDescription } from "../src/index.ts";
 import { users } from "./fixture/user.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { AccessContext, Authorization, Caller, none, principal } from "@destack/access";
-import { defineDatabase, Transaction } from "@destack/db";
+import { defineDatabase, Transaction, type ReconcileController } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
 import { subjectContext, testCallKey } from "@destack/object/test";
@@ -236,9 +236,7 @@ test("hand a scope's page of ticks to the handler once its first is a batch old,
         readonly claimedAt: number;
     }[] = [];
     let isFailing = true;
-    const reconcile = (consumer: {
-        reconcile: (key: string, reconciliation: Reconciliation) => Promise<number | undefined>;
-    }) =>
+    const reconcile = (consumer: ReconcileController) =>
         consumer.reconcile(SPACE_ID, {
             signal: new AbortController().signal,
             changed: async () => undefined,

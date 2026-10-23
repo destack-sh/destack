@@ -81,7 +81,7 @@ test("persist verified caller identities with their delegates and grant, record 
             audience: origin.package.id,
             scope: "universe",
             resources: new ResourceContext(),
-            authenticationError: new CallError("UNAUTHORIZED", {
+            authenticationError: CallError.http("UNAUTHORIZED", {
                 message: "invalid bearer credential",
             }),
         });

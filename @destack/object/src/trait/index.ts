@@ -1,7 +1,5 @@
 export { recoverable } from "./recoverable.ts";
 export { controlled, type ControlledDefinition } from "./controlled.ts";
-export { TagMap } from "./record.ts";
-export { declarable } from "./declarable.ts";
 export { suspendable } from "./suspendable.ts";
 export { fencing } from "./fencing.ts";
 export { bindable, CONSUMER } from "./bindable.ts";

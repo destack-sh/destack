@@ -171,10 +171,11 @@ test("refuse the whole batch for a taken unique name or an invalid item, reporti
     // leave only the first label
     expect([refusals, await read()]).toEqual([
         [
-            ["CONFLICT", "items.1: another label has the same scope and name"],
-            ["CONFLICT", "items.2: another label has the same scope and name"],
+            ["CONFLICT", "DUPLICATE", "items.1: another label has the same scope and name"],
+            ["CONFLICT", "DUPLICATE", "items.2: another label has the same scope and name"],
             [
                 "BAD_REQUEST",
+                "INVALID_INPUT",
                 "invalid input: items.1.name: too small: expected string to have >=1 characters",
             ],
         ],
@@ -241,7 +242,7 @@ test("undo a bulk creation by deleting each created object on the device and the
         objects: { label },
         scope: spaceId,
         caller: principal.user.reference("universe", users.alice),
-        endpoint: served.endpoint(labels, users.alice),
+        endpoint: served.as(users.alice).endpoint(labels),
         reconnect: unmoved,
     });
     client.queryType(label).findMany().subscribe();
@@ -403,8 +404,8 @@ test("update listed objects at their revisions in one call, and refuse the whole
     expect({ updated, refusals, labels: await read(), revisions }).toEqual({
         updated: { count: 2 },
         refusals: [
-            ["CONFLICT", "label revision has changed"],
-            ["NOT_FOUND", "label not found"],
+            ["CONFLICT", "STALE_REVISION", "label revision has changed"],
+            ["NOT_FOUND", "NOT_FOUND", "label not found"],
         ],
         labels: ["grace alarm red live", "frank later green live", "frank urgent green live"],
         revisions: [

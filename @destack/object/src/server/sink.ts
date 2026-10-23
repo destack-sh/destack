@@ -3,7 +3,7 @@ import { Scope, type ObjectTypeReference } from "@destack/sync";
 import { Key, LogPosition, Snapshot, TABLE, type Table } from "@destack/db";
 import { Digest, schema } from "@destack/schema";
 import * as sync from "@destack/sync";
-import type { Controller, Delta } from "@destack/db";
+import type { FollowController, Delta } from "@destack/db";
 import { until } from "@destack/environment";
 import type { ObjectStore, Subscriber } from "./store.ts";
 
@@ -29,7 +29,7 @@ export class ObjectSink {
     }
 
     /** Build the controller following requested replicas and dropping unrequested stored ones. */
-    controller(subscriber: Subscriber): Controller {
+    controller(subscriber: Subscriber): FollowController {
         // follow each listed replica under its key and lease
         return {
             name: "replica",
@@ -38,7 +38,7 @@ export class ObjectSink {
             concurrency: Infinity,
             list: (view, delta) => this.#listInOrder(subscriber, view, delta),
             revision: (key) => this.#listed.get(key)?.digest,
-            reconcile: (key, { signal }) => this.#reconcileReplica(key, signal),
+            reconcile: (key, { signal, synced }) => this.#reconcileReplica(key, signal, synced),
         };
     }
 
@@ -195,11 +195,16 @@ export class ObjectSink {
     }
 
     /** Follow or drop one listed replica until the controller stops it. */
-    async #reconcileReplica(key: string, signal: AbortSignal): Promise<undefined> {
+    async #reconcileReplica(
+        key: string,
+        signal: AbortSignal,
+        synced: () => void,
+    ): Promise<undefined> {
         while (!signal.aborted) {
             // wait for the loop to stop a replica no longer listed
             const replica = this.#listed.get(key);
             if (replica === undefined) {
+                synced();
                 await until(signal);
 
                 return undefined;
@@ -208,7 +213,7 @@ export class ObjectSink {
             // follow a requested replica from the position it arrived at until its request changes
             const revised = AbortSignal.any([signal, replica.revised.signal]);
             if (replica.action === "follow") {
-                await this.#followReplica(replica, revised);
+                await this.#followReplica(replica, revised, synced);
             }
             // drop a stored replica no request asks for and wait for a request asking for it again
             else {
@@ -217,6 +222,7 @@ export class ObjectSink {
                     tables: [],
                 });
                 this.#pending.delete(key);
+                synced();
                 await until(revised);
             }
         }
@@ -228,6 +234,7 @@ export class ObjectSink {
     async #followReplica(
         replica: ReplicaEntry & { readonly action: "follow" },
         revised: AbortSignal,
+        synced: () => void,
     ): Promise<void> {
         try {
             const { subscription, publisher } = replica;
@@ -248,7 +255,7 @@ export class ObjectSink {
                     );
                 },
                 revised,
-                { subscription, audience, clock: this.store.clock },
+                { subscription, audience, clock: this.store.clock, synced },
             );
         } catch (error) {
             // fail a refused follow unless the loop revised its request meanwhile

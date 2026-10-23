@@ -23,11 +23,10 @@ import {
     field,
     RESERVATION_MILLISECONDS,
 } from "../src/index.ts";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { TestDatabase } from "@destack/db/test";
 import { Package } from "@destack/package";
 import { nth, Identifier, present, schema } from "@destack/schema";
-import { createClient } from "@destack/object/client";
 import { v7 } from "uuid";
 import { profile, profilesDatabase, profilesPackage } from "./fixture/profile.ts";
 import { none, universe } from "@destack/access";
@@ -58,13 +57,15 @@ test("enforce unique handles across spaces in separate databases", async () => {
         handle: "ada",
     });
     expect(await handle("ada")).toBe(ada.id);
-    await expect(
-        west.bob.profile.create({
-            spaceId: west.spaceId,
-            requestId: RequestId.create(Date.now()),
-            handle: "ada",
-        }),
-    ).rejects.toMatchObject({ code: "CONFLICT", message: "handle is taken" });
+    expect(
+        await refusal(
+            west.bob.profile.create({
+                spaceId: west.spaceId,
+                requestId: RequestId.create(Date.now()),
+                handle: "ada",
+            }),
+        ),
+    ).toEqual(["CONFLICT", "NAME_TAKEN", "handle is taken"]);
 
     // release the handle a profile moves away from, and the handle of a deleted profile
     await east.alice.profile.update({
@@ -306,13 +307,7 @@ async function serveProfiles(claims: ClaimHome) {
         }),
     );
     onTestFinished(() => served[Symbol.asyncDispose]());
-    const server = served.server(profilesPackage);
-    const connect = (user: Identifier<"user">) =>
-        createClient(profilesPackage, {
-            url: "https://profiles.test",
-            headers: { authorization: `Bearer ${user}` },
-            fetch: (request: Request) => server.fetch(request),
-        });
+    const connect = (user: Identifier<"user">) => served.as(user).client(profilesPackage);
 
     return {
         spaceId,
@@ -493,3 +488,7 @@ function names(database: DatabaseConnection): ClaimLookup {
 function readClaims(database: DatabaseConnection): RelationalQueryBuilder<typeof claimTable> {
     return Snapshot.live(database).read(claimTable);
 }
+
+test("read a claim's indexed values back from its key, without the scope it is unique within", () => {
+    expect(Claim.values(Claim.key(profile, "handle", ["ada"]))).toEqual(["ada"]);
+});

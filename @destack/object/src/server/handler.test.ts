@@ -19,7 +19,7 @@ const authorize: NonNullable<
     HandlerOptions<{ caller: string; request: Request }>["authorize"]
 > = async ({ request: state, access }) => {
     // conceal the denial from carol
-    const denial = new CallError("FORBIDDEN", { message: "permission denied: read" });
+    const denial = CallError.http("FORBIDDEN", { message: "permission denied: read" });
     const { permission } = access;
     const isNotesRead =
         typeof permission === "object" &&
@@ -181,7 +181,14 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
     );
     await expect(concealed.read()).rejects.toMatchObject({ code: "NOT_FOUND", status: 404 });
     expect(bodies).toEqual([
-        { defined: true, code: "NOT_FOUND", status: 404, message: "no notes" },
+        {
+            defined: true,
+            code: "NOT_FOUND",
+            status: 404,
+            message: "no notes",
+            reason: "NOT_FOUND",
+            domain: "http",
+        },
     ]);
     expect(records.at(-1)).toEqual({ caller: "carol", outcome: "denied" });
 
@@ -191,7 +198,7 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
         health,
         authorize,
         audit: async () => {
-            throw new CallError("SERVICE_UNAVAILABLE", {
+            throw CallError.http("SERVICE_UNAVAILABLE", {
                 message: "audit storage unavailable",
             });
         },
@@ -302,7 +309,7 @@ test("withhold streamed values after access revocation", async () => {
         health: new Health("watch"),
         authorize: async () => {
             if (!isAllowed) {
-                throw new CallError("FORBIDDEN", { message: "permission denied: read" });
+                throw CallError.http("FORBIDDEN", { message: "permission denied: read" });
             }
         },
         audit: async ({ outcome }) => {
@@ -352,7 +359,7 @@ test("answer a failure thrown by a handler with the status its code declares", a
     const implementation = implement(procedures);
     const router = implementation.router({
         read: implementation.read.handler(async () => {
-            throw new CallError("SERVICE_UNAVAILABLE", { message: "the instance is starting" });
+            throw CallError.http("SERVICE_UNAVAILABLE", { message: "the instance is starting" });
         }),
     });
     const handler = new RequestHandler(router, {
@@ -443,12 +450,7 @@ test("answer a lower package's failure with the call error it names, and an unkn
     );
     expect(received).toEqual([
         ["CONFLICT", 409, "a record with the same unique key exists", undefined],
-        [
-            "INSUFFICIENT_AUTHENTICATION",
-            401,
-            "authenticate again",
-            { assurance: 2, maxAge: 300_000 },
-        ],
+        ["UNAUTHORIZED", 401, "authenticate again", { assurance: 2, maxAge: 300_000 }],
         ["INTERNAL_SERVER_ERROR", 500, "internal server error", undefined],
     ]);
 });

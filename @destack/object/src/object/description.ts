@@ -2,7 +2,7 @@ import * as accessExports from "@destack/access";
 import { Policy, PolicySubject } from "@destack/access";
 import { TABLE, type Table } from "@destack/db";
 import { DeclarationName, graph, Package } from "@destack/package";
-import { NO_STATE, ResourceDeclaration, ResourceKind } from "@destack/resource";
+import { NO_STATE, ResourceDeclaration, ResourceKind, ResourceManagement } from "@destack/resource";
 import {
     fromJsonSchema,
     present,
@@ -212,15 +212,6 @@ export const ObjectDescription = Object.assign(objectDescription, {
                 : schema.object({ $policy: ObjectTypeReference }).parse(represents).$policy;
 
         return ObjectTypeReference.key(reference);
-    },
-
-    /** Read how a stack document declares a description's type, absent when stacks do not. */
-    declaration(
-        description: ObjectDescription,
-    ): { readonly plural: string; readonly isNested: boolean } | undefined {
-        const { plural, declarable, nested } = DescribedDefinition.parse(description.definition);
-
-        return declarable === undefined ? undefined : { plural, isNested: nested !== undefined };
     },
 
     /** Read the name of the resource kind a description's type provisions, absent for none. */
@@ -665,29 +656,36 @@ const DescribedKind = Object.assign(
         spec: DescribedSchema,
         /** The schema of the desired state its providers reconcile, null for a kind without one. */
         state: DescribedSchema.nullable(),
+        /** Whether Destack creates its resources, or they live outside it. */
+        management: ResourceManagement,
     }),
     {
-        /** Describe a resource kind: its package, name and JSON Schemas. */
+        /** Describe a resource kind: its package, name, JSON Schemas and whether it is lent. */
         of(
-            kind: Pick<ResourceKind, "package" | "name" | "spec" | "state" | "isStateful">,
+            kind: Pick<
+                ResourceKind,
+                "package" | "name" | "spec" | "state" | "isStateful" | "management"
+            >,
         ): JsonObject {
             return {
                 package: identity(kind.package),
                 name: kind.name,
                 spec: JsonValue.object(toJsonSchema(kind.spec)),
                 state: kind.isStateful ? JsonValue.object(toJsonSchema(kind.state)) : null,
+                management: kind.management,
             };
         },
 
         /** Rebuild a resource kind a description stores. */
         decode(value: JsonValue | undefined): ResourceKind {
-            const { package: owner, name, spec, state } = DescribedKind.parse(value);
+            const { package: owner, name, spec, state, management } = DescribedKind.parse(value);
 
             return new ResourceKind(
                 owner,
                 name,
                 fromJsonSchema(spec),
                 state === null ? NO_STATE : fromJsonSchema(state),
+                management,
             );
         },
     },
@@ -729,14 +727,12 @@ const BuilderCalls = schema
     )
     .min(1);
 
-/** The fields of a described definition that stack documents read: plural, declaration and kind. */
+/** The fields of a described definition that stack documents read: plural, storage and kind. */
 const DescribedDefinition = schema.looseObject({
     /** The type's plural, the document key of its declarations. */
     plural: schema.string(),
-    /** How stacks declare the type, absent on a type stacks do not declare. */
-    declarable: schema.unknown().exactOptional(),
-    /** The type its records nest in, whose declarations contain the type's declaration. */
-    nested: schema.unknown().exactOptional(),
+    /** Where the type's objects live, durable when absent. */
+    storage: schema.string().exactOptional(),
     /** The resource kind the type provisions, absent on a type provisioning none. */
     provisioned: schema
         .looseObject({ kind: schema.looseObject({ $kind: DescribedKind }) })

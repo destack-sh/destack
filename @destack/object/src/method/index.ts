@@ -15,7 +15,7 @@ export {
     type Handler,
     type NextOf,
     type HandleFunction,
-    type PhasedHandler,
+    type MethodHooks,
     type ResultOf,
     type ResultsOf,
 } from "./context.ts";

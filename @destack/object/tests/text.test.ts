@@ -4,7 +4,7 @@ import { principal, relation, union } from "@destack/access";
 import { type DatabaseConnection, defineDatabase, Snapshot } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { Package } from "@destack/package";
-import { createClient, type ClientOptions } from "@destack/object/client";
+import { type ClientOptions } from "@destack/object/client";
 import { definePackage } from "@destack/object";
 import { RequestId } from "@destack/sync";
 import { LiveText, ObjectClient } from "../src/client/index.ts";
@@ -82,13 +82,8 @@ async function serveDocuments() {
         }),
     );
     onTestFinished(() => served[Symbol.asyncDispose]());
-    const server = served.server(documentsPackage);
-    const endpoint = (name: Identifier<"user">): ClientOptions => ({
-        url: "https://documents.test",
-        headers: { authorization: `Bearer ${name}` },
-        fetch: (request: Request) => server.fetch(request),
-    });
-    const connect = (name: Identifier<"user">) => createClient(documentsPackage, endpoint(name));
+    const endpoint = (name: Identifier<"user">) => served.as(name).endpoint(documentsPackage);
+    const connect = (name: Identifier<"user">) => served.as(name).client(documentsPackage);
 
     return { connect, endpoint, database };
 }
@@ -233,7 +228,11 @@ test("edit a text through chunk splits, read it assembled, undo exactly and guar
         body: "replaced",
     };
     const plain = await refusal(alice.document.update(replaced));
-    expect(plain).toEqual(["BAD_REQUEST", 'invalid input: unrecognized key: "body"']);
+    expect(plain).toEqual([
+        "BAD_REQUEST",
+        "INVALID_INPUT",
+        'invalid input: unrecognized key: "body"',
+    ]);
     expect(
         await refusal(
             alice.document.edit({
@@ -244,7 +243,7 @@ test("edit a text through chunk splits, read it assembled, undo exactly and guar
                 edits: [{ insert: "x", run: "alice.99", after: { run: "nobody.1", offset: 0 } }],
             }),
         ),
-    ).toEqual(["BAD_REQUEST", "no chunk has element nobody.1:0"]);
+    ).toEqual(["BAD_REQUEST", "ELEMENT_NOT_FOUND", "no chunk has element nobody.1:0"]);
 
     // refuse a run the text already contains anywhere
     expect(
@@ -257,7 +256,7 @@ test("edit a text through chunk splits, read it assembled, undo exactly and guar
                 edits: [{ insert: "x", run: "alice.1" }],
             }),
         ),
-    ).toEqual(["BAD_REQUEST", "body already has run alice.1"]);
+    ).toEqual(["BAD_REQUEST", "DUPLICATE_RUN", "body already has run alice.1"]);
 
     // report which elements the text contains, deleted ones included
     const owner = document.reference(spaceId, created.id);

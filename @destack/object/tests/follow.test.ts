@@ -346,7 +346,7 @@ test("decide calls over a relayed replica of access as the holder does, through 
     );
 
     // allow the owner through a credential for the empty space and hide the space from the rest
-    const hidden = ["NOT_FOUND", `no scope ${spaceId}`];
+    const hidden = ["NOT_FOUND", "SCOPE_NOT_FOUND", `no scope ${spaceId}`];
     expect(outcomes).toEqual(["Plan", hidden, hidden, hidden, "Budget"]);
     expect(listed.items.map((item) => item.title).toSorted()).toEqual(["Budget", "Plan"]);
 });
@@ -688,7 +688,7 @@ test("report a follow its source refuses, and drop its replica once a change of 
     }
 
     // refuse the other space's documents at home, reported while a document still asks for them
-    const refused = new CallError("FORBIDDEN", { message: "refused" });
+    const refused = CallError.http("FORBIDDEN", { message: "refused" });
     closing(otherSpaceId).abort(refused);
     await expect.poll(() => failures).toEqual([refused]);
 
@@ -1076,9 +1076,13 @@ test("replicate the chains of an installation's two served spaces in one replica
             [ObjectSink.viaName(followingSpaceId), Scope.universe.id, followingSpaceId],
         ],
         parameters: [[spaceId, otherSpaceId], [accountId]],
-        refused: ["FORBIDDEN", "permission denied: replicate"],
+        refused: ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: replicate"],
         scopes: new Set([accountId, spaceId, otherSpaceId]),
-        outside: ["NOT_FOUND", `${otherAccountId} contains none of the replicated scopes`],
+        outside: [
+            "NOT_FOUND",
+            "SCOPE_NOT_CONTAINED",
+            `${otherAccountId} contains none of the replicated scopes`,
+        ],
     });
 });
 
@@ -1171,8 +1175,12 @@ test("refuse a chain follow with no via to a caller without replicate on the sco
                 .map((change) => change.row["scope"]),
         ),
     }).toEqual({
-        refused: ["FORBIDDEN", "permission denied: replicate"],
-        claimed: ["NOT_FOUND", `${FOREIGN_ACCOUNT} does not contain ${spaceId}`],
+        refused: ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: replicate"],
+        claimed: [
+            "NOT_FOUND",
+            "SCOPE_NOT_CONTAINED",
+            `${FOREIGN_ACCOUNT} does not contain ${spaceId}`,
+        ],
         scopes: new Set([accountId]),
     });
 });
@@ -1261,8 +1269,12 @@ test("replicate a partition's chain via its installation's space, whose source h
                 .map((change) => change.row["scope"]),
         ),
     }).toEqual({
-        refused: ["FORBIDDEN", "permission denied: replicate"],
-        claimed: ["NOT_FOUND", `${FOREIGN_ACCOUNT} does not contain ${partition}`],
+        refused: ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: replicate"],
+        claimed: [
+            "NOT_FOUND",
+            "SCOPE_NOT_CONTAINED",
+            `${FOREIGN_ACCOUNT} does not contain ${partition}`,
+        ],
         scopes: new Set([accountId, spaceId]),
     });
 });
@@ -1383,7 +1395,7 @@ test("wait before serving for the store's declared replicas up its chain, never 
             confirm: async () => {},
             stream: async function* () {
                 yield* [];
-                throw new CallError("FORBIDDEN", { message: "permission denied: follow" });
+                throw CallError.http("FORBIDDEN", { message: "permission denied: follow" });
             },
         }),
         callKey: testCallKey,
@@ -1751,6 +1763,7 @@ test("replicate the chain of an account another replica brought first, once the 
             {
                 subscription: residents,
                 audience: replicating.source.queriesPublication.audience,
+                synced: () => {},
                 clock: Clock.system,
             },
         );

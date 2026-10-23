@@ -1,9 +1,10 @@
 import * as access from "@destack/access";
 import { accessRelationship, Relationship } from "@destack/access";
-import { GrantFields, readGrant, RelationshipFields } from "../trait/shareable.ts";
+import { GrantFields, readGrant } from "../trait/shareable.ts";
 import { ObjectReference } from "@destack/sync";
 import { schema } from "@destack/schema";
 import { defineMethod } from "../method/method.ts";
+import { Empty } from "../method/procedure.ts";
 import { type MethodBuilder } from "../method/record.ts";
 import { role } from "./role.ts";
 import { defineObject } from "../object/object.ts";
@@ -14,9 +15,6 @@ import { CheckInput, CheckResult, ObjectPolicy } from "../object/access.ts";
 /** A relationship to create: its object, and its subject through one relation or role. */
 const RelationshipInput = schema.object({ object: ObjectReference, ...GrantFields });
 
-/** One relationship of an object, by its identifier. */
-const RelationshipKey = schema.object({ object: ObjectReference, ...RelationshipFields });
-
 /** The relationships of a scope, created and deleted under the grant rules. */
 export const relationship = defineObject(
     {
@@ -25,7 +23,7 @@ export const relationship = defineObject(
         mapping: ObjectPolicy.readMapping(accessRelationship),
         represents: access.relationship,
         permissions: access.relationship.definition.permissions,
-        declarable: { from: "create", references: { object: "object", role, subject: "subject" } },
+        references: { object: "object", role, subject: "subject" },
     },
     (_method: MethodBuilder<typeof accessRelationship>) => ({
         check: defineMethod<{
@@ -52,6 +50,33 @@ export const relationship = defineObject(
             }),
             handler: (context, execution) =>
                 ObjectPolicy.check(context, Execution.store(execution, context)),
+        }),
+        get: defineMethod<{
+            kind: "custom";
+            permission: "read";
+            input: typeof Empty;
+            output: typeof access.Relationship.schema;
+            mutates: false;
+            target: "object";
+            table: typeof accessRelationship;
+        }>({
+            kind: "custom",
+            permission: "read",
+            input: Empty,
+            output: access.Relationship.schema,
+            mutates: false,
+            target: "object",
+            result: "value",
+            isPredicted: false,
+            procedure: (_name, schemas) => ({
+                route: { method: "GET", path: "/{id}" },
+                input: schemas.target,
+                output: access.Relationship.schema,
+            }),
+            handler: (context) => {
+                // read the relationship as it was granted
+                return Promise.resolve(Relationship.decode(context.target));
+            },
         }),
         create: defineMethod<{
             kind: "custom";
@@ -91,32 +116,32 @@ export const relationship = defineObject(
         delete: defineMethod<{
             kind: "custom";
             permission: "grant";
-            input: typeof RelationshipKey;
+            input: typeof Empty;
             output: typeof access.Relationship.schema;
             mutates: true;
-            target: "scope";
+            target: "object";
             table: typeof accessRelationship;
         }>({
             kind: "custom",
             permission: "grant",
-            input: RelationshipKey,
+            input: Empty,
             output: access.Relationship.schema,
             mutates: true,
-            target: "scope",
+            target: "object",
             result: "value",
             isPredicted: false,
             procedure: (_name, schemas) => ({
-                route: { method: "DELETE", path: "/{relationshipId}" },
-                input: schemas.scope.extend({ ...schemas.replay, ...RelationshipKey.shape }),
+                route: { method: "DELETE", path: "/{id}" },
+                input: schemas.target.extend(schemas.replay),
                 output: access.Relationship.schema,
             }),
             handler: (context, execution) => {
                 // revoke under the relation's grant rules
-                const { object, relationshipId } = RelationshipKey.parse(context.input);
+                const { target } = context;
 
                 return Relationship.revoke(
-                    object,
-                    relationshipId,
+                    ObjectReference.at("object", target),
+                    target.id,
                     Execution.store(execution, context).authorization,
                 );
             },

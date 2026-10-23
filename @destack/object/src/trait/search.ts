@@ -1,3 +1,4 @@
+import { ObjectError } from "../error/error.ts";
 import {
     type Column,
     index,
@@ -7,9 +8,11 @@ import {
 } from "@destack/db";
 import { CHUNKS } from "../text/chunk.ts";
 import { present, schema } from "@destack/schema";
-import { CallError } from "../error/call.ts";
+
 import type { ObjectDefinition, ObjectType } from "../object/object.ts";
 import type { Trait } from "./trait.ts";
+
+import type {} from "@destack/package/import-meta";
 
 /** How callers find a type's objects. */
 const ObjectSearchSchema = schema.object({
@@ -124,7 +127,9 @@ export const ObjectSearch = Object.assign(ObjectSearchSchema, {
         if (searched === undefined) {
             return [];
         } else if (typeof searched !== "string") {
-            throw new CallError("BAD_REQUEST", { message: "a search needs text" });
+            throw new ObjectError("MISSING_TEXT", {
+                message: "a search needs text",
+            });
         }
 
         return SearchText.query(searched).map((word) => ({
@@ -140,7 +145,9 @@ export const ObjectSearch = Object.assign(ObjectSearchSchema, {
         if (entry === undefined) {
             return [];
         } else if (!Array.isArray(entry)) {
-            throw new CallError("BAD_REQUEST", { message: "a combination needs conditions" });
+            throw new ObjectError("EMPTY_COMBINATION", {
+                message: "a combination needs conditions",
+            });
         }
 
         return entry.map((nested: unknown) => ObjectSearch.readCondition(nested));
@@ -149,7 +156,9 @@ export const ObjectSearch = Object.assign(ObjectSearchSchema, {
     /** Read a condition, refusing an entry that is not a condition. */
     readCondition(entry: unknown): OpenCondition {
         if (!ObjectSearch.isCondition(entry)) {
-            throw new CallError("BAD_REQUEST", { message: "a combination needs conditions" });
+            throw new ObjectError("EMPTY_COMBINATION", {
+                message: "a combination needs conditions",
+            });
         }
 
         return entry;

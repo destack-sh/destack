@@ -1,4 +1,5 @@
 import { ObjectReference, type ObjectTypeReference, Subject } from "@destack/sync";
+import { ObjectError } from "../error/error.ts";
 import {
     AccessContext,
     type Authorizer,
@@ -37,9 +38,10 @@ import {
     type JsonValue,
 } from "@destack/schema";
 import type { PackageId } from "@destack/package";
-import { CallError } from "../error/call.ts";
+
 import * as sync from "@destack/sync";
 import type { ObjectOf, ObjectType } from "../object/object.ts";
+import type { ManagedTable } from "../trait/record.ts";
 import { Observation, type ObservationReport, type ObservedRecord } from "../object/condition.ts";
 import type { OptionOf, Method, MethodConfiguration } from "./method.ts";
 import { CallSite } from "./site.ts";
@@ -55,6 +57,8 @@ import { EventView } from "../query/event.ts";
 import { Execution } from "./execution.ts";
 import { BranchWrite } from "../branch/write.ts";
 import { Replay } from "../audit/replay.ts";
+
+import type {} from "@destack/package/import-meta";
 
 /** How long a call waits for a key it acquires to replicate: 5 s, above sub-second replica lag. */
 const ACQUIRE_MILLISECONDS = 5000;
@@ -137,7 +141,7 @@ export class MethodContext<
     constructor(fields: MethodContextOptions<Configuration, Prepared, Id, Target>) {
         // refuse a mutation by a caller proving no identity
         if (fields.method.mutates && Caller.isAnonymous(fields.caller)) {
-            throw new CallError("UNAUTHORIZED", {
+            throw new ObjectError("UNAUTHENTICATED", {
                 message: "a mutation needs an authenticated caller",
             });
         }
@@ -357,7 +361,7 @@ export class MethodContext<
     }): RelationalQueryBuilder<Read, Select<Read>> {
         // refuse another package's type, by the packages declaring them
         if (type.package.id !== this.object.package.id) {
-            throw new CallError("FORBIDDEN", {
+            throw new ObjectError("REVEAL_REFUSED", {
                 message: `${this.object.package.name} reveals ${type.name} only in its declaring package`,
             });
         }
@@ -380,7 +384,7 @@ export class MethodContext<
     ): EventView<Fields, Data> {
         // refuse another package's kind
         if (kind.package.id !== this.object.package.id) {
-            throw new CallError("FORBIDDEN", {
+            throw new ObjectError("EVENTS_REFUSED", {
                 message: `${this.object.package.name} reads ${kind.name} events only in its declaring package`,
             });
         }
@@ -532,7 +536,7 @@ export class MethodContext<
 
     /** Refuse a decision outside the store, which alone authorizes. */
     #unauthorized(): Error {
-        return new CallError("FORBIDDEN", {
+        return new ObjectError("STORE_ONLY", {
             message: `${this.object.name} is authorized in its store`,
         });
     }
@@ -567,7 +571,7 @@ export class MethodContext<
     requireParent(): ObjectReference {
         const parent = this.parent();
         if (parent === undefined) {
-            throw new CallError("BAD_REQUEST", {
+            throw new ObjectError("MISSING_PARENT", {
                 message: `${this.object.name} needs a parent`,
             });
         }
@@ -617,7 +621,7 @@ export class MethodContext<
                 throw error;
             }
 
-            throw new CallError("UNAVAILABLE", {
+            throw new ObjectError("REPLICA_SYNCING", {
                 message: `the ${follow.shape.name} replica of ${at.key.scope} is still syncing`,
             });
         }
@@ -694,7 +698,7 @@ export class MethodContext<
             .where(RecordedRow.at(table, target))
             .returning();
         if (deleted.length === 0) {
-            throw new CallError("CONFLICT", {
+            throw new ObjectError("STALE_REVISION", {
                 message: `${this.object.name} revision has changed`,
             });
         }
@@ -710,7 +714,9 @@ export class MethodContext<
         const table: Table = this.object.table;
         const row = await transaction.read(table).findFirst({ where: { id } });
         if (row === undefined) {
-            throw new CallError("CONFLICT", { message: `${this.object.name} ${id} is removed` });
+            throw new ObjectError("REMOVED", {
+                message: `${this.object.name} ${id} is removed`,
+            });
         }
 
         return row;
@@ -748,7 +754,7 @@ export class MethodContext<
             .where(RecordedRow.at(table, target))
             .returning();
         if (!row) {
-            throw new CallError("CONFLICT", {
+            throw new ObjectError("STALE_REVISION", {
                 message: `${this.object.name} revision has changed`,
             });
         }
@@ -777,6 +783,16 @@ export class MethodContext<
         }
 
         throw new TypeError(`${this.object.name}.${this.name} acts as itself only in its store`);
+    }
+
+    /** Report whether stacks can declare the call's records, typing its target. */
+    isDeclarable(): this is MethodContext<
+        MethodConfiguration & { readonly table: ManagedTable },
+        Prepared,
+        Id,
+        Select<ManagedTable> | undefined
+    > {
+        return this.object.isDeclarable();
     }
 
     /** Report whether the installation serving the call's type has a capability of its package. */
@@ -1048,12 +1064,12 @@ export type MethodContextOf<
 export type Handler<Configuration extends MethodConfiguration = MethodConfiguration> = [
     OptionOf<Configuration, "prepared", never>,
 ] extends [never]
-    ? HandleFunction<Configuration> | PhasedHandler<Configuration>
+    ? HandleFunction<Configuration> | MethodHooks<Configuration>
     : schema.Schema extends OptionOf<Configuration, "prepared", never>
-      ? HandleFunction<Configuration> | PhasedHandler<Configuration>
-      : PhasedHandler<Configuration> & {
+      ? HandleFunction<Configuration> | MethodHooks<Configuration>
+      : MethodHooks<Configuration> & {
             /** Do external work before the transaction, returning `call.prepared`. */
-            readonly prepare: NonNullable<PhasedHandler<Configuration>["prepare"]>;
+            readonly prepare: NonNullable<MethodHooks<Configuration>["prepare"]>;
         };
 
 /** A method's handling phase: change rows in the transaction, wrapping next. */
@@ -1062,8 +1078,8 @@ export type HandleFunction<Configuration extends MethodConfiguration = MethodCon
     next: (context?: MethodContext) => Promise<MethodResult<Configuration>>,
 ) => Promise<MethodResult<Configuration>>;
 
-/** A method's code by phase, preparing the work its method declares. */
-export type PhasedHandler<Configuration extends MethodConfiguration = MethodConfiguration> = {
+/** The hooks a type attaches to one of its methods, by phase. */
+export type MethodHooks<Configuration extends MethodConfiguration = MethodConfiguration> = {
     /** Authorize the call before its external work. */
     readonly authorize?: (
         context: MethodContext<Configuration, PreparedOf<Configuration> | undefined>,

@@ -1,33 +1,197 @@
-import type { DomainError, CallErrorCode, Failure } from "@destack/error";
+import type { CallErrorCode } from "@destack/error";
+import { CallError } from "./call.ts";
+import type { JsonValue } from "@destack/schema";
+import type {} from "@destack/package/import-meta";
 
-/** The call error code of each object failure: a declaration's failures are the host's. */
+/** The call error code of each object failure, by the HTTP status it answers. */
 const CALL_CODES = {
+    // declarations and calls
     INVALID_DECLARATION: "INTERNAL_SERVER_ERROR",
     UNSUPPORTED_DECLARATION: "INTERNAL_SERVER_ERROR",
     CYCLIC_DECLARATION: "INTERNAL_SERVER_ERROR",
     INVALID_CALL: "BAD_REQUEST",
-    CONFLICT: "CONFLICT",
-    FORBIDDEN: "FORBIDDEN",
-    UNAVAILABLE: "SERVICE_UNAVAILABLE",
+    CALL_CONTENTS_DIFFER: "CONFLICT",
+
+    // bad request
+    AGGREGATE_AT_POSITION: "BAD_REQUEST",
+    BODY_NOT_JSON: "BAD_REQUEST",
+    BROADCAST_TOO_LARGE: "BAD_REQUEST",
+    CALL_OUTSIDE_BRANCH: "BAD_REQUEST",
+    DUPLICATE_RUN: "BAD_REQUEST",
+    ELEMENT_NOT_FOUND: "BAD_REQUEST",
+    EMPTY_COMBINATION: "BAD_REQUEST",
+    EVENT_NOT_FOUND: "BAD_REQUEST",
+    EXTERNAL_STORES_SPLIT: "BAD_REQUEST",
+    FOREIGN_CLAIM: "BAD_REQUEST",
+    HOME_UNREACHABLE: "BAD_REQUEST",
+    INCLUDED_TRASH: "BAD_REQUEST",
+    INVALID_CONVERSION: "BAD_REQUEST",
+    INVALID_CURSOR: "BAD_REQUEST",
+    INVALID_INPUT: "BAD_REQUEST",
+    INVALID_PAGE_LIMIT: "BAD_REQUEST",
+    INVALID_TEXT_EDIT: "BAD_REQUEST",
+    INVALID_VERSION: "BAD_REQUEST",
+    MISSING_DESIRED_STATE: "BAD_REQUEST",
+    MISSING_FIELD: "BAD_REQUEST",
+    MISSING_KEY: "BAD_REQUEST",
+    MISSING_PARENT: "BAD_REQUEST",
+    MISSING_START: "BAD_REQUEST",
+    MISSING_TEXT: "BAD_REQUEST",
+    MISSING_VERSION: "BAD_REQUEST",
+    MIXED_HOMES: "BAD_REQUEST",
+    MIXED_SCOPES: "BAD_REQUEST",
+    MIXED_STORAGE: "BAD_REQUEST",
+    NOTHING_TO_READ: "BAD_REQUEST",
+    NO_BRANCHES: "BAD_REQUEST",
+    NO_HOME_HANDLER: "BAD_REQUEST",
+    NO_REPLICA_RECEIVER: "BAD_REQUEST",
+    NO_TRASH: "BAD_REQUEST",
+    PARENT_TYPE_REFUSED: "BAD_REQUEST",
+    PUSH_REQUIRED: "BAD_REQUEST",
+    RELATION_ACROSS_STORAGE: "BAD_REQUEST",
+    RELATION_BY_KEY: "BAD_REQUEST",
+    RELEASE_MISMATCH: "BAD_REQUEST",
+    SCOPE_MISMATCH: "BAD_REQUEST",
+    SCOPE_OUTSIDE_CHAIN: "BAD_REQUEST",
+    TIME_ORDER_ONLY: "BAD_REQUEST",
+    UNBRANCHABLE_CALL: "BAD_REQUEST",
+    UNKNOWN_INCLUDE: "BAD_REQUEST",
+    UNKNOWN_METHOD: "BAD_REQUEST",
+    UNKNOWN_OBJECT: "BAD_REQUEST",
+    UNKNOWN_PERMISSION: "BAD_REQUEST",
+    UNLISTED: "BAD_REQUEST",
+    UNSERVED_EVENTS: "BAD_REQUEST",
+    WRITER_REQUIRED: "BAD_REQUEST",
+
+    // unauthorized
+    INVALID_HOST_SECRET: "UNAUTHORIZED",
+    INVALID_LINK_SECRET: "UNAUTHORIZED",
+    MISSING_CREDENTIAL: "UNAUTHORIZED",
+    UNAUTHENTICATED: "UNAUTHORIZED",
+
+    // payment required
+    STORAGE_CAPPED: "PAYMENT_REQUIRED",
+
+    // forbidden
+    ADAPTER_REFUSES_CALLER: "FORBIDDEN",
+    APPROVAL_REQUIRED: "FORBIDDEN",
+    CALLER_KIND_REFUSED: "FORBIDDEN",
+    CHECK_REFUSED: "FORBIDDEN",
+    CREATOR_KIND_REFUSED: "FORBIDDEN",
+    EVENTS_REFUSED: "FORBIDDEN",
+    EXPLAIN_REFUSED: "FORBIDDEN",
+    FIELD_NOT_WRITABLE: "FORBIDDEN",
+    FOLLOWER_OUTSIDE_TARGET: "FORBIDDEN",
+    GRANT_REFUSES_METHOD: "FORBIDDEN",
+    GRANT_REFUSES_PERMISSION: "FORBIDDEN",
+    INSUFFICIENT_GRANT: "FORBIDDEN",
+    MACHINE_PROCEDURE_REFUSED: "FORBIDDEN",
+    NO_CHAIN_REPLICAS: "FORBIDDEN",
+    NO_FOLLOWERS: "FORBIDDEN",
+    PERMISSION_DENIED: "FORBIDDEN",
+    REVEAL_REFUSED: "FORBIDDEN",
+    STORE_ONLY: "FORBIDDEN",
+    TABLE_REFUSED: "FORBIDDEN",
+
+    // not found
+    BINDING_NOT_FOUND: "NOT_FOUND",
+    BRANCH_NOT_FOUND: "NOT_FOUND",
+    NO_EPHEMERAL_STORAGE: "NOT_FOUND",
+    NO_HOME_OR_REPLICA: "NOT_FOUND",
+    NO_HOOKS: "NOT_FOUND",
+    NO_HOOK_SESSION: "NOT_FOUND",
+    NO_LIST_METHOD: "NOT_FOUND",
+    NO_PACKAGE_ROUTES: "NOT_FOUND",
+    NO_SOCKET_HANDLER: "NOT_FOUND",
+    NO_WEBHOOKS: "NOT_FOUND",
+    PUBLICATION_NOT_FOUND: "NOT_FOUND",
+    SCOPE_NOT_CONTAINED: "NOT_FOUND",
+    SCOPE_NOT_FOUND: "NOT_FOUND",
+    SCOPE_OUTSIDE_REQUEST: "NOT_FOUND",
+    SOCKET_NOT_FOUND: "NOT_FOUND",
+    TYPE_NOT_IN_SCOPE: "NOT_FOUND",
+    UNKNOWN_PACKAGE: "NOT_FOUND",
+    UNKNOWN_TYPE: "NOT_FOUND",
+
+    // conflict
+    ALREADY_DELETED: "CONFLICT",
+    BRANCH_NOT_OPEN: "CONFLICT",
+    DUPLICATE: "CONFLICT",
+    ID_TAKEN: "CONFLICT",
+    INVALID_TRANSITION: "CONFLICT",
+    IN_TRASH: "CONFLICT",
+    MOVE_INTO_SUBTREE: "CONFLICT",
+    NAME_TAKEN: "CONFLICT",
+    NOT_DELETED: "CONFLICT",
+    NOT_DELETING: "CONFLICT",
+    NOT_PURGED: "CONFLICT",
+    PREDEFINED: "CONFLICT",
+    PURGED: "CONFLICT",
+    RECOVERY_EXPIRED: "CONFLICT",
+    REMOVED: "CONFLICT",
+    REPLICA_WRITE: "CONFLICT",
+    REQUEST_REUSED: "CONFLICT",
+    STALE_GENERATION: "CONFLICT",
+    STALE_REVISION: "CONFLICT",
+    VERSION_MISMATCH: "CONFLICT",
+    VERSION_RETIRED: "CONFLICT",
+
+    // precondition failed
+    NO_ENCLOSING_SCOPE: "PRECONDITION_FAILED",
+
+    // payload too large
+    BODY_TOO_LARGE: "PAYLOAD_TOO_LARGE",
+
+    // misdirected request
+    PARTITION_MISDIRECTED: "MISDIRECTED_REQUEST",
+    SCOPE_MOVED: "MISDIRECTED_REQUEST",
+
+    // too many requests
+    RATE_LIMITED: "TOO_MANY_REQUESTS",
+
+    // internal server error
+    INVALID_OUTPUT: "INTERNAL_SERVER_ERROR",
+    MISSING_OUTCOME: "INTERNAL_SERVER_ERROR",
+
+    // bad gateway
+    HOST_REFUSED: "BAD_GATEWAY",
+    INSTANCE_REFUSED: "BAD_GATEWAY",
+    MISSING_ACCEPTANCE: "BAD_GATEWAY",
+
+    // service unavailable
+    BUILD_FILE_UNAVAILABLE: "SERVICE_UNAVAILABLE",
+    NO_WORKLOAD: "SERVICE_UNAVAILABLE",
+    REPLICA_BEHIND: "SERVICE_UNAVAILABLE",
+    REPLICA_SYNCING: "SERVICE_UNAVAILABLE",
+    SERVER_STOPPED: "SERVICE_UNAVAILABLE",
+    SETTLEMENT_EXPIRED: "SERVICE_UNAVAILABLE",
+    WAKE_UP_UNSTORED: "SERVICE_UNAVAILABLE",
 } as const satisfies Readonly<Record<string, CallErrorCode>>;
 
-/** Stable object failure codes. */
-export type ObjectErrorCode = keyof typeof CALL_CODES;
+/** The object failures' stable causes. */
+export type ObjectReason = keyof typeof CALL_CODES;
 
-/** An object failure with a stable code. */
-export class ObjectError extends Error implements DomainError {
-    /** The failure code. */
-    readonly code: ObjectErrorCode;
+/** An object failure: a call error whose reason is one of object's, its code the reason's. */
+export class ObjectError extends CallError<CallErrorCode, JsonValue | undefined> {
+    /** The failure's stable cause within its package. */
+    declare readonly reason: ObjectReason;
 
-    /** Create an object failure with its code and cause. */
-    constructor(code: ObjectErrorCode, message: string, options?: ErrorOptions) {
-        super(message, options);
-        this.name = "ObjectError";
-        this.code = code;
-    }
-
-    /** Convert the failure to the call error a caller receives. */
-    toCallError(): Failure {
-        return { code: CALL_CODES[this.code], message: this.message };
+    /** Create an object failure with its reason, message, details and cause. */
+    constructor(
+        reason: ObjectReason,
+        options: {
+            /** The readable message. */
+            readonly message: string;
+            /** The structured details. */
+            readonly data?: JsonValue;
+            /** The failure that caused it. */
+            readonly cause?: unknown;
+        },
+    ) {
+        super(CALL_CODES[reason], {
+            ...options,
+            reason,
+            domain: import.meta.destack.package.name,
+        });
     }
 }

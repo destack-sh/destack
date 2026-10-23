@@ -28,9 +28,39 @@ export const role = defineObject(
         mapping: ObjectPolicy.readMapping(accessRole),
         represents: access.role,
         permissions: access.role.definition.permissions,
-        declarable: { from: "create", key: "name" },
     },
     (method: MethodBuilder<typeof accessRole>) => ({
+        get: defineMethod<{
+            kind: "custom";
+            permission: "read";
+            input: typeof Empty;
+            output: typeof access.Role.schema;
+            mutates: false;
+            target: "object";
+            table: typeof accessRole;
+        }>({
+            kind: "custom",
+            permission: "read",
+            input: Empty,
+            output: access.Role.schema,
+            mutates: false,
+            target: "object",
+            result: "value",
+            isPredicted: false,
+            procedure: (_name, schemas) => ({
+                route: { method: "GET", path: "/{id}" },
+                input: schemas.target,
+                output: access.Role.schema,
+            }),
+            handler: async (context, execution) => {
+                // read the role with the permissions it grants
+                const { transaction } = Execution.store(execution, context);
+                const { id, scope, name, description, revision } = context.target;
+                const permissions = await Role.permissions(transaction, id);
+
+                return { id, scope, name, description, permissions, revision };
+            },
+        }),
         create: Execution.handle(
             method.create("create", {
                 fields: ["name", "description"],

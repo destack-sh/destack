@@ -1,17 +1,20 @@
 import type { Health } from "./health.ts";
+import { ObjectError } from "../error/error.ts";
 import { RequestHandler, type HandlerOptions, type Router } from "./handler.ts";
 import { isProcedure } from "@orpc/server";
 import { ProcedureMetadata } from "../procedure/procedure.ts";
 import { type Authentication, Caller, Credential, LinkSecret } from "@destack/access";
 import type { ResourceContext } from "@destack/resource/context";
 import type { ProcedureRouter } from "../procedure/index.ts";
-import { CallError } from "../error/index.ts";
+
 import { reportError } from "../error/report.ts";
 import { BOOKMARK_HEADER, type Bookmark } from "../procedure/bookmark.ts";
 import { LINK_SECRET_HEADER, RequestContext, type ServerAccess } from "./context.ts";
 import type { ProcedureContext } from "./procedure.ts";
 import { type Alarm, ControlLoop, type Controller } from "@destack/db";
 import { copyRequest, Clock, LONGEST_DELAY, until } from "@destack/environment";
+
+import type {} from "@destack/package/import-meta";
 
 /** The seconds a starting server delays a request, and a client then waits before retrying. */
 const STARTING_RETRY_SECONDS = 1;
@@ -52,6 +55,9 @@ export class Server implements AsyncDisposable {
 
     /** Create the server. */
     private constructor(options: ServerOptions) {
+        // leave the refusal of a server stopped before it served to those waiting for it
+        this.#serving.promise.catch(() => undefined);
+
         // reject missing enforcement
         for (const callback of ["authenticate", "authorizeMachine"] as const) {
             if (typeof options[callback] !== "function") {
@@ -157,12 +163,26 @@ export class Server implements AsyncDisposable {
         }
         // wait for readiness, delaying requests while starting
         else {
-            await ready(signal);
-            if (signal.aborted) {
-                return;
+            try {
+                await ready(signal);
+            } catch (error) {
+                // fail with the readiness failure, unless the stop that aborts it ended the wait
+                if (!signal.aborted) {
+                    throw error;
+                }
             }
-            this.health.set("serving");
-            this.#serving.resolve();
+
+            // refuse waiting for a server stopped before it served, else serve
+            if (signal.aborted) {
+                this.#serving.reject(
+                    new ObjectError("SERVER_STOPPED", {
+                        message: "the server stopped before it served",
+                    }),
+                );
+            } else {
+                this.health.set("serving");
+                this.#serving.resolve();
+            }
         }
     }
 
@@ -310,7 +330,7 @@ export class Server implements AsyncDisposable {
             authenticationError =
                 error instanceof Error
                     ? error
-                    : new CallError("UNAUTHORIZED", {
+                    : new ObjectError("UNAUTHENTICATED", {
                           message: "authentication failed",
                           cause: error,
                       });
@@ -342,7 +362,7 @@ export class Server implements AsyncDisposable {
 
         return Promise.all(presented.map((secret) => LinkSecret.digest(secret))).catch(
             (error: unknown) => {
-                throw new CallError("UNAUTHORIZED", {
+                throw new ObjectError("INVALID_LINK_SECRET", {
                     message: "invalid link secret",
                     cause: error,
                 });
@@ -360,7 +380,9 @@ export class Server implements AsyncDisposable {
             context.access.authentication !== "public" &&
             Caller.isAnonymous(context.request.caller())
         ) {
-            throw new CallError("UNAUTHORIZED", { message: "missing caller credential" });
+            throw new ObjectError("MISSING_CREDENTIAL", {
+                message: "missing caller credential",
+            });
         }
 
         // renew the call's access
@@ -379,7 +401,7 @@ export class Server implements AsyncDisposable {
                 (kind) => kind.packageId === sender.packageId && kind.type === sender.type,
             );
             if (!isDeclared) {
-                throw new CallError("FORBIDDEN", {
+                throw new ObjectError("CALLER_KIND_REFUSED", {
                     message: `${sender.type} callers cannot call ${context.path.join(".")}`,
                 });
             }

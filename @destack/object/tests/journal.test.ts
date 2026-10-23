@@ -1,4 +1,5 @@
-import { test, expect } from "@destack/test";
+import { Failure } from "@destack/error";
+import { expect, refusal, test } from "@destack/test";
 import { ControlLoop } from "@destack/db";
 import { journal } from "../src/index.ts";
 import { AuditStorage, documentRename, rename } from "./fixture/journal.ts";
@@ -51,12 +52,13 @@ test("refuse a second outcome of a call, its call event recording the first", as
         // refuse a second outcome, with the first as the call event
         const conflicting = storage.recorder.finish(running, {
             kind: "failure",
-            error: { code: "INTERNAL_SERVER_ERROR", message: "failed" },
+            error: Failure.http("INTERNAL_SERVER_ERROR", "failed"),
         });
-        await expect(storage.recorder.append(conflicting)).rejects.toMatchObject({
-            code: "CONFLICT",
-            message: `call ${running.execution.id} has conflicting contents`,
-        });
+        expect(await refusal(storage.recorder.append(conflicting))).toEqual([
+            "CONFLICT",
+            "CALL_CONTENTS_DIFFER",
+            `call ${running.execution.id} has conflicting contents`,
+        ]);
         expect(await storage.calls("universe")).toEqual([finished]);
     } finally {
         await storage.close();

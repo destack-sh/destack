@@ -1,4 +1,6 @@
-import { CallError } from "../error/index.ts";
+import { ObjectError } from "../error/error.ts";
+
+import type {} from "@destack/package/import-meta";
 
 /** The most bytes in a request body when a reader sets no limit: 1 MiB. */
 export const BODY_BYTES = 1024 * 1024;
@@ -15,7 +17,7 @@ export const RequestBody = {
         limit: number = BODY_BYTES,
     ): Promise<Uint8Array<ArrayBuffer>> {
         // refuse a body with a declared length over the limit before reading it
-        const tooLarge = new CallError("PAYLOAD_TOO_LARGE", {
+        const tooLarge = new ObjectError("BODY_TOO_LARGE", {
             message: `${name} exceeds ${limit} bytes`,
         });
         if (Number(request.headers.get("content-length") ?? 0) > limit) {
@@ -55,7 +57,10 @@ export const RequestBody = {
         try {
             return JSON.parse(text);
         } catch (error) {
-            throw new CallError("BAD_REQUEST", { message: `${name} is not JSON`, cause: error });
+            throw new ObjectError("BODY_NOT_JSON", {
+                message: `${name} is not JSON`,
+                cause: error,
+            });
         }
     },
 };

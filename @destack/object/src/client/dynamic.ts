@@ -1,9 +1,10 @@
 import { Failure } from "@destack/error";
+import { ObjectError } from "../error/error.ts";
 import { type DatabaseConnection, TABLE, type TableState } from "@destack/db";
 import { Digest, present, type JsonObject, type JsonValue, schema } from "@destack/schema";
 import type { Client } from "../procedure/index.ts";
 import type { ClientOptions } from "./package.ts";
-import { refuseInput, CallError } from "../error/call.ts";
+import { refuseInput } from "../error/call.ts";
 import { RequestId } from "@destack/sync";
 import * as sync from "@destack/sync";
 import { ObjectDescription } from "../object/description.ts";
@@ -16,6 +17,8 @@ import {
     type StoreProcedures,
 } from "../replica/replica.ts";
 import { Clock } from "@destack/environment";
+
+import type {} from "@destack/package/import-meta";
 
 /** The hex digest digits of a watched query's identity: 64 bits, safe among watches. */
 const QUERY_NAME_LENGTH = 16;
@@ -75,7 +78,9 @@ export class DynamicObjectClient {
     object(type: string): ObjectType {
         const found = this.options.objects.find((entry) => entry.name === type);
         if (found === undefined) {
-            throw new CallError("NOT_FOUND", { message: `no object type ${type}` });
+            throw new ObjectError("UNKNOWN_TYPE", {
+                message: `no object type ${type}`,
+            });
         }
 
         return found;
@@ -88,7 +93,9 @@ export class DynamicObjectClient {
         const declared = object.methods[method];
         const procedure = object.procedures[method]?.["~orpc"];
         if (declared === undefined || declared.isInternal === true || procedure === undefined) {
-            throw new CallError("NOT_FOUND", { message: `${type} has no method ${method}` });
+            throw new ObjectError("UNKNOWN_METHOD", {
+                message: `${type} has no method ${method}`,
+            });
         }
 
         // set the scope and a change's request, and validate the input
@@ -130,7 +137,7 @@ export class DynamicObjectClient {
         });
         const [pushed] = outcomes;
         if (pushed === undefined) {
-            throw new CallError("INTERNAL_SERVER_ERROR", {
+            throw new ObjectError("MISSING_OUTCOME", {
                 message: `the push of ${type}.${method} returned no outcome`,
             });
         } else if (!("value" in pushed.outcome)) {
@@ -166,7 +173,9 @@ export class DynamicObjectClient {
             ([, declared]) => declared.kind === "list" && declared.isInternal !== true,
         )?.[0];
         if (method === undefined) {
-            throw new CallError("NOT_FOUND", { message: `${type} has no list method` });
+            throw new ObjectError("NO_LIST_METHOD", {
+                message: `${type} has no list method`,
+            });
         }
 
         // call it with the query

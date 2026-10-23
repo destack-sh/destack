@@ -5,7 +5,14 @@ import { testEvents, serversOf } from "../src/test/index.ts";
 import { AccessContext, Caller, none, principal, relation } from "@destack/access";
 
 import { Scope, RequestId } from "@destack/sync";
-import { asc, eq, defineDatabase, type Change, Snapshot } from "@destack/db";
+import {
+    asc,
+    eq,
+    defineDatabase,
+    type Change,
+    Snapshot,
+    type ReconcileController,
+} from "@destack/db";
 import { schema, present, type Identifier } from "@destack/schema";
 
 import { defineObject, field, ObjectWatch } from "../src/index.ts";
@@ -87,7 +94,12 @@ test("reconcile a type's pending objects by the key its controller declares, as 
         },
     });
     const controller = present(
-        store.controllers().find((each) => each.name === "reminder"),
+        store
+            .controllers()
+            .find(
+                (each): each is ReconcileController =>
+                    each.name === "reminder" && each.mode !== "follow",
+            ),
         "the reminder controller",
     );
 
@@ -175,7 +187,12 @@ test("select a changed pending object's key beside the keys every watch of its t
         origin: { package: reminder.package },
     });
     const controller = present(
-        store.controllers().find((each) => each.name === "reminder"),
+        store
+            .controllers()
+            .find(
+                (each): each is ReconcileController =>
+                    each.name === "reminder" && each.mode !== "follow",
+            ),
         "the reminder controller",
     );
     await openSpace(storage.database, spaceId);
@@ -224,7 +241,12 @@ test("run a controller's calls as the space, audited as the space with the contr
         origin: { package: reminder.package },
     });
     const controller = present(
-        store.controllers().find((each) => each.name === "reminder"),
+        store
+            .controllers()
+            .find(
+                (each): each is ReconcileController =>
+                    each.name === "reminder" && each.mode !== "follow",
+            ),
         "the reminder controller",
     );
 
@@ -261,7 +283,7 @@ test("run a controller's calls as the space, audited as the space with the contr
         await send(users.grace),
     ]).toEqual([
         [[{ subject: spacePrincipal(spaceId) }, "reminder"]],
-        ["FORBIDDEN", "permission denied: send"],
-        ["NOT_FOUND", `no reminder ${due.id}`],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: send"],
+        ["NOT_FOUND", "NOT_FOUND", `no reminder ${due.id}`],
     ]);
 });

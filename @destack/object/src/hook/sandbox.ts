@@ -1,14 +1,15 @@
 import { PackageManifest } from "@destack/package/manifest";
+import { ObjectError } from "../error/error.ts";
 import { AccessContext, Caller, Decision, principal } from "@destack/access";
 import { BranchEntry } from "../branch/entry.ts";
 import { DatabaseError, type Row, TABLE } from "@destack/db";
 import type { EventKeyFields } from "@destack/event";
 import { schema, type JsonValue } from "@destack/schema";
-import { CallError } from "../error/call.ts";
+
 import type { ServerContext } from "../workload/workload.ts";
 import { type ObjectReference, Subject } from "@destack/sync";
 import type { graph } from "@destack/package";
-import type { MethodContext, PhasedHandler } from "../method/context.ts";
+import type { MethodContext, MethodHooks } from "../method/context.ts";
 import { PHASES, type Phase } from "../method/method.ts";
 import type { ObjectType } from "../object/object.ts";
 import type { EventView } from "../query/event.ts";
@@ -21,6 +22,8 @@ import {
     HookResult,
     type SessionRequest,
 } from "./record.ts";
+
+import type {} from "@destack/package/import-meta";
 
 /** A mutation's call whose hook runs in the sandbox, with the behaviour a handle phase wraps. */
 interface Session {
@@ -95,14 +98,16 @@ export class HookSandbox {
             // require the hook's open session
             const session = this.#sessions.get(request.mutation);
             if (session === undefined) {
-                throw new CallError("NOT_FOUND", { message: "no hook runs in this session" });
+                throw new ObjectError("NO_HOOK_SESSION", {
+                    message: "no hook runs in this session",
+                });
             }
 
             // pass a lost race, which the mutation runs again once the hook fails with it
             try {
                 return await this.#answer(session, request.request);
             } catch (error) {
-                if (error instanceof DatabaseError && error.code === "CONCURRENT_UPDATE") {
+                if (error instanceof DatabaseError && error.reason === "CONCURRENT_UPDATE") {
                     session.lost = error;
                 }
                 throw error;
@@ -228,7 +233,7 @@ export class HookSandbox {
     #type(name: string): ObjectType {
         const type = this.#types.get(name);
         if (type === undefined) {
-            throw new CallError("FORBIDDEN", {
+            throw new ObjectError("TABLE_REFUSED", {
                 message: `hooks cannot read ${name}: only the tables of the types their installation serves`,
             });
         }
@@ -237,7 +242,7 @@ export class HookSandbox {
     }
 
     /** Build a method's handler running its listed phases in the sandbox. */
-    #handler(type: ObjectType, name: string, phases: readonly string[]): PhasedHandler {
+    #handler(type: ObjectType, name: string, phases: readonly string[]): MethodHooks {
         // refuse a phase the sandbox does not run
         const unknown = phases.find((phase) => !SANDBOXED.some((each) => each === phase));
         if (unknown !== undefined) {

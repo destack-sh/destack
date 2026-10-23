@@ -1,16 +1,9 @@
-import { principal, relation } from "@destack/access";
+import { principal, relation, none } from "@destack/access";
 import type { Select, Table } from "@destack/db";
 import { PackageId } from "@destack/package";
-import {
-    CONNECTION_PROVIDER,
-    ResourceDefinition,
-    ResourcePlacement,
-    ResourceRetention,
-    type ResourceKind,
-} from "@destack/resource";
+import { ResourcePlacement, ResourceRetention, type ResourceKind } from "@destack/resource";
 import { Digest, schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
-import { ObjectError } from "../error/error.ts";
 import { field, type FieldsByColumn } from "../field/field.ts";
 import { method } from "../method/record.ts";
 import {
@@ -22,14 +15,17 @@ import {
 } from "../object/object.ts";
 import type { ObjectConstraint } from "../object/constraint.ts";
 import type { ObjectTable } from "../object/table.ts";
-import type { DeclarationHandler } from "../server/stack.ts";
 import type { ControlledMethodMap } from "./controlled.ts";
-import type { DeclarableDefinition } from "./declarable.ts";
 import { CONSUMER } from "./bindable.ts";
 import type { RolePermission } from "./shareable.ts";
 import type { Erasure } from "./trait.ts";
 
 import { adopt, specify } from "../method/provisioned.ts";
+
+/** The constraints of resources Destack creates: no connection lends them. */
+const INTERNAL_CONSTRAINTS: Readonly<Record<string, ObjectConstraint>> = {
+    connection: { kind: "check", condition: { connection: { isNull: true } } },
+};
 
 /** The constraints every resource takes. */
 const RESOURCE_CONSTRAINTS: Readonly<Record<string, ObjectConstraint>> = {
@@ -84,8 +80,6 @@ function resourceFields(kind: ResourceKind) {
         drainingStates: field.json(desiredStates(kind)).default([]),
         /** The digests of the desired states the provider applied, none before the first apply. */
         appliedStates: field.json(desiredStates(kind)).default([]),
-        /** Whether a provider provisions it, a stack declares it, or a connection lends it. */
-        origin: field.enum(["provisioned", "declared", "connection"]).default("provisioned"),
         /** The space connection whose credential the host lends to every call, if any. */
         connection: field.string(schema.identifier("connection")).optional(),
         /** The requested placement, absent for automatic selection. */
@@ -153,7 +147,6 @@ export type ProvisionedTraitsOf<Provisioning> = [Provisioning] extends [undefine
     : {
           readonly controlled: { readonly approval: true };
           readonly bindable: true;
-          readonly declarable: DeclarableDefinition<ResourceDefinition>;
       };
 
 /** How resources are shared, through the roles, or as a definition declares otherwise. */
@@ -170,7 +163,6 @@ export type ProvisionedMethodsOf<Provisioning> = [Provisioning] extends [undefin
 type ProvisionedKey =
     | "controlled"
     | "bindable"
-    | "declarable"
     | "shareable"
     | "fields"
     | "indexes"
@@ -196,13 +188,6 @@ export const Provisioned = {
             throw new TypeError(`resources ${definition.name} must live in scope types`);
         }
 
-        // require the declaration the kind implies
-        if (definition.declarable !== undefined) {
-            throw new TypeError(
-                `resources ${definition.name} cannot be declarable: their kind provides the declaration`,
-            );
-        }
-
         // require permissions declared as expressions
         const permissions = definition.permissions ?? {};
         if (ObjectPermissions.isList(permissions)) {
@@ -216,73 +201,31 @@ export const Provisioned = {
             ...definition,
             controlled: { approval: true },
             bindable: true,
-            declarable: { schema: ResourceDefinition },
             shareable: {},
             fields: { ...resourceFields(provisioned.kind), ...definition.fields },
-            constraints: { ...RESOURCE_CONSTRAINTS, ...definition.constraints },
+            constraints: {
+                ...RESOURCE_CONSTRAINTS,
+                ...(provisioned.kind.management === "external" ? {} : INTERNAL_CONSTRAINTS),
+                ...definition.constraints,
+            },
             permissions: {
                 read: relation(CONSUMER),
                 write: relation(CONSUMER),
+                declare: none(),
                 ...permissions,
             },
             methods: { ...resourceMethods(), ...definition.methods },
         };
     },
 
-    /** Declare how a stack's resources become records, provisioned or declared by reference. */
-    declaration(
-        kind: ResourceKind,
-    ): DeclarationHandler<ObjectType, ResourceDefinition, ResourceDefinition> {
-        return {
-            keys: ["resources"],
-            collect: (document) =>
-                Object.fromEntries(
-                    Object.entries(
-                        schema
-                            .record(schema.string(), ResourceDefinition)
-                            .parse(document["resources"] ?? {}),
-                    ).filter(([, declared]) => declared.declaration.kind === kind.name),
-                ),
-            values: (name, declared) => Provisioned.values(name, declared),
-        };
-    },
-
-    /** Write the record a stack's resource declares, provisioned or declared at a reference. */
-    values(name: string, declared: ResourceDefinition) {
-        // require the provider connecting a resource whose reference the stack declares
-        const { declaration, placement, reference, connection } = declared;
-        const provider = placement?.provider;
-        if (reference !== undefined && provider === undefined) {
-            throw new ObjectError(
-                "INVALID_DECLARATION",
-                `resource ${name} declares its reference without the provider connecting to it`,
-            );
-        }
-
-        return {
-            name,
-            definitionPackageId: declaration.package.id,
-            definitionVersion: declaration.package.version,
-            definitionName: declaration.name,
-            spec: declaration.spec,
-            retention: declared.retention,
-            placement: placement ?? null,
-            ...(connection !== undefined || provider === CONNECTION_PROVIDER
-                ? {
-                      origin: "connection" as const,
-                      connection: connection ?? null,
-                      provider: CONNECTION_PROVIDER,
-                  }
-                : reference === undefined || provider === undefined
-                  ? { origin: "provisioned" as const }
-                  : { origin: "declared" as const, reference, provider }),
-            tags: declared.tags,
-        };
-    },
-
     /** Decide whether an object type is a kind's resources. */
     is(object: ObjectType): object is ResourceType<"space"> {
         return object.provisioned !== undefined;
+    },
+
+    /** Report whether a provider provisioned a resource, which then has its reference. */
+    isProvisioned(row: { readonly reference: string | null }): boolean {
+        return row.reference !== null;
     },
 };
 
@@ -303,7 +246,6 @@ function resourceMethods() {
                 "ownerType",
                 "ownerScope",
                 "ownerId",
-                "origin",
                 "connection",
                 "provider",
                 "reference",

@@ -81,7 +81,7 @@ export interface Trait<Options> {
     readonly storages?: readonly ObjectStorage[];
     /** Read the trait's options from an object definition. */
     readonly options: (
-        definition: ObjectDefinition<unknown, string, Readonly<Record<string, Method>>>,
+        definition: ObjectDefinition<string, Readonly<Record<string, Method>>>,
     ) => Options | undefined;
     /** Add the columns an object with the trait has. */
     columns(options: Options, object: TraitObject): Record<string, ColumnBuilder>;

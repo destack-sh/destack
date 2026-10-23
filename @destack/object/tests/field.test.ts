@@ -122,7 +122,11 @@ test("store a marker's target as its label's reference columns, refuse a note, a
         refused,
         targets: listed.items.map((row) => ObjectReference.at("target", row)),
     }).toEqual({
-        refused: ["BAD_REQUEST", 'invalid input: targetType: invalid input: expected "label"'],
+        refused: [
+            "BAD_REQUEST",
+            "INVALID_INPUT",
+            'invalid input: targetType: invalid input: expected "label"',
+        ],
         targets: [first, first],
     });
 });

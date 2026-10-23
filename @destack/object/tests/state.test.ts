@@ -104,6 +104,7 @@ test("record a transition's declared fields with its state, refusing a call with
     expect({ refused, stored: [row?.review, row?.reason] }).toEqual({
         refused: [
             "BAD_REQUEST",
+            "INVALID_INPUT",
             "invalid input: reason: invalid input: expected string, received undefined",
         ],
         stored: ["rejected", "off topic"],

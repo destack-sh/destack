@@ -12,7 +12,7 @@ import { RequestId, Feed, Replica, Scope } from "@destack/sync";
 import { defineObject, defineShape, field, Follow } from "../src/index.ts";
 import { ObjectClient } from "../src/client/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
-import { TestObjectStore } from "../src/test/index.ts";
+import { TestBearer, TestObjectStore } from "../src/test/index.ts";
 import { spacePrincipal, unmoved } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { Clock } from "@destack/environment";
@@ -170,7 +170,9 @@ async function serveHomes() {
     ) =>
         ({
             url: "https://objects.test",
-            headers: { authorization: `Bearer ${users.alice}` },
+            headers: {
+                authorization: TestBearer.header(principal.user.reference("universe", users.alice)),
+            },
             fetch: (request: Request) => {
                 writes.push(`${name} ${new URL(request.url).pathname}`);
 
@@ -409,7 +411,11 @@ test("refuse to confirm a position of a scope with no home or replica in the sto
     );
 
     // refuse the unknown scope
-    expect(refused).toEqual(["NOT_FOUND", "space-nowhere has no home or replica here"]);
+    expect(refused).toEqual([
+        "NOT_FOUND",
+        "NO_HOME_OR_REPLICA",
+        "space-nowhere has no home or replica here",
+    ]);
 });
 
 test("refuse a mutation changing rows of two homes", async () => {
@@ -423,10 +429,11 @@ test("refuse a mutation changing rows of two homes", async () => {
         await mutation.call(preference).create({ name: "font", value: "serif" });
     });
 
-    await expect(submitted.predicted).rejects.toMatchObject({
-        code: "BAD_REQUEST",
-        message: `a mutation changes rows of one home, and its calls change rows of ${personId} and ${roomId}`,
-    });
+    expect(await refusal(submitted.predicted)).toEqual([
+        "BAD_REQUEST",
+        "MIXED_HOMES",
+        `a mutation changes rows of one home, and its calls change rows of ${personId} and ${roomId}`,
+    ]);
 });
 
 test("send the undo of a write of an enclosing scope's row to its home", async () => {

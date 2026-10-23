@@ -1,5 +1,5 @@
 import { users, userName } from "./fixture/user.ts";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { journal } from "../src/index.ts";
 import { eq, channelHub } from "@destack/db";
 import { BrowserTab, type BrowserHost } from "../src/browser/index.ts";
@@ -40,19 +40,18 @@ test("store notes private until shared, move them between notebooks and sync the
     expect((await bob.note.list({ spaceId })).items).toEqual([]);
 
     // refuse a grant through both a relation and a role
-    await expect(
-        alice.notebook.grant({
-            spaceId,
-            id: research.id,
-            requestId: RequestId.create(Date.now()),
-            relation: "editor",
-            role: "reader",
-            subject: principal.user.reference("universe", users.bob),
-        }),
-    ).rejects.toMatchObject({
-        code: "BAD_REQUEST",
-        message: "a grant has exactly one relation or role",
-    });
+    expect(
+        await refusal(
+            alice.notebook.grant({
+                spaceId,
+                id: research.id,
+                requestId: RequestId.create(Date.now()),
+                relation: "editor",
+                role: "reader",
+                subject: principal.user.reference("universe", users.bob),
+            }),
+        ),
+    ).toEqual(["BAD_REQUEST", "INVALID_CALL", "a grant has exactly one relation or role"]);
 
     // share the notebook: its notes follow, loose notes stay private
     await alice.notebook.grant({
@@ -73,14 +72,16 @@ test("store notes private until shared, move them between notebooks and sync the
         text: "Three papers",
     });
     expect(edited.text).toBe("Three papers");
-    await expect(
-        bob.note.delete({
-            spaceId,
-            id: filed.id,
-            requestId: RequestId.create(Date.now()),
-            revision: 2,
-        }),
-    ).rejects.toMatchObject({ code: "FORBIDDEN", message: "permission denied: manage" });
+    expect(
+        await refusal(
+            bob.note.delete({
+                spaceId,
+                id: filed.id,
+                requestId: RequestId.create(Date.now()),
+                revision: 2,
+            }),
+        ),
+    ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: manage"]);
 
     // move a note only as its manager into an editable notebook
     await alice.note.move({
@@ -91,15 +92,17 @@ test("store notes private until shared, move them between notebooks and sync the
         parentId: research.id,
     });
     expect(await titles()).toEqual(["Ideas", "Sources"]);
-    await expect(
-        bob.note.move({
-            spaceId,
-            id: loose.id,
-            requestId: RequestId.create(Date.now()),
-            revision: 2,
-            parentId: null,
-        }),
-    ).rejects.toMatchObject({ code: "FORBIDDEN", message: "permission denied: manage" });
+    expect(
+        await refusal(
+            bob.note.move({
+                spaceId,
+                id: loose.id,
+                requestId: RequestId.create(Date.now()),
+                revision: 2,
+                parentId: null,
+            }),
+        ),
+    ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: manage"]);
 
     // leave deleted notes restorable from the trash, and refuse changing them there
     await alice.note.delete({
@@ -112,23 +115,27 @@ test("store notes private until shared, move them between notebooks and sync the
     expect(
         (await alice.note.list({ spaceId, deleted: "only" })).items.map((item) => item.title),
     ).toEqual(["Ideas"]);
-    await expect(
-        alice.note.update({
-            spaceId,
-            id: loose.id,
-            requestId: RequestId.create(Date.now()),
-            text: "Late",
-        }),
-    ).rejects.toMatchObject({ code: "CONFLICT", message: "note is in the trash" });
-    await expect(
-        alice.note.grant({
-            spaceId,
-            id: loose.id,
-            requestId: RequestId.create(Date.now()),
-            relation: "viewer",
-            subject: principal.user.reference("universe", users.bob),
-        }),
-    ).rejects.toMatchObject({ code: "CONFLICT", message: "note is in the trash" });
+    expect(
+        await refusal(
+            alice.note.update({
+                spaceId,
+                id: loose.id,
+                requestId: RequestId.create(Date.now()),
+                text: "Late",
+            }),
+        ),
+    ).toEqual(["CONFLICT", "IN_TRASH", "note is in the trash"]);
+    expect(
+        await refusal(
+            alice.note.grant({
+                spaceId,
+                id: loose.id,
+                requestId: RequestId.create(Date.now()),
+                relation: "viewer",
+                subject: principal.user.reference("universe", users.bob),
+            }),
+        ),
+    ).toEqual(["CONFLICT", "IN_TRASH", "note is in the trash"]);
 
     // list and withdraw the trashed note's relationships and invitations
     expect([
@@ -266,10 +273,11 @@ test("queue notes offline, write batches atomically, drop rejected predictions a
         await mutation.call(note).create({ parentId: book.id, title: "Graffiti" });
     });
     await intrusion.predicted;
-    await expect(intrusion.confirmed).rejects.toMatchObject({
-        code: "FORBIDDEN",
-        message: "permission denied: write",
-    });
+    expect(await refusal(intrusion.confirmed)).toEqual([
+        "FORBIDDEN",
+        "PERMISSION_DENIED",
+        "permission denied: write",
+    ]);
     expect(await bob.titles()).toEqual(["Luggage"]);
     expect(
         (await bob.client.database.select({ name: notebook.table.name }).from(notebook.table)).map(
@@ -737,7 +745,9 @@ test("show a notebook's relationships to everyone who reads it, and to no one el
         ["editor:bob", "viewer:carol"],
         ["editor:bob", "viewer:carol"],
     ]);
-    await expect(dave.notebook.relationships({ spaceId, id: research.id })).rejects.toMatchObject({
-        code: "NOT_FOUND",
-    });
+    expect(await refusal(dave.notebook.relationships({ spaceId, id: research.id }))).toEqual([
+        "NOT_FOUND",
+        "NOT_FOUND",
+        `no notebook ${research.id}`,
+    ]);
 });

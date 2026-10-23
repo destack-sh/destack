@@ -18,24 +18,38 @@ export const user = defineObject({
 });
 
 /** Notes stacks declare by name. */
-export const note = defineObject({
-    name: "note",
-    plural: "notes",
-    scope: space,
-    declarable: { schema: schema.object({ title: schema.string() }) },
-    fields: { title: field.string() },
-    permissions: [],
-});
+export const note = defineObject(
+    {
+        name: "note",
+        plural: "notes",
+        scope: space,
+        fields: { title: field.string() },
+        permissions: ["write"],
+    },
+    (method) => ({
+        create: method.create("write"),
+        get: method.get("write"),
+        update: method.update("write", { fields: ["title"] }),
+        delete: method.delete("write"),
+    }),
+);
 
 /** Labels referencing declared notes by name. */
-export const label = defineObject({
-    name: "label",
-    plural: "labels",
-    scope: space,
-    declarable: { schema: schema.object({ note: schema.string(), text: schema.string() }) },
-    fields: { note: field.reference(note, { delete: "restrict" }), text: field.string() },
-    permissions: [],
-});
+export const label = defineObject(
+    {
+        name: "label",
+        plural: "labels",
+        scope: space,
+        fields: { note: field.reference(note, { delete: "restrict" }), text: field.string() },
+        permissions: ["write"],
+    },
+    (method) => ({
+        create: method.create("write"),
+        get: method.get("write"),
+        update: method.update("write", { fields: ["text"] }),
+        delete: method.delete("write"),
+    }),
+);
 
 /** Teams of users within a space that tasks may list as viewers. */
 export const team = defineObject({
@@ -54,7 +68,6 @@ export const task = defineObject(
         name: "task",
         plural: "tasks",
         scope: space,
-        declarable: { schema: schema.object({ title: schema.string().min(1) }) },
         fields: {
             owner: field.reference(principal.user).caller(),
             title: field.string(schema.string().min(1).max(512)),

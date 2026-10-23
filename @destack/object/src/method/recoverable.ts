@@ -1,7 +1,9 @@
+import { RecordMethod } from "./record.ts";
+import { ObjectError } from "../error/error.ts";
 import { ObjectReference } from "@destack/sync";
-import { Duration, present, type schema } from "@destack/schema";
+import { Duration, present, schema } from "@destack/schema";
 import { type Row, type Select } from "@destack/db";
-import { CallError } from "../error/call.ts";
+
 import type { MethodContext } from "./context.ts";
 import { defineMethod, Method } from "./method.ts";
 import { MethodBuilder } from "./record.ts";
@@ -11,6 +13,8 @@ import { Empty, type MethodProcedure, type ObjectSchema } from "./procedure.ts";
 import type { RecoverableDefinition } from "../trait/recoverable.ts";
 import type { TraitTable } from "../object/table.ts";
 import type { Execution } from "./execution.ts";
+
+import type {} from "@destack/package/import-meta";
 /** The method declarations of recoverable objects whose purge retains the record. */
 const retainedMethod = new MethodBuilder<RetainedTable>();
 
@@ -92,7 +96,7 @@ export const RecoverableMethod = {
             .handle(async (context) => {
                 // require a purged record
                 if (!RecoverableMethod.isPurged(context.target)) {
-                    throw new CallError("CONFLICT", {
+                    throw new ObjectError("NOT_PURGED", {
                         message: `${context.object.name} is not purged`,
                     });
                 }
@@ -121,22 +125,36 @@ export const RecoverableMethod = {
         const target = context.target;
         const requested = target.deletedAt;
         if (requested === null) {
-            throw new CallError("CONFLICT", { message: `${object.name} is not deleted` });
+            throw new ObjectError("NOT_DELETED", {
+                message: `${object.name} is not deleted`,
+            });
         } else if (RecoverableMethod.isPurged(target)) {
-            throw new CallError("CONFLICT", { message: `${object.name} is purged` });
+            throw new ObjectError("PURGED", {
+                message: `${object.name} is purged`,
+            });
         } else if (
             context.now - requested >=
             Duration.milliseconds(RecoverableMethod.readRecovery(context).within)
         ) {
-            throw new CallError("CONFLICT", {
+            throw new ObjectError("RECOVERY_EXPIRED", {
                 message: `${object.name} is past its recovery window`,
             });
         }
 
-        return context.update({
+        // restore it under a live parent, with the children trashed with it
+        const row: Row = target;
+        const parentId = row["parentId"];
+        await RecordMethod.requireParentReady(
+            context,
+            parentId === undefined || parentId === null ? null : schema.string().parse(parentId),
+        );
+        const restored = await context.update({
             deletedAt: null,
             ...ObjectReference.columns("deletedBy", undefined),
         });
+        await RecordMethod.trashChildren(context, schema.string().parse(row["id"]), "restore");
+
+        return restored;
     },
 
     /** Purge an object in the trash, removing it at the loaded revision. */
@@ -164,9 +182,13 @@ export const RecoverableMethod = {
         const { object } = context;
         const target = context.target;
         if (target.deletedAt === null) {
-            throw new CallError("CONFLICT", { message: `${object.name} is not deleted` });
+            throw new ObjectError("NOT_DELETED", {
+                message: `${object.name} is not deleted`,
+            });
         } else if (RecoverableMethod.isPurged(target)) {
-            throw new CallError("CONFLICT", { message: `${object.name} is purged` });
+            throw new ObjectError("PURGED", {
+                message: `${object.name} is purged`,
+            });
         }
     },
 

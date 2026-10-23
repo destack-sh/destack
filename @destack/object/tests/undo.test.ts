@@ -364,7 +364,7 @@ test("undo an update of an exact integer, restoring its value on the device and 
         objects: { tally },
         scope: spaceId,
         caller: principal.user.reference("universe", users.alice),
-        endpoint: served.endpoint(tallies, users.alice),
+        endpoint: served.as(users.alice).endpoint(tallies),
         reconnect: unmoved,
     });
     client.queryType(tally).findMany().subscribe();
@@ -440,7 +440,7 @@ test("undo an update of a bytes field, restoring its bytes on the device and the
         objects: { stamp },
         scope: spaceId,
         caller: principal.user.reference("universe", users.alice),
-        endpoint: served.endpoint(stamps, users.alice),
+        endpoint: served.as(users.alice).endpoint(stamps),
         reconnect: unmoved,
     });
     client.queryType(stamp).findMany().subscribe();

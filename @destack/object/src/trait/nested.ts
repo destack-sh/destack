@@ -1,7 +1,7 @@
 import { ObjectReference } from "@destack/sync";
 import { Field } from "../field/field.ts";
-import { type Identifier, present, schema } from "@destack/schema";
-import { type ColumnBuilder, identifier, index, TABLE, text } from "@destack/db";
+import { Duration, type Identifier, present, schema } from "@destack/schema";
+import { boolean, type ColumnBuilder, identifier, index, TABLE, text } from "@destack/db";
 import type { PackageId } from "@destack/package";
 import { type Method } from "../method/method.ts";
 import {
@@ -32,8 +32,8 @@ export type NestedDefinition = {
     readonly in: ObjectType | "self" | "any";
     /** Whether an object may have no parent. */
     readonly optional?: boolean;
-    /** Delete children with their parent, or refuse deleting a parent with children. */
-    readonly delete?: "cascade" | "restrict";
+    /** Delete children with their parent, trash them with it, or refuse deleting it. */
+    readonly delete?: "cascade" | "trash" | "restrict";
     /** The parent permission for creating or moving an object under it. */
     readonly receive: string;
     /** The permission moving an object to another parent. */
@@ -108,10 +108,21 @@ export const nested: Trait<NestedDefinition> = {
                 ? identifier("parent_id", owner?.identity ?? object.identity)
                 : Field.validated("parent_id", keyed)
         ).references(() => idColumn(owner?.table ?? object.table()), {
+            // cascade a purge of the parent to its children, trashed with it or not, and restrict otherwise
             onDelete: options.delete === "restrict" ? "no action" : "cascade",
         });
 
-        return { parentId: options.optional === true ? column : column.notNull() };
+        // mark the children their parent's deletion moved to the trash, which its restore brings back
+        const trashed =
+            options.delete === "trash"
+                ? {
+                      isTrashedWithParent: boolean("is_trashed_with_parent")
+                          .notNull()
+                          .default(false),
+                  }
+                : {};
+
+        return { parentId: options.optional === true ? column : column.notNull(), ...trashed };
     },
     constraints: (options, table, columns) =>
         options.in === "any"
@@ -181,8 +192,29 @@ export const nested: Trait<NestedDefinition> = {
             throw new TypeError(`${object.name} is a tree, so its parent must be optional`);
         }
 
-        // require the receive permission on the parent type
+        // require a trash on both a child trashed with its parent and the parent
         const parent = options.in === "self" ? object : options.in;
+        if (
+            options.delete === "trash" &&
+            (parent === "any" || !parent.isTrashable() || !object.isTrashable())
+        ) {
+            throw new TypeError(
+                `object ${object.name} moves to the trash with its parent, so both must have a trash`,
+            );
+        }
+
+        // require a child trashed with its parent to stay recoverable as long as the parent
+        const child = object.lifecycle.recoverable;
+        const held = parent === "any" ? undefined : parent.lifecycle.recoverable;
+        if (options.delete === "trash" && child !== undefined && held !== undefined) {
+            if (Duration.milliseconds(child.within) < Duration.milliseconds(held.within)) {
+                throw new TypeError(
+                    `object ${object.name} moves to the trash with its parent, so it must stay recoverable as long`,
+                );
+            }
+        }
+
+        // require the receive permission on the parent type
         if (parent !== "any" && !parent.permissions.includes(options.receive)) {
             throw new TypeError(
                 `object ${object.name} has parents lacking permission ${options.receive}`,

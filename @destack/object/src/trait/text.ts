@@ -1,5 +1,6 @@
 import { present, schema } from "@destack/schema";
-import { CallError } from "../error/call.ts";
+import { ObjectError } from "../error/error.ts";
+
 import { Step } from "../method/step.ts";
 import type { TextField } from "../field/field.ts";
 import { defineMethod, Method } from "../method/method.ts";
@@ -11,6 +12,8 @@ import { Chunk, Containment, Undo, TEXT_READ } from "../text/chunk.ts";
 import { chunk } from "../text/table.ts";
 import type { Trait } from "./trait.ts";
 import { Execution } from "../method/execution.ts";
+
+import type {} from "@destack/package/import-meta";
 
 /** The text fields of an object and the permission editing them. */
 export interface TextDefinition {
@@ -206,7 +209,7 @@ export const text: Trait<TextDefinition> & {
                         context.reference(),
                     );
                     if (!decision.isAllowed) {
-                        throw new CallError("FORBIDDEN", {
+                        throw new ObjectError("FIELD_NOT_WRITABLE", {
                             message: `field ${field} is not writable`,
                         });
                     }

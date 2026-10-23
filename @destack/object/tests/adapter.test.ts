@@ -16,7 +16,9 @@ import { page, pageDatabase } from "./fixture/page.ts";
 import { openSpace, spacePrincipal } from "./fixture/space.ts";
 import { users } from "./fixture/user.ts";
 import { Clock } from "@destack/environment";
-import { TestObjectStore } from "../src/test/index.ts";
+import { TestBearer, TestObjectStore } from "../src/test/index.ts";
+import { principal } from "@destack/access";
+import type { Subject } from "@destack/sync";
 
 /** The space with the pages. */
 const spaceId = schema.identifier("space").parse(`space-${v7()}`);
@@ -106,14 +108,16 @@ test("answer an adapter declaring its installation's calls as that principal alo
     const server = serving.server(customPages);
 
     // call the feed as the space, as a user, and as no one
-    const status = async (bearer: string | undefined) => {
-        const headers = bearer === undefined ? {} : { authorization: `Bearer ${bearer}` };
+    const status = async (caller: Subject | undefined) => {
+        const headers = caller === undefined ? {} : { authorization: TestBearer.header(caller) };
         const response = await server.fetch(new Request("https://pages.test/feed", { headers }));
         await response.body?.cancel();
 
         return response.status;
     };
-    expect([await status(spaceId), await status(users.alice), await status(undefined)]).toEqual([
-        200, 403, 401,
-    ]);
+    expect([
+        await status(spacePrincipal(spaceId)),
+        await status(principal.user.reference("universe", users.alice)),
+        await status(undefined),
+    ]).toEqual([200, 403, 401]);
 });

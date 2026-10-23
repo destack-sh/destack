@@ -1,6 +1,6 @@
 import { Change, type Table, Transaction } from "@destack/db";
 import { type Event, type EventReader, EventTime } from "@destack/event";
-import type { Controller, Reconciliation } from "@destack/db";
+import type { ReconcileController, Reconciliation } from "@destack/db";
 import { Duration, schema } from "@destack/schema";
 import type { ObjectType } from "./object.ts";
 import type { ObjectStore } from "../server/store.ts";
@@ -36,7 +36,7 @@ export interface ReaderContext {
 export type ReaderHandler = (page: ReaderPage, context: ReaderContext) => Promise<void>;
 
 /** Hands each scope's pages of a type's events to a handler, each claimed page exactly once. */
-export class Consumer implements Controller {
+export class Consumer implements ReconcileController {
     /** The controller's name in reports: the type's and the reader's. */
     readonly name: string;
     /** The type's events table, whose appends select their keys. */

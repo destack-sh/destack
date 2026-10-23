@@ -23,7 +23,6 @@ import type { RecordProcedures } from "./record.ts";
 import type { RecoverableProcedures } from "../trait/recoverable.ts";
 import type { NestedProcedures } from "../trait/nested.ts";
 import type { ShareableProcedures } from "../trait/shareable.ts";
-import type { DeclarableProcedures, AdoptableProcedures } from "../trait/declarable.ts";
 import type { BindableProcedures } from "../trait/bindable.ts";
 import type { TrackedProcedures } from "../trait/tracked.ts";
 import type { TextProcedures } from "../trait/text.ts";
@@ -293,8 +292,6 @@ type MethodProcedureOf<
           TransitionProcedures<Object, Declared> &
           NestedProcedures<Object> &
           ShareableProcedures<Object> &
-          AdoptableProcedures<Object> &
-          DeclarableProcedures<Object> &
           BindableProcedures &
           TrackedProcedures<Object> &
           TextProcedures<Object>)[Declared["kind"]];

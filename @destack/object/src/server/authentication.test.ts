@@ -84,10 +84,11 @@ test.each(["universe", "host-local", "account-personal", "space-personal"])(
         // return the scope and reject credentials of another scope
         expect(await client.read()).toBe(scope);
         credentialScope = "another-scope";
-        await expect(client.read()).rejects.toMatchObject({
-            code: "UNAUTHORIZED",
-            message: "caller authentication has a different audience or scope",
-        });
+        expect(await refusal(client.read())).toEqual([
+            "UNAUTHORIZED",
+            "AUDIENCE_MISMATCH",
+            "caller authentication has a different audience or scope",
+        ]);
     },
 );
 
@@ -114,7 +115,7 @@ test("verify a credential the package verifies before the host, which answers ev
             const key = request.headers.get("package-key");
             verified.push(key ?? "none");
             if (key === "revoked") {
-                throw new CallError("UNAUTHORIZED", { message: "the package key is revoked" });
+                throw CallError.http("UNAUTHORIZED", { message: "the package key is revoked" });
             }
 
             return key === null ? undefined : authenticateUser("bob");
@@ -138,7 +139,7 @@ test("verify a credential the package verifies before the host, which answers ev
     }).toEqual({
         package: "bob",
         host: "alice",
-        revoked: ["UNAUTHORIZED", "the package key is revoked"],
+        revoked: ["UNAUTHORIZED", "UNAUTHORIZED", "the package key is revoked"],
         verified: ["standing", "none", "revoked"],
     });
 });
@@ -190,8 +191,12 @@ test("serve a caller handed over in-process while it is current for this package
         other: await refusal(me(handed("carol", other, later))),
     }).toEqual({
         current: "alice",
-        expired: ["UNAUTHORIZED", "caller authentication is not current"],
-        other: ["UNAUTHORIZED", "caller authentication has a different audience or scope"],
+        expired: ["UNAUTHORIZED", "AUTHENTICATION_EXPIRED", "caller authentication is not current"],
+        other: [
+            "UNAUTHORIZED",
+            "AUDIENCE_MISMATCH",
+            "caller authentication has a different audience or scope",
+        ],
     });
 });
 
@@ -232,7 +237,11 @@ test("authorize a caller bound to a space in the scopes inside it, refusing the 
     ]).toEqual([
         "done",
         "done",
-        ["UNAUTHORIZED", `the caller's credential applies to ${spaceId} only`],
+        [
+            "UNAUTHORIZED",
+            "CREDENTIAL_CONFINED",
+            `the caller's credential applies to ${spaceId} only`,
+        ],
         alice.caller.subject,
     ]);
 });
@@ -387,7 +396,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
         },
         authorizeMachine: async () => {
             if (!isEnabled) {
-                throw new CallError("FORBIDDEN", { message: "host procedures are disabled" });
+                throw CallError.http("FORBIDDEN", { message: "host procedures are disabled" });
             }
         },
         router: implementation.router({
@@ -465,11 +474,19 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     );
     bearer = restricted.accessToken;
     expect(await client.read({ id: "one" })).toBe("personal note");
-    await expect(client.read({ id: "two" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(await refusal(client.read({ id: "two" }))).toEqual([
+        "FORBIDDEN",
+        "PERMISSION_DENIED",
+        "permission denied: read",
+    ]);
 
     // grant a collaborator one object
     bearer = credentials.get(guest.id);
-    await expect(client.read({ id: "one" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(await refusal(client.read({ id: "one" }))).toEqual([
+        "FORBIDDEN",
+        "PERMISSION_DENIED",
+        "permission denied: read",
+    ]);
     const byOwner = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
         Authorization.run(authorizer, database, () => asOwner, call);
     const shared = await byOwner((authorization) =>
@@ -483,27 +500,51 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
         ),
     );
     expect(await client.read({ id: "one" })).toBe("personal note");
-    await expect(client.read({ id: "two" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(await refusal(client.read({ id: "two" }))).toEqual([
+        "FORBIDDEN",
+        "PERMISSION_DENIED",
+        "permission denied: read",
+    ]);
     await byOwner((authorization) => Relationship.revoke(shared.object, shared.id, authorization));
-    await expect(client.read({ id: "one" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(await refusal(client.read({ id: "one" }))).toEqual([
+        "FORBIDDEN",
+        "PERMISSION_DENIED",
+        "permission denied: read",
+    ]);
 
     // allow public notes and reject invalid credentials
     await database.update(noteTable).set({ public: true }).where(eq(noteTable.id, "one"));
     bearer = undefined;
     expect(await client.read({ id: "one" })).toBe("personal note");
-    await expect(client.me()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    expect(await refusal(client.me())).toEqual([
+        "UNAUTHORIZED",
+        "MISSING_CREDENTIAL",
+        "missing caller credential",
+    ]);
     bearer = "invalid";
-    await expect(client.read({ id: "one" })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    expect(await refusal(client.read({ id: "one" }))).toEqual([
+        "UNAUTHORIZED",
+        "INVALID_TOKEN",
+        "invalid access token",
+    ]);
 
     // enforce suspension and recheck grants during streams
     bearer = undefined;
     isEnabled = false;
-    await expect(client.read({ id: "one" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(await refusal(client.read({ id: "one" }))).toEqual([
+        "FORBIDDEN",
+        "FORBIDDEN",
+        "host procedures are disabled",
+    ]);
     isEnabled = true;
     const stream = await client.watch({ id: "one" });
     expect(await stream.next()).toEqual({ done: false, value: "first" });
     await database.update(noteTable).set({ public: false }).where(eq(noteTable.id, "one"));
-    await expect(stream.next()).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(await refusal(stream.next())).toEqual([
+        "FORBIDDEN",
+        "PERMISSION_DENIED",
+        "permission denied: read",
+    ]);
     expect(invocations).toBe(5);
     expect(outcomes).toEqual([
         "success",

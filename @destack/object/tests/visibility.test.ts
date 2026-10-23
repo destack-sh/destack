@@ -151,8 +151,8 @@ test("show a private space to readers of one object in it, forbid their writes, 
     const list = (id: string) =>
         refusal(store.query(context.access(), document.call("list", { spaceId: id })));
     expect([await list(spaceId), await list(missing)]).toEqual([
-        ["NOT_FOUND", `no scope ${spaceId}`],
-        ["NOT_FOUND", `no scope ${missing}`],
+        ["NOT_FOUND", "SCOPE_NOT_FOUND", `no scope ${spaceId}`],
+        ["NOT_FOUND", "SCOPE_NOT_FOUND", `no scope ${missing}`],
     ]);
 
     // show a delegate granted no reading what alice sees, asking her for the grant it lacks
@@ -166,7 +166,7 @@ test("show a private space to readers of one object in it, forbid their writes, 
         actors: [delegate],
         grants: [{ id: grantId, scope: users.alice }],
     });
-    expect((await attempts()).slice(0, 3)).toEqual(["INSUFFICIENT_GRANT", [], "NOT_FOUND"]);
+    expect((await attempts()).slice(0, 3)).toEqual(["FORBIDDEN", [], "NOT_FOUND"]);
 });
 
 test("find nothing when a call asks for a scope its objects do not live in, though the caller sees it", async () => {
@@ -220,7 +220,7 @@ test("find nothing when a call asks for a scope its objects do not live in, thou
     const desks = await store.query(context.access(), desk.call("list", { roomId }));
     expect(
         await refusal(store.query(context.access(), document.call("list", { spaceId: roomId }))),
-    ).toEqual(["NOT_FOUND", `no documents in scope ${roomId}`]);
+    ).toEqual(["NOT_FOUND", "TYPE_NOT_IN_SCOPE", `no documents in scope ${roomId}`]);
     expect(desks.items).toEqual([]);
 });
 

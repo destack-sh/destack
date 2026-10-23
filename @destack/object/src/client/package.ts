@@ -1,9 +1,6 @@
-import {
-    type ClientContext,
-    createORPCClient,
-    createORPCErrorFromJson,
-    isORPCErrorJson,
-} from "@orpc/client";
+import { type ClientContext, createORPCClient, ErrorEvent, mapEventIterator } from "@orpc/client";
+import { isAsyncIteratorObject } from "@orpc/shared";
+import { CallError } from "../error/call.ts";
 import { injectContext, telemetry } from "@destack/telemetry";
 import { OpenAPILink, type OpenAPILinkOptions } from "@orpc/openapi-client/fetch";
 import { ClientRetryPlugin } from "@orpc/client/plugins";
@@ -59,6 +56,20 @@ export function createClient<
         ...options,
         plugins: [new ClientRetryPlugin(), ...(options.plugins ?? [])],
         customErrorResponseBodyDecoder: answeredError,
+        interceptors: [
+            async (call) => {
+                // read a streamed failure with its reason and domain, as an answered one reads
+                const output: unknown = await call.next();
+
+                return isAsyncIteratorObject(output)
+                    ? mapEventIterator(output, {
+                          value: async (value: unknown) => value,
+                          error: async (error: unknown) => streamedError(error),
+                      })
+                    : output;
+            },
+            ...(options.interceptors ?? []),
+        ],
         adapterInterceptors: [
             async (call) => {
                 // send the trace, the release and the required watermarks
@@ -126,16 +137,16 @@ function startingPause(response: {
         : undefined;
 }
 
-/** Read a server's answered failure. */
-function answeredError(body: unknown) {
-    // leave a malformed answer to the link's failure
-    if (!isORPCErrorJson(body)) {
-        return undefined;
-    }
+/** Read a stream's failure event as its call error. */
+function streamedError(error: unknown): unknown {
+    return error instanceof ErrorEvent ? (CallError.fromJson(error.data) ?? error) : error;
+}
 
-    // build the failure
-    const error = createORPCErrorFromJson(body);
-    if (error.status >= 500) {
+/** Read a server's answered failure, leaving a malformed answer to the link's failure. */
+function answeredError(body: unknown) {
+    // build the failure with its reason and domain
+    const error = CallError.fromJson(body);
+    if (error !== undefined && error.status >= 500) {
         telemetry.markCaptured(error);
     }
 

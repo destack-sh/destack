@@ -154,7 +154,7 @@ const shelfDatabase = defineDatabase({
 });
 
 /** Read a call's refusal as the server reports it to its caller. */
-function reported(pending: Promise<unknown>): Promise<"done" | readonly [string, string]> {
+function reported(pending: Promise<unknown>): Promise<"done" | readonly [string, string, string]> {
     return refusal(
         pending.catch((error: unknown) => {
             throw reportError(error);
@@ -207,11 +207,11 @@ test("invoke another object's method in a call, as its caller, audited and refus
     const auditedTidy = (await auditedActions(storage.database, "caller")).slice(before);
 
     // refuse straightening user-2's book through user-1's shelf, rolling back the whole call
-    await expect(
-        call(shelf, "straighten", { id: home.id, book: foreign.id }),
-    ).rejects.toMatchObject({
-        code: "NOT_FOUND",
-    });
+    expect(await refusal(call(shelf, "straighten", { id: home.id, book: foreign.id }))).toEqual([
+        "NOT_FOUND",
+        "NOT_FOUND",
+        `no book ${foreign.id}`,
+    ]);
     const rows = await storage.database
         .select({ owner: book.table.ownerId, isTidy: book.table.isTidy })
         .from(book.table);
@@ -302,7 +302,7 @@ test("invoke methods as the space in a caller's call, writing objects the caller
     // hide the space's methods from the routes and from pushes, routing only the slips' reads
     expect([rows, forged, Object.keys(slip.procedures), (await pushed).outcomes]).toEqual([
         [{ id: lent.slip, borrower: users.grace, shelf: "home!", isReturned: true }],
-        ["NOT_FOUND", "slip not found"],
+        ["NOT_FOUND", "NOT_FOUND", "slip not found"],
         ["get", "list"],
         [
             {
@@ -310,6 +310,8 @@ test("invoke methods as the space in a caller's call, writing objects the caller
                 outcome: {
                     error: {
                         code: "BAD_REQUEST",
+                        reason: "UNKNOWN_METHOD",
+                        domain: "@destack/object",
                         message: "no mutating method slip.issue",
                     },
                 },
@@ -352,7 +354,15 @@ test("refuse input a method's schema rejects, read directly or invoked in a call
                 .then(([written]) => written),
         ),
     ]).toEqual([
-        ["BAD_REQUEST", "invalid input: limit: too small: expected number to be >=1"],
-        ["BAD_REQUEST", "invalid input: shelf: too small: expected string to have >=1 characters"],
+        [
+            "BAD_REQUEST",
+            "INVALID_INPUT",
+            "invalid input: limit: too small: expected number to be >=1",
+        ],
+        [
+            "BAD_REQUEST",
+            "INVALID_INPUT",
+            "invalid input: shelf: too small: expected string to have >=1 characters",
+        ],
     ]);
 });

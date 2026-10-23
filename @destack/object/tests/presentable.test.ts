@@ -112,7 +112,7 @@ test("present an object by its name, subtitle, chosen icon, accent and cover, de
             cover: { field: "cover", bucket: { packageId: space.package.id, name: "media" } },
         },
         search: { searchable: ["name", "excerpt"], filterable: ["ownerId"], sortable: ["rank"] },
-        indexes: ["board_ownerId", "board_rank"],
+        indexes: ["board_manager", "board_ownerId", "board_rank"],
     });
 });
 

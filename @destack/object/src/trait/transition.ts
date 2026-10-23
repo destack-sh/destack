@@ -1,6 +1,7 @@
 import { Table } from "@destack/db";
+import { ObjectError } from "../error/error.ts";
 import { schema } from "@destack/schema";
-import { CallError } from "../error/call.ts";
+
 import { Step } from "../method/step.ts";
 import { Casing } from "../object/name.ts";
 import type { StateField, StateMachine } from "../field/field.ts";
@@ -14,6 +15,8 @@ import {
 } from "../method/procedure.ts";
 import type { ObjectType } from "../object/object.ts";
 import type { Trait } from "./trait.ts";
+
+import type {} from "@destack/package/import-meta";
 
 /** The state fields of an object and the machines they follow, by field name. */
 export type StateFields = readonly (readonly [string, StateMachine])[];
@@ -145,7 +148,7 @@ export const transitions: Trait<StateFields> & {
                 // refuse transitions from any other state
                 const state = schema.string().parse(context.target[field]);
                 if (!transition.from.includes(state)) {
-                    throw new CallError("CONFLICT", {
+                    throw new ObjectError("INVALID_TRANSITION", {
                         message: `${context.object.name} cannot ${name} while ${field} is ${state}`,
                     });
                 }

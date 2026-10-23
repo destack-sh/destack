@@ -116,7 +116,11 @@ test("serve a call in the store's partition or in any partition, and point one i
     ]).toEqual([
         spaceId,
         spaceId,
-        ["MISDIRECTED_REQUEST", `${spaceId} is served by partition ${spaceId}`],
+        [
+            "MISDIRECTED_REQUEST",
+            "PARTITION_MISDIRECTED",
+            `${spaceId} is served by partition ${spaceId}`,
+        ],
     ]);
 });
 

@@ -131,7 +131,7 @@ test("reveal a type's sensitive field to its package's handler, and withhold it 
         inside: { token: "token-0123" },
         outside: {
             hasToken: [false],
-            revealed: new CallError("FORBIDDEN", {
+            revealed: CallError.http("FORBIDDEN", {
                 message: `@example/outside reveals holder only in its declaring package`,
             }).message,
         },

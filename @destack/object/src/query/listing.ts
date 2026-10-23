@@ -1,4 +1,5 @@
 import { Caller, type Permission } from "@destack/access";
+import { ObjectError } from "../error/error.ts";
 import {
     type LogPosition,
     type Snapshot,
@@ -9,7 +10,7 @@ import {
     type SQL,
     Table,
 } from "@destack/db";
-import { CallError } from "../error/call.ts";
+
 import { nth, canonicalize, schema } from "@destack/schema";
 import { type Audience, Dataflow, Replica, View, type Watch } from "@destack/sync";
 import type * as sync from "@destack/sync";
@@ -21,6 +22,8 @@ import { nestItem } from "./item.ts";
 import type { MethodContext } from "../method/context.ts";
 import type { ObjectType } from "../object/object.ts";
 import { Execution } from "../method/execution.ts";
+
+import type {} from "@destack/package/import-meta";
 
 /** The query, page and view of a list's input, beside its scope fields. */
 const LIST_INPUT = schema.looseObject({ ...QueryFields, ...PageFields, ...ViewFields });
@@ -95,7 +98,7 @@ export class Listing implements Audience {
         const view = Execution.snapshot(execution);
         await dataflow.load(await View.of(view.database, requested), after);
         if (node.aggregate !== undefined && position !== undefined) {
-            throw new CallError("BAD_REQUEST", {
+            throw new ObjectError("AGGREGATE_AT_POSITION", {
                 message: "aggregates read only the latest position, where access decides them",
             });
         } else if (node.aggregate !== undefined) {

@@ -8,7 +8,7 @@ import type {
     Handler,
     MethodResult,
     MethodContext,
-    PhasedHandler,
+    MethodHooks,
     PreparedOf,
 } from "./context.ts";
 import type { ObjectType } from "../object/object.ts";
@@ -230,7 +230,7 @@ export interface Method<Configuration extends MethodConfiguration = MethodConfig
     /** Derive the calls undoing a step. */
     readonly inverse?: (step: Step) => readonly sync.Call[] | undefined;
     /** The code an implementation attaches by phase, without the declared behaviour it wraps. */
-    readonly hooks?: PhasedHandler;
+    readonly hooks?: MethodHooks;
 }
 
 /** A method as its builder declares it, which an object's handler or phases can wrap. */
@@ -436,10 +436,10 @@ export const Method = {
     /** Wrap a method in an object's handler or phases. */
     handled<Configuration extends MethodConfiguration>(
         declared: Method<Configuration>,
-        handler: HandleFunction<Configuration> | PhasedHandler<Configuration>,
+        handler: HandleFunction<Configuration> | MethodHooks<Configuration>,
     ): MethodDeclaration<Configuration> {
         // normalize the handler, refusing other keys than phases
-        const typed: PhasedHandler<Configuration> =
+        const typed: MethodHooks<Configuration> =
             typeof handler === "function" ? { handle: handler } : handler;
         const unknown = Object.keys(typed).find((key) => !PHASES.some((phase) => phase === key));
         if (unknown !== undefined) {
@@ -498,8 +498,8 @@ export const Method = {
     /** Run a handler's phases on any call, each reading the call as its method types it. */
     guarded<Configuration extends MethodConfiguration>(
         declared: Method<Configuration>,
-        handler: PhasedHandler<Configuration>,
-    ): PhasedHandler {
+        handler: MethodHooks<Configuration>,
+    ): MethodHooks {
         const { authorize, creation, expand, prepare, handle, settle } = handler;
         const before = (context: MethodContext) => Method.requireContext(declared, context);
 
@@ -530,7 +530,7 @@ export const Method = {
     },
 
     /** Layer wrapping phases over wrapped ones: handle wraps, authorize runs the wrapped first. */
-    layered(base: PhasedHandler, layer: PhasedHandler): PhasedHandler {
+    layered(base: MethodHooks, layer: MethodHooks): MethodHooks {
         // wrap the wrapped handle and authorize, and let the wrapping phases replace the others
         const handle = layer.handle;
         const authorize = layer.authorize;

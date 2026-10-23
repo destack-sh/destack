@@ -1,6 +1,9 @@
 import type { DatabaseConnection } from "@destack/db";
-import { CallError } from "../error/call.ts";
+import { ObjectError } from "../error/error.ts";
+
 import type { ObjectType } from "../object/object.ts";
+
+import type {} from "@destack/package/import-meta";
 
 /** The files of external objects' immutable rows, each scope's opened as a read-only database. */
 export interface ExternalStorage {
@@ -24,7 +27,7 @@ export const ExternalStorage = {
         // refuse types stored apart or nowhere, and several stores for none
         const [only, ...others] = found;
         if (only === undefined || others.length > 0) {
-            throw new CallError("BAD_REQUEST", {
+            throw new ObjectError("EXTERNAL_STORES_SPLIT", {
                 message: `no single store has the external objects ${names.join(", ")}`,
             });
         }

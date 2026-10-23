@@ -1,6 +1,7 @@
 import type * as sync from "@destack/sync";
+import { ObjectError } from "../error/error.ts";
 import { Table } from "@destack/db";
-import { CallError } from "../error/call.ts";
+
 import type { MethodContext } from "./context.ts";
 import { Step } from "./step.ts";
 import { defineMethod, Method } from "./method.ts";
@@ -9,6 +10,8 @@ import type { Execution } from "./execution.ts";
 import { RecordMethod } from "./record.ts";
 
 import { type NestedDefinition, PARENT, ParentReference } from "../trait/nested.ts";
+
+import type {} from "@destack/package/import-meta";
 
 /** The nested methods' handlers: moving an object between parents. */
 export const NestedMethod = {
@@ -89,7 +92,9 @@ export const NestedMethod = {
         const { object } = context;
         const parent = context.parent();
         if (parent === undefined && nesting.optional !== true) {
-            throw new CallError("BAD_REQUEST", { message: `${object.name} needs a parent` });
+            throw new ObjectError("MISSING_PARENT", {
+                message: `${object.name} needs a parent`,
+            });
         }
 
         // require a receiving parent outside the subtree
@@ -114,7 +119,7 @@ export const NestedMethod = {
         const visited = new Set<string>();
         for (let node: string | null = parentId; node !== null && !visited.has(node);) {
             if (node === moved) {
-                throw new CallError("CONFLICT", {
+                throw new ObjectError("MOVE_INTO_SUBTREE", {
                     message: `${context.object.name} cannot move into its subtree`,
                 });
             }

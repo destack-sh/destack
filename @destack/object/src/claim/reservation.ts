@@ -1,8 +1,9 @@
 import { Failure } from "@destack/error";
+import { ObjectError } from "../error/error.ts";
 import { AccessContext, Caller } from "@destack/access";
 import { type DatabaseConnection, Snapshot } from "@destack/db";
 import { present, schema } from "@destack/schema";
-import { CallError } from "../error/call.ts";
+
 import { RequestId } from "@destack/sync";
 import type * as sync from "@destack/sync";
 import type { ObjectStore } from "../server/store.ts";
@@ -10,6 +11,8 @@ import type { ObjectType } from "../object/object.ts";
 import { Claim, type Claimant, ClaimRefusal, claimTable, Expiry } from "./claim.ts";
 import type { ClaimType } from "./method.ts";
 import type { PushResult } from "../replica/replica.ts";
+
+import type {} from "@destack/package/import-meta";
 
 /** A store serving object types elsewhere, called as the claiming store. */
 export interface RemoteStore {
@@ -158,7 +161,7 @@ export const Reservation = {
                     (index) => Claim.index(type, index) === first.index,
                 ),
             );
-            throw new CallError("CONFLICT", {
+            throw new ObjectError("NAME_TAKEN", {
                 message: `${present(name, `the index of claim ${first.index}`)} is taken`,
             });
         }

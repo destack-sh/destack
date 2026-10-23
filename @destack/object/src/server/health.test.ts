@@ -18,7 +18,7 @@ test("stream current health and subsequent readiness changes", async () => {
             health: readiness,
             authorize: async ({ request: state }) => {
                 if (state.caller !== "alice") {
-                    throw new CallError("UNAUTHORIZED", { message: "unknown caller" });
+                    throw CallError.http("UNAUTHORIZED", { message: "unknown caller" });
                 }
             },
         },

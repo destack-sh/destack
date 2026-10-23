@@ -1,4 +1,5 @@
 import { Caller } from "@destack/access";
+import { ObjectError } from "../error/error.ts";
 import type { Deriver } from "@destack/identity";
 import { InstallationRoot } from "./root.ts";
 import { Symbolicator } from "@destack/package/stack";
@@ -12,7 +13,7 @@ import { OTLP_ORIGIN_PATH, OtlpExporter } from "@destack/telemetry/otlp";
 import type {} from "@destack/package/import-meta";
 import type { BuildReader } from "@destack/package/manifest";
 import type { PackageHandle } from "../declare/package.ts";
-import { CallError } from "../error/index.ts";
+
 import { refusal } from "../error/report.ts";
 import { Egress } from "../declare/egress.ts";
 import { PackageMount } from "../declare/mount.ts";
@@ -226,7 +227,11 @@ export class WorkloadRunner implements AsyncDisposable {
         // refuse a request without the host's secret before anything serves it
         if (request.headers.get("authorization") !== `Bearer ${this.start.secret}`) {
             return Promise.resolve(
-                refusal(new CallError("UNAUTHORIZED", { message: "invalid host secret" })),
+                refusal(
+                    new ObjectError("INVALID_HOST_SECRET", {
+                        message: "invalid host secret",
+                    }),
+                ),
             );
         }
 
@@ -270,7 +275,11 @@ export class WorkloadRunner implements AsyncDisposable {
         const served = this.#packages.get(this.#packageId);
         if (served === undefined) {
             return Promise.resolve(
-                refusal(new CallError("NOT_FOUND", { message: "no package serves routes here" })),
+                refusal(
+                    new ObjectError("NO_PACKAGE_ROUTES", {
+                        message: "no package serves routes here",
+                    }),
+                ),
             );
         }
 
@@ -365,7 +374,7 @@ export class WorkloadRunner implements AsyncDisposable {
                 declaration.kind !== binding.kind ||
                 connector === undefined
             ) {
-                throw new CallError("NOT_FOUND", {
+                throw new ObjectError("BINDING_NOT_FOUND", {
                     message: `no ${binding.kind} ${name} connecting to provider ${binding.provider}`,
                 });
             }
@@ -392,7 +401,7 @@ export class WorkloadRunner implements AsyncDisposable {
                 readonly access: { readonly authentication: string };
             }) => {
                 if (access.authentication === "machine") {
-                    throw new CallError("FORBIDDEN", {
+                    throw new ObjectError("MACHINE_PROCEDURE_REFUSED", {
                         message: "a workload cannot serve machine procedures",
                     });
                 }

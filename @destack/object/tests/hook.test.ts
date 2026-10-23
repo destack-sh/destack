@@ -863,7 +863,7 @@ test("throw a hook's failure out of its sandbox as the failure it was, caused at
         Failure.of(failed),
         cause instanceof Error ? [cause.message, cause.stack] : cause,
     ]).toEqual([
-        { code: "INTERNAL_SERVER_ERROR", message: "the card has no title" },
+        Failure.http("INTERNAL_SERVER_ERROR", "the card has no title"),
         ["the card has no title", thrown.stack],
     ]);
 });

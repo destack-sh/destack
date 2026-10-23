@@ -1,4 +1,4 @@
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
 import { defineDatabase } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
@@ -100,10 +100,11 @@ test("execute calls made against an earlier release with the fields they renamed
             },
         ],
     });
-    await expect(later).rejects.toMatchObject({
-        code: "BAD_REQUEST",
-        message: "card.update was made against release 2026.10.0 of card, but card is at 2026.9.0",
-    });
+    expect(await refusal(later)).toEqual([
+        "BAD_REQUEST",
+        "RELEASE_MISMATCH",
+        "card.update was made against release 2026.10.0 of card, but card is at 2026.9.0",
+    ]);
     const stored = await store.query(
         context.access(),
         card.call("get", { spaceId, id: created.id }),

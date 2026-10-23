@@ -111,6 +111,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
     reconcile(reconciliation: ObjectReconciliation<ResourceType<"space">>) {
         return ResourceController.#reconcile(
             this.#object,
+            this.#kind,
             nth(reconciliation.rows, 0),
             reconciliation,
             {
@@ -165,6 +166,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
     /** Reconcile one resource: provision, retire or apply, returning when to look again. */
     static async #reconcile(
         object: ResourceType<"space">,
+        kind: ResourceKind,
         row: ResourceRow,
         reconciliation: ObjectReconciliation<ResourceType<"space">>,
         options: ReconcileOptions,
@@ -182,8 +184,8 @@ export class ResourceController implements ObjectController<ResourceType<"space"
         if (row.deletedAt !== null) {
             return ResourceController.#retire(object, row, row.deletedAt, reconciliation, options);
         }
-        // observe a lent resource at its identifier below the machine's egress
-        else if (row.origin === "connection") {
+        // observe an external resource at its identifier below the machine's egress
+        else if (kind.management === "external") {
             await ResourceController.#observe(
                 object,
                 row,
@@ -192,27 +194,11 @@ export class ResourceController implements ObjectController<ResourceType<"space"
                 {
                     ready: {
                         status: "true",
-                        reason: "Lent",
+                        reason: "External",
                         message:
                             row.connection === null
-                                ? "lent from the connections each call names"
-                                : `lent from connection ${row.connection}`,
-                    },
-                },
-            );
-        }
-        // observe a resource whose stack declares its reference ready as declared
-        else if (row.origin === "declared") {
-            await ResourceController.#observe(
-                object,
-                row,
-                reconciliation,
-                {},
-                {
-                    ready: {
-                        status: "true",
-                        reason: "Declared",
-                        message: `declared at ${row.reference}`,
+                                ? "called with the connection each call names"
+                                : `called with connection ${row.connection}`,
                     },
                 },
             );

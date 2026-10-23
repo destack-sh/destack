@@ -1,10 +1,13 @@
 import { defineTable, json, type Snapshot, text, Transaction } from "@destack/db";
+import { ObjectError } from "../error/error.ts";
 import type { ResourceState } from "@destack/package/declare";
 import { Digest, present, schema, zip } from "@destack/schema";
-import { CallError } from "../error/call.ts";
+
 import type { MethodContext } from "../method/context.ts";
 import { Provisioned } from "./provisioned.ts";
 import { Execution } from "../method/execution.ts";
+
+import type {} from "@destack/package/import-meta";
 
 /** The desired states of a scope's resources, each stored once under the digest of its JSON. */
 export const desiredState = defineTable(
@@ -68,7 +71,7 @@ export const DesiredState = {
         // refuse a digest without a state in the scope
         const missing = digests.filter((digest) => !states.has(digest));
         if (missing.length > 0) {
-            throw new CallError("BAD_REQUEST", {
+            throw new ObjectError("MISSING_DESIRED_STATE", {
                 message: `${scope} has no desired states ${missing.join(", ")}`,
             });
         }

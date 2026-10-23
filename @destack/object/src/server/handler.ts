@@ -1,4 +1,5 @@
 import { context, extractContext } from "@destack/telemetry";
+import { ObjectError } from "../error/error.ts";
 import { OpenAPIHandler, type OpenAPIHandlerOptions } from "@orpc/openapi/fetch";
 import {
     type AnyProcedure,
@@ -22,12 +23,14 @@ import {
 import { Expression } from "@destack/db";
 import type { Package } from "@destack/package";
 import type { PackageHandle } from "../declare/package.ts";
-import { CallError } from "../error/index.ts";
+
 import type { Health } from "./health.ts";
 import { ProcedureContext, type ProcedureAudit } from "./procedure.ts";
 import { CallTelemetry } from "../procedure/telemetry.ts";
 import { SmartCoercionPlugin } from "@orpc/json-schema";
 import type { ConditionalSchemaConverter, JSONSchema } from "@orpc/openapi";
+
+import type {} from "@destack/package/import-meta";
 
 /** An input as a request decodes it before coercion: a JSON object. */
 const JsonInput = schema.jsonObject();
@@ -184,25 +187,25 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
 
         // require a release
         if (header === null) {
-            throw new CallError("BAD_REQUEST", {
+            throw new ObjectError("MISSING_VERSION", {
                 message: `package ${name} requires ${VERSION_HEADER}`,
             });
         }
         // refuse a header that is not a release
         else if (caller === undefined) {
-            throw new CallError("BAD_REQUEST", {
+            throw new ObjectError("INVALID_VERSION", {
                 message: `invalid ${VERSION_HEADER}: ${header}`,
             });
         }
         // refuse a release newer than this one
         else if (Version.compare(caller, version) > 0) {
-            throw new CallError("CONFLICT", {
+            throw new ObjectError("VERSION_MISMATCH", {
                 message: `package ${name} serves ${version}, but the caller uses ${caller}`,
             });
         }
         // refuse a retired release
         else if (since !== undefined && Version.compare(caller, since) < 0) {
-            throw new CallError("CONFLICT", {
+            throw new ObjectError("VERSION_RETIRED", {
                 message: `package ${name} no longer serves releases before ${since}`,
             });
         }
@@ -227,7 +230,7 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
         // require a decoded JSON object input and assign each release's fields in order
         const decoded = JsonInput.safeParse(input);
         if (!decoded.success) {
-            throw new CallError("BAD_REQUEST", {
+            throw new ObjectError("INVALID_CONVERSION", {
                 message: "a converted input must be a JSON object",
             });
         }

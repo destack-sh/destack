@@ -147,12 +147,12 @@ defineObject({
 
 ## Declarations
 
-A declarable type takes stack declarations as its create input: the key fills a field from the declaration's name, and references take declared names.
+A durable type with a `create` method takes stack declarations as its create input: the declaration's name fills its `name` field, and `references` take declared names.
 
 ```ts
 const badge = defineObject({
     ...definition,
-    declarable: { from: "create", key: "label", references: { tagId: tag, holder: "subject" } },
+    references: { tagId: tag, holder: "subject" },
 });
 
 const badges: Record<string, StackInputOf<typeof badge>> = {

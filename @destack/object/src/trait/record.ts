@@ -1,15 +1,21 @@
-import { accessRelationship } from "@destack/access";
-import { type Column, identifier, index, integer, json, text } from "@destack/db";
+import { accessRelationship, Manager } from "@destack/access";
+import {
+    type Column,
+    type ColumnBuilder,
+    identifier,
+    index,
+    integer,
+    json,
+    type Table,
+    type TableColumnMap,
+    text,
+} from "@destack/db";
 import { eventColumns } from "@destack/event";
-import { Field } from "../field/field.ts";
+import { Field, type FieldColumn } from "../field/field.ts";
+import { TagMap } from "@destack/resource";
 import { present, schema } from "@destack/schema";
 import { ObjectType, type ObjectStorage } from "../object/object.ts";
 import type { Trait } from "./trait.ts";
-
-/** User-defined labels indexed by name. */
-export const TagMap = schema.record(schema.string().min(1).max(128), schema.string().max(256));
-/** User-defined labels indexed by name. */
-export type TagMap = schema.Infer<typeof TagMap>;
 
 /** Declare the columns every record has. */
 export function recordColumns<const Prefix extends string>(prefix: Prefix) {
@@ -43,6 +49,30 @@ export function recordColumns<const Prefix extends string>(prefix: Prefix) {
     };
 }
 
+/** Declare the columns of a durable record's manager: the declaration managing it, if any. */
+export function managedColumns() {
+    return {
+        /** The installation that applied the declaration managing the record, null for none. */
+        managerInstallationId: identifier("manager_installation_id", "installation"),
+        /** The package declaring the record. */
+        managerPackageId: identifier("manager_package_id", "package"),
+        /** The declaration's name within the declaring package. */
+        managerName: text("manager_name"),
+        /** The time the declaration stopped managing the record, null while managed. */
+        detachedAt: integer("detached_at"),
+    };
+}
+
+/** The columns of a declared record in any table: identity, revision and manager. */
+type ManagedColumns = TableColumnMap<
+    Pick<RecordBuilderMap, "id" | "createdAt" | "updatedAt" | "revision"> & {
+        scope: ColumnBuilder<FieldColumn<string, true, false>>;
+    } & ReturnType<typeof managedColumns>
+>;
+
+/** A table of declared records, a derived object's or another package's. */
+export type ManagedTable = Table<string, ManagedColumns> & ManagedColumns;
+
 /** Declare the identifier column of objects identified by their natural key. */
 export function naturalKeyColumn<Key extends schema.Schema<string>>(key: Key) {
     return Field.validated("id", key).primaryKey();
@@ -65,8 +95,13 @@ export type RecordBuilderMap<
     : Key extends schema.Schema<string>
       ? Omit<ReturnType<typeof recordColumns<Prefix>>, "id"> & {
             readonly id: ReturnType<typeof naturalKeyColumn<Key>>;
-        }
-      : ReturnType<typeof recordColumns<Prefix>>;
+        } & ManagedBuilderMap<Storage>
+      : ReturnType<typeof recordColumns<Prefix>> & ManagedBuilderMap<Storage>;
+
+/** The columns of a durable record's manager. */
+type ManagedBuilderMap<Storage> = Storage extends "durable"
+    ? ReturnType<typeof managedColumns>
+    : {};
 
 /** Declare the column with an ephemeral object's writer. */
 export function writerColumns() {
@@ -94,27 +129,35 @@ export const record: Trait<ObjectStorage> & {
                   ...recordColumns(object.identity),
                   ...(object.key === undefined ? {} : { id: naturalKeyColumn(object.key) }),
                   ...(object.storage === "ephemeral" ? writerColumns() : {}),
+                  ...(object.storage === "durable" ? managedColumns() : {}),
               },
-    // index the event log by time, and by each key without a map
+    // check a durable record's manager, and index the event log by time and by each key without a map
     constraints: (storage, table, columns) =>
-        storage !== "events"
-            ? []
-            : [
-                  index(`${table}_time`).on(
-                      present(columns["scope"], "the scope column"),
-                      present(columns["time"], "the time column"),
-                      present(columns["id"], "the identity column"),
-                  ),
-                  ...Object.entries(columns)
-                      .filter(([name, column]) => record.isKeyColumn(name, column))
-                      .map(([, column]) =>
-                          index(`${table}_${column.definition.name}`).on(
-                              present(columns["scope"], "the scope column"),
-                              column,
-                              present(columns["time"], "the time column"),
-                          ),
-                      ),
-              ],
+        storage === "durable"
+            ? Manager.constraints(table, {
+                  managerInstallationId: present(columns["managerInstallationId"], "the manager"),
+                  managerPackageId: present(columns["managerPackageId"], "the manager package"),
+                  managerName: present(columns["managerName"], "the manager name"),
+                  detachedAt: present(columns["detachedAt"], "the detachment"),
+              })
+            : storage !== "events"
+              ? []
+              : [
+                    index(`${table}_time`).on(
+                        present(columns["scope"], "the scope column"),
+                        present(columns["time"], "the time column"),
+                        present(columns["id"], "the identity column"),
+                    ),
+                    ...Object.entries(columns)
+                        .filter(([name, column]) => record.isKeyColumn(name, column))
+                        .map(([, column]) =>
+                            index(`${table}_${column.definition.name}`).on(
+                                present(columns["scope"], "the scope column"),
+                                column,
+                                present(columns["time"], "the time column"),
+                            ),
+                        ),
+                ],
     // cascade durable objects' relationships
     table: (_options, object) =>
         object.storage !== "durable"

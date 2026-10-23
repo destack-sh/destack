@@ -1,11 +1,12 @@
 import { present } from "@destack/schema";
+import { ObjectError } from "../error/error.ts";
 import type { Authentication } from "@destack/access";
 import type { ResourceContext } from "@destack/resource/context";
 import { Server, type ServerOptions, type PackageHandler } from "../server/index.ts";
 import type { PackageHandle } from "../declare/package.ts";
 import { type Alarm, AlarmClock } from "@destack/db";
 import { Health } from "../server/health.ts";
-import { CallError } from "../error/index.ts";
+
 import type {
     EphemeralHost,
     HookHandler,
@@ -17,6 +18,8 @@ import type {
 import { CallKey } from "../audit/key.ts";
 import type { Hibernation, SocketHandler } from "./socket.ts";
 import type { Clock } from "@destack/environment";
+
+import type {} from "@destack/package/import-meta";
 
 /** A running workload instance, serving its current start. */
 export class WorkloadInstance implements AsyncDisposable {
@@ -330,7 +333,9 @@ class WorkloadStart {
     /** What the start does with its hibernated sockets' events, refusing a start without them. */
     requireSocketHandler(): SocketHandler {
         if (this.#sockets === undefined) {
-            throw new CallError("NOT_FOUND", { message: "the workload has no socket handler" });
+            throw new ObjectError("NO_SOCKET_HANDLER", {
+                message: "the workload has no socket handler",
+            });
         }
 
         return this.#sockets;
@@ -339,7 +344,9 @@ class WorkloadStart {
     /** What the start does with its store's hook requests, refusing a start serving none. */
     requireHookHandler(): HookHandler {
         if (this.#hooks === undefined) {
-            throw new CallError("NOT_FOUND", { message: "the workload has no hooks" });
+            throw new ObjectError("NO_HOOKS", {
+                message: "the workload has no hooks",
+            });
         }
 
         return this.#hooks;
@@ -348,7 +355,9 @@ class WorkloadStart {
     /** What the start does with its webhook deliveries, refusing a start receiving none. */
     requireWebhookHandler(): WebhookHandler {
         if (this.#webhooks === undefined) {
-            throw new CallError("NOT_FOUND", { message: "the workload receives no webhooks" });
+            throw new ObjectError("NO_WEBHOOKS", {
+                message: "the workload receives no webhooks",
+            });
         }
 
         return this.#webhooks;
@@ -375,7 +384,7 @@ class WorkloadStart {
         // require the package
         const server = this.#packages.get(handle.id)?.server;
         if (!server) {
-            throw new CallError("NOT_FOUND", {
+            throw new ObjectError("UNKNOWN_PACKAGE", {
                 message: `unknown workload package: ${handle.name}`,
             });
         }

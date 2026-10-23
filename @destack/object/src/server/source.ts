@@ -1,3 +1,4 @@
+import { ObjectError } from "../error/error.ts";
 import {
     AccessContext,
     accessRelationship,
@@ -44,6 +45,8 @@ import { Authorization } from "./authorization.ts";
 import { EphemeralStorage } from "./ephemeral.ts";
 import { ObjectAudience } from "./audience.ts";
 import type { ObjectStore } from "./store.ts";
+
+import type {} from "@destack/package/import-meta";
 
 /** The largest broadcast event, in bytes: 16 KiB, far above the tens of bytes a cursor takes. */
 const BROADCAST_BYTES = 16 * 1024;
@@ -283,7 +286,7 @@ export class ObjectSource {
         ) {
             return { context };
         } else if (resident.length === 0) {
-            throw new CallError("FORBIDDEN", {
+            throw new ObjectError("FOLLOWER_OUTSIDE_TARGET", {
                 message: `only ${request.target} and its contents can follow the replicas held for it`,
             });
         }
@@ -315,7 +318,9 @@ export class ObjectSource {
     static #principal(context: RequestContext): Subject {
         const caller = context.caller();
         if (Caller.isAnonymous(caller)) {
-            throw new CallError("UNAUTHORIZED", { message: "missing caller credential" });
+            throw new ObjectError("MISSING_CREDENTIAL", {
+                message: "missing caller credential",
+            });
         }
 
         return Caller.principal(caller);
@@ -332,7 +337,7 @@ export class ObjectSource {
         // require a principal type its followers declare
         const policy = this.store.authorizer.policy(subject);
         if (!Object.hasOwn(policy.definition.permissions, FOLLOW)) {
-            throw new CallError("FORBIDDEN", {
+            throw new ObjectError("NO_FOLLOWERS", {
                 message: `a ${subject.type} has no followers`,
             });
         }
@@ -385,7 +390,7 @@ export class ObjectSource {
         }
         const [first] = granting;
         if (first === undefined) {
-            throw new CallError("FORBIDDEN", {
+            throw new ObjectError("NO_CHAIN_REPLICAS", {
                 message: `a ${scope.type} has no replicas of its chain`,
             });
         }
@@ -527,7 +532,10 @@ export class ObjectSource {
                 const { action, values } = object.auditCall("watch", {}, scope);
 
                 return this.store
-                    .audit(scope, context.access(scope), { requestId: context.requestId })
+                    .audit(scope, context.access(scope), {
+                        package: object.package,
+                        requestId: context.requestId,
+                    })
                     .stream(action, values, source);
             },
             () => follow(this.store.feed),
@@ -791,7 +799,7 @@ export class ObjectSource {
         // require a small event and a reader
         const store = this.store.requireEphemeral();
         if (new TextEncoder().encode(JSON.stringify(event)).length > BROADCAST_BYTES) {
-            throw new CallError("BAD_REQUEST", {
+            throw new ObjectError("BROADCAST_TOO_LARGE", {
                 message: `a broadcast has at most ${BROADCAST_BYTES} bytes`,
             });
         }
@@ -803,7 +811,9 @@ export class ObjectSource {
             context.access(scope),
         );
         if (!(await this.#lists(authorization, reference))) {
-            throw new CallError("NOT_FOUND", { message: `no ${target.type} ${target.id}` });
+            throw CallError.http("NOT_FOUND", {
+                message: `no ${target.type} ${target.id}`,
+            });
         }
 
         // send it to the scope's streams
@@ -833,7 +843,9 @@ export class ObjectSource {
     publication(request: Pick<sync.Subscription, "publication">): sync.Publication {
         const publication = this.publications.get(request.publication);
         if (publication === undefined) {
-            throw new CallError("NOT_FOUND", { message: `no publication ${request.publication}` });
+            throw new ObjectError("PUBLICATION_NOT_FOUND", {
+                message: `no publication ${request.publication}`,
+            });
         }
 
         return publication;
@@ -865,7 +877,7 @@ export class ObjectSource {
         }
         // refuse a scope with no home or replica here
         else {
-            throw new CallError("NOT_FOUND", {
+            throw new ObjectError("NO_HOME_OR_REPLICA", {
                 message: `${watermark.scope} has no home or replica here`,
             });
         }
@@ -972,7 +984,7 @@ export class ObjectSource {
         const claimed = chain?.scopes ?? [];
         const foreign = claimed.find((scope) => !scopes.has(scope));
         if (foreign !== undefined) {
-            throw new CallError("NOT_FOUND", {
+            throw new ObjectError("SCOPE_NOT_CONTAINED", {
                 message: `${foreign} does not contain ${request.target}`,
             });
         }
@@ -994,7 +1006,7 @@ export class ObjectSource {
 
         // require the replicated scope to contain the follower's
         if (!scopes.has(request.scope)) {
-            throw new CallError("NOT_FOUND", {
+            throw new ObjectError("SCOPE_NOT_CONTAINED", {
                 message: `${request.scope} does not contain ${request.target}`,
             });
         }
@@ -1014,7 +1026,7 @@ export class ObjectSource {
         for (const [relay, links] of chains) {
             const ids = links.map((link) => link.object.id);
             if (!ids.includes(scope)) {
-                throw new CallError("NOT_FOUND", {
+                throw new ObjectError("SCOPE_NOT_CONTAINED", {
                     message: `${scope} does not contain ${relay}`,
                 });
             }
@@ -1026,7 +1038,7 @@ export class ObjectSource {
         // require each scope between to contain a replicated scope
         const outside = between.find((id) => !scopes.has(id));
         if (outside !== undefined) {
-            throw new CallError("NOT_FOUND", {
+            throw new ObjectError("SCOPE_NOT_CONTAINED", {
                 message: `${outside} contains none of the replicated scopes`,
             });
         }
@@ -1041,7 +1053,7 @@ export class ObjectSource {
         const scope = await Scope.object(Snapshot.live(database), via);
         const policy = this.store.authorizer.policy(scope);
         if (!Object.hasOwn(policy.definition.permissions, REPLICATE)) {
-            throw new CallError("FORBIDDEN", {
+            throw new ObjectError("NO_CHAIN_REPLICAS", {
                 message: `a ${scope.type} has no replicas of its chain`,
             });
         }

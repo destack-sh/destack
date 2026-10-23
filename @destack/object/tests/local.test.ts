@@ -250,9 +250,9 @@ test("serve a device's local objects at its store to the people signed in on it 
         bobLists: await list(callers.bob),
     }).toEqual({
         adaWrites: "done",
-        bobWrites: ["NOT_FOUND", "sticky not found"],
+        bobWrites: ["NOT_FOUND", "NOT_FOUND", "sticky not found"],
         adaLists: ["Water the plants"],
-        bobLists: ["NOT_FOUND", `no scope ${laptop.id}`],
+        bobLists: ["NOT_FOUND", "SCOPE_NOT_FOUND", `no scope ${laptop.id}`],
     });
 });
 
@@ -271,8 +271,8 @@ async function readLocal(access: ObjectAccess<{ draft: typeof draft; panel: type
     return rows;
 }
 
-/** Read a call's refusal as its code and message. */
-function readRefusal(error: unknown): Promise<"done" | readonly [string, string]> {
+/** Read a call's refusal as its code, reason and message. */
+function readRefusal(error: unknown): Promise<"done" | readonly [string, string, string]> {
     return refusal(Promise.reject(error));
 }
 

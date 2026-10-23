@@ -1,5 +1,7 @@
 import { schema } from "@destack/schema";
-import { CallError } from "../error/call.ts";
+import { ObjectError } from "../error/error.ts";
+
+import type {} from "@destack/package/import-meta";
 
 /** The rows a page returns unless a list asks for another number. */
 export const DEFAULT_PAGE_LIMIT = 50;
@@ -26,7 +28,7 @@ export class Page<Position extends schema.Schema> {
         this.scope = scope;
         this.limit = input.limit ?? DEFAULT_PAGE_LIMIT;
         if (!Number.isInteger(this.limit) || this.limit < 1 || this.limit > MAX_PAGE_LIMIT) {
-            throw new CallError("BAD_REQUEST", {
+            throw new ObjectError("INVALID_PAGE_LIMIT", {
                 message: `page limit must be between 1 and ${MAX_PAGE_LIMIT}`,
             });
         }
@@ -40,12 +42,14 @@ export class Page<Position extends schema.Schema> {
                     .parse(JSON.parse(input.cursor));
                 this.after = position.parse(cursor.after);
             } catch {
-                throw new CallError("BAD_REQUEST", { message: "invalid collection cursor" });
+                throw new ObjectError("INVALID_CURSOR", {
+                    message: "invalid collection cursor",
+                });
             }
 
             // reject a cursor of another scope
             if (JSON.stringify(cursor.scope) !== JSON.stringify(scope)) {
-                throw new CallError("BAD_REQUEST", {
+                throw new ObjectError("INVALID_CURSOR", {
                     message: "cursor belongs to another collection",
                 });
             }

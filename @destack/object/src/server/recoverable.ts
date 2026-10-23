@@ -12,7 +12,7 @@ import {
     TABLE,
 } from "@destack/db";
 import type { ObjectOf, ObjectType } from "../object/object.ts";
-import type { Controller, Reconciliation, Table } from "@destack/db";
+import type { ReconcileController, Reconciliation, Table } from "@destack/db";
 import type { ObjectStore } from "./store.ts";
 
 import type { RecoverableDefinition } from "../trait/recoverable.ts";
@@ -32,7 +32,7 @@ interface RecoverableObject {
 }
 
 /** Purge deleted objects as their recovery windows end, scheduling the next window's end. */
-export class RecoverableController implements Controller {
+export class RecoverableController implements ReconcileController {
     /** The controller's name. */
     readonly name = PURGE;
     /** The tables of the recoverable objects. */

@@ -1,11 +1,10 @@
 import { ObjectReference, RequestId } from "@destack/sync";
 import { users } from "./fixture/user.ts";
 import { implementPackage, ObjectStore } from "../src/server/index.ts";
-import { expect, expectTypeOf, onTestFinished, test } from "@destack/test";
+import { expect, expectTypeOf, onTestFinished, refusal, test } from "@destack/test";
 import { TestDatabase } from "@destack/db/test";
 import { Package } from "@destack/package";
 import { schema, type Identifier } from "@destack/schema";
-import { createClient } from "@destack/object/client";
 import { CallError } from "@destack/object";
 import { v7 } from "uuid";
 import { project, task, tasksDatabase, tasksPackage } from "./fixture/task.ts";
@@ -40,13 +39,7 @@ test("plan a project with its members, assignees, guarded budgets and comments",
         }),
     );
     onTestFinished(() => served[Symbol.asyncDispose]());
-    const server = served.server(tasksPackage);
-    const as = (caller: Identifier<"user">) =>
-        createClient(tasksPackage, {
-            url: "https://tasks.test",
-            headers: { authorization: `Bearer ${caller}` },
-            fetch: (request: Request) => server.fetch(request),
-        });
+    const as = (caller: Identifier<"user">) => served.as(caller).client(tasksPackage);
     const alice = as(users.alice);
     const bob = as(users.bob);
     const carol = as(users.carol);
@@ -80,19 +73,22 @@ test("plan a project with its members, assignees, guarded budgets and comments",
     const assigned = await bob.task.get({ spaceId, id: announce.id });
     expect([assigned.title, "budget" in assigned]).toEqual(["Write the announcement", false]);
     await bob.task.start({ spaceId, id: announce.id, requestId: RequestId.create(Date.now()) });
-    await expect(
-        bob.task.update({
-            spaceId,
-            id: announce.id,
-            requestId: RequestId.create(Date.now()),
-            revision: 2,
-            title: "Rename",
-        }),
-    ).rejects.toMatchObject({ code: "FORBIDDEN", message: "permission denied: plan" });
-    await expect(bob.project.get({ spaceId, id: launch.id })).rejects.toMatchObject({
-        code: "NOT_FOUND",
-        message: `no project ${launch.id}`,
-    });
+    expect(
+        await refusal(
+            bob.task.update({
+                spaceId,
+                id: announce.id,
+                requestId: RequestId.create(Date.now()),
+                revision: 2,
+                title: "Rename",
+            }),
+        ),
+    ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: plan"]);
+    expect(await refusal(bob.project.get({ spaceId, id: launch.id }))).toEqual([
+        "NOT_FOUND",
+        "NOT_FOUND",
+        `no project ${launch.id}`,
+    ]);
 
     // let a user ask to join, and plan once the owner accepts
     const asked = await carol.project.invite({
@@ -126,15 +122,17 @@ test("plan a project with its members, assignees, guarded budgets and comments",
         parentId: launch.id,
         title: "Book the venue",
     });
-    await expect(
-        carol.task.update({
-            spaceId,
-            id: announce.id,
-            requestId: RequestId.create(Date.now()),
-            revision: 2,
-            budget: 900,
-        }),
-    ).rejects.toMatchObject({ code: "FORBIDDEN", message: "field budget is not writable" });
+    expect(
+        await refusal(
+            carol.task.update({
+                spaceId,
+                id: announce.id,
+                requestId: RequestId.create(Date.now()),
+                revision: 2,
+                budget: 900,
+            }),
+        ),
+    ).toEqual(["FORBIDDEN", "FIELD_NOT_WRITABLE", "field budget is not writable"]);
 
     // let everyone reading a task comment on it
     await bob.comment.create({
@@ -172,17 +170,19 @@ test("plan a project with its members, assignees, guarded budgets and comments",
 
     // refuse requests for another space than the caller authenticated for
     const elsewhere = schema.identifier("space").parse(`space-${v7()}`);
-    await expect(alice.project.get({ spaceId: elsewhere, id: launch.id })).rejects.toMatchObject({
-        code: "NOT_FOUND",
-        message: `scope ${elsewhere} is outside the request's scope`,
-    });
+    expect(await refusal(alice.project.get({ spaceId: elsewhere, id: launch.id }))).toEqual([
+        "NOT_FOUND",
+        "SCOPE_OUTSIDE_REQUEST",
+        `scope ${elsewhere} is outside the request's scope`,
+    ]);
 
     // hide the project from users with no relation to it
     expect((await dave.project.list({ spaceId })).items).toEqual([]);
-    await expect(dave.task.get({ spaceId, id: announce.id })).rejects.toMatchObject({
-        code: "NOT_FOUND",
-        message: `no task ${announce.id}`,
-    });
+    expect(await refusal(dave.task.get({ spaceId, id: announce.id }))).toEqual([
+        "NOT_FOUND",
+        "NOT_FOUND",
+        `no task ${announce.id}`,
+    ]);
 });
 
 test("serve a handled type in place of the package's type", async () => {
@@ -194,7 +194,7 @@ test("serve a handled type in place of the package's type", async () => {
     const frozen = project.implement({
         methods: {
             create: async () => {
-                throw new CallError("CONFLICT", { message: "projects are frozen" });
+                throw CallError.http("CONFLICT", { message: "projects are frozen" });
             },
         },
     });
@@ -211,15 +211,10 @@ test("serve a handled type in place of the package's type", async () => {
         }),
     );
     onTestFinished(() => served[Symbol.asyncDispose]());
-    const server = served.server(tasksPackage);
-    const alice = createClient(tasksPackage, {
-        url: "https://tasks.test",
-        headers: { authorization: `Bearer ${users.alice}` },
-        fetch: (request: Request) => server.fetch(request),
-    });
+    const alice = served.as(users.alice).client(tasksPackage);
     await expect(
         alice.project.create({ spaceId, requestId: RequestId.create(Date.now()), name: "Launch" }),
-    ).rejects.toEqual(new CallError("CONFLICT", { defined: true, message: "projects are frozen" }));
+    ).rejects.toEqual(CallError.http("CONFLICT", { message: "projects are frozen" }));
 });
 
 /** Reference a user principal by identifier. */

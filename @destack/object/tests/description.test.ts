@@ -283,6 +283,7 @@ test("describe fields and methods as the calls written, types by reference, kind
                     name: "box",
                     spec: toJsonSchema(BoxKind.spec),
                     state: null,
+                    management: "internal",
                 },
             },
         },

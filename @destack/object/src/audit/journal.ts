@@ -8,6 +8,7 @@ import {
     inArray,
     type DatabaseConnection,
     type TransactionOptions,
+    type ReconcileController,
 } from "@destack/db";
 import { type EventKind, type EventStore, EventTime } from "@destack/event";
 import { canonicalize, Digest, Duration } from "@destack/schema";
@@ -19,7 +20,7 @@ import {
     ObjectReference,
     type Outcome,
 } from "@destack/sync";
-import type { Controller } from "@destack/db";
+
 import { ObjectError } from "../error/index.ts";
 import { call } from "./call.ts";
 import { AuditCaller } from "./actor.ts";
@@ -27,6 +28,7 @@ import { CallEvent, type JournalEntry, MAX_EXECUTION_BYTES } from "./execution.t
 import { Replay } from "./replay.ts";
 import { journal } from "../stack/db.ts";
 import { Clock } from "@destack/environment";
+import type {} from "@destack/package/import-meta";
 
 /** The most calls one prune removes: about a millisecond of deletes. */
 const MAX_PRUNE_CALLS = 1000;
@@ -116,7 +118,9 @@ export class Journal {
             new TextEncoder().encode(canonicalize(Journal.recorded(entry))).byteLength >
             MAX_EXECUTION_BYTES
         ) {
-            throw new ObjectError("INVALID_CALL", `call exceeds ${MAX_EXECUTION_BYTES} bytes`);
+            throw new ObjectError("INVALID_CALL", {
+                message: `call exceeds ${MAX_EXECUTION_BYTES} bytes`,
+            });
         }
 
         // record in the caller's transaction, or in a separate one of the journal
@@ -260,10 +264,9 @@ export class Journal {
             .from(journal)
             .where(eq(journal.id, entry.execution.id));
         if (existing === undefined || canonicalize(existing.call) !== canonicalize(entry)) {
-            throw new ObjectError(
-                "CONFLICT",
-                `call ${entry.execution.id} has conflicting contents`,
-            );
+            throw new ObjectError("CALL_CONTENTS_DIFFER", {
+                message: `call ${entry.execution.id} has conflicting contents`,
+            });
         }
     }
 
@@ -348,7 +351,7 @@ export class Journal {
     }
 
     /** Remove the calls past their request's retry lifetime as they expire. */
-    controller(): Controller {
+    controller(): ReconcileController {
         return {
             name: "journal",
             watches: [],
@@ -399,7 +402,7 @@ export class Journal {
     static #replay(calls: readonly JournalEntry[], fingerprint: string): unknown[] {
         // refuse other input
         if (calls.some((entry) => entry.execution.digest !== fingerprint)) {
-            throw new CallError("CONFLICT", {
+            throw new ObjectError("REQUEST_REUSED", {
                 message: "request identifier has already been used",
             });
         }

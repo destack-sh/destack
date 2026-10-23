@@ -1,11 +1,14 @@
 import { type Condition, FindOptions, type Relation, Relations } from "@destack/db";
+import { ObjectError } from "../error/error.ts";
 import { Scope, type Query } from "@destack/sync";
-import { CallError } from "../error/call.ts";
+
 import { present } from "@destack/schema";
 import type { ObjectQuery } from "../replica/replica.ts";
 import type { ObjectType } from "../object/object.ts";
 import { CHUNKS } from "../text/chunk.ts";
 import { ObjectSearch } from "../trait/search.ts";
+
+import type {} from "@destack/package/import-meta";
 
 /** Compile object queries of a scope chain, nearest first, into queries of their tables. */
 export function compileQueries(
@@ -25,7 +28,9 @@ export function compileQueries(
             const { object: objectName, scopes, ...options } = query;
             const object = objects.find((entry) => entry.name === objectName);
             if (!object) {
-                throw new CallError("BAD_REQUEST", { message: `no object ${objectName}` });
+                throw new ObjectError("UNKNOWN_OBJECT", {
+                    message: `no object ${objectName}`,
+                });
             }
             // read every scope's rows, each decided by its access
             else if (scopes === "every") {
@@ -33,7 +38,7 @@ export function compileQueries(
             }
             // refuse a type of another scope level
             else if ((object.scope === Scope.universe.id) !== isGlobal) {
-                throw new CallError("BAD_REQUEST", {
+                throw new ObjectError("SCOPE_MISMATCH", {
                     message: `object ${objectName} is not in scope ${scope}`,
                 });
             }
@@ -55,7 +60,7 @@ export function compile(
     // refuse a permission the type does not declare
     const { permission, ...found } = options;
     if (permission !== undefined && !object.permissions.includes(permission)) {
-        throw new CallError("BAD_REQUEST", {
+        throw new ObjectError("UNKNOWN_PERMISSION", {
             message: `object ${object.name} has no permission ${permission}`,
         });
     }
@@ -81,7 +86,7 @@ export function related(
             ? undefined
             : objects.find((entry) => entry.table === relation.table);
     if (relation === undefined || target === undefined) {
-        throw new CallError("BAD_REQUEST", {
+        throw new ObjectError("UNKNOWN_INCLUDE", {
             message: `object ${object.name} has no include named ${name}`,
         });
     }
@@ -156,11 +161,15 @@ const QueryDerivation = {
     ): FindOptions {
         // require a listed object type, and trash selection at the root only
         if (object.listing === undefined) {
-            throw new CallError("BAD_REQUEST", { message: `object ${object.name} is not listed` });
+            throw new ObjectError("UNLISTED", {
+                message: `object ${object.name} is not listed`,
+            });
         } else if (options.deleted !== undefined && object.lifecycle.recoverable === undefined) {
-            throw new CallError("BAD_REQUEST", { message: `object ${object.name} has no trash` });
+            throw new ObjectError("NO_TRASH", {
+                message: `object ${object.name} has no trash`,
+            });
         } else if (options.deleted !== undefined && !isRoot) {
-            throw new CallError("BAD_REQUEST", {
+            throw new ObjectError("INCLUDED_TRASH", {
                 message: `included ${object.name} objects cannot select their trash`,
             });
         }

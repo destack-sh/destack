@@ -265,7 +265,7 @@ test("follow a person's mentions on their behalf as the home they relate, and re
     // decide the home's page for alice alone, and refuse a space alice does not relate
     expect(await first(as(home))).toEqual([["insert", alice.id]]);
     await expect(first(as(stranger))).rejects.toThrow(
-        new AccessError("FORBIDDEN", "permission denied: follow"),
+        new AccessError("PERMISSION_DENIED", "permission denied: follow"),
     );
 });
 
@@ -349,7 +349,10 @@ test("allow a home's follow on its person's behalf with a token bound to the fol
     expect([
         await first(bound([{ ...alice, relation: "home" }])),
         await refusal(first(bound([]))),
-    ]).toEqual([[["insert", alice.id]], ["FORBIDDEN", "permission denied: follow"]]);
+    ]).toEqual([
+        [["insert", alice.id]],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: follow"],
+    ]);
 });
 
 test("refuse an anonymous follower of a subject's shape as unauthenticated, and another subject as forbidden", async () => {
@@ -390,8 +393,8 @@ test("refuse an anonymous follower of a subject's shape as unauthenticated, and 
 
     // ask the anonymous follower to authenticate, and deny the authenticated stranger
     expect([await refusal(first(anonymous)), await refusal(first(stranger))]).toEqual([
-        ["UNAUTHORIZED", "missing caller credential"],
-        ["FORBIDDEN", "permission denied: follow"],
+        ["UNAUTHORIZED", "MISSING_CREDENTIAL", "missing caller credential"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: follow"],
     ]);
 });
 
@@ -436,6 +439,7 @@ test("refuse a follow with malformed chain parameters as a bad request", async (
     // refuse the parameters as the follower's bad input, listing the missing fields
     expect(await refusal(pages.next())).toEqual([
         "BAD_REQUEST",
+        "INVALID_INPUT",
         "invalid input: scopes: invalid input: expected array, received undefined; types: invalid input: expected array, received undefined; via: invalid input: expected array, received undefined; between: invalid input: expected array, received undefined",
     ]);
 });
@@ -524,7 +528,11 @@ test("answer a replicated type's query over its replica rows, and refuse its mut
         ),
     }).toEqual({
         described: { title: "Atlas" },
-        renamed: ["CONFLICT", "realm rows are replicas here, so send their changes to their home"],
+        renamed: [
+            "CONFLICT",
+            "REPLICA_WRITE",
+            "realm rows are replicas here, so send their changes to their home",
+        ],
     });
 });
 
@@ -668,7 +676,7 @@ test("replicate only the rows a query's permission allows, drop a row once the f
     expect([first, second, undeclared]).toEqual([
         [["insert", lent.id]],
         [["delete", lent.id]],
-        ["BAD_REQUEST", "object loan has no permission lend"],
+        ["BAD_REQUEST", "UNKNOWN_PERMISSION", "object loan has no permission lend"],
     ]);
 });
 

@@ -1,16 +1,19 @@
 import { type Listener, Network } from "@destack/environment";
+import { ObjectError } from "../error/error.ts";
 import { type HibernationHost, SOCKET_HEADER } from "../workload/socket.ts";
 import { readBuild } from "@destack/package/bun";
 
 import { observeProcess, startTelemetry } from "@destack/telemetry/bun";
 import type { Telemetry, TelemetryOptions } from "@destack/telemetry/sdk";
-import { CallError } from "../error/index.ts";
+
 import {
     type RunnerOptions,
     type WorkloadReady,
     WorkloadRunner,
     WorkloadStart,
 } from "../workload/index.ts";
+
+import type {} from "@destack/package/import-meta";
 
 /** A request handler served on a network interface's port or on a Unix socket. */
 export type BunEndpoint = (
@@ -125,7 +128,9 @@ export async function runWorkload(
     // read the host's start
     const first = await lines.next();
     if (first.done === true) {
-        throw new CallError("BAD_REQUEST", { message: "the host sent no start" });
+        throw new ObjectError("MISSING_START", {
+            message: "the host sent no start",
+        });
     }
     const start = WorkloadStart.parse(JSON.parse(first.value));
 

@@ -1,3 +1,4 @@
+import { ObjectError } from "../error/error.ts";
 import {
     and,
     check,
@@ -25,8 +26,10 @@ import {
 } from "@destack/db";
 import { canonicalize, Identifier, Instant, present, schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
-import { CallError } from "../error/call.ts";
+
 import { ObjectKey, ObjectType, type ObjectIndex } from "../object/object.ts";
+
+import type {} from "@destack/package/import-meta";
 
 /** How long a reservation waits for its write to commit: a minute, above any write. */
 export const RESERVATION_MILLISECONDS = 60_000;
@@ -88,6 +91,11 @@ export const Claim = Object.assign(claim, {
             type.indexes[name]?.namespace ??
             `${type.policy.definition.packageId}/${type.name}/${name}`
         );
+    },
+
+    /** Read a claim's indexed values from its key, without the scope it is unique within. */
+    values(claimed: Pick<Claim, "key">): unknown[] {
+        return schema.array(schema.unknown()).parse(JSON.parse(claimed.key)).slice(1);
     },
 
     /** Key values in one of a type's indexes, within the scope the index is unique across. */
@@ -418,7 +426,7 @@ export const Claim = Object.assign(claim, {
             (link) => link.object.packageId === packageId && link.object.type === name,
         );
         if (enclosing === undefined) {
-            throw new CallError("PRECONDITION_FAILED", {
+            throw new ObjectError("NO_ENCLOSING_SCOPE", {
                 message: `scope ${scope} has no enclosing ${name}`,
             });
         }
@@ -505,7 +513,7 @@ export const Claimant = Object.assign(claimant, {
             (entry) => entry.objectId !== claimed.objectId || entry.owner !== claimed.owner,
         );
         if (stranger !== undefined) {
-            throw new CallError("BAD_REQUEST", {
+            throw new ObjectError("FOREIGN_CLAIM", {
                 message: `claim ${stranger.index} is not a name of ${claimed.objectId} in ${claimed.owner}`,
             });
         }

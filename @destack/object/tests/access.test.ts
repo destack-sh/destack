@@ -1,8 +1,9 @@
 import { users, userName } from "./fixture/user.ts";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, single, test } from "@destack/test";
 import {
     AccessContext,
     accessGrant,
+    accessRelationship,
     accessRole,
     Authorization,
     Caller,
@@ -10,7 +11,7 @@ import {
     principal,
     Relationship,
 } from "@destack/access";
-import { defineDatabase, Transaction } from "@destack/db";
+import { defineDatabase, eq, Transaction } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
 
@@ -143,6 +144,31 @@ test("follow a space's roles and members as the owner defines and binds them", a
         [["destack__access__relationship", "insert", "member"]],
         true,
         false,
+    ]);
+
+    // read the role back with its permissions, and the binding as granted
+    const bound = single(
+        await database
+            .select()
+            .from(accessRelationship)
+            .where(eq(accessRelationship.roleId, reviewer.id)),
+    );
+    expect([
+        await store.query(context.access(), role.call("get", { scope: SPACE_ID, id: reviewer.id })),
+        await store.query(
+            context.access(),
+            relationship.call("get", { scope: SPACE_ID, id: bound.id }),
+        ),
+    ]).toEqual([
+        {
+            id: reviewer.id,
+            scope: SPACE_ID,
+            name: "reviewer",
+            description: "Reviews the space",
+            permissions: [],
+            revision: reviewer.revision,
+        },
+        Relationship.decode(bound),
     ]);
 });
 

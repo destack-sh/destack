@@ -1,8 +1,9 @@
 import { schema, type JsonValue } from "@destack/schema";
+import { ObjectError } from "../error/error.ts";
 import type { Listener, ServerSocket, ServerSocketHandler } from "@destack/environment";
 import { telemetry } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
-import { CallError } from "../error/index.ts";
+
 import type { Fetch } from "../declare/fetch.ts";
 
 /** The path where a host and an instance exchange a hibernated socket's messages and closes. */
@@ -111,7 +112,7 @@ export class Hibernation {
             new Request(this.#host.url, { headers: this.#headers() }),
         );
         if (!response.ok) {
-            throw new CallError("BAD_GATEWAY", {
+            throw new ObjectError("HOST_REFUSED", {
                 message: `the host cannot list hibernated sockets: ${response.status}`,
             });
         }
@@ -149,7 +150,7 @@ export class Hibernation {
             );
             await response.arrayBuffer();
             if (!response.ok) {
-                throw new CallError("BAD_GATEWAY", {
+                throw new ObjectError("HOST_REFUSED", {
                     message: `the host refused a hibernated socket's ${request.method}: ${response.status}`,
                 });
             }
@@ -221,7 +222,7 @@ export class HibernationHost {
         const accepted = answer.headers.get(SOCKET_HEADER);
         const instanceId = answer.headers.get(SOCKET_INSTANCE_HEADER);
         if (accepted === null || instanceId === null) {
-            throw new CallError("BAD_GATEWAY", {
+            throw new ObjectError("MISSING_ACCEPTANCE", {
                 message: "the answer has no socket acceptance for a named instance",
             });
         }
@@ -255,7 +256,9 @@ export class HibernationHost {
         if (request.method === "DELETE") {
             socket?.close();
         } else if (socket === undefined) {
-            throw new CallError("NOT_FOUND", { message: `no hibernated socket ${id}` });
+            throw new ObjectError("SOCKET_NOT_FOUND", {
+                message: `no hibernated socket ${id}`,
+            });
         } else {
             socket.send(new Uint8Array(await request.arrayBuffer()));
         }
@@ -311,7 +314,7 @@ export class HibernationHost {
         // report a close the instance refuses, which its connection's lapse then sweeps
         if (!response.ok && request.method === "DELETE") {
             instruments.captureException(
-                new CallError("BAD_GATEWAY", {
+                new ObjectError("INSTANCE_REFUSED", {
                     message: `instance ${instance} refused the close of socket ${acceptance.id}: ${response.status}`,
                 }),
             );

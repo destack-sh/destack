@@ -22,9 +22,10 @@ function request() {
 }
 
 /** The refusal of a method in the capped space, stating the way out of the cap. */
-function refused(method: string): readonly [string, string] {
+function refused(method: string): readonly [string, string, string] {
     return [
-        "QUOTA_EXCEEDED",
+        "PAYMENT_REQUIRED",
+        "STORAGE_CAPPED",
         `storage of scope ${spaceId} is capped: ${method} is refused until data is deleted or the plan changes`,
     ];
 }
@@ -79,7 +80,7 @@ async function serveInstalledNotes() {
 
     return {
         database,
-        alice: createClient(notesPackage, served.endpoint(notesPackage, users.alice)),
+        alice: createClient(notesPackage, served.as(users.alice).endpoint(notesPackage)),
     };
 }
 

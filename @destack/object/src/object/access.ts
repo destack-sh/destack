@@ -1,5 +1,6 @@
 import * as access from "@destack/access";
-import { CallError } from "../error/call.ts";
+import { ObjectError } from "../error/error.ts";
+
 import {
     ACCESS_MAPPINGS,
     AccessContext,
@@ -30,6 +31,8 @@ import {
     type ObjectRelationInput,
 } from "./object.ts";
 import { Execution, type StoreExecution } from "../method/execution.ts";
+
+import type {} from "@destack/package/import-meta";
 
 /** The access policy of a type's objects, with their row mapping and multi-type authorizer. */
 export const ObjectPolicy = {
@@ -176,11 +179,11 @@ export const ObjectPolicy = {
         const policy = authorizer.policy(object);
         const scope = authorizer.governingScope(object);
         if (scope !== context.scope) {
-            throw new CallError("BAD_REQUEST", {
+            throw new ObjectError("SCOPE_MISMATCH", {
                 message: `${object.type} ${object.id} is decided in ${scope}, not ${context.scope}`,
             });
         } else if (!Object.hasOwn(policy.definition.permissions, permission)) {
-            throw new CallError("BAD_REQUEST", {
+            throw new ObjectError("UNKNOWN_PERMISSION", {
                 message: `${object.type} has no permission ${permission}`,
             });
         }
@@ -202,7 +205,7 @@ export const ObjectPolicy = {
                 ? undefined
                 : await authorizer.check(snapshot, { ...asked, name: gate }, object, asking);
         if (granting?.isAllowed !== true) {
-            throw new CallError("FORBIDDEN", {
+            throw new ObjectError("CHECK_REFUSED", {
                 message: `checking another subject's access to ${object.type} needs ${gate ?? "a grant permission"}`,
             });
         }
@@ -345,7 +348,7 @@ export const ObjectPolicy = {
     /** Assemble a type's policy from its declared and represented rules and its traits'. */
     objectPolicy(
         owner: Package,
-        definition: ObjectDefinition<unknown, string, Readonly<Record<string, Method>>>,
+        definition: ObjectDefinition<string, Readonly<Record<string, Method>>>,
         rules: {
             /** The relations the definition declares, reads from fields and enclosing scopes. */
             readonly relations: Readonly<Record<string, RelationInput>>;

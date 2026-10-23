@@ -182,7 +182,7 @@ test("read external objects named by their key from the database their files ope
         objects: { notebook, entry },
         scope: spaceId,
         caller: principal.user.reference("universe", users.alice),
-        endpoint: served.endpoint(notebooks, users.alice),
+        endpoint: served.as(users.alice).endpoint(notebooks),
         reconnect: unmoved,
     });
     const stopping = new AbortController();

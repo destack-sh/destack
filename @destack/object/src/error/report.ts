@@ -1,6 +1,8 @@
 import { telemetry, trace } from "@destack/telemetry";
+
 import { ValidationError } from "@orpc/contract";
 import { describeIssues, CallError } from "./call.ts";
+
 import type {} from "@destack/package/import-meta";
 
 /** The instruments capturing unexpected failures. */
@@ -18,6 +20,8 @@ export function reportError(error: unknown): CallError<string, unknown> {
         failure.cause instanceof ValidationError
     ) {
         return new CallError("BAD_REQUEST", {
+            reason: "INVALID_INPUT",
+            domain: import.meta.destack.package.name,
             message: describeIssues(failure.cause.issues),
             cause: failure.cause,
         });
@@ -31,7 +35,7 @@ export function reportError(error: unknown): CallError<string, unknown> {
     trace.getActiveSpan()?.recordException(error instanceof Error ? error : String(error));
     instruments.captureException(error, { isEscaped: true });
 
-    return new CallError("INTERNAL_SERVER_ERROR", {
+    return CallError.http("INTERNAL_SERVER_ERROR", {
         message: "internal server error",
         cause: error,
     });

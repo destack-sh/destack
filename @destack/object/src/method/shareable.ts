@@ -1,4 +1,5 @@
 import type { InputObject } from "./input.ts";
+import { ObjectError } from "../error/error.ts";
 import { AccessContext, Caller, Explanation, Invitation, Relationship } from "@destack/access";
 import { type Row } from "@destack/db";
 import { schema } from "@destack/schema";
@@ -29,6 +30,8 @@ import {
     InvitationFields,
 } from "../trait/shareable.ts";
 import { Execution, type StoreExecution } from "./execution.ts";
+
+import type {} from "@destack/package/import-meta";
 
 /** The signature of a sharing method, acting on one object by its identifier. */
 type SharingConfiguration = {
@@ -257,7 +260,7 @@ export const ShareableMethod = {
                     ? undefined
                     : await authorizer.check(snapshot, object.permission(grant), target, access);
             if (granting?.isAllowed !== true) {
-                throw new CallError("FORBIDDEN", {
+                throw new ObjectError("EXPLAIN_REFUSED", {
                     message: `explaining access to ${object.name} needs ${grant}`,
                 });
             }
@@ -278,7 +281,9 @@ export const ShareableMethod = {
                 access,
             );
             if (!reading.isAllowed) {
-                throw new CallError("NOT_FOUND", { message: `no ${object.name} ${target.id}` });
+                throw CallError.http("NOT_FOUND", {
+                    message: `no ${object.name} ${target.id}`,
+                });
             }
 
             return authorizer.explain(snapshot, explained(), target, access);
@@ -288,7 +293,7 @@ export const ShareableMethod = {
     /** Read the permission reading an object of a type needs. */
     requireReading(object: ObjectType) {
         if (object.reading === undefined) {
-            throw new CallError("BAD_REQUEST", {
+            throw new ObjectError("NOTHING_TO_READ", {
                 message: `${object.name} has no objects to read`,
             });
         }
@@ -305,7 +310,7 @@ export const ShareableMethod = {
 
         // refuse a missing or trashed object
         if (row === undefined) {
-            throw new CallError("NOT_FOUND", {
+            throw CallError.http("NOT_FOUND", {
                 message: `no ${context.object.name} ${context.id}`,
             });
         } else if (
@@ -313,7 +318,9 @@ export const ShareableMethod = {
             row["deletedAt"] !== undefined &&
             row["deletedAt"] !== null
         ) {
-            throw new CallError("CONFLICT", { message: `${context.object.name} is in the trash` });
+            throw new ObjectError("IN_TRASH", {
+                message: `${context.object.name} is in the trash`,
+            });
         }
     },
 

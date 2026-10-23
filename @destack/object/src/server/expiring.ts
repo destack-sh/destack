@@ -14,7 +14,7 @@ import {
     type Table,
     Condition,
 } from "@destack/db";
-import type { Controller, Reconciliation } from "@destack/db";
+import type { ReconcileController, Reconciliation } from "@destack/db";
 import { Replica, RequestId } from "@destack/sync";
 import { ObjectKey, type ObjectType } from "../object/object.ts";
 import type { ExpiryRule } from "../trait/expiring.ts";
@@ -27,7 +27,7 @@ const EXPIRE_ROWS = 100;
 const EXPIRY = "expiry";
 
 /** Remove expiring objects as their windows pass, scheduling the next window's end. */
-export class ExpiringController implements Controller {
+export class ExpiringController implements ReconcileController {
     /** The controller's name. */
     readonly name = EXPIRY;
     /** The tables of the expiring objects. */

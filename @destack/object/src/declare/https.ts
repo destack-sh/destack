@@ -17,7 +17,7 @@ export const HttpsSpec = schema.object({
 export type HttpsSpec = schema.Infer<typeof HttpsSpec>;
 
 /** The HTTPS resource kind: an external API a host lends a connection's credential to. */
-export const HttpsKind = defineResourceKind("https", { spec: HttpsSpec });
+export const HttpsKind = defineResourceKind("https", { spec: HttpsSpec, management: "external" });
 /** A named dependency on an HTTPS API. */
 export type HttpsDescription = schema.Infer<typeof HttpsKind.description>;
 

@@ -34,12 +34,23 @@ export const attachments: Trait<readonly Attachment[]> = {
                         where: { ...aggregate.where, ...hosted },
                     })),
             ),
-            dependents: durable.map((attachment) => ({
-                from: () => attachment.object.table,
-                key: "parentId",
-                where: hosted,
-                onDelete: present(attachment.object.parent, "an attachment's nesting").delete,
-            })),
+            dependents: durable.map((attachment) => {
+                // delete or restrict attachments with their host, which has no trash for them
+                const deletion = present(
+                    attachment.object.parent,
+                    "an attachment's nesting",
+                ).delete;
+                if (deletion === "trash") {
+                    throw new TypeError(`attachments of ${object.name} move to no trash`);
+                }
+
+                return {
+                    from: () => attachment.object.table,
+                    key: "parentId",
+                    where: hosted,
+                    onDelete: deletion,
+                };
+            }),
         };
     },
     policy: (options, object, permissions) => {

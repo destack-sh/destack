@@ -99,7 +99,11 @@ test("check the caller's access under its grant, and another subject's for grant
     };
 
     // answer the caller's access, limit the token to its grant, and let only grantors ask for others
-    const needsShare = ["FORBIDDEN", "checking another subject's access to space needs share"];
+    const needsShare = [
+        "FORBIDDEN",
+        "CHECK_REFUSED",
+        "checking another subject's access to space needs share",
+    ];
     expect(checks).toEqual({
         aliceShare: { isAllowed: true },
         bobRead: { isAllowed: true },
@@ -110,6 +114,6 @@ test("check the caller's access under its grant, and another subject's for grant
         tokenRead: { isAllowed: true },
         tokenShare: { isAllowed: false },
         tokenAsksBob: needsShare,
-        unknown: ["BAD_REQUEST", "space has no permission edit"],
+        unknown: ["BAD_REQUEST", "UNKNOWN_PERMISSION", "space has no permission edit"],
     });
 });

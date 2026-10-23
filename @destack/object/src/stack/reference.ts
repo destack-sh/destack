@@ -1,6 +1,7 @@
 import { DeclarationName } from "@destack/package";
 import type { MethodInput, MethodName, ScopeField } from "../method/procedure.ts";
-import type { ObjectType } from "../object/object.ts";
+import type { ObjectConfiguration, ObjectType } from "../object/object.ts";
+import type { Field } from "../field/field.ts";
 import { schema } from "@destack/schema";
 import { AccessName } from "@destack/sync";
 
@@ -80,31 +81,50 @@ type ReferenceInputOf<Reference> = Reference extends "object"
 
 /** A declaration as a stack document writes it: its create input, references by name. */
 export type StackInputOf<Object extends ObjectType> =
-    DeclarableOf<Object> extends {
-        readonly from: "create";
-    }
+    Object extends ObjectType<infer Configuration>
         ? StackCreateInputOf<
               MethodInput<Object, "create" & MethodName<Object>>,
-              | (DeclarableOf<Object> extends { readonly key: infer Key } ? Key : never)
-              | StackSuppliedOf<Object>,
-              DeclarableOf<Object> extends { readonly references: infer References }
-                  ? References
-                  : {}
-          >
-        : schema.Input<NonNullable<Object["lifecycle"]["declarationSchema"]>>;
+              "name" | StackSuppliedOf<Object>,
+              ReferencesOf<Configuration>
+          > &
+              NameInputOf<MethodInput<Object, "create" & MethodName<Object>>>
+        : never;
 
-/** The create fields the stack fills for a declaration, unless a reference resolves them. */
+/** A create input's name, which the declaration's name fills when absent. */
+type NameInputOf<Input> = "name" extends keyof Input
+    ? { readonly name?: Input["name" & keyof Input] }
+    : {};
+
+/** The create fields a declaration refers to other records by: references, parent and listed. */
+type ReferencesOf<Configuration extends ObjectConfiguration> = FieldReferencesOf<
+    Configuration["fields"]
+> &
+    (Configuration["parent"] extends "any" | undefined ? {} : { readonly parentId: ObjectType }) &
+    Configuration["references"];
+
+/** The reference fields of some fields keyed by column, by create field: a record, or a subject. */
+type FieldReferencesOf<Fields> = {
+    readonly [
+        Name in keyof Fields as Fields[Name] extends Field<infer Configuration>
+            ? Configuration["reference"] extends "identifier" | "object"
+                ? Name
+                : never
+            : never
+    ]: Fields[Name] extends Field<infer Configuration>
+        ? Configuration["reference"] extends "identifier"
+            ? ObjectType
+            : "subject"
+        : never;
+};
+
+/** The create fields the stack fills for a declaration: its identity, scope and owner. */
 export type StackSuppliedOf<Object extends ObjectType> =
     Object extends ObjectType<infer Configuration>
-        ? Exclude<
+        ?
               | "id"
               | ScopeField<Object>
               | (Configuration["owner"] extends string ? `${Configuration["owner"]}Id` : never)
-              | (Configuration["parent"] extends "any" | undefined ? never : "parentId"),
-              keyof (DeclarableOf<Object> extends { readonly references: infer References }
-                  ? References
-                  : {})
-          >
+              | Configuration["supplied"]
         : never;
 
 /** A create input as a stack document writes it, without its key and its supplied fields. */
@@ -113,25 +133,30 @@ type StackCreateInputOf<Input, Omitted, References> = Omit<
     (Omitted & string) | keyof References
 > & {
     readonly [
-        Field in keyof References as References[Field] extends "object"
+        Key in Extract<
+            Exclude<keyof References, Omitted>,
+            keyof Input
+        > as References[Key] extends "object"
             ? never
-            : undefined extends Input[Field & keyof Input]
+            : undefined extends Input[Key & keyof Input]
               ? never
-              : DeclaredField<Field & string>
-    ]: ReferenceInputOf<References[Field]>;
+              : DeclaredField<Key & string>
+    ]: ReferenceInputOf<References[Key]>;
 } & {
     readonly [
-        Field in keyof References as References[Field] extends "object"
-            ? DeclaredField<Field & string>
-            : undefined extends Input[Field & keyof Input]
-              ? DeclaredField<Field & string>
+        Key in Extract<
+            Exclude<keyof References, Omitted>,
+            keyof Input
+        > as References[Key] extends "object"
+            ? DeclaredField<Key & string>
+            : undefined extends Input[Key & keyof Input]
+              ? DeclaredField<Key & string>
               : never
-    ]?: ReferenceInputOf<References[Field]>;
+    ]?: ReferenceInputOf<References[Key]>;
 };
 
 /** A reference field as a declaration writes it, without its `Id` suffix. */
-type DeclaredField<Field extends string> = Field extends `${infer Base}Id` ? Base : Field;
+type DeclaredField<Name extends string> = Name extends `${infer Base}Id` ? Base : Name;
 
-/** How stacks declare a type's objects, as its definition writes it. */
-export type DeclarableOf<Object extends ObjectType> =
-    Object extends ObjectType<infer Configuration> ? Configuration["declarable"] : undefined;
+/** What a declared reference refers to: one type's records, any object, or a subject. */
+export type DeclaredReference = ObjectType | "object" | "subject";

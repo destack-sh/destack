@@ -1,12 +1,23 @@
-import { and, eq, isNotNull, isNull, lte, or, type DatabaseConnection } from "@destack/db";
+import { ObjectError } from "../error/error.ts";
+import {
+    and,
+    eq,
+    isNotNull,
+    isNull,
+    lte,
+    or,
+    type DatabaseConnection,
+    type ReconcileController,
+} from "@destack/db";
 import { schema, Duration, type JsonValue } from "@destack/schema";
-import { CallError } from "../error/call.ts";
-import type { Controller } from "@destack/db";
+
 import { v7 } from "uuid";
 import type { MethodContext } from "../method/context.ts";
 import { settlement, SettlementContext } from "../method/settlement.ts";
 import { Method } from "../method/method.ts";
 import type { ObjectStore } from "./store.ts";
+
+import type {} from "@destack/package/import-meta";
 
 /** The settlement and claim grace, in milliseconds: a minute, above any live server's settling. */
 const SETTLE_GRACE_MILLISECONDS = 60_000;
@@ -145,7 +156,10 @@ export const Settlement = {
     },
 
     /** Settle what servers left once the grace passes. */
-    controller(store: ObjectStore, options: { readonly grace?: Duration } = {}): Controller {
+    controller(
+        store: ObjectStore,
+        options: { readonly grace?: Duration } = {},
+    ): ReconcileController {
         const grace =
             options.grace === undefined
                 ? SETTLE_GRACE_MILLISECONDS
@@ -186,7 +200,7 @@ export const Settlement = {
 
     /** Refuse a call whose settlement a settler claimed after its grace passed. */
     refuseOutlasted(context: MethodContext): never {
-        throw new CallError("SERVICE_UNAVAILABLE", {
+        throw new ObjectError("SETTLEMENT_EXPIRED", {
             message: `${context.object.name}.${context.name} exceeded its settlement grace period`,
         });
     },

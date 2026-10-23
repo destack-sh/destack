@@ -10,8 +10,9 @@ import {
     Scalar,
     Snapshot,
     type Table,
+    type ReconcileController,
 } from "@destack/db";
-import type { Controller, Reconciliation } from "@destack/db";
+import type { Reconciliation } from "@destack/db";
 import { AccessContext } from "@destack/access";
 import { RequestId } from "@destack/sync";
 import { canonicalize, schema, type JsonValue } from "@destack/schema";
@@ -34,8 +35,6 @@ export interface ObjectController<Object extends ObjectType = ObjectType> {
     key?(row: RowImage<Object["table"]>): KeyFields;
     /** The tables whose changed rows select keys beside a changed pending object's key. */
     readonly watches?: readonly ObjectWatch[];
-    /** Whether a key converges and returns, or follows until its objects leave the pending ones. */
-    readonly mode?: "reconcile" | "follow";
     /** The keys reconciled at once, one by default. */
     readonly concurrency?: number;
     /** List the keys a start reconciles with a separate query; changes still match `pending`. */
@@ -95,8 +94,12 @@ export interface ObjectReconciliation<
 
 /** Build the controllers object types declare. */
 export const ObjectController = {
-    /** Build a type's declared controller, reconciling or following pending objects by key. */
-    control(store: ObjectStore, object: ObjectType, declared: ObjectController): Controller {
+    /** Build a type's declared controller, reconciling pending objects by key. */
+    control(
+        store: ObjectStore,
+        object: ObjectType,
+        declared: ObjectController,
+    ): ReconcileController {
         // key each pending object by its declared fields
         const table = object.table;
         const match = Predicate.compile(
@@ -131,7 +134,6 @@ export const ObjectController = {
             name: object.name,
             watches: [...new Set([table, ...watches.keys()])],
             ...(declared.concurrency === undefined ? {} : { concurrency: declared.concurrency }),
-            ...(declared.mode === undefined ? {} : { mode: declared.mode }),
             keys,
             list: async (view) => {
                 // list the declared query's keys, or those of every pending object

@@ -111,6 +111,7 @@ test("purge a retained record through its handler under its permission or as the
         .where(eq(credential.table.id, lapsed.id));
     expect(await refusal(execute(handled, "restore", { id: lapsed.id }))).toEqual([
         "CONFLICT",
+        "RECOVERY_EXPIRED",
         "credential is past its recovery window",
     ]);
 
@@ -118,6 +119,7 @@ test("purge a retained record through its handler under its permission or as the
     await execute(handled, "delete", { id: created.id, revision: restored.revision });
     expect(await refusal(execute(handled, "purge", { id: created.id }))).toEqual([
         "FORBIDDEN",
+        "PERMISSION_DENIED",
         "permission denied: purge",
     ]);
 
@@ -150,11 +152,13 @@ test("purge a retained record through its handler under its permission or as the
     // refuse purging and restoring a purged record
     expect(await refusal(execute(handled, "purge", { id: created.id }))).toEqual([
         "CONFLICT",
+        "PURGED",
         "credential is purged",
     ]);
     context = userContext(users.frank, spaceId);
     expect(await refusal(execute(handled, "restore", { id: created.id }))).toEqual([
         "CONFLICT",
+        "PURGED",
         "credential is purged",
     ]);
 

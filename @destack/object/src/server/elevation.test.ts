@@ -133,7 +133,7 @@ test("challenge a hand-written procedure's caller for its elevated permission, t
 
     // challenge a single factor and rename after elevation
     await expect(client.rename({ id: "main" })).rejects.toMatchObject({
-        code: "INSUFFICIENT_AUTHENTICATION",
+        code: "UNAUTHORIZED",
         status: 401,
         message: "authentication assurance is too low: authenticate again",
         data: RECENT,

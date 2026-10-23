@@ -12,7 +12,7 @@ export const CallOrigin = schema.object({
     scope: schema.string().min(1),
     /** The grant the caller's actors acted under. */
     grantId: schema.identifier("grant").exactOptional(),
-    /** The package serving the call. */
+    /** The package whose method or procedure the call ran. */
     package: Package,
     /** The installation executing the call, as the relaying machine recorded it. */
     installationId: schema.identifier("installation").exactOptional(),

@@ -249,7 +249,14 @@ test("start the workload with its installation's settings, serve a forwarded cal
         settings: { [`${notes.id}/language`]: "de" },
         unauthorized: [
             401,
-            { defined: true, code: "UNAUTHORIZED", status: 401, message: "invalid host secret" },
+            {
+                defined: true,
+                code: "UNAUTHORIZED",
+                status: 401,
+                message: "invalid host secret",
+                reason: "INVALID_HOST_SECRET",
+                domain: "@destack/object",
+            },
         ],
         served: { package: notes.name, path: "/notes", caller: "alice" },
         received: { package: events.name, path: "/receive", caller: "alice" },
@@ -329,6 +336,8 @@ test("forward a webhook delivery below the webhook path to the workload, refusin
                 code: "UNAUTHORIZED",
                 status: 401,
                 message: "invalid host secret",
+                reason: "INVALID_HOST_SECRET",
+                domain: "@destack/object",
             }),
         ],
     ]);
@@ -498,6 +507,8 @@ test("hand a routed request to the workload's package at the route path, under t
                 code: "NOT_FOUND",
                 status: 404,
                 message: "no package serves routes here",
+                reason: "NO_PACKAGE_ROUTES",
+                domain: "@destack/object",
             }),
         ],
     ]);

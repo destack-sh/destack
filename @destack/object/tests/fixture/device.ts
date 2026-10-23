@@ -33,8 +33,8 @@ export async function serveNotes(
     onTestFinished(() => objects[Symbol.asyncDispose]());
 
     return {
-        connect: (user: Identifier<"user">) => objects.client(notesPackage, user),
-        endpoint: (user: Identifier<"user">) => objects.endpoint(notesPackage, user),
+        connect: (user: Identifier<"user">) => objects.as(user).client(notesPackage),
+        endpoint: (user: Identifier<"user">) => objects.as(user).endpoint(notesPackage),
         server: objects.server(notesPackage),
         database: objects.database,
     };

@@ -1,6 +1,6 @@
 import { principal } from "@destack/access";
 import { PackageId, Package } from "@destack/package";
-import { expect, onTestFinished, test, vi } from "@destack/test";
+import { expect, onTestFinished, refusal, test, vi } from "@destack/test";
 import { schema } from "@destack/schema";
 import { health } from "../health/index.ts";
 import { Health } from "./health.ts";
@@ -20,13 +20,9 @@ import { VirtualClock } from "@destack/environment/simulation";
 /** The authentication lifetime of the lapsing callers, which the scenarios' clock moves past. */
 const LAPSE_MILLISECONDS = 200;
 
-/** Settle a call to "accepted" or its failure's code and message. */
+/** Settle a call to "accepted" or its failure's code, reason and message. */
 function settle(call: Promise<unknown>): Promise<string> {
-    return call.then(
-        () => "accepted",
-        (error: { readonly code: string; readonly message: string }) =>
-            `${error.code}: ${error.message}`,
-    );
+    return refusal(call).then((refused) => (refused === "done" ? "accepted" : refused.join(": ")));
 }
 
 test("reauthenticate completed snapshot subscriptions and report revoked access", async () => {
@@ -53,7 +49,7 @@ test("reauthenticate completed snapshot subscriptions and report revoked access"
         authenticate: async (request) => {
             requests++;
             if (requests === 3) {
-                throw new CallError("UNAUTHORIZED", { message: "invalid bearer credential" });
+                throw CallError.http("UNAUTHORIZED", { message: "invalid bearer credential" });
             }
 
             return hosting.authenticate(request);
@@ -85,7 +81,11 @@ test("reauthenticate completed snapshot subscriptions and report revoked access"
         // renew subscriptions but not after an authorization failure
         expect(await stream.next()).toEqual({ done: false, value: 1 });
         expect(await stream.next()).toEqual({ done: false, value: 2 });
-        await expect(stream.next()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+        expect(await refusal(stream.next())).toEqual([
+            "UNAUTHORIZED",
+            "UNAUTHORIZED",
+            "invalid bearer credential",
+        ]);
         expect(requests).toBe(3);
     } finally {
         controller.abort();
@@ -141,7 +141,7 @@ test.for([
             },
             authorizeMachine: async () => {
                 if (isRevoked) {
-                    throw new CallError("FORBIDDEN", { message: "permission denied: watch" });
+                    throw CallError.http("FORBIDDEN", { message: "permission denied: watch" });
                 }
             },
             router: implementation.router({
@@ -770,8 +770,8 @@ test("report a handler's invalid output as an internal failure and a caller's in
         await settle(client.echo({ text: "hello" })),
         await settle(client.echo({ text: "hi" })),
     ]).toEqual([
-        "INTERNAL_SERVER_ERROR: internal server error",
-        "BAD_REQUEST: invalid input: text: too small: expected string to have >=3 characters",
+        "INTERNAL_SERVER_ERROR: INTERNAL_SERVER_ERROR: internal server error",
+        "BAD_REQUEST: INVALID_INPUT: invalid input: text: too small: expected string to have >=3 characters",
     ]);
 });
 
@@ -831,6 +831,30 @@ test("delay a request while starting and answer it once ready, and refuse it wit
     ]).toEqual([503, "1", { text: "hello" }, "serving"]);
 });
 
+test("refuse waiting for a server stopped while it waits for readiness, ending the wait quietly", async () => {
+    // start a server whose readiness waits until its stop aborts it
+    const server = Server.start({
+        clock: Clock.system,
+        ...hosting,
+        health: new Health("waiting"),
+        drainTimeout: 1000,
+        ready: (signal) =>
+            new Promise<void>((_resolve, reject) => {
+                signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+            }),
+        router: implement({}).router({}),
+    });
+
+    // stop it before it serves
+    const serving = refusal(server.serving());
+    await server.close();
+
+    expect([await serving, server.health.status]).toEqual([
+        ["SERVICE_UNAVAILABLE", "SERVER_STOPPED", "the server stopped before it served"],
+        "stopped",
+    ]);
+});
+
 test("refuse a caller authenticated for another package as unauthenticated, auditing the denial", async () => {
     // serve an audited procedure to a caller with a credential for another package
     const procedures = {
@@ -871,7 +895,7 @@ test("refuse a caller authenticated for another package as unauthenticated, audi
         { url: "https://test.local", fetch: (request) => server.fetch(request) },
     );
     expect(await settle(client.get())).toBe(
-        "UNAUTHORIZED: caller authentication has a different audience or scope",
+        "UNAUTHORIZED: AUDIENCE_MISMATCH: caller authentication has a different audience or scope",
     );
     expect(audited).toEqual(["caller authentication has a different audience or scope"]);
 });

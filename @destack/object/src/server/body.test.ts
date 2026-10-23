@@ -16,11 +16,12 @@ test("refuse a body whose declared or streamed size passes the limit", async () 
     const body = "x".repeat(65);
     expect(await refusal(RequestBody.text(post(body), "a journal batch", 64))).toEqual([
         "PAYLOAD_TOO_LARGE",
+        "BODY_TOO_LARGE",
         "a journal batch exceeds 64 bytes",
     ]);
     expect(
         await refusal(
             RequestBody.text(post("{}", { "content-length": "65" }), "a journal batch", 64),
         ),
-    ).toEqual(["PAYLOAD_TOO_LARGE", "a journal batch exceeds 64 bytes"]);
+    ).toEqual(["PAYLOAD_TOO_LARGE", "BODY_TOO_LARGE", "a journal batch exceeds 64 bytes"]);
 });

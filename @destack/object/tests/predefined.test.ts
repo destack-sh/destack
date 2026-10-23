@@ -1,6 +1,6 @@
 import { ObjectReference, type Call, RequestId } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { AccessContext, accessRole, Caller, none, Role } from "@destack/access";
+import { AccessContext, accessRole, Caller, none, Role, Manager } from "@destack/access";
 import { TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
 import { testCallKey } from "@destack/object/test";
@@ -35,6 +35,8 @@ const tier = defineObject(
                 ...ObjectReference.columns("updatedBy", undefined),
                 revision: 1,
                 tags: {},
+                ...Manager.values(null),
+                detachedAt: null,
                 scope: spaceId,
                 name: "free",
             },
@@ -90,10 +92,10 @@ test("store a type's predefined rows in its table, and refuse every call writing
         created: await mutate(tier.call("create", { spaceId, id: FREE, name: "free" })),
     }).toEqual({
         listed: [[FREE, "free"]],
-        updated: ["CONFLICT", predefined],
-        matched: ["CONFLICT", predefined],
-        deleted: ["CONFLICT", predefined],
-        created: ["CONFLICT", predefined],
+        updated: ["CONFLICT", "PREDEFINED", predefined],
+        matched: ["CONFLICT", "PREDEFINED", predefined],
+        deleted: ["CONFLICT", "PREDEFINED", predefined],
+        created: ["CONFLICT", "PREDEFINED", predefined],
     });
 });
 

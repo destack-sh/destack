@@ -210,14 +210,14 @@ test("attach remarks to articles and photos, counting them and deleting them wit
     const missing = `article-${v7()}`;
     expect(
         await refusal(call(remark, "create", { ...host(task, task1.id), text: "Nope" })),
-    ).toEqual(["BAD_REQUEST", "task cannot have remarks"]);
+    ).toEqual(["BAD_REQUEST", "PARENT_TYPE_REFUSED", "task cannot have remarks"]);
     expect(
         await refusal(call(remark, "create", { ...host(article, missing), text: "Nope" })),
-    ).toEqual(["NOT_FOUND", `no article ${missing}`]);
+    ).toEqual(["NOT_FOUND", "NOT_FOUND", `no article ${missing}`]);
     as(users.bob);
     expect(
         await refusal(call(remark, "create", { ...host(article, draft.id), text: "Nope" })),
-    ).toEqual(["NOT_FOUND", `no article ${draft.id}`]);
+    ).toEqual(["NOT_FOUND", "NOT_FOUND", `no article ${draft.id}`]);
     as(users.alice);
 
     // include each article's remarks, and only those, sharing identifiers with no photo
@@ -252,6 +252,7 @@ test("attach remarks to articles and photos, counting them and deleting them wit
     const marked = await call(marker, "create", host(photo, snapshot.id));
     await call(article, "delete", { id: draft.id });
     expect(await refusal(call(photo, "delete", { id: snapshot.id }))).toEqual([
+        "CONFLICT",
         "BROKEN_REFERENCE",
         "the change would leave a reference to a missing record",
     ]);
@@ -287,6 +288,7 @@ test("store each reader's favourite of a shared board private and single", async
     const mine = await call(favourite, "create", host(board, plans.id));
     expect(await refusal(call(favourite, "create", host(board, plans.id)))).toEqual([
         "CONFLICT",
+        "DUPLICATE",
         "another favourite has the same parent and reader",
     ]);
     as(users.bob);
@@ -299,6 +301,7 @@ test("store each reader's favourite of a shared board private and single", async
     expect(await listed()).toEqual([mine.id]);
     as(users.carol);
     expect(await refusal(call(favourite, "create", host(board, plans.id)))).toEqual([
+        "NOT_FOUND",
         "NOT_FOUND",
         `no board ${plans.id}`,
     ]);
@@ -331,7 +334,10 @@ test("authorize a scoped method of attachments on the parent its input refers to
     const mine = await call(counted, "count", host(article, draft.id));
     as(users.bob);
     const theirs = await refusal(call(counted, "count", host(article, draft.id)));
-    expect([mine, theirs]).toEqual([{ count: 1 }, ["FORBIDDEN", "permission denied: read"]]);
+    expect([mine, theirs]).toEqual([
+        { count: 1 },
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: read"],
+    ]);
 });
 
 /** Serve object types over a new database to one user at a time. */

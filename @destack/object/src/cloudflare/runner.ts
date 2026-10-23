@@ -1,4 +1,5 @@
 import { channelHub } from "@destack/db";
+import { ObjectError } from "../error/error.ts";
 import {
     DATABASE_PATH,
     DURABLE_OBJECT_PROVIDER,
@@ -12,7 +13,7 @@ import { telemetry } from "@destack/telemetry";
 import { startTelemetry } from "@destack/telemetry/worker";
 import type {} from "@destack/package/import-meta";
 import type { Alarm } from "@destack/db";
-import { CallError } from "../error/index.ts";
+
 import { refusal } from "../error/report.ts";
 import {
     type RunnerOptions,
@@ -153,7 +154,9 @@ export class DurableObjectRunner {
             // serve the workload
             const running = await this.#running;
             if (running === undefined) {
-                throw new CallError("SERVICE_UNAVAILABLE", { message: "no workload runs here" });
+                throw new ObjectError("NO_WORKLOAD", {
+                    message: "no workload runs here",
+                });
             }
 
             return await running.fetch(request);
@@ -180,7 +183,7 @@ export class DurableObjectRunner {
                 }),
             );
             if (!response.ok) {
-                throw new CallError("SERVICE_UNAVAILABLE", {
+                throw new ObjectError("BUILD_FILE_UNAVAILABLE", {
                     message: `the partition has no build file ${path}: ${response.status}`,
                 });
             }
@@ -230,7 +233,7 @@ export class DurableObjectRunner {
         );
         await response.arrayBuffer();
         if (!response.ok) {
-            throw new CallError("SERVICE_UNAVAILABLE", {
+            throw new ObjectError("WAKE_UP_UNSTORED", {
                 message: `the partition did not store the wake-up: ${response.status}`,
             });
         }

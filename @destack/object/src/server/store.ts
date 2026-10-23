@@ -1,4 +1,5 @@
 import { PackageManifest } from "@destack/package/manifest";
+import { ObjectError } from "../error/error.ts";
 import { graph, Package, type PackageId } from "@destack/package";
 import type { EventStore } from "@destack/event";
 import {
@@ -13,6 +14,7 @@ import {
     Caller,
     CONTAINED,
     principal,
+    Manager,
 } from "@destack/access";
 import {
     type ObjectReference,
@@ -38,6 +40,7 @@ import {
     eq,
     lte,
     CompactionController,
+    type ReconcileController,
 } from "@destack/db";
 import { objectUnmask } from "../audit/unmask.ts";
 import { Replay } from "../audit/replay.ts";
@@ -62,7 +65,7 @@ import {
 } from "@destack/schema";
 import type { ServerContext } from "../workload/workload.ts";
 import type { Watermark } from "@destack/sync";
-import { refuseInput, CallError } from "../error/call.ts";
+import { refuseInput } from "../error/call.ts";
 import { copyRequest } from "@destack/environment";
 import type { RequestIdentity } from "../audit/journal.ts";
 import { v7 } from "uuid";
@@ -121,6 +124,8 @@ import type {
     ImplementationInput,
 } from "./implementation.ts";
 import { Clock } from "@destack/environment";
+
+import type {} from "@destack/package/import-meta";
 
 /** The object call spans. */
 const { span } = telemetry.scope(import.meta.destack.package);
@@ -236,6 +241,8 @@ type MutationRun = {
     readonly caller: AccessContext;
     /** The code making the calls for a principal's code, such as a controller's name. */
     readonly component?: string;
+    /** The declaration the calls write for, if any. */
+    readonly manager?: Manager;
     /** The expanded calls, in order. */
     readonly calls: readonly Expansion[];
     /** The prepared external work, by call. */
@@ -266,6 +273,12 @@ export interface AuthorizeHereOptions extends Omit<AuthorizeOptions, "within"> {
     readonly calls?: readonly { readonly object: ObjectType; readonly name: string }[];
 }
 
+/** How a query runs beyond its caller. */
+export interface QueryOptions {
+    /** The running mutation to read within, seeing its writes, if any. */
+    readonly transaction?: Transaction;
+}
+
 /** How a mutation runs beyond its caller. */
 export interface MutateOptions {
     /** The running mutation to join without external work, which its owner commits, if any. */
@@ -278,6 +291,8 @@ export interface MutateOptions {
     readonly scope?: string;
     /** Where the calls are made, the caller's site when absent, such as the store's steps. */
     readonly site?: CallSite;
+    /** The declaration the calls write for, which manages the records they create, if any. */
+    readonly manager?: Manager;
 }
 
 /** The journal's progress through a mutation: the running call and its claim reservation. */
@@ -306,6 +321,8 @@ type CallOptions = {
     readonly request?: CallRequest;
     /** The code making the call for a principal's code, such as a controller's name. */
     readonly component?: string;
+    /** The declaration the call writes for, if any. */
+    readonly manager?: Manager;
     /** The authorizations the run resolved for its calls, by scope and caller. */
     readonly authorizations: Map<string, Authorization>;
 };
@@ -476,7 +493,7 @@ export class ObjectStore {
     readonly audit: (
         scope: string,
         caller: AccessContext,
-        options?: AuditRecorderOptions,
+        options: AuditRecorderOptions,
     ) => AuditRecorder;
     /** Report failed settlements. */
     readonly #report: (error: unknown) => void;
@@ -728,7 +745,7 @@ export class ObjectStore {
             const key = ObjectTypeReference.key(reference);
             const type = known.get(key);
             if (type === undefined) {
-                throw new CallError("NOT_FOUND", {
+                throw new ObjectError("UNKNOWN_TYPE", {
                     message: `no object type ${reference.type} of ${reference.packageId} is known here`,
                 });
             } else if (!described.has(key) && !loaded.objects.has(key)) {
@@ -1015,7 +1032,7 @@ export class ObjectStore {
                 this.audit(
                     this.#procedureScope(call, routed) ?? Scope.universe.id,
                     ObjectStore.#requestCaller(call.request),
-                    { requestId: call.request.requestId },
+                    { package: Package.of(handle), requestId: call.request.requestId },
                 ),
             ),
             controllers,
@@ -1196,7 +1213,7 @@ export class ObjectStore {
                     input: called,
                 } = this.#resolve(input.call, false, CallSite.of(context.access(input.scope)));
                 if (object.readScope(name, called) !== input.scope) {
-                    throw new CallError("BAD_REQUEST", {
+                    throw new ObjectError("SCOPE_MISMATCH", {
                         message: `${object.name}.${name} reads a scope other than ${input.scope}`,
                     });
                 }
@@ -1281,22 +1298,35 @@ export class ObjectStore {
         caller: AccessContext,
         call: sync.Call<Result>,
         site: CallSite = CallSite.of(caller),
+        options: QueryOptions = {},
     ): Promise<Result> {
         // read untyped, then type the answer by the method's output
         const callable = this.#callable(call, false, this.replicas);
-        const answer = await this.#query(caller, call, site);
+        const answer = await this.#query(caller, call, site, options);
         const [result] = MethodContext.results(callable, [call], [answer]);
 
         return result;
     }
 
     /** Read through a method as a caller, answering its untyped result. */
-    async #query(caller: AccessContext, call: sync.Call, site: CallSite): Promise<unknown> {
+    async #query(
+        caller: AccessContext,
+        call: sync.Call,
+        site: CallSite,
+        options: QueryOptions,
+    ): Promise<unknown> {
         // resolve the call, reading only a method the caller's grant allows
         const { object, name, input } = this.#resolve(call, false, site);
         const method = object.method(name);
         const scope = object.readScope(name, input);
         await this.#limit([{ object, name, input }], scope, caller);
+
+        // refuse joining a durable transaction for objects living elsewhere
+        if (options.transaction !== undefined && object.storage !== "durable") {
+            throw new TypeError(
+                `${object.storage} ${object.name} objects read outside a joined transaction`,
+            );
+        }
         const database = await this.#databaseOf(object, scope);
         const read = async () => {
             // prepare on the served type, then read, commit and settle
@@ -1316,8 +1346,8 @@ export class ObjectStore {
             }
         };
         const readIn = async (prepared: Prepared) => {
-            // read over a mutation that never commits, allowing the caller against the durable database
-            const reading = Transaction.reading(database);
+            // read over the joined transaction or one that never commits, allowing the caller against the durable database
+            const reading = options.transaction ?? Transaction.reading(database);
             const authorizing =
                 object.storage === "durable" ? reading : Transaction.reading(this.database);
             const authorization = await this.authorizeHere(authorizing, scope, caller, {
@@ -1336,7 +1366,7 @@ export class ObjectStore {
         }
 
         // audit one object, or the scope's collection
-        const recorder = this.audit(scope, caller);
+        const recorder = this.audit(scope, caller, { package: object.package });
         const { action, values } = object.auditCall(name, input, scope);
         const details = method.audit?.details;
 
@@ -1427,7 +1457,7 @@ export class ObjectStore {
         if (ephemeral === originals.length) {
             return this.#mutateEphemeral(originals, scope, caller, mutation.id, options.writerId);
         } else if (ephemeral > 0) {
-            throw new CallError("BAD_REQUEST", {
+            throw new ObjectError("MIXED_STORAGE", {
                 message: "a mutation writes durable or ephemeral objects, not both",
             });
         }
@@ -1491,6 +1521,7 @@ export class ObjectStore {
             requestId: mutation.id,
             authorizations: new Map(),
             ...(options.component === undefined ? {} : { component: options.component }),
+            ...(options.manager === undefined ? {} : { manager: options.manager }),
         };
         const results: unknown[] = [];
         for (const entry of mutation.calls) {
@@ -1562,7 +1593,11 @@ export class ObjectStore {
                       authorizations: options.authorizations,
                   });
 
-        return this.#execute(transaction, authorization, object, name, input, caller, options);
+        // write for the call's declaration, if any
+        const writing =
+            options.manager === undefined ? authorization : authorization.applying(options.manager);
+
+        return this.#execute(transaction, writing, object, name, input, caller, options);
     }
 
     /** Read the one scope a mutation's calls act in. */
@@ -1571,7 +1606,7 @@ export class ObjectStore {
         const first = nth(originals, 0);
         const scope = first.object.readScope(first.name, first.input);
         if (originals.some((call) => call.object.readScope(call.name, call.input) !== scope)) {
-            throw new CallError("BAD_REQUEST", {
+            throw new ObjectError("MIXED_SCOPES", {
                 message: "a mutation's calls must act in one scope",
             });
         }
@@ -1590,7 +1625,7 @@ export class ObjectStore {
     ): Promise<MutationRun> {
         // require an authenticated caller the journal keys the mutation by
         if (caller.subject === undefined) {
-            throw new CallError("UNAUTHORIZED", {
+            throw new ObjectError("UNAUTHENTICATED", {
                 message: "a mutation needs an authenticated caller",
             });
         }
@@ -1600,6 +1635,7 @@ export class ObjectStore {
             scope,
             caller,
             ...(options.component === undefined ? {} : { component: options.component }),
+            ...(options.manager === undefined ? {} : { manager: options.manager }),
             calls,
             prepared: [],
             request: { caller: Caller.key(caller), scope, requestId: mutation.id },
@@ -1663,7 +1699,10 @@ export class ObjectStore {
             authorization.requireUncapped(planned.calls.filter((call) => call.as === undefined));
         }
 
-        return authorization;
+        // write for the run's declaration, if any
+        return planned.manager === undefined
+            ? authorization
+            : authorization.applying(planned.manager);
     }
 
     /** Digest a mutation's calls with their sensitive inputs redacted. */
@@ -1766,11 +1805,10 @@ export class ObjectStore {
         // record the failed call with its request
         const failed = nth(run.calls, position);
         const { action, values } = failed.object.auditCall(failed.name, failed.input, run.scope);
-        await this.audit(
-            run.scope,
-            run.caller,
-            run.component === undefined ? {} : { component: run.component },
-        ).record(
+        await this.audit(run.scope, run.caller, {
+            package: failed.object.package,
+            ...(run.component === undefined ? {} : { component: run.component }),
+        }).record(
             undefined,
             action,
             { ...values, outcome },
@@ -1867,7 +1905,7 @@ export class ObjectStore {
                 // require the pushed scope to be the home running the mutation
                 const first = this.#resolve(nth(mutation.calls, 0), true, CallSite.of(caller));
                 if (first.object.readScope(first.name, first.input) !== scope) {
-                    throw new CallError("BAD_REQUEST", {
+                    throw new ObjectError("SCOPE_MISMATCH", {
                         message: `a mutation pushed to ${scope} acts in another scope`,
                     });
                 }
@@ -2010,7 +2048,7 @@ export class ObjectStore {
         };
         const home = await this.#readHome(call);
         if (home === undefined) {
-            throw new CallError("BAD_REQUEST", {
+            throw new ObjectError("NO_HOME_HANDLER", {
                 message: `nothing here answers ${object.name}.${name} at the rows' home`,
             });
         }
@@ -2031,11 +2069,11 @@ export class ObjectStore {
         const homes = await Promise.all(transaction.calls.map((call) => this.#readHome(call)));
         const [home] = homes;
         if (homes.includes(undefined)) {
-            throw new CallError("BAD_REQUEST", {
+            throw new ObjectError("NO_REPLICA_RECEIVER", {
                 message: "nothing here receives changes of the replicated rows",
             });
         } else if (home === undefined || homes.some((each) => each !== home)) {
-            throw new CallError("BAD_REQUEST", {
+            throw new ObjectError("MIXED_HOMES", {
                 message: "a mutation of replicated rows must change rows of one home",
             });
         }
@@ -2053,7 +2091,7 @@ export class ObjectStore {
             return;
         }
 
-        throw new CallError("BAD_REQUEST", {
+        throw new ObjectError("REPLICA_WRITE", {
             message: `the rows ${[...new Set(replicas)].join(", ")} are replicas here: change them at their home`,
         });
     }
@@ -2103,7 +2141,7 @@ export class ObjectStore {
         if (replicated.every((isReplicated) => !isReplicated)) {
             return undefined;
         } else if (replicated.some((isReplicated) => !isReplicated)) {
-            throw new CallError("BAD_REQUEST", {
+            throw new ObjectError("MIXED_HOMES", {
                 message: "a mutation must change rows of one home, local or replicated",
             });
         }
@@ -2120,7 +2158,7 @@ export class ObjectStore {
     }
 
     /** List the controllers of the types a filter selects by their package's id. */
-    #objectControllers(isSelected: (packageId: PackageId) => boolean): Controller[] {
+    #objectControllers(isSelected: (packageId: PackageId) => boolean): ReconcileController[] {
         return [...this.objects, ...this.#provisioned].flatMap((object) =>
             object.controller === undefined || !isSelected(object.package.id)
                 ? []
@@ -2211,7 +2249,7 @@ export class ObjectStore {
         // resolve its access
         const access = await this.authorizer.resolve(transaction.view(), scope, bind(), links);
 
-        return new Authorization(this.authorizer, transaction, bind, access);
+        return new Authorization(this.authorizer, transaction, bind, { resolved: access });
     }
 
     /** Authorize a caller for work this store serves: an unmoved scope, in its partition. */
@@ -2277,29 +2315,24 @@ export class ObjectStore {
 
     /** Enter a scope: require the request's scope or one inside it, and wait for seen writes. */
     async enter(context: RequestContext, scope: string): Promise<void> {
-        // require the request's scope or a scope inside it
+        // enter the requested scope, or any without one, at once without watermarks to wait for
         const requested = context.scope;
-        if (requested !== undefined && requested !== scope) {
-            const [row] = await Scope.read(Snapshot.live(this.database), [scope]);
-            if (row?.ancestors.includes(requested) !== true) {
-                throw new CallError("NOT_FOUND", {
-                    message: `scope ${scope} is outside the request's scope`,
-                });
-            }
-        }
-
-        // wait for observed writes
-        await this.waitFor(context, scope);
-    }
-
-    /** Wait until the database has the caller's watermarks in the scope chain. */
-    async waitFor(context: RequestContext, scope: string): Promise<void> {
-        // wait for the watermarks of the scope chain
-        const watermarks = context.bookmark.watermarks;
-        if (watermarks.length === 0) {
+        const { watermarks } = context.bookmark;
+        const isRequested = requested === undefined || requested === scope;
+        if (isRequested && watermarks.length === 0) {
             return;
         }
-        const chain = await this.#chainIds(scope);
+
+        // read the scope's row, refusing one outside the request's scope or not here yet
+        const [row] = await Scope.read(Snapshot.live(this.database), [scope]);
+        if (!isRequested && (row === undefined || !Scope.within(row, requested))) {
+            throw new ObjectError("SCOPE_OUTSIDE_REQUEST", {
+                message: `scope ${scope} is outside the request's scope`,
+            });
+        }
+
+        // wait for the caller's watermarks along the scope's chain
+        const chain = new Set([scope, ...(row?.ancestors ?? [])]);
         await this.#waitForAll(
             context,
             watermarks.filter((entry) => chain.has(entry.scope)),
@@ -2316,7 +2349,7 @@ export class ObjectStore {
         const chain = await this.#chainIds(scope);
         const outside = homes.find((home) => !chain.has(home.scope));
         if (outside !== undefined) {
-            throw new CallError("BAD_REQUEST", {
+            throw new ObjectError("SCOPE_OUTSIDE_CHAIN", {
                 message: `${outside.scope} is outside the chain of ${scope}, so no replica here follows it`,
             });
         }
@@ -2343,10 +2376,10 @@ export class ObjectStore {
                 // refuse a scope still without a home or replica here, else the late position
                 const history = await this.history(watermark);
                 throw history.kind === "unknown"
-                    ? new CallError("NOT_FOUND", {
+                    ? new ObjectError("NO_HOME_OR_REPLICA", {
                           message: `${watermark.scope} has no home or replica here`,
                       })
-                    : new CallError("SERVICE_UNAVAILABLE", {
+                    : new ObjectError("REPLICA_BEHIND", {
                           message: `${watermark.scope} has not reached the required sequence`,
                       });
             }
@@ -2434,7 +2467,7 @@ export class ObjectStore {
     /** Read the memory store with the ephemeral objects, failing without one. */
     requireEphemeral(): EphemeralStorage {
         if (this.ephemeral === undefined) {
-            throw new CallError("NOT_FOUND", {
+            throw new ObjectError("NO_EPHEMERAL_STORAGE", {
                 message: "no ephemeral objects are served here",
             });
         }
@@ -2452,7 +2485,7 @@ export class ObjectStore {
     ): Promise<unknown[]> {
         // require the writer of the rows
         if (writerId === undefined) {
-            throw new CallError("BAD_REQUEST", {
+            throw new ObjectError("WRITER_REQUIRED", {
                 message: "only a writer can write ephemeral objects",
             });
         }
@@ -2516,7 +2549,7 @@ export class ObjectStore {
                 const label = `method:${object.package.name}/${object.name}.${name}`;
                 const retryAfter = await Limits.take(this.database, label, key, rate, now);
                 if (retryAfter !== undefined) {
-                    throw new CallError("TOO_MANY_REQUESTS", {
+                    throw new ObjectError("RATE_LIMITED", {
                         message: `${object.name}.${name} is limited to ${rate.count} calls per ${Duration.milliseconds(rate.every)} ms`,
                         data: { retryAfter },
                     });
@@ -2549,7 +2582,7 @@ export class ObjectStore {
         const isServed = ObjectType.find(this.objects, entry) !== undefined;
         const replicated = ObjectType.find(refused, entry);
         if (mutates && !isServed && replicated !== undefined) {
-            throw new CallError("CONFLICT", {
+            throw new ObjectError("REPLICA_WRITE", {
                 message: `${replicated.name} rows are replicas here, so send their changes to their home`,
             });
         }
@@ -2595,7 +2628,7 @@ export class ObjectStore {
         const scope = object.readScope(name, input);
         const isRowChange = method.mutates && !ACCESS_KINDS.has(method.kind);
         if (isRowChange && (await this.isReplica(object, transaction.view(), scope))) {
-            throw new CallError("CONFLICT", {
+            throw new ObjectError("REPLICA_WRITE", {
                 message: `${object.name} rows of ${scope} are replicas here, so send their changes to their home`,
             });
         }
@@ -2641,7 +2674,9 @@ export class ObjectStore {
         }
         const target = await ObjectStore.#target(context, execution, targetId, snapshot);
         if (revision !== undefined && target?.["revision"] !== revision) {
-            throw new CallError("CONFLICT", { message: `${object.name} revision has changed` });
+            throw new ObjectError("STALE_REVISION", {
+                message: `${object.name} revision has changed`,
+            });
         }
 
         // refuse callers' other methods on a trashed object
@@ -2650,7 +2685,9 @@ export class ObjectStore {
             target !== undefined &&
             target["deletedAt"] !== null;
         if (isTrashed && !TRASH_METHODS.has(method.kind) && method.isInternal !== true) {
-            throw new CallError("CONFLICT", { message: `${object.name} is in the trash` });
+            throw new ObjectError("IN_TRASH", {
+                message: `${object.name} is in the trash`,
+            });
         }
 
         return {
@@ -2735,7 +2772,9 @@ export class ObjectStore {
         // require the served branch types and the caller's read of the branch
         const types = this.branch;
         if (types === undefined) {
-            throw new CallError("BAD_REQUEST", { message: "this store does not serve branches" });
+            throw new ObjectError("NO_BRANCHES", {
+                message: "this store does not serve branches",
+            });
         }
         const id = schema.string().parse(branch);
         const row = await Snapshot.live(database)
@@ -2747,7 +2786,9 @@ export class ObjectStore {
                 ? []
                 : (await authorization.filter(types.object, permission, [row], { scope })).rows;
         if (allowed.length === 0) {
-            throw new CallError("NOT_FOUND", { message: `no branch ${id}` });
+            throw new ObjectError("BRANCH_NOT_FOUND", {
+                message: `no branch ${id}`,
+            });
         }
 
         return base.layer(await new Branch(types, base, id).overlay(base, this.objects));
@@ -3098,7 +3139,10 @@ export class ObjectStore {
         readonly requestId?: string;
     }): Promise<void> {
         const { scope, caller, object, operation, id, requestId } = read;
-        await this.audit(scope, caller, requestId === undefined ? {} : { requestId }).record(
+        await this.audit(scope, caller, {
+            package: object.package,
+            ...(requestId === undefined ? {} : { requestId }),
+        }).record(
             undefined,
             objectUnmask,
             {
@@ -3226,7 +3270,10 @@ export class ObjectStore {
         };
 
         // audit a durable change, or journal a request's other call for retries, once the mutation commits under its transaction
-        const recorder = this.audit(scope, caller, component === undefined ? {} : { component });
+        const recorder = this.audit(scope, caller, {
+            package: object.package,
+            ...(component === undefined ? {} : { component }),
+        });
         transaction.record(async (committing) => {
             const stamp = await committing.log.transaction();
             const stamped =
@@ -3262,7 +3309,7 @@ export class ObjectStore {
             const [log, epoch, sequence] = lastEventId.split("/");
             const position = LogPosition.safeParse({ log, epoch, sequence: Number(sequence) });
             if (!position.success) {
-                throw new CallError("BAD_REQUEST", {
+                throw new ObjectError("EVENT_NOT_FOUND", {
                     message: `no page has event ${lastEventId}`,
                 });
             }
@@ -3682,9 +3729,11 @@ export class ObjectStore {
                               type.type === caller.subject.type,
                       ));
             if (callers !== undefined && Caller.isAnonymous(caller)) {
-                throw new CallError("UNAUTHORIZED", { message: "missing caller credential" });
+                throw new ObjectError("MISSING_CREDENTIAL", {
+                    message: "missing caller credential",
+                });
             } else if (!isDeclared) {
-                throw new CallError("FORBIDDEN", {
+                throw new ObjectError("ADAPTER_REFUSES_CALLER", {
                     message: `adapter ${adapter.name} answers no ${caller.subject.type} ${caller.subject.id}`,
                 });
             }
@@ -3844,9 +3893,11 @@ export class ObjectStore {
         view: Snapshot,
         delta: Delta | undefined,
     ): Promise<FollowKey[]> {
-        // read the rows of the store's database the keys come from
+        // read the rows of the store's database the keys come from, in identifier order
         const table = follow.from.table;
-        const rows = await view.read(table).findMany({ where: follow.where ?? {} });
+        const rows = await view
+            .read(table)
+            .findMany({ where: follow.where ?? {}, orderBy: { id: "asc" } });
 
         // list the source rows the commit changed, whose keys read again
         const changed = new Set(

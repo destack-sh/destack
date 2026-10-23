@@ -1,6 +1,6 @@
 import { users } from "./fixture/user.ts";
 import { implementPackage, ObjectStore } from "../src/server/index.ts";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { isNull } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { ObjectClient } from "../src/client/index.ts";
@@ -55,7 +55,7 @@ async function servePages() {
     const connect = (headers: Record<string, string>) =>
         createClient(pagesPackage, endpoint(headers));
 
-    return { connect, endpoint };
+    return { as: (user: Identifier<"user">) => served.as(user), connect, endpoint };
 }
 
 /** Replicate a user's pages on a device. */
@@ -106,10 +106,10 @@ async function openDevice(user: Identifier<"user">, endpoint: ClientOptions) {
 }
 
 test("share page trees with members and links, and move pages within them", async () => {
-    const { connect } = await servePages();
-    const alice = connect({ authorization: `Bearer ${users.alice}` });
-    const bob = connect({ authorization: `Bearer ${users.bob}` });
-    const carol = connect({ authorization: `Bearer ${users.carol}` });
+    const { as, connect } = await servePages();
+    const alice = as(users.alice).client(pagesPackage);
+    const bob = as(users.bob).client(pagesPackage);
+    const carol = as(users.carol).client(pagesPackage);
 
     // build a tree of pages private to its owner
     const create = (title: string, parentId?: string) =>
@@ -124,18 +124,21 @@ test("share page trees with members and links, and move pages within them", asyn
     const handbook = await create("Handbook");
     const onboarding = await create("Onboarding", handbook.id);
     const week = await create("First week", onboarding.id);
-    await expect(bob.page.get({ spaceId, id: week.id })).rejects.toMatchObject({
-        code: "NOT_FOUND",
-        message: `no page ${week.id}`,
-    });
-    await expect(
-        bob.page.create({
-            spaceId,
-            requestId: RequestId.create(Date.now()),
-            parentId: week.id,
-            title: "Spam",
-        }),
-    ).rejects.toMatchObject({ code: "NOT_FOUND", message: `no page ${week.id}` });
+    expect(await refusal(bob.page.get({ spaceId, id: week.id }))).toEqual([
+        "NOT_FOUND",
+        "NOT_FOUND",
+        `no page ${week.id}`,
+    ]);
+    expect(
+        await refusal(
+            bob.page.create({
+                spaceId,
+                requestId: RequestId.create(Date.now()),
+                parentId: week.id,
+                title: "Spam",
+            }),
+        ),
+    ).toEqual(["NOT_FOUND", "NOT_FOUND", `no page ${week.id}`]);
 
     // share the tree's root: editors edit every subpage but may not delete or move them
     await alice.page.grant({
@@ -155,15 +158,17 @@ test("share page trees with members and links, and move pages within them", asyn
     expect(ObjectReference.at("owner", tools)).toEqual(
         principal.user.reference("universe", users.bob),
     );
-    await expect(
-        bob.page.move({
-            spaceId,
-            id: week.id,
-            requestId: RequestId.create(Date.now()),
-            revision: week.revision,
-            parentId: null,
-        }),
-    ).rejects.toMatchObject({ code: "FORBIDDEN", message: "permission denied: manage" });
+    expect(
+        await refusal(
+            bob.page.move({
+                spaceId,
+                id: week.id,
+                requestId: RequestId.create(Date.now()),
+                revision: week.revision,
+                parentId: null,
+            }),
+        ),
+    ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: manage"]);
 
     // move a subtree out of the shared tree, and refuse moving a page into its subtree
     await alice.page.move({
@@ -173,22 +178,22 @@ test("share page trees with members and links, and move pages within them", asyn
         revision: week.revision,
         parentId: null,
     });
-    await expect(bob.page.get({ spaceId, id: week.id })).rejects.toMatchObject({
-        code: "NOT_FOUND",
-        message: `no page ${week.id}`,
-    });
-    await expect(
-        alice.page.move({
-            spaceId,
-            id: handbook.id,
-            requestId: RequestId.create(Date.now()),
-            revision: handbook.revision,
-            parentId: onboarding.id,
-        }),
-    ).rejects.toMatchObject({
-        code: "CONFLICT",
-        message: "page cannot move into its subtree",
-    });
+    expect(await refusal(bob.page.get({ spaceId, id: week.id }))).toEqual([
+        "NOT_FOUND",
+        "NOT_FOUND",
+        `no page ${week.id}`,
+    ]);
+    expect(
+        await refusal(
+            alice.page.move({
+                spaceId,
+                id: handbook.id,
+                requestId: RequestId.create(Date.now()),
+                revision: handbook.revision,
+                parentId: onboarding.id,
+            }),
+        ),
+    ).toEqual(["CONFLICT", "MOVE_INTO_SUBTREE", "page cannot move into its subtree"]);
 
     // publish the tree through a link anyone presenting its secret may read, signed in or not
     const link = await LinkSecret.create();
@@ -205,19 +210,22 @@ test("share page trees with members and links, and move pages within them", asyn
     expect(
         (await visitor.page.list({ spaceId })).items.map((item) => item.title).toSorted(),
     ).toEqual(["Handbook", "Onboarding", "Tools"]);
-    await expect(connect({}).page.get({ spaceId, id: handbook.id })).rejects.toMatchObject({
-        code: "NOT_FOUND",
-        message: `no page ${handbook.id}`,
-    });
-    await expect(
-        visitor.page.update({
-            spaceId,
-            id: tools.id,
-            requestId: RequestId.create(Date.now()),
-            revision: tools.revision,
-            title: "Defaced",
-        }),
-    ).rejects.toMatchObject({ code: "UNAUTHORIZED", message: "missing caller credential" });
+    expect(await refusal(connect({}).page.get({ spaceId, id: handbook.id }))).toEqual([
+        "NOT_FOUND",
+        "NOT_FOUND",
+        `no page ${handbook.id}`,
+    ]);
+    expect(
+        await refusal(
+            visitor.page.update({
+                spaceId,
+                id: tools.id,
+                requestId: RequestId.create(Date.now()),
+                revision: tools.revision,
+                title: "Defaced",
+            }),
+        ),
+    ).toEqual(["UNAUTHORIZED", "MISSING_CREDENTIAL", "missing caller credential"]);
 
     // explain to the owner why a reader may not write
     const why = await alice.page.explain({
@@ -290,12 +298,9 @@ test("share page trees with members and links, and move pages within them", asyn
 });
 
 test("build page trees offline in one mutation, and move and trash pages predictively", async () => {
-    const { connect, endpoint } = await servePages();
-    const alice = connect({ authorization: `Bearer ${users.alice}` });
-    const device = await openDevice(
-        users.alice,
-        endpoint({ authorization: `Bearer ${users.alice}` }),
-    );
+    const { as } = await servePages();
+    const alice = as(users.alice).client(pagesPackage);
+    const device = await openDevice(users.alice, as(users.alice).endpoint(pagesPackage));
 
     // create a tree of three pages in one mutation, shown before the server executes it
     const tree = device.client.mutation(async (mutation) => {
@@ -322,14 +327,16 @@ test("build page trees offline in one mutation, and move and trash pages predict
     expect(await device.titles()).toEqual(["First week", "Handbook"]);
     await moved.confirmed;
     const cycle = device.client.mutate(page).move({ id: handbook.id, parentId: onboarding.id });
-    await expect(cycle.predicted).rejects.toMatchObject({
-        code: "CONFLICT",
-        message: "page cannot move into its subtree",
-    });
-    await expect(cycle.confirmed).rejects.toMatchObject({
-        code: "CONFLICT",
-        message: "page cannot move into its subtree",
-    });
+    expect(await refusal(cycle.predicted)).toEqual([
+        "CONFLICT",
+        "MOVE_INTO_SUBTREE",
+        "page cannot move into its subtree",
+    ]);
+    expect(await refusal(cycle.confirmed)).toEqual([
+        "CONFLICT",
+        "MOVE_INTO_SUBTREE",
+        "page cannot move into its subtree",
+    ]);
     expect(await device.client.prediction.pending(device.client.database)).toEqual([]);
 
     // trash and restore a page, shown at once and confirmed by the server
@@ -348,8 +355,8 @@ test("build page trees offline in one mutation, and move and trash pages predict
 });
 
 test("follow a shared tree on a device, dropping pages moved out of it and taking them back", async () => {
-    const { connect, endpoint } = await servePages();
-    const alice = connect({ authorization: `Bearer ${users.alice}` });
+    const { as } = await servePages();
+    const alice = as(users.alice).client(pagesPackage);
 
     // share a tree of four pages with bob as a viewer
     const create = (title: string, parentId?: string) =>
@@ -374,7 +381,7 @@ test("follow a shared tree on a device, dropping pages moved out of it and takin
     });
 
     // replicate the shared tree on bob's device
-    const device = await openDevice(users.bob, endpoint({ authorization: `Bearer ${users.bob}` }));
+    const device = await openDevice(users.bob, as(users.bob).endpoint(pagesPackage));
     const titles = async () => {
         const rows = await device.client.database
             .select({ title: page.table.title })
@@ -403,8 +410,8 @@ test("follow a shared tree on a device, dropping pages moved out of it and takin
 });
 
 test("list the pages below and above each page", async () => {
-    const { connect } = await servePages();
-    const alice = connect({ authorization: `Bearer ${users.alice}` });
+    const { as } = await servePages();
+    const alice = as(users.alice).client(pagesPackage);
 
     // nest a guide under a handbook, and a chapter under the guide
     const create = async (title: string, parentId?: string) =>
@@ -439,11 +446,11 @@ test("list the pages below and above each page", async () => {
 });
 
 test("follow the pages below a page on a device as the tree grows", async () => {
-    const { connect, endpoint } = await servePages();
-    const alice = connect({ authorization: `Bearer ${users.alice}` });
+    const { as } = await servePages();
+    const alice = as(users.alice).client(pagesPackage);
     const { client: device } = await openDevice(
         users.alice,
-        endpoint({ authorization: `Bearer ${users.alice}` }),
+        as(users.alice).endpoint(pagesPackage),
     );
     const handbook = await alice.page.create({
         spaceId,

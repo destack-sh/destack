@@ -203,8 +203,8 @@ test("let the roles of an owner create objects of that owner and run scoped meth
     ]).toEqual([
         "done",
         "done",
-        ["NOT_FOUND", "asset not found"],
-        ["FORBIDDEN", "permission denied: manage"],
+        ["NOT_FOUND", "NOT_FOUND", "asset not found"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: manage"],
     ]);
 });
 
@@ -276,5 +276,9 @@ test("allow an owner its objects in a private home it cannot see, and refuse the
         await create(holderId, asset, "create", { holderId, name: "lamp" }),
         await create(rivalId, asset, "create", { holderId, name: "desk" }),
         await create(rivalId, sticker, "create", { name: "star" }),
-    ]).toEqual(["done", ["NOT_FOUND", `no scope ${homeId}`], ["NOT_FOUND", `no scope ${homeId}`]]);
+    ]).toEqual([
+        "done",
+        ["NOT_FOUND", "SCOPE_NOT_FOUND", `no scope ${homeId}`],
+        ["NOT_FOUND", "SCOPE_NOT_FOUND", `no scope ${homeId}`],
+    ]);
 });

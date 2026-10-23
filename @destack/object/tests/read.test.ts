@@ -1,5 +1,5 @@
 import { users } from "./fixture/user.ts";
-import { expect, test } from "@destack/test";
+import { expect, refusal, test } from "@destack/test";
 import { Device, serveNotes, spaceId } from "./fixture/device.ts";
 import { notebook } from "./fixture/note.ts";
 
@@ -25,9 +25,10 @@ test("read through methods that change nothing on the server, and refuse mutatio
             input: { spaceId, name: "Ideas" },
         },
     });
-    await expect(refused).rejects.toMatchObject({
-        code: "BAD_REQUEST",
-        message: "notebook.create changes objects: push it from a client",
-    });
+    expect(await refusal(refused)).toEqual([
+        "BAD_REQUEST",
+        "PUSH_REQUIRED",
+        "notebook.create changes objects: push it from a client",
+    ]);
     expect([read.name, device.errors]).toEqual(["Travel", []]);
 });

@@ -1,12 +1,15 @@
 import type { Method } from "../method/method.ts";
+import { ObjectError } from "../error/error.ts";
 import { TABLE, LogPosition, type Row, Snapshot, type Table, Condition } from "@destack/db";
-import { CallError } from "../error/call.ts";
+
 import { schema } from "@destack/schema";
 import * as sync from "@destack/sync";
 import { CallSite } from "../method/index.ts";
 import type { ObjectController } from "../object/controller.ts";
 import { Branch } from "./branch.ts";
 import { ObjectKey, ObjectType } from "../object/index.ts";
+
+import type {} from "@destack/package/import-meta";
 
 /** The columns of every branch type's rows: identifier, state, row tables and build position. */
 const BRANCH_RECORD = schema.looseObject({
@@ -55,7 +58,9 @@ export class BranchType {
     /** Require a branch to be open, refusing one merged or discarded for good. */
     requireOpen<Target extends { readonly state: string }>(target: Target): Target {
         if (target.state !== "open") {
-            throw new CallError("CONFLICT", { message: `branch is ${target.state}` });
+            throw new ObjectError("BRANCH_NOT_OPEN", {
+                message: `branch is ${target.state}`,
+            });
         }
 
         return target;
@@ -75,7 +80,7 @@ export class BranchType {
                 : undefined;
         const named = field === undefined ? undefined : entry.input[field];
         if (named !== undefined && named !== scope) {
-            throw new CallError("BAD_REQUEST", {
+            throw new ObjectError("CALL_OUTSIDE_BRANCH", {
                 message: `${sync.Call.label(entry)} is in another scope than its branch`,
             });
         }
@@ -84,7 +89,7 @@ export class BranchType {
 
         // refuse ephemeral objects and branch bookkeeping
         if (resolved.object.storage === "ephemeral" || this.has(resolved.object)) {
-            throw new CallError("BAD_REQUEST", {
+            throw new ObjectError("UNBRANCHABLE_CALL", {
                 message: `branches cannot store calls of ${resolved.object.name}`,
             });
         }

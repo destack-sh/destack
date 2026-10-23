@@ -1,4 +1,5 @@
 import { ObjectReference, type Item, Subject, RequestId } from "@destack/sync";
+import { ObjectError } from "../error/error.ts";
 import {
     FindOptions,
     and,
@@ -87,6 +88,8 @@ import {
     type Subscriber,
     type SubscribeOptions,
 } from "./query.ts";
+
+import type {} from "@destack/package/import-meta";
 
 /** The method kinds with predictions that read only their object's and parent's tables. */
 const STANDARD_KINDS: ReadonlySet<string> = new Set([
@@ -613,7 +616,7 @@ export class ObjectClient<
             if (home === scope) {
                 return local();
             } else if (homes === undefined) {
-                throw new CallError("BAD_REQUEST", {
+                throw new ObjectError("HOME_UNREACHABLE", {
                     message: `the client of ${scope} cannot reach the home of ${home}`,
                 });
             }
@@ -1672,7 +1675,7 @@ export class ObjectClient<
                 return rows;
             } catch (error) {
                 // recount after compaction
-                if (!(error instanceof DatabaseError && error.code === "CHANGES_COMPACTED")) {
+                if (!(error instanceof DatabaseError && error.reason === "CHANGES_COMPACTED")) {
                     throw error;
                 }
             }
@@ -1945,7 +1948,7 @@ export class ObjectClient<
     #lookup(object: ObjectType, relation: string, options: FindOptions): Lookup {
         const { object: target, relation: joined } = related(object, relation, this.objects);
         if (joined.on.kind !== "key") {
-            throw new CallError("BAD_REQUEST", {
+            throw new ObjectError("RELATION_BY_KEY", {
                 message: `object ${object.name} relates ${relation} of another storage only by key`,
             });
         }
@@ -1966,7 +1969,7 @@ export class ObjectClient<
         );
         for (const { via } of relations) {
             if (related(object, via, this.objects).object.storage !== object.storage) {
-                throw new CallError("BAD_REQUEST", {
+                throw new ObjectError("RELATION_ACROSS_STORAGE", {
                     message: `object ${object.name} cannot relate ${via}: it has another storage`,
                 });
             }
@@ -2246,10 +2249,14 @@ export class ObjectClient<
                       .where(eq(table[TABLE].column("id"), targetId))
                 : [];
         if (Method.loads(method) && target === undefined) {
-            throw new CallError("NOT_FOUND", { message: `no ${object.name} ${targetId}` });
+            throw CallError.http("NOT_FOUND", {
+                message: `no ${object.name} ${targetId}`,
+            });
         }
         if (revision !== undefined && target?.["revision"] !== revision) {
-            throw new CallError("CONFLICT", { message: `${object.name} revision has changed` });
+            throw new ObjectError("STALE_REVISION", {
+                message: `${object.name} revision has changed`,
+            });
         }
 
         return method.execute(target === undefined ? context : context.with({ target: target }), {
@@ -2397,14 +2404,14 @@ export class ObjectClient<
         const [first] = calls;
         const before = first === undefined ? home : this.#readHome(first);
         if (home !== before) {
-            throw new CallError("BAD_REQUEST", {
+            throw new ObjectError("MIXED_HOMES", {
                 message: `a mutation changes rows of one home, and its calls change rows of ${before} and ${home}`,
             });
         }
 
         // require a home the client can call
         if (home !== this.scope && !this.#hasHomes) {
-            throw new CallError("BAD_REQUEST", {
+            throw new ObjectError("HOME_UNREACHABLE", {
                 message: `the client of ${this.scope} cannot reach the home of ${home}`,
             });
         }

@@ -1,8 +1,9 @@
 import { included, type ObjectReference, type Item, type Query } from "@destack/sync";
+import { ObjectError } from "../error/error.ts";
 import { through } from "@destack/access";
 import { type Transaction, type Snapshot, Table } from "@destack/db";
 import { schema, canonicalize, Identifier, present } from "@destack/schema";
-import { CallError } from "../error/call.ts";
+
 import { FractionalIndex } from "../field/fractional-index.ts";
 import type { MethodContext } from "../method/context.ts";
 import { method } from "../method/record.ts";
@@ -10,6 +11,8 @@ import { type ObjectDefinition, ObjectType } from "../object/object.ts";
 import { Run, Sequence, SequenceEdit, type Element } from "../sequence/index.ts";
 import { chunk, chunkRun } from "./table.ts";
 import { Execution } from "../method/execution.ts";
+
+import type {} from "@destack/package/import-meta";
 
 /** The most characters per chunk: a keystroke syncs one ~1 KiB row, 1 MB is ~2,000 rows. */
 export const CHUNK_CHARACTERS = 512;
@@ -425,7 +428,7 @@ const ChunkLayout = {
         // refuse a run the text already contains
         const duplicate = found.find((entry) => inserted.has(entry.run));
         if (duplicate !== undefined) {
-            throw new CallError("BAD_REQUEST", {
+            throw new ObjectError("DUPLICATE_RUN", {
                 message: `${field} already has run ${duplicate.run}`,
             });
         }
@@ -441,7 +444,7 @@ const ChunkLayout = {
                 ),
         );
         if (missing !== undefined) {
-            throw new CallError("BAD_REQUEST", {
+            throw new ObjectError("ELEMENT_NOT_FOUND", {
                 message: `no chunk has element ${missing.run}:${missing.offset}`,
             });
         }
@@ -468,7 +471,7 @@ const ChunkLayout = {
         for (const edit of edits) {
             // refuse inserting a run the text already has
             if ("insert" in edit && sequence.runs.some((piece) => piece.run === edit.run)) {
-                throw new CallError("BAD_REQUEST", {
+                throw new ObjectError("DUPLICATE_RUN", {
                     message: `${field} already has run ${edit.run}`,
                 });
             }
@@ -479,7 +482,9 @@ const ChunkLayout = {
                 sequence = sequence.apply(edit);
             } catch (error) {
                 if (error instanceof RangeError) {
-                    throw new CallError("BAD_REQUEST", { message: error.message });
+                    throw new ObjectError("INVALID_TEXT_EDIT", {
+                        message: error.message,
+                    });
                 }
                 throw error;
             }

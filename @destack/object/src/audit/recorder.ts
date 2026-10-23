@@ -17,6 +17,7 @@ import { AccessContext, Credential } from "@destack/access";
 import { type ProcedureAudit, type ProcedureContext } from "../server/procedure.ts";
 import { context, trace, isSpanContextValid } from "@destack/telemetry";
 import { type AuditAction, defineAuditAction } from "./action.ts";
+import type { Package } from "@destack/package";
 import { ObjectError } from "../error/index.ts";
 import type { DatabaseConnection } from "@destack/db";
 import type { Journal } from "./journal.ts";
@@ -33,6 +34,8 @@ export type AuditOrigin = Omit<CallOrigin, "caller" | "deploymentId" | "traceId"
 
 /** The options of a recorder: what it records about the calls beside their caller. */
 export interface AuditRecorderOptions {
+    /** The package whose method or procedure the calls run. */
+    readonly package: Package;
     /** The request the calls answer. */
     readonly requestId?: string;
     /** The code making the calls, such as a controller's name. */
@@ -70,7 +73,7 @@ type Ended<Target extends schema.Schema<AuditTarget>, Details extends schema.Sch
 /** The outcome of a cancelled call. */
 const CANCELLED: Outcome = {
     kind: "cancelled",
-    error: { code: "CLIENT_CLOSED_REQUEST", message: "cancelled" },
+    error: Failure.http("CLIENT_CLOSED_REQUEST", "cancelled"),
 };
 
 /** Record calls under a fixed context. */
@@ -130,14 +133,15 @@ export class AuditRecorder {
     /** Open recorders of a store's calls, one per scope and caller. */
     static scoped(
         journal: Journal,
-        origin: Omit<AuditOrigin, "scope">,
-    ): (scope: string, caller: AccessContext, options?: AuditRecorderOptions) => AuditRecorder {
-        return (scope, caller, options = {}) =>
+        origin: Omit<AuditOrigin, "scope" | "package">,
+    ): (scope: string, caller: AccessContext, options: AuditRecorderOptions) => AuditRecorder {
+        return (scope, caller, options) =>
             AuditRecorder.from(
                 caller,
                 journal,
                 {
                     ...origin,
+                    package: options.package,
                     scope,
                     ...(options.component === undefined ? {} : { component: options.component }),
                 },
@@ -194,7 +198,7 @@ export class AuditRecorder {
         else {
             return {
                 kind: "failure",
-                error: { code: "INTERNAL_SERVER_ERROR", message: "internal error" },
+                error: Failure.http("INTERNAL_SERVER_ERROR", "internal error"),
             };
         }
     }
@@ -249,10 +253,9 @@ export class AuditRecorder {
             execution.outcome !== undefined ||
             canonicalize(execution.context) !== canonicalize(this.#context)
         ) {
-            throw new ObjectError(
-                "INVALID_CALL",
-                "finishing a call requires a running call from this context",
-            );
+            throw new ObjectError("INVALID_CALL", {
+                message: "finishing a call requires a running call from this context",
+            });
         }
 
         return {
@@ -273,7 +276,7 @@ export class AuditRecorder {
     async append(call: JournalEntry): Promise<void> {
         // require this recorder's context
         if (canonicalize(call.execution.context) !== canonicalize(this.#context)) {
-            throw new ObjectError("INVALID_CALL", "call belongs to another context");
+            throw new ObjectError("INVALID_CALL", { message: "call belongs to another context" });
         }
 
         await this.#journal.record(call, { isAudited: true });
@@ -507,7 +510,9 @@ export class AuditRecorder {
     /** Merge result details into a call's recorded object details. */
     static #mergeDetails(recorded: JsonValue, details: JsonObject): JsonObject {
         if (!JsonValue.isObject(recorded)) {
-            throw new ObjectError("INVALID_CALL", "result details merge only into object details");
+            throw new ObjectError("INVALID_CALL", {
+                message: "result details merge only into object details",
+            });
         }
 
         return { ...recorded, ...details };
