@@ -70,11 +70,14 @@ HTTP/1.1 403 Forbidden
 
 ## Errors
 
-A failed start or stop throws a `SandboxError` with the reason `UNSUPPORTED`, `START_FAILED` or `STOP_FAILED`, and `toCallError` names the call error its caller receives.
+A refused or failed sandbox throws a `SandboxError` failure: `INVALID_GRACE_PERIOD` for a stop timeout out of range, `UNSUPPORTED` where the platform has no sandbox, and `START_FAILED` or `STOP_FAILED` for a launcher that fails.
 
 ```ts
 import { SandboxError } from "@destack/sandbox/error";
 
-// { code: "NOT_IMPLEMENTED", … }
-new SandboxError("UNSUPPORTED", "this platform has no sandbox").toCallError();
+if (SandboxError.is(error, "UNSUPPORTED")) {
+    console.warn(`running unsandboxed: ${error.message}`);
+}
+// { code: "NOT_IMPLEMENTED", reason: "UNSUPPORTED", domain: "@destack/sandbox", … }
+SandboxError.of("UNSUPPORTED", "sandboxing is unsupported on win32").toCallError();
 ```

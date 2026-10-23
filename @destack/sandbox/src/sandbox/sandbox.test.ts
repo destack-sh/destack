@@ -1,14 +1,13 @@
-import { test, expect } from "@destack/test";
+import { test, expect, refusal } from "@destack/test";
 import { chmod, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { text } from "node:stream/consumers";
-import { SandboxError } from "../error/error.ts";
+import { launcherCommand } from "../bun/command.ts";
 import { Sandbox } from "./sandbox.ts";
 import { once } from "node:events";
 import { createInterface } from "node:readline";
 import { spawn } from "node:child_process";
-import { fileURLToPath } from "node:url";
 
 /** The errors a denied read and a denied write report, by platform. */
 const DENIED_FAILURES: Partial<Record<NodeJS.Platform, readonly string[]>> = {
@@ -156,6 +155,11 @@ test("stop a running workload and complete graceful shutdown", async () => {
         const output = text(sandbox.stdout);
         const errors = text(sandbox.stderr);
         await ready;
+        expect(await refusal(() => sandbox.stop(-1))).toEqual([
+            "BAD_REQUEST",
+            "INVALID_GRACE_PERIOD",
+            "grace period must be between 0 and 300000 milliseconds",
+        ]);
         const stopping = sandbox.stop(1000);
         expect(sandbox.stop(0)).toBe(stopping);
         expect(await stopping, await errors).toEqual({ code: 0, signal: null });
@@ -245,15 +249,14 @@ test("reject completion when temporary storage cleanup fails", async () => {
             write: [],
             network: [],
         });
-        const failed = expect(sandbox.exited).rejects.toEqual(
-            new SandboxError(
-                "STOP_FAILED",
-                "sandbox launcher terminated without successful cleanup",
-            ),
-        );
+        const failed = refusal(sandbox.exited);
         const errors = text(sandbox.stderr);
         temporary = (await text(sandbox.stdout)).trim();
-        await failed;
+        expect(await failed).toEqual([
+            "INTERNAL_SERVER_ERROR",
+            "STOP_FAILED",
+            "sandbox launcher terminated without successful cleanup",
+        ]);
         await errors;
     } finally {
         if (temporary !== undefined) {
@@ -266,15 +269,12 @@ test("reject completion when temporary storage cleanup fails", async () => {
 
 test("stop the workload when its supervising client disconnects", async () => {
     const directory = await realpath(await mkdtemp(join(tmpdir(), "destack-sandbox-parent-")));
-    const launcher = spawn(
-        process.execPath,
-        ["run", "--no-env-file", fileURLToPath(new URL("../main.ts", import.meta.url))],
-        {
-            cwd: directory,
-            env: { PATH: "/usr/bin:/bin:/usr/sbin:/sbin", HOME: tmpdir(), TMPDIR: tmpdir() },
-            stdio: ["ignore", "pipe", "pipe", "ipc"],
-        },
-    );
+    const command = launcherCommand();
+    const launcher = spawn(command.executable, [...command.arguments], {
+        cwd: directory,
+        env: { PATH: "/usr/bin:/bin:/usr/sbin:/sbin", HOME: tmpdir(), TMPDIR: tmpdir() },
+        stdio: ["ignore", "pipe", "pipe", "ipc"],
+    });
     const { stdout, stderr } = launcher;
     if (stdout === null || stderr === null) {
         throw new TypeError("sandbox launcher has no piped output");

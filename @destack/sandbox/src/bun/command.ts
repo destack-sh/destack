@@ -17,8 +17,12 @@ export function launcherCommand(): LauncherCommand {
         return { executable: join(dirname(process.execPath), "destack-sandbox"), arguments: [] };
     }
 
-    // run the entry with Bun otherwise
+    // run the entry with Bun otherwise, preloading the module metadata the build would inject
     const entry = fileURLToPath(new URL("../main.ts", import.meta.url));
+    const preload = Bun.resolveSync("@destack/package/bun/preload", import.meta.dirname);
 
-    return { executable: process.execPath, arguments: ["run", "--no-env-file", entry] };
+    return {
+        executable: process.execPath,
+        arguments: ["run", "--no-env-file", "--preload", preload, entry],
+    };
 }

@@ -33,7 +33,7 @@ export const RUNTIME_PATHS: Partial<Record<NodeJS.Platform, readonly string[]>> 
 export async function runLauncher(): Promise<void> {
     // reject direct invocation without the supervising process
     if (!process.send) {
-        throw new SandboxError("START_FAILED", "sandbox launcher requires a parent connection");
+        throw SandboxError.of("START_FAILED", "sandbox launcher requires a parent connection");
     }
     const request = Promise.withResolvers<SandboxOptions>();
     const stopped = new AbortController();
@@ -42,7 +42,7 @@ export async function runLauncher(): Promise<void> {
     let gracePeriod = 0;
     process.on("disconnect", () => {
         stopped.abort();
-        request.reject(new SandboxError("START_FAILED", "sandbox parent disconnected"));
+        request.reject(SandboxError.of("START_FAILED", "sandbox parent disconnected"));
     });
     process.on("SIGTERM", () => stopped.abort());
     process.on("SIGINT", () => stopped.abort());
@@ -64,7 +64,7 @@ export async function runLauncher(): Promise<void> {
         const options = await request.promise;
         const runtime = RUNTIME_PATHS[process.platform];
         if (runtime === undefined) {
-            throw new SandboxError(
+            throw SandboxError.of(
                 "UNSUPPORTED",
                 `sandboxing is unsupported on ${process.platform}`,
             );

@@ -1,9 +1,10 @@
+import type { FamilyError } from "@destack/error";
 import { spawn, type ChildProcess } from "node:child_process";
 import { isAbsolute } from "node:path";
 import { tmpdir } from "node:os";
 import type { Readable, Writable } from "node:stream";
 import { launcherCommand } from "../bun/command.ts";
-import { SandboxError } from "../error/index.ts";
+import { SandboxError, type SandboxReason } from "../error/index.ts";
 import { LauncherMessage, SandboxExit, SandboxOptions } from "./message.ts";
 
 /** Maximum time to prepare OS restrictions and launch a process, in milliseconds. */
@@ -57,7 +58,7 @@ export class Sandbox implements AsyncDisposable {
         // bound startup and terminate failed launchers before returning the error
         const timeout = setTimeout(
             () =>
-                watched.ready.reject(new SandboxError("START_FAILED", "sandbox startup timed out")),
+                watched.ready.reject(SandboxError.of("START_FAILED", "sandbox startup timed out")),
             START_TIMEOUT_MILLISECONDS,
         );
         try {
@@ -82,7 +83,8 @@ export class Sandbox implements AsyncDisposable {
             gracePeriod < 0 ||
             gracePeriod > MAX_STOP_TIMEOUT_MILLISECONDS
         ) {
-            throw new RangeError(
+            throw SandboxError.of(
+                "INVALID_GRACE_PERIOD",
                 `grace period must be between 0 and ${MAX_STOP_TIMEOUT_MILLISECONDS} milliseconds`,
             );
         }
@@ -99,7 +101,7 @@ export class Sandbox implements AsyncDisposable {
             await new Promise<void>((resolve, reject) => {
                 this.#launcher.send({ type: "stop", gracePeriod }, (cause) => {
                     if (cause) {
-                        reject(new SandboxError("STOP_FAILED", "cannot stop sandbox", { cause }));
+                        reject(SandboxError.of("STOP_FAILED", "cannot stop sandbox", { cause }));
                     } else {
                         resolve();
                     }
@@ -136,11 +138,11 @@ async function requireSupport(): Promise<void> {
 
     // refuse an unsupported platform or missing tools
     if (!SandboxManager.isSupportedPlatform() || !RUNTIME_PATHS[process.platform]) {
-        throw new SandboxError("UNSUPPORTED", `sandboxing is unsupported on ${process.platform}`);
+        throw SandboxError.of("UNSUPPORTED", `sandboxing is unsupported on ${process.platform}`);
     }
     const dependencies = SandboxManager.checkDependencies();
     if (dependencies.errors.length > 0) {
-        throw new SandboxError("UNSUPPORTED", dependencies.errors.join("; "));
+        throw SandboxError.of("UNSUPPORTED", dependencies.errors.join("; "));
     }
 }
 
@@ -155,12 +157,12 @@ function requirePaths(options: SandboxOptions): void {
         ...(options.sockets ?? []),
     ];
     if (!paths.every(isAbsolute)) {
-        throw new SandboxError("START_FAILED", "sandbox paths must be absolute");
+        throw SandboxError.of("START_FAILED", "sandbox paths must be absolute");
     }
 
     // prevent literal host paths from becoming upstream glob permissions
     if (paths.some((path) => /[\x00*?[\]{}]/u.test(path))) {
-        throw new SandboxError("START_FAILED", "sandbox paths cannot contain glob characters");
+        throw SandboxError.of("START_FAILED", "sandbox paths cannot contain glob characters");
     }
 }
 
@@ -185,10 +187,10 @@ function watchLauncher(launcher: ChildProcess): WatchedLauncher {
     const ready = Promise.withResolvers<void>();
     const closed = Promise.withResolvers<void>();
     let result: SandboxExit | undefined;
-    let failure: SandboxError | undefined;
+    let failure: FamilyError<SandboxReason> | undefined;
     let isStarted = false;
     const fail = (message: string, options?: ErrorOptions) => {
-        failure = new SandboxError(isStarted ? "STOP_FAILED" : "START_FAILED", message, options);
+        failure = SandboxError.of(isStarted ? "STOP_FAILED" : "START_FAILED", message, options);
         ready.reject(failure);
     };
 
@@ -208,12 +210,12 @@ function watchLauncher(launcher: ChildProcess): WatchedLauncher {
     launcher.once("close", (code, signal) => {
         // require the workload result and successful manager cleanup
         if (!failure && (code !== 0 || signal !== null || !result)) {
-            failure = new SandboxError(
+            failure = SandboxError.of(
                 isStarted ? "STOP_FAILED" : "START_FAILED",
                 "sandbox launcher terminated without successful cleanup",
             );
         }
-        ready.reject(failure ?? new SandboxError("START_FAILED", "sandbox exited before startup"));
+        ready.reject(failure ?? SandboxError.of("START_FAILED", "sandbox exited before startup"));
         closed.resolve();
     });
 
@@ -242,7 +244,7 @@ function configure(
     launcher.send({ type: "start", options }, (error) => {
         if (error) {
             ready.reject(
-                new SandboxError("START_FAILED", "cannot configure sandbox", { cause: error }),
+                SandboxError.of("START_FAILED", "cannot configure sandbox", { cause: error }),
             );
         }
     });
