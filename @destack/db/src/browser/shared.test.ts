@@ -1,4 +1,4 @@
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { asc, defineTable, eq, integer, text } from "../index.ts";
 import { connectBunSqlite } from "../bun/connection.ts";
 import { channelHub } from "../channel/channel.ts";
@@ -85,7 +85,11 @@ test("queue requests until an owner serves, and fail requests a replaced owner l
     const second = await connectBunSqlite(":memory:", [note]);
     onTestFinished(() => second.close());
     onTestFinished(serveDatabase(second.$client, join()));
-    await expect(unanswered).rejects.toMatchObject({ code: "OWNER_CHANGED" });
+    expect(await refusal(unanswered)).toEqual([
+        "SERVICE_UNAVAILABLE",
+        "OWNER_CHANGED",
+        "the owner changed before answering",
+    ]);
 
     // fail a step of the first owner's transaction
     const replaced = party.begin("deferred");
@@ -99,6 +103,10 @@ test("queue requests until an owner serves, and fail requests a replaced owner l
         },
         transaction.owner,
     );
-    await expect(stale).rejects.toMatchObject({ code: "OWNER_CHANGED" });
+    expect(await refusal(stale)).toEqual([
+        "SERVICE_UNAVAILABLE",
+        "OWNER_CHANGED",
+        "the owner of the transaction changed",
+    ]);
     expect((await replaced).id).toBe(0);
 });

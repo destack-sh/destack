@@ -1,7 +1,7 @@
 import { expect, onTestFinished, test, type TestContext } from "@destack/test";
 import { defineTable, eq, integer, text } from "../index.ts";
 import { TestDatabase } from "../test/index.ts";
-import { ControlLoop, type Controller } from "./control.ts";
+import { ControlLoop, type Controller, type FollowController } from "./control.ts";
 import { Clock } from "@destack/environment";
 
 /** The keys one burst reconciles. */
@@ -92,7 +92,7 @@ test("run timers between the reconciliations of a synchronous database, one key 
 });
 
 /** Fail on a reported reconciliation failure. */
-function fail(_controller: Controller, key: string, error: unknown): void {
+function fail(_controller: Controller | FollowController, key: string, error: unknown): void {
     throw new Error(`reconciling ${key} failed`, { cause: error });
 }
 

@@ -108,7 +108,7 @@ test.skipIf(!isPostgresql)(
             () => "counted",
             (error: unknown) =>
                 error instanceof DatabaseError && error.cause instanceof Error
-                    ? [error.code, error.cause.message]
+                    ? [error.reason, error.cause.message]
                     : error,
         );
 

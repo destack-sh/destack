@@ -1,17 +1,18 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { Change, defineTable, eq, integer, lease, text } from "../index.ts";
-import { TestDatabase } from "../test/index.ts";
+import { reconciliation, TestDatabase } from "../test/index.ts";
 import { nth, found } from "@destack/schema";
-import { ControlLoop, type Controller, Reconciliation } from "./control.ts";
+import { ControlLoop, type Controller, type FollowController, Reconciliation } from "./control.ts";
 import { until, yieldToEventLoop, Clock } from "@destack/environment";
 import { VirtualClock } from "@destack/environment/simulation";
+import { Failure } from "@destack/error";
 import { TestTelemetry } from "@destack/telemetry/test";
 
 /** The commits of rows a follower's list never reads, about 30 ms of SQLite commits. */
 const STRESS_COMMITS = 300;
 
-/** The event loop turns a test gives the loop to act on, ten times the few a settle takes. */
-const QUIET_TURNS = 20;
+/** How many notes a test commits one at a time. */
+const NOTE_COMMITS = 20;
 
 /** The jobs a controller reconciles. */
 const job = defineTable(
@@ -120,26 +121,36 @@ test("reconcile listed keys, keys changes name, keys due again, and failed keys 
     ]);
 });
 
-test("report a key whose peer answers unavailable only once it stays so past the window, and any other failure at once", async () => {
+test("report a key failing transiently only once it lasts past the window, and any other failure at once", async () => {
     const storage = await TestDatabase.create([job], { isMigrated: true });
     onTestFinished(() => storage.close());
 
-    // leave "peer" unavailable until told otherwise, and fail "broken" once
-    const started = Date.now();
-    const reported: [string, boolean][] = [];
+    // leave "peer" unavailable until told otherwise, fail "broken" once, and misroute "misrouted" once
+    const clock = new VirtualClock(Date.UTC(2026, 9, 1));
+    const started = clock.now();
+    const reported: [string, number][] = [];
     let isDown = true;
     let isBroken = true;
+    let isMisrouted = true;
     const controller: Controller = {
         name: "job",
         watches: [],
         keys: () => [],
-        list: async () => ["peer", "broken"],
+        list: async () => ["peer", "broken", "misrouted"],
         reconcile: async (key) => {
             if (key === "peer" && isDown) {
-                throw Object.assign(new Error("service unavailable"), { status: 503 });
+                throw Failure.error(Failure.http("SERVICE_UNAVAILABLE", "service unavailable"));
             } else if (key === "broken" && isBroken) {
                 isBroken = false;
                 throw new Error("broken");
+            } else if (key === "misrouted" && isMisrouted) {
+                isMisrouted = false;
+                throw Failure.error({
+                    code: "MISDIRECTED_REQUEST",
+                    reason: "PARTITION_MISDIRECTED",
+                    domain: "@example/space",
+                    message: "space lives in another partition",
+                });
             }
 
             return undefined;
@@ -147,10 +158,10 @@ test("report a key whose peer answers unavailable only once it stays so past the
     };
     const stopping = new AbortController();
     const loop = new ControlLoop(storage.database, [controller], {
-        clock: Clock.system,
-        report: (_controller, key) => reported.push([key, Date.now() - started >= 40]),
+        clock,
+        report: (_controller, key) => reported.push([key, clock.now() - started]),
         retry: { initialInterval: 5, maximumInterval: 5 },
-        unavailableFor: 40,
+        transientFor: 40,
     });
     const running = loop.run(stopping.signal);
     onTestFinished(async () => {
@@ -158,25 +169,28 @@ test("report a key whose peer answers unavailable only once it stays so past the
         await running;
     });
 
-    // report "broken" at once, and "peer" only past the window
-    await expect.poll(() => reported.some(([key]) => key === "peer")).toBe(true);
+    // report "broken" at once and retry the others, then report "peer" once it fails past the window
+    await loop.idle();
+    const atOnce = [...reported];
+    clock.advance(40);
+    await loop.idle();
     isDown = false;
-    expect(
-        reported.filter(
-            ([key], index) =>
-                key === "broken" || index === reported.findIndex(([other]) => other === "peer"),
-        ),
-    ).toEqual([
-        ["broken", false],
-        ["peer", true],
-    ]);
+    clock.advance(5);
+    await loop.idle();
+    expect({ atOnce, reported }).toEqual({
+        atOnce: [["broken", 0]],
+        reported: [
+            ["broken", 0],
+            ["peer", 40],
+        ],
+    });
 });
 
-test("retry a reconciliation a domain failure refuses as unavailable, such as a stale replica, until it succeeds, reporting nothing", async () => {
+test("retry a stale or moving key until it succeeds, reporting nothing", async () => {
     const storage = await TestDatabase.create([job], { isMigrated: true });
     onTestFinished(() => storage.close());
 
-    // refuse "stale" twice as access refuses a replica its home has not confirmed lately
+    // refuse "stale" once as a stale replica and once as a scope moving to another machine
     const attempts: string[] = [];
     const reported: string[] = [];
     const controller: Controller = {
@@ -186,17 +200,21 @@ test("retry a reconciliation a domain failure refuses as unavailable, such as a 
         list: async () => ["stale"],
         reconcile: async (key) => {
             attempts.push(key);
-            if (attempts.length <= 2) {
-                throw Object.assign(
-                    new Error("access was last confirmed by its home 600000 ms ago"),
-                    {
-                        code: "STALE",
-                        toCallError: () => ({
-                            code: "SERVICE_UNAVAILABLE",
-                            message: "access was last confirmed by its home 600000 ms ago",
-                        }),
-                    },
-                );
+            if (attempts.length === 1) {
+                throw Failure.error({
+                    code: "SERVICE_UNAVAILABLE",
+                    reason: "STALE",
+                    domain: "@example/access",
+                    message: "access was last confirmed by its home 600000 ms ago",
+                });
+            } else if (attempts.length === 2) {
+                throw Failure.error({
+                    code: "MISDIRECTED_REQUEST",
+                    reason: "SCOPE_MOVED",
+                    domain: "@example/object",
+                    message: "space moves to machine-b",
+                    data: { scope: "space", machine: "machine-b" },
+                });
             }
 
             return undefined;
@@ -207,7 +225,7 @@ test("retry a reconciliation a domain failure refuses as unavailable, such as a 
         clock: Clock.system,
         report: (_controller, key) => reported.push(key),
         retry: { initialInterval: 5, maximumInterval: 5 },
-        unavailableFor: 60_000,
+        transientFor: 60_000,
     });
     const running = loop.run(stopping.signal);
     onTestFinished(async () => {
@@ -452,8 +470,8 @@ test("lease each key to one instance of several sharing a database, handing it o
         watches: [job],
         keys: () => [],
         list: async () => ["shared"],
-        reconcile: async (_key, reconciliation) => {
-            reconciled.push(`${reconciliation.epoch}`);
+        reconcile: async (_key, { epoch }) => {
+            reconciled.push(`${epoch}`);
 
             return undefined;
         },
@@ -504,14 +522,15 @@ test("follow each listed key until its list drops it or the loop stops", async (
     const started: string[] = [];
     const stopped: string[] = [];
     const reported: string[] = [];
-    const controller: Controller = {
+    const controller: FollowController = {
         name: "follow",
         mode: "follow",
         watches: [job],
         list: async (view) => (await view.read(job).findMany()).map((row) => row.id),
         concurrency: 8,
-        reconcile: async (key, { signal }) => {
+        reconcile: async (key, { signal, synced }) => {
             started.push(key);
+            synced();
             await new Promise<void>((resolve) => {
                 signal.addEventListener("abort", () => resolve(), { once: true });
             });
@@ -533,11 +552,69 @@ test("follow each listed key until its list drops it or the loop stops", async (
     await expect.poll(() => stopped).toEqual(["dropped"]);
     await expect.poll(() => started.toSorted()).toEqual(["added", "dropped", "stayed"]);
 
+    // settle idle while the follows run
+    await loop.idle();
+    expect(stopped).toEqual(["dropped"]);
+
     // stop the rest with the loop
     stopping.abort();
     await running;
     expect(stopped.toSorted()).toEqual(["added", "dropped", "stayed"]);
     expect(reported).toEqual([]);
+});
+
+test("settle idle once each follow synced while reporting a follow failing before it syncs", async () => {
+    const storage = await TestDatabase.create([job], { isMigrated: true });
+    onTestFinished(() => storage.close());
+
+    // sync one follow once its gate opens, and fail the other before it syncs
+    const gate = Promise.withResolvers<void>();
+    const started: string[] = [];
+    const controller: FollowController = {
+        name: "follow",
+        mode: "follow",
+        concurrency: 2,
+        list: async () => ["syncing", "failing"],
+        reconcile: async (key, { signal, synced }) => {
+            started.push(key);
+            if (key === "failing") {
+                throw new Error("the source refused the follow");
+            }
+            await gate.promise;
+            synced();
+            await new Promise<void>((resolve) => {
+                signal.addEventListener("abort", () => resolve(), { once: true });
+            });
+            throw signal.reason;
+        },
+    };
+    const stopping = new AbortController();
+    const reported: string[] = [];
+    const loop = new ControlLoop(storage.database, [controller], {
+        clock: new VirtualClock(Date.UTC(2026, 9, 1)),
+        report: (failed, key, error) => {
+            reported.push(
+                `${failed.name} ${key}: ${error instanceof Error ? error.message : "not an error"}`,
+            );
+        },
+        retry: { initialInterval: 1000, maximumInterval: 1000 },
+    });
+    const running = loop.run(stopping.signal);
+
+    // stay unsettled while the follow waits at its gate and the failed one waits out its retry, then settle once it syncs
+    await expect.poll(() => started.includes("syncing") && reported.length === 1).toBe(true);
+    const depthAtGate = loop.depth;
+    gate.resolve();
+    await loop.idle();
+    expect([depthAtGate, loop.depth, [...reported]]).toEqual([
+        1,
+        0,
+        ["follow failing: the source refused the follow"],
+    ]);
+
+    // stop the follow with the loop
+    stopping.abort();
+    await running;
 });
 
 test("list a following controller again only for a commit of a row its list read, past many it never read", async () => {
@@ -547,7 +624,7 @@ test("list a following controller again only for a commit of a row its list read
 
     // follow the space's jobs, counting the listings
     let listings = 0;
-    const controller: Controller = {
+    const controller: FollowController = {
         name: "follow",
         mode: "follow",
         watches: [job],
@@ -611,7 +688,7 @@ test("report a follow that ends unasked and retry it after a backoff", async () 
     // end each follow at once
     const started: number[] = [];
     const reported: string[] = [];
-    const controller: Controller = {
+    const controller: FollowController = {
         name: "brief",
         mode: "follow",
         watches: [job],
@@ -651,7 +728,7 @@ test("retry a failing follow at once when its revision changes, else only after 
     const revisions = new Map<string, string>();
     const started: string[] = [];
     let listings = 0;
-    const controller: Controller = {
+    const controller: FollowController = {
         name: "failing",
         mode: "follow",
         watches: [job],
@@ -704,7 +781,7 @@ test("start a failing follow at once once its list drops it and lists it again, 
     // fail each follow at once, on a frozen clock so no backoff ends
     const started: string[] = [];
     let listings = 0;
-    const controller: Controller = {
+    const controller: FollowController = {
         name: "failing",
         mode: "follow",
         watches: [job],
@@ -741,7 +818,7 @@ test("refuse a follower whose list never reads its watched tables through its vi
     onTestFinished(() => storage.close());
 
     // list a fixed key while watching jobs
-    const controller: Controller = {
+    const controller: FollowController = {
         name: "blind",
         mode: "follow",
         watches: [job],
@@ -767,7 +844,7 @@ test("follow a key again once its list names it after it failed and was dropped"
 
     // fail the first follow and follow until stopped
     const started: string[] = [];
-    const controller: Controller = {
+    const controller: FollowController = {
         name: "flaky",
         mode: "follow",
         watches: [job],
@@ -892,7 +969,7 @@ test("settle idle only after reconciling the keys of every watched change commit
     expect(seen).toEqual([["first"], ["first", "second"], ["first", "second", "third"]]);
 });
 
-test("stay idle while the follow is still keying a watched change, and settle once its key ran", async () => {
+test("keep the follow cursor before a change the follow is still keying, and move it to the head once the key ran", async () => {
     const storage = await TestDatabase.create([job], { isMigrated: true });
     onTestFinished(() => storage.close());
     const database = storage.database;
@@ -926,25 +1003,24 @@ test("stay idle while the follow is still keying a watched change, and settle on
     });
     await loop.idle();
 
-    // commit a change and wait idle while the follow keys it
+    // commit a change and read the cursor while the follow keys it
+    const { sequence: before } = await database.log.position();
     await database.insert(job).values({ id: "changed", scope: "space", runs: 1 });
     await keying.promise;
-    let isSettled = false;
-    const idling = loop.idle().then(() => {
-        isSettled = true;
-    });
-    for (let turn = 0; turn < QUIET_TURNS; turn++) {
-        await yieldToEventLoop();
-    }
-    const isSettledWhileKeying = isSettled;
+    const { sequence: head } = await database.log.position();
+    const followedWhileKeying = loop.followed;
 
-    // release the follow and settle once the key ran
+    // release the follow and settle once the key ran, the follow at the head
     release.resolve();
-    await idling;
-    expect({ isSettledWhileKeying, reconciled }).toEqual({
-        isSettledWhileKeying: false,
-        reconciled: ["changed"],
-    });
+    await loop.idle();
+    expect({ followedWhileKeying, followed: loop.followed, depth: loop.depth, reconciled }).toEqual(
+        {
+            followedWhileKeying: before,
+            followed: head,
+            depth: 0,
+            reconciled: ["changed"],
+        },
+    );
 });
 
 test("spend no statement on commits to tables no controller watches", async () => {
@@ -969,11 +1045,11 @@ test("spend no statement on commits to tables no controller watches", async () =
 
     // commit notes one at a time for the loop to see, and count every statement
     const before = database.driver.state.statements;
-    for (let index = 0; index < QUIET_TURNS; index++) {
+    for (let index = 0; index < NOTE_COMMITS; index++) {
         await database.insert(note).values({ id: `note-${index}`, scope: "space" });
         await yieldToEventLoop();
     }
-    expect(database.driver.state.statements - before).toBe(QUIET_TURNS);
+    expect(database.driver.state.statements - before).toBe(NOTE_COMMITS);
 });
 
 test("settle idle once the log moved past a quiet watched table, also after compacting its last change", async () => {
@@ -1118,13 +1194,13 @@ test("settle an alarm at its deadline while a follow runs, leave the alarm due, 
     const source = ["first", "second"];
     const applied: string[] = [];
     let follows = 0;
-    const controller: Controller = {
+    const controller: FollowController = {
         name: "copy",
         mode: "follow",
         list: async () => ["copy"],
         reconcile: async (key, { signal }) => {
             follows++;
-            // apply the events after the recorded position and follow until stopped
+            // apply the events after the recorded position, then follow until stopped
             const row = await database.select().from(job).where(eq(job.id, key)).get();
             applied.push(...source.slice(row?.runs ?? 0));
             await database.update(job).set({ runs: source.length }).where(eq(job.id, key));
@@ -1183,8 +1259,8 @@ test("settle an alarm at its deadline while a follow runs, leave the alarm due, 
 test("run work until a change shows it ended elsewhere, and settle unchanged work as it finishes", async () => {
     // run a reconciliation whose key changes when told to
     const changes: (() => void)[] = [];
-    const reconciliation = {
-        signal: new AbortController().signal,
+    const changing = {
+        ...reconciliation(),
         changed: () =>
             new Promise<void>((resolve) => {
                 changes.push(resolve);
@@ -1195,7 +1271,7 @@ test("run work until a change shows it ended elsewhere, and settle unchanged wor
     // abort work once a change shows it was cancelled
     let isCancelled = false;
     const cancelled = Reconciliation.runUntil(
-        reconciliation,
+        changing,
         async () => (isCancelled ? new Error("cancelled") : undefined),
         (signal) =>
             new Promise<unknown>((resolve) => {
@@ -1211,7 +1287,7 @@ test("run work until a change shows it ended elsewhere, and settle unchanged wor
 
     // settle work no change ended with its result
     const finished = Reconciliation.runUntil(
-        reconciliation,
+        changing,
         async () => undefined,
         async () => "built",
     );

@@ -2,7 +2,7 @@ import { schema } from "@destack/schema";
 import { sql } from "../../sql/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { TestDatabase } from "../../test/database.ts";
-import { Change, eq, LogPosition, TABLE, Transaction } from "../../index.ts";
+import { Change, DatabaseError, eq, LogPosition, TABLE, Transaction } from "../../index.ts";
 import { changeTables, lease, note, reading, revision } from "./fixture.ts";
 import { setting } from "../../bun/test/setting.ts";
 
@@ -126,9 +126,11 @@ test("log committed changes of tables in commit order", async () => {
     // compact windowed changes, retain history, and fail stale readers
     const now = Date.now();
     await database.log.compact(now + 1, now);
-    await expect(database.log.read({ tables, after: 0 })).rejects.toMatchObject({
-        code: "CHANGES_COMPACTED",
-    });
+    expect(await refusal(database.log.read({ tables, after: 0 }))).toEqual([
+        "GONE",
+        "CHANGES_COMPACTED",
+        "changes after 0 were compacted; list the tables again",
+    ]);
     const history = await database.execute(
         sql`SELECT "table" FROM ${sql.identifier("__destack_log")} ORDER BY sequence`,
         schema.object({ table: schema.string() }),
@@ -493,8 +495,8 @@ test("move a consumer's slot only from the position it read, refusing a consumer
     );
     expect({ refused, slot: await database.log.slot("rating") }).toEqual({
         refused: [
-            ["CONCURRENT_UPDATE", "slot rating moved past 0"],
-            ["CONCURRENT_UPDATE", "slot rating moved past 3"],
+            ["SERVICE_UNAVAILABLE", "CONCURRENT_UPDATE", "slot rating moved past 0"],
+            ["SERVICE_UNAVAILABLE", "CONCURRENT_UPDATE", "slot rating moved past 3"],
         ],
         slot: 5,
     });
@@ -581,9 +583,11 @@ test("retain the changes after a consumer's slot until it expires or is dropped,
 
     // compact past an expired and a dropped slot
     await database.log.compact(now + 1, now + 120_000);
-    await expect(database.log.read({ tables: [note], after: kept })).rejects.toMatchObject({
-        code: "CHANGES_COMPACTED",
-    });
+    expect(await refusal(database.log.read({ tables: [note], after: kept }))).toEqual([
+        "GONE",
+        "CHANGES_COMPACTED",
+        `changes after ${kept} were compacted; list the tables again`,
+    ]);
     await database.log.drop("subscription");
     expect(
         await database.all(sql`SELECT name FROM ${sql.identifier("__destack_log_slot")}`),
@@ -615,11 +619,18 @@ test("log the rows of a table without a scope column under its database's scope"
     const unscoped = await TestDatabase.create([setting]);
     onTestFinished(() => unscoped.close());
     await unscoped.database.migrate([setting]);
-    await expect(
-        unscoped.database.insert(setting).values({ name: "theme", value: "dark" }),
-    ).rejects.toMatchObject({
-        cause: { message: "the database has no scope for the rows of destack__db__setting" },
-    });
+    const unscopedWrite = await unscoped.database
+        .insert(setting)
+        .values({ name: "theme", value: "dark" })
+        .then(
+            () => undefined,
+            (error: unknown) => error,
+        );
+    expect(
+        unscopedWrite instanceof DatabaseError && unscopedWrite.cause instanceof Error
+            ? [unscopedWrite.reason, unscopedWrite.cause.message]
+            : unscopedWrite,
+    ).toEqual(["QUERY_FAILED", "the database has no scope for the rows of destack__db__setting"]);
 
     // file every change under the scope the database was created with
     const scoped = await TestDatabase.create([setting]);

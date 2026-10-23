@@ -239,22 +239,26 @@ const { storage, value } = await TestDatabase.copy(dialect, fixture);
 
 ## Controllers
 
-`ControlLoop` converges keys in `reconcile` mode and follows them in `follow` mode, listing again once a change touches what the list read through its view.
+`ControlLoop` runs a `ReconcileController`, which converges each key and returns, and a `FollowController`, which follows each key until stopped and reports `synced` once caught up, listing again once a change touches what the list read through its view.
 
 ```ts
-const expiry: Controller = {
+const expiry: ReconcileController = {
     name: "expiry",
     watches: [session],
     keys: () => ["expiry"],
     list: async () => ["expiry"],
     reconcile: async () => ((await removeExpired()) ? 0 : undefined),
 };
-const live: Controller = {
+const live: FollowController = {
     name: "live",
     mode: "follow",
     watches: [session],
     list: async (view) => (await view.read(session).findMany()).map((row) => row.id), // reads recorded
-    reconcile: (id, { signal }) => serve(id, signal),
+    reconcile: (id, { signal, synced }) => serve(id, signal, synced), // reports synced once caught up
 };
-await new ControlLoop(database, [expiry, live], { clock, report }).run(signal);
+const loop = new ControlLoop(database, [expiry, live], { clock, report });
+void loop.run(signal);
+await loop.idle(); // every key settled, every follow synced, every change keyed
+loop.depth; // keys waiting or settling
+loop.followed; // the log sequence consumed, a consumer's offset
 ```

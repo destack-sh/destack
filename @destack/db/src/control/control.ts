@@ -3,7 +3,7 @@ import { DatabaseError } from "../error/index.ts";
 import { Lease, type LeaseOutcome } from "../limit/index.ts";
 import { type Change, ReadSet, Snapshot } from "../log/index.ts";
 import { TABLE, type Table } from "../table/index.ts";
-import { nth, found } from "@destack/schema";
+import { found, nth } from "@destack/schema";
 import { telemetry } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
 import { Failure } from "@destack/error";
@@ -19,11 +19,11 @@ const { span, captureException } = telemetry.scope(import.meta.destack.package);
 /** The retry of a failed reconciliation, doubling from a second up to 5 minutes. */
 const RETRY = RetryPolicy.of({ maximumInterval: 5 * 60_000 });
 
-/** How long a key's peer may answer unavailable before its failures are reported: a minute. */
-const UNAVAILABLE_REPORT_MILLISECONDS = 60_000;
+/** How long a key may fail transiently before its failures are reported: a minute. */
+const TRANSIENT_REPORT_MILLISECONDS = 60_000;
 
 /** A loop converging the actual state of each listed key to its rows. */
-export interface Controller {
+export interface ReconcileController {
     /** The controller's name in reports. */
     readonly name: string;
     /** The tables with changes or commits that select keys or list them again. */
@@ -34,8 +34,8 @@ export interface Controller {
     readonly list: (view: Snapshot, delta?: Delta) => Promise<readonly string[]>;
     /** The most keys it works on at once, one by default. */
     readonly concurrency?: number;
-    /** Whether a key converges and returns, or runs its process until stopped. */
-    readonly mode?: "reconcile" | "follow";
+    /** Converge each key and return, the default mode. */
+    readonly mode?: "reconcile";
     /** Read a listed key's desired revision, whose change retries a failing key at once. */
     readonly revision?: (key: string) => string | undefined;
     /** Converge one key and return the delay before looking again, or follow it until stopped. */
@@ -44,6 +44,17 @@ export interface Controller {
         reconciliation: Reconciliation,
     ) => Promise<number | undefined>;
 }
+
+/** A controller following each key until stopped, as an informer follows its source. */
+export interface FollowController extends Omit<ReconcileController, "mode" | "keys" | "reconcile"> {
+    /** Follow each key until stopped. */
+    readonly mode: "follow";
+    /** Follow one key until stopped, reporting once it caught up with its source. */
+    readonly reconcile: (key: string, following: Following) => Promise<number | undefined>;
+}
+
+/** A controller a loop runs: converging keys, or following them. */
+export type Controller = ReconcileController | FollowController;
 
 /** The writes that make a follower list again: logged changes and written unlogged tables. */
 export interface Delta {
@@ -69,6 +80,12 @@ export interface Reconciliation {
     readonly epoch?: number;
     /** Wait for the key to change again while it reconciles, as its controller's keys select it. */
     readonly changed: () => Promise<void>;
+}
+
+/** One running follow of a key, which reports once it caught up with its source. */
+export interface Following extends Reconciliation {
+    /** Report the follow caught up with its source, once per follow, which settling waits for. */
+    readonly synced: () => void;
 }
 
 /** Reconciliations of keys whose work another host may end, such as by cancelling it. */
@@ -131,29 +148,31 @@ export class ControlLoop {
     readonly #queue = new DueQueue();
     /** The consecutive failures by controller and key. */
     readonly #failures = new Map<Controller, Map<string, Backoff>>();
-    /** When each key's peer first answered unavailable in its current run of failures. */
-    readonly #unavailable = new Map<Controller, Map<string, number>>();
+    /** When each key first failed transiently in its current run of failures. */
+    readonly #transient = new Map<Controller, Map<string, number>>();
     /** The keys reconciling now by controller with their abort controllers. */
     readonly #running = new Map<Controller, Map<string, AbortController>>();
     /** What each following controller's last list read. */
     readonly #reads = new Map<Controller, ReadSet>();
     /** Each controller's latest listing, which the next one waits for. */
     readonly #refreshing = new Map<Controller, Promise<void>>();
-    /** The running reconciliations. */
+    /** The running reconciliations and follows. */
     readonly #reconciling = new Set<Promise<void>>();
+    /** The running keys not settled yet, a follow settling once synced. */
+    readonly #unsettled = new Set<symbol>();
     /** The lease holder and duration, when instances share the loop. */
     readonly #lease?: { readonly holder: string; readonly duration: number };
     /** The host's wake-up for the earliest due key. */
     readonly #alarm?: Alarm;
     /** The clock keys come due at. */
     readonly #clock: Clock;
-    /** How long a key's peer may answer unavailable before its failures are reported. */
-    readonly #unavailableFor: number;
+    /** How long a key may fail transiently before its failures are reported. */
+    readonly #transientFor: number;
     /** The earliest due time the alarm is set to, absent for none. */
     #alarmed: number | undefined;
     /** The due time of the key that began the running reconciliations. */
     #busy: number | undefined;
-    /** The callers waiting until no key is due now or reconciling. */
+    /** The callers waiting until no key is due now or unsettled. */
     #idle: (() => void)[] = [];
     /** Whether the database's log hears other writers' commits, which settling idle waits for. */
     #isHearing = false;
@@ -187,8 +206,8 @@ export class ControlLoop {
             readonly alarm?: Alarm;
             /** The clock keys come due at. */
             readonly clock: Clock;
-            /** How long a key's peer may answer unavailable before reporting. */
-            readonly unavailableFor?: number;
+            /** How long a key may fail transiently before reporting. */
+            readonly transientFor?: number;
         },
     ) {
         // start with no key due and no failure
@@ -205,7 +224,7 @@ export class ControlLoop {
         };
         this.#retry = { ...RETRY, ...options.retry };
         this.#clock = options.clock;
-        this.#unavailableFor = options.unavailableFor ?? UNAVAILABLE_REPORT_MILLISECONDS;
+        this.#transientFor = options.transientFor ?? TRANSIENT_REPORT_MILLISECONDS;
         if (options.alarm !== undefined) {
             this.#alarm = options.alarm;
         }
@@ -262,7 +281,27 @@ export class ControlLoop {
         }
     }
 
-    /** Settle once nothing is due or reconciling and every change is followed, or at a deadline. */
+    /** The keys waiting or settling: due now and not running, or running and not yet settled. */
+    get depth(): number {
+        // count each due key once, leaving the running keys their settling counts
+        const now = this.#clock.now();
+        let due = 0;
+        for (const [controller, keys] of this.#due) {
+            const running = found(this.#running, controller);
+            for (const [key, at] of keys) {
+                due += at <= now && !running.has(key) ? 1 : 0;
+            }
+        }
+
+        return due + this.#unsettled.size;
+    }
+
+    /** The log sequence the loop consumed, behind the log's head while changes wait to be keyed. */
+    get followed(): number {
+        return this.#followed;
+    }
+
+    /** Settle once no key is due or reconciling, every follow synced and every change heard. */
     idle(deadline?: number): Promise<void> {
         // settle at once when the loop stopped
         if (this.#isStopped) {
@@ -366,7 +405,7 @@ export class ControlLoop {
                 );
             } catch (error) {
                 // list again after compaction the controllers following the tables
-                if (!(error instanceof DatabaseError && error.code === "CHANGES_COMPACTED")) {
+                if (!(error instanceof DatabaseError && error.reason === "CHANGES_COMPACTED")) {
                     throw error;
                 }
                 listed = this.controllers.filter((controller) =>
@@ -431,7 +470,7 @@ export class ControlLoop {
     }
 
     /** List the keys a change touches. */
-    async #keys(controller: Controller, change: Change): Promise<readonly string[]> {
+    async #keys(controller: ReconcileController, change: Change): Promise<readonly string[]> {
         try {
             return (await controller.keys?.(change)) ?? [];
         } catch (error) {
@@ -483,12 +522,12 @@ export class ControlLoop {
         // unqueue the due keys the list dropped, and forget their failures
         const due = found(this.#due, controller);
         const failures = found(this.#failures, controller);
-        const unavailable = this.#unavailable.get(controller);
+        const transient = this.#transient.get(controller);
         for (const key of [...due.keys(), ...failures.keys()]) {
             if (!listed.has(key)) {
                 due.delete(key);
                 failures.delete(key);
-                unavailable?.delete(key);
+                transient?.delete(key);
             }
         }
 
@@ -529,7 +568,7 @@ export class ControlLoop {
             return isFollowed;
         } catch (error) {
             // ask that follow to list again behind a compaction, a later one having listed
-            if (error instanceof DatabaseError && error.code === "CHANGES_COMPACTED") {
+            if (error instanceof DatabaseError && error.reason === "CHANGES_COMPACTED") {
                 relisting.abort();
 
                 return false;
@@ -558,11 +597,12 @@ export class ControlLoop {
             else {
                 await this.#schedule(this.#busy ?? due ?? skipped);
 
-                // settle idle waiters once all work is done and followed
+                // settle idle waiters once every key settled, none waits for a slot, and every change is followed
                 if (
                     this.#idle.length > 0 &&
                     this.#isListed &&
-                    this.#reconciling.size === 0 &&
+                    this.#unsettled.size === 0 &&
+                    skipped === undefined &&
                     this.#isHearing &&
                     (await this.#isFollowed()) &&
                     !this.#woken.signal.aborted
@@ -633,10 +673,20 @@ export class ControlLoop {
         const stop = new AbortController();
         running.set(work.key, stop);
         this.#busy ??= work.at;
-        const reconciling = this.#reconcile(work, stop.signal).finally(() => {
-            // free the key and its change waiters
+
+        // keep the key unsettled until it returns, or a follow until it syncs
+        const unsettled = Symbol(work.key);
+        this.#unsettled.add(unsettled);
+        const settle = () => {
+            if (this.#unsettled.delete(unsettled)) {
+                this.#wake();
+            }
+        };
+        const reconciling = this.#reconcile(work, stop.signal, settle).finally(() => {
+            // free the key and its change waiters, settling it
             running.delete(work.key);
             this.#changes.get(work.controller)?.delete(work.key);
+            settle();
 
             // release the wake-up after the last reconciliation
             this.#reconciling.delete(reconciling);
@@ -651,15 +701,16 @@ export class ControlLoop {
     }
 
     /** Reconcile one key until settled, or follow it until stopped, retrying failures. */
-    async #reconcile(work: Work, stopped: AbortSignal): Promise<void> {
+    async #reconcile(work: Work, stopped: AbortSignal, synced: () => void): Promise<void> {
         // reconcile under the lease and requeue when asked
         const { controller, key } = work;
         const failures = found(this.#failures, controller);
+
         try {
             const delay = await this.#leased(work, stopped, async (reconciliation) => {
-                // follow until stopped
+                // follow until stopped, reporting once caught up
                 if (controller.mode === "follow") {
-                    await controller.reconcile(key, reconciliation);
+                    await controller.reconcile(key, { ...reconciliation, synced });
                     if (!reconciliation.signal.aborted) {
                         throw new Error(
                             `${controller.name} stopped following ${key} without an abort`,
@@ -677,7 +728,7 @@ export class ControlLoop {
                 );
             });
             failures.delete(work.key);
-            this.#unavailable.get(work.controller)?.delete(work.key);
+            this.#transient.get(work.controller)?.delete(work.key);
             if (delay !== undefined) {
                 this.enqueue(work.controller, work.key, this.#clock.now() + delay);
             }
@@ -690,7 +741,7 @@ export class ControlLoop {
                 return;
             }
 
-            // report and retry the failure, a peer's unavailability once it persists
+            // report and retry the failure, a transient one once it persists
             const failed = (failures.get(work.key)?.count ?? 0) + 1;
             failures.set(work.key, {
                 count: failed,
@@ -709,21 +760,21 @@ export class ControlLoop {
 
     /** Decide whether to report a failure at once. */
     #isReported(work: Work, error: unknown): boolean {
-        // report any failure but a peer's unavailability at once
+        // report any failure but a transient one at once
         const now = this.#clock.now();
-        const since = this.#unavailable.get(work.controller) ?? new Map<string, number>();
-        this.#unavailable.set(work.controller, since);
-        if (!isUnavailable(error)) {
+        const since = this.#transient.get(work.controller) ?? new Map<string, number>();
+        this.#transient.set(work.controller, since);
+        if (!Failure.isTransient(Failure.of(error))) {
             since.delete(work.key);
 
             return true;
         }
 
-        // report an unavailable peer once it stayed so past the window
+        // report a transient failure once it lasted past the window
         const first = since.get(work.key) ?? now;
         since.set(work.key, first);
 
-        return now - first >= this.#unavailableFor;
+        return now - first >= this.#transientFor;
     }
 
     /** Reconcile a key under this instance's lease, stopped by the loop or a lost lease. */
@@ -921,17 +972,4 @@ class DueQueue {
             index = smallest;
         }
     }
-}
-
-/** Report whether a failure is transiently unavailable, such as a peer down or a stale replica. */
-function isUnavailable(error: unknown): boolean {
-    // read the failure as its call error, and a network failure by its system code
-    const { code } = Failure.of(error);
-    const network = error instanceof Error && "code" in error ? error.code : undefined;
-
-    return (
-        code === "SERVICE_UNAVAILABLE" ||
-        network === "ConnectionRefused" ||
-        network === "ECONNREFUSED"
-    );
 }

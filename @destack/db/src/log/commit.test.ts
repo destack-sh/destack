@@ -303,8 +303,16 @@ test("refuse a transaction another commit raced on a row it read or a row its sc
             .commit(database, base, apart, async () => {})
             .then(() => "committed"),
     ]).toEqual([
-        ["CONCURRENT_UPDATE", "another commit changed what the transaction read"],
-        ["CONCURRENT_UPDATE", "another commit changed what the transaction read"],
+        [
+            "SERVICE_UNAVAILABLE",
+            "CONCURRENT_UPDATE",
+            "another commit changed what the transaction read",
+        ],
+        [
+            "SERVICE_UNAVAILABLE",
+            "CONCURRENT_UPDATE",
+            "another commit changed what the transaction read",
+        ],
         "committed",
     ]);
 });
@@ -492,12 +500,12 @@ test("refuse a write sharing a unique key with a committed row, the transaction'
             each.name,
         ]),
     }).toEqual({
-        batches: [["DUPLICATE", "a record with the same unique key exists"], "written"],
+        batches: [["CONFLICT", "DUPLICATE", "a record with the same unique key exists"], "written"],
         written: [
-            ["DUPLICATE", "a record with the same unique key exists"],
+            ["CONFLICT", "DUPLICATE", "a record with the same unique key exists"],
             "written",
-            ["DUPLICATE", "a record with the same unique key exists"],
-            ["DUPLICATE", "a record with the same unique key exists"],
+            ["CONFLICT", "DUPLICATE", "a record with the same unique key exists"],
+            ["CONFLICT", "DUPLICATE", "a record with the same unique key exists"],
             "written",
         ],
         committed: [
@@ -578,7 +586,11 @@ test("refuse a write sharing a unique key that includes a JSON column, comparing
         await write("a", { x: 1, y: 2 }),
         await refusal(write("b", { x: 1, y: 2 })),
         await write("c", { x: 2, y: 1 }),
-    ]).toEqual(["written", ["DUPLICATE", "a record with the same unique key exists"], "written"]);
+    ]).toEqual([
+        "written",
+        ["CONFLICT", "DUPLICATE", "a record with the same unique key exists"],
+        "written",
+    ]);
 });
 
 test("refuse a write sharing a stored row's unique JSON key in another key order", async () => {
@@ -601,6 +613,7 @@ test("refuse a write sharing a stored row's unique JSON key in another key order
     });
 
     expect(await refusal(written)).toEqual([
+        "CONFLICT",
         "DUPLICATE",
         "a record with the same unique key exists",
     ]);
@@ -632,8 +645,12 @@ test("refuse a unique key a commit after the transaction's base took as a lost r
         await refusal(write(late)),
         await refusal(Transaction.run(database, (transaction) => write(transaction))),
     ]).toEqual([
-        ["CONCURRENT_UPDATE", "another commit changed what the transaction read"],
-        ["DUPLICATE", "a record with the same unique key exists"],
+        [
+            "SERVICE_UNAVAILABLE",
+            "CONCURRENT_UPDATE",
+            "another commit changed what the transaction read",
+        ],
+        ["CONFLICT", "DUPLICATE", "a record with the same unique key exists"],
     ]);
 });
 
@@ -915,6 +932,7 @@ test("refuse writing a predefined row, and write other rows of its table", async
         rows: await database.select().from(unit).orderBy(asc(unit.id)),
     }).toEqual({
         refused: [
+            "BAD_REQUEST",
             "INVALID_RECORD",
             `cannot write predefined row ["${unit[TABLE].sqlName}","metre"] of unit`,
         ],

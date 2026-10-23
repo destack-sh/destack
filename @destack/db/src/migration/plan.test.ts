@@ -1,4 +1,4 @@
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { Change, defineTable, index, integer, json, sql, text, uniqueIndex } from "../index.ts";
 import { Package } from "@destack/package";
 import { present, schema } from "@destack/schema";
@@ -307,23 +307,17 @@ test("name what the declarations must fix instead of planning", async () => {
     await database.run(sql`CREATE TABLE ${sql.identifier(table(labelPlain))} (id TEXT)`);
 
     // report the column no task row fills and the unmanaged table
-    await expect(
-        database.plan({
-            declared: declareState([taskUnfilled, labelPlain], TestDatabase.target()),
-        }),
-    ).rejects.toMatchObject({
-        name: "PlanError",
-        problems: [
-            {
-                target: `table/${table(taskUnfilled)}`,
-                detail: "declare a default for the required column owner",
-            },
-            {
-                target: `table/${table(labelPlain)}`,
-                detail: "table exists without applied state",
-            },
-        ],
-    });
+    expect(
+        await refusal(
+            database.plan({
+                declared: declareState([taskUnfilled, labelPlain], TestDatabase.target()),
+            }),
+        ),
+    ).toEqual([
+        "CONFLICT",
+        "UNREACHABLE_PLAN",
+        "table/destack__db__task: declare a default for the required column owner; table/destack__db__label: table exists without applied state",
+    ]);
 });
 
 /** Preferences whose mode takes three values. */
@@ -383,17 +377,15 @@ test("widen column values freely and narrow them only by a conversion", async ()
     expect(review(wide)).toEqual([
         `safe update table/${table(preferenceWide)}/column/mode: wider values`,
     ]);
-    await expect(
-        database.plan({ declared: declareState([preferenceNarrow], TestDatabase.target()) }),
-    ).rejects.toMatchObject({
-        name: "PlanError",
-        problems: [
-            {
-                target: `table/${table(preferenceNarrow)}/column/mode`,
-                detail: "declare a conversion for 2026.10.0",
-            },
-        ],
-    });
+    expect(
+        await refusal(
+            database.plan({ declared: declareState([preferenceNarrow], TestDatabase.target()) }),
+        ),
+    ).toEqual([
+        "CONFLICT",
+        "UNREACHABLE_PLAN",
+        "table/destack__db__preference/column/mode: declare a conversion for 2026.10.0",
+    ]);
     const converted = await database.migrate([preferenceConverted]);
     expect(review(converted)).toEqual([
         `fallible convert table/${table(preferenceConverted)}: convert rows to 2026.10.0`,
@@ -476,10 +468,11 @@ test("refuse a conversion writing a value its column refuses, leaving the rows a
     );
 
     // refuse the conversion loudly and roll it back
-    await expect(database.migrate([preferenceMisconverted])).rejects.toMatchObject({
-        code: "MIGRATION_FAILED",
-        message: `conversion writes a value that ${table(preferenceMisconverted)}.mode refuses: ✖ Invalid option: expected one of "standard"|"vim"`,
-    });
+    expect(await refusal(database.migrate([preferenceMisconverted]))).toEqual([
+        "INTERNAL_SERVER_ERROR",
+        "MIGRATION_FAILED",
+        `conversion writes a value that ${table(preferenceMisconverted)}.mode refuses: ✖ Invalid option: expected one of "standard"|"vim"`,
+    ]);
     expect(
         await database.execute(
             sql`SELECT mode FROM ${sql.identifier(table(preferenceOne))}`,
@@ -679,9 +672,11 @@ test("report a failing migration statement as a failed migration", async () => {
     await database.run(sql`INSERT INTO ${name} (id, code) VALUES ('a', 'x'), ('b', 'x')`);
 
     // fail to make duplicate codes unique and leave the state unchanged
-    await expect(database.migrate([labelUnique])).rejects.toMatchObject({
-        code: "MIGRATION_FAILED",
-    });
+    expect(await refusal(database.migrate([labelUnique]))).toEqual([
+        "INTERNAL_SERVER_ERROR",
+        "MIGRATION_FAILED",
+        "migration failed: a record with the same unique key exists",
+    ]);
     expect(await database.all(sql`SELECT id FROM ${name} ORDER BY id`)).toEqual([
         { id: "a" },
         { id: "b" },
@@ -931,10 +926,11 @@ test("refuse an applied state in a format this release no longer reads, listing 
               );
 
     // report the table and the database
-    await expect(database.unapplied([taskOne])).rejects.toMatchObject({
-        code: "INVALID_MIGRATION",
-        message: `the applied state of table ${table(taskOne)} in database ${present(server, "the database").name} has an unknown format: ✖ Invalid input: expected array, received string\n  → at table.columns`,
-    });
+    expect(await refusal(database.unapplied([taskOne]))).toEqual([
+        "INTERNAL_SERVER_ERROR",
+        "INVALID_MIGRATION",
+        `the applied state of table ${table(taskOne)} in database ${present(server, "the database").name} has an unknown format: ✖ Invalid input: expected array, received string\n  → at table.columns`,
+    ]);
 });
 
 test("describe one package's tables as the whole database describes them", async () => {

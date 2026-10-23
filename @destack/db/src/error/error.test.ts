@@ -31,7 +31,7 @@ test("classify driver failures and leave domain errors that wrap them alone", ()
     // classify the driver failure, and rethrow the domain error as thrown
     const classified = [classifyError(driver), classifyError(domain)];
     expect(
-        classified.map((error) => (error instanceof DatabaseError ? error.code : error)),
+        classified.map((error) => (error instanceof DatabaseError ? error.reason : error)),
     ).toEqual(["DUPLICATE", domain]);
 });
 
@@ -50,7 +50,7 @@ test("read the table and key columns a duplicate violates", async () => {
 
     // read the violated key by its SQL names
     const table = label[TABLE].sqlName;
-    expect(failure instanceof DatabaseError ? [failure.code, failure.key] : failure).toEqual([
+    expect(failure instanceof DatabaseError ? [failure.reason, failure.key] : failure).toEqual([
         "DUPLICATE",
         { table, columns: ["folder", "name"] },
     ]);

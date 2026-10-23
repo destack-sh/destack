@@ -1,5 +1,5 @@
 import type { DatabaseConnection } from "../database/index.ts";
-import type { Controller } from "./control.ts";
+import type { ReconcileController } from "./control.ts";
 import { Clock } from "@destack/environment";
 
 /** How long a database retains windowed changes: a week. */
@@ -12,7 +12,7 @@ const COMPACTION_INTERVAL_MILLISECONDS = 60 * 60_000;
 const LOG = "log";
 
 /** Compacts a database's log once an hour, dropping windowed changes older than the window. */
-export class CompactionController implements Controller {
+export class CompactionController implements ReconcileController {
     /** The controller's name in reports. */
     readonly name = "compaction";
     /** The database whose log it compacts. */

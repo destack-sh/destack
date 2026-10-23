@@ -1,5 +1,5 @@
 import { eq } from "../sql/index.ts";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { TestDatabase } from "../test/database.ts";
 import { defineTable, type Select } from "../table/table.ts";
 import type { Row } from "../table/row.ts";
@@ -165,15 +165,20 @@ test("read history past compaction, and refuse compacted windows and other epoch
     expect(await snapshot.read(revision).findMany({ where: everything })).toEqual([
         { id: "r", scope: "inbox", title: "First" },
     ]);
-    await expect(snapshot.read(item).findMany({ where: everything })).rejects.toMatchObject({
-        code: "CHANGES_COMPACTED",
-    });
+    expect(await refusal(snapshot.read(item).findMany({ where: everything }))).toEqual([
+        "GONE",
+        "CHANGES_COMPACTED",
+        `changes after ${position.sequence} were compacted; list the tables again`,
+    ]);
 
     // refuse reads after a new epoch
     await database.log.renew();
-    await expect(snapshot.read(revision).findMany({ where: everything })).rejects.toMatchObject({
-        code: "STALE_EPOCH",
-    });
+    const { epoch } = await database.log.position();
+    expect(await refusal(snapshot.read(revision).findMany({ where: everything }))).toEqual([
+        "GONE",
+        "STALE_EPOCH",
+        `position of epoch ${position.epoch} is not in the log's epoch ${epoch}`,
+    ]);
 });
 
 test("read the latest commit and the rows at it inside a writing transaction", async () => {

@@ -469,7 +469,7 @@ export class ChangeSet {
         // read every change after the base, page by page, refusing once the log compacted some
         for (let after = base.sequence; after < position.sequence;) {
             const page = await transaction.log.read({ tables, after }).catch((error: unknown) => {
-                if (error instanceof DatabaseError && error.code === "CHANGES_COMPACTED") {
+                if (error instanceof DatabaseError && error.reason === "CHANGES_COMPACTED") {
                     throw new DatabaseError(
                         "CONCURRENT_UPDATE",
                         "the log no longer has the changes the transaction read",
@@ -911,7 +911,7 @@ function keyOf(table: Table, key: UniqueKey, row: Row): string {
 
 /** Report whether a failure lost a race: a serialization failure, deadlock or busy database. */
 function isLostRace(error: unknown): boolean {
-    return error instanceof DatabaseError && error.code === "CONCURRENT_UPDATE";
+    return error instanceof DatabaseError && error.reason === "CONCURRENT_UPDATE";
 }
 
 /** Update rows by key from a JSON array of each row's key and changed values, in that order. */

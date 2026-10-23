@@ -1,10 +1,10 @@
 import type { DatabaseConnection } from "../database/index.ts";
-import type { Controller, Reconciliation } from "../control/index.ts";
+import type { Controller, Following } from "../control/index.ts";
 import { Snapshot } from "../log/index.ts";
 
 /** Build a reconciliation outside a control loop: stopped by a signal, its key never changing. */
-export function reconciliation(signal: AbortSignal = new AbortController().signal): Reconciliation {
-    return { signal, changed: () => new Promise<void>(() => {}) };
+export function reconciliation(signal: AbortSignal = new AbortController().signal): Following {
+    return { signal, changed: () => new Promise<void>(() => {}), synced: () => {} };
 }
 
 /** Reconcile each key a controller lists once, returning the delays. */

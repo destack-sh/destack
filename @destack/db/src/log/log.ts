@@ -288,7 +288,7 @@ export class Log {
                 }
             } catch (error) {
                 // start over once the changes were compacted away
-                if (!(error instanceof DatabaseError && error.code === "CHANGES_COMPACTED")) {
+                if (!(error instanceof DatabaseError && error.reason === "CHANGES_COMPACTED")) {
                     throw error;
                 }
             }

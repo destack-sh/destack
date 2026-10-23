@@ -1,4 +1,5 @@
 import type { DomainError, CallErrorCode, Failure } from "@destack/error";
+import type {} from "@destack/package/import-meta";
 
 /** The call error code per database failure: conflict, bad request, lost history, host. */
 const CALL_CODES = {
@@ -13,7 +14,7 @@ const CALL_CODES = {
     TRANSACTION_REQUIRED: "INTERNAL_SERVER_ERROR",
     TREE_NOT_FOUND: "INTERNAL_SERVER_ERROR",
     CHANGES_COMPACTED: "GONE",
-    STALE_EPOCH: "STALE_EPOCH",
+    STALE_EPOCH: "GONE",
     CONCURRENT_UPDATE: "SERVICE_UNAVAILABLE",
     DUPLICATE: "CONFLICT",
     BROKEN_REFERENCE: "CONFLICT",
@@ -24,26 +25,26 @@ const CALL_CODES = {
     CONTENT_UNAVAILABLE: "SERVICE_UNAVAILABLE",
 } as const satisfies Readonly<Record<string, CallErrorCode>>;
 
-/** The database failure codes. */
-export type DatabaseErrorCode = keyof typeof CALL_CODES;
+/** The database failures' stable causes. */
+export type DatabaseReason = keyof typeof CALL_CODES;
 
-/** A database failure with a stable code. */
+/** A database failure with its reason. */
 export class DatabaseError extends Error implements DomainError {
-    /** The failure code. */
-    readonly code: DatabaseErrorCode;
+    /** The failure's stable cause within its package. */
+    readonly reason: DatabaseReason;
     /** The table and SQL key columns of a violated unique key, if the driver reports them. */
     readonly key: { readonly table: string; readonly columns: readonly string[] } | undefined;
 
     /** Create a database failure. */
     constructor(
-        code: DatabaseErrorCode,
+        reason: DatabaseReason,
         message: string,
         options?: ErrorOptions & { readonly key?: DatabaseError["key"] },
     ) {
-        // store the code and the violated key beside the message and cause
+        // store the reason and the violated key beside the message and cause
         super(message, options);
         this.name = "DatabaseError";
-        this.code = code;
+        this.reason = reason;
         this.key = options?.key;
     }
 
@@ -74,7 +75,12 @@ export class DatabaseError extends Error implements DomainError {
 
     /** Convert the failure to the call error a caller receives. */
     toCallError(): Failure {
-        return { code: CALL_CODES[this.code], message: this.message };
+        return {
+            code: CALL_CODES[this.reason],
+            reason: this.reason,
+            domain: import.meta.destack.package.name,
+            message: this.message,
+        };
     }
 }
 
