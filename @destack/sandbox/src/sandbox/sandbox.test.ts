@@ -3,6 +3,7 @@ import { chmod, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { text } from "node:stream/consumers";
+import { SandboxError } from "../error/error.ts";
 import { Sandbox } from "./sandbox.ts";
 import { once } from "node:events";
 import { createInterface } from "node:readline";
@@ -244,11 +245,12 @@ test("reject completion when temporary storage cleanup fails", async () => {
             write: [],
             network: [],
         });
-        const failed = expect(sandbox.exited).rejects.toMatchObject({
-            name: "SandboxError",
-            code: "STOP_FAILED",
-            message: "sandbox launcher terminated without successful cleanup",
-        });
+        const failed = expect(sandbox.exited).rejects.toEqual(
+            new SandboxError(
+                "STOP_FAILED",
+                "sandbox launcher terminated without successful cleanup",
+            ),
+        );
         const errors = text(sandbox.stderr);
         temporary = (await text(sandbox.stdout)).trim();
         await failed;

@@ -15,7 +15,8 @@
     "dependencies": {
         "@anthropic-ai/sandbox-runtime": "0.0.77",
         "@destack/schema": "workspace:*",
-        "@destack/error": "workspace:*"
+        "@destack/error": "workspace:*",
+        "@destack/package": "workspace:*"
     },
     "devDependencies": {
         "@destack/test": "workspace:*",
