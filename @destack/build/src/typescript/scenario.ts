@@ -24,6 +24,7 @@ export const ScenarioDeclaration = {
         source: SourceFile,
         file: string,
         inspector: SymbolInspector,
+        owner: string,
     ): Promise<ScenarioDeclaration[]> {
         const definitions = await DefinitionDeclaration.collect(
             source,
@@ -31,6 +32,7 @@ export const ScenarioDeclaration = {
             inspector,
             "defineScenario",
             "scenario",
+            owner,
         );
 
         return await Promise.all(

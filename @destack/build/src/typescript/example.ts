@@ -57,6 +57,7 @@ export const ExampleDeclaration = {
         source: SourceFile,
         file: string,
         inspector: SymbolInspector,
+        owner: string,
     ): Promise<Omit<ExampleDeclaration, "properties">[]> {
         const definitions = await DefinitionDeclaration.collect(
             source,
@@ -64,6 +65,7 @@ export const ExampleDeclaration = {
             inspector,
             "defineExample",
             "example",
+            owner,
         );
 
         return await Promise.all(

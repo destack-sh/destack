@@ -5,8 +5,10 @@ import {
     type CallExpression,
     isCallExpression,
     isExportAssignment,
+    isFunctionDeclaration,
     isIdentifier,
     isPropertyAccessExpression,
+    isReturnStatement,
     isVariableDeclaration,
     type Node,
     NodeFlags,
@@ -23,13 +25,24 @@ import {
     type DeclarationDescription,
 } from "@destack/package";
 import { BuildError, isMissing } from "../error/index.ts";
-import { schema, type Version } from "@destack/schema";
+import { nth, schema, type Version } from "@destack/schema";
 import { PackageLocator } from "@destack/package/locator";
 import { modulePackage } from "../source/dependency.ts";
 import type { TestDeclaration } from "./test.ts";
 
 import type { DeclarationExport, FunctionExport, Inspector } from "../declaration/declaration.ts";
 import type { SymbolInspector } from "./symbol.ts";
+
+/** The nodes whose bodies run once called, where a declaration factory makes the types it lists. */
+const FUNCTION_KINDS: ReadonlySet<SyntaxKind> = new Set([
+    SyntaxKind.FunctionDeclaration,
+    SyntaxKind.FunctionExpression,
+    SyntaxKind.ArrowFunction,
+    SyntaxKind.MethodDeclaration,
+    SyntaxKind.Constructor,
+    SyntaxKind.GetAccessor,
+    SyntaxKind.SetAccessor,
+]);
 
 /** The exports a package.json lists. */
 const ExportsManifest = schema.looseObject({
@@ -128,6 +141,41 @@ export class ConstructorCatalog {
             constructor: { package: inspected.package, symbol: { module, name: symbol.name } },
             kinds: inspected.kinds,
         };
+    }
+
+    /** Resolve a factory, a function returning a constructor's call, to its constructor. */
+    async resolveFactory(
+        symbol: TypeScriptSymbol | undefined,
+        inspector: SymbolInspector,
+    ): Promise<ResolvedConstructor | undefined> {
+        // require a function declaration with a body
+        const original = symbol === undefined ? undefined : await inspector.original(symbol);
+        const handle = original?.declarations[0];
+        if (handle?.kind !== SyntaxKind.FunctionDeclaration) {
+            return undefined;
+        }
+        const node = await inspector.node(handle);
+        if (!isFunctionDeclaration(node) || node.body === undefined) {
+            return undefined;
+        }
+
+        // resolve the constructor the first returned call chain starts with
+        const returned = node.body.statements
+            .filter(isReturnStatement)
+            .map((statement) => statement.expression)
+            .filter((expression) => expression !== undefined && isCallExpression(expression))
+            .map((call) => chainStart(call));
+        const callees = await inspector.project.checker.getSymbolAtLocation(
+            returned.map((call) => call.expression),
+        );
+        for (const callee of callees) {
+            const resolved = await this.resolve(callee, inspector);
+            if (resolved !== undefined) {
+                return resolved;
+            }
+        }
+
+        return undefined;
     }
 
     /** Find the package containing a module directory. */
@@ -331,12 +379,20 @@ export async function collectDeclarations(
     catalog: ConstructorCatalog,
     tests: readonly TestDeclaration[] = [],
 ): Promise<DeclarationExport[]> {
-    // resolve declaration constructors in one compiler request
+    // resolve declaration constructors in one compiler request, and the factories module constants call
     const project = inspector.project;
     const calls = collectCalls(source, tests);
     const symbols = await project.checker.getSymbolAtLocation(calls.map((node) => node.expression));
     const constructors = await Promise.all(
-        symbols.map((symbol) => catalog.resolve(symbol, inspector)),
+        symbols.map(async (symbol, index) => {
+            const resolved = await catalog.resolve(symbol, inspector);
+            const isConstant = isModuleConstant(chainEnd(nth(calls, index)));
+
+            return (
+                resolved ??
+                (isConstant ? await catalog.resolveFactory(symbol, inspector) : undefined)
+            );
+        }),
     );
     if (constructors.every((resolved) => resolved === undefined)) {
         return [];
@@ -349,11 +405,12 @@ export async function collectDeclarations(
     // locate exported constants for evaluation, each once
     const declarations: DeclarationExport[] = [];
     for (const [index, node] of calls.entries()) {
+        // leave a call that constructs no declaration, and a factory's own calls, which its callers declare
         const resolved = constructors[index];
-        if (!resolved) {
+        if (!resolved || isInFunction(node)) {
             continue;
         }
-        const located = await locateDeclaration(node, resolved, exported, file, inspector);
+        const located = await locateDeclaration(node, resolved, exported, declaring, inspector);
         if (declarations.some((entry) => entry.description.symbol.symbol.name === located.name)) {
             continue;
         }
@@ -397,6 +454,26 @@ function chainEnd(node: CallExpression): CallExpression {
         : node;
 }
 
+/** Find the call a chain of calls starts with, such as the one `implement` is chained on. */
+function chainStart(node: CallExpression): CallExpression {
+    const callee = node.expression;
+
+    return isPropertyAccessExpression(callee) && isCallExpression(callee.expression)
+        ? chainStart(callee.expression)
+        : node;
+}
+
+/** Report whether a call initializes a module's constant or is its default export. */
+function isModuleConstant(node: CallExpression): boolean {
+    const declaration = node.parent;
+
+    return (
+        (isExportAssignment(declaration) && !declaration.isExportEquals) ||
+        (isVariableDeclaration(declaration) &&
+            declaration.parent.parent.parent.kind === SyntaxKind.SourceFile)
+    );
+}
+
 /** Collect a module's calls, leaving test case setup and bodies to the test runner. */
 function collectCalls(source: SourceFile, tests: readonly TestDeclaration[]): CallExpression[] {
     // index where each test case ends
@@ -424,6 +501,17 @@ function collectCalls(source: SourceFile, tests: readonly TestDeclaration[]): Ca
     return calls;
 }
 
+/** Report whether a call runs inside a function's body, as a declaration factory's own calls do. */
+function isInFunction(node: Node): boolean {
+    for (let at: Node | undefined = node.parent; at !== undefined; at = at.parent) {
+        if (FUNCTION_KINDS.has(at.kind)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 /** Read the exported name of each symbol a module exports, including lists and aliases. */
 export async function exportedNames(
     source: SourceFile,
@@ -447,7 +535,7 @@ async function locateDeclaration(
     node: CallExpression,
     resolved: ResolvedConstructor,
     exported: ReadonlyMap<number, string>,
-    file: string,
+    declaring: Package,
     inspector: SymbolInspector,
 ): Promise<{ name: string; export: string }> {
     // take a module's default export, such as its package handle
@@ -465,13 +553,13 @@ async function locateDeclaration(
         );
     }
 
-    // require an exported reference to evaluate
+    // require an exported constant to evaluate
     const symbol = await inspector.project.checker.getSymbolAtLocation(declaration.name);
     const exportedName = symbol === undefined ? undefined : exported.get(symbol.id);
     if (exportedName === undefined) {
         throw BuildError.of(
-            "INSPECTION_FAILED",
-            `cannot inspect the declaration ${file}:${declaration.name.text}: export it`,
+            "DECLARATION_UNEXPORTED",
+            `declared ${declaration.name.text} is not exported by ${declaring.name}`,
         );
     }
 

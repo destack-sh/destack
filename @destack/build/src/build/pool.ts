@@ -1,6 +1,7 @@
 import { realpath } from "node:fs/promises";
 import { resolve, sep } from "node:path";
 import { locateWorkspace } from "@destack/check/workspace";
+import { nth } from "@destack/schema";
 import { Compiler, CompilerCommand } from "./compiler.ts";
 import type { LocalPackageStore } from "../store/local.ts";
 
@@ -36,7 +37,7 @@ interface Waiter {
     readonly take: (warm: Warm) => void;
 }
 
-/** Warm compilers building into one store, leased one package at a time in request order. */
+/** Warm compilers building into one store, each leased to one package at a time. */
 export class CompilerPool implements AsyncDisposable {
     /** The store every compiler builds into. */
     readonly store: LocalPackageStore;
@@ -91,22 +92,25 @@ export class CompilerPool implements AsyncDisposable {
         }
     }
 
-    /** Hand compilers to the waiting leases in order, while the first can be served. */
+    /** Hand compilers to the waiting leases in order, passing over those it cannot serve yet. */
     #serve(): void {
-        for (let waiter = this.#waiting[0]; waiter !== undefined; waiter = this.#waiting[0]) {
-            // stop at a waiter no compiler serves yet
+        let index = 0;
+        while (index < this.#waiting.length) {
+            // pass over a waiter no compiler serves yet, such as one whose package's compiler is busy
+            const waiter = nth(this.#waiting, index);
             const warm = this.#pick(waiter);
             if (warm === undefined) {
-                return;
+                index += 1;
             }
-
             // lease the compiler to the package
-            this.#waiting.shift();
-            warm.directory = waiter.directory;
-            warm.isBusy = true;
-            warm.use = ++this.#uses;
-            warm.idle.refresh();
-            waiter.take(warm);
+            else {
+                this.#waiting.splice(index, 1);
+                warm.directory = waiter.directory;
+                warm.isBusy = true;
+                warm.use = ++this.#uses;
+                warm.idle.refresh();
+                waiter.take(warm);
+            }
         }
     }
 

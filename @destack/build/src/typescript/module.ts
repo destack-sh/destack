@@ -457,6 +457,7 @@ class ProjectInspection {
     async describe(file: string, source: SourceFile, isTest: boolean): Promise<void> {
         // describe the module's imports, globals, errors, exports, examples and scenarios together
         const module = found(this.modules, relativePath(this.root, file));
+        const { name: owner } = await this.catalog.owner(await this.catalog.locate(dirname(file)));
         let examples: Omit<ExampleDeclaration, "properties">[];
         let scenarios: ScenarioDeclaration[];
         [module.imports, module.globals, module.errors, module.exports, examples, scenarios] =
@@ -467,8 +468,12 @@ class ProjectInspection {
                 ),
                 this.depth === "index" ? inspectErrors(source, this.inspector) : [],
                 this.describeExports(source, module.path),
-                isTest ? [] : ExampleDeclaration.collect(source, module.path, this.inspector),
-                isTest ? [] : ScenarioDeclaration.collect(source, module.path, this.inspector),
+                isTest
+                    ? []
+                    : ExampleDeclaration.collect(source, module.path, this.inspector, owner),
+                isTest
+                    ? []
+                    : ScenarioDeclaration.collect(source, module.path, this.inspector, owner),
             ]);
         this.examples.push(...examples);
         this.scenarios.push(...scenarios);

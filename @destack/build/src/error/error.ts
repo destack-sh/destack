@@ -14,6 +14,7 @@ const BundleErrors = schema.array(schema.looseObject({ message: schema.string() 
 /** The build package's failures, each reason with the call error code it answers. */
 export const BuildError = defineErrorFamily(import.meta.destack.package, {
     // bad request
+    CACHE_DIRECTORY_INVALID: { code: "BAD_REQUEST" },
     DIGEST_INVALID: { code: "BAD_REQUEST" },
     MANIFEST_BLOB_UNKNOWN: { code: "BAD_REQUEST" },
     MANIFEST_INVALID: { code: "BAD_REQUEST" },
@@ -34,6 +35,7 @@ export const BuildError = defineErrorFamily(import.meta.destack.package, {
     BUNDLE_FAILED: { code: "UNPROCESSABLE_CONTENT" },
     CATALOG_INVALID: { code: "UNPROCESSABLE_CONTENT" },
     DECLARATION_INVALID: { code: "UNPROCESSABLE_CONTENT" },
+    DECLARATION_UNEXPORTED: { code: "UNPROCESSABLE_CONTENT" },
     DEPENDENCY_INVALID: { code: "UNPROCESSABLE_CONTENT" },
     DEPENDENCY_UNRESOLVED: { code: "UNPROCESSABLE_CONTENT" },
     ENTRY_INVALID: { code: "UNPROCESSABLE_CONTENT" },

@@ -58,6 +58,7 @@ export const DefinitionDeclaration = {
         inspector: SymbolInspector,
         constructor: string,
         kind: string,
+        owner: string,
     ): Promise<DefinitionDeclaration[]> {
         // skip modules that import no such constructor
         const bindings = await constructorBindings(source, inspector, constructor);
@@ -77,7 +78,7 @@ export const DefinitionDeclaration = {
         for (const [index, call] of calls.entries()) {
             const callee = callees[index];
             if (callee !== undefined && bindings.has(callee.id)) {
-                const symbol = await locateConstant(call, kind, file, inspector, exported);
+                const symbol = await locateConstant(call, kind, file, owner, inspector, exported);
                 const fields = new DefinitionFields(call, kind, `${file}#${symbol}`);
                 const range = { file, start: call.getStart(), end: call.getEnd() };
                 definitions.push({
@@ -321,6 +322,7 @@ async function locateConstant(
     call: CallExpression,
     kind: string,
     file: string,
+    owner: string,
     inspector: SymbolInspector,
     exported: ReadonlyMap<number, string>,
 ): Promise<string> {
@@ -342,8 +344,8 @@ async function locateConstant(
     const symbol = await inspector.project.checker.getSymbolAtLocation(declaration.name);
     if (symbol === undefined || !exported.has(symbol.id)) {
         throw BuildError.of(
-            "INSPECTION_FAILED",
-            `cannot inspect the ${kind} of ${file}#${declaration.name.text}: export it`,
+            "DECLARATION_UNEXPORTED",
+            `declared ${declaration.name.text} is not exported by ${owner}`,
         );
     }
 

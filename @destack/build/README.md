@@ -111,12 +111,12 @@ await store.sweep(retained, new Date(Date.now() - 60 * 60 * 1000), Retention.non
 
 ## Local store
 
-`LocalPackageStore` keeps one toolchain's builds on disk, sweeping other toolchains' idle stores.
+`LocalPackageStore` caches one toolchain's builds on disk for a week, keyed by the files a build reads.
 
 ```ts
 import { LocalPackageStore } from "@destack/build";
 
-await using store = await LocalPackageStore.checkout(directory, "development"); // <checkout root>/node_modules/.destack/store
+await using store = await LocalPackageStore.checkout(directory, "test"); // <checkout root>/node_modules/.cache/destack/test, or $DESTACK_CACHE_DIRECTORY/test
 await store.rootDirectory(directory, manifests); // retained until the directory is gone
 ```
 
