@@ -411,7 +411,7 @@ export class EventStore {
         const changed = repeated.find((event) => kept.get(event.id) !== searchedText(kind, event));
         if (changed !== undefined) {
             throw new EventError(
-                "CONFLICT",
+                "CONTENTS_DIFFER",
                 `event ${changed.id} of ${kind.key} was stored with other contents`,
             );
         }

@@ -3,7 +3,7 @@ import { Filter, sql } from "@destack/db";
 import type { JsonCondition } from "@destack/db";
 import { Package } from "@destack/package";
 import { schema } from "@destack/schema";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { eventSegment } from "../src/archive/catalog.ts";
 import { type EventKind, Histogram, type Series } from "../src/index.ts";
 import { EventFixture, testKind } from "../src/test/index.ts";
@@ -120,10 +120,11 @@ test("page a scope's events a condition selects in time order, appending one aga
     ]);
 
     // refuse a reading appended again with another value
-    await expect(store.append(reading, [measured("a", 1, "db.bytes", 99)])).rejects.toMatchObject({
-        code: "CONFLICT",
-        message: `event a of ${reading.key} was stored with other contents`,
-    });
+    expect(await refusal(store.append(reading, [measured("a", 1, "db.bytes", 99)]))).toEqual([
+        "CONFLICT",
+        "CONTENTS_DIFFER",
+        `event a of ${reading.key} was stored with other contents`,
+    ]);
 
     // read the scope's database readings one per page, then every reading of at least 20
     const where = Filter.parse('meter = "db.bytes"');
