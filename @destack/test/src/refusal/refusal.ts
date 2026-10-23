@@ -13,10 +13,11 @@ const ReceivedFailure = schema.looseObject({
     message: schema.string(),
 });
 
+/** A call's settlement: done, or refused with its code, reason and message. */
+export type Refusal = "done" | readonly [code: string, reason: string, message: string];
+
 /** Answer a pending call's or a function's refusal as its code, reason and message, or "done". */
-export function refusal(
-    pending: Promise<unknown> | (() => unknown),
-): Promise<"done" | readonly [string, string, string]> {
+export function refusal(pending: Promise<unknown> | (() => unknown)): Promise<Refusal> {
     // run a function, refusing its throw like a rejection
     const settled = typeof pending === "function" ? Promise.try(pending) : pending;
 
