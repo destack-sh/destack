@@ -1,5 +1,5 @@
 import { Change } from "@destack/db";
-import type { Controller } from "@destack/db";
+import type { ReconcileController } from "@destack/db";
 import type { EventKind } from "../kind/kind.ts";
 import type { EventArchive } from "./archive.ts";
 import { present } from "@destack/schema";
@@ -9,7 +9,7 @@ import { Clock } from "@destack/environment";
 const UPKEEP_MILLISECONDS = 24 * 60 * 60 * 1000;
 
 /** Flushes, compacts and expires each scope's segments as their policies come due. */
-export class ArchiveController implements Controller {
+export class ArchiveController implements ReconcileController {
     /** The controller's name in reports. */
     readonly name = "event-segments";
     /** The kinds' hot tables, whose appends list the scopes to flush. */
