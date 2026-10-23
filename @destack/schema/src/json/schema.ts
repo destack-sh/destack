@@ -366,7 +366,7 @@ class LinearPattern extends RegExp {
 function patternOf(entry: JsonSchemaValue): string {
     const keys = typeof entry === "object" ? Object.keys(entry) : [];
     if (typeof entry !== "object" || typeof entry.pattern !== "string" || keys.length !== 1) {
-        throw new TypeError("json schema allOf of a string accepts only patterns");
+        throw new TypeError("json schema allOf of a string only accepts patterns");
     }
 
     return entry.pattern;

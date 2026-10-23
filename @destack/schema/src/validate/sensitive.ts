@@ -102,7 +102,7 @@ export function mask(definition: z.core.$ZodType, value: JsonValue): JsonValue {
         sensitivity === "personal" ? maskOf(marked) : marked,
     );
     if (masked === undefined) {
-        throw new TypeError("masking left out a value");
+        throw new TypeError("masking skipped a value");
     }
 
     return masked;

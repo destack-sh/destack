@@ -44,7 +44,7 @@ export const JsonValue = {
     of(value: unknown): JsonValue {
         const text = JSON.stringify(value);
         if (text === undefined) {
-            throw new TypeError("value has no JSON form");
+            throw new TypeError("value cannot be converted to JSON");
         }
 
         return json().parse(JSON.parse(text));

@@ -2,7 +2,9 @@
 export function zip<Left, Right>(left: readonly Left[], right: readonly Right[]): [Left, Right][] {
     // require equal lengths
     if (left.length !== right.length) {
-        throw new RangeError(`aligned lists have ${left.length} and ${right.length} items`);
+        throw new RangeError(
+            `aligned lists have different lengths: ${left.length} and ${right.length}`,
+        );
     }
 
     // walk both lists together
