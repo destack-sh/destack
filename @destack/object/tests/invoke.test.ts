@@ -210,7 +210,7 @@ test("invoke another object's method in a call, as its caller, audited and refus
     expect(await refusal(call(shelf, "straighten", { id: home.id, book: foreign.id }))).toEqual([
         "NOT_FOUND",
         "NOT_FOUND",
-        `no book ${foreign.id}`,
+        `book ${foreign.id} not found`,
     ]);
     const rows = await storage.database
         .select({ owner: book.table.ownerId, isTidy: book.table.isTidy })
@@ -312,7 +312,7 @@ test("invoke methods as the space in a caller's call, writing objects the caller
                         code: "BAD_REQUEST",
                         reason: "UNKNOWN_METHOD",
                         domain: "@destack/object",
-                        message: "no mutating method slip.issue",
+                        message: "unknown mutating method slip.issue",
                     },
                 },
             },

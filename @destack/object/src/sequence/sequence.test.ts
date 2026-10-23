@@ -328,7 +328,7 @@ test("record a deletion's length alone, and restore exactly the characters it re
         deleted.apply({
             restore: { from: { run: "a.1", offset: 1 }, to: { run: "a.1", offset: 3 }, text: "bc" },
         }),
-    ).toThrow(new RangeError("sequence cannot restore 2 characters into 3 deleted ones"));
+    ).toThrow(new RangeError("sequence cannot restore 2 characters into 3 deleted characters"));
 });
 
 test("find the one replacement between two texts, around their common start and end", () => {

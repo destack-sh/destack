@@ -426,9 +426,7 @@ export const Claim = Object.assign(claim, {
             (link) => link.object.packageId === packageId && link.object.type === name,
         );
         if (enclosing === undefined) {
-            throw new ObjectError("NO_ENCLOSING_SCOPE", {
-                message: `scope ${scope} has no enclosing ${name}`,
-            });
+            throw ObjectError.of("NO_ENCLOSING_SCOPE", `scope ${scope} has no enclosing ${name}`);
         }
 
         return enclosing.object.id;
@@ -513,9 +511,10 @@ export const Claimant = Object.assign(claimant, {
             (entry) => entry.objectId !== claimed.objectId || entry.owner !== claimed.owner,
         );
         if (stranger !== undefined) {
-            throw new ObjectError("FOREIGN_CLAIM", {
-                message: `claim ${stranger.index} is not a name of ${claimed.objectId} in ${claimed.owner}`,
-            });
+            throw ObjectError.of(
+                "FOREIGN_CLAIM",
+                `claim ${stranger.index} is not a name of ${claimed.objectId} in ${claimed.owner}`,
+            );
         }
     },
 });

@@ -148,9 +148,10 @@ export const transitions: Trait<StateFields> & {
                 // refuse transitions from any other state
                 const state = schema.string().parse(context.target[field]);
                 if (!transition.from.includes(state)) {
-                    throw new ObjectError("INVALID_TRANSITION", {
-                        message: `${context.object.name} cannot ${name} while ${field} is ${state}`,
-                    });
+                    throw ObjectError.of(
+                        "INVALID_TRANSITION",
+                        `${context.object.name} cannot ${name} while ${field} is ${state}`,
+                    );
                 }
 
                 return Method.handle(this, context, execution);

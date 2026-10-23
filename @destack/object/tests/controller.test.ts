@@ -284,6 +284,6 @@ test("run a controller's calls as the space, audited as the space with the contr
     ]).toEqual([
         [[{ subject: spacePrincipal(spaceId) }, "reminder"]],
         ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: send"],
-        ["NOT_FOUND", "NOT_FOUND", `no reminder ${due.id}`],
+        ["NOT_FOUND", "NOT_FOUND", `reminder ${due.id} not found`],
     ]);
 });

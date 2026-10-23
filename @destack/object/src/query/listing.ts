@@ -98,9 +98,10 @@ export class Listing implements Audience {
         const view = Execution.snapshot(execution);
         await dataflow.load(await View.of(view.database, requested), after);
         if (node.aggregate !== undefined && position !== undefined) {
-            throw new ObjectError("AGGREGATE_AT_POSITION", {
-                message: "aggregates read only the latest position, where access decides them",
-            });
+            throw ObjectError.of(
+                "AGGREGATE_AT_POSITION",
+                "aggregates can only read the latest position, where access is decided",
+            );
         } else if (node.aggregate !== undefined) {
             return { items: [], cursor: null, groups: await dataflow.results("list") };
         }
@@ -288,7 +289,7 @@ export class ObjectTypeIndex {
     listed(table: Table): { readonly object: ObjectType; readonly permission: Permission } {
         const object = this.#objects.get(table);
         if (object?.listing === undefined) {
-            throw new TypeError(`no listed object lives in ${table[TABLE].name}`);
+            throw new TypeError(`no listed object is stored in ${table[TABLE].name}`);
         }
 
         return { object, permission: object.listing };

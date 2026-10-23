@@ -1,4 +1,6 @@
 import { context, extractContext } from "@destack/telemetry";
+import { isCallError } from "../error/call.ts";
+import { reportError } from "../error/report.ts";
 import { ObjectError } from "../error/error.ts";
 import { OpenAPIHandler, type OpenAPIHandlerOptions } from "@orpc/openapi/fetch";
 import {
@@ -86,7 +88,7 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
             convert: (validator) => {
                 // refuse a schema none of the procedures takes or answers
                 if (!(validator instanceof schema.Schema) || !payloads.has(validator)) {
-                    throw new TypeError("the handler converts only its procedures' payloads");
+                    throw new TypeError("the handler only converts its procedures' payloads");
                 }
 
                 return [true, toOpenApiSchema(toJsonSchema(validator))];
@@ -120,6 +122,15 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
                     );
 
                     return call.next({ ...call, input });
+                });
+
+                // report the release checks' failures as procedures report theirs, passing reported ones on
+                handler.clientInterceptors.unshift(async (call) => {
+                    try {
+                        return await call.next();
+                    } catch (error) {
+                        throw isCallError(error) ? error : reportError(error);
+                    }
                 });
             },
         };
@@ -187,27 +198,25 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
 
         // require a release
         if (header === null) {
-            throw new ObjectError("MISSING_VERSION", {
-                message: `package ${name} requires ${VERSION_HEADER}`,
-            });
+            throw ObjectError.of("MISSING_VERSION", `package ${name} requires ${VERSION_HEADER}`);
         }
         // refuse a header that is not a release
         else if (caller === undefined) {
-            throw new ObjectError("INVALID_VERSION", {
-                message: `invalid ${VERSION_HEADER}: ${header}`,
-            });
+            throw ObjectError.of("INVALID_VERSION", `invalid ${VERSION_HEADER}: ${header}`);
         }
         // refuse a release newer than this one
         else if (Version.compare(caller, version) > 0) {
-            throw new ObjectError("VERSION_MISMATCH", {
-                message: `package ${name} serves ${version}, but the caller uses ${caller}`,
-            });
+            throw ObjectError.of(
+                "VERSION_MISMATCH",
+                `package ${name} serves ${version}, but the caller uses ${caller}`,
+            );
         }
         // refuse a retired release
         else if (since !== undefined && Version.compare(caller, since) < 0) {
-            throw new ObjectError("VERSION_RETIRED", {
-                message: `package ${name} no longer serves releases before ${since}`,
-            });
+            throw ObjectError.of(
+                "VERSION_RETIRED",
+                `package ${name} no longer serves releases before ${since}`,
+            );
         }
 
         return caller;
@@ -230,9 +239,7 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
         // require a decoded JSON object input and assign each release's fields in order
         const decoded = JsonInput.safeParse(input);
         if (!decoded.success) {
-            throw new ObjectError("INVALID_CONVERSION", {
-                message: "a converted input must be a JSON object",
-            });
+            throw ObjectError.of("INVALID_CONVERSION", "a converted input must be a JSON object");
         }
         const converted = Expression.upgrade(convert, decoded.data, caller, served);
 

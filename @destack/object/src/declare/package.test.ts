@@ -1,6 +1,6 @@
 import { principal } from "@destack/access";
-import { Package, PackageError, PackageId } from "@destack/package";
-import { expect, test } from "@destack/test";
+import { Package, PackageId } from "@destack/package";
+import { expect, test, refusal } from "@destack/test";
 import { defineProcedure } from "../procedure/index.ts";
 import { defineAdapter, definePackage, type ObjectDeclaration } from "./package.ts";
 import { Capability } from "./description.ts";
@@ -31,7 +31,7 @@ const note: ObjectDeclaration = {
     shared: { replica: { push } },
 };
 
-test("declare a package handle with its identity, the router its objects derive, and its adapters", () => {
+test("declare a package handle with its identity, the router its objects derive, and its adapters", async () => {
     // declare notes with an npm adapter for anyone, a hook adapter for users and a sync adapter for itself
     const npm = defineAdapter("npm", { path: "/npm" });
     const hook = defineAdapter("hook", { path: "/hook", callers: [principal.user] });
@@ -67,33 +67,43 @@ test("declare a package handle with its identity, the router its objects derive,
     });
 });
 
-test("refuse adapters at an empty path, and adapters at or below another's path", () => {
+test("refuse adapters at an empty path, and adapters at or below another's path", async () => {
     // refuse an adapter at the mount itself
-    expect(() => defineAdapter("root", { path: "/" })).toThrow(
-        new PackageError("INVALID_DEFINITION", "adapter root has no path below the mount: /"),
-    );
+    expect(await refusal(() => defineAdapter("root", { path: "/" }))).toEqual([
+        "BAD_REQUEST",
+        "INVALID_DEFINITION",
+        "adapter root has no path below the mount: /",
+    ]);
 
     // refuse an adapter at another's path, and one below it
     const npm = defineAdapter("npm", { path: "/npm" });
     const twin = defineAdapter("twin", { path: "/npm" });
     const nested = defineAdapter("nested", { path: "/npm/tarballs" });
-    expect(() => definePackage({ adapters: { npm, twin } })).toThrow(
-        new PackageError("INVALID_DEFINITION", "adapter path /npm overlaps another"),
-    );
-    expect(() => definePackage({ adapters: { npm, nested } })).toThrow(
-        new PackageError("INVALID_DEFINITION", "adapter path /npm/tarballs overlaps another"),
-    );
+    expect(await refusal(() => definePackage({ adapters: { npm, twin } }))).toEqual([
+        "BAD_REQUEST",
+        "INVALID_DEFINITION",
+        "adapter path /npm overlaps another",
+    ]);
+    expect(await refusal(() => definePackage({ adapters: { npm, nested } }))).toEqual([
+        "BAD_REQUEST",
+        "INVALID_DEFINITION",
+        "adapter path /npm/tarballs overlaps another",
+    ]);
 });
 
-test("refuse a declaration listed under another name, and a name taken twice", () => {
+test("refuse a declaration listed under another name, and a name taken twice", async () => {
     const npm = defineAdapter("npm", { path: "/npm" });
 
-    expect(() => definePackage({ adapters: { git: npm } })).toThrow(
-        new PackageError("INVALID_DEFINITION", "declaration npm is listed under another name: git"),
-    );
-    expect(() => definePackage({ adapters: { npm }, views: { npm } })).toThrow(
-        new PackageError("INVALID_DEFINITION", "duplicate declaration: npm"),
-    );
+    expect(await refusal(() => definePackage({ adapters: { git: npm } }))).toEqual([
+        "BAD_REQUEST",
+        "INVALID_DEFINITION",
+        "declaration npm is listed under another name: git",
+    ]);
+    expect(await refusal(() => definePackage({ adapters: { npm }, views: { npm } }))).toEqual([
+        "BAD_REQUEST",
+        "INVALID_DEFINITION",
+        "duplicate declaration: npm",
+    ]);
 });
 
 test("refuse routing an object type under the name of shared procedures, and route each name once", () => {

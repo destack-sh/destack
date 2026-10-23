@@ -174,7 +174,7 @@ test("list, get and fold the events a visitor may read, refusing a fold without 
         recorded: [{ ids: ["visit-1", "visit-2", "visit-3"] }],
         listed: ["visit-1", "visit-2"],
         visited: "about",
-        other: ["NOT_FOUND", "NOT_FOUND", "no visit visit-3"],
+        other: ["NOT_FOUND", "NOT_FOUND", "visit visit-3 not found"],
         folded: {
             series: [
                 {

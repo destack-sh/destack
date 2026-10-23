@@ -163,7 +163,7 @@ test("share presence on a board across instances, guarded by access, gone after 
             carol.client.mutate(presence).create({ parent, activity: "viewing" }).confirmed,
         ),
         await stranger.read(),
-    ]).toEqual([["NOT_FOUND", "NOT_FOUND", `no board ${plans.id}`], []]);
+    ]).toEqual([["NOT_FOUND", "NOT_FOUND", `board ${plans.id} not found`], []]);
 
     // remove the owner's presence after its linger, which another caller's stream under her writer never extends
     west.stream(users.bob, alice.client.writerId);

@@ -88,17 +88,14 @@ test("show a private space to readers of one object in it, forbid their writes, 
         ].map((row) => ({ ...row, scope: spaceId, createdAt: now, updatedAt: now })),
     );
     await database.insert(accessRelationship).values(
-        Relationship.encode(
-            {
-                id: schema.identifier("relationship").parse(`relationship-${v7()}`),
-                object: document.reference(spaceId, shared),
-                relation: "reader",
-                subject: principal.user.reference("universe", users.alice),
-                createdAt: now,
-                expiresAt: null,
-            },
-            spaceId,
-        ),
+        Relationship.encode({
+            id: schema.identifier("relationship").parse(`relationship-${v7()}`),
+            object: document.reference(spaceId, shared),
+            relation: "reader",
+            subject: principal.user.reference("universe", users.alice),
+            createdAt: now,
+            expiresAt: null,
+        }),
     );
 
     // serve the documents to the user each call refers to, through the delegates it lists
@@ -151,8 +148,8 @@ test("show a private space to readers of one object in it, forbid their writes, 
     const list = (id: string) =>
         refusal(store.query(context.access(), document.call("list", { spaceId: id })));
     expect([await list(spaceId), await list(missing)]).toEqual([
-        ["NOT_FOUND", "SCOPE_NOT_FOUND", `no scope ${spaceId}`],
-        ["NOT_FOUND", "SCOPE_NOT_FOUND", `no scope ${missing}`],
+        ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${spaceId} not found`],
+        ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${missing} not found`],
     ]);
 
     // show a delegate granted no reading what alice sees, asking her for the grant it lacks
@@ -188,17 +185,14 @@ test("find nothing when a call asks for a scope its objects do not live in, thou
     const object = room.reference(Scope.universe.id, roomId);
     await new AccessFixture(database).replicateScope(object);
     await database.insert(accessRelationship).values(
-        Relationship.encode(
-            {
-                id: schema.identifier("relationship").parse(`relationship-${v7()}`),
-                object,
-                relation: "reader",
-                subject: anyone.reference("*", "*"),
-                createdAt: 0,
-                expiresAt: null,
-            },
-            roomId,
-        ),
+        Relationship.encode({
+            id: schema.identifier("relationship").parse(`relationship-${v7()}`),
+            object,
+            relation: "reader",
+            subject: anyone.reference("*", "*"),
+            createdAt: 0,
+            expiresAt: null,
+        }),
     );
 
     // serve documents and desks to alice, unpinned to any scope

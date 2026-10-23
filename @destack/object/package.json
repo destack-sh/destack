@@ -7,6 +7,7 @@
     "description": "Declare the objects of a package: identity, storage, permissions and declarations.",
     "exports": {
         ".": "./src/index.ts",
+        "./error": "./src/error/index.ts",
         "./destack.json": "./destack.json",
         "./package": "./src/package.ts",
         "./server": "./src/server/index.ts",

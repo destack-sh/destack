@@ -27,9 +27,10 @@ export const ExternalStorage = {
         // refuse types stored apart or nowhere, and several stores for none
         const [only, ...others] = found;
         if (only === undefined || others.length > 0) {
-            throw new ObjectError("EXTERNAL_STORES_SPLIT", {
-                message: `no single store has the external objects ${names.join(", ")}`,
-            });
+            throw ObjectError.of(
+                "EXTERNAL_STORES_SPLIT",
+                `no single store has the external objects ${names.join(", ")}`,
+            );
         }
 
         return only;

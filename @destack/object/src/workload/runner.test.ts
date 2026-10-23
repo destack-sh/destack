@@ -506,7 +506,7 @@ test("hand a routed request to the workload's package at the route path, under t
                 defined: true,
                 code: "NOT_FOUND",
                 status: 404,
-                message: "no package serves routes here",
+                message: "no package here has routes",
                 reason: "NO_PACKAGE_ROUTES",
                 domain: "@destack/object",
             }),

@@ -58,9 +58,7 @@ export class BranchType {
     /** Require a branch to be open, refusing one merged or discarded for good. */
     requireOpen<Target extends { readonly state: string }>(target: Target): Target {
         if (target.state !== "open") {
-            throw new ObjectError("BRANCH_NOT_OPEN", {
-                message: `branch is ${target.state}`,
-            });
+            throw ObjectError.of("BRANCH_NOT_OPEN", `branch is ${target.state}`);
         }
 
         return target;
@@ -80,18 +78,20 @@ export class BranchType {
                 : undefined;
         const named = field === undefined ? undefined : entry.input[field];
         if (named !== undefined && named !== scope) {
-            throw new ObjectError("CALL_OUTSIDE_BRANCH", {
-                message: `${sync.Call.label(entry)} is in another scope than its branch`,
-            });
+            throw ObjectError.of(
+                "CALL_OUTSIDE_BRANCH",
+                `${sync.Call.label(entry)} is in a different scope from its branch`,
+            );
         }
         const input = field === undefined ? entry.input : { ...entry.input, [field]: scope };
         const resolved = ObjectType.resolve(objects, { ...entry, input }, true, CallSite.client);
 
         // refuse ephemeral objects and branch bookkeeping
         if (resolved.object.storage === "ephemeral" || this.has(resolved.object)) {
-            throw new ObjectError("UNBRANCHABLE_CALL", {
-                message: `branches cannot store calls of ${resolved.object.name}`,
-            });
+            throw ObjectError.of(
+                "UNBRANCHABLE_CALL",
+                `branches cannot store calls of ${resolved.object.name}`,
+            );
         }
 
         return resolved;

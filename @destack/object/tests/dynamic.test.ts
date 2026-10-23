@@ -89,7 +89,7 @@ test("call and list objects by their descriptions, refusing input their methods'
     expect(await refusal(client.list("page"))).toEqual([
         "NOT_FOUND",
         "UNKNOWN_TYPE",
-        "no object type page",
+        "unknown object type page",
     ]);
 });
 
@@ -148,7 +148,7 @@ test("describe the served types with the types they refer to, declare them from 
     expect(await refusal(client.describe([unknown]))).toEqual([
         "NOT_FOUND",
         "UNKNOWN_TYPE",
-        `no object type page of ${note.package.id} is known here`,
+        `unknown object type page of ${note.package.id}`,
     ]);
 });
 

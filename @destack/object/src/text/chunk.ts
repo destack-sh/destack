@@ -77,7 +77,7 @@ export const Chunk = {
                 owner.scopes.every((scope, index) => scope.same(first.scopes[index])),
         );
         if (!isOneScope) {
-            throw new TypeError("objects with text must live in one kind of scope per database");
+            throw new TypeError("objects with text must use one kind of scope per database");
         }
 
         // declare chunks read through their owner, stored in text's chunk table
@@ -428,9 +428,7 @@ const ChunkLayout = {
         // refuse a run the text already contains
         const duplicate = found.find((entry) => inserted.has(entry.run));
         if (duplicate !== undefined) {
-            throw new ObjectError("DUPLICATE_RUN", {
-                message: `${field} already has run ${duplicate.run}`,
-            });
+            throw ObjectError.of("DUPLICATE_RUN", `${field} already has run ${duplicate.run}`);
         }
 
         // refuse an element no chunk contains
@@ -444,9 +442,10 @@ const ChunkLayout = {
                 ),
         );
         if (missing !== undefined) {
-            throw new ObjectError("ELEMENT_NOT_FOUND", {
-                message: `no chunk has element ${missing.run}:${missing.offset}`,
-            });
+            throw ObjectError.of(
+                "ELEMENT_NOT_FOUND",
+                `element ${missing.run}:${missing.offset} not found in any chunk`,
+            );
         }
     },
 
@@ -471,9 +470,7 @@ const ChunkLayout = {
         for (const edit of edits) {
             // refuse inserting a run the text already has
             if ("insert" in edit && sequence.runs.some((piece) => piece.run === edit.run)) {
-                throw new ObjectError("DUPLICATE_RUN", {
-                    message: `${field} already has run ${edit.run}`,
-                });
+                throw ObjectError.of("DUPLICATE_RUN", `${field} already has run ${edit.run}`);
             }
 
             // apply the edit after inverting it against the text before
@@ -482,9 +479,7 @@ const ChunkLayout = {
                 sequence = sequence.apply(edit);
             } catch (error) {
                 if (error instanceof RangeError) {
-                    throw new ObjectError("INVALID_TEXT_EDIT", {
-                        message: error.message,
-                    });
+                    throw ObjectError.of("INVALID_TEXT_EDIT", error.message);
                 }
                 throw error;
             }

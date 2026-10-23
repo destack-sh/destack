@@ -209,7 +209,7 @@ export const nested: Trait<NestedDefinition> = {
         if (options.delete === "trash" && child !== undefined && held !== undefined) {
             if (Duration.milliseconds(child.within) < Duration.milliseconds(held.within)) {
                 throw new TypeError(
-                    `object ${object.name} moves to the trash with its parent, so it must stay recoverable as long`,
+                    `object ${object.name} moves to the trash with its parent, so it must stay recoverable as long as its parent`,
                 );
             }
         }
@@ -217,7 +217,7 @@ export const nested: Trait<NestedDefinition> = {
         // require the receive permission on the parent type
         if (parent !== "any" && !parent.permissions.includes(options.receive)) {
             throw new TypeError(
-                `object ${object.name} has parents lacking permission ${options.receive}`,
+                `object ${object.name} has parents without permission ${options.receive}`,
             );
         }
     },

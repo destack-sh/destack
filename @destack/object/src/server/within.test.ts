@@ -165,7 +165,6 @@ test("replicate the profiles in the scopes of the people a space reads, each dec
     const served = await serve(home.database);
     const join = (id: string) =>
         new AccessFixture(home.database).replicateRelationship(
-            id,
             person.reference(Scope.universe.id, id),
             "joined",
             principal.space.reference(Scope.universe.id, spaceId),
@@ -298,18 +297,12 @@ test("replicate the badges a space is shown from the scopes of teams without rep
     const fixture = new AccessFixture(home.database);
     const spaceSubject = principal.space.reference(Scope.universe.id, spaceId);
     await fixture.replicateRelationship(
-        ada,
         person.reference(Scope.universe.id, ada),
         "joined",
         spaceSubject,
     );
     for (const [id, scope] of [badges[0], badges[2]]) {
-        await fixture.replicateRelationship(
-            scope,
-            badge.reference(scope, id),
-            "shown",
-            spaceSubject,
-        );
+        await fixture.replicateRelationship(badge.reference(scope, id), "shown", spaceSubject);
     }
 
     // replicate the universe the space reads into its database, which serves only people and badges
@@ -375,7 +368,6 @@ test("replicate each person once the space may read them at the change's positio
     const [ada, bob, cy] = [personId(1), personId(2), personId(3)];
     const join = (database: DatabaseConnection, id: string) =>
         new AccessFixture(database).replicateRelationship(
-            id,
             person.reference(Scope.universe.id, id),
             "joined",
             spaceSubject,

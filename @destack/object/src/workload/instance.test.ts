@@ -4,7 +4,7 @@ import { type Uplink } from "@destack/sync";
 import { Authorizer } from "@destack/access";
 import { defineTable, text } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, test, refusal } from "@destack/test";
 import type { Controller, FollowController } from "@destack/db";
 import { Health } from "../server/health.ts";
 import { Server } from "../server/index.ts";
@@ -297,7 +297,11 @@ test("hand the workload its webhook deliveries, refusing a workload receiving no
         .requireWebhookHandler()
         .fetch(new Request("https://hooks.test/github/notes", { method: "POST" }));
     expect([answered.status, await answered.text()]).toEqual([202, "/github/notes"]);
-    expect(() => deaf.requireWebhookHandler()).toThrow("the workload receives no webhooks");
+    expect(await refusal(() => deaf.requireWebhookHandler())).toEqual([
+        "NOT_FOUND",
+        "NO_WEBHOOKS",
+        "the workload does not accept webhooks",
+    ]);
 }, 1500);
 
 test("give a starting workload its server context", async () => {

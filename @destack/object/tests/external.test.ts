@@ -225,6 +225,6 @@ test("refuse public writes on external objects, taking internal writes their sto
     // declare an external type with an internal write, and one with a public write
     expect(declareMark(true).storage).toBe("external");
     expect(() => ObjectDescription.of(declareMark(false))).toThrow(
-        new TypeError("external object mark writes in method receive"),
+        new TypeError("external object mark cannot write in method receive"),
     );
 });

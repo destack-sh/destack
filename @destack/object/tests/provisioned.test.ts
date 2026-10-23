@@ -13,7 +13,7 @@ import {
 import { defineDatabase, eq, Transaction } from "@destack/db";
 import { PackageId } from "@destack/package";
 import { defineResourceKind, Plan, type Provider } from "@destack/resource";
-import { PlanError } from "@destack/resource/error";
+import { unreachablePlan } from "@destack/resource/error";
 import { canonicalize, Digest, present, schema } from "@destack/schema";
 import { Scope, RequestId } from "@destack/sync";
 
@@ -135,7 +135,7 @@ class Boxes {
                     // refuse consumers requiring different sizes
                     const sizes = [...new Set(desired.map((state) => state.size))];
                     if (sizes.length > 1) {
-                        throw new PlanError([
+                        throw unreachablePlan([
                             {
                                 target: "size",
                                 detail: `consumers require sizes ${sizes.join(" and ")}`,
@@ -435,19 +435,16 @@ test("retain a deleted box for its window, retain it while an installation consu
         .update(box.table)
         .set({ deletedAt: now - 2 * 86_400_000 })
         .where(eq(box.table.id, ids.first));
-    const consumer = Relationship.encode(
-        {
-            id: schema
-                .identifier("relationship")
-                .parse("relationship-01996ab0-0000-7000-8000-000000000058"),
-            object: box.reference(spaceId, ids.first),
-            relation: CONSUMER,
-            subject: principal.installation.reference(spaceId, installationId),
-            createdAt: now,
-            expiresAt: null,
-        },
-        spaceId,
-    );
+    const consumer = Relationship.encode({
+        id: schema
+            .identifier("relationship")
+            .parse("relationship-01996ab0-0000-7000-8000-000000000058"),
+        object: box.reference(spaceId, ids.first),
+        relation: CONSUMER,
+        subject: principal.installation.reference(spaceId, installationId),
+        createdAt: now,
+        expiresAt: null,
+    });
     await database.insert(accessRelationship).values(consumer);
     await reconcile("box", ids.first);
     const used = present(await read(ids.first), "the used box").conditions["ready"];

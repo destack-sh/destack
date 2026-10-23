@@ -127,7 +127,7 @@ test("purge a retained record through its handler under its permission or as the
     context = userContext(users.grace, spaceId);
     await expect(execute(credential, "purge", { id: created.id })).rejects.toThrow(
         new TypeError(
-            "object credential retains purged records, so its purge must implement destroying their content",
+            "object credential keeps purged records, so its purge must destroy their content",
         ),
     );
 

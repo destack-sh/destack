@@ -250,10 +250,6 @@ test("declare records as their create inputs in reference order, the name fillin
         ["INTERNAL_SERVER_ERROR", "INVALID_DECLARATION", "unknown tag: blue"],
         ["INTERNAL_SERVER_ERROR", "INVALID_DECLARATION", `unknown tag: ${missing}`],
         ["INTERNAL_SERVER_ERROR", "INVALID_DECLARATION", `unknown tag: ${redTag?.id}`],
-        [
-            "INTERNAL_SERVER_ERROR",
-            "INVALID_DECLARATION",
-            `user ${user} is global, outside any scope`,
-        ],
+        ["INTERNAL_SERVER_ERROR", "INVALID_DECLARATION", `user ${user} is global and has no scope`],
     ]);
 });

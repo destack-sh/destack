@@ -432,7 +432,7 @@ test("refuse a mutation changing rows of two homes", async () => {
     expect(await refusal(submitted.predicted)).toEqual([
         "BAD_REQUEST",
         "MIXED_HOMES",
-        `a mutation changes rows of one home, and its calls change rows of ${personId} and ${roomId}`,
+        `a mutation must change rows of one home, but its calls change rows of ${personId} and ${roomId}`,
     ]);
 });
 

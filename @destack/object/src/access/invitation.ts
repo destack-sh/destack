@@ -56,18 +56,15 @@ export const invitation = defineObject(
                 input: schemas.scope.extend({ ...schemas.replay, ...InvitationInput.shape }),
                 output: access.Invitation.schema,
             }),
-            handler: (context, execution) => {
-                // invite to the relationship on the object
+            handler: async (context, execution) => {
+                // invite to the relationship on the object, in the scope it would live in
                 const { object, ...invited } = InvitationInput.parse(context.input);
                 const { relationship: offered, ...details } = InviteInput.parse(invited);
+                const relationship = { ...offered, object };
+                const store = Execution.store(execution, context);
+                await ObjectPolicy.requireScope(context, relationship, store);
 
-                return Invitation.create(
-                    {
-                        ...details,
-                        relationship: { ...offered, object },
-                    },
-                    Execution.store(execution, context).authorization,
-                );
+                return Invitation.create({ ...details, relationship }, store.authorization);
             },
         }),
         accept: defineMethod<{

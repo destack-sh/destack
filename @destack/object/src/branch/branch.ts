@@ -211,7 +211,7 @@ export class Branch {
 
             return read.changes.length > 0;
         } catch (error) {
-            if (error instanceof DatabaseError && error.reason === "CHANGES_COMPACTED") {
+            if (DatabaseError.is(error, "CHANGES_COMPACTED")) {
                 return true;
             }
             throw error;

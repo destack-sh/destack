@@ -133,7 +133,7 @@ export const TrackedHistory = {
                 for (const target of new Set(related)) {
                     if (target.table[TABLE].retention !== "history") {
                         throw new TypeError(
-                            `object ${recorder.name} records history but reads through ${target.name} without history`,
+                            `object ${recorder.name} records history but reads through ${target.name}, which has no history`,
                         );
                     }
                     TrackedHistory.requireRetained(recorder, target, term.permission, served);

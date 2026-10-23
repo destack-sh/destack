@@ -179,13 +179,15 @@ export const ObjectPolicy = {
         const policy = authorizer.policy(object);
         const scope = authorizer.governingScope(object);
         if (scope !== context.scope) {
-            throw new ObjectError("SCOPE_MISMATCH", {
-                message: `${object.type} ${object.id} is decided in ${scope}, not ${context.scope}`,
-            });
+            throw ObjectError.of(
+                "SCOPE_MISMATCH",
+                `${object.type} ${object.id} is checked in ${scope}, not ${context.scope}`,
+            );
         } else if (!Object.hasOwn(policy.definition.permissions, permission)) {
-            throw new ObjectError("UNKNOWN_PERMISSION", {
-                message: `${object.type} has no permission ${permission}`,
-            });
+            throw ObjectError.of(
+                "UNKNOWN_PERMISSION",
+                `${object.type} has no permission ${permission}`,
+            );
         }
         const asked = { packageId: object.packageId, type: object.type, name: permission };
         const asking = await authorization.in(scope);
@@ -205,9 +207,10 @@ export const ObjectPolicy = {
                 ? undefined
                 : await authorizer.check(snapshot, { ...asked, name: gate }, object, asking);
         if (granting?.isAllowed !== true) {
-            throw new ObjectError("CHECK_REFUSED", {
-                message: `checking another subject's access to ${object.type} needs ${gate ?? "a grant permission"}`,
-            });
+            throw ObjectError.of(
+                "CHECK_REFUSED",
+                `checking another subject's access to ${object.type} needs ${gate ?? "a grant permission"}`,
+            );
         }
         const checked = await authorizer.resolve(
             snapshot,
@@ -216,6 +219,21 @@ export const ObjectPolicy = {
         );
 
         return { isAllowed: (await authorizer.check(snapshot, asked, object, checked)).isAllowed };
+    },
+
+    /** Refuse a relationship or invitation outside the call's scope, the scope it lives in. */
+    async requireScope(
+        context: MethodContext,
+        request: { readonly object: ObjectReference } & ({ relation: string } | { role: string }),
+        { authorization }: StoreExecution,
+    ): Promise<void> {
+        const scope = await access.Relationship.scope(authorization.snapshot, request);
+        if (scope !== context.scope) {
+            throw ObjectError.of(
+                "SCOPE_MISMATCH",
+                `the relationship on ${request.object.type} ${request.object.id} is in ${scope}, not ${context.scope}`,
+            );
+        }
     },
 
     /** Find the scope object of the call's scope. */
@@ -251,6 +269,7 @@ export const ObjectPolicy = {
                 ),
                 ...(relation.grantedBy === undefined ? {} : { grantedBy: relation.grantedBy }),
                 ...(relation.concealed === true ? { concealed: true } : {}),
+                ...(relation.isRequired === true ? { isRequired: true } : {}),
             };
         }
 
@@ -264,7 +283,7 @@ export const ObjectPolicy = {
                     : undefined;
             if (relation !== undefined && definition.isScope === true) {
                 throw new TypeError(
-                    `scope ${definition.name} reads relation ${name} from a field: its enclosed objects cannot use it`,
+                    `scope ${definition.name} reads relation ${name} from a field, so its enclosed objects cannot use it`,
                 );
             } else if (relation !== undefined) {
                 relations[name] = relation;

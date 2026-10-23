@@ -45,7 +45,7 @@ test("trash a folder's pages with it, restore only the ones trashed with it, ref
     const spaceId = objects.scope;
     const request = () => ({ spaceId, requestId: RequestId.create(Date.now()) });
     const kept = await client.folder.create({ ...request(), name: "Plans" });
-    const first = await client.page.create({ ...request(), parentId: kept.id, title: "First" });
+    await client.page.create({ ...request(), parentId: kept.id, title: "First" });
     const second = await client.page.create({ ...request(), parentId: kept.id, title: "Second" });
     await client.page.delete({ ...request(), id: second.id });
 
@@ -65,8 +65,6 @@ test("trash a folder's pages with it, restore only the ones trashed with it, ref
     const purged = await objects.database.select().from(page.table);
 
     // trash the first page with the folder and restore it alone, the second staying trashed
-    const deletedAt = (rows: typeof trashed) =>
-        rows.map((row) => [row.title, row.deletedAt === null ? "live" : row.deletedAt]).toSorted();
     const folderDeleted = folderRow?.deletedAt;
     const secondDeleted = trashed.find((row) => row.id === second.id)?.deletedAt;
     expect({
@@ -106,7 +104,7 @@ test("refuse a child trashed with its parent without a trash, or with a shorter 
         refusalOf(declare({ within: { days: 7 }, by: "manage" })),
     ]).toEqual([
         "object note moves to the trash with its parent, so both must have a trash",
-        "object note moves to the trash with its parent, so it must stay recoverable as long",
+        "object note moves to the trash with its parent, so it must stay recoverable as long as its parent",
     ]);
 });
 
@@ -119,4 +117,11 @@ function refusalOf(declare: () => unknown): string {
     } catch (error) {
         return error instanceof TypeError ? error.message : "not a type error";
     }
+}
+
+/** List pages by title with their deletion time, or live. */
+function deletedAt(rows: readonly { readonly title: string; readonly deletedAt: number | null }[]) {
+    return rows
+        .map((row) => [row.title, row.deletedAt === null ? "live" : row.deletedAt] as const)
+        .toSorted((left, right) => left[0].localeCompare(right[0]));
 }

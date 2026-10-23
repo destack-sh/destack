@@ -88,9 +88,6 @@ export const BatchIds = schema.object({ ids: schema.array(schema.string()) });
 /** One item of a bulk call: one creation's or one update's fields. */
 export const BatchItem = schema.jsonObject();
 
-/** The unique key a duplicate write broke, as the database reports it. */
-const DUPLICATE_KEY = schema.looseObject({ columns: schema.array(schema.string()) });
-
 /** The field values a bulk update matches objects by, by field name. */
 const MATCH = schema.record(schema.string(), Scalar);
 
@@ -528,9 +525,10 @@ export const RecordMethod = {
                     (host) => host.packageId === parent.packageId && host.type === parent.type,
                 )
             ) {
-                throw new ObjectError("PARENT_TYPE_REFUSED", {
-                    message: `${parent.type} cannot have ${context.object.plural}`,
-                });
+                throw ObjectError.of(
+                    "PARENT_TYPE_REFUSED",
+                    `${parent.type} cannot have ${context.object.plural}`,
+                );
             }
 
             // require the parent to exist
@@ -546,7 +544,7 @@ export const RecordMethod = {
                 });
             if (found === undefined) {
                 throw CallError.http("NOT_FOUND", {
-                    message: `no ${parent.type} ${parent.id}`,
+                    message: `${parent.type} ${parent.id} not found`,
                 });
             }
         }
@@ -561,7 +559,7 @@ export const RecordMethod = {
             const reading = host?.reading;
             if (reading === undefined || !(await authorization.check(reading, parent)).isAllowed) {
                 throw CallError.http("NOT_FOUND", {
-                    message: `no ${parent.type} ${parent.id}`,
+                    message: `${parent.type} ${parent.id} not found`,
                 });
             }
             await authorization.require(receive, parent);
@@ -677,10 +675,9 @@ export const RecordMethod = {
             });
         } catch (error) {
             // report the first item duplicating a stored row or an earlier item, as the caller sees it
-            const index =
-                error instanceof DatabaseError && error.reason === "DUPLICATE"
-                    ? await RecordMethod.duplicateIndex(context, execution, created, error)
-                    : undefined;
+            const index = DatabaseError.is(error, "DUPLICATE")
+                ? await RecordMethod.duplicateIndex(context, execution, created, error)
+                : undefined;
             const failing = index === undefined ? undefined : created[index];
             if (index === undefined || failing === undefined) {
                 throw error;
@@ -697,20 +694,11 @@ export const RecordMethod = {
         context: MethodContext,
         execution: StoreExecution,
         created: readonly { readonly row: Row }[],
-        error: DatabaseError,
+        error: unknown,
     ): Promise<number | undefined> {
         // read each row's value of the duplicate key's columns, by field
-        const definition = context.object.table[TABLE];
-        const columns = DUPLICATE_KEY.parse(error.key).columns;
-        const keyFields = columns.map(
-            (column) =>
-                present(
-                    Object.entries(definition.columns).find(
-                        ([, declared]) => declared.definition.name === column,
-                    ),
-                    `the field of ${context.object.name}'s column ${column}`,
-                )[0],
-        );
+        const violated = DatabaseError.is(error, "DUPLICATE") ? error.data : null;
+        const keyFields = present(violated, "the duplicate's unique key").columns;
         const keys = created.map(({ row }) =>
             Object.fromEntries(keyFields.map((field) => [field, row[field]])),
         );
@@ -910,9 +898,10 @@ export const RecordMethod = {
             }
             // refuse a stale revision
             else if (RecordedRow.parse(target).revision !== revision) {
-                throw new ObjectError("STALE_REVISION", {
-                    message: `${context.object.name} revision has changed`,
-                });
+                throw ObjectError.of(
+                    "STALE_REVISION",
+                    `${context.object.name} revision has changed`,
+                );
             }
 
             // write the item's fields over its target, refusing a managed object
@@ -1079,9 +1068,10 @@ export const RecordMethod = {
                 !(kinds === undefined ? isPrincipal(caller) : kinds.some((kind) => kind.is(caller)))
             ) {
                 const named = kinds?.map((kind) => kind.name).join(" or ") ?? "principal";
-                throw new ObjectError("CREATOR_KIND_REFUSED", {
-                    message: `only a ${named} can create ${object.name}`,
-                });
+                throw ObjectError.of(
+                    "CREATOR_KIND_REFUSED",
+                    `only a ${named} can create ${object.name}`,
+                );
             }
             Object.assign(
                 callers,
@@ -1110,7 +1100,10 @@ export const RecordMethod = {
 
         // require the writer
         if (object.storage === "ephemeral" && context.writerId === undefined) {
-            throw new TypeError(`only a writer can create ephemeral ${object.name} objects`);
+            throw ObjectError.of(
+                "WRITER_REQUIRED",
+                `only a writer can create ephemeral ${object.name} objects`,
+            );
         }
 
         // assemble the columns, stamping the times and the author where the table records them
@@ -1163,8 +1156,8 @@ export const RecordMethod = {
             // report conflicts only to authorized callers
             const isConflict =
                 CallError.of(error)?.code === "CONFLICT" ||
-                (error instanceof DatabaseError &&
-                    (error.reason === "DUPLICATE" || error.reason === "BROKEN_REFERENCE"));
+                DatabaseError.is(error, "DUPLICATE") ||
+                DatabaseError.is(error, "BROKEN_REFERENCE");
             if (isConflict) {
                 await RecordMethod.requireCreatable(context, execution);
             }
@@ -1255,10 +1248,10 @@ export const RecordMethod = {
         // challenge for step-up authentication
         const stepUp = await authorizer.challenge(snapshot, permission, access, allows);
         if (stepUp !== undefined) {
-            throw new AccessError(
+            throw AccessError.of(
                 "INSUFFICIENT_AUTHENTICATION",
                 "authentication assurance is too low: authenticate again",
-                { stepUp },
+                { data: stepUp },
             );
         }
 
@@ -1270,9 +1263,7 @@ export const RecordMethod = {
                 (await authorizer.checkRows(snapshot, reading, access, [row])).permitted.has(0));
 
         // refuse a reader, and hide the object from others
-        const denial = new ObjectError("PERMISSION_DENIED", {
-            message: `permission denied: ${permission.name}`,
-        });
+        const denial = ObjectError.of("PERMISSION_DENIED", `permission denied: ${permission.name}`);
         throw isReadable ? denial : conceal(denial, `${context.object.name} not found`);
     },
 
@@ -1284,9 +1275,7 @@ export const RecordMethod = {
         const { object } = context;
         const target: Row = context.target;
         if (target["deletedAt"] !== undefined && target["deletedAt"] !== null) {
-            throw new ObjectError("ALREADY_DELETED", {
-                message: `${object.name} is already deleted`,
-            });
+            throw ObjectError.of("ALREADY_DELETED", `${object.name} is already deleted`);
         }
 
         // request deletion when a trash or controller finishes it, moving the children nested to the trash with it
@@ -1373,12 +1362,10 @@ export const RecordMethod = {
         // refuse a missing parent and one in the trash
         if (parent === undefined) {
             throw CallError.http("NOT_FOUND", {
-                message: `no ${declared.object.name} ${parentId}`,
+                message: `${declared.object.name} ${parentId} not found`,
             });
         } else if (parent["deletedAt"] !== null) {
-            throw new ObjectError("IN_TRASH", {
-                message: `${declared.object.name} ${parentId} is in the trash`,
-            });
+            throw ObjectError.of("IN_TRASH", `${declared.object.name} ${parentId} is in the trash`);
         }
     },
 
@@ -1413,9 +1400,7 @@ export const RecordMethod = {
         if (isTaken) {
             await execution.transaction.requireCurrent();
             await execution.authorization.transaction.requireCurrent();
-            throw new ObjectError("ID_TAKEN", {
-                message: `${object.name} identifier is taken`,
-            });
+            throw ObjectError.of("ID_TAKEN", `${object.name} identifier is taken`);
         }
 
         return chosen;

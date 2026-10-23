@@ -123,7 +123,7 @@ test("report a create's conflicts only to callers the create permission allows, 
     level = 1;
     await expect(create(users.bob, { holderId: users.bob, name: "notes" })).rejects.toMatchObject({
         reason: "INSUFFICIENT_AUTHENTICATION",
-        stepUp: RECENT,
+        data: RECENT,
     });
     await expect(create(users.bob, { holderId: users.alice, name: "notes" })).rejects.toMatchObject(
         {

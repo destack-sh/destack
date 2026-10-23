@@ -21,7 +21,7 @@ export const space = defineObject({
     isScope: true,
     partition: true,
     fields: {},
-    relations: { reader: { subjects: [anyone.all()] } },
+    relations: { reader: { subjects: [principal.user, anyone.all()] } },
     permissions: { read: relation("reader"), share: none() },
     shareable: { by: "share" },
 });
@@ -46,17 +46,14 @@ export async function openSpace(
     // relate anyone to a public space as its reader
     if (visibility === "public") {
         await database.insert(accessRelationship).values(
-            Relationship.encode(
-                {
-                    id: schema.identifier("relationship").parse(`relationship-${v7()}`),
-                    object,
-                    relation: "reader",
-                    subject: anyone.reference("*", "*"),
-                    createdAt: 0,
-                    expiresAt: null,
-                },
-                id,
-            ),
+            Relationship.encode({
+                id: schema.identifier("relationship").parse(`relationship-${v7()}`),
+                object,
+                relation: "reader",
+                subject: anyone.reference("*", "*"),
+                createdAt: 0,
+                expiresAt: null,
+            }),
         );
     }
 }

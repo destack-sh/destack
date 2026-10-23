@@ -3,6 +3,7 @@ import { users } from "./fixture/user.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { AccessContext, Authorization, Caller, none, principal } from "@destack/access";
 import { defineDatabase, Transaction, type ReconcileController } from "@destack/db";
+import { AccessFixture } from "@destack/access/test";
 import { TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
 import { subjectContext, testCallKey } from "@destack/object/test";
@@ -11,7 +12,6 @@ import { testEvents, serversOf } from "../src/test/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { Clock } from "@destack/environment";
-import type { Reconciliation } from "@destack/db";
 import { VirtualClock } from "@destack/environment/simulation";
 import { EventTime } from "@destack/event";
 import { tablesOf } from "../src/index.ts";
@@ -77,11 +77,14 @@ test("start a feed's reader at its creating commit and release it at its deletio
         .insert(space.table)
         .values({ id: SPACE_ID, scope: "universe", createdAt: 1, updatedAt: 1 });
     const owner = principal.user.reference("universe", users.owner);
-    const creating = await Transaction.open(database);
-    await new Authorization(store.authorizer, creating, () =>
+
+    // bear the space at its home, its owner bound in the universe and replicated here
+    const born = await Transaction.open(database);
+    await new Authorization(store.authorizer, born, () =>
         AccessContext.of(Caller.of(owner), Date.now()),
-    ).create(space.reference("universe", SPACE_ID), { owner });
-    await creating.commit();
+    ).receive(space.reference("universe", SPACE_ID), []);
+    await born.commit();
+    await new AccessFixture(database).bindOwner(space.reference("universe", SPACE_ID), owner);
     const caller = subjectContext(owner, SPACE_ID).access();
     const mutate = (call: ReturnType<typeof feed.call>) =>
         store.mutate(caller, { id: RequestId.create(Date.now()), calls: [call] });
@@ -133,7 +136,9 @@ test("refuse a batch of a reader per row", () => {
             }),
         ),
     ).toThrow(
-        new TypeError("reader feed of feed reads each row: only readers by scope batch pages"),
+        new TypeError(
+            "reader feed of feed reads each row, so it cannot batch pages: only readers by scope can",
+        ),
     );
 });
 

@@ -7,7 +7,7 @@ import {
 } from "@orpc/client";
 import { type MaybeOptionalOptions, resolveMaybeOptionalOptions } from "@orpc/shared";
 
-import { ValidationError, type SchemaIssue } from "@orpc/contract";
+import type { SchemaIssue } from "@orpc/contract";
 import { JsonValue, schema } from "@destack/schema";
 import {
     DomainError,
@@ -18,6 +18,7 @@ import {
     HTTP_DOMAIN,
 } from "@destack/error";
 import type {} from "@destack/package/import-meta";
+import { PartitionRoute, RetryAfter, ScopeMove } from "./detail.ts";
 
 /** The failures every procedure declares with their statuses and data. */
 export const DECLARED_ERRORS = {
@@ -31,16 +32,13 @@ export const DECLARED_ERRORS = {
     MISDIRECTED_REQUEST: {
         status: CALL_ERROR_STATUSES.MISDIRECTED_REQUEST,
         // where the call's scope is served: another machine, or another partition of the installation
-        data: schema.union([
-            schema.object({ scope: schema.string().min(1), machine: schema.identifier("machine") }),
-            schema.object({ scope: schema.string().min(1), partition: schema.string().min(1) }),
-        ]),
+        data: schema.union([ScopeMove, PartitionRoute]),
     },
     UNPROCESSABLE_CONTENT: { status: CALL_ERROR_STATUSES.UNPROCESSABLE_CONTENT },
     TOO_MANY_REQUESTS: {
         status: CALL_ERROR_STATUSES.TOO_MANY_REQUESTS,
-        // how long until the call may be retried, in milliseconds, as Retry-After states it
-        data: schema.object({ retryAfter: schema.number().nonnegative() }),
+        // how long until the call may be retried
+        data: RetryAfter,
     },
     SERVICE_UNAVAILABLE: { status: CALL_ERROR_STATUSES.SERVICE_UNAVAILABLE },
 } as const satisfies Partial<
@@ -240,7 +238,7 @@ export class CallError<Code extends ORPCErrorCode, Data> extends ORPCError<Code,
 }
 
 /** Report whether a value is a call error, of any code and data. */
-function isCallError(value: unknown): value is ORPCError<string, unknown> {
+export function isCallError(value: unknown): value is ORPCError<string, unknown> {
     return value instanceof ORPCError;
 }
 
@@ -249,22 +247,6 @@ export function conceal(denial: Error, message: string): CallError<"NOT_FOUND", 
     return CallError.http("NOT_FOUND", {
         message,
         cause: denial,
-    });
-}
-
-/** Refuse input its schema rejects, as a procedure refuses invalid input. */
-export function refuseInput(
-    input: unknown,
-    issues: readonly SchemaIssue[],
-): CallError<"BAD_REQUEST", { readonly issues: readonly SchemaIssue[] }> {
-    const message = describeIssues(issues);
-
-    return new CallError("BAD_REQUEST", {
-        reason: "INVALID_INPUT",
-        domain: import.meta.destack.package.name,
-        message,
-        data: { issues },
-        cause: new ValidationError({ message, issues, data: input }),
     });
 }
 
@@ -283,13 +265,14 @@ export function describeIssues(issues: readonly SchemaIssue[]): string {
 }
 
 /** Read the denial of a failure: itself for a 401 or 403, the cause of a concealed one. */
-export function findDenial(
-    failure: ORPCError<string, unknown>,
-): ORPCError<string, unknown> | undefined {
-    // take a refusal of access, or the refusal a missing resource conceals
-    if (failure.status === 401 || failure.status === 403) {
-        return failure;
-    } else if (failure.status === 404 && isCallError(failure.cause)) {
+export function findDenial(failure: unknown): ORPCError<string, unknown> | undefined {
+    // take a refusal of access, or follow a call error a missing resource conceals to its cause
+    const known = CallError.of(failure);
+    if (known === undefined) {
+        return undefined;
+    } else if (known.status === 401 || known.status === 403) {
+        return known;
+    } else if (known.status === 404 && failure instanceof Error) {
         return findDenial(failure.cause);
     }
 

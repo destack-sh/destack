@@ -120,13 +120,15 @@ export const Settlement = {
         // find the method
         const object = store.objects.find((served) => served.name === row.object);
         if (object === undefined) {
-            throw new TypeError(`settlement ${row.id} has unserved object ${row.object}`);
+            throw new TypeError(
+                `settlement ${row.id} has object ${row.object}, which nothing here serves`,
+            );
         }
         const method = object.method(row.method);
         const declared = method.prepared;
         if (declared === undefined || !Method.settles(method)) {
             throw new TypeError(
-                `settlement ${row.id} has ${row.object}.${row.method}, which settles no prepared work`,
+                `settlement ${row.id} has ${row.object}.${row.method}, which has no prepared work to settle`,
             );
         }
 
@@ -200,8 +202,9 @@ export const Settlement = {
 
     /** Refuse a call whose settlement a settler claimed after its grace passed. */
     refuseOutlasted(context: MethodContext): never {
-        throw new ObjectError("SETTLEMENT_EXPIRED", {
-            message: `${context.object.name}.${context.name} exceeded its settlement grace period`,
-        });
+        throw ObjectError.of(
+            "SETTLEMENT_EXPIRED",
+            `${context.object.name}.${context.name} exceeded its settlement grace period`,
+        );
     },
 };

@@ -180,11 +180,11 @@ test("refuse to serve local objects at another principal's store, and refuse loc
             ),
         ),
     ]).toEqual([
-        "local object draft lives only in its scope's store",
-        "local object shared must live in one scope type",
-        "local object spread must live in one scope type",
+        "local object draft only exists in its scope's store",
+        "local object shared must belong to one scope type",
+        "local object spread must belong to one scope type",
         "local object sticky cannot have inherited",
-        "local object remote runs method create off the client",
+        "local object remote cannot run method create outside the client",
     ]);
 });
 
@@ -252,7 +252,7 @@ test("serve a device's local objects at its store to the people signed in on it 
         adaWrites: "done",
         bobWrites: ["NOT_FOUND", "NOT_FOUND", "sticky not found"],
         adaLists: ["Water the plants"],
-        bobLists: ["NOT_FOUND", "SCOPE_NOT_FOUND", `no scope ${laptop.id}`],
+        bobLists: ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${laptop.id} not found`],
     });
 });
 

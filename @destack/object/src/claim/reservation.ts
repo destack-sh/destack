@@ -161,9 +161,10 @@ export const Reservation = {
                     (index) => Claim.index(type, index) === first.index,
                 ),
             );
-            throw new ObjectError("NAME_TAKEN", {
-                message: `${present(name, `the index of claim ${first.index}`)} is taken`,
-            });
+            throw ObjectError.of(
+                "NAME_TAKEN",
+                `${present(name, `the index of claim ${first.index}`)} is taken`,
+            );
         }
     },
 

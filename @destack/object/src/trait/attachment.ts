@@ -41,7 +41,7 @@ export const attachments: Trait<readonly Attachment[]> = {
                     "an attachment's nesting",
                 ).delete;
                 if (deletion === "trash") {
-                    throw new TypeError(`attachments of ${object.name} move to no trash`);
+                    throw new TypeError(`attachments of ${object.name} cannot move to the trash`);
                 }
 
                 return {
@@ -62,7 +62,7 @@ export const attachments: Trait<readonly Attachment[]> = {
             // refuse a permission the host lacks
             if (!permissions.includes(attachment.by)) {
                 throw new TypeError(
-                    `object ${object.name} attaches ${plural} by missing permission ${attachment.by}`,
+                    `object ${object.name} attaches ${plural} by permission ${attachment.by}, which it does not declare`,
                 );
             }
             // require the host's receive permission to be the attaching one

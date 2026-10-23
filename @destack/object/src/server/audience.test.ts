@@ -105,17 +105,14 @@ test("decide again after changes of the caller's access, and leave other identit
         })),
     );
     await database.insert(accessRelationship).values(
-        Relationship.encode(
-            {
-                id: newId("relationship"),
-                object: notebook.reference(spaceId, first),
-                role: readerRole,
-                subject: ada,
-                createdAt: 1,
-                expiresAt: null,
-            },
-            spaceId,
-        ),
+        Relationship.encode({
+            id: newId("relationship"),
+            object: notebook.reference(spaceId, first),
+            role: readerRole,
+            subject: ada,
+            createdAt: 1,
+            expiresAt: null,
+        }),
     );
 
     // follow the space as ada
@@ -186,17 +183,14 @@ test("decide again after changes of the caller's access, and leave other identit
     const joined = await decided(
         () =>
             database.insert(accessRelationship).values(
-                Relationship.encode(
-                    {
-                        id: newId("relationship"),
-                        object: team,
-                        relation: "member",
-                        subject: ada,
-                        createdAt: 1,
-                        expiresAt: null,
-                    },
-                    Scope.universe.id,
-                ),
+                Relationship.encode({
+                    id: newId("relationship"),
+                    object: team,
+                    relation: "member",
+                    subject: ada,
+                    createdAt: 1,
+                    expiresAt: null,
+                }),
             ),
         [accessRelationship],
     );
@@ -269,17 +263,14 @@ test("decide again once a relationship an arrow follows changes, and leave anoth
     const relate = async (name: string, subject: Subject) => {
         const { sequence } = await database.log.position();
         await database.insert(accessRelationship).values(
-            Relationship.encode(
-                {
-                    id: newId("relationship"),
-                    object: album.reference(spaceId, albumId),
-                    relation: name,
-                    subject,
-                    createdAt: 1,
-                    expiresAt: null,
-                },
-                spaceId,
-            ),
+            Relationship.encode({
+                id: newId("relationship"),
+                object: album.reference(spaceId, albumId),
+                relation: name,
+                subject,
+                createdAt: 1,
+                expiresAt: null,
+            }),
         );
         const { changes } = await database.log.read({
             tables: [accessRelationship],
@@ -324,17 +315,14 @@ test("drop a notebook from a live replica once the relationship sharing it expir
     const clock = new VirtualClock(Date.now());
     const expiresAt = clock.now() + SHARED_MILLISECONDS;
     await database.insert(accessRelationship).values(
-        Relationship.encode(
-            {
-                id: newId("relationship"),
-                object: notebook.reference(spaceId, shared),
-                relation: "viewer",
-                subject: ada,
-                createdAt: 1,
-                expiresAt,
-            },
-            spaceId,
-        ),
+        Relationship.encode({
+            id: newId("relationship"),
+            object: notebook.reference(spaceId, shared),
+            relation: "viewer",
+            subject: ada,
+            createdAt: 1,
+            expiresAt,
+        }),
     );
 
     // follow the notebooks as ada on the test's clock, with a second identical audience deciding alike
@@ -438,17 +426,14 @@ test("pass the keys an account hands down to its space for listing, and only tho
             .insert(key.table)
             .values({ id, scope: accountId, name, createdAt: 1, updatedAt: 1 });
         await database.insert(accessRelationship).values(
-            Relationship.encode(
-                {
-                    id: newId("relationship"),
-                    object: key.reference(accountId, id),
-                    relation: "consumer",
-                    subject: consumer,
-                    createdAt: 1,
-                    expiresAt: null,
-                },
-                accountId,
-            ),
+            Relationship.encode({
+                id: newId("relationship"),
+                object: key.reference(accountId, id),
+                relation: "consumer",
+                subject: consumer,
+                createdAt: 1,
+                expiresAt: null,
+            }),
         );
     }
 

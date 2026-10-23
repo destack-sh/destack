@@ -227,11 +227,7 @@ export class WorkloadRunner implements AsyncDisposable {
         // refuse a request without the host's secret before anything serves it
         if (request.headers.get("authorization") !== `Bearer ${this.start.secret}`) {
             return Promise.resolve(
-                refusal(
-                    new ObjectError("INVALID_HOST_SECRET", {
-                        message: "invalid host secret",
-                    }),
-                ),
+                refusal(ObjectError.of("INVALID_HOST_SECRET", "invalid host secret")),
             );
         }
 
@@ -275,11 +271,7 @@ export class WorkloadRunner implements AsyncDisposable {
         const served = this.#packages.get(this.#packageId);
         if (served === undefined) {
             return Promise.resolve(
-                refusal(
-                    new ObjectError("NO_PACKAGE_ROUTES", {
-                        message: "no package serves routes here",
-                    }),
-                ),
+                refusal(ObjectError.of("NO_PACKAGE_ROUTES", "no package here has routes")),
             );
         }
 
@@ -374,9 +366,10 @@ export class WorkloadRunner implements AsyncDisposable {
                 declaration.kind !== binding.kind ||
                 connector === undefined
             ) {
-                throw new ObjectError("BINDING_NOT_FOUND", {
-                    message: `no ${binding.kind} ${name} connecting to provider ${binding.provider}`,
-                });
+                throw ObjectError.of(
+                    "BINDING_NOT_FOUND",
+                    `no ${binding.kind} ${name} connecting to provider ${binding.provider}`,
+                );
             }
 
             // connect to the bound resource
@@ -401,9 +394,10 @@ export class WorkloadRunner implements AsyncDisposable {
                 readonly access: { readonly authentication: string };
             }) => {
                 if (access.authentication === "machine") {
-                    throw new ObjectError("MACHINE_PROCEDURE_REFUSED", {
-                        message: "a workload cannot serve machine procedures",
-                    });
+                    throw ObjectError.of(
+                        "MACHINE_PROCEDURE_REFUSED",
+                        "a workload cannot serve machine procedures",
+                    );
                 }
             },
         };

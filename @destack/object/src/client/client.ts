@@ -57,7 +57,7 @@ import { AccessContext, Authorization, Authorizer, Caller, decisionTables } from
 import { Observable } from "./observable.ts";
 import { RetryPolicy, Clock } from "@destack/environment";
 import * as sync from "@destack/sync";
-import { Failure } from "@destack/error";
+import { Failure, type FamilyError } from "@destack/error";
 import { Branch, type BranchChange, BranchType } from "../branch/index.ts";
 import { type StoredStep, UndoStack, undoEntry } from "./undo.ts";
 import { MethodContext } from "../method/context.ts";
@@ -616,9 +616,10 @@ export class ObjectClient<
             if (home === scope) {
                 return local();
             } else if (homes === undefined) {
-                throw new ObjectError("HOME_UNREACHABLE", {
-                    message: `the client of ${scope} cannot reach the home of ${home}`,
-                });
+                throw ObjectError.of(
+                    "HOME_UNREACHABLE",
+                    `the client of ${scope} cannot reach the home of ${home}`,
+                );
             }
 
             // connect to each other scope's home once
@@ -776,11 +777,11 @@ export class ObjectClient<
                     // reject ephemeral and local objects, and branch calls on a branch
                     if (object.storage === "ephemeral" || object.storage === "local") {
                         throw new TypeError(
-                            `${object.storage} object ${object.name} is written one call at a time`,
+                            `${object.storage} object ${object.name} cannot be written in a batch`,
                         );
                     } else if (checkedOut !== undefined && this.#isBranchType(object)) {
                         throw new TypeError(
-                            `${object.name} is written through mutate, on the main line`,
+                            `${object.name} is a branch type: write it through mutate on the main line`,
                         );
                     }
 
@@ -833,7 +834,7 @@ export class ObjectClient<
     /** Call an object type's reading methods on the server, refusing local-only objects. */
     read<Object extends ObjectType>(object: Object): Reader<Object> {
         if (object.storage === "local") {
-            throw new TypeError(`local object ${object.name} is read through its queries`);
+            throw new TypeError(`local object ${object.name} can only be read through its queries`);
         }
 
         return mapValues<Readonly<Record<string, Method>>, Reader<Object>>(
@@ -998,11 +999,7 @@ export class ObjectClient<
                 failures = 0;
             } catch (error) {
                 // stop on abort or a final failure, retrying a concurrent writer's conflict
-                const isConflict =
-                    typeof error === "object" &&
-                    error !== null &&
-                    "code" in error &&
-                    error.code === "CONFLICT";
+                const isConflict = CallError.of(error)?.code === "CONFLICT";
                 if (signal.aborted) {
                     return;
                 } else if (!isConflict) {
@@ -1610,7 +1607,7 @@ export class ObjectClient<
     }
 
     /** Drop the oldest closed followed query while the replica exceeds its budget. */
-    async #evict(): Promise<sync.SyncError | undefined> {
+    async #evict(): Promise<FamilyError<sync.SyncReason> | undefined> {
         // evict only a budgeted replica subscribed to the current queries
         const subscribed = ObjectClient.#queriesOf(await this.replica.subscribed(this.database));
         if (
@@ -1640,7 +1637,7 @@ export class ObjectClient<
             .orderBy(asc(subscription.releasedAt))
             .limit(1);
         if (oldest === undefined) {
-            return new sync.SyncError(
+            return sync.SyncError.of(
                 "OVER_CAPACITY",
                 `local replica has ${rows} rows, more than ${this.#storage.rows}, for open and forever followed queries`,
             );
@@ -1675,7 +1672,7 @@ export class ObjectClient<
                 return rows;
             } catch (error) {
                 // recount after compaction
-                if (!(error instanceof DatabaseError && error.reason === "CHANGES_COMPACTED")) {
+                if (!DatabaseError.is(error, "CHANGES_COMPACTED")) {
                     throw error;
                 }
             }
@@ -1948,9 +1945,10 @@ export class ObjectClient<
     #lookup(object: ObjectType, relation: string, options: FindOptions): Lookup {
         const { object: target, relation: joined } = related(object, relation, this.objects);
         if (joined.on.kind !== "key") {
-            throw new ObjectError("RELATION_BY_KEY", {
-                message: `object ${object.name} relates ${relation} of another storage only by key`,
-            });
+            throw ObjectError.of(
+                "RELATION_BY_KEY",
+                `object ${object.name} can only relate ${relation} of another storage by key`,
+            );
         }
 
         return {
@@ -1969,9 +1967,10 @@ export class ObjectClient<
         );
         for (const { via } of relations) {
             if (related(object, via, this.objects).object.storage !== object.storage) {
-                throw new ObjectError("RELATION_ACROSS_STORAGE", {
-                    message: `object ${object.name} cannot relate ${via}: it has another storage`,
-                });
+                throw ObjectError.of(
+                    "RELATION_ACROSS_STORAGE",
+                    `object ${object.name} cannot relate ${via}: it has another storage`,
+                );
             }
         }
     }
@@ -2250,13 +2249,11 @@ export class ObjectClient<
                 : [];
         if (Method.loads(method) && target === undefined) {
             throw CallError.http("NOT_FOUND", {
-                message: `no ${object.name} ${targetId}`,
+                message: `${object.name} ${targetId} not found`,
             });
         }
         if (revision !== undefined && target?.["revision"] !== revision) {
-            throw new ObjectError("STALE_REVISION", {
-                message: `${object.name} revision has changed`,
-            });
+            throw ObjectError.of("STALE_REVISION", `${object.name} revision has changed`);
         }
 
         return method.execute(target === undefined ? context : context.with({ target: target }), {
@@ -2404,16 +2401,18 @@ export class ObjectClient<
         const [first] = calls;
         const before = first === undefined ? home : this.#readHome(first);
         if (home !== before) {
-            throw new ObjectError("MIXED_HOMES", {
-                message: `a mutation changes rows of one home, and its calls change rows of ${before} and ${home}`,
-            });
+            throw ObjectError.of(
+                "MIXED_HOMES",
+                `a mutation must change rows of one home, but its calls change rows of ${before} and ${home}`,
+            );
         }
 
         // require a home the client can call
         if (home !== this.scope && !this.#hasHomes) {
-            throw new ObjectError("HOME_UNREACHABLE", {
-                message: `the client of ${this.scope} cannot reach the home of ${home}`,
-            });
+            throw ObjectError.of(
+                "HOME_UNREACHABLE",
+                `the client of ${this.scope} cannot reach the home of ${home}`,
+            );
         }
     }
 

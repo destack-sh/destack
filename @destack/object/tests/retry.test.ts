@@ -10,7 +10,7 @@ import { unmoved } from "./fixture/space.ts";
 import { Clock } from "@destack/environment";
 
 test("push again after transient failures, waiting twice as long after each", async () => {
-    const { endpoint, server } = await serveNotes();
+    const { endpoint } = await serveNotes();
     const alice = endpoint(users.alice);
 
     // fail the first two pushes as a broken network does, recording each start
@@ -24,7 +24,7 @@ test("push again after transient failures, waiting twice as long after each", as
             throw new TypeError("fetch failed");
         }
 
-        return await server.fetch(request);
+        return await alice.fetch(request);
     };
 
     // push with retries after 20 ms and 40 ms

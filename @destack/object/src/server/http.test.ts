@@ -850,7 +850,7 @@ test("refuse waiting for a server stopped while it waits for readiness, ending t
     await server.close();
 
     expect([await serving, server.health.status]).toEqual([
-        ["SERVICE_UNAVAILABLE", "SERVER_STOPPED", "the server stopped before it served"],
+        ["SERVICE_UNAVAILABLE", "SERVER_STOPPED", "the server stopped before it started serving"],
         "stopped",
     ]);
 });

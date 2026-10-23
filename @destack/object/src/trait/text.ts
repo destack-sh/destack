@@ -209,9 +209,10 @@ export const text: Trait<TextDefinition> & {
                         context.reference(),
                     );
                     if (!decision.isAllowed) {
-                        throw new ObjectError("FIELD_NOT_WRITABLE", {
-                            message: `field ${field} is not writable`,
-                        });
+                        throw ObjectError.of(
+                            "FIELD_NOT_WRITABLE",
+                            `field ${field} is not writable`,
+                        );
                     }
                 }
 

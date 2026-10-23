@@ -1,8 +1,9 @@
+import type { FamilyError } from "@destack/error";
 import { PackageManifest } from "@destack/package/manifest";
 import { ObjectError } from "../error/error.ts";
 import { AccessContext, Caller, Decision, principal } from "@destack/access";
 import { BranchEntry } from "../branch/entry.ts";
-import { DatabaseError, type Row, TABLE } from "@destack/db";
+import { DatabaseError, type DatabaseReason, type Row, TABLE } from "@destack/db";
 import type { EventKeyFields } from "@destack/event";
 import { schema, type JsonValue } from "@destack/schema";
 
@@ -32,7 +33,7 @@ interface Session {
     /** Run the behaviour the hook wraps, absent outside a handle phase. */
     readonly next?: (context?: MethodContext) => Promise<unknown>;
     /** The race a request of the session lost, returned with the hook's failure. */
-    lost?: DatabaseError;
+    lost?: FamilyError<DatabaseReason>;
 }
 
 /** The phases a sandbox runs: every phase but settle, which runs where the settlement is stored. */
@@ -98,16 +99,14 @@ export class HookSandbox {
             // require the hook's open session
             const session = this.#sessions.get(request.mutation);
             if (session === undefined) {
-                throw new ObjectError("NO_HOOK_SESSION", {
-                    message: "no hook runs in this session",
-                });
+                throw ObjectError.of("NO_HOOK_SESSION", "no hook runs in this session");
             }
 
             // pass a lost race, which the mutation runs again once the hook fails with it
             try {
                 return await this.#answer(session, request.request);
             } catch (error) {
-                if (error instanceof DatabaseError && error.reason === "CONCURRENT_UPDATE") {
+                if (DatabaseError.is(error, "CONCURRENT_UPDATE")) {
                     session.lost = error;
                 }
                 throw error;
@@ -193,7 +192,7 @@ export class HookSandbox {
         // refuse it outside a handle phase
         else {
             throw new TypeError(
-                `${context.object.name}.${context.name} has nothing to wrap outside a handle phase`,
+                `${context.object.name}.${context.name} can only wrap a call in a handle phase`,
             );
         }
     }
@@ -233,9 +232,10 @@ export class HookSandbox {
     #type(name: string): ObjectType {
         const type = this.#types.get(name);
         if (type === undefined) {
-            throw new ObjectError("TABLE_REFUSED", {
-                message: `hooks cannot read ${name}: only the tables of the types their installation serves`,
-            });
+            throw ObjectError.of(
+                "TABLE_REFUSED",
+                `hooks cannot read ${name}: they can only read tables of their installation's types`,
+            );
         }
 
         return type;
@@ -247,7 +247,7 @@ export class HookSandbox {
         const unknown = phases.find((phase) => !SANDBOXED.some((each) => each === phase));
         if (unknown !== undefined) {
             throw new TypeError(
-                `${type.name}.${name} has phase ${unknown}, which a sandbox does not run`,
+                `${type.name}.${name} has phase ${unknown}, which a sandbox cannot run`,
             );
         }
 

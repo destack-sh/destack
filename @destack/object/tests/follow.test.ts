@@ -235,17 +235,14 @@ test("decide calls over a relayed replica of access as the holder does, through 
         { ...accountObject, relation: "member" },
     );
     await home.database.insert(accessRelationship).values(
-        Relationship.encode(
-            {
-                id: schema.identifier("relationship").parse(`relationship-${v7()}`),
-                object: accountObject,
-                relation: "member",
-                subject: carol,
-                createdAt: 0,
-                expiresAt: null,
-            },
-            accountId,
-        ),
+        Relationship.encode({
+            id: schema.identifier("relationship").parse(`relationship-${v7()}`),
+            object: accountObject,
+            relation: "member",
+            subject: carol,
+            createdAt: 0,
+            expiresAt: null,
+        }),
     );
 
     // serve the documents of one space over the installation's database to each call's user, replicating its chain from the home database
@@ -346,7 +343,7 @@ test("decide calls over a relayed replica of access as the holder does, through 
     );
 
     // allow the owner through a credential for the empty space and hide the space from the rest
-    const hidden = ["NOT_FOUND", "SCOPE_NOT_FOUND", `no scope ${spaceId}`];
+    const hidden = ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${spaceId} not found`];
     expect(outcomes).toEqual(["Plan", hidden, hidden, hidden, "Budget"]);
     expect(listed.items.map((item) => item.title).toSorted()).toEqual(["Budget", "Plan"]);
 });
@@ -1006,7 +1003,7 @@ test("replicate the chains of an installation's two served spaces in one replica
     const fixture = new AccessFixture(home.database);
     const subject = principal.installation.reference(followingSpaceId, followingId);
     const grant = (id: string, granted: "reader" | "replicator") =>
-        fixture.replicateRelationship(id, space.reference(accountId, id), granted, subject, 1);
+        fixture.replicateRelationship(space.reference(accountId, id), granted, subject, 1);
     await grant(spaceId, "reader");
     await grant(otherSpaceId, "reader");
     await grant(spaceId, "replicator");
@@ -1142,7 +1139,6 @@ test("refuse a chain follow with no via to a caller without replicate on the sco
     // refuse it until the installation may replicate the space, then replicate the account's chain
     const refused = await refusal(first());
     await access.replicateRelationship(
-        spaceId,
         space.reference(accountId, spaceId),
         "replicator",
         subject,
@@ -1236,7 +1232,6 @@ test("replicate a partition's chain via its installation's space, whose source h
     // refuse it until the installation may replicate the space, then replicate the space's chain
     const refused = await refusal(first());
     await access.replicateRelationship(
-        spaceId,
         space.reference(accountId, spaceId),
         "replicator",
         subject,
@@ -1478,14 +1473,8 @@ test("replicate a scoped table an installation's database declares beside its fo
     const fixture = new AccessFixture(home.database);
     const subject = principal.installation.reference(followingSpaceId, followingId);
     const followedSpace = space.reference(accountId, spaceId);
-    const reading = await fixture.replicateRelationship(
-        spaceId,
-        followedSpace,
-        "reader",
-        subject,
-        1,
-    );
-    await fixture.replicateRelationship(spaceId, followedSpace, "replicator", subject, 1);
+    const reading = await fixture.replicateRelationship(followedSpace, "reader", subject, 1);
+    await fixture.replicateRelationship(followedSpace, "replicator", subject, 1);
 
     // follow the universe's rows and the followed space's chain from home, as the installation
     const follower = { subject, parent: Scope.universe.id };
@@ -1601,7 +1590,6 @@ test("replicate the chains of the accounts an installation's rows relate to, bes
     }
     const subject = principal.installation.reference(followingSpaceId, followingId);
     await access.replicateRelationship(
-        accountId,
         account.reference(Scope.universe.id, accountId),
         "reader",
         subject,
@@ -1694,7 +1682,6 @@ test("replicate the chain of an account another replica brought first, once the 
         .values({ id: accountId, scope: Scope.universe.id, createdAt: 1, updatedAt: 1 });
     const subject = principal.installation.reference(followingSpaceId, followingId);
     await access.replicateRelationship(
-        accountId,
         account.reference(Scope.universe.id, accountId),
         "reader",
         subject,

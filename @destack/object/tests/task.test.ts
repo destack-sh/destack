@@ -87,7 +87,7 @@ test("plan a project with its members, assignees, guarded budgets and comments",
     expect(await refusal(bob.project.get({ spaceId, id: launch.id }))).toEqual([
         "NOT_FOUND",
         "NOT_FOUND",
-        `no project ${launch.id}`,
+        `project ${launch.id} not found`,
     ]);
 
     // let a user ask to join, and plan once the owner accepts
@@ -181,7 +181,7 @@ test("plan a project with its members, assignees, guarded budgets and comments",
     expect(await refusal(dave.task.get({ spaceId, id: announce.id }))).toEqual([
         "NOT_FOUND",
         "NOT_FOUND",
-        `no task ${announce.id}`,
+        `task ${announce.id} not found`,
     ]);
 });
 

@@ -166,7 +166,7 @@ export class ObjectAudience implements Audience {
             const links = chains.get(id) ?? [];
             const scope = links[0]?.object;
             if (scope === undefined) {
-                throw new SyncError("NOT_FOUND", `unknown scope: ${id}`);
+                throw SyncError.of("NOT_FOUND", `unknown scope: ${id}`);
             }
 
             // watch the scope's row where this database maps its type, and the access rows of its chain

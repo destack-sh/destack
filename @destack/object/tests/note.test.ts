@@ -51,7 +51,7 @@ test("store notes private until shared, move them between notebooks and sync the
                 subject: principal.user.reference("universe", users.bob),
             }),
         ),
-    ).toEqual(["BAD_REQUEST", "INVALID_CALL", "a grant has exactly one relation or role"]);
+    ).toEqual(["BAD_REQUEST", "INVALID_CALL", "a grant must have exactly one relation or role"]);
 
     // share the notebook: its notes follow, loose notes stay private
     await alice.notebook.grant({
@@ -748,6 +748,6 @@ test("show a notebook's relationships to everyone who reads it, and to no one el
     expect(await refusal(dave.notebook.relationships({ spaceId, id: research.id }))).toEqual([
         "NOT_FOUND",
         "NOT_FOUND",
-        `no notebook ${research.id}`,
+        `notebook ${research.id} not found`,
     ]);
 });

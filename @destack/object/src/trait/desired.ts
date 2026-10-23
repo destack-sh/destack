@@ -71,9 +71,10 @@ export const DesiredState = {
         // refuse a digest without a state in the scope
         const missing = digests.filter((digest) => !states.has(digest));
         if (missing.length > 0) {
-            throw new ObjectError("MISSING_DESIRED_STATE", {
-                message: `${scope} has no desired states ${missing.join(", ")}`,
-            });
+            throw ObjectError.of(
+                "MISSING_DESIRED_STATE",
+                `${scope} has no desired states ${missing.join(", ")}`,
+            );
         }
 
         return digests.map((digest) => present(states.get(digest), digest));

@@ -1,5 +1,6 @@
 import { AuditTarget } from "../audit/execution.ts";
 import { ObjectError } from "../error/error.ts";
+import { Issues } from "../error/detail.ts";
 import {
     Policy,
     none,
@@ -268,6 +269,8 @@ export interface ObjectRelationInput {
     readonly grantedBy?: string | null;
     /** Whether the relation's relationships show only to holders of the permission granting it. */
     readonly concealed?: true;
+    /** Whether each object keeps at least one relationship of the relation, as its owners. */
+    readonly isRequired?: true;
 }
 
 /** The scope objects live in: a scope type, or the universe. */
@@ -843,9 +846,10 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     /** Refuse writing one of the type's predefined rows. */
     refusePredefined(id: string): void {
         if (Key.isPredefined(this.table, { id })) {
-            throw new ObjectError("PREDEFINED", {
-                message: `${this.name} ${id} is predefined, so no call writes it`,
-            });
+            throw ObjectError.of(
+                "PREDEFINED",
+                `${this.name} ${id} is predefined and cannot be written`,
+            );
         }
     }
 
@@ -972,9 +976,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     /** Refuse an identifier for a type with a natural key. */
     private requireGenerated(): void {
         if (this.keyed !== undefined) {
-            throw new ObjectError("MISSING_KEY", {
-                message: `a creation of ${this.name} must give its key`,
-            });
+            throw ObjectError.of("MISSING_KEY", `creating ${this.name} requires a key`);
         }
     }
 
@@ -1057,18 +1059,14 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     readScope(name: string, input: JsonObject): string {
         // refuse a method the type lacks, which a call from elsewhere may ask for
         if (!Object.hasOwn(this.methods, name)) {
-            throw new ObjectError("UNKNOWN_METHOD", {
-                message: `object ${this.name} has no method ${name}`,
-            });
+            throw ObjectError.of("UNKNOWN_METHOD", `object ${this.name} has no method ${name}`);
         }
 
         // read the scope field, or the universe
         const field = this.route.field;
         const scope = field === undefined ? Scope.universe.id : input[field];
         if (typeof scope !== "string") {
-            throw new ObjectError("MISSING_FIELD", {
-                message: `call has no ${field}`,
-            });
+            throw ObjectError.of("MISSING_FIELD", `call has no ${field}`);
         }
 
         return scope;
@@ -1211,9 +1209,10 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         // refuse a call of a later release
         const served = this.package.version;
         if (Version.compare(call.release, served) > 0) {
-            throw new ObjectError("RELEASE_MISMATCH", {
-                message: `${Call.label(call)} was made against release ${call.release} of ${this.name}, but ${this.name} is at ${served}`,
-            });
+            throw ObjectError.of(
+                "RELEASE_MISMATCH",
+                `${Call.label(call)} targets release ${call.release} of ${this.name}, but ${this.name} is at release ${served}`,
+            );
         }
 
         // take a call of this release as it is
@@ -1239,16 +1238,8 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         if (validated instanceof Promise) {
             throw new TypeError(`the output schema of ${label} is asynchronous`);
         } else if (validated.issues !== undefined) {
-            throw new ObjectError("INVALID_OUTPUT", {
-                message: `invalid output of ${label}`,
-                data: {
-                    issues: validated.issues.map((issue) => ({
-                        message: issue.message,
-                        path: (issue.path ?? []).map((part) =>
-                            String(typeof part === "object" ? part.key : part),
-                        ),
-                    })),
-                },
+            throw ObjectError.of("INVALID_OUTPUT", `invalid output of ${label}`, {
+                data: Issues.of(validated.issues),
             });
         }
 
@@ -1471,8 +1462,8 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     conflict(error: unknown): unknown {
         // read the violated key of the type's table
         const definition = this.table[TABLE];
-        const key = error instanceof DatabaseError ? error.key : undefined;
-        if (key === undefined || key.table !== definition.sqlName) {
+        const key = DatabaseError.is(error, "DUPLICATE") ? error.data : null;
+        if (key === null || key.table !== definition.name) {
             return error;
         }
 
@@ -1505,20 +1496,10 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         }
 
         // list each key column once, by its relation or its field
-        const names = key.columns.map((column) => {
-            const [field] = present(
-                Object.entries(definition.columns).find(
-                    ([, declared]) => declared.definition.name === column,
-                ),
-                `the field of ${this.name}'s column ${column}`,
-            );
-
-            return named.get(field) ?? field;
-        });
+        const names = key.columns.map((field) => named.get(field) ?? field);
         const listed = new Intl.ListFormat("en").format([...new Set(names)]);
 
-        return new ObjectError("DUPLICATE", {
-            message: `another ${this.name} has the same ${listed}`,
+        return ObjectError.of("DUPLICATE", `another ${this.name} has the same ${listed}`, {
             cause: error,
         });
     }
@@ -1570,13 +1551,15 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             !CallSite.covers(site, object, method) ||
             (mutates && !method.mutates)
         ) {
-            throw new ObjectError("UNKNOWN_METHOD", {
-                message: `no ${mutates ? "mutating " : ""}method ${Call.label(entry)}`,
-            });
+            throw ObjectError.of(
+                "UNKNOWN_METHOD",
+                `unknown ${mutates ? "mutating " : ""}method ${Call.label(entry)}`,
+            );
         } else if (!mutates && method.mutates) {
-            throw new ObjectError("PUSH_REQUIRED", {
-                message: `${Call.label(entry)} changes objects: push it from a client`,
-            });
+            throw ObjectError.of(
+                "PUSH_REQUIRED",
+                `${Call.label(entry)} changes objects: push it from a client`,
+            );
         }
 
         // convert the input to the served release
@@ -2004,7 +1987,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             const earlier = routes.get(key);
             if (earlier !== undefined) {
                 throw new TypeError(
-                    `object ${this.name} methods ${earlier} and ${name} both answer ${key}`,
+                    `object ${this.name} methods ${earlier} and ${name} both handle ${key}`,
                 );
             }
             routes.set(key, name);
@@ -2018,7 +2001,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         );
         if (this.definition.partition === true && isSharing) {
             throw new TypeError(
-                `object ${this.name}: share a partitioned scope through its relationships`,
+                `object ${this.name} must share a partitioned scope through its relationships`,
             );
         }
     }
@@ -2039,7 +2022,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             );
         } else if (batching !== undefined) {
             throw new TypeError(
-                `reader ${batching[0]} of ${this.name} reads each row: only readers by scope batch pages`,
+                `reader ${batching[0]} of ${this.name} reads each row, so it cannot batch pages: only readers by scope can`,
             );
         }
     }
@@ -2079,7 +2062,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         )?.[0];
         if (shadowed !== undefined) {
             throw new TypeError(
-                `object ${this.name} has a method ${shadowed}, a name functions already have`,
+                `object ${this.name} has method ${shadowed}, which is already a function property`,
             );
         }
 
@@ -2087,7 +2070,9 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         const methods = ObjectType.#methodsOf(this);
         for (const limited of Object.keys(this.limits)) {
             if (!Object.hasOwn(methods, limited)) {
-                throw new TypeError(`object ${this.name} limits a method ${limited} it has not`);
+                throw new TypeError(
+                    `object ${this.name} limits method ${limited}, which it does not have`,
+                );
             }
         }
 
@@ -2138,7 +2123,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             const aggregated = written.find((field) => this.fields[field]?.aggregate !== undefined);
             if (aggregated !== undefined) {
                 throw new TypeError(
-                    `method ${name} of ${this.name} writes aggregate field ${aggregated}`,
+                    `method ${name} of ${this.name} cannot write aggregate field ${aggregated}`,
                 );
             }
         }
@@ -2152,7 +2137,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         );
         if (this.isUniverseOnly && contained !== undefined) {
             throw new TypeError(
-                `object ${this.name} lives in the universe without principals: contained() in its ${contained[0]} permission allows no one`,
+                `object ${this.name} is in the universe, which has no principals: contained() in its ${contained[0]} permission allows no one`,
             );
         }
 
@@ -2161,13 +2146,13 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             // require a scope type
             if (scope.policy.definition.scope !== true) {
                 throw new TypeError(
-                    `object ${this.name} lives in ${scope.name}, which is not a scope`,
+                    `object ${this.name} is in ${scope.name}, which is not a scope`,
                 );
             }
             // refuse a scope without the read permission
             else if (!scope.permissions.includes(SCOPE_READ)) {
                 throw new TypeError(
-                    `object ${this.name} lives in ${scope.name}, which has no ${SCOPE_READ} permission`,
+                    `object ${this.name} is in ${scope.name}, which has no ${SCOPE_READ} permission`,
                 );
             }
         }
@@ -2232,7 +2217,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         if (typeof written !== "object") {
             return undefined;
         } else if (!EventTable.is(table)) {
-            throw new TypeError(`events object ${name} lacks the event columns`);
+            throw new TypeError(`events object ${name} is missing the event columns`);
         }
 
         // read the keys from the key columns' JSON forms
@@ -2318,7 +2303,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
                 );
             } else if (writing !== undefined) {
                 throw new TypeError(
-                    `${this.storage} object ${this.name} writes in method ${writing[0]}`,
+                    `${this.storage} object ${this.name} cannot write in method ${writing[0]}`,
                 );
             }
         }
@@ -2354,10 +2339,10 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             throw new TypeError(`local object ${this.name} cannot have ${refused[0]}`);
         } else if (remote !== undefined) {
             throw new TypeError(
-                `local object ${this.name} runs method ${remote[0]} off the client`,
+                `local object ${this.name} cannot run method ${remote[0]} outside the client`,
             );
         } else if (ObjectScope.isList(this.scope) || this.scope === Scope.universe.id) {
-            throw new TypeError(`local object ${this.name} must live in one scope type`);
+            throw new TypeError(`local object ${this.name} must belong to one scope type`);
         }
     }
 
@@ -2414,7 +2399,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         const isUnparented = definition.mapping?.relations["parent"]?.column !== "parentId";
         if (foreign !== undefined && written.nested !== undefined && isUnparented) {
             throw new TypeError(
-                `object ${definition.name} over a foreign table nests through no parent relation`,
+                `object ${definition.name} over a foreign table has no parent relation to nest through`,
             );
         }
 

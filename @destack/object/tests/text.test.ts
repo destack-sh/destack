@@ -243,7 +243,7 @@ test("edit a text through chunk splits, read it assembled, undo exactly and guar
                 edits: [{ insert: "x", run: "alice.99", after: { run: "nobody.1", offset: 0 } }],
             }),
         ),
-    ).toEqual(["BAD_REQUEST", "ELEMENT_NOT_FOUND", "no chunk has element nobody.1:0"]);
+    ).toEqual(["BAD_REQUEST", "ELEMENT_NOT_FOUND", "element nobody.1:0 not found in any chunk"]);
 
     // refuse a run the text already contains anywhere
     expect(

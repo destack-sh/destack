@@ -137,9 +137,7 @@ export class RequestContext {
         if (this.authenticationError !== undefined) {
             throw this.authenticationError;
         } else if (credential === undefined) {
-            throw new ObjectError("MISSING_CREDENTIAL", {
-                message: "missing caller credential",
-            });
+            throw ObjectError.of("MISSING_CREDENTIAL", "missing caller credential");
         }
 
         return credential;

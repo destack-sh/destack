@@ -81,7 +81,7 @@ test("store a type's predefined rows in its table, and refuse every call writing
 
     // list the free tier, then write it by identifier, by match and by a chosen identifier
     const { items } = await store.query(caller, tier.call("list", { spaceId }));
-    const predefined = `tier ${FREE} is predefined, so no call writes it`;
+    const predefined = `tier ${FREE} is predefined and cannot be written`;
     expect({
         listed: items.map((item) => [item.id, item.name]),
         updated: await mutate(tier.call("update", { spaceId, id: FREE, name: "gratis" })),

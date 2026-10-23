@@ -76,7 +76,7 @@ export function implementPackage<const Handle extends ObjectPackage>(
         if (typeof definition !== "function") {
             return definition;
         } else if (context === undefined) {
-            throw new TypeError(`package ${handle.name} serves only an installation`);
+            throw new TypeError(`package ${handle.name} can only serve an installation`);
         }
 
         return definition(context);

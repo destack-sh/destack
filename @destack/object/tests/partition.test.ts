@@ -300,5 +300,7 @@ test("derive the roles of a shared partition without sharing methods on its row,
                 }),
             ),
         ),
-    ).toThrow(new TypeError("object room: share a partitioned scope through its relationships"));
+    ).toThrow(
+        new TypeError("object room must share a partitioned scope through its relationships"),
+    );
 });

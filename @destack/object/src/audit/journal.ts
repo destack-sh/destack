@@ -118,9 +118,7 @@ export class Journal {
             new TextEncoder().encode(canonicalize(Journal.recorded(entry))).byteLength >
             MAX_EXECUTION_BYTES
         ) {
-            throw new ObjectError("INVALID_CALL", {
-                message: `call exceeds ${MAX_EXECUTION_BYTES} bytes`,
-            });
+            throw ObjectError.of("INVALID_CALL", `call exceeds ${MAX_EXECUTION_BYTES} bytes`);
         }
 
         // record in the caller's transaction, or in a separate one of the journal
@@ -264,9 +262,10 @@ export class Journal {
             .from(journal)
             .where(eq(journal.id, entry.execution.id));
         if (existing === undefined || canonicalize(existing.call) !== canonicalize(entry)) {
-            throw new ObjectError("CALL_CONTENTS_DIFFER", {
-                message: `call ${entry.execution.id} has conflicting contents`,
-            });
+            throw ObjectError.of(
+                "CALL_CONTENTS_DIFFER",
+                `call ${entry.execution.id} has conflicting contents`,
+            );
         }
     }
 
@@ -402,9 +401,7 @@ export class Journal {
     static #replay(calls: readonly JournalEntry[], fingerprint: string): unknown[] {
         // refuse other input
         if (calls.some((entry) => entry.execution.digest !== fingerprint)) {
-            throw new ObjectError("REQUEST_REUSED", {
-                message: "request identifier has already been used",
-            });
+            throw ObjectError.of("REQUEST_REUSED", "request identifier has already been used");
         }
 
         // throw a recorded failure, else return the results

@@ -185,7 +185,7 @@ export const Provisioned = {
         // require the scope types the resources live in
         const scope = definition.scope;
         if (scope === undefined || scope === Scope.universe.id) {
-            throw new TypeError(`resources ${definition.name} must live in scope types`);
+            throw new TypeError(`resources ${definition.name} must belong to scope types`);
         }
 
         // require permissions declared as expressions

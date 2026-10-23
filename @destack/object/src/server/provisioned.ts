@@ -9,7 +9,7 @@ import {
     type Risk,
     type Step,
 } from "@destack/resource";
-import { PlanError } from "@destack/resource/error";
+import { ResourceError } from "@destack/resource/error";
 import { nth, Digest, Duration, type Identifier, present, zip } from "@destack/schema";
 import { Replica, Scope } from "@destack/sync";
 import {
@@ -76,7 +76,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
         // take the providers of the object's kind
         const providers = options.providers.filter((provider) => provider.object.same(object));
         if (providers.length === 0) {
-            throw new TypeError(`no provider here serves ${object.name} resources`);
+            throw new TypeError(`no provider here provides ${object.name} resources`);
         }
         this.#object = object;
         this.#kind = present(object.provisioned, `the kind of ${object.name}`).kind;
@@ -417,10 +417,10 @@ export class ResourceController implements ObjectController<ResourceType<"space"
         } catch (error) {
             // plan without the states only draining consumers need
             const recreated =
-                error instanceof PlanError && row.drainingStates.length > 0
+                ResourceError.is(error, "UNREACHABLE_PLAN") && row.drainingStates.length > 0
                     ? await planDigests(row.states).catch((failure: unknown) => {
                           // block when the active consumers conflict by themselves too
-                          if (failure instanceof PlanError) {
+                          if (ResourceError.is(failure, "UNREACHABLE_PLAN")) {
                               return undefined;
                           }
                           throw failure;
@@ -429,7 +429,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
 
             // block on what the declarations must fix and retry another failure
             if (recreated === undefined) {
-                const isBlocked = error instanceof PlanError;
+                const isBlocked = ResourceError.is(error, "UNREACHABLE_PLAN");
                 const message = error instanceof Error ? error.message : String(error);
                 const reason = isBlocked ? "Blocked" : "PlanFailed";
                 await ResourceController.#observe(

@@ -366,7 +366,7 @@ test("refuse code and unknown declarations at their path", () => {
     );
     expect(() => ObjectDescription.of(coded)).toThrow(
         new TypeError(
-            "coded.methods.rename.mutation[0].inverse is code no loaded package exports: a description cannot store it",
+            "a description cannot store coded.methods.rename.mutation[0].inverse: no loaded package exports it",
         ),
     );
     expect(() => ObjectTypePool.of([space]).declare([ObjectDescription.of(sample)])).toThrow(

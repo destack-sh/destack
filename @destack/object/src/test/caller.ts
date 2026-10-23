@@ -6,7 +6,7 @@ import type { PackageHandle } from "../declare/package.ts";
 import type { ObjectType } from "../object/object.ts";
 import type { Client, ProcedureRouter } from "../procedure/index.ts";
 import type { Server } from "../server/http.ts";
-import { TestBearer } from "./bearer.ts";
+import type { TestSigner } from "./store.ts";
 
 /** The origin test clients address the servers at, which no request leaves the process for. */
 const TEST_ORIGIN = "https://objects.test";
@@ -23,6 +23,8 @@ export interface TestServed {
     readonly type: (
         name: string,
     ) => { readonly type: ObjectType; readonly handle: PackageHandle } | undefined;
+    /** Sign a request as a caller of a package. */
+    readonly sign: (request: Request, signer: TestSigner) => Promise<Request>;
 }
 
 /** A caller of a served scope, calling through typed clients and making examples' calls. */
@@ -53,14 +55,23 @@ export class TestCaller {
         return createClient(handle, this.endpoint(handle));
     }
 
-    /** Address a served package. */
-    endpoint(handle: PackageHandle): ClientOptions {
+    /** Address a served package through a fetch that signs each request. */
+    endpoint(handle: PackageHandle): ClientOptions & {
+        readonly fetch: (request: Request) => Promise<Response>;
+    } {
         const server = this.#served.server(handle);
 
         return {
             url: TEST_ORIGIN,
-            headers: TestBearer.headers(this.subject, this.#isSteppedUp),
-            fetch: (request: Request) => server.fetch(request),
+            fetch: async (request: Request) => {
+                const signer = {
+                    subject: this.subject,
+                    audience: handle.id,
+                    isSteppedUp: this.#isSteppedUp,
+                };
+
+                return server.fetch(await this.#served.sign(request, signer));
+            },
         };
     }
 

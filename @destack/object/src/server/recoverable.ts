@@ -148,7 +148,7 @@ export class RecoverableController implements ReconcileController {
             .from(table)
             .where(and(isNotNull(table.deletedAt), unpurged));
         if (row === undefined) {
-            throw new TypeError(`the earliest deletion of ${object.name} read no row`);
+            throw new TypeError(`reading the earliest deletion of ${object.name} returned no row`);
         }
         const requestedAt = row.requestedAt;
 

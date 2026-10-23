@@ -103,7 +103,7 @@ test("execute calls made against an earlier release with the fields they renamed
     expect(await refusal(later)).toEqual([
         "BAD_REQUEST",
         "RELEASE_MISMATCH",
-        "card.update was made against release 2026.10.0 of card, but card is at 2026.9.0",
+        "card.update targets release 2026.10.0 of card, but card is at release 2026.9.0",
     ]);
     const stored = await store.query(
         context.access(),

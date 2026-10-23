@@ -12,6 +12,7 @@ import {
     Relationship,
 } from "@destack/access";
 import { defineDatabase, eq, Transaction } from "@destack/db";
+import { AccessFixture } from "@destack/access/test";
 import { TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
 
@@ -28,7 +29,7 @@ import objectPackage from "../src/package.ts";
 /** The space whose roles and members the test follows. */
 const SPACE_ID = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002");
 
-test("follow a space's roles and members as the owner defines and binds them", async () => {
+test("follow a space's roles and the members bound to them as the owner defines and binds them", async () => {
     const storage = await TestDatabase.create(
         defineDatabase({
             name: "main",
@@ -64,18 +65,21 @@ test("follow a space's roles and members as the owner defines and binds them", a
     await database
         .insert(space.table)
         .values({ id: SPACE_ID, scope: "universe", createdAt: 1, updatedAt: 1 });
-    const creating = await Transaction.open(database);
-    await new Authorization(store.authorizer, creating, () =>
+
+    // bear the space at its home, its owner bound in the universe and replicated here
+    const born = await Transaction.open(database);
+    await new Authorization(store.authorizer, born, () =>
         AccessContext.of(Caller.of(owner), Date.now()),
-    ).create(object, { owner });
-    await creating.commit();
+    ).receive(object, []);
+    await born.commit();
+    await new AccessFixture(database).bindOwner(object, owner);
     const controller = new AbortController();
     onTestFinished(() => controller.abort());
     const context = subjectContext(principal.user.reference("universe", users.owner), SPACE_ID, {
         signal: controller.signal,
     });
 
-    // take the owner role and its binding from the snapshot
+    // follow the space's roles and the relationships inside it, its owner bound beside its row
     const pages = store.source.relayed(
         store.source.queriesPublication.subscription({
             name: "objects",
@@ -108,7 +112,6 @@ test("follow a space's roles and members as the owner defines and binds them", a
             change.row["name"] ?? userName(schema.string().parse(change.row["subjectId"])),
         ]);
     };
-    expect(await next()).toEqual([["destack__access__relationship", "insert", "owner"]]);
 
     // upsert a new role at once and its binding to a member
     const reviewer = await store
@@ -194,7 +197,9 @@ test("nest objects over a foreign table only through its mapping's parent relati
             mapping: ObjectPolicy.readMapping(accessRole),
             nested: { in: "any", receive: "role" },
         }),
-    ).toThrow(new TypeError("object role over a foreign table nests through no parent relation"));
+    ).toThrow(
+        new TypeError("object role over a foreign table has no parent relation to nest through"),
+    );
 });
 
 test("live in the universe when listed there or when living in any scope, and not inside one scope type", () => {
@@ -290,11 +295,14 @@ test("delete the grants of an installation as the installation is deleted", asyn
         .insert(space.table)
         .values({ id: SPACE_ID, scope: "universe", createdAt: 1, updatedAt: 1 });
     const owner = principal.user.reference("universe", users.owner);
-    const creating = await Transaction.open(database);
-    await new Authorization(store.authorizer, creating, () =>
+
+    // bear the space at its home, its owner bound in the universe and replicated here
+    const born = await Transaction.open(database);
+    await new Authorization(store.authorizer, born, () =>
         AccessContext.of(Caller.of(owner), Date.now()),
-    ).create(space.reference("universe", SPACE_ID), { owner });
-    await creating.commit();
+    ).receive(space.reference("universe", SPACE_ID), []);
+    await born.commit();
+    await new AccessFixture(database).bindOwner(space.reference("universe", SPACE_ID), owner);
 
     // create an installation, and a grant of the owner to it beside another delegate's
     const caller = subjectContext(owner, SPACE_ID).access();

@@ -39,6 +39,24 @@ export type TestAuthenticate = (
     audience: PackageId,
 ) => Promise<Authentication | undefined>;
 
+/** A test caller of a served package: who calls, which package, and whether just stepped up. */
+export interface TestSigner {
+    /** The calling subject. */
+    readonly subject: Subject;
+    /** The package called. */
+    readonly audience: PackageId;
+    /** Whether the subject authenticated with a second factor just before the call. */
+    readonly isSteppedUp: boolean;
+}
+
+/** How a test host's callers prove who they are: the requests subjects send, and their reading. */
+export interface TestCredential {
+    /** Sign a request as a caller of a package. */
+    readonly sign: (request: Request, signer: TestSigner) => Promise<Request>;
+    /** Authenticate a request to a served package, absent for no one. */
+    readonly authenticate: TestAuthenticate;
+}
+
 /** What a test store serves: its packages, its host's tables, its clock and its space. */
 export interface TestObjectStoreOptions {
     /** The packages it serves, as declared or as implemented. */
@@ -65,6 +83,8 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
     readonly scope: string;
     /** The server of each package. */
     readonly #servers: ReadonlyMap<PackageId, Server>;
+    /** How its callers prove who they are. */
+    readonly #credential: TestCredential;
     /** What disposal closes: the servers, and the databases the test store opened. */
     readonly #disposables: AsyncDisposableStack;
     /** The failures the servers reported, such as a controller's, which settling throws. */
@@ -81,14 +101,16 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
     private constructor(
         store: ObjectStore,
         servers: ReadonlyMap<PackageId, Server>,
+        credential: TestCredential,
         disposables: AsyncDisposableStack,
         failures: unknown[],
         failed: Promise<never>,
     ) {
-        // store the store, its scope, its servers and what disposal closes
+        // store the store, its scope, its servers, its callers' credential and what disposal closes
         this.store = store;
         this.scope = store.scope;
         this.#servers = servers;
+        this.#credential = credential;
         this.#disposables = disposables;
         this.#failures = failures;
         this.#failed = failed;
@@ -133,16 +155,10 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
             { isMigrated: true },
         );
 
-        // open the store's scope
+        // take the store's scope
         const scope =
             options.scope ??
             principal.space.reference(Scope.universe.id, Identifier.create("space"));
-        await TestObjectStore.#openScope(
-            storage.database,
-            scope,
-            options.visibility ?? "public",
-            options.owners ?? [],
-        );
 
         // collect the failures the servers report, which settling and serving throw
         const failures: unknown[] = [];
@@ -178,6 +194,14 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
             clock,
         });
 
+        // open the store's scope in the partition its policy declares
+        await TestObjectStore.#openScope(
+            store,
+            scope,
+            options.visibility ?? "public",
+            options.owners ?? [],
+        );
+
         // serve it, closing the ephemeral and durable databases after the servers
         const disposables = new AsyncDisposableStack();
         disposables.defer(() => storage.close());
@@ -201,8 +225,8 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
             readonly groups?: ReadonlyMap<string, readonly Subject[]>;
             /** The handlers to serve, such as a host's with verifiers, the store's by default. */
             readonly packages?: readonly PackageHandler[];
-            /** Authenticate a request to a package as a host does, test bearers by default. */
-            readonly authenticate?: TestAuthenticate;
+            /** How callers prove who they are, as a host checks it, test bearers by default. */
+            readonly credential?: TestCredential;
         } = {},
     ): TestObjectStore {
         const groups = options.groups ?? new Map();
@@ -210,7 +234,7 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
         return TestObjectStore.#serve(
             store,
             options.packages ?? store.packages,
-            options.authenticate ?? TestObjectStore.#bearers(store, groups),
+            options.credential ?? TestObjectStore.#bearers(store, groups),
             {
                 disposables: new AsyncDisposableStack(),
                 failures: [],
@@ -223,7 +247,7 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
     static #serve(
         store: ObjectStore,
         packages: readonly PackageHandler[],
-        authenticate: TestAuthenticate,
+        credential: TestCredential,
         run: {
             readonly disposables: AsyncDisposableStack;
             readonly failures: unknown[];
@@ -249,7 +273,7 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
                     },
                     // add no host requirement, as a host serving no machines or installations
                     authorizeMachine: async () => {},
-                    authenticate: (request) => authenticate(request, handler.package.id),
+                    authenticate: (request) => credential.authenticate(request, handler.package.id),
                 }),
             ]),
         );
@@ -257,21 +281,45 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
             disposables.defer(() => server.close());
         }
 
-        return new TestObjectStore(store, servers, disposables, failures, failed.promise);
+        return new TestObjectStore(
+            store,
+            servers,
+            credential,
+            disposables,
+            failures,
+            failed.promise,
+        );
     }
 
-    /** Authenticate test bearers toward a store's packages, users in their groups. */
+    /** Sign callers with test bearers, authenticated toward a store's packages in their groups. */
     static #bearers(
         store: ObjectStore,
         groups: ReadonlyMap<string, readonly Subject[]>,
-    ): TestAuthenticate {
-        return async (request, audience) =>
-            TestObjectStore.#authenticate(request, {
-                audience,
-                scope: store.scope,
-                groups,
-                now: store.clock.now(),
-            });
+    ): TestCredential {
+        return {
+            sign: async (request, { subject, isSteppedUp }) => {
+                const headers = new Headers(request.headers);
+                for (const [name, value] of Object.entries(
+                    TestBearer.headers(subject, isSteppedUp),
+                )) {
+                    headers.set(name, value);
+                }
+
+                return new Request(request, { headers });
+            },
+            authenticate: async (request, audience) =>
+                TestObjectStore.#authenticate(request, {
+                    audience,
+                    scope: store.scope,
+                    groups,
+                    now: store.clock.now(),
+                }),
+        };
+    }
+
+    /** Sign a request as a caller of a package with the callers' credential. */
+    sign(request: Request, signer: TestSigner): Promise<Request> {
+        return this.#credential.sign(request, signer);
     }
 
     /** Open the failure that serving and settling race, leaving it to those waiting for it. */
@@ -423,27 +471,22 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
 
     /** Replicate a scope as its universe would, with the store's principal as owner. */
     static async #openScope(
-        database: DatabaseConnection,
+        store: ObjectStore,
         object: ObjectReference,
         visibility: "public" | "private",
         owners: readonly Subject[],
     ): Promise<void> {
-        // record the scope in its partition, a user's in the universe's, and bind its owners
-        const fixture = new AccessFixture(database);
-        await fixture.replicateScope(object, principal.user.is(object) ? "parent" : "self");
+        // record the scope in its own partition or its parent's, as its policy declares, and bind its owners
+        const fixture = new AccessFixture(store.database);
+        const isPartition = store.authorizer.policy(object).definition.partition === true;
+        await fixture.replicateScope(object, isPartition ? "self" : "parent");
         for (const owner of [Subject.parse(object), ...owners]) {
             await fixture.bindOwner(object, owner, 0);
         }
 
         // relate anyone to a public space as its reader
         if (visibility === "public") {
-            await fixture.replicateRelationship(
-                object.id,
-                object,
-                "reader",
-                anyone.reference("*", "*"),
-                0,
-            );
+            await fixture.replicateRelationship(object, "reader", anyone.reference("*", "*"), 0);
         }
     }
 }

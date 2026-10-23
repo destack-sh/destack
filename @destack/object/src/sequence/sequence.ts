@@ -270,7 +270,7 @@ export class Sequence {
         );
         if (restored !== undefined && restored.length !== deleted) {
             throw new RangeError(
-                `sequence cannot restore ${restored.length} characters into ${deleted} deleted ones`,
+                `sequence cannot restore ${restored.length} characters into ${deleted} deleted characters`,
             );
         }
 

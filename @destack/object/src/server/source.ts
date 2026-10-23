@@ -27,7 +27,8 @@ import {
 } from "@destack/db";
 
 import { canonicalize, Duration, present, schema } from "@destack/schema";
-import { CallError, refuseInput } from "../error/call.ts";
+import { CallError } from "../error/call.ts";
+import { refuseInput } from "../error/error.ts";
 import { type RequestContext } from "./context.ts";
 import { withEventMeta } from "../procedure/index.ts";
 import * as sync from "@destack/sync";
@@ -286,9 +287,10 @@ export class ObjectSource {
         ) {
             return { context };
         } else if (resident.length === 0) {
-            throw new ObjectError("FOLLOWER_OUTSIDE_TARGET", {
-                message: `only ${request.target} and its contents can follow the replicas held for it`,
-            });
+            throw ObjectError.of(
+                "FOLLOWER_OUTSIDE_TARGET",
+                `only ${request.target} and its contents can follow its replicas`,
+            );
         }
 
         // decide a replica on its scope
@@ -318,9 +320,7 @@ export class ObjectSource {
     static #principal(context: RequestContext): Subject {
         const caller = context.caller();
         if (Caller.isAnonymous(caller)) {
-            throw new ObjectError("MISSING_CREDENTIAL", {
-                message: "missing caller credential",
-            });
+            throw ObjectError.of("MISSING_CREDENTIAL", "missing caller credential");
         }
 
         return Caller.principal(caller);
@@ -337,9 +337,7 @@ export class ObjectSource {
         // require a principal type its followers declare
         const policy = this.store.authorizer.policy(subject);
         if (!Object.hasOwn(policy.definition.permissions, FOLLOW)) {
-            throw new ObjectError("NO_FOLLOWERS", {
-                message: `a ${subject.type} has no followers`,
-            });
+            throw ObjectError.of("NO_FOLLOWERS", `a ${subject.type} has no followers`);
         }
 
         // decide `follow` on the principal from the caller's identity and stated sets
@@ -390,9 +388,10 @@ export class ObjectSource {
         }
         const [first] = granting;
         if (first === undefined) {
-            throw new ObjectError("NO_CHAIN_REPLICAS", {
-                message: `a ${scope.type} has no replicas of its chain`,
-            });
+            throw ObjectError.of(
+                "NO_CHAIN_REPLICAS",
+                `a ${scope.type} has no replicas of its chain`,
+            );
         }
         await authorization.require(first.permission, first.target);
     }
@@ -799,9 +798,10 @@ export class ObjectSource {
         // require a small event and a reader
         const store = this.store.requireEphemeral();
         if (new TextEncoder().encode(JSON.stringify(event)).length > BROADCAST_BYTES) {
-            throw new ObjectError("BROADCAST_TOO_LARGE", {
-                message: `a broadcast has at most ${BROADCAST_BYTES} bytes`,
-            });
+            throw ObjectError.of(
+                "BROADCAST_TOO_LARGE",
+                `a broadcast cannot exceed ${BROADCAST_BYTES} bytes`,
+            );
         }
         await this.store.enter(context, scope);
         const reference = { ...target, scope };
@@ -812,7 +812,7 @@ export class ObjectSource {
         );
         if (!(await this.#lists(authorization, reference))) {
             throw CallError.http("NOT_FOUND", {
-                message: `no ${target.type} ${target.id}`,
+                message: `${target.type} ${target.id} not found`,
             });
         }
 
@@ -843,9 +843,10 @@ export class ObjectSource {
     publication(request: Pick<sync.Subscription, "publication">): sync.Publication {
         const publication = this.publications.get(request.publication);
         if (publication === undefined) {
-            throw new ObjectError("PUBLICATION_NOT_FOUND", {
-                message: `no publication ${request.publication}`,
-            });
+            throw ObjectError.of(
+                "PUBLICATION_NOT_FOUND",
+                `publication ${request.publication} not found`,
+            );
         }
 
         return publication;
@@ -870,16 +871,17 @@ export class ObjectSource {
         }
         // refuse a history this store no longer has
         else if (history.kind === "stale") {
-            throw new DatabaseError(
+            throw DatabaseError.of(
                 "STALE_EPOCH",
                 `${watermark.scope} no longer has the watermark's history`,
             );
         }
         // refuse a scope with no home or replica here
         else {
-            throw new ObjectError("NO_HOME_OR_REPLICA", {
-                message: `${watermark.scope} has no home or replica here`,
-            });
+            throw ObjectError.of(
+                "NO_HOME_OR_REPLICA",
+                `${watermark.scope} has no home or replica here`,
+            );
         }
     }
 
@@ -984,9 +986,10 @@ export class ObjectSource {
         const claimed = chain?.scopes ?? [];
         const foreign = claimed.find((scope) => !scopes.has(scope));
         if (foreign !== undefined) {
-            throw new ObjectError("SCOPE_NOT_CONTAINED", {
-                message: `${foreign} does not contain ${request.target}`,
-            });
+            throw ObjectError.of(
+                "SCOPE_NOT_CONTAINED",
+                `${foreign} does not contain ${request.target}`,
+            );
         }
     }
 
@@ -1006,9 +1009,10 @@ export class ObjectSource {
 
         // require the replicated scope to contain the follower's
         if (!scopes.has(request.scope)) {
-            throw new ObjectError("SCOPE_NOT_CONTAINED", {
-                message: `${request.scope} does not contain ${request.target}`,
-            });
+            throw ObjectError.of(
+                "SCOPE_NOT_CONTAINED",
+                `${request.scope} does not contain ${request.target}`,
+            );
         }
 
         return scopes;
@@ -1026,9 +1030,7 @@ export class ObjectSource {
         for (const [relay, links] of chains) {
             const ids = links.map((link) => link.object.id);
             if (!ids.includes(scope)) {
-                throw new ObjectError("SCOPE_NOT_CONTAINED", {
-                    message: `${scope} does not contain ${relay}`,
-                });
+                throw ObjectError.of("SCOPE_NOT_CONTAINED", `${scope} does not contain ${relay}`);
             }
             for (const id of ids) {
                 scopes.add(id);
@@ -1038,9 +1040,10 @@ export class ObjectSource {
         // require each scope between to contain a replicated scope
         const outside = between.find((id) => !scopes.has(id));
         if (outside !== undefined) {
-            throw new ObjectError("SCOPE_NOT_CONTAINED", {
-                message: `${outside} contains none of the replicated scopes`,
-            });
+            throw ObjectError.of(
+                "SCOPE_NOT_CONTAINED",
+                `${outside} contains none of the replicated scopes`,
+            );
         }
 
         return new Set([...scopes, Scope.universe.id]);
@@ -1053,9 +1056,10 @@ export class ObjectSource {
         const scope = await Scope.object(Snapshot.live(database), via);
         const policy = this.store.authorizer.policy(scope);
         if (!Object.hasOwn(policy.definition.permissions, REPLICATE)) {
-            throw new ObjectError("NO_CHAIN_REPLICAS", {
-                message: `a ${scope.type} has no replicas of its chain`,
-            });
+            throw ObjectError.of(
+                "NO_CHAIN_REPLICAS",
+                `a ${scope.type} has no replicas of its chain`,
+            );
         }
 
         // decide for the principal standing for the follower, or for the caller

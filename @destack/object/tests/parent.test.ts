@@ -28,17 +28,14 @@ test("store parents, delete children and every relationship with them, and nest 
         .values({ ...record, id: commentId, parentId: taskId, text: "Looks good" });
     await database.insert(accessRelationship).values(
         [task.reference(spaceId, taskId), comment.reference(spaceId, commentId)].map((object) =>
-            Relationship.encode(
-                {
-                    id: schema.identifier("relationship").parse(`relationship-${v7()}`),
-                    object,
-                    relation: "viewer",
-                    subject: principal.user.reference("universe", users.bob),
-                    createdAt: record.createdAt,
-                    expiresAt: null,
-                },
-                spaceId,
-            ),
+            Relationship.encode({
+                id: schema.identifier("relationship").parse(`relationship-${v7()}`),
+                object,
+                relation: "viewer",
+                subject: principal.user.reference("universe", users.bob),
+                createdAt: record.createdAt,
+                expiresAt: null,
+            }),
         ),
     );
 

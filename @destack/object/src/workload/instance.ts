@@ -333,9 +333,7 @@ class WorkloadStart {
     /** What the start does with its hibernated sockets' events, refusing a start without them. */
     requireSocketHandler(): SocketHandler {
         if (this.#sockets === undefined) {
-            throw new ObjectError("NO_SOCKET_HANDLER", {
-                message: "the workload has no socket handler",
-            });
+            throw ObjectError.of("NO_SOCKET_HANDLER", "the workload has no socket handler");
         }
 
         return this.#sockets;
@@ -344,9 +342,7 @@ class WorkloadStart {
     /** What the start does with its store's hook requests, refusing a start serving none. */
     requireHookHandler(): HookHandler {
         if (this.#hooks === undefined) {
-            throw new ObjectError("NO_HOOKS", {
-                message: "the workload has no hooks",
-            });
+            throw ObjectError.of("NO_HOOKS", "the workload has no hooks");
         }
 
         return this.#hooks;
@@ -355,9 +351,7 @@ class WorkloadStart {
     /** What the start does with its webhook deliveries, refusing a start receiving none. */
     requireWebhookHandler(): WebhookHandler {
         if (this.#webhooks === undefined) {
-            throw new ObjectError("NO_WEBHOOKS", {
-                message: "the workload receives no webhooks",
-            });
+            throw ObjectError.of("NO_WEBHOOKS", "the workload does not accept webhooks");
         }
 
         return this.#webhooks;
@@ -384,9 +378,7 @@ class WorkloadStart {
         // require the package
         const server = this.#packages.get(handle.id)?.server;
         if (!server) {
-            throw new ObjectError("UNKNOWN_PACKAGE", {
-                message: `unknown workload package: ${handle.name}`,
-            });
+            throw ObjectError.of("UNKNOWN_PACKAGE", `unknown workload package: ${handle.name}`);
         }
 
         return server.fetch(request, authentication);

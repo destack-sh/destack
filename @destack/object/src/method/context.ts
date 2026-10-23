@@ -141,9 +141,7 @@ export class MethodContext<
     constructor(fields: MethodContextOptions<Configuration, Prepared, Id, Target>) {
         // refuse a mutation by a caller proving no identity
         if (fields.method.mutates && Caller.isAnonymous(fields.caller)) {
-            throw new ObjectError("UNAUTHENTICATED", {
-                message: "a mutation needs an authenticated caller",
-            });
+            throw ObjectError.of("UNAUTHENTICATED", "a mutation needs an authenticated caller");
         }
 
         // take the required fields
@@ -218,7 +216,9 @@ export class MethodContext<
             return location.session.takePosition();
         }
 
-        throw new TypeError(`${this.object.name}.${this.name} derives identifiers in its store`);
+        throw new TypeError(
+            `${this.object.name}.${this.name} can only derive identifiers in its store`,
+        );
     }
 
     /** Read the request the call runs in, which every server call has. */
@@ -361,9 +361,10 @@ export class MethodContext<
     }): RelationalQueryBuilder<Read, Select<Read>> {
         // refuse another package's type, by the packages declaring them
         if (type.package.id !== this.object.package.id) {
-            throw new ObjectError("REVEAL_REFUSED", {
-                message: `${this.object.package.name} reveals ${type.name} only in its declaring package`,
-            });
+            throw ObjectError.of(
+                "REVEAL_REFUSED",
+                `${this.object.package.name} cannot reveal ${type.name}: only the declaring package can`,
+            );
         }
 
         // read through the store's transaction, else through the hook's session
@@ -375,7 +376,7 @@ export class MethodContext<
         }
 
         // refuse a prediction, whose replica has no sensitive column
-        throw new TypeError(`${this.object.name}.${this.name} reveals rows in its store`);
+        throw new TypeError(`${this.object.name}.${this.name} can only reveal rows in its store`);
     }
 
     /** Read the events of an event kind of the call's package, refusing any other kind. */
@@ -384,9 +385,10 @@ export class MethodContext<
     ): EventView<Fields, Data> {
         // refuse another package's kind
         if (kind.package.id !== this.object.package.id) {
-            throw new ObjectError("EVENTS_REFUSED", {
-                message: `${this.object.package.name} reads ${kind.name} events only in its declaring package`,
-            });
+            throw ObjectError.of(
+                "EVENTS_REFUSED",
+                `${this.object.package.name} cannot read ${kind.name} events: only the declaring package can`,
+            );
         }
 
         // read through the store's event log, else through the hook's session
@@ -398,7 +400,7 @@ export class MethodContext<
         }
 
         // refuse a prediction, whose replica has no event log
-        throw new TypeError(`${this.object.name}.${this.name} reads events in its store`);
+        throw new TypeError(`${this.object.name}.${this.name} can only read events in its store`);
     }
 
     /** The authorizer of the store serving the call, refusing outside a store. */
@@ -406,7 +408,9 @@ export class MethodContext<
         // read the store's authorizer
         const location = this.#location;
         if (location.kind !== "store") {
-            throw new TypeError(`${this.object.name}.${this.name} reads its store's authorizer`);
+            throw new TypeError(
+                `${this.object.name}.${this.name} can only read the authorizer in its store`,
+            );
         }
 
         return location.authorization.authorizer;
@@ -459,7 +463,9 @@ export class MethodContext<
         if (location.kind === "sandbox") {
             return location.session.rehearse(over, calls);
         } else if (location.kind === "client") {
-            throw new TypeError(`${this.object.name}.${this.name} rehearses calls in its store`);
+            throw new TypeError(
+                `${this.object.name}.${this.name} can only rehearse calls in its store`,
+            );
         }
 
         // rehearse over the store's transaction, dropping what the rehearsal writes
@@ -536,9 +542,10 @@ export class MethodContext<
 
     /** Refuse a decision outside the store, which alone authorizes. */
     #unauthorized(): Error {
-        return new ObjectError("STORE_ONLY", {
-            message: `${this.object.name} is authorized in its store`,
-        });
+        return ObjectError.of(
+            "STORE_ONLY",
+            `${this.object.name} can only be authorized in its store`,
+        );
     }
 
     /** Read the permission the method requires of its caller. */
@@ -571,9 +578,7 @@ export class MethodContext<
     requireParent(): ObjectReference {
         const parent = this.parent();
         if (parent === undefined) {
-            throw new ObjectError("MISSING_PARENT", {
-                message: `${this.object.name} needs a parent`,
-            });
+            throw ObjectError.of("MISSING_PARENT", `${this.object.name} needs a parent`);
         }
 
         return parent;
@@ -609,7 +614,9 @@ export class MethodContext<
         // acquire through the executing store, refusing a sandbox's hook and a prediction
         const location = this.#location;
         if (location.kind !== "store") {
-            throw new TypeError(`${this.object.name}.${this.name} acquires replicas in its store`);
+            throw new TypeError(
+                `${this.object.name}.${this.name} can only acquire replicas in its store`,
+            );
         }
 
         // wait a bounded time for the replica, which a retry finds synced
@@ -621,9 +628,10 @@ export class MethodContext<
                 throw error;
             }
 
-            throw new ObjectError("REPLICA_SYNCING", {
-                message: `the ${follow.shape.name} replica of ${at.key.scope} is still syncing`,
-            });
+            throw ObjectError.of(
+                "REPLICA_SYNCING",
+                `the ${follow.shape.name} replica of ${at.key.scope} is still syncing`,
+            );
         }
     }
 
@@ -698,9 +706,7 @@ export class MethodContext<
             .where(RecordedRow.at(table, target))
             .returning();
         if (deleted.length === 0) {
-            throw new ObjectError("STALE_REVISION", {
-                message: `${this.object.name} revision has changed`,
-            });
+            throw ObjectError.of("STALE_REVISION", `${this.object.name} revision has changed`);
         }
     }
 
@@ -714,9 +720,7 @@ export class MethodContext<
         const table: Table = this.object.table;
         const row = await transaction.read(table).findFirst({ where: { id } });
         if (row === undefined) {
-            throw new ObjectError("REMOVED", {
-                message: `${this.object.name} ${id} is removed`,
-            });
+            throw ObjectError.of("REMOVED", `${this.object.name} ${id} is removed`);
         }
 
         return row;
@@ -754,9 +758,7 @@ export class MethodContext<
             .where(RecordedRow.at(table, target))
             .returning();
         if (!row) {
-            throw new ObjectError("STALE_REVISION", {
-                message: `${this.object.name} revision has changed`,
-            });
+            throw ObjectError.of("STALE_REVISION", `${this.object.name} revision has changed`);
         }
 
         return row;
@@ -782,7 +784,7 @@ export class MethodContext<
             return AccessContext.of(Caller.of(subject), this.now);
         }
 
-        throw new TypeError(`${this.object.name}.${this.name} acts as itself only in its store`);
+        throw new TypeError(`${this.object.name}.${this.name} can only act as itself in its store`);
     }
 
     /** Report whether stacks can declare the call's records, typing its target. */
@@ -807,7 +809,7 @@ export class MethodContext<
                   : undefined;
         if (server === undefined) {
             throw new TypeError(
-                `${this.object.name}.${this.name} runs in no installation with capabilities`,
+                `${this.object.name}.${this.name} does not run in an installation with capabilities`,
             );
         }
 

@@ -289,7 +289,7 @@ export class ObjectTypePool {
             );
             if (ready.length === 0) {
                 throw new TypeError(
-                    `object types ${[...pending.keys()].join(", ")} refer to each other now; refer to one lazily`,
+                    `object types ${[...pending.keys()].join(", ")} refer to each other: make one reference lazy`,
                 );
             }
             for (const [key, each] of ready) {
@@ -454,7 +454,7 @@ export class ObjectTypePool {
         const table = this.tables.get(name);
         if (table === undefined) {
             throw new TypeError(
-                `a description maps the table ${name}, which no known type or loaded package maps`,
+                `a description maps table ${name}, but no known type or loaded package maps it`,
             );
         }
 
@@ -528,7 +528,7 @@ class Position {
         const entries = Object.entries(value).filter(([, entry]) => entry !== undefined);
         if (entries.some(([key]) => key.startsWith("$"))) {
             throw new TypeError(
-                `${this.path} has a key starting with $: descriptions reserve it for tags`,
+                `${this.path} has a key starting with $, which is reserved for tags`,
             );
         }
 
@@ -597,7 +597,7 @@ class Position {
             return this.encodeObject(value);
         } else {
             throw new TypeError(
-                `${this.path} is code no loaded package exports: a description cannot store it`,
+                `a description cannot store ${this.path}: no loaded package exports it`,
             );
         }
     }

@@ -15,6 +15,7 @@ import {
     RehearsedRow,
     type SessionRequest,
 } from "./record.ts";
+import { ObjectError } from "../error/index.ts";
 
 /** An installation's object hooks, run in its sandbox for its space's store. */
 export class HookServer implements HookHandler {
@@ -256,7 +257,10 @@ export class HookServer implements HookHandler {
         }
         // refuse any other caller
         else {
-            throw new TypeError("a hook must call as its call's caller or as its installation");
+            throw ObjectError.of(
+                "HOOK_CALLER_REFUSED",
+                "a hook must call as its call's caller or as its installation",
+            );
         }
     }
 

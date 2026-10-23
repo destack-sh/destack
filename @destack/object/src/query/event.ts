@@ -67,9 +67,10 @@ export const EventLog = {
         const kind = context.object.eventKind();
         const unserved = DATAFLOW_FIELDS.find((name) => input[name] !== undefined);
         if (unserved !== undefined) {
-            throw new ObjectError("UNSERVED_EVENTS", {
-                message: `${context.object.name} lists from the event log, which cannot read ${unserved}`,
-            });
+            throw ObjectError.of(
+                "UNSERVED_EVENTS",
+                `${context.object.name} lists from the event log, which cannot filter by ${unserved}`,
+            );
         }
 
         // read one event past the page from the log, the condition pruning segments
@@ -145,9 +146,10 @@ export const EventLog = {
         // read the time's direction, refusing any other field
         const [field, ...others] = Object.entries(orderBy ?? { time: "desc" });
         if (field === undefined || field[0] !== "time" || others.length > 0) {
-            throw new ObjectError("TIME_ORDER_ONLY", {
-                message: `${context.object.name} lists in time order only`,
-            });
+            throw ObjectError.of(
+                "TIME_ORDER_ONLY",
+                `${context.object.name} can only list in time order`,
+            );
         }
 
         return field[1] === "asc" ? "ascending" : "descending";

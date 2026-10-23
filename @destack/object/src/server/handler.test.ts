@@ -406,9 +406,13 @@ test("answer a lower package's failure with the call error it names, and an unkn
             .output(schema.string()),
     };
     const failures = {
-        duplicate: new DatabaseError("DUPLICATE", "a record with the same unique key exists"),
-        challenge: new AccessError("INSUFFICIENT_AUTHENTICATION", "authenticate again", {
-            stepUp: { assurance: 2, maxAge: 300_000 },
+        duplicate: DatabaseError.of(
+            "DUPLICATE",
+            "a record with the same unique key already exists",
+            { data: null },
+        ),
+        challenge: AccessError.of("INSUFFICIENT_AUTHENTICATION", "authenticate again", {
+            data: { assurance: 2, maxAge: 300_000 },
         }),
         unknown: new Error("the disk is full"),
     };
@@ -449,7 +453,7 @@ test("answer a lower package's failure with the call error it names, and an unkn
         ),
     );
     expect(received).toEqual([
-        ["CONFLICT", 409, "a record with the same unique key exists", undefined],
+        ["CONFLICT", 409, "a record with the same unique key already exists", null],
         ["UNAUTHORIZED", 401, "authenticate again", { assurance: 2, maxAge: 300_000 }],
         ["INTERNAL_SERVER_ERROR", 500, "internal server error", undefined],
     ]);

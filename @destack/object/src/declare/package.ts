@@ -1,3 +1,4 @@
+import { type ErrorFamily, type ReasonDeclarations, ReasonDescription } from "@destack/error";
 import type { Table } from "@destack/db";
 import { DeclarationName, ModuleMetadata, PACKAGE, Package, PackageError } from "@destack/package";
 import type { Declaration, ResourceRequirement } from "@destack/package/declare";
@@ -49,6 +50,8 @@ export interface PackageInput {
     readonly permissions?: PermissionRequest;
     /** What its installations can do beyond that, each with what it needs, by name. */
     readonly capabilities?: Readonly<Record<string, Capability>>;
+    /** The reasons the package fails with, which its manifest lists. */
+    readonly errors?: ErrorFamily<ReasonDeclarations>;
     /** The oldest caller release the package serves, every release when absent. */
     readonly since?: Version;
 }
@@ -75,6 +78,8 @@ export interface PackageHandle<Input extends PackageInput = PackageInput> extend
     readonly permissions: PermissionRequest;
     /** What its installations can do beyond that, by name. */
     readonly capabilities: Readonly<Record<string, Capability>>;
+    /** The reasons the package fails with, as its manifest lists them. */
+    readonly errors: readonly ReasonDescription[];
 }
 
 /** The declarations of one kind a package lists, none when it leaves the kind out. */
@@ -116,12 +121,12 @@ export const PackageHandle = {
         const named = [views, adapters, resources, secrets].flatMap((map) => Object.entries(map));
         for (const [key, declaration] of named) {
             if (key !== declaration.name) {
-                throw new PackageError(
+                throw PackageError.of(
                     "INVALID_DEFINITION",
                     `declaration ${declaration.name} is listed under another name: ${key}`,
                 );
             } else if (names.has(key)) {
-                throw new PackageError("INVALID_DEFINITION", `duplicate declaration: ${key}`);
+                throw PackageError.of("INVALID_DEFINITION", `duplicate declaration: ${key}`);
             }
             names.add(key);
         }
@@ -129,9 +134,9 @@ export const PackageHandle = {
         // refuse an object type another package defines, by its package's name
         const foreign = Object.values(objects).find((object) => object.package.name !== owner.name);
         if (foreign !== undefined) {
-            throw new PackageError(
+            throw PackageError.of(
                 "INVALID_DEFINITION",
-                `${owner.name} lists object ${foreign.name} of ${foreign.package.name}, which ${foreign.package.name} alone serves`,
+                `${owner.name} lists object ${foreign.name}, but only ${foreign.package.name} can serve it`,
             );
         }
 
@@ -143,10 +148,7 @@ export const PackageHandle = {
             ),
         );
         if (overlap !== undefined) {
-            throw new PackageError(
-                "INVALID_DEFINITION",
-                `adapter path ${overlap} overlaps another`,
-            );
+            throw PackageError.of("INVALID_DEFINITION", `adapter path ${overlap} overlaps another`);
         }
 
         // route the objects' procedures on first use, which spares a package's import the work
@@ -183,6 +185,7 @@ export const PackageHandle = {
                     Capability.parse(each),
                 ]),
             ),
+            errors: input.errors?.describe() ?? [],
         });
     },
 };
@@ -199,7 +202,7 @@ export function defineAdapter(
     // stamp the package and refuse a path of no segments
     const owner = Package.parse(ModuleMetadata.require(module, "defineAdapter").package);
     if (!AdapterPath.safeParse(declaration.path).success) {
-        throw new PackageError(
+        throw PackageError.of(
             "INVALID_DEFINITION",
             `adapter ${name} has no path below the mount: ${declaration.path}`,
         );

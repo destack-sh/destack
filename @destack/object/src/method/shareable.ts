@@ -260,9 +260,10 @@ export const ShareableMethod = {
                     ? undefined
                     : await authorizer.check(snapshot, object.permission(grant), target, access);
             if (granting?.isAllowed !== true) {
-                throw new ObjectError("EXPLAIN_REFUSED", {
-                    message: `explaining access to ${object.name} needs ${grant}`,
-                });
+                throw ObjectError.of(
+                    "EXPLAIN_REFUSED",
+                    `explaining access to ${object.name} needs ${grant}`,
+                );
             }
             const resolved = await authorizer.resolve(
                 snapshot,
@@ -282,7 +283,7 @@ export const ShareableMethod = {
             );
             if (!reading.isAllowed) {
                 throw CallError.http("NOT_FOUND", {
-                    message: `no ${object.name} ${target.id}`,
+                    message: `${object.name} ${target.id} not found`,
                 });
             }
 
@@ -293,9 +294,7 @@ export const ShareableMethod = {
     /** Read the permission reading an object of a type needs. */
     requireReading(object: ObjectType) {
         if (object.reading === undefined) {
-            throw new ObjectError("NOTHING_TO_READ", {
-                message: `${object.name} has no objects to read`,
-            });
+            throw ObjectError.of("NOTHING_TO_READ", `${object.name} has no objects to read`);
         }
 
         return object.reading;
@@ -311,16 +310,14 @@ export const ShareableMethod = {
         // refuse a missing or trashed object
         if (row === undefined) {
             throw CallError.http("NOT_FOUND", {
-                message: `no ${context.object.name} ${context.id}`,
+                message: `${context.object.name} ${context.id} not found`,
             });
         } else if (
             state === "live" &&
             row["deletedAt"] !== undefined &&
             row["deletedAt"] !== null
         ) {
-            throw new ObjectError("IN_TRASH", {
-                message: `${context.object.name} is in the trash`,
-            });
+            throw ObjectError.of("IN_TRASH", `${context.object.name} is in the trash`);
         }
     },
 

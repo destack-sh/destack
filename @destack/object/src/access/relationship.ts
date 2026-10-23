@@ -25,7 +25,8 @@ export const relationship = defineObject(
         permissions: access.relationship.definition.permissions,
         references: { object: "object", role, subject: "subject" },
     },
-    (_method: MethodBuilder<typeof accessRelationship>) => ({
+    (method: MethodBuilder<typeof accessRelationship>) => ({
+        list: method.list("read"),
         check: defineMethod<{
             kind: "custom";
             permission: "read";
@@ -100,22 +101,19 @@ export const relationship = defineObject(
                 input: schemas.scope.extend({ ...schemas.replay, ...RelationshipInput.shape }),
                 output: access.Relationship.schema,
             }),
-            handler: (context, execution) => {
-                // grant under the relation's grant rules
+            handler: async (context, execution) => {
+                // grant in the scope the relationship lives in, under the relation's grant rules
                 const { object, ...granted } = RelationshipInput.parse(context.input);
+                const request = { ...readGrant(granted), object };
+                const store = Execution.store(execution, context);
+                await ObjectPolicy.requireScope(context, request, store);
 
-                return Relationship.grant(
-                    {
-                        ...readGrant(granted),
-                        object,
-                    },
-                    Execution.store(execution, context).authorization,
-                );
+                return Relationship.grant(request, store.authorization);
             },
         }),
         delete: defineMethod<{
             kind: "custom";
-            permission: "grant";
+            permission: "read";
             input: typeof Empty;
             output: typeof access.Relationship.schema;
             mutates: true;
@@ -123,7 +121,7 @@ export const relationship = defineObject(
             table: typeof accessRelationship;
         }>({
             kind: "custom",
-            permission: "grant",
+            permission: "read",
             input: Empty,
             output: access.Relationship.schema,
             mutates: true,
@@ -136,7 +134,7 @@ export const relationship = defineObject(
                 output: access.Relationship.schema,
             }),
             handler: (context, execution) => {
-                // revoke under the relation's grant rules
+                // revoke a relationship the caller sees, under its relation's grant rules
                 const { target } = context;
 
                 return Relationship.revoke(

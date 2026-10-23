@@ -135,7 +135,7 @@ test("group each caller's changes into activities, and read and revert a page as
     expect(await refusal(read(first.from))).toEqual([
         "NOT_FOUND",
         "NOT_FOUND",
-        `no page ${created.id}`,
+        `page ${created.id} not found`,
     ]);
 
     // list the pages at a position as each caller could read them then and now
@@ -150,14 +150,14 @@ test("group each caller's changes into activities, and read and revert a page as
     expect(await refusal(read(beforeGrant))).toEqual([
         "NOT_FOUND",
         "NOT_FOUND",
-        `no page ${created.id}`,
+        `page ${created.id} not found`,
     ]);
     expect(await read(third.from)).toEqual(["Roadmap", "outline"]);
     as(users.carol);
     expect(await refusal(read(third.from))).toEqual([
         "NOT_FOUND",
         "NOT_FOUND",
-        `no page ${created.id}`,
+        `page ${created.id} not found`,
     ]);
 
     // create a named checkpoint and read the page at it
@@ -222,7 +222,9 @@ test("refuse serving history that reads through an object recording none", async
                 origin: { package: activity.package },
             }),
     ).toThrow(
-        new TypeError("object sheet records history but reads through folder without history"),
+        new TypeError(
+            "object sheet records history but reads through folder, which has no history",
+        ),
     );
 });
 

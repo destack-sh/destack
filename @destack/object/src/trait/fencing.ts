@@ -69,7 +69,7 @@ export const fencing: Trait<Gated> & {
     validate: (_options, object, definition) => {
         // require a type living in a scope it can fence
         if (definition.isScope === true || object.scope === Scope.universe.id) {
-            throw new TypeError(`object ${object.name} fences no enclosing scope`);
+            throw new TypeError(`object ${object.name} has no enclosing scope to fence`);
         }
     },
     fenceScope: (permission) =>

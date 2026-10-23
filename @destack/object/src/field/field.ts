@@ -543,7 +543,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
         // refuse a builder call making no field
         const built: unknown = Reflect.apply(field[source.builder], field, source.arguments);
         if (!Field.is(built)) {
-            throw new TypeError(`field builder ${source.builder} makes no field`);
+            throw new TypeError(`field builder ${source.builder} does not make a field`);
         }
 
         return built;
@@ -837,7 +837,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
         }
         // refuse an object type representing no principal kind
         else if (kind.represents === undefined) {
-            throw new TypeError(`object ${kind.name} lacks a principal kind it represents`);
+            throw new TypeError(`object ${kind.name} has no principal kind to represent`);
         }
 
         return kind.policy;
@@ -895,7 +895,7 @@ function reference<const Target extends ObjectType | Policy>(
     // refuse a principal kind living in scopes, which a subject field stores
     if (target instanceof Policy && target.definition.isGlobal !== true) {
         throw new TypeError(
-            `principal kind ${target.name} lives in scopes: use field.subject(principal.${target.name})`,
+            `principal kind ${target.name} belongs to scopes: use field.subject(principal.${target.name})`,
         );
     }
 
@@ -959,7 +959,7 @@ const ReferenceTarget = {
             const resolved = target();
             if (resolved instanceof Policy) {
                 throw new TypeError(
-                    `a reference to principal kind ${resolved.name} takes the kind itself`,
+                    `a reference to principal kind ${resolved.name} must take the kind, not its policy`,
                 );
             }
 
@@ -1032,7 +1032,9 @@ export class TextField extends Field<
             source: { builder: "text", arguments: [] },
             initial: { value: "" },
             build: () => {
-                throw new TypeError("a text field stores its characters in chunks, not a column");
+                throw new TypeError(
+                    "a text field stores its characters in chunks and has no column",
+                );
             },
             ...WRITTEN,
             isDefault: true,

@@ -23,6 +23,9 @@ const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-
 /** The machine the system provisions under the identifier it chose. */
 const MACHINE = "machine-01996ab0-0000-7000-8000-000000000041";
 
+/** The machine the space moves to. */
+const TARGET = "machine-01996ab0-0000-7000-8000-000000000042";
+
 /** Machines a controller provisions. */
 const machine = defineObject(
     {
@@ -151,7 +154,7 @@ test("observe a controlled object without advancing its generation, finalize its
         ],
     });
     await Transaction.run(storage.database, (fencing) =>
-        Scope.fence(fencing, spaceId, "host-2", 7_000),
+        Scope.fence(fencing, spaceId, TARGET, 7_000),
     );
     const moved = store.mutate(at(8_000), {
         id: RequestId.create(clock.now()),
@@ -166,7 +169,7 @@ test("observe a controlled object without advancing its generation, finalize its
     expect(await refusal(moved)).toEqual([
         "MISDIRECTED_REQUEST",
         "SCOPE_MOVED",
-        `${spaceId} moves to host-2`,
+        `${spaceId} moved to ${TARGET}`,
     ]);
 
     // observations leave the generation and the first transition time, deletion advances it
@@ -319,6 +322,6 @@ test("let an object representing a principal control its row, and refuse it anot
 
     expect({ observed: observed?.conditions["ready"]?.observedGeneration, refused }).toEqual({
         observed: 1,
-        refused: ["NOT_FOUND", "NOT_FOUND", `no installation ${first}`],
+        refused: ["NOT_FOUND", "NOT_FOUND", `installation ${first} not found`],
     });
 });

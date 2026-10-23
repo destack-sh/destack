@@ -92,9 +92,7 @@ export const NestedMethod = {
         const { object } = context;
         const parent = context.parent();
         if (parent === undefined && nesting.optional !== true) {
-            throw new ObjectError("MISSING_PARENT", {
-                message: `${object.name} needs a parent`,
-            });
+            throw ObjectError.of("MISSING_PARENT", `${object.name} needs a parent`);
         }
 
         // require a receiving parent outside the subtree
@@ -119,9 +117,10 @@ export const NestedMethod = {
         const visited = new Set<string>();
         for (let node: string | null = parentId; node !== null && !visited.has(node);) {
             if (node === moved) {
-                throw new ObjectError("MOVE_INTO_SUBTREE", {
-                    message: `${context.object.name} cannot move into its subtree`,
-                });
+                throw ObjectError.of(
+                    "MOVE_INTO_SUBTREE",
+                    `${context.object.name} cannot move into its subtree`,
+                );
             }
             visited.add(node);
             const row = await reader.findFirst({ where: { id: node } });

@@ -1,3 +1,4 @@
+import { ReasonDescription } from "@destack/error";
 import { schema, Version } from "@destack/schema";
 import { PermissionRequest } from "@destack/access";
 import { DeclarationName, PackageId, Sandbox } from "@destack/package";
@@ -138,6 +139,8 @@ const packageDescription = schema.object({
     permissions: PermissionRequest,
     /** What its installations can do beyond its request, by name. */
     capabilities: schema.record(DeclarationName, Capability),
+    /** The reasons it fails with, by domain, reason and call error code. */
+    errors: schema.array(ReasonDescription),
 });
 
 /** A declared package: the API its objects derive, its adapters and its views. */

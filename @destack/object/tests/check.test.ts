@@ -4,10 +4,10 @@ import { principal } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { defineDatabase } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { schema } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 import { subjectContext, testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
-import { Scope, type Subject } from "@destack/sync";
+import { RequestId, Scope, type Subject } from "@destack/sync";
 import { relationship } from "../src/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { space, spacePrincipal } from "./fixture/space.ts";
@@ -26,43 +26,7 @@ const bob = principal.user.reference(Scope.universe.id, users.bob);
 const carol = principal.user.reference(Scope.universe.id, users.carol);
 
 test("check the caller's access under its grant, and another subject's for grantors alone", async () => {
-    const storage = await TestDatabase.create(
-        defineDatabase({
-            name: "main",
-            ...tablesOf({
-                packages: [objectPackage, { objects: { relationship }, tables: [] }],
-                follows: [],
-                tables: [space.table],
-            }),
-        }),
-        { isMigrated: true },
-    );
-    onTestFinished(() => storage.close());
-
-    // create a private space of alice, read by bob
-    const object = space.reference(Scope.universe.id, SPACE_ID);
-    const fixture = new AccessFixture(storage.database);
-    await fixture.replicateScope(object, "self");
-    await fixture.bindOwner(object, alice);
-    await fixture.replicateRole(
-        object,
-        { name: "reader", description: "Reads the space", permissions: [space.permission("read")] },
-        bob,
-    );
-    await storage.database
-        .insert(space.table)
-        .values({ id: SPACE_ID, scope: Scope.universe.id, createdAt: 1, updatedAt: 1 });
-    const store = new ObjectStore({
-        chain: async () => undefined,
-        clock: Clock.system,
-        principal: spacePrincipal(SPACE_ID),
-        servers: serversOf([relationship]),
-        policies: [space],
-        database: storage.database,
-        callKey: testCallKey,
-        events: await testEvents(storage.database),
-        origin: { package: relationship.package },
-    });
+    const { storage, store, object } = await serveSpace();
 
     // check as alice, as bob, and as a token acting for alice under a grant to read the space
     const token = principal.client.reference(Scope.universe.id, "client-alice");
@@ -117,3 +81,100 @@ test("check the caller's access under its grant, and another subject's for grant
         unknown: ["BAD_REQUEST", "UNKNOWN_PERMISSION", "space has no permission edit"],
     });
 });
+
+test("list an object's relationships to whoever may read them, and revoke one only as a grantor of its relation", async () => {
+    // serve the universe, where the space's row and its relationships live
+    const { store } = await serveSpace(Scope.universe.id);
+    const list = (caller: Subject) =>
+        store.query(
+            subjectContext(caller, SPACE_ID).access(),
+            relationship.call("list", { scope: Scope.universe.id, where: { objectId: SPACE_ID } }),
+        );
+    const listed = async (caller: Subject) =>
+        (await list(caller)).items
+            .map((row) => [row.relation ?? "owner", row.subjectId])
+            .toSorted((left, right) => left.join(" ").localeCompare(right.join(" ")));
+
+    // list the space's relationships as alice, bob and carol
+    const lists = {
+        alice: await listed(alice),
+        bob: await listed(bob),
+        carol: await listed(carol),
+    };
+
+    // revoke bob's reading as carol, who cannot see it, as bob, who may not grant it, and as alice
+    const reading = (await list(alice)).items.find((row) => row.relation === "reader");
+    const revoke = (caller: Subject) =>
+        refusal(
+            store.mutate(subjectContext(caller, SPACE_ID).access(), {
+                id: RequestId.create(Date.now()),
+                calls: [
+                    relationship.call("delete", {
+                        scope: Scope.universe.id,
+                        id: present(reading, "bob's reading").id,
+                    }),
+                ],
+            }),
+        );
+    const both = [
+        ["owner", users.alice],
+        ["reader", users.bob],
+    ];
+    expect({
+        lists,
+        carol: await revoke(carol),
+        bob: await revoke(bob),
+        alice: await revoke(alice),
+        after: await listed(alice),
+    }).toEqual({
+        lists: { alice: both, bob: both, carol: [] },
+        carol: [
+            "NOT_FOUND",
+            "NOT_FOUND",
+            `relationship ${present(reading, "bob's reading").id} not found`,
+        ],
+        bob: ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: share"],
+        alice: "done",
+        after: [["owner", users.alice]],
+    });
+});
+
+/** Serve a private space of alice, read by bob, with its relationships, as one partition. */
+async function serveSpace(partition?: string) {
+    const storage = await TestDatabase.create(
+        defineDatabase({
+            name: "main",
+            ...tablesOf({
+                packages: [objectPackage, { objects: { relationship }, tables: [] }],
+                follows: [],
+                tables: [space.table],
+            }),
+        }),
+        { isMigrated: true },
+    );
+    onTestFinished(() => storage.close());
+
+    // create a private space of alice, read by bob
+    const object = space.reference(Scope.universe.id, SPACE_ID);
+    const fixture = new AccessFixture(storage.database);
+    await fixture.replicateScope(object, "self");
+    await fixture.bindOwner(object, alice);
+    await fixture.replicateRelationship(object, "reader", bob);
+    await storage.database
+        .insert(space.table)
+        .values({ id: SPACE_ID, scope: Scope.universe.id, createdAt: 1, updatedAt: 1 });
+    const store = new ObjectStore({
+        chain: async () => undefined,
+        clock: Clock.system,
+        ...(partition === undefined ? {} : { partition }),
+        principal: spacePrincipal(SPACE_ID),
+        servers: serversOf([relationship]),
+        policies: [space],
+        database: storage.database,
+        callKey: testCallKey,
+        events: await testEvents(storage.database),
+        origin: { package: relationship.package },
+    });
+
+    return { storage, store, object };
+}

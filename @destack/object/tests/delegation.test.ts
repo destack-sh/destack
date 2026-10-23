@@ -121,9 +121,7 @@ test("act for the space as its installation within the space's grant, refusing w
         store
             .query(store.serving(probe), probe.call("acting", { spaceId }))
             .catch((error: unknown) =>
-                error instanceof AccessError
-                    ? `${error.reason}: ${error.message}`
-                    : Promise.reject(error),
+                AccessError.is(error) ? `${error.reason}: ${error.message}` : Promise.reject(error),
             );
     const before = await ask();
     const installation = principal.installation.reference(spaceId, INSTALLATION);
@@ -135,7 +133,7 @@ test("act for the space as its installation within the space's grant, refusing w
 
     // refuse acting for the space without a grant, then act as the space with the installation acting
     expect([before, await ask()]).toEqual([
-        `GRANT_REQUIRED: installation ${INSTALLATION} acts for space ${spaceId} under no grant`,
+        `GRANT_REQUIRED: installation ${INSTALLATION} has no grant to act for space ${spaceId}`,
         { subject: spaceId, actors: [INSTALLATION], grant, capabilities: [true, false] },
     ]);
 });

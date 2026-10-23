@@ -4,7 +4,7 @@ import { testCallKey } from "@destack/object/test";
 import { reconciliation, TestDatabase } from "@destack/db/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { CallError, ObjectError } from "@destack/object";
+import { CallError } from "@destack/object";
 import { eq } from "@destack/db";
 import { nth, present, schema, toJsonSchema, type Identifier } from "@destack/schema";
 import { AuditTarget, defineObject, field, method, settlement, suspendable } from "../src/index.ts";
@@ -195,7 +195,7 @@ test("hide an object from strangers, update it at the observed revision, with se
     expect(await refusal(execute("get", { id: created.id }))).toEqual([
         "NOT_FOUND",
         "NOT_FOUND",
-        `no task ${created.id}`,
+        `task ${created.id} not found`,
     ]);
     expect(
         await refusal(
@@ -206,7 +206,7 @@ test("hide an object from strangers, update it at the observed revision, with se
                 title: "Taken",
             }),
         ),
-    ).toEqual(["NOT_FOUND", "NOT_FOUND", `no task ${created.id}`]);
+    ).toEqual(["NOT_FOUND", "NOT_FOUND", `task ${created.id} not found`]);
     act(users.frank);
 
     // update at the observed revision and reject a stale one
@@ -297,7 +297,7 @@ test("share an object, accept invitations and narrow agents to their grants", as
     expect(await refusal(execute("get", { id: created.id }))).toEqual([
         "NOT_FOUND",
         "NOT_FOUND",
-        `no task ${created.id}`,
+        `task ${created.id} not found`,
     ]);
     act(users.frank);
 
@@ -312,7 +312,7 @@ test("share an object, accept invitations and narrow agents to their grants", as
     expect(await refusal(execute("get", { id: created.id }))).toEqual([
         "NOT_FOUND",
         "NOT_FOUND",
-        `no task ${created.id}`,
+        `task ${created.id} not found`,
     ]);
     expect(
         await refusal(
@@ -539,7 +539,7 @@ test("refuse changing objects a stack manages, then trash, restore and purge the
     expect(await refusal(execute("get", { id: created.id }))).toEqual([
         "NOT_FOUND",
         "NOT_FOUND",
-        `no task ${created.id}`,
+        `task ${created.id} not found`,
     ]);
 
     // purge the trash once the recovery window passes
@@ -589,22 +589,19 @@ test("page an object's invitations a full hundred at a time", async () => {
     const invited = Array.from({ length: 101 }, (_, index) => `user-${100 + index}`);
     await database.insert(accessInvitation).values(
         invited.map((id, index) =>
-            Invitation.encode(
-                {
-                    id: `invitation-${v7({ msecs: 1 + index })}`,
-                    relationship: {
-                        object,
-                        relation: "viewer",
-                        subject: principal.user.reference("universe", id),
-                        expiresAt: null,
-                    },
-                    inviter: principal.user.reference("universe", users.frank),
-                    status: "pending",
-                    createdAt: 1,
-                    expiresAt: Date.now() + 60_000,
+            Invitation.encode({
+                id: `invitation-${v7({ msecs: 1 + index })}`,
+                relationship: {
+                    object,
+                    relation: "viewer",
+                    subject: principal.user.reference("universe", id),
+                    expiresAt: null,
                 },
-                spaceId,
-            ),
+                inviter: principal.user.reference("universe", users.frank),
+                status: "pending",
+                createdAt: 1,
+                expiresAt: Date.now() + 60_000,
+            }),
         ),
     );
 
@@ -710,7 +707,7 @@ test("prepare external work after the access check, settle it after commit, comp
         await refusal(
             execute("export", { requestId: RequestId.create(Date.now()), id: created.id }),
         ),
-    ).toEqual(["NOT_FOUND", "NOT_FOUND", `no task ${created.id}`]);
+    ).toEqual(["NOT_FOUND", "NOT_FOUND", `task ${created.id} not found`]);
     expect(external).toEqual([]);
 
     // release the prepared work and leave the task unchanged when the transaction fails
@@ -926,7 +923,7 @@ test("authorize a creation before its external work, and settle committed work t
                 })
                 .then(([written]) => written),
         ),
-    ).toEqual(["NOT_FOUND", "NOT_FOUND", `no task ${created.id}`]);
+    ).toEqual(["NOT_FOUND", "NOT_FOUND", `task ${created.id} not found`]);
     expect(external).toEqual([]);
 
     // commit and retain the settlement despite a failed confirmation
@@ -1106,9 +1103,11 @@ test("run a scoped mutation over its scope as a holder of the scope's permission
     await execute("archive", { requestId: RequestId.create(Date.now()), id: first.id });
 
     // refuse the owner of the tasks, who is no owner of the space
-    const refused = await execute("archiveAll", {
-        requestId: RequestId.create(Date.now()),
-    }).catch((error: unknown) => error);
+    const refused = await refusal(
+        execute("archiveAll", {
+            requestId: RequestId.create(Date.now()),
+        }),
+    );
 
     // archive the rest as the space, the owner of it
     const [archived] = await store.mutate(
@@ -1120,11 +1119,7 @@ test("run a scoped mutation over its scope as a holder of the scope's permission
     );
     const left = await execute("list", { where: { archived: false } });
     expect([refused, archived, left.items]).toEqual([
-        new CallError("FORBIDDEN", {
-            reason: "PERMISSION_DENIED",
-            domain: "@destack/object",
-            message: "permission denied: tidy",
-        }),
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: tidy"],
         { archived: 1 },
         [],
     ]);

@@ -278,7 +278,7 @@ test("allow an owner its objects in a private home it cannot see, and refuse the
         await create(rivalId, sticker, "create", { name: "star" }),
     ]).toEqual([
         "done",
-        ["NOT_FOUND", "SCOPE_NOT_FOUND", `no scope ${homeId}`],
-        ["NOT_FOUND", "SCOPE_NOT_FOUND", `no scope ${homeId}`],
+        ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${homeId} not found`],
+        ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${homeId} not found`],
     ]);
 });

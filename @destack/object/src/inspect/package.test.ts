@@ -1,4 +1,5 @@
 import { none, Policy } from "@destack/access";
+import { defineErrorFamily } from "@destack/error";
 import { expect, test } from "@destack/test";
 import { schema } from "@destack/schema";
 import { Expression } from "@destack/db";
@@ -241,7 +242,7 @@ test("list a package's procedures as members the package serves", () => {
     ]);
 });
 
-test("describe a package's routes, adapters, views, requested permissions and capabilities, with its types' hooks", () => {
+test("describe a package's routes, adapters, views, requested permissions, capabilities and errors, with its types' hooks", () => {
     // route the package's query with hooks
     const custom = { ...query({}), hooks: { create: ["authorize"] } };
     const user = new Policy(MODULE.package, { name: "user", permissions: { recipient: none() } });
@@ -258,6 +259,9 @@ test("describe a package's routes, adapters, views, requested permissions and ca
                     features: [{ packageId: MODULE.package.id, name: "push" }],
                 },
             },
+            errors: defineErrorFamily(MODULE.package, {
+                QUERY_REFUSED: { code: "FORBIDDEN" },
+            }),
         },
         MODULE,
     );
@@ -286,6 +290,7 @@ test("describe a package's routes, adapters, views, requested permissions and ca
                 features: [{ packageId: MODULE.package.id, name: "push" }],
             },
         },
+        errors: [{ domain: MODULE.package.name, reason: "QUERY_REFUSED", code: "FORBIDDEN" }],
     });
 });
 
@@ -311,6 +316,6 @@ test("refuse a package listing an object type another package defines, which tha
     };
 
     expect(() => definePackage({ objects: { card: foreign } }, MODULE)).toThrow(
-        `${PACKAGE.name} lists object card of @destack/board, which @destack/board alone serves`,
+        `${PACKAGE.name} lists object card, but only @destack/board can serve it`,
     );
 });

@@ -127,7 +127,7 @@ test("share page trees with members and links, and move pages within them", asyn
     expect(await refusal(bob.page.get({ spaceId, id: week.id }))).toEqual([
         "NOT_FOUND",
         "NOT_FOUND",
-        `no page ${week.id}`,
+        `page ${week.id} not found`,
     ]);
     expect(
         await refusal(
@@ -138,7 +138,7 @@ test("share page trees with members and links, and move pages within them", asyn
                 title: "Spam",
             }),
         ),
-    ).toEqual(["NOT_FOUND", "NOT_FOUND", `no page ${week.id}`]);
+    ).toEqual(["NOT_FOUND", "NOT_FOUND", `page ${week.id} not found`]);
 
     // share the tree's root: editors edit every subpage but may not delete or move them
     await alice.page.grant({
@@ -181,7 +181,7 @@ test("share page trees with members and links, and move pages within them", asyn
     expect(await refusal(bob.page.get({ spaceId, id: week.id }))).toEqual([
         "NOT_FOUND",
         "NOT_FOUND",
-        `no page ${week.id}`,
+        `page ${week.id} not found`,
     ]);
     expect(
         await refusal(
@@ -213,7 +213,7 @@ test("share page trees with members and links, and move pages within them", asyn
     expect(await refusal(connect({}).page.get({ spaceId, id: handbook.id }))).toEqual([
         "NOT_FOUND",
         "NOT_FOUND",
-        `no page ${handbook.id}`,
+        `page ${handbook.id} not found`,
     ]);
     expect(
         await refusal(

@@ -69,7 +69,7 @@ export const RecoverableMethod = {
                     // require the type to implement the purge
                     if (this.hooks?.handle === undefined) {
                         throw new TypeError(
-                            `object ${context.object.name} retains purged records, so its purge must implement destroying their content`,
+                            `object ${context.object.name} keeps purged records, so its purge must destroy their content`,
                         );
                     }
 
@@ -96,9 +96,7 @@ export const RecoverableMethod = {
             .handle(async (context) => {
                 // require a purged record
                 if (!RecoverableMethod.isPurged(context.target)) {
-                    throw new ObjectError("NOT_PURGED", {
-                        message: `${context.object.name} is not purged`,
-                    });
+                    throw ObjectError.of("NOT_PURGED", `${context.object.name} is not purged`);
                 }
 
                 // delete it at the loaded revision
@@ -125,20 +123,14 @@ export const RecoverableMethod = {
         const target = context.target;
         const requested = target.deletedAt;
         if (requested === null) {
-            throw new ObjectError("NOT_DELETED", {
-                message: `${object.name} is not deleted`,
-            });
+            throw ObjectError.of("NOT_DELETED", `${object.name} is not deleted`);
         } else if (RecoverableMethod.isPurged(target)) {
-            throw new ObjectError("PURGED", {
-                message: `${object.name} is purged`,
-            });
+            throw ObjectError.of("PURGED", `${object.name} is purged`);
         } else if (
             context.now - requested >=
             Duration.milliseconds(RecoverableMethod.readRecovery(context).within)
         ) {
-            throw new ObjectError("RECOVERY_EXPIRED", {
-                message: `${object.name} is past its recovery window`,
-            });
+            throw ObjectError.of("RECOVERY_EXPIRED", `${object.name} is past its recovery window`);
         }
 
         // restore it under a live parent, with the children trashed with it
@@ -182,13 +174,9 @@ export const RecoverableMethod = {
         const { object } = context;
         const target = context.target;
         if (target.deletedAt === null) {
-            throw new ObjectError("NOT_DELETED", {
-                message: `${object.name} is not deleted`,
-            });
+            throw ObjectError.of("NOT_DELETED", `${object.name} is not deleted`);
         } else if (RecoverableMethod.isPurged(target)) {
-            throw new ObjectError("PURGED", {
-                message: `${object.name} is purged`,
-            });
+            throw ObjectError.of("PURGED", `${object.name} is purged`);
         }
     },
 

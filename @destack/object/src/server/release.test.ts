@@ -28,7 +28,9 @@ const search = defineProcedure({
     .output(schema.object({ query: schema.string(), limit: schema.number().int() }));
 
 /** The body of a refused call. */
-const Failure = schema.object({ code: schema.string(), message: schema.string() }).loose();
+const Failure = schema
+    .object({ code: schema.string(), reason: schema.string(), message: schema.string() })
+    .loose();
 
 /** The fixture package, serving callers of 2026.8.0 and later. */
 const served = PackageHandle.of(fixturePackage, { since: "2026.8.0" });
@@ -62,7 +64,9 @@ test("convert inputs of earlier releases, dropping the fields this release no lo
         const body: unknown = await (await server.fetch(request)).json();
         const failure = Failure.safeParse(body);
 
-        return failure.success ? `${failure.data.code}: ${failure.data.message}` : body;
+        return failure.success
+            ? [failure.data.code, failure.data.reason, failure.data.message]
+            : body;
     };
 
     // convert an earlier input
@@ -76,10 +80,18 @@ test("convert inputs of earlier releases, dropping the fields this release no lo
     ]).toEqual([
         { query: "notes", limit: 50 },
         { query: "tasks", limit: 5 },
-        `CONFLICT: package @destack/fixture serves ${served.version}, but the caller uses 2026.10.0`,
-        "CONFLICT: package @destack/fixture no longer serves releases before 2026.8.0",
-        "BAD_REQUEST: package @destack/fixture requires Destack-Version",
-        "BAD_REQUEST: invalid Destack-Version: next",
+        [
+            "CONFLICT",
+            "VERSION_MISMATCH",
+            `package @destack/fixture serves ${served.version}, but the caller uses 2026.10.0`,
+        ],
+        [
+            "CONFLICT",
+            "VERSION_RETIRED",
+            "package @destack/fixture no longer serves releases before 2026.8.0",
+        ],
+        ["BAD_REQUEST", "MISSING_VERSION", "package @destack/fixture requires Destack-Version"],
+        ["BAD_REQUEST", "INVALID_VERSION", "invalid Destack-Version: next"],
     ]);
 });
 
@@ -123,13 +135,19 @@ test("speak the release of the package defining a procedure, which the served pa
         const body: unknown = await (await server.fetch(request)).json();
         const failure = Failure.safeParse(body);
 
-        return failure.success ? `${failure.data.code}: ${failure.data.message}` : body;
+        return failure.success
+            ? [failure.data.code, failure.data.reason, failure.data.message]
+            : body;
     };
 
     // answer the protocol's releases, an old one beside the fixture's retirement, and refuse a newer one
     expect([await call("2026.11.0"), await call("2026.7.0"), await call("2026.12.0")]).toEqual([
         { text: "hi" },
         { text: "hi" },
-        "CONFLICT: package @destack/protocol serves 2026.11.0, but the caller uses 2026.12.0",
+        [
+            "CONFLICT",
+            "VERSION_MISMATCH",
+            "package @destack/protocol serves 2026.11.0, but the caller uses 2026.12.0",
+        ],
     ]);
 });

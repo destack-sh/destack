@@ -240,7 +240,6 @@ test("follow a person's mentions on their behalf as the home they relate, and re
         .insert(person.table)
         .values({ id: aliceId, scope: "universe", createdAt: 0, updatedAt: 0 });
     await new AccessFixture(database).replicateRelationship(
-        "universe",
         person.reference("universe", aliceId),
         "home",
         spacePrincipal(home),
@@ -265,7 +264,7 @@ test("follow a person's mentions on their behalf as the home they relate, and re
     // decide the home's page for alice alone, and refuse a space alice does not relate
     expect(await first(as(home))).toEqual([["insert", alice.id]]);
     await expect(first(as(stranger))).rejects.toThrow(
-        new AccessError("PERMISSION_DENIED", "permission denied: follow"),
+        AccessError.of("PERMISSION_DENIED", "permission denied: follow"),
     );
 });
 
@@ -531,7 +530,7 @@ test("answer a replicated type's query over its replica rows, and refuse its mut
         renamed: [
             "CONFLICT",
             "REPLICA_WRITE",
-            "realm rows are replicas here, so send their changes to their home",
+            "realm rows are replicas here: send changes to their home",
         ],
     });
 });

@@ -15,6 +15,7 @@ import {
     CONTAINED,
     principal,
     Manager,
+    universe,
 } from "@destack/access";
 import {
     type ObjectReference,
@@ -65,7 +66,7 @@ import {
 } from "@destack/schema";
 import type { ServerContext } from "../workload/workload.ts";
 import type { Watermark } from "@destack/sync";
-import { refuseInput } from "../error/call.ts";
+import { refuseInput } from "../error/error.ts";
 import { copyRequest } from "@destack/environment";
 import type { RequestIdentity } from "../audit/journal.ts";
 import { v7 } from "uuid";
@@ -568,7 +569,11 @@ export class ObjectStore {
         const unpoliced = this.replicas.filter(
             (type) => !policed.has(ObjectStore.#policyKey(type)),
         );
-        this.authorizer = ObjectStore.#authorizer([...this.objects, ...unpoliced], options);
+        const partition = this.home;
+        this.authorizer = ObjectStore.#authorizer([...this.objects, ...unpoliced], {
+            ...options,
+            ...(partition === undefined ? {} : { partition }),
+        });
         TrackedHistory.require(this.objects, this.authorizer);
 
         // store the journal, the audit and the request context
@@ -603,7 +608,7 @@ export class ObjectStore {
     package(handle: PackageHandle): PackageHandler & { readonly objects: ObjectStore } {
         const found = this.packages.find((each) => each.package.id === handle.id);
         if (found === undefined) {
-            throw new TypeError(`the store serves no package ${handle.name}`);
+            throw new TypeError(`the store does not serve package ${handle.name}`);
         }
 
         return found;
@@ -745,9 +750,10 @@ export class ObjectStore {
             const key = ObjectTypeReference.key(reference);
             const type = known.get(key);
             if (type === undefined) {
-                throw new ObjectError("UNKNOWN_TYPE", {
-                    message: `no object type ${reference.type} of ${reference.packageId} is known here`,
-                });
+                throw ObjectError.of(
+                    "UNKNOWN_TYPE",
+                    `unknown object type ${reference.type} of ${reference.packageId}`,
+                );
             } else if (!described.has(key) && !loaded.objects.has(key)) {
                 const description = ObjectDescription.of(type);
                 described.set(key, description);
@@ -799,7 +805,7 @@ export class ObjectStore {
             receive: (mutation, signer) => {
                 // run the changes as the follower's principal
                 if (signer === undefined) {
-                    throw new TypeError("a change sent in process needs its sending principal");
+                    throw new TypeError("an in-process change has no sending principal");
                 }
 
                 return this.receive(mutation, signer);
@@ -807,7 +813,7 @@ export class ObjectStore {
             call: (call, scope, signer) => {
                 // answer the query as the follower's principal in the scope it reads
                 if (signer === undefined) {
-                    throw new TypeError("a query sent in process needs its sending principal");
+                    throw new TypeError("an in-process query has no sending principal");
                 }
                 const caller = AccessContext.of(Caller.of(signer), this.clock.now());
 
@@ -881,9 +887,9 @@ export class ObjectStore {
         const isServing = routed.length > 0;
         const { callKey, events } = options;
         if (isServing && callKey === undefined) {
-            throw new TypeError("a store serving methods needs the call key of their journal");
+            throw new TypeError("a store with methods needs the call key of its journal");
         } else if (isServing && (events === undefined || !events.has(Journal.kind))) {
-            throw new TypeError("a store serving methods needs an event log for its calls");
+            throw new TypeError("a store with methods needs an event log for its calls");
         } else if (!isServing && callKey !== undefined) {
             throw new TypeError("a store without methods has no journal and no call key");
         }
@@ -896,6 +902,15 @@ export class ObjectStore {
     /** The scope the store's database is home to: its partition, its space, else its principal. */
     get scope(): string {
         return this.partition ?? this.space ?? this.principal.id;
+    }
+
+    /** The partition the store's database is home to: its partition, its space, or the universe. */
+    get home(): string | undefined {
+        return (
+            this.partition ??
+            this.space ??
+            (universe.is(this.principal) ? Scope.universe.id : undefined)
+        );
     }
 
     /** The space the store serves, absent for a machine's or the universe's store. */
@@ -948,7 +963,7 @@ export class ObjectStore {
                 );
             } else if (Object.hasOwn(object.shared, object.key)) {
                 throw new TypeError(
-                    `object ${object.name} has the name of the shared ${object.key} procedures`,
+                    `object ${object.name} has the same name as the shared ${object.key} procedures`,
                 );
             }
             routed.add(key);
@@ -970,7 +985,7 @@ export class ObjectStore {
                 !object.scopes.some((scope) => scope.policy.is(options.principal)),
         );
         if (local !== undefined) {
-            throw new TypeError(`local object ${local.name} lives only in its scope's store`);
+            throw new TypeError(`local object ${local.name} only exists in its scope's store`);
         }
 
         // require claims for indexed objects
@@ -1213,9 +1228,10 @@ export class ObjectStore {
                     input: called,
                 } = this.#resolve(input.call, false, CallSite.of(context.access(input.scope)));
                 if (object.readScope(name, called) !== input.scope) {
-                    throw new ObjectError("SCOPE_MISMATCH", {
-                        message: `${object.name}.${name} reads a scope other than ${input.scope}`,
-                    });
+                    throw ObjectError.of(
+                        "SCOPE_MISMATCH",
+                        `${object.name}.${name} reads a scope other than ${input.scope}`,
+                    );
                 }
 
                 return await this.#answer(object, name, called, context);
@@ -1324,7 +1340,7 @@ export class ObjectStore {
         // refuse joining a durable transaction for objects living elsewhere
         if (options.transaction !== undefined && object.storage !== "durable") {
             throw new TypeError(
-                `${object.storage} ${object.name} objects read outside a joined transaction`,
+                `${object.storage} ${object.name} objects cannot join a durable transaction`,
             );
         }
         const database = await this.#databaseOf(object, scope);
@@ -1457,9 +1473,10 @@ export class ObjectStore {
         if (ephemeral === originals.length) {
             return this.#mutateEphemeral(originals, scope, caller, mutation.id, options.writerId);
         } else if (ephemeral > 0) {
-            throw new ObjectError("MIXED_STORAGE", {
-                message: "a mutation writes durable or ephemeral objects, not both",
-            });
+            throw ObjectError.of(
+                "MIXED_STORAGE",
+                "a mutation cannot write both durable and ephemeral objects",
+            );
         }
 
         // expand calls into the calls they run after, and identify prepared creations
@@ -1574,10 +1591,10 @@ export class ObjectStore {
         // refuse other storages and external work
         if (this.served(object).method(name).prepare !== undefined) {
             throw new TypeError(
-                `${object.name}.${name} does external work: a call inside a transaction cannot`,
+                `${object.name}.${name} does external work, so it cannot run inside a transaction`,
             );
         } else if (object.storage !== storage && !isBeside) {
-            throw new TypeError(`${object.name} is stored outside the transaction`);
+            throw new TypeError(`${object.name} is stored outside the transaction's storage`);
         }
 
         // run it under the calling method's authorization while current, else the scope and caller's
@@ -1606,9 +1623,7 @@ export class ObjectStore {
         const first = nth(originals, 0);
         const scope = first.object.readScope(first.name, first.input);
         if (originals.some((call) => call.object.readScope(call.name, call.input) !== scope)) {
-            throw new ObjectError("MIXED_SCOPES", {
-                message: "a mutation's calls must act in one scope",
-            });
+            throw ObjectError.of("MIXED_SCOPES", "a mutation's calls must act in one scope");
         }
 
         return scope;
@@ -1625,9 +1640,7 @@ export class ObjectStore {
     ): Promise<MutationRun> {
         // require an authenticated caller the journal keys the mutation by
         if (caller.subject === undefined) {
-            throw new ObjectError("UNAUTHENTICATED", {
-                message: "a mutation needs an authenticated caller",
-            });
+            throw ObjectError.of("UNAUTHENTICATED", "a mutation needs an authenticated caller");
         }
 
         return {
@@ -1905,9 +1918,10 @@ export class ObjectStore {
                 // require the pushed scope to be the home running the mutation
                 const first = this.#resolve(nth(mutation.calls, 0), true, CallSite.of(caller));
                 if (first.object.readScope(first.name, first.input) !== scope) {
-                    throw new ObjectError("SCOPE_MISMATCH", {
-                        message: `a mutation pushed to ${scope} acts in another scope`,
-                    });
+                    throw ObjectError.of(
+                        "SCOPE_MISMATCH",
+                        `a mutation pushed to ${scope} acts in another scope`,
+                    );
                 }
                 const written = await this.mutate(
                     caller,
@@ -2048,9 +2062,10 @@ export class ObjectStore {
         };
         const home = await this.#readHome(call);
         if (home === undefined) {
-            throw new ObjectError("NO_HOME_HANDLER", {
-                message: `nothing here answers ${object.name}.${name} at the rows' home`,
-            });
+            throw ObjectError.of(
+                "NO_HOME_HANDLER",
+                `nothing here handles ${object.name}.${name} at the rows' home`,
+            );
         }
 
         return home.call(call, scope, caller.subject);
@@ -2069,13 +2084,15 @@ export class ObjectStore {
         const homes = await Promise.all(transaction.calls.map((call) => this.#readHome(call)));
         const [home] = homes;
         if (homes.includes(undefined)) {
-            throw new ObjectError("NO_REPLICA_RECEIVER", {
-                message: "nothing here receives changes of the replicated rows",
-            });
+            throw ObjectError.of(
+                "NO_REPLICA_RECEIVER",
+                "nothing here receives changes of the replicated rows",
+            );
         } else if (home === undefined || homes.some((each) => each !== home)) {
-            throw new ObjectError("MIXED_HOMES", {
-                message: "a mutation of replicated rows must change rows of one home",
-            });
+            throw ObjectError.of(
+                "MIXED_HOMES",
+                "a mutation of replicated rows must change rows of one home",
+            );
         }
 
         return home;
@@ -2091,9 +2108,10 @@ export class ObjectStore {
             return;
         }
 
-        throw new ObjectError("REPLICA_WRITE", {
-            message: `the rows ${[...new Set(replicas)].join(", ")} are replicas here: change them at their home`,
-        });
+        throw ObjectError.of(
+            "REPLICA_WRITE",
+            `the rows ${[...new Set(replicas)].join(", ")} are replicas here: change them at their home`,
+        );
     }
 
     /** Find the publisher receiving a change of replicated rows. */
@@ -2141,9 +2159,10 @@ export class ObjectStore {
         if (replicated.every((isReplicated) => !isReplicated)) {
             return undefined;
         } else if (replicated.some((isReplicated) => !isReplicated)) {
-            throw new ObjectError("MIXED_HOMES", {
-                message: "a mutation must change rows of one home, local or replicated",
-            });
+            throw ObjectError.of(
+                "MIXED_HOMES",
+                "a mutation must change rows of one home, local or replicated",
+            );
         }
 
         // pass it to the publisher the replicas follow, signed as the given principal
@@ -2326,9 +2345,10 @@ export class ObjectStore {
         // read the scope's row, refusing one outside the request's scope or not here yet
         const [row] = await Scope.read(Snapshot.live(this.database), [scope]);
         if (!isRequested && (row === undefined || !Scope.within(row, requested))) {
-            throw new ObjectError("SCOPE_OUTSIDE_REQUEST", {
-                message: `scope ${scope} is outside the request's scope`,
-            });
+            throw ObjectError.of(
+                "SCOPE_OUTSIDE_REQUEST",
+                `scope ${scope} is outside the request's scope`,
+            );
         }
 
         // wait for the caller's watermarks along the scope's chain
@@ -2349,9 +2369,10 @@ export class ObjectStore {
         const chain = await this.#chainIds(scope);
         const outside = homes.find((home) => !chain.has(home.scope));
         if (outside !== undefined) {
-            throw new ObjectError("SCOPE_OUTSIDE_CHAIN", {
-                message: `${outside.scope} is outside the chain of ${scope}, so no replica here follows it`,
-            });
+            throw ObjectError.of(
+                "SCOPE_OUTSIDE_CHAIN",
+                `${outside.scope} is outside the scope chain of ${scope}, so no replica here follows it`,
+            );
         }
 
         // wait for each home's commit
@@ -2376,12 +2397,14 @@ export class ObjectStore {
                 // refuse a scope still without a home or replica here, else the late position
                 const history = await this.history(watermark);
                 throw history.kind === "unknown"
-                    ? new ObjectError("NO_HOME_OR_REPLICA", {
-                          message: `${watermark.scope} has no home or replica here`,
-                      })
-                    : new ObjectError("REPLICA_BEHIND", {
-                          message: `${watermark.scope} has not reached the required sequence`,
-                      });
+                    ? ObjectError.of(
+                          "NO_HOME_OR_REPLICA",
+                          `${watermark.scope} has no home or replica here`,
+                      )
+                    : ObjectError.of(
+                          "REPLICA_BEHIND",
+                          `${watermark.scope} has not reached the required sequence`,
+                      );
             }
         }
     }
@@ -2431,7 +2454,7 @@ export class ObjectStore {
         }
         // refuse a watermark of a history this store no longer has
         else if (history.kind === "stale") {
-            throw new DatabaseError(
+            throw DatabaseError.of(
                 "STALE_EPOCH",
                 `${watermark.scope} no longer has the watermark's history`,
             );
@@ -2467,9 +2490,10 @@ export class ObjectStore {
     /** Read the memory store with the ephemeral objects, failing without one. */
     requireEphemeral(): EphemeralStorage {
         if (this.ephemeral === undefined) {
-            throw new ObjectError("NO_EPHEMERAL_STORAGE", {
-                message: "no ephemeral objects are served here",
-            });
+            throw ObjectError.of(
+                "NO_EPHEMERAL_STORAGE",
+                "this store does not serve ephemeral objects",
+            );
         }
 
         return this.ephemeral;
@@ -2485,9 +2509,7 @@ export class ObjectStore {
     ): Promise<unknown[]> {
         // require the writer of the rows
         if (writerId === undefined) {
-            throw new ObjectError("WRITER_REQUIRED", {
-                message: "only a writer can write ephemeral objects",
-            });
+            throw ObjectError.of("WRITER_REQUIRED", "only a writer can write ephemeral objects");
         }
 
         // allow the caller, then execute the calls in order over a transaction of the writer's rows, committed in its write
@@ -2549,10 +2571,11 @@ export class ObjectStore {
                 const label = `method:${object.package.name}/${object.name}.${name}`;
                 const retryAfter = await Limits.take(this.database, label, key, rate, now);
                 if (retryAfter !== undefined) {
-                    throw new ObjectError("RATE_LIMITED", {
-                        message: `${object.name}.${name} is limited to ${rate.count} calls per ${Duration.milliseconds(rate.every)} ms`,
-                        data: { retryAfter },
-                    });
+                    throw ObjectError.of(
+                        "RATE_LIMITED",
+                        `${object.name}.${name} is limited to ${rate.count} calls per ${Duration.milliseconds(rate.every)} ms`,
+                        { data: { retryAfter } },
+                    );
                 }
             }
         }
@@ -2582,9 +2605,10 @@ export class ObjectStore {
         const isServed = ObjectType.find(this.objects, entry) !== undefined;
         const replicated = ObjectType.find(refused, entry);
         if (mutates && !isServed && replicated !== undefined) {
-            throw new ObjectError("REPLICA_WRITE", {
-                message: `${replicated.name} rows are replicas here, so send their changes to their home`,
-            });
+            throw ObjectError.of(
+                "REPLICA_WRITE",
+                `${replicated.name} rows are replicas here: send changes to their home`,
+            );
         }
 
         return mutates ? this.objects : [...this.objects, ...this.replicas];
@@ -2628,9 +2652,10 @@ export class ObjectStore {
         const scope = object.readScope(name, input);
         const isRowChange = method.mutates && !ACCESS_KINDS.has(method.kind);
         if (isRowChange && (await this.isReplica(object, transaction.view(), scope))) {
-            throw new ObjectError("REPLICA_WRITE", {
-                message: `${object.name} rows of ${scope} are replicas here, so send their changes to their home`,
-            });
+            throw ObjectError.of(
+                "REPLICA_WRITE",
+                `${object.name} rows of ${scope} are replicas here: send changes to their home`,
+            );
         }
 
         // parse the input and build the call in its scope as the installation serving its type
@@ -2674,9 +2699,7 @@ export class ObjectStore {
         }
         const target = await ObjectStore.#target(context, execution, targetId, snapshot);
         if (revision !== undefined && target?.["revision"] !== revision) {
-            throw new ObjectError("STALE_REVISION", {
-                message: `${object.name} revision has changed`,
-            });
+            throw ObjectError.of("STALE_REVISION", `${object.name} revision has changed`);
         }
 
         // refuse callers' other methods on a trashed object
@@ -2685,9 +2708,7 @@ export class ObjectStore {
             target !== undefined &&
             target["deletedAt"] !== null;
         if (isTrashed && !TRASH_METHODS.has(method.kind) && method.isInternal !== true) {
-            throw new ObjectError("IN_TRASH", {
-                message: `${object.name} is in the trash`,
-            });
+            throw ObjectError.of("IN_TRASH", `${object.name} is in the trash`);
         }
 
         return {
@@ -2772,9 +2793,7 @@ export class ObjectStore {
         // require the served branch types and the caller's read of the branch
         const types = this.branch;
         if (types === undefined) {
-            throw new ObjectError("NO_BRANCHES", {
-                message: "this store does not serve branches",
-            });
+            throw ObjectError.of("NO_BRANCHES", "this store does not serve branches");
         }
         const id = schema.string().parse(branch);
         const row = await Snapshot.live(database)
@@ -2786,9 +2805,7 @@ export class ObjectStore {
                 ? []
                 : (await authorization.filter(types.object, permission, [row], { scope })).rows;
         if (allowed.length === 0) {
-            throw new ObjectError("BRANCH_NOT_FOUND", {
-                message: `no branch ${id}`,
-            });
+            throw ObjectError.of("BRANCH_NOT_FOUND", `branch ${id} not found`);
         }
 
         return base.layer(await new Branch(types, base, id).overlay(base, this.objects));
@@ -2798,7 +2815,9 @@ export class ObjectStore {
     static #preparing(object: ObjectType, name: string): Method {
         const method = object.method(name);
         if (method.prepared !== undefined && method.prepare === undefined) {
-            throw new TypeError(`${object.name}.${name} declares prepared work it never prepares`);
+            throw new TypeError(
+                `${object.name}.${name} declares prepared work but has no prepare phase`,
+            );
         }
 
         return method;
@@ -2913,9 +2932,7 @@ export class ObjectStore {
         const { method } = context;
         const declared = method.prepared;
         if (method.prepare === undefined || declared === undefined) {
-            throw new TypeError(
-                `${context.object.name}.${context.name} has no declared prepared work`,
-            );
+            throw new TypeError(`${context.object.name}.${context.name} declares no prepared work`);
         }
         const value: unknown = await method.prepare(context.with({ run: this.#alone(context) }));
 
@@ -3309,9 +3326,7 @@ export class ObjectStore {
             const [log, epoch, sequence] = lastEventId.split("/");
             const position = LogPosition.safeParse({ log, epoch, sequence: Number(sequence) });
             if (!position.success) {
-                throw new ObjectError("EVENT_NOT_FOUND", {
-                    message: `no page has event ${lastEventId}`,
-                });
+                throw ObjectError.of("EVENT_NOT_FOUND", `event ${lastEventId} not found`);
             }
 
             return position.data;
@@ -3400,7 +3415,7 @@ export class ObjectStore {
         );
         const providers = implementations.flatMap((each) => each.definition.providers ?? []);
         if (providers.length > 0 && machine === undefined) {
-            throw new TypeError("provisioned resources need their machine");
+            throw new TypeError("provisioned resources need a machine");
         } else if (server !== undefined && uplink !== undefined) {
             throw new TypeError("an installation's replicas must leave through its publisher");
         }
@@ -3431,9 +3446,7 @@ export class ObjectStore {
             );
         const routed = [...routes.values()].map((route) => route.type);
         if (branch !== undefined && !routed.some((object) => object.same(branch.object))) {
-            throw new TypeError(
-                `no server serves ${branch.object.name}, the object of the branches`,
-            );
+            throw new TypeError(`no server handles ${branch.object.name}, the branch object`);
         }
         const follows = served.flatMap((each) => each.definition.follows ?? []);
         const external = served.flatMap((each) =>
@@ -3604,7 +3617,7 @@ export class ObjectStore {
                 const adapters = Object.keys(described.adapters);
                 if (adapters.length > 0) {
                     throw new TypeError(
-                        `installation ${server.installation} declares adapters ${adapters.join(", ")}, but a sandbox cannot answer them`,
+                        `installation ${server.installation} declares adapters ${adapters.join(", ")}, but a sandbox cannot run them`,
                     );
                 } else if (Object.keys(described.objects).length === 0) {
                     return [];
@@ -3690,7 +3703,7 @@ export class ObjectStore {
             const fetch = answers[adapter.name];
             if (fetch === undefined) {
                 throw new TypeError(
-                    `package ${handle.name} does not answer adapter ${adapter.name}`,
+                    `package ${handle.name} does not implement adapter ${adapter.name}`,
                 );
             }
 
@@ -3729,13 +3742,12 @@ export class ObjectStore {
                               type.type === caller.subject.type,
                       ));
             if (callers !== undefined && Caller.isAnonymous(caller)) {
-                throw new ObjectError("MISSING_CREDENTIAL", {
-                    message: "missing caller credential",
-                });
+                throw ObjectError.of("MISSING_CREDENTIAL", "missing caller credential");
             } else if (!isDeclared) {
-                throw new ObjectError("ADAPTER_REFUSES_CALLER", {
-                    message: `adapter ${adapter.name} answers no ${caller.subject.type} ${caller.subject.id}`,
-                });
+                throw ObjectError.of(
+                    "ADAPTER_REFUSES_CALLER",
+                    `adapter ${adapter.name} does not accept ${caller.subject.type} ${caller.subject.id}`,
+                );
             }
 
             // answer the request below the adapter's path

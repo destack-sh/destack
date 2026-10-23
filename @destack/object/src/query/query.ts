@@ -28,9 +28,7 @@ export function compileQueries(
             const { object: objectName, scopes, ...options } = query;
             const object = objects.find((entry) => entry.name === objectName);
             if (!object) {
-                throw new ObjectError("UNKNOWN_OBJECT", {
-                    message: `no object ${objectName}`,
-                });
+                throw ObjectError.of("UNKNOWN_OBJECT", `object ${objectName} not found`);
             }
             // read every scope's rows, each decided by its access
             else if (scopes === "every") {
@@ -38,9 +36,10 @@ export function compileQueries(
             }
             // refuse a type of another scope level
             else if ((object.scope === Scope.universe.id) !== isGlobal) {
-                throw new ObjectError("SCOPE_MISMATCH", {
-                    message: `object ${objectName} is not in scope ${scope}`,
-                });
+                throw ObjectError.of(
+                    "SCOPE_MISMATCH",
+                    `object ${objectName} is not in scope ${scope}`,
+                );
             }
 
             return [
@@ -60,9 +59,10 @@ export function compile(
     // refuse a permission the type does not declare
     const { permission, ...found } = options;
     if (permission !== undefined && !object.permissions.includes(permission)) {
-        throw new ObjectError("UNKNOWN_PERMISSION", {
-            message: `object ${object.name} has no permission ${permission}`,
-        });
+        throw ObjectError.of(
+            "UNKNOWN_PERMISSION",
+            `object ${object.name} has no permission ${permission}`,
+        );
     }
 
     return {
@@ -86,9 +86,10 @@ export function related(
             ? undefined
             : objects.find((entry) => entry.table === relation.table);
     if (relation === undefined || target === undefined) {
-        throw new ObjectError("UNKNOWN_INCLUDE", {
-            message: `object ${object.name} has no include named ${name}`,
-        });
+        throw ObjectError.of(
+            "UNKNOWN_INCLUDE",
+            `object ${object.name} has no include named ${name}`,
+        );
     }
 
     return { object: target, relation };
@@ -161,17 +162,14 @@ const QueryDerivation = {
     ): FindOptions {
         // require a listed object type, and trash selection at the root only
         if (object.listing === undefined) {
-            throw new ObjectError("UNLISTED", {
-                message: `object ${object.name} is not listed`,
-            });
+            throw ObjectError.of("UNLISTED", `object ${object.name} is not listed`);
         } else if (options.deleted !== undefined && object.lifecycle.recoverable === undefined) {
-            throw new ObjectError("NO_TRASH", {
-                message: `object ${object.name} has no trash`,
-            });
+            throw ObjectError.of("NO_TRASH", `object ${object.name} has no trash`);
         } else if (options.deleted !== undefined && !isRoot) {
-            throw new ObjectError("INCLUDED_TRASH", {
-                message: `included ${object.name} objects cannot select their trash`,
-            });
+            throw ObjectError.of(
+                "INCLUDED_TRASH",
+                `included ${object.name} objects cannot select their trash`,
+            );
         }
 
         // include the requested relations, a text holder's chunks among them

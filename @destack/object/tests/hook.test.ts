@@ -281,7 +281,7 @@ async function run(store: ObjectStore, call: Call, user = users.alice) {
         .parse(result);
 }
 
-test("run a card's hooks in its sandbox, their reads, nested calls and wrapped behaviour answered in the mutation's session", async () => {
+test("run a card's hooks in its sandbox, their reads, nested calls and wrapped behaviour responded with in the mutation's session", async () => {
     // create a card whose sandboxed create hook capitalizes its name, then remark on it
     const { store, exchange } = await serveCards(
         definePackage({

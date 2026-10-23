@@ -25,9 +25,10 @@ export const observe = controlledMethod
         // refuse an observation of a generation the record has not arrived at
         const { observedGeneration, conditions, fields } = context.input;
         if (observedGeneration > context.target.generation) {
-            throw new ObjectError("STALE_GENERATION", {
-                message: `${context.object.name} is at generation ${context.target.generation}, not ${observedGeneration}`,
-            });
+            throw ObjectError.of(
+                "STALE_GENERATION",
+                `expected ${context.object.name} at generation ${observedGeneration}, got ${context.target.generation}`,
+            );
         }
 
         // merge the conditions and preserve transition times while their status stays
@@ -59,9 +60,7 @@ export const finalize = controlledMethod
     .handle(async (context) => {
         // require a requested deletion
         if (context.target.deletedAt === null) {
-            throw new ObjectError("NOT_DELETING", {
-                message: `${context.object.name} is not being deleted`,
-            });
+            throw ObjectError.of("NOT_DELETING", `${context.object.name} is not being deleted`);
         }
 
         // delete at the loaded revision

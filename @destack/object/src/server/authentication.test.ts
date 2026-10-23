@@ -240,7 +240,7 @@ test("authorize a caller bound to a space in the scopes inside it, refusing the 
         [
             "UNAUTHORIZED",
             "CREDENTIAL_CONFINED",
-            `the caller's credential applies to ${spaceId} only`,
+            `the caller's credential only applies to ${spaceId}`,
         ],
         alice.caller.subject,
     ]);

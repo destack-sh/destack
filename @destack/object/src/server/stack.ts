@@ -187,7 +187,7 @@ export class Stack {
             // require an active column on a type archiving undeclared records
             if (declaration.retire === "archived" && !("active" in object.table[TABLE].columns)) {
                 throw new TypeError(
-                    `object ${object.name} archives records without an active column`,
+                    `object ${object.name} archives records but has no active column`,
                 );
             }
 
@@ -219,9 +219,10 @@ export class Stack {
                 !MANAGEMENT_KEYS.has(key) && !ordered.some((entry) => entry.object.plural === key),
         );
         if (installing.length > 0 && options.installing === undefined) {
-            throw new ObjectError("UNSUPPORTED_DECLARATION", {
-                message: `this server cannot apply ${nth(installing, 0)}`,
-            });
+            throw ObjectError.of(
+                "UNSUPPORTED_DECLARATION",
+                `this server cannot apply ${nth(installing, 0)}`,
+            );
         }
 
         return { ordered, installing };
@@ -343,9 +344,10 @@ export class Stack {
         if (visiting.has(declaration) && cycles === "skip") {
             return;
         } else if (visiting.has(declaration)) {
-            throw new ObjectError("CYCLIC_DECLARATION", {
-                message: `declarations of ${declaration.object.plural} depend on themselves`,
-            });
+            throw ObjectError.of(
+                "CYCLIC_DECLARATION",
+                `declarations of ${declaration.object.plural} depend on themselves`,
+            );
         }
 
         // add the dependencies first
@@ -383,8 +385,7 @@ export class StackPlan {
         // refuse a moved scope
         for (const link of await Scope.chain(transaction.view(), stack.scope)) {
             if (link.movedTo !== undefined) {
-                throw new ObjectError("SCOPE_MOVED", {
-                    message: `${link.object.id} moves to ${link.movedTo}`,
+                throw ObjectError.of("SCOPE_MOVED", `${link.object.id} moved to ${link.movedTo}`, {
                     data: { scope: link.object.id, machine: link.movedTo },
                 });
             }
@@ -571,9 +572,10 @@ export class StackPlan {
 
         // refuse a scope for a global principal
         if (isGlobal && scope !== undefined) {
-            throw new ObjectError("INVALID_DECLARATION", {
-                message: `${policy.name} ${id} is global, outside any scope`,
-            });
+            throw ObjectError.of(
+                "INVALID_DECLARATION",
+                `${policy.name} ${id} is global and has no scope`,
+            );
         }
         // take a global principal in the universe
         else if (isGlobal) {
@@ -605,9 +607,7 @@ export class StackPlan {
         if (await this.stack.options.store.isReplica(type, this.transaction.view(), scope)) {
             return this.wait(`${type.name} ${key} waits for its replica`);
         } else {
-            throw new ObjectError("INVALID_DECLARATION", {
-                message: `unknown ${type.name}: ${key}`,
-            });
+            throw ObjectError.of("INVALID_DECLARATION", `unknown ${type.name}: ${key}`);
         }
     }
 
@@ -720,9 +720,7 @@ export class StackPlan {
         for (const key of this.stack.installing) {
             const type = types.find((each) => each.plural === key);
             if (type === undefined) {
-                throw new ObjectError("UNSUPPORTED_DECLARATION", {
-                    message: `this server cannot apply ${key}`,
-                });
+                throw ObjectError.of("UNSUPPORTED_DECLARATION", `this server cannot apply ${key}`);
             }
             for (const name of Object.keys(DECLARED.parse(this.stack.document[key]))) {
                 steps.push(StackPlan.#creation(type.name, name));
@@ -742,9 +740,7 @@ export class StackPlan {
             throw new DependencyWait(`${plural} wait for the store to serve the installed types`);
         } else if (!target) {
             const plural = typeof object === "string" ? object : object.plural;
-            throw new ObjectError("UNSUPPORTED_DECLARATION", {
-                message: `this server cannot apply ${plural}`,
-            });
+            throw ObjectError.of("UNSUPPORTED_DECLARATION", `this server cannot apply ${plural}`);
         }
 
         return target;
@@ -804,21 +800,25 @@ export class StackPlan {
 
             // refuse an unknown record, an undeclared name, a name of another record, or a record another declaration manages
             if (row === undefined) {
-                throw new ObjectError("INVALID_DECLARATION", {
-                    message: `${object.name} ${name} adopts unknown ${id}`,
-                });
+                throw ObjectError.of(
+                    "INVALID_DECLARATION",
+                    `${object.name} ${name} adopts unknown ${id}`,
+                );
             } else if (!declared.has(name)) {
-                throw new ObjectError("INVALID_DECLARATION", {
-                    message: `${object.name} ${name} adopts ${id} but declares no ${name}`,
-                });
+                throw ObjectError.of(
+                    "INVALID_DECLARATION",
+                    `${object.name} ${name} adopts ${id} but does not declare ${name}`,
+                );
             } else if (existing.has(name) && existing.get(name)?.id !== id) {
-                throw new ObjectError("INVALID_DECLARATION", {
-                    message: `${object.name} ${name} already declares another record`,
-                });
+                throw ObjectError.of(
+                    "INVALID_DECLARATION",
+                    `${object.name} ${name} already declares another record`,
+                );
             } else if (Manager.isManaged(row) && !Manager.manages(row, manager)) {
-                throw new ObjectError("INVALID_DECLARATION", {
-                    message: `${object.name} ${id} is managed by another declaration`,
-                });
+                throw ObjectError.of(
+                    "INVALID_DECLARATION",
+                    `${object.name} ${id} is managed by another declaration`,
+                );
             }
             // adopt it unless already adopted
             else if (!Manager.isManaged(row)) {
@@ -834,9 +834,10 @@ export class StackPlan {
             const name = address.slice(prefix.length);
             const row = existing.get(name);
             if (declared.has(name)) {
-                throw new ObjectError("INVALID_DECLARATION", {
-                    message: `${object.name} ${name} is both declared and released`,
-                });
+                throw ObjectError.of(
+                    "INVALID_DECLARATION",
+                    `${object.name} ${name} is both declared and released`,
+                );
             } else if (row !== undefined) {
                 await this.#writeManager(object, row, { detachedAt: this.now });
             }
@@ -972,9 +973,10 @@ export class StackPlan {
             (declaration.immutable ?? []).some((column) => column === field),
         );
         if (fixed !== undefined) {
-            throw new ObjectError("INVALID_DECLARATION", {
-                message: `${object.name} ${name} cannot change ${fixed}: declared ${canonicalize(fields[fixed]?.after ?? null)}, applied ${canonicalize(fields[fixed]?.before ?? null)}`,
-            });
+            throw ObjectError.of(
+                "INVALID_DECLARATION",
+                `${object.name} ${name} cannot change ${fixed}: declared ${canonicalize(fields[fixed]?.after ?? null)}, applied ${canonicalize(fields[fixed]?.before ?? null)}`,
+            );
         }
 
         // replace a record whose type does not update a changed field: detach and retire it, then declare anew

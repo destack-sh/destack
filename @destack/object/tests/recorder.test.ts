@@ -41,7 +41,7 @@ test("commit and roll back application changes with their recorded calls", async
     let storage = await AuditStorage.open();
     try {
         // roll back application state and recorded calls together
-        const failure = new ObjectError("INVALID_CALL", { message: "cancel change" });
+        const failure = ObjectError.of("INVALID_CALL", "cancel change");
         await expect(
             storage.database.transaction(async (transaction) => {
                 await transaction.insert(document).values({ name: "rolled back" });

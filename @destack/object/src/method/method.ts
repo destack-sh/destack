@@ -385,7 +385,9 @@ export const Method = {
     ): MethodContext<Configuration, PreparedOf<Configuration> | undefined> {
         // refuse a call missing its target or its signer
         if (!Method.isContext(declared, context)) {
-            throw new TypeError(`${context.object.name}.${context.name} cannot take this call`);
+            throw new TypeError(
+                `${context.object.name}.${context.name} got a call without a target or signer`,
+            );
         }
 
         return context;
@@ -398,7 +400,9 @@ export const Method = {
     ): MethodContext<Configuration> {
         // refuse a call missing its target, its signer or its prepared work
         if (!Method.isPrepared(declared, context)) {
-            throw new TypeError(`${context.object.name}.${context.name} cannot take this call`);
+            throw new TypeError(
+                `${context.object.name}.${context.name} got a call without a target or signer`,
+            );
         }
 
         return context;
@@ -427,7 +431,7 @@ export const Method = {
     ): Settled<PreparedOf<Configuration>> {
         // refuse prepared work off the method's schema
         if (!Method.isSettled(declared, settled)) {
-            throw new TypeError("a method settles only the work it declares");
+            throw new TypeError("settled work does not match the method's declared prepared work");
         }
 
         return settled;
@@ -446,11 +450,11 @@ export const Method = {
             throw new TypeError(`a method's handler has no phase ${unknown}`);
         }
         if (typed.settle !== undefined && typed.prepare === undefined) {
-            throw new TypeError("a method settles only the work its prepare phase does");
+            throw new TypeError("a method with a settle phase needs a prepare phase");
         } else if (typed.prepare !== undefined && declared.prepared === undefined) {
-            throw new TypeError("a method prepares only the work it declares");
+            throw new TypeError("a method with a prepare phase must declare prepared work");
         } else if (typed.creation !== undefined && declared.creation !== undefined) {
-            throw new TypeError("a creation has a creator relation or a creation, not both");
+            throw new TypeError("a method cannot have both a creator relation and a creation");
         }
 
         // run each phase on the call as the method types it

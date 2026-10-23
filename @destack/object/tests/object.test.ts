@@ -317,7 +317,7 @@ test("refuse a containment grant on a type living in the universe alone, and all
     expect(ledger(true).name).toBe("ledger");
     expect(() => ObjectDescription.of(ledger(false))).toThrow(
         new TypeError(
-            "object ledger lives in the universe without principals: contained() in its read permission allows no one",
+            "object ledger is in the universe, which has no principals: contained() in its read permission allows no one",
         ),
     );
 });
@@ -488,7 +488,7 @@ test("adopt a direct record into a declaration once, rewriting it, release it on
             [
                 "INTERNAL_SERVER_ERROR",
                 "INVALID_DECLARATION",
-                `card other adopts ${second.id} but declares no other`,
+                `card other adopts ${second.id} but does not declare other`,
             ],
             [
                 "INTERNAL_SERVER_ERROR",
@@ -674,7 +674,7 @@ test("refuse two methods answering one route, which a router would send to one o
                 }),
             ),
         ),
-    ).toThrow(new TypeError("object memo methods update and retitle both answer PATCH /{id}"));
+    ).toThrow(new TypeError("object memo methods update and retitle both handle PATCH /{id}"));
 });
 
 test("manage every durable type with a create verb, and no type without one", () => {

@@ -91,7 +91,7 @@ export class Server implements AsyncDisposable {
         const controllers = options.controllers ?? [];
         const access = options.access;
         if (controllers.length > 0 && access === undefined) {
-            throw new TypeError("a server with controllers needs its access database");
+            throw new TypeError("a server with controllers needs an access database");
         } else if (controllers.length > 0 && access !== undefined) {
             const loop = new ControlLoop(access.database, controllers, {
                 report: (controller, key, error) => {
@@ -175,9 +175,10 @@ export class Server implements AsyncDisposable {
             // refuse waiting for a server stopped before it served, else serve
             if (signal.aborted) {
                 this.#serving.reject(
-                    new ObjectError("SERVER_STOPPED", {
-                        message: "the server stopped before it served",
-                    }),
+                    ObjectError.of(
+                        "SERVER_STOPPED",
+                        "the server stopped before it started serving",
+                    ),
                 );
             } else {
                 this.health.set("serving");
@@ -330,10 +331,7 @@ export class Server implements AsyncDisposable {
             authenticationError =
                 error instanceof Error
                     ? error
-                    : new ObjectError("UNAUTHENTICATED", {
-                          message: "authentication failed",
-                          cause: error,
-                      });
+                    : ObjectError.of("UNAUTHENTICATED", "authentication failed", { cause: error });
         }
 
         // digest the link secrets and scope the call
@@ -362,8 +360,7 @@ export class Server implements AsyncDisposable {
 
         return Promise.all(presented.map((secret) => LinkSecret.digest(secret))).catch(
             (error: unknown) => {
-                throw new ObjectError("INVALID_LINK_SECRET", {
-                    message: "invalid link secret",
+                throw ObjectError.of("INVALID_LINK_SECRET", "invalid link secret", {
                     cause: error,
                 });
             },
@@ -380,9 +377,7 @@ export class Server implements AsyncDisposable {
             context.access.authentication !== "public" &&
             Caller.isAnonymous(context.request.caller())
         ) {
-            throw new ObjectError("MISSING_CREDENTIAL", {
-                message: "missing caller credential",
-            });
+            throw ObjectError.of("MISSING_CREDENTIAL", "missing caller credential");
         }
 
         // renew the call's access
@@ -401,9 +396,10 @@ export class Server implements AsyncDisposable {
                 (kind) => kind.packageId === sender.packageId && kind.type === sender.type,
             );
             if (!isDeclared) {
-                throw new ObjectError("CALLER_KIND_REFUSED", {
-                    message: `${sender.type} callers cannot call ${context.path.join(".")}`,
-                });
+                throw ObjectError.of(
+                    "CALLER_KIND_REFUSED",
+                    `${sender.type} callers cannot call ${context.path.join(".")}`,
+                );
             }
             Caller.requireChain(caller);
         }

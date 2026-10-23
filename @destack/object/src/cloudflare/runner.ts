@@ -154,9 +154,7 @@ export class DurableObjectRunner {
             // serve the workload
             const running = await this.#running;
             if (running === undefined) {
-                throw new ObjectError("NO_WORKLOAD", {
-                    message: "no workload runs here",
-                });
+                throw ObjectError.of("NO_WORKLOAD", "no workload runs here");
             }
 
             return await running.fetch(request);
@@ -183,9 +181,10 @@ export class DurableObjectRunner {
                 }),
             );
             if (!response.ok) {
-                throw new ObjectError("BUILD_FILE_UNAVAILABLE", {
-                    message: `the partition has no build file ${path}: ${response.status}`,
-                });
+                throw ObjectError.of(
+                    "BUILD_FILE_UNAVAILABLE",
+                    `the partition has no build file ${path}: ${response.status}`,
+                );
             }
 
             return present(response.body, `the partition's body of build file ${path}`);
@@ -233,9 +232,10 @@ export class DurableObjectRunner {
         );
         await response.arrayBuffer();
         if (!response.ok) {
-            throw new ObjectError("WAKE_UP_UNSTORED", {
-                message: `the partition did not store the wake-up: ${response.status}`,
-            });
+            throw ObjectError.of(
+                "WAKE_UP_UNSTORED",
+                `the partition did not store the wake-up: ${response.status}`,
+            );
         }
     }
 

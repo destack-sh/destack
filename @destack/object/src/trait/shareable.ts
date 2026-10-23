@@ -75,9 +75,7 @@ export const GrantInput = schema.union([
 export function readGrant(input: unknown): schema.Infer<typeof GrantInput> {
     const grant = GrantInput.safeParse(input);
     if (!grant.success) {
-        throw new ObjectError("INVALID_CALL", {
-            message: "a grant has exactly one relation or role",
-        });
+        throw ObjectError.of("INVALID_CALL", "a grant must have exactly one relation or role");
     }
 
     return grant.data;

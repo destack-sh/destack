@@ -1,7 +1,9 @@
 import { telemetry, trace } from "@destack/telemetry";
 
 import { ValidationError } from "@orpc/contract";
-import { describeIssues, CallError } from "./call.ts";
+import { CallError } from "./call.ts";
+import { present } from "@destack/schema";
+import { refuseInput } from "./error.ts";
 
 import type {} from "@destack/package/import-meta";
 
@@ -19,12 +21,10 @@ export function reportError(error: unknown): CallError<string, unknown> {
         failure.code === "BAD_REQUEST" &&
         failure.cause instanceof ValidationError
     ) {
-        return new CallError("BAD_REQUEST", {
-            reason: "INVALID_INPUT",
-            domain: import.meta.destack.package.name,
-            message: describeIssues(failure.cause.issues),
-            cause: failure.cause,
-        });
+        return present(
+            CallError.of(refuseInput(failure.cause.data, failure.cause.issues)),
+            "the call error of invalid input",
+        );
     }
     // pass deliberate refusals on, such as a client failure or a declared unavailability
     else if (failure !== undefined && failure.code !== "INTERNAL_SERVER_ERROR") {

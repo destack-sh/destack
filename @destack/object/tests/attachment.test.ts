@@ -213,11 +213,11 @@ test("attach remarks to articles and photos, counting them and deleting them wit
     ).toEqual(["BAD_REQUEST", "PARENT_TYPE_REFUSED", "task cannot have remarks"]);
     expect(
         await refusal(call(remark, "create", { ...host(article, missing), text: "Nope" })),
-    ).toEqual(["NOT_FOUND", "NOT_FOUND", `no article ${missing}`]);
+    ).toEqual(["NOT_FOUND", "NOT_FOUND", `article ${missing} not found`]);
     as(users.bob);
     expect(
         await refusal(call(remark, "create", { ...host(article, draft.id), text: "Nope" })),
-    ).toEqual(["NOT_FOUND", "NOT_FOUND", `no article ${draft.id}`]);
+    ).toEqual(["NOT_FOUND", "NOT_FOUND", `article ${draft.id} not found`]);
     as(users.alice);
 
     // include each article's remarks, and only those, sharing identifiers with no photo
@@ -303,7 +303,7 @@ test("store each reader's favourite of a shared board private and single", async
     expect(await refusal(call(favourite, "create", host(board, plans.id)))).toEqual([
         "NOT_FOUND",
         "NOT_FOUND",
-        `no board ${plans.id}`,
+        `board ${plans.id} not found`,
     ]);
 
     // hide a mark from a reader who lost the board, and delete the marks with the board

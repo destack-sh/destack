@@ -1,11 +1,10 @@
 import { testCallKey } from "../test/context.ts";
 import { reconciliation, TestDatabase } from "@destack/db/test";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, test, refusal } from "@destack/test";
 import { AccessContext, Caller, none, principal, relation } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { type DatabaseConnection, defineDatabase, eq, Snapshot } from "@destack/db";
 import { RequestId, Replica, Scope } from "@destack/sync";
-import { CallError } from "../error/call.ts";
 import { present, schema } from "@destack/schema";
 import { defineObject, defineShape, field, Follow } from "../index.ts";
 import { serversOf, testEvents } from "../test/index.ts";
@@ -126,7 +125,6 @@ async function serveHome() {
         const access = new AccessFixture(database);
         await access.replicateScope(person.reference(Scope.universe.id, adaId));
         await access.replicateRelationship(
-            adaId,
             person.reference(Scope.universe.id, adaId),
             "joined",
             space,
@@ -203,17 +201,16 @@ async function serveHome() {
     return { store, name, database: replicating.database };
 }
 
-/** Read how a promise settles: its value, or its refusal's code and message. */
+/** Read how a promise settles: its value, or its refusal's code, reason and message. */
 async function outcome(promise: Promise<unknown>): Promise<unknown> {
-    try {
-        return await promise;
-    } catch (error) {
-        if (!(error instanceof CallError)) {
-            throw error;
-        }
+    let value: unknown;
+    const settled = await refusal(
+        promise.then((answer) => {
+            value = answer;
+        }),
+    );
 
-        return `${error.code}: ${error.message}`;
-    }
+    return settled === "done" ? value : settled;
 }
 
 test("answer a query nothing here handles at its rows' home, and send a write there within the caller's grant", async () => {
@@ -249,7 +246,11 @@ test("answer a query nothing here handles at its rows' home, and send a write th
     }).toEqual({
         asSpace: { greeting: "hello Ada" },
         asInstallation: { greeting: "hello Ada" },
-        refused: `FORBIDDEN: grant grant-01996ab0-0000-7000-8000-000000000043 does not give person.write in ${Scope.universe.id}`,
+        refused: [
+            "FORBIDDEN",
+            "GRANT_REFUSES_PERMISSION",
+            `grant grant-01996ab0-0000-7000-8000-000000000043 does not give person.write in ${Scope.universe.id}`,
+        ],
         unchanged: "Ada",
         renamed: "Ada L.",
         home: "Ada L.",

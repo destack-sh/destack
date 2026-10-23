@@ -1,7 +1,8 @@
 import { ORPCError } from "@orpc/client";
 import { expect, test } from "@destack/test";
 import { schema } from "@destack/schema";
-import { CallError } from "./call.ts";
+import { CallError, findDenial } from "./call.ts";
+import { ObjectError } from "./error.ts";
 
 import type {} from "@destack/package/import-meta";
 
@@ -94,3 +95,19 @@ function read(error: CallError<string, unknown> | undefined) {
         ? undefined
         : [error.code, error.reason, error.domain, error.status, error.data];
 }
+
+test("find the denial a missing scope conceals, through a family failure, and none behind a plain missing one", () => {
+    // conceal a refusal behind the scope's absence, and fail with a missing scope alone
+    const denial = ObjectError.of("PERMISSION_DENIED", "permission denied: read");
+    const concealed = ObjectError.of("SCOPE_NOT_FOUND", "scope space-1 not found", {
+        cause: denial,
+    });
+    const missing = ObjectError.of("SCOPE_NOT_FOUND", "scope space-2 not found");
+
+    // read the concealed refusal as the denial, and nothing for the plain missing scope
+    const found = CallError.of(findDenial(concealed));
+    expect([
+        found === undefined ? undefined : [found.code, found.message],
+        findDenial(missing),
+    ]).toEqual([["FORBIDDEN", "permission denied: read"], undefined]);
+});
