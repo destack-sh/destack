@@ -1,5 +1,4 @@
-import { UpdateError } from "../error/index.ts";
-import { expect, test } from "@destack/test";
+import { expect, test, refusal } from "@destack/test";
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -74,12 +73,11 @@ test("recover interrupted activation and retain both distributions", async () =>
                 sha256: first.sha256,
             }),
         );
-        await expect(installer.recover()).rejects.toThrow(
-            new UpdateError(
-                "DOWNGRADE_REFUSED",
-                "refusing to activate an older or incompatible release",
-            ),
-        );
+        expect(await refusal(installer.recover())).toEqual([
+            "CONFLICT",
+            "DOWNGRADE_REFUSED",
+            "cannot activate an older or incompatible release",
+        ]);
         expect(await installer.current()).toEqual(second);
     } finally {
         await rm(directory, { recursive: true, force: true });
@@ -130,18 +128,20 @@ test.each([
             await writeFile(archive, bytes);
 
             const installer = new Installer(join(directory, "installation"));
-            await expect(
-                installer.stage(
-                    {
-                        release: new Release("2026.9.1", "x86_64-unknown-linux-gnu"),
-                        archive,
-                        sha256: "a".repeat(64),
-                    },
-                    async () => {
-                        throw new Error("unsafe archive reached executable verification");
-                    },
+            expect(
+                await refusal(
+                    installer.stage(
+                        {
+                            release: new Release("2026.9.1", "x86_64-unknown-linux-gnu"),
+                            archive,
+                            sha256: "a".repeat(64),
+                        },
+                        async () => {
+                            throw new Error("unsafe archive reached executable verification");
+                        },
+                    ),
                 ),
-            ).rejects.toThrow(new UpdateError("UNSAFE_ARCHIVE", message));
+            ).toEqual(["BAD_GATEWAY", "UNSAFE_ARCHIVE", message]);
             expect(await installer.current()).toBeUndefined();
             expect(await readdir(join(installer.directory, "versions"))).toEqual([]);
         } finally {

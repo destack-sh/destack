@@ -1,4 +1,4 @@
-import { expect, test } from "@destack/test";
+import { expect, test, refusal } from "@destack/test";
 import { generateKeyPairSync } from "node:crypto";
 import { SigningKey } from "./key.ts";
 import { TrustedRoot } from "./root.ts";
@@ -11,7 +11,7 @@ function generateRsaKey(): SigningKey {
     return new SigningKey(pair.privateKey.export({ format: "pem", type: "pkcs8" }));
 }
 
-test("require independent RSA root signatures and both quorums during rotation", () => {
+test("require independent RSA root signatures and both quorums during rotation", async () => {
     // exercise the same RSA-PSS scheme used by the hardware without persisting private keys
     const first = generateRsaKey();
     const second = generateRsaKey();
@@ -51,7 +51,11 @@ test("require independent RSA root signatures and both quorums during rotation",
     expect(() => TrustedRoot.verify(rotated, root)).toThrow("root was signed by 1/2 keys");
     rotated.sign((bytes) => third.sign(bytes));
     TrustedRoot.verify(rotated, root);
-    expect(() => TrustedRoot.verify(rotated)).toThrow("expected root version 1");
+    expect(await refusal(() => TrustedRoot.verify(rotated))).toEqual([
+        "BAD_REQUEST",
+        "INVALID_METADATA",
+        "expected root version 1",
+    ]);
 
     // changing signed content invalidates every signature
     const changed = Metadata.fromJSON(MetadataKind.Root, {
@@ -62,7 +66,13 @@ test("require independent RSA root signatures and both quorums during rotation",
         },
     });
     expect(() => TrustedRoot.verify(changed, root)).toThrow("root was signed by 0/2 keys");
-    expect(() =>
-        TrustedRoot.create(1, [first.public, first.public, third.public], keys, expires),
-    ).toThrow("root requires three independent keys and three distinct online keys");
+    expect(
+        await refusal(() =>
+            TrustedRoot.create(1, [first.public, first.public, third.public], keys, expires),
+        ),
+    ).toEqual([
+        "BAD_REQUEST",
+        "INVALID_METADATA",
+        "root requires three independent keys and three distinct online keys",
+    ]);
 }, 5000);

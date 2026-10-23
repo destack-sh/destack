@@ -47,10 +47,7 @@ export class Updater implements AsyncDisposable {
     static async open(options: UpdaterOptions): Promise<Updater> {
         // reject inconsistent installation inputs before opening or recovering state
         if (!isAbsolute(options.directory)) {
-            throw new UpdateError(
-                "INVALID_INSTALLATION",
-                "installation directory must be absolute",
-            );
+            throw UpdateError.of("INVALID_OPTIONS", "installation directory must be absolute");
         }
         const isMac = options.target.endsWith("apple-darwin");
         if (
@@ -60,13 +57,13 @@ export class Updater implements AsyncDisposable {
                     options.applicationIdentifier === "")) ||
             (options.application !== undefined && !isAbsolute(options.application))
         ) {
-            throw new UpdateError(
-                "INVALID_INSTALLATION",
+            throw UpdateError.of(
+                "INVALID_OPTIONS",
                 "macOS releases require an absolute application destination and identifier",
             );
         }
         if (options.current && options.current.target !== options.target) {
-            throw new UpdateError(
+            throw UpdateError.of(
                 "TARGET_MISMATCH",
                 "running release does not match the installation target",
             );
@@ -76,7 +73,7 @@ export class Updater implements AsyncDisposable {
         await mkdir(options.directory, { recursive: true, mode: 0o700 });
         const lock = await FileLock.tryAcquire(`${options.directory}.lock`);
         if (!lock) {
-            throw new UpdateError("UPDATE_RUNNING", "another Destack update is running");
+            throw UpdateError.of("UPDATE_RUNNING", "another Destack update is running");
         }
         try {
             const repository = await UpdateRepository.open(
@@ -114,14 +111,14 @@ export class Updater implements AsyncDisposable {
         const installed = await this.installer.current();
         let current = installed?.release;
         if (current && current.target !== this.options.target) {
-            throw new UpdateError("PLATFORM_CHANGED", "cannot change the installed platform");
+            throw UpdateError.of("PLATFORM_CHANGED", "cannot change the installed platform");
         }
         if (
             installed &&
             latest.compare(installed.release) === 0 &&
             this.repository.digest(latest) !== installed.sha256
         ) {
-            throw new UpdateError("RELEASE_CHANGED", "published release changed");
+            throw UpdateError.of("RELEASE_CHANGED", "published release changed");
         }
 
         // include a running distribution opened directly from a downloaded application
@@ -129,7 +126,7 @@ export class Updater implements AsyncDisposable {
             current = this.options.current;
         }
         if (current && latest.compare(current) < 0) {
-            throw new UpdateError(
+            throw UpdateError.of(
                 "DOWNGRADE_REFUSED",
                 "published release is older than the installed version",
             );
@@ -145,15 +142,15 @@ export class Updater implements AsyncDisposable {
         // require the downloaded release for this target
         using operation = this.begin();
         if (download.release.target !== this.options.target) {
-            throw new UpdateError(
+            throw UpdateError.of(
                 "TARGET_MISMATCH",
                 "downloaded release does not match the installation target",
             );
         }
         if (this.options.current && download.release.compare(this.options.current) < 0) {
-            throw new UpdateError(
+            throw UpdateError.of(
                 "DOWNGRADE_REFUSED",
-                "refusing to stage a release older than the running version",
+                "cannot stage a release older than the running version",
             );
         }
 
@@ -177,9 +174,9 @@ export class Updater implements AsyncDisposable {
         // refuse a release older than the running version
         using operation = this.begin();
         if (this.options.current && staged.release.compare(this.options.current) < 0) {
-            throw new UpdateError(
+            throw UpdateError.of(
                 "DOWNGRADE_REFUSED",
-                "refusing to activate a release older than the running version",
+                "cannot activate a release older than the running version",
             );
         }
 
@@ -190,14 +187,14 @@ export class Updater implements AsyncDisposable {
             latest.target !== staged.release.target ||
             this.repository.digest(latest) !== staged.sha256
         ) {
-            throw new UpdateError(
+            throw UpdateError.of(
                 "RELEASE_CHANGED",
                 "staged release is no longer the published release",
             );
         }
         const current = await this.installer.current();
         if (current?.sha256 !== staged.previous && current?.sha256 !== staged.sha256) {
-            throw new UpdateError("INSTALLATION_CHANGED", "installation changed after staging");
+            throw UpdateError.of("INSTALLATION_CHANGED", "installation changed after staging");
         }
 
         // reuse the authenticated cache and derive paths from the installation directory
@@ -224,10 +221,10 @@ export class Updater implements AsyncDisposable {
     /** Serialize operations and retain the lock until in-progress work finishes. */
     private begin(): Disposable {
         if (this.isClosed) {
-            throw new UpdateError("SESSION_CLOSED", "update session is closed");
+            throw UpdateError.of("SESSION_CLOSED", "update session is closed");
         }
         if (this.operation) {
-            throw new UpdateError("UPDATE_RUNNING", "an update operation is already running");
+            throw UpdateError.of("UPDATE_RUNNING", "an update operation is already running");
         }
         const operation = Promise.withResolvers<void>();
         this.operation = operation;
@@ -278,7 +275,7 @@ async function verifyRelease(directory: string, release: Release): Promise<void>
         text(child.stderr),
     ]);
     if (exit !== 0) {
-        throw new UpdateError(
+        throw UpdateError.of(
             "VERIFICATION_FAILED",
             `downloaded CLI exited with ${exit}: ${stderr.trim()}`,
         );
@@ -287,13 +284,13 @@ async function verifyRelease(directory: string, release: Release): Promise<void>
     // reject incomplete distributions before changing the active release
     const report = VersionReport.safeParse(JSON.parse(stdout));
     if (!report.success || report.data.version !== release.version) {
-        throw new UpdateError(
+        throw UpdateError.of(
             "VERIFICATION_FAILED",
             "downloaded CLI version does not match the signed release",
         );
     }
     const desktop = release.target.endsWith("apple-darwin") ? "Destack.app" : "Destack";
     if (!(await stat(join(directory, desktop))).isDirectory()) {
-        throw new UpdateError("VERIFICATION_FAILED", "downloaded desktop is missing");
+        throw UpdateError.of("VERIFICATION_FAILED", "downloaded desktop is missing");
     }
 }

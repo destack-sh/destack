@@ -46,7 +46,7 @@ export function serveDistributions(host: DistributionHost | undefined) {
                     // require a staged release
                     const staged = await requireHost(host).distribution.staged();
                     if (staged === undefined) {
-                        throw new UpdateError("RELEASE_NOT_FOUND", "no Destack release is staged");
+                        throw UpdateError.of("RELEASE_NOT_FOUND", "no Destack release is staged");
                     }
 
                     return staged.release.version;
@@ -138,7 +138,7 @@ export class DistributionController implements ReconcileController {
 /** Read the host's distribution. */
 function requireHost(host: DistributionHost | undefined): DistributionHost {
     if (host === undefined) {
-        throw new UpdateError(
+        throw UpdateError.of(
             "DEVELOPMENT_BUILD",
             "development builds cannot take published updates",
         );

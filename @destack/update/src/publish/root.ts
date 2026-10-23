@@ -1,6 +1,7 @@
 import { Key, Metadata, MetadataKind, Root } from "@tufjs/models";
 import { readFile } from "node:fs/promises";
 import { parseObject } from "./json.ts";
+import { UpdateError } from "../error/index.ts";
 
 /** Independent public keys for automated metadata roles. */
 export interface ReleasePublicKey {
@@ -34,7 +35,10 @@ function createRoot(
         new Set(all.map((key) => key.keyID)).size !== 6 ||
         new Set(all.map((key) => key.keyVal["public"])).size !== 6
     ) {
-        throw new Error("root requires three independent keys and three distinct online keys");
+        throw UpdateError.of(
+            "INVALID_METADATA",
+            "root requires three independent keys and three distinct online keys",
+        );
     }
     if (
         !Number.isSafeInteger(version) ||
@@ -42,7 +46,10 @@ function createRoot(
         !Number.isFinite(Date.parse(expires)) ||
         Date.parse(expires) <= Date.now()
     ) {
-        throw new Error("root requires a positive version and future expiration");
+        throw UpdateError.of(
+            "INVALID_METADATA",
+            "root requires a positive version and future expiration",
+        );
     }
 
     // describe authorization without loading any private root material
@@ -74,7 +81,7 @@ function createRoot(
 function verifyRoot(root: Metadata<Root>, previous?: Metadata<Root>): void {
     // require current authorization for completed signing ceremonies
     if (root.signed.isExpired()) {
-        throw new Error("root has expired");
+        throw UpdateError.of("INVALID_METADATA", "root has expired");
     }
     authenticateRoot(root, previous);
 }
@@ -84,13 +91,16 @@ function authenticateRoot(root: Metadata<Root>, previous?: Metadata<Root>): void
     // preserve the agreed root quorum independently of signature validity
     const role = root.signed.roles["root"];
     if (role?.threshold !== 2 || role.keyIDs.length !== 3 || new Set(role.keyIDs).size !== 3) {
-        throw new Error("root policy must require two of three independent keys");
+        throw UpdateError.of(
+            "INVALID_METADATA",
+            "root policy must require two of three independent keys",
+        );
     }
 
     // reject accidental gaps in the rotation history
     const version = previous ? previous.signed.version + 1 : 1;
     if (root.signed.version !== version) {
-        throw new Error(`expected root version ${version}`);
+        throw UpdateError.of("INVALID_METADATA", `expected root version ${version}`);
     }
 
     // require authorization from both the previous and replacement root key sets

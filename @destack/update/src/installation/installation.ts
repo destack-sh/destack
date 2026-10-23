@@ -48,8 +48,8 @@ export class Installation {
         this.validate(record);
         const current = await this.read();
         if (current !== undefined && current.method !== record.method) {
-            throw new UpdateError(
-                "INVALID_INSTALLATION",
+            throw UpdateError.of(
+                "INSTALLATION_METHOD_MISMATCH",
                 "uninstall the existing installation before changing its method",
             );
         }
@@ -66,7 +66,7 @@ export class Installation {
         // validate persisted registration before using it for installation operations
         const record = InstallationRecord.safeParse(value);
         if (!record.success || !isAbsolute(record.data.application)) {
-            throw new UpdateError("INVALID_INSTALLATION", "invalid application registration");
+            throw UpdateError.of("INVALID_RECORD", "invalid application registration");
         }
 
         return record.data;

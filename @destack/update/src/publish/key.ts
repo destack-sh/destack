@@ -1,5 +1,6 @@
 import { constants, createHash, createPublicKey, generateKeyPairSync, sign } from "node:crypto";
 import { Key, Signature } from "@tufjs/models";
+import { UpdateError } from "../error/index.ts";
 
 /** An offline or automated TUF signing key. */
 export class SigningKey {
@@ -50,7 +51,7 @@ export function readPublicKey(pem: string): Key {
     if (key.asymmetricKeyType === "ed25519") {
         const jwk = key.export({ format: "jwk" });
         if (jwk.x === undefined || jwk.x === "") {
-            throw new Error("missing Ed25519 public key");
+            throw UpdateError.of("INVALID_SIGNING_KEY", "missing Ed25519 public key");
         }
         const bytes = Buffer.from(jwk.x, "base64url");
 
@@ -65,7 +66,10 @@ export function readPublicKey(pem: string): Key {
     else if (key.asymmetricKeyType === "rsa") {
         const modulusLength = key.asymmetricKeyDetails?.modulusLength;
         if (modulusLength === undefined || modulusLength < 2048) {
-            throw new Error("RSA signing keys must contain at least 2048 bits");
+            throw UpdateError.of(
+                "INVALID_SIGNING_KEY",
+                "RSA signing keys must contain at least 2048 bits",
+            );
         }
         const bytes = key.export({ format: "der", type: "spki" });
 
@@ -76,6 +80,6 @@ export function readPublicKey(pem: string): Key {
             keyVal: { public: key.export({ format: "pem", type: "spki" }) },
         });
     } else {
-        throw new Error("unsupported signing key algorithm");
+        throw UpdateError.of("INVALID_SIGNING_KEY", "unsupported signing key algorithm");
     }
 }

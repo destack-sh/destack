@@ -1,11 +1,10 @@
-import { expect, test } from "@destack/test";
+import { expect, test, refusal } from "@destack/test";
 import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { installApplication } from "./install.ts";
 import { Installer } from "../install/installer.ts";
 import { Release } from "../release/release.ts";
-import { UpdateError } from "../error/error.ts";
 
 test.runIf(process.platform === "darwin")(
     "recover macOS activation after bundle replacement",
@@ -75,14 +74,13 @@ test.skipIf(process.platform !== "darwin")(
             // reject another distribution identity without changing the installed bundle
             const stable = new Release("2026.9.2", Release.target(process.platform, process.arch));
             await writeApplication(source, stable, "org.example.editor");
-            await expect(
-                installApplication(source, destination, "org.example.editor"),
-            ).rejects.toThrow(
-                new UpdateError(
-                    "VERIFICATION_FAILED",
-                    `application identifier does not match org.example.editor: ${destination}`,
-                ),
-            );
+            expect(
+                await refusal(installApplication(source, destination, "org.example.editor")),
+            ).toEqual([
+                "BAD_GATEWAY",
+                "VERIFICATION_FAILED",
+                `application identifier does not match org.example.editor: ${destination}`,
+            ]);
             expect(await readFile(join(destination, "Contents/Resources/version"), "utf8")).toBe(
                 "2026.9.1-dev.2",
             );

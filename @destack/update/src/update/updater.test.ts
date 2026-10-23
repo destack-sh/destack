@@ -1,5 +1,4 @@
-import { UpdateError } from "../error/index.ts";
-import { afterAll, beforeAll, expect, test } from "@destack/test";
+import { afterAll, beforeAll, expect, test, refusal } from "@destack/test";
 import { createHash } from "node:crypto";
 import { readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -72,15 +71,19 @@ test("retain staging across sessions and reject concurrent or stale activation",
     // stage the complete archive under an exclusive updater session
     {
         await using updater = await Updater.open(options);
-        await expect(Updater.open(options)).rejects.toThrow(
-            new UpdateError("UPDATE_RUNNING", "another Destack update is running"),
-        );
+        expect(await refusal(Updater.open(options))).toEqual([
+            "CONFLICT",
+            "UPDATE_RUNNING",
+            "another Destack update is running",
+        ]);
 
         // serialize operations within the same session
         const checking = updater.check();
-        await expect(updater.check()).rejects.toThrow(
-            new UpdateError("UPDATE_RUNNING", "an update operation is already running"),
-        );
+        expect(await refusal(updater.check())).toEqual([
+            "CONFLICT",
+            "UPDATE_RUNNING",
+            "an update operation is already running",
+        ]);
         const update = await checking;
         expect(update?.release).toEqual(new Release("2026.9.1", target));
         if (update === undefined) {
@@ -104,12 +107,11 @@ test("retain staging across sessions and reject concurrent or stale activation",
             current: new Release("2026.9.2", target),
         });
         const staged = await readStaged(updater);
-        await expect(updater.activate(staged)).rejects.toThrow(
-            new UpdateError(
-                "DOWNGRADE_REFUSED",
-                "refusing to activate a release older than the running version",
-            ),
-        );
+        expect(await refusal(updater.activate(staged))).toEqual([
+            "CONFLICT",
+            "DOWNGRADE_REFUSED",
+            "cannot activate a release older than the running version",
+        ]);
         expect(await updater.current()).toBeUndefined();
         expect(await updater.staged()).toEqual(staged);
     }
@@ -162,9 +164,11 @@ test("retry cancelled downloads and reject tampered archives before staging", as
     // reject changed archive bytes before extracting or running them
     const modified = join(directory, "modified.tar.gz");
     await writeFile(modified, "tampered");
-    await expect(updater.stage({ ...download, archive: modified })).rejects.toThrow(
-        new UpdateError("VERIFICATION_FAILED", "installer archive failed verification"),
-    );
+    expect(await refusal(updater.stage({ ...download, archive: modified }))).toEqual([
+        "BAD_GATEWAY",
+        "VERIFICATION_FAILED",
+        "installer archive failed verification",
+    ]);
 
     // retain a verified archive after the rejected attempt
     const staged = await updater.stage(download);
@@ -282,12 +286,11 @@ test("preserve the installed release when signed replacements contradict its ide
         await using updater = await Updater.open(options);
         const update = await checkUpdate(updater);
         const download = await update.download();
-        await expect(updater.stage(download)).rejects.toThrow(
-            new UpdateError(
-                "VERIFICATION_FAILED",
-                "downloaded CLI version does not match the signed release",
-            ),
-        );
+        expect(await refusal(updater.stage(download))).toEqual([
+            "BAD_GATEWAY",
+            "VERIFICATION_FAILED",
+            "downloaded CLI version does not match the signed release",
+        ]);
         expect(await updater.current()).toEqual(installed);
         expect(await updater.staged()).toBeUndefined();
     }
@@ -305,9 +308,11 @@ test("preserve the installed release when signed replacements contradict its ide
     ]);
     {
         await using updater = await Updater.open(options);
-        await expect(updater.check()).rejects.toThrow(
-            new UpdateError("RELEASE_CHANGED", "published release changed"),
-        );
+        expect(await refusal(updater.check())).toEqual([
+            "CONFLICT",
+            "RELEASE_CHANGED",
+            "published release changed",
+        ]);
         expect(await updater.current()).toEqual(installed);
         expect(await updater.staged()).toBeUndefined();
     }
@@ -318,9 +323,11 @@ test("preserve the installed release when signed replacements contradict its ide
     ]);
     {
         await using updater = await Updater.open(options);
-        await expect(updater.check()).rejects.toThrow(
-            new UpdateError("INVALID_RELEASE", "the feed publishes a dev build 2026.9.2-dev.1"),
-        );
+        expect(await refusal(updater.check())).toEqual([
+            "BAD_GATEWAY",
+            "INVALID_RELEASE",
+            "the feed publishes dev build 2026.9.2-dev.1",
+        ]);
         expect(await updater.current()).toEqual(installed);
         expect(await updater.staged()).toBeUndefined();
     }

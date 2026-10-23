@@ -1,4 +1,5 @@
 import type { Timestamp } from "@tufjs/models";
+import { UpdateError } from "../error/index.ts";
 
 /** A JSON object as the TUF metadata readers take it. */
 type JSONObject = Parameters<typeof Timestamp.fromJSON>[0];
@@ -11,7 +12,7 @@ export function parseObject(text: string): JSONObject {
     // require an object at the top of the document
     const value: unknown = JSON.parse(text);
     if (!isObject(value)) {
-        throw new TypeError("expected a JSON object document");
+        throw UpdateError.of("INVALID_METADATA", "expected a JSON object document");
     }
 
     return value;

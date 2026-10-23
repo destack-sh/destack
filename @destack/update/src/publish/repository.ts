@@ -17,6 +17,7 @@ import type { SigningKey } from "./key.ts";
 import { parseObject } from "./json.ts";
 import { TrustedRoot } from "./root.ts";
 import { TargetCustom } from "../release/release.ts";
+import { UpdateError } from "../error/index.ts";
 
 /** The days each online role's metadata stays valid after signing. */
 export const LIFETIME_DAYS = { targets: 365, snapshot: 14, timestamp: 14 } as const;
@@ -76,7 +77,10 @@ async function readRepository(directory: string, root: Metadata<Root>) {
         if (version === root.signed.version) {
             next.verifyDelegate("root", next);
             if (!isDeepStrictEqual(next.signed.toJSON(), root.signed.toJSON())) {
-                throw new Error("published root differs from the trusted root");
+                throw UpdateError.of(
+                    "INVALID_METADATA",
+                    "published root differs from the trusted root",
+                );
             }
         }
         // verify each replacement against the previous quorum
@@ -106,7 +110,7 @@ async function readRepository(directory: string, root: Metadata<Root>) {
     root.verifyDelegate("snapshot", snapshot);
     const targetsReference = snapshot.signed.meta["targets.json"];
     if (!targetsReference || snapshot.signed.version !== snapshotReference.version) {
-        throw new Error("snapshot does not match its signed reference");
+        throw UpdateError.of("INVALID_METADATA", "snapshot does not match its signed reference");
     }
     const targetsBytes = await readFile(join(metadata, `${targetsReference.version}.targets.json`));
     targetsReference.verify(targetsBytes);
@@ -118,10 +122,10 @@ async function readRepository(directory: string, root: Metadata<Root>) {
     );
     root.verifyDelegate("targets", targets);
     if (targets.signed.version !== targetsReference.version) {
-        throw new Error("targets do not match their signed reference");
+        throw UpdateError.of("INVALID_METADATA", "targets do not match their signed reference");
     }
     if ([root, timestamp, snapshot, targets].some((document) => document.signed.isExpired())) {
-        throw new Error("cannot publish expired release metadata");
+        throw UpdateError.of("INVALID_METADATA", "cannot publish expired release metadata");
     }
 
     return { root, timestamp, snapshot, targets };
@@ -136,10 +140,10 @@ async function createRepository(
     distributions: Distribution[],
 ): Promise<Metadata<Targets>> {
     if (!Number.isSafeInteger(revision) || revision < 1) {
-        throw new Error("invalid metadata revision");
+        throw UpdateError.of("INVALID_METADATA", "invalid metadata revision");
     }
     if (distributions.length === 0) {
-        throw new Error("no distributions selected");
+        throw UpdateError.of("INVALID_METADATA", "no distributions selected");
     }
     // prepare the signed repository directories
     const metadata = join(directory, "metadata");
@@ -159,7 +163,7 @@ async function createRepository(
     for (const distribution of distributions) {
         const path = `${distribution.target}.${distribution.format ?? "tar.gz"}`;
         if (Object.hasOwn(targets.signed.targets, path)) {
-            throw new Error(`duplicate target: ${path}`);
+            throw UpdateError.of("INVALID_METADATA", `duplicate target: ${path}`);
         }
         const hash = createHash("sha256");
         for await (const bytes of (await openAsBlob(distribution.archive)).stream()) {
@@ -227,10 +231,13 @@ async function renewMetadata(
     root.verifyDelegate("root", root);
     root.verifyDelegate("targets", targets);
     if (root.signed.isExpired() || targets.signed.isExpired()) {
-        throw new Error("root and targets must be renewed before freshness metadata");
+        throw UpdateError.of(
+            "INVALID_METADATA",
+            "root and targets must be renewed before freshness metadata",
+        );
     }
     if (!Number.isSafeInteger(revision) || revision < 1) {
-        throw new Error("invalid metadata revision");
+        throw UpdateError.of("INVALID_METADATA", "invalid metadata revision");
     }
 
     // retain the exact document authenticated by the previous repository

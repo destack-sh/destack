@@ -1,52 +1,46 @@
-import type { DomainError, CallErrorCode, Failure } from "@destack/error";
+import { defineErrorFamily, type ReasonOf } from "@destack/error";
 import type {} from "@destack/package/import-meta";
 
-/** The call error code of each update failure. */
-const CALL_CODES = {
-    UPDATE_RUNNING: "CONFLICT",
-    SESSION_CLOSED: "SERVICE_UNAVAILABLE",
-    INVALID_REPOSITORY: "BAD_REQUEST",
-    CACHE_MISMATCH: "CONFLICT",
-    RELEASE_NOT_FOUND: "NOT_FOUND",
-    INVALID_RELEASE: "BAD_GATEWAY",
-    RELEASE_CHANGED: "CONFLICT",
-    INSTALLATION_CHANGED: "CONFLICT",
-    VERIFICATION_FAILED: "BAD_GATEWAY",
-    DOWNLOAD_FAILED: "BAD_GATEWAY",
-    UNSAFE_ARCHIVE: "BAD_GATEWAY",
-    DOWNGRADE_REFUSED: "CONFLICT",
-    ALREADY_INSTALLED: "CONFLICT",
-    PLATFORM_CHANGED: "CONFLICT",
-    TARGET_MISMATCH: "CONFLICT",
-    UNSUPPORTED_TARGET: "BAD_REQUEST",
-    INVALID_INSTALLATION: "PRECONDITION_FAILED",
-    DEVELOPMENT_BUILD: "PRECONDITION_FAILED",
-    ACTIVATION_FAILED: "INTERNAL_SERVER_ERROR",
-    INSTALL_FAILED: "INTERNAL_SERVER_ERROR",
-} as const satisfies Readonly<Record<string, CallErrorCode>>;
+/** The update package's failures, each reason with the call error code it answers. */
+export const UpdateError = defineErrorFamily(import.meta.destack.package, {
+    // bad request
+    INVALID_METADATA: { code: "BAD_REQUEST" },
+    INVALID_OPTIONS: { code: "BAD_REQUEST" },
+    INVALID_REPOSITORY: { code: "BAD_REQUEST" },
+    INVALID_SIGNING_KEY: { code: "BAD_REQUEST" },
+    UNSUPPORTED_TARGET: { code: "BAD_REQUEST" },
 
-/** The stable causes of update and installation failures. */
-export type UpdateReason = keyof typeof CALL_CODES;
+    // not found
+    RELEASE_NOT_FOUND: { code: "NOT_FOUND" },
 
-/** A failure reported by the distribution updater. */
-export class UpdateError extends Error implements DomainError {
-    /** The failure's stable cause within its package. */
-    readonly reason: UpdateReason;
+    // conflict
+    ALREADY_INSTALLED: { code: "CONFLICT" },
+    CACHE_MISMATCH: { code: "CONFLICT" },
+    DOWNGRADE_REFUSED: { code: "CONFLICT" },
+    INSTALLATION_CHANGED: { code: "CONFLICT" },
+    PLATFORM_CHANGED: { code: "CONFLICT" },
+    RELEASE_CHANGED: { code: "CONFLICT" },
+    TARGET_MISMATCH: { code: "CONFLICT" },
+    UPDATE_RUNNING: { code: "CONFLICT" },
 
-    /** Describe an update failure and retain its underlying cause. */
-    constructor(reason: UpdateReason, message: string, options?: ErrorOptions) {
-        super(message, options);
-        this.name = "UpdateError";
-        this.reason = reason;
-    }
+    // precondition failed
+    DEVELOPMENT_BUILD: { code: "PRECONDITION_FAILED" },
+    INSTALLATION_METHOD_MISMATCH: { code: "PRECONDITION_FAILED" },
 
-    /** Convert the failure to the call error a caller receives. */
-    toCallError(): Failure {
-        return {
-            code: CALL_CODES[this.reason],
-            reason: this.reason,
-            domain: import.meta.destack.package.name,
-            message: this.message,
-        };
-    }
-}
+    // internal server error
+    ACTIVATION_FAILED: { code: "INTERNAL_SERVER_ERROR" },
+    INSTALL_FAILED: { code: "INTERNAL_SERVER_ERROR" },
+    INVALID_RECORD: { code: "INTERNAL_SERVER_ERROR" },
+
+    // bad gateway
+    DOWNLOAD_FAILED: { code: "BAD_GATEWAY" },
+    INVALID_RELEASE: { code: "BAD_GATEWAY" },
+    UNSAFE_ARCHIVE: { code: "BAD_GATEWAY" },
+    VERIFICATION_FAILED: { code: "BAD_GATEWAY" },
+
+    // service unavailable
+    SESSION_CLOSED: { code: "SERVICE_UNAVAILABLE" },
+});
+
+/** A stable cause of update failures. */
+export type UpdateReason = ReasonOf<typeof UpdateError>;

@@ -1,9 +1,8 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { expect, test } from "@destack/test";
+import { expect, test, refusal } from "@destack/test";
 import { Installation } from "./installation.ts";
-import { UpdateError } from "../error/index.ts";
 
 test("retain application registration across reopening and refuse installer conversion", async () => {
     // keep application registration separate from the executable distribution
@@ -25,12 +24,11 @@ test("retain application registration across reopening and refuse installer conv
         expect(await new Installation(directory).read()).toEqual(moved);
 
         // preserve registration when an incompatible installer requests the same user directory
-        await expect(installation.register({ ...moved, method: "nsis" })).rejects.toEqual(
-            new UpdateError(
-                "INVALID_INSTALLATION",
-                "uninstall the existing installation before changing its method",
-            ),
-        );
+        expect(await refusal(installation.register({ ...moved, method: "nsis" }))).toEqual([
+            "PRECONDITION_FAILED",
+            "INSTALLATION_METHOD_MISMATCH",
+            "uninstall the existing installation before changing its method",
+        ]);
         expect(await installation.read()).toEqual(moved);
     } finally {
         await rm(directory, { recursive: true, force: true });

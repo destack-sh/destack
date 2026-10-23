@@ -28,7 +28,7 @@ export class DownloadFetcher extends BaseFetcher {
         const response = await fetch(url, { signal });
         if (!response.ok || !response.body) {
             await response.body?.cancel();
-            throw new UpdateError(
+            throw UpdateError.of(
                 "DOWNLOAD_FAILED",
                 `archive request failed: HTTP ${response.status}`,
             );
