@@ -77,10 +77,10 @@ type Benefit = { icon: GlyphName; text: string; detail: string };
 
 /** Each plan's tagline, the same for people and organisations. */
 const taglines: Readonly<Record<Plan["key"], string>> = {
-    free: "For trying it out",
-    go: "For the apps you use and make",
-    plus: "For the apps you rely on",
-    pro: "For running everything on Destack",
+    free: "For the basics",
+    go: "For your everyday software",
+    plus: "For all your software",
+    pro: "For your critical software",
 };
 
 /** The plans each audience is shown. */

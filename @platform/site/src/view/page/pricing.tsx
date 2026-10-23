@@ -24,7 +24,8 @@ const pricing: Form = {
     sense: {
         definition: "own the software, rent the hardware",
         highlight: ["own", "rent"],
-        sentence: "Every app comes included. You pay only for infrastructure. Leave anytime.",
+        sentence:
+            "All your software in one place, for free. You pay for the hardware it runs on. Leave anytime.",
     },
 };
 
@@ -46,9 +47,9 @@ const bill: Form = {
     pronunciation: "/bɪl/",
     partOfSpeech: "noun",
     sense: {
-        definition: "the price of integration",
-        highlight: ["integration"],
-        sentence: "Pick your tools. Compare a month of seats with a month of usage.",
+        definition: "the price of silos",
+        highlight: ["silos"],
+        sentence: "Pick your current silos. Integration not included.",
     },
 };
 
