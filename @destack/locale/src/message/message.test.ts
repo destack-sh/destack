@@ -1,5 +1,4 @@
-import { PackageError } from "@destack/package";
-import { expect, test } from "@destack/test";
+import { expect, test, refusal } from "@destack/test";
 import { argument, Message, plural, select, t, verbatim } from "./message.ts";
 
 /** The id of this package, whose modules the transform stamps. */
@@ -54,7 +53,7 @@ test("leave each argument's value to the reader, naming its placeholder and its 
 
     // refuse an argument named like a positional placeholder
     expect(() => argument("p0")).toThrow(
-        new TypeError("message argument p0 is no camel case name of its own"),
+        new TypeError("message argument p0 must be a camel case name and not a positional name"),
     );
 });
 
@@ -70,21 +69,19 @@ test("stamp messages with the package of the module writing them", () => {
     expect([t`Open`.package, Message.context("button")`Open`.package]).toEqual([LOCALE, LOCALE]);
 });
 
-test("refuse to write a message without the module the transform passes", () => {
+test("refuse to write a message without the module the transform passes", async () => {
     // call the tag and the context directly, as an untransformed module would
     const strings = Object.assign(["Open"], { raw: ["Open"] });
-    expect(() => t(strings)).toThrow(
-        new PackageError(
-            "INVALID_DEFINITION",
-            "the Destack module transform passed no module to: t",
-        ),
-    );
-    expect(() => Message.context("button", undefined)).toThrow(
-        new PackageError(
-            "INVALID_DEFINITION",
-            "the Destack module transform passed no module to: Message.context",
-        ),
-    );
+    expect(await refusal(() => t(strings))).toEqual([
+        "BAD_REQUEST",
+        "INVALID_DEFINITION",
+        "the Destack module transform passed no module to: t",
+    ]);
+    expect(await refusal(() => Message.context("button", undefined))).toEqual([
+        "BAD_REQUEST",
+        "INVALID_DEFINITION",
+        "the Destack module transform passed no module to: Message.context",
+    ]);
 });
 
 test("keep verbatim text a plain string with its values in place", () => {
@@ -95,6 +92,6 @@ test("keep a message's values as JSON it travels as, refusing a value that is no
     const stored = Message.parse(JSON.parse(JSON.stringify(t`Saved ${3} notes in ${"Trips"}`)));
     expect(stored.values).toEqual({ p0: 3, p1: "Trips" });
     expect(() => t`Saved at ${new Map()}`).toThrow(
-        new TypeError("message value p0 is no JSON value"),
+        new TypeError("message value p0 is not a JSON value"),
     );
 });

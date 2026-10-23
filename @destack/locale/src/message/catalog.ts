@@ -44,9 +44,9 @@ export const Catalog = Object.assign(catalogSchema, {
         // require the package and the locale the path names
         const expected = dependency ?? owner;
         if (catalog.package !== expected) {
-            throw new TypeError(`catalog ${path} translates ${catalog.package}, not ${expected}`);
+            throw new TypeError(`catalog ${path} is for ${catalog.package}, not ${expected}`);
         } else if (catalog.locale !== tag) {
-            throw new TypeError(`catalog ${path} translates ${catalog.locale}, not ${tag}`);
+            throw new TypeError(`catalog ${path} is for ${catalog.locale}, not ${tag}`);
         }
 
         return catalog;

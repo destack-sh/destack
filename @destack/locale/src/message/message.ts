@@ -64,7 +64,9 @@ export type MessageTag = <const Parts extends readonly unknown[]>(
 export function argument<Name extends string>(name: Name): Argument<Name> {
     // refuse a name that is no variable name, or one the positional placeholders take
     if (!ARGUMENT_NAME.test(name) || POSITIONAL_NAME.test(name)) {
-        throw new TypeError(`message argument ${name} is no camel case name of its own`);
+        throw new TypeError(
+            `message argument ${name} must be a camel case name and not a positional name`,
+        );
     }
 
     return { kind: "argument", name };
@@ -169,7 +171,7 @@ export const Message = Object.assign(messageSchema, {
 function jsonOf(name: string, value: unknown): JsonValue {
     const parsed = schema.json().safeParse(value);
     if (!parsed.success) {
-        throw new TypeError(`message value ${name} is no JSON value`);
+        throw new TypeError(`message value ${name} is not a JSON value`);
     }
 
     return parsed.data;

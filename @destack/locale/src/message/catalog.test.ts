@@ -38,11 +38,11 @@ test("read a build's catalog at the path naming its package and locale, refusing
         read(`locale/${OTHER}/de.json`, NOTES),
     ]).toEqual([
         "de",
-        "catalog locale/de-AT.json translates de, not de-AT",
-        `catalog locale/de.json translates ${NOTES}, not ${OTHER}`,
+        "catalog locale/de-AT.json is for de, not de-AT",
+        `catalog locale/de.json is for ${NOTES}, not ${OTHER}`,
         "not a catalog path: messages/de.json",
         "de",
-        `catalog locale/${OTHER}/de.json translates ${NOTES}, not ${OTHER}`,
+        `catalog locale/${OTHER}/de.json is for ${NOTES}, not ${OTHER}`,
     ]);
 });
 
