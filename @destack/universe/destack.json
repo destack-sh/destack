@@ -4,14 +4,8 @@
     "language": "typescript",
     "runtimes": ["bun", "workerd"],
     "exports": {
-        "./bun": {
+        "./test": {
             "runtimes": ["bun"]
-        },
-        "./cloudflare": {
-            "runtimes": ["workerd"]
-        },
-        "./cloudflare/worker": {
-            "runtimes": ["workerd"]
         }
     }
 }

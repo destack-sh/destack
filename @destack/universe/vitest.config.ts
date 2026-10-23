@@ -1,9 +1,10 @@
 import { defineConfiguration } from "@destack/test/config";
 
 export default defineConfiguration({
+    // run every test against each database the package stores in
+    targets: { database: ["sqlite", "postgresql"] },
     test: {
-        name: process.env["DESTACK_TEST_POSTGRES"] === undefined ? "sqlite" : "postgresql",
-        include: ["tests/**/*.test.ts"],
+        include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
         testTimeout: 5000,
         hookTimeout: 5000,
     },

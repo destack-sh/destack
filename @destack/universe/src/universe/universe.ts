@@ -5,52 +5,50 @@ import {
     type BetterAuthAuthenticatorOptions,
 } from "@destack/account/better-auth";
 import { IdentityKeystore, IdentityRegistry } from "@destack/account/identity";
-import { Account, claim, Residency } from "@destack/account/object";
+import { claim, Residency } from "@destack/account/object";
 import accountPackage, { OAUTH_PATH } from "@destack/account/package";
 import { accountServer, DnsOverHttps, Platform, UniverseRole } from "@destack/account/server";
-import { accountDatabase } from "@destack/account/stack";
 import type { Bucket } from "@destack/bucket";
 import { type DatabaseConnection, defineDatabase, Snapshot } from "@destack/db";
 import { DatabasePersonalKeyring, EventStore } from "@destack/event";
-import { Registry } from "@destack/forge/client";
-import forgePackage from "@destack/forge/package";
 import { type Keyring } from "@destack/identity";
-import type { MailTransport } from "@destack/message/email";
-import { call, type Fetch, PackageMount, type CallKey } from "@destack/object";
+import type { MailTransport } from "@destack/account/better-auth";
+import { call, type Fetch, PackageMount, type CallKey, tablesOf } from "@destack/object";
 import { Health, Server } from "@destack/object/server";
 import objectServer, { implementPackage, ObjectStore } from "@destack/object/server";
 import { Package, type PackageId } from "@destack/package";
-import relayPackage from "@destack/relay/package";
-import { RELAY_TOKEN_LIFETIME_MILLISECONDS } from "@destack/relay/server";
+import type { BuildReader } from "@destack/package/manifest";
+import type { Policy } from "@destack/access";
 import { ResourceContext } from "@destack/resource/context";
-import { Digest, type Identifier, present, schema } from "@destack/schema";
+import { Digest, present, schema } from "@destack/schema";
 import type { Alarm } from "@destack/db";
 import { RequestId, Scope } from "@destack/sync";
 import { Setting } from "@destack/setting";
 import { settingServer } from "@destack/setting/server";
+import settingPackage from "@destack/setting/package";
 import objectPackage from "@destack/object/package";
 import universePackage from "../package.ts";
 import { Run } from "@destack/workflow";
 import { apply } from "./apply.ts";
 import { UniverseDefinition } from "./definition.ts";
+import { UniverseError } from "../error/error.ts";
 import type { Environment } from "@destack/environment";
 
-/** The universe's database: the account database and the runs applying its definition. */
+/** The packages a universe's store serves. */
+export const UNIVERSE_PACKAGES = [objectPackage, accountPackage, settingPackage, universePackage];
+
+/** The universe's database: the packages its store serves. */
 export const universeDatabase = defineDatabase({
     name: "account",
-    tables: [
-        ...accountDatabase.tables,
-        ...Object.values(apply.objects).flatMap((type) => type.tables),
-    ],
+    ...tablesOf({
+        packages: UNIVERSE_PACKAGES,
+        follows: [],
+        tables: [],
+    }),
 });
 
 /** The longest drain on shutdown, in milliseconds. */
 const DRAIN_MILLISECONDS = 5000;
-
-/** The access token lifetimes longer than the default minute: the relay's tunnel renewals. */
-const LIFETIMES: ReadonlyMap<PackageId, number> = new Map([
-    [relayPackage.id, RELAY_TOKEN_LIFETIME_MILLISECONDS],
-]);
 
 /** What a host runs a universe with. */
 export interface UniverseOptions {
@@ -76,9 +74,29 @@ export interface UniverseOptions {
     readonly alarm?: Alarm;
     /** Report a failure the universe answers to no one. */
     readonly report: (error: unknown) => void;
+    /** Open the registry of packages' releases over the universe's directory and signed fetch. */
+    readonly releases: (universe: UniverseLink) => ReleaseRegistry;
+    /** The policies of other packages the universe decides access for, such as the forge's. */
+    readonly policies: readonly Policy[];
+    /** The access token lifetimes longer than the default minute, by audience. */
+    readonly lifetimes: ReadonlyMap<PackageId, number>;
 }
 
-/** A running universe: the account and setting packages, each answering below its mount. */
+/** What a universe lends a registry of releases: its directory and its fetch signed as itself. */
+export interface UniverseLink {
+    /** The universe's directory, its own rows read live. */
+    readonly directory: Directory;
+    /** Create a fetch calling a package as the universe. */
+    readonly connect: (audience: PackageId) => Fetch;
+}
+
+/** The releases of packages a universe opens, as a registry of builds serves them. */
+export interface ReleaseRegistry {
+    /** Open a package's release. */
+    readonly open: (packageId: PackageId, release: string) => Promise<BuildReader>;
+}
+
+/** A running universe: the object, account, setting and universe packages, each below its mount. */
 export class Universe implements AsyncDisposable {
     /** What the universe declares. */
     readonly definition: UniverseDefinition;
@@ -91,7 +109,7 @@ export class Universe implements AsyncDisposable {
         this.servers = servers;
     }
 
-    /** Start the account and setting packages over the universe's database. */
+    /** Start the universe's packages over its database. */
     static async start(options: UniverseOptions): Promise<Universe> {
         // read the universe's options at the start time
         const { origin, database, keyring, callKey, definition } = options;
@@ -107,17 +125,19 @@ export class Universe implements AsyncDisposable {
             clock,
         });
 
-        // call residency homes as the universe once its identity exists, its own requests on loopback
-        let universe: Universe | undefined;
+        // bind the parts that need the store once it exists: the account server's sign-in stores
+        //  through the store, and the universe's signed fetch registers its identity there
+        const signIn = Promise.withResolvers<BetterAuthAuthenticator>();
         const connected = Promise.withResolvers<(audience: PackageId) => Fetch>();
+        const serving = Promise.withResolvers<Universe>();
+
+        // call residency homes as the universe once its identity exists
         const connect =
             (audience: PackageId): Fetch =>
             async (request) =>
                 (await connected.promise)(audience)(request);
         const directory = new Directory(Snapshot.live(database));
-        const home = (account: Identifier<"account">) =>
-            Account.locate(directory.snapshot, account);
-        const registry = Registry.of(directory, home, connect(forgePackage.id), clock);
+        const releases = options.releases({ directory, connect });
 
         // apply the residencies, then each step of the platform's definition, once per run
         const applied = apply.implement(async (step) => {
@@ -138,19 +158,21 @@ export class Universe implements AsyncDisposable {
             }
         });
 
-        // serve the account, setting and universe packages over one store, signing in once it exists
-        const signIn = Promise.withResolvers<BetterAuthAuthenticator>();
+        // serve the account, setting and universe packages over one store
         const store: ObjectStore = new ObjectStore({
             servers: [
                 objectServer,
                 accountServer({
-                    resolver: new DnsOverHttps(),
+                    resolver: new DnsOverHttps((request) => network.fetch(request)),
                     stacks: definition.stacks,
                     signIn: signIn.promise,
                 }),
                 settingServer({
                     declared: Setting.declared((value) =>
-                        registry.open(value.packageId, value.release),
+                        releases.open(
+                            value.packageId,
+                            present(value.release, `the release of ${value.name}`),
+                        ),
                     ),
                     after: [],
                 }),
@@ -163,7 +185,7 @@ export class Universe implements AsyncDisposable {
             chain: async () => undefined,
             principal: Scope.universe,
             partition: Scope.universe.id,
-            policies: Object.values(forgePackage.objects).map((object) => object.policy),
+            policies: options.policies,
             database,
             claims: { object: claim },
             clock,
@@ -210,18 +232,18 @@ export class Universe implements AsyncDisposable {
                 providers: {},
                 objects: store,
                 events,
-                lifetimes: LIFETIMES,
+                lifetimes: options.lifetimes,
                 mail: options.mail,
             }),
         );
 
-        // call packages in spaces as the universe, with tokens its identity signs
+        // call packages in spaces as the universe, with tokens its identity signs, its own origin on loopback
         const source = keystore.source(database, Scope.universe, {
             issuer,
-            send: (request) =>
+            send: async (request) =>
                 request.url.startsWith(origin)
-                    ? present(universe, "the universe").fetch(request)
-                    : network.fetch(request),
+                    ? await (await serving.promise).fetch(request)
+                    : await network.fetch(request),
         });
         connected.resolve((audience) => source.fetchSigned(audience));
 
@@ -229,9 +251,11 @@ export class Universe implements AsyncDisposable {
         const ready = async (signal: AbortSignal) => {
             const run = await applying.ended(database, signal);
             if (run.state !== "completed") {
-                throw new Error(`the run applying the definition ${digest} is ${run.state}`, {
-                    cause: run.failure,
-                });
+                throw new UniverseError(
+                    "DEFINITION_NOT_APPLIED",
+                    `the run applying the definition ${digest} is ${run.state}`,
+                    { cause: run.failure },
+                );
             }
         };
 
@@ -259,7 +283,8 @@ export class Universe implements AsyncDisposable {
                 }),
             ]),
         );
-        universe = new Universe(definition, servers);
+        const universe = new Universe(definition, servers);
+        serving.resolve(universe);
 
         return universe;
     }

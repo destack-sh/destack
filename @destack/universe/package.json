@@ -4,12 +4,11 @@
     "type": "module",
     "license": "MIT",
     "sideEffects": false,
-    "description": "Run a universe: the account and setting packages over one store, on Bun or as a Cloudflare Worker.",
+    "description": "Run a universe: the object, account, setting and universe packages over one store.",
     "exports": {
         ".": "./src/index.ts",
-        "./bun": "./src/bun/index.ts",
-        "./cloudflare": "./src/cloudflare/index.ts",
-        "./cloudflare/worker": "./src/cloudflare/worker.ts",
+        "./package": "./src/package.ts",
+        "./test": "./src/test/index.ts",
         "./destack.json": "./destack.json"
     },
     "scripts": {
@@ -22,23 +21,19 @@
         "@destack/bucket": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/environment": "workspace:*",
+        "@destack/error": "workspace:*",
         "@destack/event": "workspace:*",
-        "@destack/forge": "workspace:*",
         "@destack/identity": "workspace:*",
-        "@destack/message": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
-        "@destack/relay": "workspace:*",
         "@destack/resource": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/setting": "workspace:*",
         "@destack/sync": "workspace:*",
-        "@destack/telemetry": "workspace:*",
         "@destack/workflow": "workspace:*"
     },
     "devDependencies": {
         "@destack/test": "workspace:*",
-        "@types/bun": "1.4.2",
-        "@cloudflare/workers-types": "5.20260917.1"
+        "@types/bun": "1.4.2"
     }
 }
