@@ -258,7 +258,7 @@ async function post(target: OtlpTarget, signal: OtlpSignal, body: Uint8Array): P
     // view the serialized bytes over their ArrayBuffer
     const buffer = body.buffer;
     if (!(buffer instanceof ArrayBuffer)) {
-        throw new TypeError("otlp request bytes must sit in an ArrayBuffer");
+        throw new TypeError("otlp request bytes must be in an ArrayBuffer");
     }
     const bytes = new Uint8Array(buffer, body.byteOffset, body.byteLength);
 
