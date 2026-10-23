@@ -1,76 +1,84 @@
-import type { DomainError, CallErrorCode, Failure } from "@destack/error";
+import { defineErrorFamily, type FamilyError, type ReasonOf } from "@destack/error";
+import { schema } from "@destack/schema";
 import type { BucketFile } from "../bucket/file.ts";
+import { FileDescription } from "../bucket/description.ts";
 import type {} from "@destack/package/import-meta";
 
-/** The call error code of each storage failure. */
-const CALL_CODES = {
-    INVALID_KEY: "BAD_REQUEST",
-    INVALID_RANGE: "BAD_REQUEST",
-    INVALID_CURSOR: "BAD_REQUEST",
-    INVALID_LIMIT: "BAD_REQUEST",
-    INVALID_PART: "BAD_REQUEST",
-    INVALID_CHECKSUM: "BAD_REQUEST",
-    INVALID_STORAGE_CLASS: "BAD_REQUEST",
-    INVALID_CUSTOMER_KEY: "BAD_REQUEST",
-    INCOMPLETE_BODY: "BAD_REQUEST",
-    PRECONDITION_FAILED: "PRECONDITION_FAILED",
-    NO_SUCH_KEY: "NOT_FOUND",
-    NO_SUCH_UPLOAD: "NOT_FOUND",
-    NO_SUCH_BUCKET: "NOT_FOUND",
-    LOCKED: "FORBIDDEN",
-    UNSUPPORTED: "NOT_IMPLEMENTED",
-    FILE_NOT_CLONABLE: "UNPROCESSABLE_CONTENT",
-    FENCED: "SERVICE_UNAVAILABLE",
-    CLOSED: "SERVICE_UNAVAILABLE",
-    BUSY: "SERVICE_UNAVAILABLE",
-    WRITE_FAILED: "INTERNAL_SERVER_ERROR",
-} as const satisfies Readonly<Record<string, CallErrorCode>>;
+/** The file a failed precondition found at its key, null when the key holds none. */
+export const PreconditionFailure = schema.object({
+    /** The current file, null for a missing key. */
+    current: FileDescription.nullable(),
+});
+/** The file a failed precondition found at its key. */
+export type PreconditionFailure = schema.Infer<typeof PreconditionFailure>;
 
-/** A stable cause of failures of file storage. */
-export type BucketReason = keyof typeof CALL_CODES;
+/** The bucket package's failures, each reason with the call error code it answers. */
+export const BucketError = defineErrorFamily(import.meta.destack.package, {
+    // bad request
+    AUTHORIZATION_HEADER_MALFORMED: { code: "BAD_REQUEST" },
+    BAD_DIGEST: { code: "BAD_REQUEST" },
+    CONTENT_SHA256_MISMATCH: { code: "BAD_REQUEST" },
+    INCOMPLETE_BODY: { code: "BAD_REQUEST" },
+    INVALID_ARGUMENT: { code: "BAD_REQUEST" },
+    INVALID_AUTHORIZATION_QUERY: { code: "BAD_REQUEST" },
+    INVALID_DIGEST: { code: "BAD_REQUEST" },
+    INVALID_ENCRYPTION_ALGORITHM: { code: "BAD_REQUEST" },
+    INVALID_PART: { code: "BAD_REQUEST" },
+    INVALID_PART_ORDER: { code: "BAD_REQUEST" },
+    INVALID_RANGE: { code: "BAD_REQUEST" },
+    INVALID_REQUEST: { code: "BAD_REQUEST" },
+    INVALID_STORAGE_CLASS: { code: "BAD_REQUEST" },
+    INVALID_TOKEN: { code: "BAD_REQUEST" },
+    INVALID_URI: { code: "BAD_REQUEST" },
+    MALFORMED_REQUEST: { code: "BAD_REQUEST" },
+    MALFORMED_XML: { code: "BAD_REQUEST" },
+    MAX_MESSAGE_LENGTH_EXCEEDED: { code: "BAD_REQUEST" },
+    METADATA_TOO_LARGE: { code: "BAD_REQUEST" },
+    MISSING_CONTENT_LENGTH: { code: "BAD_REQUEST" },
 
-/** A storage failure with its reason. */
-export class BucketError extends Error implements DomainError {
-    /** The failure's stable cause within its package. */
-    readonly reason: BucketReason;
+    // forbidden
+    ACCESS_DENIED: { code: "FORBIDDEN" },
+    ACCESS_FORBIDDEN: { code: "FORBIDDEN" },
+    INVALID_ACCESS_KEY_ID: { code: "FORBIDDEN" },
+    REQUEST_TIME_TOO_SKEWED: { code: "FORBIDDEN" },
+    SIGNATURE_DOES_NOT_MATCH: { code: "FORBIDDEN" },
 
-    /** Create a storage failure. */
-    constructor(reason: BucketReason, message: string, options?: ErrorOptions) {
-        super(message, options);
-        this.name = "BucketError";
-        this.reason = reason;
-    }
+    // not found
+    NO_SUCH_BUCKET: { code: "NOT_FOUND" },
+    NO_SUCH_KEY: { code: "NOT_FOUND" },
+    NO_SUCH_UPLOAD: { code: "NOT_FOUND" },
 
-    /** Report whether a value is a stable cause of file storage failures. */
-    static isReason(value: string): value is BucketReason {
-        return Object.hasOwn(CALL_CODES, value);
-    }
+    // method not supported
+    METHOD_NOT_ALLOWED: { code: "METHOD_NOT_SUPPORTED" },
 
-    /** Refuse a read or write whose precondition the current file, or its absence, failed. */
-    static preconditionFailed(current: BucketFile | null): BucketPreconditionError {
-        return new BucketPreconditionError(current);
-    }
+    // precondition failed
+    PRECONDITION_UNMET: { code: "PRECONDITION_FAILED", data: PreconditionFailure },
 
-    /** Convert the failure to the call error a caller receives. */
-    toCallError(): Failure {
-        return {
-            code: CALL_CODES[this.reason],
-            reason: this.reason,
-            domain: import.meta.destack.package.name,
-            message: this.message,
-        };
-    }
-}
+    // unprocessable content
+    FILE_NOT_CLONABLE: { code: "UNPROCESSABLE_CONTENT" },
 
-/** A read or write refused by its precondition, with the file it met. */
-export class BucketPreconditionError extends BucketError {
-    /** The file the precondition met, null where none exists. */
-    readonly current: BucketFile | null;
+    // internal server error
+    WRITE_FAILED: { code: "INTERNAL_SERVER_ERROR" },
 
-    /** Create the refusal of a precondition the current file, or its absence, failed. */
-    constructor(current: BucketFile | null) {
-        super("PRECONDITION_FAILED", "at least one of the preconditions did not hold");
-        this.name = "BucketPreconditionError";
-        this.current = current;
-    }
+    // not implemented
+    UNSUPPORTED: { code: "NOT_IMPLEMENTED" },
+
+    // bad gateway
+    UNEXPECTED_STATUS: { code: "BAD_GATEWAY" },
+    UNKNOWN_S3_CODE: { code: "BAD_GATEWAY" },
+
+    // service unavailable
+    BUSY: { code: "SERVICE_UNAVAILABLE" },
+    CLOSED: { code: "SERVICE_UNAVAILABLE" },
+    UNAVAILABLE: { code: "SERVICE_UNAVAILABLE" },
+});
+
+/** A stable cause of bucket failures. */
+export type BucketReason = ReasonOf<typeof BucketError>;
+
+/** Refuse a write whose preconditions did not hold, with the file the key holds now. */
+export function preconditionFailed(current: BucketFile | null): FamilyError<"PRECONDITION_UNMET"> {
+    return BucketError.of("PRECONDITION_UNMET", "at least one of the preconditions did not hold", {
+        data: { current: current === null ? null : current.describe() },
+    });
 }

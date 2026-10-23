@@ -101,9 +101,9 @@ export abstract class CatalogueBucketHost<Opened extends CatalogueBucket = Catal
         // presign with the credentials of the bucket's space
         const credentials = await this.credentials(bucket.scope);
         if (credentials === undefined) {
-            throw new BucketError(
+            throw BucketError.of(
                 "NO_SUCH_BUCKET",
-                `this host has no credentials of ${bucket.scope}`,
+                `this host has no credentials for ${bucket.scope}`,
             );
         }
 

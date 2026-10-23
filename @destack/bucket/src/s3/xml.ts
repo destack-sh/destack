@@ -1,5 +1,5 @@
 import { nth, found } from "@destack/schema";
-import { S3Error } from "./error.ts";
+import { BucketError } from "../error/index.ts";
 
 /** The namespace of S3 response documents. */
 const NAMESPACE = "http://s3.amazonaws.com/doc/2006-03-01/";
@@ -53,16 +53,16 @@ export class XmlNode {
             const current = nth(open, -1);
             // refuse text the tokenizer cannot read and document type declarations
             if (match === null || match[2] !== undefined) {
-                throw new S3Error(
-                    "MalformedXML",
+                throw BucketError.of(
+                    "MALFORMED_XML",
                     "the XML document is not well-formed or uses unsupported markup",
                 );
             }
             // close the current element by its name
             else if (match[3] !== undefined) {
                 if (open.length === 1 || localName(match[3]) !== current.name) {
-                    throw new S3Error(
-                        "MalformedXML",
+                    throw BucketError.of(
+                        "MALFORMED_XML",
                         "the XML document closes an element it did not open",
                     );
                 }
@@ -88,8 +88,8 @@ export class XmlNode {
 
         // require exactly one closed root element
         if (open.length !== 1 || root.children.length !== 1) {
-            throw new S3Error(
-                "MalformedXML",
+            throw BucketError.of(
+                "MALFORMED_XML",
                 "the XML document must have exactly one root element",
             );
         }
@@ -106,7 +106,7 @@ export class XmlNode {
     value(name: string): string | undefined {
         const [child, ...rest] = this.all(name);
         if (rest.length > 0) {
-            throw new S3Error("MalformedXML", `the XML element ${this.name} repeats ${name}`);
+            throw BucketError.of("MALFORMED_XML", `the XML element ${this.name} repeats ${name}`);
         }
 
         return child?.text;
@@ -163,15 +163,15 @@ function decodeText(text: string): string {
         (reference, name: string | undefined) => {
             // refuse a bare ampersand and unknown entities
             if (name === undefined) {
-                throw new S3Error("MalformedXML", "the XML text has a bare ampersand");
+                throw BucketError.of("MALFORMED_XML", "the XML text has a bare ampersand");
             }
             // decode character references
             else if (name.startsWith("#")) {
                 const codepoint =
                     name[1] === "x" ? Number.parseInt(name.slice(2), 16) : Number(name.slice(1));
                 if (codepoint > 0x10ffff) {
-                    throw new S3Error(
-                        "MalformedXML",
+                    throw BucketError.of(
+                        "MALFORMED_XML",
                         `the XML text references an invalid character ${reference}`,
                     );
                 }
@@ -182,8 +182,8 @@ function decodeText(text: string): string {
             else {
                 const character = ENTITIES[name];
                 if (character === undefined) {
-                    throw new S3Error(
-                        "MalformedXML",
+                    throw BucketError.of(
+                        "MALFORMED_XML",
                         `the XML text references an unknown entity ${reference}`,
                     );
                 }

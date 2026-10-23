@@ -49,7 +49,7 @@ test("keep files in memory as a host does: conditional reads and writes, ranges,
         unchanged: "PRECONDITION_FAILED",
         refusedWrite: "PRECONDITION_FAILED",
         pages: [["a/"], ["b"]],
-        locked: ["FORBIDDEN", "LOCKED", "file a/2 is locked"],
+        locked: ["FORBIDDEN", "ACCESS_DENIED", "file a/2 is locked"],
         deleted: null,
     });
 });
@@ -64,6 +64,6 @@ test("record the checksum a write supplies, and refuse one its bytes do not matc
         await refusal(bucket.put("b", "hello", { sha256: "0".repeat(64) })),
     ]).toEqual([
         sha256,
-        ["BAD_REQUEST", "INVALID_CHECKSUM", "object checksum does not match its contents"],
+        ["BAD_REQUEST", "BAD_DIGEST", "object checksum does not match its contents"],
     ]);
 });

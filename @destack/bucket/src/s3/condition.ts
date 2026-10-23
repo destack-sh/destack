@@ -1,6 +1,6 @@
 import { nth, Duration } from "@destack/schema";
-import { type BucketCondition, type BucketFile } from "../bucket/index.ts";
-import { BucketPreconditionError } from "../error/index.ts";
+import { type BucketCondition, BucketFile } from "../bucket/index.ts";
+import { BucketError } from "../error/index.ts";
 
 /** An HTTP entity tag, compared strongly unless weak comparison applies. */
 export interface EntityTag {
@@ -145,8 +145,10 @@ function seconds(time: Date): number {
 
 /** Read the file a refused precondition met, null where none exists. */
 function failed(error: unknown): BucketFile | null {
-    if (error instanceof BucketPreconditionError) {
-        return error.current;
+    if (BucketError.is(error, "PRECONDITION_UNMET")) {
+        const { current } = error.data;
+
+        return current === null ? null : BucketFile.read(current);
     }
     throw error;
 }

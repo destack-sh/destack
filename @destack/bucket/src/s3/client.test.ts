@@ -3,12 +3,11 @@ import { Clock } from "@destack/environment";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { expect, onTestFinished, test } from "@destack/test";
-import type { Bucket, BucketFile } from "../bucket/index.ts";
-import { BucketError, BucketPreconditionError } from "../error/index.ts";
+import { expect, onTestFinished, test, refusal } from "@destack/test";
+import { type Bucket, BucketFile } from "../bucket/index.ts";
+import { BucketError } from "../error/index.ts";
 import { LocalBucket } from "../bun/index.ts";
 import { S3Client } from "./client.ts";
-import { S3Error } from "./error.ts";
 import { S3Server } from "./server.ts";
 
 /** The access key the host authorized the client's requests for. */
@@ -60,9 +59,14 @@ async function outcome(operation: Promise<unknown>) {
 
         return "done";
     } catch (error) {
-        if (error instanceof BucketPreconditionError) {
-            return { code: error.reason, current: describe(error.current) };
-        } else if (error instanceof BucketError) {
+        if (BucketError.is(error, "PRECONDITION_UNMET")) {
+            const { current } = error.data;
+
+            return {
+                code: error.reason,
+                current: describe(current === null ? null : BucketFile.read(current)),
+            };
+        } else if (BucketError.is(error)) {
             return { code: error.reason, message: error.message };
         }
         throw error;
@@ -243,11 +247,11 @@ test.for(CLIENTS)(
         expect({ deletes, listed: await client.list() }).toEqual({
             deletes: [
                 {
-                    code: "LOCKED",
+                    code: "ACCESS_DENIED",
                     message: "file documents/locked.txt is retained until its lock expires",
                 },
                 {
-                    code: "LOCKED",
+                    code: "ACCESS_DENIED",
                     message: "file documents/locked.txt is retained until its lock expires",
                 },
                 "done",
@@ -268,14 +272,12 @@ test("refuse a client signing with another secret, keeping the bucket unchanged"
 
     // refuse the write by its signature
     expect({
-        forged: await forged.put("notes/plan.txt", "forged").then(
-            () => "done",
-            (error: unknown) => (error instanceof S3Error ? [error.code, error.message] : error),
-        ),
+        forged: await refusal(forged.put("notes/plan.txt", "forged")),
         kept: await bucket.get("notes/plan.txt"),
     }).toEqual({
         forged: [
-            "SignatureDoesNotMatch",
+            "FORBIDDEN",
+            "SIGNATURE_DOES_NOT_MATCH",
             "the request signature does not match the signature calculated with the secret key",
         ],
         kept: null,

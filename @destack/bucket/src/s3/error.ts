@@ -1,8 +1,5 @@
-import type { DomainError, CallErrorCode, Failure } from "@destack/error";
+import type { FamilyError } from "@destack/error";
 import { BucketError, type BucketReason } from "../error/index.ts";
-
-/** The domain of S3's error codes, which the S3 API reference defines. */
-const S3_DOMAIN = "s3";
 
 /** The HTTP status of each S3 error code, as the S3 API reference lists them. */
 const S3_ERROR_STATUS = {
@@ -40,47 +37,47 @@ const S3_ERROR_STATUS = {
     XAmzContentSHA256Mismatch: 400,
 } as const;
 
-/** The call error code of each S3 error status. */
-const CALL_CODES = {
-    400: "BAD_REQUEST",
-    403: "FORBIDDEN",
-    404: "NOT_FOUND",
-    405: "METHOD_NOT_SUPPORTED",
-    411: "BAD_REQUEST",
-    412: "PRECONDITION_FAILED",
-    416: "BAD_REQUEST",
-    501: "NOT_IMPLEMENTED",
-    503: "SERVICE_UNAVAILABLE",
-} as const satisfies Readonly<
-    Record<(typeof S3_ERROR_STATUS)[keyof typeof S3_ERROR_STATUS], CallErrorCode>
->;
-
-/** The S3 error code of each storage failure a request causes; the host reports the rest. */
-const STORAGE_ERROR_CODE: Partial<Record<BucketReason, S3ErrorCode>> = {
-    INVALID_KEY: "InvalidArgument",
-    INVALID_RANGE: "InvalidRange",
-    INVALID_CURSOR: "InvalidArgument",
-    INVALID_LIMIT: "InvalidArgument",
-    INVALID_PART: "InvalidPart",
-    INVALID_CHECKSUM: "BadDigest",
-    INVALID_STORAGE_CLASS: "InvalidStorageClass",
-    INVALID_CUSTOMER_KEY: "InvalidRequest",
+/** The S3 error code of each bucket failure S3 has a code for, one failure per code. */
+const S3_ERROR_CODE: Partial<Record<BucketReason, S3ErrorCode>> = {
+    ACCESS_DENIED: "AccessDenied",
+    ACCESS_FORBIDDEN: "AccessForbidden",
+    AUTHORIZATION_HEADER_MALFORMED: "AuthorizationHeaderMalformed",
+    BAD_DIGEST: "BadDigest",
+    CONTENT_SHA256_MISMATCH: "XAmzContentSHA256Mismatch",
     INCOMPLETE_BODY: "IncompleteBody",
-    PRECONDITION_FAILED: "PreconditionFailed",
+    INVALID_ACCESS_KEY_ID: "InvalidAccessKeyId",
+    INVALID_ARGUMENT: "InvalidArgument",
+    INVALID_AUTHORIZATION_QUERY: "AuthorizationQueryParametersError",
+    INVALID_DIGEST: "InvalidDigest",
+    INVALID_ENCRYPTION_ALGORITHM: "InvalidEncryptionAlgorithmError",
+    INVALID_PART: "InvalidPart",
+    INVALID_PART_ORDER: "InvalidPartOrder",
+    INVALID_RANGE: "InvalidRange",
+    INVALID_REQUEST: "InvalidRequest",
+    INVALID_STORAGE_CLASS: "InvalidStorageClass",
+    INVALID_TOKEN: "InvalidToken",
+    INVALID_URI: "InvalidURI",
+    MALFORMED_REQUEST: "BadRequest",
+    MALFORMED_XML: "MalformedXML",
+    MAX_MESSAGE_LENGTH_EXCEEDED: "MaxMessageLengthExceeded",
+    METADATA_TOO_LARGE: "MetadataTooLarge",
+    METHOD_NOT_ALLOWED: "MethodNotAllowed",
+    MISSING_CONTENT_LENGTH: "MissingContentLength",
+    NO_SUCH_BUCKET: "NoSuchBucket",
     NO_SUCH_KEY: "NoSuchKey",
     NO_SUCH_UPLOAD: "NoSuchUpload",
-    LOCKED: "AccessDenied",
+    PRECONDITION_UNMET: "PreconditionFailed",
+    REQUEST_TIME_TOO_SKEWED: "RequestTimeTooSkewed",
+    SIGNATURE_DOES_NOT_MATCH: "SignatureDoesNotMatch",
+    UNAVAILABLE: "ServiceUnavailable",
     UNSUPPORTED: "NotImplemented",
-    FENCED: "ServiceUnavailable",
 };
 
-/** The storage failure each S3 error code answers. */
-const STORAGE_FAILURES: ReadonlyMap<S3ErrorCode, BucketReason> = new Map(
-    Object.entries(STORAGE_ERROR_CODE).flatMap(([failure, code]) => {
-        const answering = Object.values(STORAGE_ERROR_CODE).filter((each) => each === code);
-
-        return answering.length === 1 && BucketError.isReason(failure) ? [[code, failure]] : [];
-    }),
+/** The failure each S3 error code reads back as, all but a failed precondition. */
+const S3_FAILURES: ReadonlyMap<string, ReadReason> = new Map(
+    Object.entries(S3_ERROR_CODE).flatMap(([reason, code]) =>
+        isReadReason(reason) ? [[code, reason] as const] : [],
+    ),
 );
 
 /** The S3 error code of each status of a document-less answer, such as HEAD's. */
@@ -89,90 +86,68 @@ const STATUS_ERROR_CODES: Readonly<Record<number, S3ErrorCode>> = {
     403: "AccessDenied",
     404: "NoSuchKey",
     405: "MethodNotAllowed",
-    412: "PreconditionFailed",
     416: "InvalidRange",
     501: "NotImplemented",
     503: "ServiceUnavailable",
 };
 
+/** The reasons S3 error documents read back as, all but a failed precondition. */
+type ReadReason = Exclude<BucketReason, "PRECONDITION_UNMET">;
+
 /** An S3 error code. */
 export type S3ErrorCode = keyof typeof S3_ERROR_STATUS;
 
-/** A failed S3 request, answered with its code and HTTP status. */
-export class S3Error extends Error implements DomainError {
+/** An S3 error answer: its code, HTTP status and message. */
+export interface S3Answer {
     /** The S3 error code. */
     readonly code: S3ErrorCode;
-
-    /** Create a failure with an S3 error code. */
-    constructor(code: S3ErrorCode, message: string, options?: ErrorOptions) {
-        super(message, options);
-        this.name = "S3Error";
-        this.code = code;
-    }
-
     /** The HTTP status of the code. */
-    get status(): number {
-        return S3_ERROR_STATUS[this.code];
-    }
-
-    /** Convert the failure to the call error a caller receives, by the status of its code. */
-    toCallError(): Failure {
-        // give S3's code as the reason in its constant case, such as NO_SUCH_KEY
-        const reason = this.code
-            .replaceAll(/(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])/gu, "_")
-            .toUpperCase();
-
-        return {
-            code: CALL_CODES[S3_ERROR_STATUS[this.code]],
-            reason,
-            domain: S3_DOMAIN,
-            message: this.message,
-        };
-    }
-
-    /** Read the S3 error of an error document, refusing a code S3 does not define. */
-    static named(code: string, message: string): S3Error {
-        if (!isCode(code)) {
-            throw new TypeError(`the bucket answered the unknown S3 error ${code}`);
-        }
-
-        return new S3Error(code, message);
-    }
-
-    /** Read the S3 error a status answers without a document. */
-    static answered(status: number, message: string): S3Error {
-        const code = STATUS_ERROR_CODES[status];
-        if (code === undefined) {
-            throw new TypeError(`the bucket answered status ${status} without a document`);
-        }
-
-        return new S3Error(code, message);
-    }
-
-    /** Read the storage failure the error answers. */
-    toBucketError(): BucketError | undefined {
-        const failure = STORAGE_FAILURES.get(this.code);
-
-        return failure === undefined ? undefined : new BucketError(failure, this.message);
-    }
-
-    /** Read a failure the request caused as an S3 error, and return undefined for host failures. */
-    static read(error: unknown): S3Error | undefined {
-        // keep S3 errors and translate storage failures the request caused
-        if (error instanceof S3Error) {
-            return error;
-        } else if (!(error instanceof BucketError)) {
-            return undefined;
-        }
-
-        // translate a storage failure with an S3 code
-        const code = STORAGE_ERROR_CODE[error.reason];
-
-        return code === undefined ? undefined : new S3Error(code, error.message, { cause: error });
-    }
+    readonly status: number;
+    /** The failure's message. */
+    readonly message: string;
 }
 
-/** Report whether a value is an S3 error code. */
-function isCode(value: string): value is S3ErrorCode {
-    return Object.hasOwn(S3_ERROR_STATUS, value);
+/** S3 error answers: written for bucket failures, and read back as them. */
+export const S3Answer = {
+    /** Write the S3 answer to a failure the request caused, absent for host failures. */
+    write(error: unknown): S3Answer | undefined {
+        // answer the bucket failures S3 has a code for
+        if (!BucketError.is(error)) {
+            return undefined;
+        }
+        const code = S3_ERROR_CODE[error.reason];
+
+        return code === undefined
+            ? undefined
+            : { code, status: S3_ERROR_STATUS[code], message: error.message };
+    },
+
+    /** Read the failure an S3 error document answers, a gateway failure for an unknown code. */
+    read(code: string, message: string): FamilyError<ReadReason> {
+        const reason = S3_FAILURES.get(code);
+
+        return reason === undefined
+            ? BucketError.of(
+                  "UNKNOWN_S3_CODE",
+                  `the bucket answered unknown S3 error ${code}: ${message}`,
+              )
+            : BucketError.of(reason, message);
+    },
+
+    /** Read the failure a status answers without a document, a gateway failure for others. */
+    readStatus(status: number, message: string): FamilyError<ReadReason> {
+        const code = STATUS_ERROR_CODES[status];
+
+        return code === undefined
+            ? BucketError.of(
+                  "UNEXPECTED_STATUS",
+                  `the bucket answered status ${status} without a document`,
+              )
+            : S3Answer.read(code, message);
+    },
+};
+
+/** Report whether a value is the reason of a failure an S3 error document reads back as. */
+function isReadReason(value: string): value is ReadReason {
+    return Object.hasOwn(BucketError.reasons, value) && value !== "PRECONDITION_UNMET";
 }

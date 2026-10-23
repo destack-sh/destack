@@ -34,7 +34,7 @@ export class Crc32c implements Hasher {
         for (const byte of bytes) {
             const entry = CRC32C_TABLE[(crc ^ byte) & 0xff];
             if (entry === undefined) {
-                throw new TypeError("crc-32c table lacks a byte's entry");
+                throw new TypeError("crc-32c table has no entry for a byte");
             }
             crc = entry ^ (crc >>> 8);
         }

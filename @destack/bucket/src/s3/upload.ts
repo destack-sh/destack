@@ -1,7 +1,7 @@
 import { nth } from "@destack/schema";
 import { MAX_BATCH_FILES, MAX_PART_NUMBER, UploadedPart } from "../bucket/index.ts";
 import type { S3Bucket } from "./bucket.ts";
-import { S3Error } from "./error.ts";
+import { BucketError } from "../error/index.ts";
 import { type CopySource, keyEncoder, xmlResponse } from "./operation.ts";
 import type { S3Request } from "./request.ts";
 import { S3_STORAGE_CLASSES, S3Headers } from "./headers.ts";
@@ -88,7 +88,7 @@ async function uploadPartCopy(
     } else {
         const file = await source.bucket.get(source.key, options);
         if (file === null) {
-            throw new S3Error("NoSuchKey", "the specified key does not exist");
+            throw BucketError.of("NO_SUCH_KEY", "the specified key does not exist");
         }
         part = await upload.uploadPart(partNumber, file.body);
     }
@@ -106,7 +106,7 @@ async function completeUpload(call: S3Request, bucket: S3Bucket): Promise<Respon
         etag: (part.value("ETag") ?? "").replace(/^"(.*)"$/u, "$1"),
     }));
     if (document.name !== "CompleteMultipartUpload" || parts.length === 0) {
-        throw new S3Error("MalformedXML", "the document must list the parts to complete");
+        throw BucketError.of("MALFORMED_XML", "the document must list the parts to complete");
     }
 
     // require valid part numbers in ascending order
@@ -114,7 +114,7 @@ async function completeUpload(call: S3Request, bucket: S3Bucket): Promise<Respon
         UploadedPart.checkNumber(part.partNumber);
     }
     if (parts.slice(1).some((part, index) => part.partNumber <= nth(parts, index).partNumber)) {
-        throw new S3Error("InvalidPartOrder", "the list of parts was not in ascending order");
+        throw BucketError.of("INVALID_PART_ORDER", "the list of parts was not in ascending order");
     }
 
     // assemble the file
@@ -198,7 +198,7 @@ async function listUploads(call: S3Request, bucket: S3Bucket): Promise<Response>
     // mark the next page after the last upload of a truncated one
     const last = page.uploads.at(-1);
     if (page.truncated && last === undefined) {
-        throw new TypeError("a truncated upload page lists no uploads");
+        throw new TypeError("a truncated upload page has no uploads");
     }
     const next = page.truncated ? last : undefined;
 

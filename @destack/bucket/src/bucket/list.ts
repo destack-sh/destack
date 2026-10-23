@@ -67,8 +67,8 @@ function of(file: Pick<BucketFile, keyof BucketEntry>): BucketEntry {
 /** Check a listing page size. */
 function checkLimit(limit: number): void {
     if (!Number.isInteger(limit) || limit < 1 || limit > MAX_BATCH_FILES) {
-        throw new BucketError(
-            "INVALID_LIMIT",
+        throw BucketError.of(
+            "INVALID_ARGUMENT",
             "file listing limits must be integers from 1 through 1000",
         );
     }
@@ -90,14 +90,14 @@ function decodeCursor(value: string, backend: string, selection: string): string
             ),
         );
         if (cursor.backend !== backend || cursor.selection !== selection) {
-            throw new BucketError("INVALID_CURSOR", "invalid file listing cursor");
+            throw BucketError.of("INVALID_ARGUMENT", "invalid file listing cursor");
         }
 
         return cursor.continuation;
     } catch (cause) {
-        if (cause instanceof BucketError) {
+        if (BucketError.is(cause)) {
             throw cause;
         }
-        throw new BucketError("INVALID_CURSOR", "invalid file listing cursor", { cause });
+        throw BucketError.of("INVALID_ARGUMENT", "invalid file listing cursor", { cause });
     }
 }

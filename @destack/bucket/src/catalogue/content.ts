@@ -73,7 +73,7 @@ export class Content {
             return value === undefined ? [] : [{ name, value }];
         });
         if (supplied.length > 1) {
-            throw new BucketError("INVALID_CHECKSUM", "supply at most one checksum");
+            throw BucketError.of("BAD_DIGEST", "supply at most one checksum");
         }
         const [checksum] = supplied;
         const algorithm = checksum?.name;
@@ -96,7 +96,7 @@ export class Content {
         // keep the checked checksum of plain content
         const { etag, actual } = hashes;
         if (etag === undefined || actual === undefined) {
-            throw new TypeError("content hashes are unfinished after the write");
+            throw new TypeError("content hashes are not finished after the write");
         }
         const digest: Partial<Record<DigestAlgorithm, string>> = { md5: etag };
         if (algorithm !== undefined && key === undefined) {
@@ -136,6 +136,6 @@ async function* encode(
     hashes.etag = hashes.md5.digest("hex");
     hashes.actual = hashes.checksum === undefined ? hashes.etag : hashes.checksum.digest("hex");
     if (hashes.expected !== undefined && hashes.actual !== hashes.expected) {
-        throw new BucketError("INVALID_CHECKSUM", "object checksum does not match its contents");
+        throw BucketError.of("BAD_DIGEST", "object checksum does not match its contents");
     }
 }

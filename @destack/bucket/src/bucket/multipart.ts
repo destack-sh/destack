@@ -58,7 +58,7 @@ export interface MultipartUpload {
 /** Require a part number from 1 through 10000. */
 function checkNumber(partNumber: number): void {
     if (!Number.isInteger(partNumber) || partNumber < 1 || partNumber > MAX_PART_NUMBER) {
-        throw new BucketError(
+        throw BucketError.of(
             "INVALID_PART",
             `part numbers must be integers from 1 through ${MAX_PART_NUMBER}`,
         );

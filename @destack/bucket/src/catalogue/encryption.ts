@@ -36,8 +36,8 @@ export class CustomerKey {
                     : undefined
                 : new Uint8Array(value);
         if (bytes === undefined || bytes.byteLength !== KEY_BYTES) {
-            throw new BucketError(
-                "INVALID_CUSTOMER_KEY",
+            throw BucketError.of(
+                "INVALID_REQUEST",
                 "a customer key must be 32 bytes or 64 hexadecimal digits",
             );
         }
@@ -52,13 +52,13 @@ export class CustomerKey {
     /** Require the key a file or upload was encrypted with, or none for plain content. */
     static require(key: CustomerKey | undefined, md5: string | null): void {
         if (md5 === null && key !== undefined) {
-            throw new BucketError(
-                "INVALID_CUSTOMER_KEY",
+            throw BucketError.of(
+                "INVALID_REQUEST",
                 "the file is not encrypted with a customer key",
             );
         } else if (md5 !== null && key?.md5 !== md5) {
-            throw new BucketError(
-                "INVALID_CUSTOMER_KEY",
+            throw BucketError.of(
+                "INVALID_REQUEST",
                 "the file is encrypted with another customer key",
             );
         }

@@ -21,7 +21,7 @@ function resolve(size: number, range: BucketRange): { offset: number; length: nu
         !Number.isSafeInteger(requested) ||
         requested <= 0
     ) {
-        throw new BucketError("INVALID_RANGE", "the requested file range is not satisfiable");
+        throw BucketError.of("INVALID_RANGE", "the requested file range is not satisfiable");
     }
 
     return { offset, length: Math.min(requested, size - offset) };
@@ -37,6 +37,6 @@ function check(range: BucketRange): void {
               (range.length === undefined ||
                   (Number.isSafeInteger(range.length) && range.length > 0));
     if (!valid) {
-        throw new BucketError("INVALID_RANGE", "the requested file range is not satisfiable");
+        throw BucketError.of("INVALID_RANGE", "the requested file range is not satisfiable");
     }
 }

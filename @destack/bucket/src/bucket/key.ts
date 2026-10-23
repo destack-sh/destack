@@ -17,7 +17,10 @@ export const BucketKey = { check, prefixEnd };
 function check(key: string): void {
     const size = new TextEncoder().encode(key).byteLength;
     if (size === 0 || size > MAX_KEY_BYTES || key.includes("\0") || !key.isWellFormed()) {
-        throw new BucketError("INVALID_KEY", "file keys require 1–1024 UTF-8 bytes without NUL");
+        throw BucketError.of(
+            "INVALID_ARGUMENT",
+            "file keys require 1–1024 UTF-8 bytes without NUL",
+        );
     }
 }
 

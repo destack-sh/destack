@@ -23,7 +23,7 @@ import type {
     UploadListing,
     UploadListOptions,
 } from "../s3/bucket.ts";
-import { BucketError } from "../error/index.ts";
+import { BucketError, preconditionFailed } from "../error/index.ts";
 import { file, segment } from "./stack/index.ts";
 import { Content } from "./content.ts";
 import { ContentReader } from "./reader.ts";
@@ -97,7 +97,7 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
             CustomerKey.require(customerKey, entry.ssecKeyMd5);
             const current = CatalogueFile.describe(entry);
             if (!BucketCondition.matches(current, options.onlyIf)) {
-                throw BucketError.preconditionFailed(current);
+                throw preconditionFailed(current);
             }
 
             // read the selected bytes, cancelling the read when the body cannot take it
@@ -186,7 +186,7 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
         // stream the file from its source
         const response = await fetch(url);
         if (!response.ok) {
-            throw new BucketError("WRITE_FAILED", `fetching ${key} returned ${response.status}`);
+            throw BucketError.of("WRITE_FAILED", `fetching ${key} returned ${response.status}`);
         }
         await this.restore(key, response.body, identity);
     }
@@ -250,7 +250,7 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
                 const previous = await this.#storage.entry(key);
                 const current = previous ? CatalogueFile.describe(previous) : null;
                 if (!BucketCondition.matches(current, options.onlyIf)) {
-                    throw BucketError.preconditionFailed(current);
+                    throw preconditionFailed(current);
                 }
 
                 // atomically publish the new immutable file
@@ -312,11 +312,11 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
             this.#storage.checkWritable();
             const entry = await this.#storage.entry(source);
             if (!entry) {
-                throw new BucketError("NO_SUCH_KEY", "the source file does not exist");
+                throw BucketError.of("NO_SUCH_KEY", "the source file does not exist");
             }
             const current = CatalogueFile.describe(entry);
             if (!BucketCondition.matches(current, options.onlyIf)) {
-                throw BucketError.preconditionFailed(current);
+                throw preconditionFailed(current);
             }
 
             // describe the copy with the source's metadata unless the caller replaces it
@@ -351,7 +351,7 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
         // validate the complete request before deleting any keys
         const keys = typeof key === "string" ? [key] : key;
         if (keys.length > MAX_BATCH_FILES) {
-            throw new BucketError("INVALID_LIMIT", "delete accepts at most 1000 file keys");
+            throw BucketError.of("INVALID_ARGUMENT", "delete accepts at most 1000 file keys");
         }
         for (const each of keys) {
             BucketKey.check(each);
@@ -371,8 +371,8 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
                     and(inArray(file.key, keys), gt(file.retainUntil, this.#storage.clock.now())),
                 );
             if (locked.length > 0) {
-                throw new BucketError(
-                    "LOCKED",
+                throw BucketError.of(
+                    "ACCESS_DENIED",
                     `file ${locked.map((entry) => entry.key).join(", ")} is retained until its lock expires`,
                 );
             }

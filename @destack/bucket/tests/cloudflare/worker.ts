@@ -1,8 +1,8 @@
 import { present } from "@destack/schema";
 import assert from "node:assert/strict";
 import type * as Cloudflare from "@cloudflare/workers-types";
-import { BucketPreconditionError } from "../../src/error/index.ts";
 import { R2Bucket } from "../../src/cloudflare/bucket.ts";
+import { BucketError } from "../../src/error/index.ts";
 
 /** The disposable bucket and test authorization supplied at deployment. */
 interface Environment {
@@ -56,12 +56,14 @@ async function exerciseMetadata(bucket: R2Bucket): Promise<void> {
     await assert.rejects(
         bucket.put("document", "wrong", { onlyIf: { etagDoesNotMatch: "*" } }),
         (error: unknown) =>
-            error instanceof BucketPreconditionError && error.current?.etag === original.etag,
+            BucketError.is(error, "PRECONDITION_UNMET") &&
+            error.data.current?.etag === original.etag,
     );
     await assert.rejects(
         bucket.get("document", { onlyIf: { etagMatches: "wrong" } }),
         (error: unknown) =>
-            error instanceof BucketPreconditionError && error.current?.etag === original.etag,
+            BucketError.is(error, "PRECONDITION_UNMET") &&
+            error.data.current?.etag === original.etag,
     );
 }
 

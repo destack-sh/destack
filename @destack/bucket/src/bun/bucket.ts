@@ -38,7 +38,7 @@ export class LocalBucket extends CatalogueBucket {
         const catalogue = join(directory, "bucket.db");
         const isNew = await isMissing(catalogue);
         if (isNew && scope === undefined) {
-            throw new BucketError("NO_SUCH_BUCKET", `no bucket at ${directory}`);
+            throw BucketError.of("NO_SUCH_BUCKET", `no bucket at ${directory}`);
         }
 
         // create the blob directory before publishing any catalogue entries
@@ -65,11 +65,11 @@ export class LocalBucket extends CatalogueBucket {
             // refuse a missing file, then one with several or encrypted segments
             const entry = await this.#storage.entry(key);
             if (!entry) {
-                throw new BucketError("NO_SUCH_KEY", `no file at ${key}`);
+                throw BucketError.of("NO_SUCH_KEY", `no file at ${key}`);
             }
             const [segment, ...rest] = await this.#storage.segments(entry.version);
             if (segment === undefined || rest.length > 0 || segment.nonce !== null) {
-                throw new BucketError(
+                throw BucketError.of(
                     "FILE_NOT_CLONABLE",
                     `cloning needs a plain single-part file: ${key}`,
                 );

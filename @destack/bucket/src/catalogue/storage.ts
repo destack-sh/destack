@@ -129,7 +129,7 @@ export class CatalogueStorage implements AsyncDisposable {
     async #close(): Promise<void> {
         await this.exclusive(async () => {
             if (this.#holders !== 0 || this.#readers.size !== 0) {
-                throw new BucketError(
+                throw BucketError.of(
                     "BUSY",
                     "consume or cancel bucket streams before closing storage",
                 );
@@ -380,7 +380,10 @@ export class CatalogueStorage implements AsyncDisposable {
             .where(eq(file.key, entry.key))
             .get();
         if (previous?.retainUntil != null && previous.retainUntil > this.clock.now()) {
-            throw new BucketError("LOCKED", `file ${entry.key} is retained until its lock expires`);
+            throw BucketError.of(
+                "ACCESS_DENIED",
+                `file ${entry.key} is retained until its lock expires`,
+            );
         }
         await transaction.insert(file).values(entry).onConflictDoUpdate({
             target: file.key,
@@ -477,14 +480,14 @@ export class CatalogueStorage implements AsyncDisposable {
     /** Reject access after disposal. */
     checkOpen(): void {
         if (this.#isClosed) {
-            throw new BucketError("CLOSED", "bucket is closed");
+            throw BucketError.of("CLOSED", "bucket is closed");
         }
     }
 
     /** Refuse a write into a fenced bucket. */
     checkWritable(): void {
         if (this.#isFenced) {
-            throw new BucketError("FENCED", "bucket is fenced while a transfer copies it");
+            throw BucketError.of("UNAVAILABLE", "bucket is fenced while a transfer copies it");
         }
     }
 

@@ -103,7 +103,7 @@ test("provision a bucket as a prefix of the residency's bucket beside its catalo
     expect(await refusal(buckets.open({ bucketId }))).toEqual([
         "NOT_FOUND",
         "NO_SUCH_BUCKET",
-        `no bucket ${bucketId}`,
+        `bucket ${bucketId} not found`,
     ]);
     const provision = await provider.provision.provision(record);
     expect(await provider.provision.provision(record)).toEqual(provision);
@@ -245,7 +245,7 @@ test("fence a cell bucket through its provider: refuse presigned and direct writ
     // fence the bucket, refusing the presigned write and a lease for another, while reads go on
     await provider.fence.fence(provisioned);
     const put = await server.fetch(new Request(presigned.url, { method: "PUT", body: "second" }));
-    const fenced = new BucketError("FENCED", "bucket is fenced while a transfer copies it");
+    const fenced = BucketError.of("UNAVAILABLE", "bucket is fenced while a transfer copies it");
     const leased = await buckets.locate(reference, "write").catch((error: unknown) => error);
     const read = await (await (await buckets.open({ bucketId })).get("notes/a.txt"))?.text();
 

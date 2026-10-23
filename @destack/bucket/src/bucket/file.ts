@@ -2,6 +2,7 @@ import { BucketHttpMetadata } from "./metadata.ts";
 import { ContentDigest } from "./digest.ts";
 import { schema, type JsonValue } from "@destack/schema";
 import { BucketError } from "../error/error.ts";
+import type { FileDescription } from "./description.ts";
 
 /** The storage classes R2 offers, in its own spelling. */
 export const STORAGE_CLASSES = ["Standard", "InfrequentAccess"] as const;
@@ -63,6 +64,46 @@ export class BucketFile {
         this.storageClass = storageClass;
         this.ssecKeyMd5 = ssecKeyMd5;
         this.retainUntil = retainUntil;
+    }
+
+    /** Read a file from its JSON description. */
+    static read(description: FileDescription): BucketFile {
+        return new BucketFile(
+            description.key,
+            description.version,
+            description.size,
+            description.etag,
+            new Date(description.uploaded),
+            BucketHttpMetadata.decode(description.httpMetadata),
+            description.customMetadata,
+            new ContentDigest(description.digest),
+            description.storageClass,
+            description.ssecKeyMd5,
+            description.retainUntil === undefined ? undefined : new Date(description.retainUntil),
+        );
+    }
+
+    /** Describe the file as JSON. */
+    describe(): FileDescription {
+        const description = {
+            key: this.key,
+            version: this.version,
+            size: this.size,
+            etag: this.etag,
+            uploaded: this.uploaded.toISOString(),
+            httpMetadata: BucketHttpMetadata.encode(this.httpMetadata),
+            customMetadata: this.customMetadata,
+            digest: this.digest.toJSON(),
+            storageClass: this.storageClass,
+        };
+
+        return {
+            ...description,
+            ...(this.ssecKeyMd5 === undefined ? {} : { ssecKeyMd5: this.ssecKeyMd5 }),
+            ...(this.retainUntil === undefined
+                ? {}
+                : { retainUntil: this.retainUntil.toISOString() }),
+        };
     }
 
     /** Report whether the file is locked at a time, before its retain-until date. */
@@ -152,7 +193,7 @@ export class BucketFileBody extends BucketFile {
 function read(value: string): StorageClass {
     const storageClass = STORAGE_CLASSES.find((entry) => entry === value);
     if (storageClass === undefined) {
-        throw new BucketError("INVALID_STORAGE_CLASS", `unknown storage class ${value}`);
+        throw BucketError.of("INVALID_STORAGE_CLASS", `unknown storage class ${value}`);
     }
 
     return storageClass;

@@ -30,7 +30,7 @@ export class LocalBlobStore implements BlobStore {
     /** Build the path of a blob's file, refusing anything but a digest. */
     path(digest: Digest): string {
         if (!Digest.safeParse(digest).success) {
-            throw new BucketError("INVALID_KEY", `not a blob digest: ${digest}`);
+            throw BucketError.of("INVALID_ARGUMENT", `not a blob digest: ${digest}`);
         }
 
         return join(this.directory, digest);
@@ -75,7 +75,7 @@ export class LocalBlobStore implements BlobStore {
             // write and hash the bytes into a temporary file
             const digest = await written(temporary, body);
             if (expected !== undefined && digest !== expected) {
-                throw new BucketError("INVALID_CHECKSUM", `blob ${expected} read as ${digest}`);
+                throw BucketError.of("BAD_DIGEST", `expected blob ${expected}, got ${digest}`);
             }
 
             // keep the file under its digest once

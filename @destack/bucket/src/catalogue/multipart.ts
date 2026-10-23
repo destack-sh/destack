@@ -236,7 +236,7 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
         UploadedPart.checkNumber(partNumber);
         const selected = await this.#bucket.get(source, options);
         if (selected === null) {
-            throw new BucketError("NO_SUCH_KEY", "the source file does not exist");
+            throw BucketError.of("NO_SUCH_KEY", "the source file does not exist");
         }
 
         return await this.uploadPart(partNumber, selected.body);
@@ -365,7 +365,7 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
                 )
                 .get();
             if (!entry) {
-                throw new BucketError("NO_SUCH_UPLOAD", "multipart upload does not exist");
+                throw BucketError.of("NO_SUCH_UPLOAD", "multipart upload does not exist");
             }
             if (entry.state !== "active") {
                 return;
@@ -405,7 +405,7 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
             )
             .get();
         if (!entry) {
-            throw new BucketError("NO_SUCH_UPLOAD", "multipart upload does not exist");
+            throw BucketError.of("NO_SUCH_UPLOAD", "multipart upload does not exist");
         }
 
         return entry;
@@ -419,7 +419,7 @@ function requireDistinct(selected: readonly UploadedPart[]): void {
         selected.length > MAX_PART_NUMBER ||
         new Set(selected.map((entry) => entry.partNumber)).size !== selected.length
     ) {
-        throw new BucketError(
+        throw BucketError.of(
             "INVALID_PART",
             `completion requires 1–${MAX_PART_NUMBER} distinct parts`,
         );
@@ -438,7 +438,7 @@ function matchParts(
             // refuse a missing or changed part
             const entry = indexed.get(choice.partNumber);
             if (!entry || entry.etag !== choice.etag) {
-                throw new BucketError("INVALID_PART", "a selected part is missing or has changed");
+                throw BucketError.of("INVALID_PART", "a selected part is missing or has changed");
             }
 
             return entry;
@@ -457,7 +457,7 @@ function requireSizes(ordered: readonly (typeof part.$inferSelect)[]): void {
             .some((entry) => entry.size < MINIMUM_PART_SIZE || entry.size !== first.size) ||
             last.size > first.size)
     ) {
-        throw new BucketError(
+        throw BucketError.of(
             "INVALID_PART",
             "multipart parts require equal sizes of at least five MiB, except the final part",
         );

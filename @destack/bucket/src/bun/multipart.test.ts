@@ -224,7 +224,7 @@ test("list uploads and parts, and copy parts from files", async () => {
             await refusal(first.uploadPartCopy(3, "source", { onlyIf: { etagMatches: "other" } })),
         ).toEqual([
             "PRECONDITION_FAILED",
-            "PRECONDITION_FAILED",
+            "PRECONDITION_UNMET",
             "at least one of the preconditions did not hold",
         ]);
         expect(await refusal(first.uploadPartCopy(3, "missing"))).toEqual([

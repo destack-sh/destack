@@ -16,7 +16,7 @@ import {
     MAX_BATCH_FILES,
     BucketRange,
 } from "../bucket/index.ts";
-import { BucketError } from "../error/index.ts";
+import { BucketError, preconditionFailed } from "../error/index.ts";
 import { R2Body } from "./body.ts";
 import { R2MultipartUpload } from "./multipart.ts";
 import { R2File } from "./file.ts";
@@ -81,7 +81,7 @@ export class R2Bucket implements Bucket {
             return null;
         }
         if (!("body" in entry)) {
-            throw BucketError.preconditionFailed(R2File.describe(entry));
+            throw preconditionFailed(R2File.describe(entry));
         }
 
         // return the body with its resolved range
@@ -114,16 +114,16 @@ export class R2Bucket implements Bucket {
         BucketKey.check(key);
         const { retainUntil, ...written } = options;
         if (retainUntil !== undefined) {
-            throw new BucketError(
+            throw BucketError.of(
                 "UNSUPPORTED",
-                "R2 locks files by bucket lock rules, not per file",
+                "R2 does not lock single files: use bucket lock rules",
             );
         }
         const value = body === null ? null : R2Body.write(body);
         this.#operations.classA += 1;
         const entry = await this.#bucket.put(key, value, written);
         if (entry === null) {
-            throw BucketError.preconditionFailed(await this.head(key));
+            throw preconditionFailed(await this.head(key));
         }
 
         return R2File.describe(entry);
@@ -134,7 +134,7 @@ export class R2Bucket implements Bucket {
         // validate the keys before deleting
         const keys = typeof key === "string" ? [key] : key;
         if (keys.length > MAX_BATCH_FILES) {
-            throw new BucketError("INVALID_LIMIT", "delete accepts at most 1000 file keys");
+            throw BucketError.of("INVALID_ARGUMENT", "delete accepts at most 1000 file keys");
         }
         for (const each of keys) {
             BucketKey.check(each);
@@ -151,9 +151,9 @@ export class R2Bucket implements Bucket {
         BucketKey.check(key);
         const { retainUntil, ...created } = options;
         if (retainUntil !== undefined) {
-            throw new BucketError(
+            throw BucketError.of(
                 "UNSUPPORTED",
-                "R2 locks files by bucket lock rules, not per file",
+                "R2 does not lock single files: use bucket lock rules",
             );
         }
         this.#operations.classA += 1;
@@ -209,7 +209,7 @@ function readError(error: unknown): unknown {
         "code" in error &&
         error.code === INVALID_RANGE_CODE
     ) {
-        return new BucketError("INVALID_RANGE", "the requested file range is not satisfiable", {
+        return BucketError.of("INVALID_RANGE", "the requested file range is not satisfiable", {
             cause: error,
         });
     }

@@ -1,4 +1,4 @@
-import { S3Error } from "./error.ts";
+import { BucketError } from "../error/index.ts";
 
 /** A CORS rule in R2's bucket CORS policy shape. */
 export interface CorsRule {
@@ -26,8 +26,8 @@ function preflight(rules: CorsRule[], request: Request): Response {
     const origin = request.headers.get("origin");
     const method = request.headers.get("access-control-request-method");
     if (origin === null || method === null) {
-        throw new S3Error(
-            "BadRequest",
+        throw BucketError.of(
+            "MALFORMED_REQUEST",
             "a preflight request requires the origin and access-control-request-method headers",
         );
     }
@@ -48,7 +48,7 @@ function preflight(rules: CorsRule[], request: Request): Response {
             ),
     );
     if (rule === undefined) {
-        throw new S3Error("AccessForbidden", "this CORS request is not allowed");
+        throw BucketError.of("ACCESS_FORBIDDEN", "this CORS request is not allowed");
     }
 
     // grant the origin, the rule's methods and the requested headers

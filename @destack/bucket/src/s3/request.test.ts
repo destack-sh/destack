@@ -1,6 +1,5 @@
 import { createHash } from "node:crypto";
-import { expect, test } from "@destack/test";
-import { S3Error } from "./error.ts";
+import { expect, test, refusal } from "@destack/test";
 import { customerKeyHeaders } from "./headers.ts";
 import { S3Request } from "./request.ts";
 import type { S3Authorization } from "./signature.ts";
@@ -31,8 +30,10 @@ test("write a customer key's SSE-C headers, which a request reads back as the ke
     ]);
 });
 
-test("refuse writing the headers of a key other than 32 bytes of base64", () => {
-    expect(() => customerKeyHeaders(new Uint8Array(16).toBase64())).toThrow(
-        new S3Error("InvalidArgument", "the customer key must be 32 bytes of base64"),
-    );
+test("refuse writing the headers of a key other than 32 bytes of base64", async () => {
+    expect(await refusal(() => customerKeyHeaders(new Uint8Array(16).toBase64()))).toEqual([
+        "BAD_REQUEST",
+        "INVALID_ARGUMENT",
+        "the customer key must be 32 bytes of base64",
+    ]);
 });

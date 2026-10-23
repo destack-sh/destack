@@ -1,4 +1,4 @@
-import { S3Error } from "./error.ts";
+import { BucketError } from "../error/index.ts";
 
 /** Encode a value as SigV4 does. */
 export function encodeUri(value: string, isPath: boolean): string {
@@ -16,7 +16,7 @@ export function decodeUri(value: string): string {
     try {
         return decodeURIComponent(value);
     } catch (cause) {
-        throw new S3Error("InvalidURI", "the request URI is not valid percent-encoded UTF-8", {
+        throw BucketError.of("INVALID_URI", "the request URI is not valid percent-encoded UTF-8", {
             cause,
         });
     }

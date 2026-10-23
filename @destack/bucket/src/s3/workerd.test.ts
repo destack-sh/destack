@@ -1,3 +1,4 @@
+import { modulePlugin } from "@destack/package/bun";
 import { WORKERD_COMPATIBILITY_DATE } from "@destack/package/build";
 import { Miniflare } from "miniflare";
 import { fileURLToPath } from "node:url";
@@ -10,6 +11,7 @@ test("sign, presign and verify the documented S3 examples in workerd without Nod
         format: "esm",
         target: "browser",
         conditions: ["workerd", "worker", "browser"],
+        plugins: [modulePlugin],
     });
     const [output] = compiled.outputs;
     if (output === undefined) {

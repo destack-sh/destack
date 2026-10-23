@@ -11,7 +11,7 @@ export const R2Body = { read, write };
 function read(entry: Cloudflare.R2ObjectBody): ReadableStream<Uint8Array> {
     const body = entry.body;
     if (!(body instanceof ReadableStream)) {
-        throw new TypeError("r2 returned a file body outside the web stream class");
+        throw new TypeError("r2 returned a file body that is not a web stream");
     }
 
     return body;
@@ -29,7 +29,7 @@ function write(body: BucketBody): R2Value {
     }
     // refuse classes from outside the runtime
     else {
-        throw new TypeError("the body is a stream or blob from outside the web classes");
+        throw new TypeError("the body is a stream or blob that is not a web class instance");
     }
 }
 

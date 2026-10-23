@@ -43,7 +43,7 @@ export async function exerciseBlobStore(bucket: Bucket): Promise<void> {
 
     // refuse a body read under another digest, keeping nothing of it
     await assert.rejects(store.write(chunked(long), shortDigest), {
-        message: `blob ${shortDigest} read as ${longDigest}`,
+        message: `expected blob ${shortDigest}, got ${longDigest}`,
     });
     assert.deepStrictEqual(
         (await bucket.list({ prefix: "bucket-source/staging/" })).files.map((file) => file.key),

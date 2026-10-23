@@ -18,7 +18,7 @@ import {
     MAX_BATCH_FILES,
     type MultipartUpload,
 } from "../bucket/index.ts";
-import { BucketError } from "../error/index.ts";
+import { BucketError, preconditionFailed } from "../error/index.ts";
 import { Clock } from "@destack/environment";
 
 /** A file a memory bucket keeps: its metadata and bytes. */
@@ -56,7 +56,7 @@ export class MemoryBucket implements Bucket {
         if (kept === undefined) {
             return null;
         } else if (!BucketCondition.matches(kept.file, options.onlyIf)) {
-            throw BucketError.preconditionFailed(kept.file);
+            throw preconditionFailed(kept.file);
         }
 
         // answer the requested bytes
@@ -86,7 +86,7 @@ export class MemoryBucket implements Bucket {
         BucketKey.check(key);
         const current = this.#files.get(key)?.file ?? null;
         if (!BucketCondition.matches(current, options.onlyIf)) {
-            throw BucketError.preconditionFailed(current);
+            throw preconditionFailed(current);
         }
         this.#requireUnlocked(current);
 
@@ -104,8 +104,8 @@ export class MemoryBucket implements Bucket {
             if (supplied !== undefined) {
                 const actual = createHash(algorithm).update(bytes).digest("hex");
                 if (ContentDigest.hex(supplied) !== actual) {
-                    throw new BucketError(
-                        "INVALID_CHECKSUM",
+                    throw BucketError.of(
+                        "BAD_DIGEST",
                         "object checksum does not match its contents",
                     );
                 }
@@ -135,7 +135,7 @@ export class MemoryBucket implements Bucket {
         // check every key and lock before deleting any
         const keys = typeof key === "string" ? [key] : key;
         if (keys.length > MAX_BATCH_FILES) {
-            throw new BucketError("INVALID_LIMIT", "a delete accepts at most 1000 files");
+            throw BucketError.of("INVALID_ARGUMENT", "a delete accepts at most 1000 files");
         }
         for (const each of keys) {
             BucketKey.check(each);
@@ -200,19 +200,19 @@ export class MemoryBucket implements Bucket {
     /** Refuse a multipart upload, which a memory bucket does not keep. */
     createMultipartUpload(): Promise<MultipartUpload> {
         return Promise.reject(
-            new BucketError("UNSUPPORTED", "a memory bucket does not support multipart uploads"),
+            BucketError.of("UNSUPPORTED", "a memory bucket does not support multipart uploads"),
         );
     }
 
     /** Refuse a multipart upload, which a memory bucket does not keep. */
     resumeMultipartUpload(): MultipartUpload {
-        throw new BucketError("UNSUPPORTED", "a memory bucket does not support multipart uploads");
+        throw BucketError.of("UNSUPPORTED", "a memory bucket does not support multipart uploads");
     }
 
     /** Refuse to replace or delete a file its lock keeps. */
     #requireUnlocked(file: BucketFile | null): void {
         if (file?.isLocked(this.#clock.now()) === true) {
-            throw new BucketError("LOCKED", `file ${file.key} is locked`);
+            throw BucketError.of("ACCESS_DENIED", `file ${file.key} is locked`);
         }
     }
 }

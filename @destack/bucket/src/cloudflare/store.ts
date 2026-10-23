@@ -163,7 +163,7 @@ export class R2BlobStore implements BlobStore {
     /** Name a blob's file. */
     #key(digest: Digest): string {
         if (!Digest.safeParse(digest).success) {
-            throw new BucketError("INVALID_KEY", `not a blob digest: ${digest}`);
+            throw BucketError.of("INVALID_ARGUMENT", `not a blob digest: ${digest}`);
         }
 
         return `${this.#prefix}${digest}`;
@@ -226,7 +226,7 @@ function joined(chunks: readonly Uint8Array[], size: number): Uint8Array<ArrayBu
 function verified(hash: Hash, expected: Digest | undefined): Digest {
     const digest = hash.digest("hex");
     if (expected !== undefined && digest !== expected) {
-        throw new BucketError("INVALID_CHECKSUM", `blob ${expected} read as ${digest}`);
+        throw BucketError.of("BAD_DIGEST", `expected blob ${expected}, got ${digest}`);
     }
 
     return digest;

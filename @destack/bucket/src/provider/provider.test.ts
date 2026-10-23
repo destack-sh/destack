@@ -5,10 +5,9 @@ import { ResourceId } from "@destack/resource";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { nth, schema, present } from "@destack/schema";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, test, refusal } from "@destack/test";
 import { LocalBucketHost, LocalBlobStore } from "../bun/index.ts";
 import { segment } from "../catalogue/stack/index.ts";
-import { BucketError } from "../error/index.ts";
 import { bucketProvider } from "./provider.ts";
 import { SweepController } from "./sweep.ts";
 
@@ -72,7 +71,7 @@ test("fence a bucket through its provider, reporting the one concurrent call tha
         provider.fence.fence(provisioned),
         provider.fence.fence(provisioned),
     ]);
-    const refused = await bucket.put("notes/a.txt", "first").catch((error: unknown) => error);
+    const refused = await refusal(bucket.put("notes/a.txt", "first"));
     await provider.fence.lift(provisioned);
     await bucket.put("notes/a.txt", "first");
     expect({
@@ -82,7 +81,11 @@ test("fence a bucket through its provider, reporting the one concurrent call tha
         controllers: provider.controllers,
     }).toEqual({
         set: [false, true],
-        refused: new BucketError("FENCED", "bucket is fenced while a transfer copies it"),
+        refused: [
+            "SERVICE_UNAVAILABLE",
+            "UNAVAILABLE",
+            "bucket is fenced while a transfer copies it",
+        ],
         written: "first",
         controllers: [new SweepController(buckets)],
     });

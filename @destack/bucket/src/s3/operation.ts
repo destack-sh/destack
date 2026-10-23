@@ -1,6 +1,6 @@
 import type { BucketCondition } from "../bucket/index.ts";
 import type { S3Bucket } from "./bucket.ts";
-import { S3Error } from "./error.ts";
+import { BucketError } from "../error/index.ts";
 import type { S3Request } from "./request.ts";
 import { encodeUri } from "./uri.ts";
 import { writeXml, type XmlElement } from "./xml.ts";
@@ -26,7 +26,7 @@ export function xmlResponse(name: string, root: XmlElement): Response {
 export function keyEncoder(call: S3Request): (value: string) => string {
     const encoding = call.query.get("encoding-type");
     if (encoding !== undefined && encoding !== "url") {
-        throw new S3Error("InvalidArgument", "encoding-type must be url");
+        throw BucketError.of("INVALID_ARGUMENT", "encoding-type must be url");
     }
 
     return encoding === "url" ? (value) => encodeUri(value, true) : (value) => value;

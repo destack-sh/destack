@@ -1,5 +1,5 @@
 import { WORKERD_COMPATIBILITY_DATE } from "@destack/package/build";
-import { build } from "esbuild";
+import { modulePlugin } from "@destack/package/bun";
 import { Miniflare } from "miniflare";
 import { fileURLToPath } from "node:url";
 
@@ -8,20 +8,20 @@ let compilation: Promise<string> | undefined;
 
 /** Run the shared bucket assertions inside their Workers runtime. */
 export async function runR2(name: string): Promise<void> {
-    compilation ??= build({
-        entryPoints: [fileURLToPath(new URL("./scenario.ts", import.meta.url))],
-        bundle: true,
-        write: false,
+    compilation ??= Bun.build({
+        entrypoints: [fileURLToPath(new URL("./scenario.ts", import.meta.url))],
         format: "esm",
-        platform: "neutral",
-        external: ["node:*"],
-    }).then(({ outputFiles: [script] }) => {
+        target: "browser",
+        conditions: ["workerd", "worker", "browser"],
+        external: ["node:*", "cloudflare:*"],
+        plugins: [modulePlugin],
+    }).then(({ outputs: [script] }) => {
         // require the single bundled script
         if (script === undefined) {
             throw new Error("expected one bundled scenario script");
         }
 
-        return script.text;
+        return script.text();
     });
 
     // give each scenario an independent R2 binding

@@ -2,7 +2,7 @@ import type { S3Bucket } from "./bucket.ts";
 import { S3Condition } from "./condition.ts";
 import { CorsRule } from "./cors.ts";
 import type { S3Credentials } from "./credentials.ts";
-import { S3Error } from "./error.ts";
+import { S3Answer } from "./error.ts";
 import { S3Object } from "./object.ts";
 import { type CopySource } from "./operation.ts";
 import { S3Request } from "./request.ts";
@@ -13,6 +13,7 @@ import { S3Upload } from "./upload.ts";
 import { decodeUri } from "./uri.ts";
 import { writeErrorXml } from "./xml.ts";
 import type { Clock } from "@destack/environment";
+import { BucketError, preconditionFailed } from "../error/index.ts";
 
 /** The package serving buckets over S3, which a workload's calls to its buckets address. */
 export const S3_PACKAGE = import.meta.destack.package;
@@ -88,11 +89,11 @@ export class S3Server {
             response = await this.#serve(request, url, authorize);
         } catch (error) {
             // answer failures the request caused and rethrow host failures
-            const failure = S3Error.read(error);
-            if (failure === undefined) {
+            const answer = S3Answer.write(error);
+            if (answer === undefined) {
                 throw error;
             }
-            response = failureResponse(failure, request, url.pathname, requestId);
+            response = failureResponse(answer, request, url.pathname, requestId);
         }
 
         // read the request and apply the CORS rules to every answer
@@ -122,7 +123,7 @@ export class S3Server {
         const bucketName = decodeUri(separator === -1 ? path : path.slice(0, separator));
         const key = separator === -1 ? "" : decodeUri(path.slice(separator + 1));
         if (bucketName === "") {
-            throw new S3Error("NotImplemented", "listing buckets is not supported");
+            throw BucketError.of("UNSUPPORTED", "listing buckets is not supported");
         }
 
         // authorize the request, then open the bucket its access key can use
@@ -159,7 +160,7 @@ export class S3Server {
         }
         // refuse other bucket operations
         else {
-            throw new S3Error("NotImplemented", `the bucket operation ${method} is not supported`);
+            throw BucketError.of("UNSUPPORTED", `the bucket operation ${method} is not supported`);
         }
     }
 
@@ -212,7 +213,10 @@ export class S3Server {
         }
         // refuse other methods
         else {
-            throw new S3Error("MethodNotAllowed", `the method ${method} is not allowed on objects`);
+            throw BucketError.of(
+                "METHOD_NOT_ALLOWED",
+                `the method ${method} is not allowed on objects`,
+            );
         }
     }
 
@@ -220,7 +224,7 @@ export class S3Server {
     async #bucket(call: S3Request, bucketName: string): Promise<S3Bucket> {
         const bucket = await this.#open(bucketName, call.authorization.accessKeyId);
         if (bucket === undefined) {
-            throw new S3Error("NoSuchBucket", "the specified bucket does not exist");
+            throw BucketError.of("NO_SUCH_BUCKET", "the specified bucket does not exist");
         }
 
         return bucket;
@@ -240,12 +244,9 @@ export class S3Server {
             sourceBucket.head(source.key),
         );
         if ("failed" in resolution && resolution.failed === null) {
-            throw new S3Error("NoSuchKey", "the specified key does not exist");
+            throw BucketError.of("NO_SUCH_KEY", "the specified key does not exist");
         } else if ("failed" in resolution) {
-            throw new S3Error(
-                "PreconditionFailed",
-                "at least one of the preconditions you specified did not hold",
-            );
+            throw preconditionFailed(resolution.failed);
         }
 
         return {
@@ -259,7 +260,7 @@ export class S3Server {
 
 /** Answer a failure with an S3 error document, or with only its status for HEAD requests. */
 function failureResponse(
-    failure: S3Error,
+    failure: S3Answer,
     request: Request,
     resource: string,
     requestId: string,

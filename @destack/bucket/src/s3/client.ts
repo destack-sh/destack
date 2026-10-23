@@ -21,8 +21,8 @@ import {
     UploadedPart,
     type UploadPartOptions,
 } from "../bucket/index.ts";
-import { BucketError } from "../error/index.ts";
-import { S3Error } from "./error.ts";
+import { BucketError, preconditionFailed } from "../error/index.ts";
+import { S3Answer } from "./error.ts";
 import { type BucketEndpoint, S3Location } from "./location.ts";
 import { S3Signature } from "./signature.ts";
 import {
@@ -120,7 +120,7 @@ export class S3Client implements Bucket {
         if (answer.status === 404) {
             return null;
         } else if (!answer.ok) {
-            throw S3Error.answered(answer.status, `reading ${key} answered ${answer.status}`);
+            throw S3Answer.readStatus(answer.status, `reading ${key} answered ${answer.status}`);
         }
 
         return S3Headers.read(key, sizeOf(answer.headers), answer.headers);
@@ -141,10 +141,10 @@ export class S3Client implements Bucket {
 
         // refuse a failed precondition with the current file, and answer nothing for a missing one
         if (answer.status === 304 || answer.status === 412) {
-            throw BucketError.preconditionFailed(await this.head(key));
+            throw preconditionFailed(await this.head(key));
         } else if (!answer.ok) {
             const failure = await refusal(answer);
-            if (failure instanceof BucketError && failure.reason === "NO_SUCH_KEY") {
+            if (BucketError.is(failure, "NO_SUCH_KEY")) {
                 return null;
             }
             throw failure;
@@ -181,12 +181,12 @@ export class S3Client implements Bucket {
 
         // refuse a failed precondition with the current file, absent for a missing If-Match target
         if (answer.status === 412) {
-            throw BucketError.preconditionFailed(await this.head(key));
+            throw preconditionFailed(await this.head(key));
         } else if (!answer.ok) {
             const failure = await refusal(answer);
-            const isMissing = failure instanceof BucketError && failure.reason === "NO_SUCH_KEY";
+            const isMissing = BucketError.is(failure, "NO_SUCH_KEY");
             throw isMissing && options.onlyIf?.etagMatches !== undefined
-                ? BucketError.preconditionFailed(null)
+                ? preconditionFailed(null)
                 : failure;
         }
 
@@ -198,14 +198,14 @@ export class S3Client implements Bucket {
         // delete one file by its key
         if (typeof key === "string") {
             BucketKey.check(key);
-            await this.#expect(await this.#send({ method: "DELETE", key }));
+            await this.#expect(await this.#send({ method: "DELETE", key }), key);
 
             return;
         }
 
         // delete several files with one document, checking every key first
         if (key.length > MAX_BATCH_FILES) {
-            throw new BucketError("INVALID_LIMIT", "a delete accepts at most 1000 files");
+            throw BucketError.of("INVALID_ARGUMENT", "a delete accepts at most 1000 files");
         }
         for (const each of key) {
             BucketKey.check(each);
@@ -283,7 +283,7 @@ export class S3Client implements Bucket {
         BucketKey.check(key);
         const headers = writtenHeaders(options);
         const answer = await this.#send({ method: "POST", key, query: { uploads: "" }, headers });
-        const document = await this.#document(answer);
+        const document = await this.#document(answer, key);
 
         return this.resumeMultipartUpload(key, required(document, "UploadId"));
     }
@@ -298,7 +298,7 @@ export class S3Client implements Bucket {
             complete: (uploaded) => this.#complete(key, uploadId, uploaded),
             abort: async () => {
                 const query = { uploadId };
-                await this.#expect(await this.#send({ method: "DELETE", key, query }));
+                await this.#expect(await this.#send({ method: "DELETE", key, query }), key);
             },
         };
     }
@@ -320,7 +320,7 @@ export class S3Client implements Bucket {
         const answer = await this.#send({ method: "PUT", key, query, headers, body: sent.body });
 
         // read the part's entity tag
-        const etag = (await this.#expect(answer)).headers.get("etag");
+        const etag = (await this.#expect(answer, key)).headers.get("etag");
         if (etag === null) {
             throw new TypeError(`the part ${partNumber} of ${uploadId} returned no entity tag`);
         }
@@ -336,12 +336,12 @@ export class S3Client implements Bucket {
         });
         const query = { uploadId };
         const answer = await this.#send({ method: "POST", key, query, body: document });
-        const version = (await this.#expect(answer)).headers.get("x-amz-version-id");
+        const version = (await this.#expect(answer, key)).headers.get("x-amz-version-id");
 
         // read the assembled file, whose metadata the upload's creation set, refusing a later version
         const file = await this.head(key);
         if (file === null || file.version !== version) {
-            throw BucketError.preconditionFailed(file);
+            throw preconditionFailed(file);
         }
 
         return file;
@@ -368,8 +368,14 @@ export class S3Client implements Bucket {
     }
 
     /** Require a successful answer, refusing as the bucket or its host refused. */
-    async #expect(answer: Response): Promise<Response> {
-        if (!answer.ok) {
+    async #expect(answer: Response, key?: string): Promise<Response> {
+        // refuse a failed precondition with the file the key holds now
+        if (answer.status === 412 && key !== undefined) {
+            await answer.body?.cancel();
+            throw preconditionFailed(await this.head(key));
+        }
+        // refuse any other failure as the bucket or its host refused
+        else if (!answer.ok) {
             throw await refusal(answer);
         }
 
@@ -377,8 +383,8 @@ export class S3Client implements Bucket {
     }
 
     /** Read the XML document of a successful answer. */
-    async #document(answer: Response): Promise<XmlNode> {
-        return XmlNode.parse(await (await this.#expect(answer)).text());
+    async #document(answer: Response, key?: string): Promise<XmlNode> {
+        return XmlNode.parse(await (await this.#expect(answer, key)).text());
     }
 }
 
@@ -398,9 +404,7 @@ async function refusal(answer: Response): Promise<Error> {
 
 /** Read the storage failure of an S3 error element, else the S3 error itself. */
 function readFailure(element: XmlNode): Error {
-    const failure = S3Error.named(required(element, "Code"), required(element, "Message"));
-
-    return failure.toBucketError() ?? failure;
+    return S3Answer.read(required(element, "Code"), required(element, "Message"));
 }
 
 /** Read the text of a child an S3 document requires. */
@@ -424,7 +428,7 @@ function sizeOf(headers: Headers): number {
     // take the length of the whole body
     const length = headers.get("content-length");
     if (length === null) {
-        throw new TypeError("the answer has no content length");
+        throw new TypeError("the response has no content length");
     }
 
     return Number(length);
@@ -466,7 +470,7 @@ function writeCondition(headers: Headers, condition: BucketCondition | undefined
     const times = [condition.uploadedBefore, condition.uploadedAfter];
     const isWhole = times.every((time) => time === undefined || time.getTime() % 1000 === 0);
     if (!isWhole && condition.secondsGranularity !== true) {
-        throw new BucketError("UNSUPPORTED", "conditions over S3 compare only whole seconds");
+        throw BucketError.of("UNSUPPORTED", "conditions over S3 compare only whole seconds");
     }
 
     // write each condition the caller sets

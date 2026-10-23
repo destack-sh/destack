@@ -72,11 +72,7 @@ test("retain local files across reopen and failed streamed uploads", async () =>
             await expect(bucket.put("document", body)).rejects.toThrow(failure);
             expect(
                 await refusal(bucket.put("document", "changed", { sha256: "0".repeat(64) })),
-            ).toEqual([
-                "BAD_REQUEST",
-                "INVALID_CHECKSUM",
-                "object checksum does not match its contents",
-            ]);
+            ).toEqual(["BAD_REQUEST", "BAD_DIGEST", "object checksum does not match its contents"]);
         }
         await using restored = await LocalBucket.open(directory, "space-test", Clock.system);
         const document = present(await restored.get("document"), "document");
@@ -288,7 +284,7 @@ test("copy files by sharing their contents until the last reference goes", async
             await refusal(bucket.copy("source", "copy", { onlyIf: { etagMatches: "other" } })),
         ).toEqual([
             "PRECONDITION_FAILED",
-            "PRECONDITION_FAILED",
+            "PRECONDITION_UNMET",
             "at least one of the preconditions did not hold",
         ]);
 
@@ -371,24 +367,12 @@ test("encrypt files under customer keys, reading ranges with the key and refusin
             ].map((pending) => refusal(pending)),
         );
         expect(refusals).toEqual([
+            ["BAD_REQUEST", "INVALID_REQUEST", "the file is encrypted with another customer key"],
+            ["BAD_REQUEST", "INVALID_REQUEST", "the file is encrypted with another customer key"],
+            ["BAD_REQUEST", "INVALID_REQUEST", "the file is not encrypted with a customer key"],
             [
                 "BAD_REQUEST",
-                "INVALID_CUSTOMER_KEY",
-                "the file is encrypted with another customer key",
-            ],
-            [
-                "BAD_REQUEST",
-                "INVALID_CUSTOMER_KEY",
-                "the file is encrypted with another customer key",
-            ],
-            [
-                "BAD_REQUEST",
-                "INVALID_CUSTOMER_KEY",
-                "the file is not encrypted with a customer key",
-            ],
-            [
-                "BAD_REQUEST",
-                "INVALID_CUSTOMER_KEY",
+                "INVALID_REQUEST",
                 "a customer key must be 32 bytes or 64 hexadecimal digits",
             ],
         ]);
@@ -397,7 +381,7 @@ test("encrypt files under customer keys, reading ranges with the key and refusin
         const upload = await bucket.createMultipartUpload("parts", { ssecKey });
         expect(await refusal(upload.uploadPart(1, "first"))).toEqual([
             "BAD_REQUEST",
-            "INVALID_CUSTOMER_KEY",
+            "INVALID_REQUEST",
             "the file is encrypted with another customer key",
         ]);
         const part = await upload.uploadPart(1, "parted contents", { ssecKey });
@@ -462,8 +446,8 @@ test("refuse replacing or deleting a locked file until its retain-until date, th
         });
         await bucket.delete("audit/segment");
         expect([replaced, deleted, held, await bucket.head("audit/segment")]).toEqual([
-            ["FORBIDDEN", "LOCKED", "file audit/segment is retained until its lock expires"],
-            ["FORBIDDEN", "LOCKED", "file audit/segment is retained until its lock expires"],
+            ["FORBIDDEN", "ACCESS_DENIED", "file audit/segment is retained until its lock expires"],
+            ["FORBIDDEN", "ACCESS_DENIED", "file audit/segment is retained until its lock expires"],
             [retainUntil.getTime(), false],
             null,
         ]);

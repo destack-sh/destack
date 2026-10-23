@@ -7,3 +7,4 @@ export * from "./range.ts";
 export * from "./list.ts";
 export * from "./key.ts";
 export * from "./metadata.ts";
+export * from "./description.ts";

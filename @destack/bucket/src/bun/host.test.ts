@@ -59,9 +59,7 @@ test("serve a host's buckets over S3 by name, presigned with the credentials of 
 
     // refuse locating a bucket of a space without credentials on the host
     const foreign = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000009");
-    const refused = await buckets
-        .locate({ ...reference, scope: foreign }, "read")
-        .catch((error: unknown) => error);
+    const refused = await refusal(buckets.locate({ ...reference, scope: foreign }, "read"));
     expect([
         located.credentials,
         new URL(presigned.url).origin,
@@ -73,7 +71,7 @@ test("serve a host's buckets over S3 by name, presigned with the credentials of 
         "http://s3.localhost:4200",
         200,
         "first",
-        new BucketError("NO_SUCH_BUCKET", `this host has no credentials of ${foreign}`),
+        ["NOT_FOUND", "NO_SUCH_BUCKET", `this host has no credentials for ${foreign}`],
     ]);
 });
 
@@ -188,7 +186,7 @@ test("fence a bucket during a transfer: finish the write in flight, refuse every
         Date.now(),
     );
     const put = await server.fetch(new Request(presigned.url, { method: "PUT", body: "fourth" }));
-    const fenced = new BucketError("FENCED", "bucket is fenced while a transfer copies it");
+    const fenced = BucketError.of("UNAVAILABLE", "bucket is fenced while a transfer copies it");
     const refusals = await Promise.all(
         [
             bucket.put("notes/d.txt", "fourth"),

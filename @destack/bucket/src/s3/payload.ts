@@ -1,7 +1,7 @@
 import { nth, Digest } from "@destack/schema";
 import { Crc32, Crc32c } from "./checksum.ts";
 import { CryptoHasher, type Hasher } from "./hasher.ts";
-import { S3Error } from "./error.ts";
+import { BucketError } from "../error/index.ts";
 import { EMPTY_HASH, UNSIGNED_PAYLOAD } from "@destack/identity/aws";
 import type { S3Authorization, S3ChunkChain } from "./signature.ts";
 
@@ -81,7 +81,7 @@ export class Payload implements Transformer<Uint8Array, Uint8Array> {
         // chain signed chunks to the request signature, refusing them on a request signed by none
         const { payloadHash, chain } = authorization;
         if (payloadHash === SIGNED_CHUNKS && chain === undefined) {
-            throw new S3Error("InvalidRequest", "signed chunks need a signed request");
+            throw BucketError.of("INVALID_REQUEST", "signed chunks need a signed request");
         } else if (payloadHash === SIGNED_CHUNKS && chain !== undefined) {
             this.#signing = { chain, previous: chain.signature };
         }
@@ -94,10 +94,10 @@ export class Payload implements Transformer<Uint8Array, Uint8Array> {
             this.#payloadHash = payloadHash;
             this.#payloadDigest = new CryptoHasher("sha256");
         } else if (payloadHash === SIGNED_CHUNKS_WITH_TRAILER) {
-            throw new S3Error("NotImplemented", `the payload hash ${payloadHash} is not supported`);
+            throw BucketError.of("UNSUPPORTED", `the payload hash ${payloadHash} is not supported`);
         } else if (payloadHash !== UNSIGNED_PAYLOAD) {
-            throw new S3Error(
-                "InvalidArgument",
+            throw BucketError.of(
+                "INVALID_ARGUMENT",
                 "x-amz-content-sha256 must be UNSIGNED-PAYLOAD, a streaming payload or a SHA-256",
             );
         }
@@ -114,16 +114,16 @@ export class Payload implements Transformer<Uint8Array, Uint8Array> {
         this.#hasTrailer = trailer !== undefined;
         if (trailer !== undefined) {
             if (this.#chunks !== "unsigned") {
-                throw new S3Error(
-                    "InvalidRequest",
+                throw BucketError.of(
+                    "INVALID_REQUEST",
                     "trailing checksums require an aws-chunked body",
                 );
             }
             this.#checks.push({ name: trailer, digest: readChecksum(trailer).create() });
         }
         if (this.#chunks === "unsigned" && !this.#hasTrailer) {
-            throw new S3Error(
-                "InvalidRequest",
+            throw BucketError.of(
+                "INVALID_REQUEST",
                 `${UNSIGNED_CHUNKS_WITH_TRAILER} requires x-amz-trailer`,
             );
         }
@@ -176,7 +176,7 @@ export class Payload implements Transformer<Uint8Array, Uint8Array> {
                 const end = chunk.indexOf(0x0a, offset);
                 const stop = end === -1 ? chunk.length : end + 1;
                 if (this.#line.length + stop - offset > MAX_LINE_BYTES) {
-                    throw new S3Error("IncompleteBody", "an aws-chunked line is too long");
+                    throw BucketError.of("INCOMPLETE_BODY", "an aws-chunked line is too long");
                 }
                 this.#line.push(...chunk.subarray(offset, stop));
                 offset = stop;
@@ -191,10 +191,16 @@ export class Payload implements Transformer<Uint8Array, Uint8Array> {
     flush(): void {
         // require a complete aws-chunked body of the declared length
         if (this.#chunks !== undefined && this.#state !== "done") {
-            throw new S3Error("IncompleteBody", "the aws-chunked body ends before its final chunk");
+            throw BucketError.of(
+                "INCOMPLETE_BODY",
+                "the aws-chunked body ends before its final chunk",
+            );
         }
         if (this.#length !== undefined && this.#received !== this.#length) {
-            throw new S3Error("IncompleteBody", "the body length differs from the declared length");
+            throw BucketError.of(
+                "INCOMPLETE_BODY",
+                "the body length differs from the declared length",
+            );
         }
 
         // compare the signed payload hash
@@ -202,8 +208,8 @@ export class Payload implements Transformer<Uint8Array, Uint8Array> {
             this.#payloadDigest !== undefined &&
             this.#payloadDigest.digest().toHex() !== this.#payloadHash
         ) {
-            throw new S3Error(
-                "XAmzContentSHA256Mismatch",
+            throw BucketError.of(
+                "CONTENT_SHA256_MISMATCH",
                 "the provided x-amz-content-sha256 does not match what was computed",
             );
         }
@@ -212,11 +218,11 @@ export class Payload implements Transformer<Uint8Array, Uint8Array> {
         for (const check of this.#checks) {
             const expected = check.expected ?? this.#trailers.get(check.name);
             if (expected === undefined) {
-                throw new S3Error("InvalidRequest", `the trailer has no ${check.name}`);
+                throw BucketError.of("INVALID_REQUEST", `the trailer has no ${check.name}`);
             }
             if (check.digest.digest().toBase64() !== expected) {
-                throw new S3Error(
-                    "BadDigest",
+                throw BucketError.of(
+                    "BAD_DIGEST",
                     `the ${check.name} you specified did not match the calculated checksum`,
                 );
             }
@@ -238,7 +244,7 @@ export class Payload implements Transformer<Uint8Array, Uint8Array> {
         const bytes = this.#line;
         this.#line = [];
         if (bytes.at(-2) !== 0x0d) {
-            throw new S3Error("IncompleteBody", "aws-chunked lines must end with CRLF");
+            throw BucketError.of("INCOMPLETE_BODY", "aws-chunked lines must end with CRLF");
         }
         const line = new TextDecoder().decode(new Uint8Array(bytes.slice(0, -2)));
 
@@ -249,7 +255,10 @@ export class Payload implements Transformer<Uint8Array, Uint8Array> {
         // verify the chunk the line ends
         else if (this.#state === "data-end") {
             if (line !== "") {
-                throw new S3Error("IncompleteBody", "an aws-chunked chunk is longer than its size");
+                throw BucketError.of(
+                    "INCOMPLETE_BODY",
+                    "an aws-chunked chunk is longer than its size",
+                );
             }
             await this.#verifyChunk();
             this.#state = "header";
@@ -260,7 +269,7 @@ export class Payload implements Transformer<Uint8Array, Uint8Array> {
             if (line === "") {
                 this.#state = "done";
             } else if (separator === -1) {
-                throw new S3Error("IncompleteBody", "an aws-chunked trailer line lacks a colon");
+                throw BucketError.of("INCOMPLETE_BODY", "an aws-chunked trailer line has no colon");
             } else {
                 this.#trailers.set(
                     line.slice(0, separator).trim().toLowerCase(),
@@ -274,8 +283,8 @@ export class Payload implements Transformer<Uint8Array, Uint8Array> {
         }
         // refuse bytes after the end
         else {
-            throw new S3Error(
-                "IncompleteBody",
+            throw BucketError.of(
+                "INCOMPLETE_BODY",
                 "the aws-chunked body continues after its final chunk",
             );
         }
@@ -289,7 +298,7 @@ export class Payload implements Transformer<Uint8Array, Uint8Array> {
                 ? /^([0-9a-fA-F]{1,16});chunk-signature=([0-9a-f]{64})$/u.exec(line)
                 : /^([0-9a-fA-F]{1,16})$/u.exec(line);
         if (match === null) {
-            throw new S3Error("IncompleteBody", "an aws-chunked chunk header is malformed");
+            throw BucketError.of("INCOMPLETE_BODY", "an aws-chunked chunk header is malformed");
         }
         this.#remaining = Number.parseInt(nth(match, 1), 16);
         this.#chunkSignature = match[2] ?? "";
@@ -324,8 +333,8 @@ export class Payload implements Transformer<Uint8Array, Uint8Array> {
         ].join("\n");
         const expected = await signing.chain.sign(stringToSign);
         if (expected !== this.#chunkSignature) {
-            throw new S3Error(
-                "SignatureDoesNotMatch",
+            throw BucketError.of(
+                "SIGNATURE_DOES_NOT_MATCH",
                 "an aws-chunked chunk signature does not match",
             );
         }
@@ -349,7 +358,7 @@ function readChecks(headers: Headers): Check[] {
     // verify at most one x-amz checksum
     const declared = [...headers].filter(([name]) => name.startsWith("x-amz-checksum-"));
     if (declared.length > 1) {
-        throw new S3Error("InvalidRequest", "expecting a single x-amz-checksum- header");
+        throw BucketError.of("INVALID_REQUEST", "expecting a single x-amz-checksum- header");
     }
     for (const [name, value] of declared) {
         const checksum = readChecksum(name);
@@ -364,9 +373,9 @@ function readChecks(headers: Headers): Check[] {
 function readChecksum(name: string): Checksum {
     const checksum = CHECKSUMS.get(name);
     if (!CHECKSUMS.has(name)) {
-        throw new S3Error("InvalidRequest", `the checksum ${name} is not an S3 checksum`);
+        throw BucketError.of("INVALID_REQUEST", `the checksum ${name} is not an S3 checksum`);
     } else if (checksum === undefined) {
-        throw new S3Error("NotImplemented", `the checksum ${name} is not supported`);
+        throw BucketError.of("UNSUPPORTED", `the checksum ${name} is not supported`);
     }
 
     return checksum;
@@ -380,22 +389,22 @@ function readBase64(value: string, length: number, name: string): string {
             return bytes.toBase64();
         }
     } catch (cause) {
-        throw new S3Error("InvalidDigest", `the ${name} header is not valid base64`, { cause });
+        throw BucketError.of("INVALID_DIGEST", `the ${name} header is not valid base64`, { cause });
     }
-    throw new S3Error("InvalidDigest", `the ${name} header must encode ${length} bytes`);
+    throw BucketError.of("INVALID_DIGEST", `the ${name} header must encode ${length} bytes`);
 }
 
 /** Read a declared byte length. */
 function readLength(value: string | null): number {
     if (value === null) {
-        throw new S3Error(
-            "MissingContentLength",
+        throw BucketError.of(
+            "MISSING_CONTENT_LENGTH",
             "aws-chunked bodies require x-amz-decoded-content-length",
         );
     }
     if (!/^\d{1,15}$/u.test(value)) {
-        throw new S3Error(
-            "InvalidArgument",
+        throw BucketError.of(
+            "INVALID_ARGUMENT",
             "the declared body length must be a non-negative integer",
         );
     }

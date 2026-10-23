@@ -1,5 +1,5 @@
 import { schema } from "@destack/schema";
-import { build, stop } from "esbuild";
+import { modulePlugin } from "@destack/package/bun";
 import { fileURLToPath } from "node:url";
 
 /** The account explicitly selected for temporary hosted resources. */
@@ -45,19 +45,17 @@ async function request(path: string, method = "GET", body?: RequestInit["body"])
 }
 
 /** The adapter and hosted checks, built without the local database dependency. */
-const bundle = await build({
-    entryPoints: [fileURLToPath(new URL("./worker.ts", import.meta.url))],
-    bundle: true,
-    write: false,
+const bundle = await Bun.build({
+    entrypoints: [fileURLToPath(new URL("./worker.ts", import.meta.url))],
     format: "esm",
-    platform: "neutral",
-    target: "esnext",
+    target: "browser",
+    conditions: ["workerd", "worker", "browser"],
     external: ["node:assert/strict"],
+    plugins: [modulePlugin],
 });
-await stop();
 
 /** The bundle's single worker script. */
-const [script] = bundle.outputFiles;
+const [script] = bundle.outputs;
 if (script === undefined) {
     throw new Error("expected one bundled worker script");
 }
@@ -91,7 +89,7 @@ try {
     );
     form.set(
         "worker.js",
-        new Blob([script.text], { type: "application/javascript+module" }),
+        new Blob([await script.text()], { type: "application/javascript+module" }),
         "worker.js",
     );
     await request(`workers/scripts/${name}`, "PUT", form);
