@@ -1,11 +1,10 @@
 import { asc, sql } from "../sql/index.ts";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, test, refusal } from "@destack/test";
 import { TestDatabase } from "../test/database.ts";
 import { defineTable, Table } from "../table/table.ts";
 import { bigint, boolean, integer, real, text } from "../table/column.ts";
 import { Condition, type Comparable, type Scalar } from "./condition.ts";
 import { Predicate } from "./predicate.ts";
-import { DatabaseError } from "../error/index.ts";
 import { Namespace } from "./namespace.ts";
 import { Order } from "./order.ts";
 
@@ -199,7 +198,7 @@ test("decide random conditions alike in SQL and in memory", async () => {
     }
 });
 
-test("escape a pattern's wildcards with a backslash, refusing an escape ending it", () => {
+test("escape a pattern's wildcards with a backslash, refusing an escape ending it", async () => {
     // match literal wildcards and backslashes only where escaped
     const matching = (pattern: string) =>
         ["a%", "ab", "a_", "a\\b"].filter((name) =>
@@ -217,10 +216,14 @@ test("escape a pattern's wildcards with a backslash, refusing an escape ending i
         ["a_"],
         ["a\\b"],
     ]);
-    expect(() => matching("a\\")).toThrow("a like pattern ends with its escape");
+    expect(await refusal(() => matching("a\\"))).toEqual([
+        "BAD_REQUEST",
+        "INVALID_QUERY",
+        "a like pattern cannot end with its escape character",
+    ]);
 });
 
-test("order text by code point, as UTF-8 bytes order it", () => {
+test("order text by code point, as UTF-8 bytes order it", async () => {
     const texts = ["😀", "￿", "é", "z", "b", "B", "a", ""];
     const byByte = texts.toSorted((left, right) =>
         Buffer.compare(UTF8.encode(left), UTF8.encode(right)),
@@ -228,11 +231,11 @@ test("order text by code point, as UTF-8 bytes order it", () => {
     expect(texts.toSorted((left, right) => Order.codePoints(left, right))).toEqual(byByte);
 });
 
-test("refuse a descending character range, reading a mixed one as its characters", () => {
+test("refuse a descending character range, reading a mixed one as its characters", async () => {
     // refuse z-a, and read Z-a as Z and a with a hyphen
     const fields = Namespace.fields(sample);
-    expect(() => Condition.resolve({ name: { characters: "z-a" } }, fields)).toThrow(
-        new DatabaseError("INVALID_QUERY", "character range z-a descends"),
+    expect(await refusal(() => Condition.resolve({ name: { characters: "z-a" } }, fields))).toEqual(
+        ["BAD_REQUEST", "INVALID_QUERY", "character range z-a is descending"],
     );
     const set = Predicate.compile(
         Condition.resolve({ name: { characters: "Z-a" } }, fields),
@@ -244,19 +247,20 @@ test("refuse a descending character range, reading a mixed one as its characters
     ]).toEqual([true, false]);
 });
 
-test("refuse comparing fields that order as different values, and a field the table lacks", () => {
+test("refuse comparing fields that order as different values, and a field the table lacks", async () => {
     // compare text with a number, and a number with a missing field
     const require = (condition: Condition) => () =>
         Predicate.require(Condition.resolve(condition, Namespace.fields(sample)), sample);
-    expect(require({ name: { gt: { field: "count" } } })).toThrow(
-        new DatabaseError(
-            "INVALID_QUERY",
-            "condition_sample.name orders as text, compared with count as number",
-        ),
-    );
-    expect(require({ count: { gt: { field: "missing" } } })).toThrow(
-        new DatabaseError("INVALID_QUERY", "condition_sample has no column missing"),
-    );
+    expect(await refusal(require({ name: { gt: { field: "count" } } }))).toEqual([
+        "BAD_REQUEST",
+        "INVALID_QUERY",
+        "cannot compare condition_sample.name (text ordering) with count (number ordering)",
+    ]);
+    expect(await refusal(require({ count: { gt: { field: "missing" } } }))).toEqual([
+        "BAD_REQUEST",
+        "INVALID_QUERY",
+        "condition_sample has no column missing",
+    ]);
 });
 
 test("refuse conditions beyond a thousand terms", () => {

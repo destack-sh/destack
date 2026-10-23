@@ -7,6 +7,7 @@
     "sideEffects": false,
     "exports": {
         ".": "./src/index.ts",
+        "./error": "./src/error/index.ts",
         "./postgres": "./src/postgres/index.ts",
         "./bun": "./src/bun/index.ts",
         "./test": "./src/test/index.ts",

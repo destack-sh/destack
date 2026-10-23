@@ -1,9 +1,8 @@
 import { TestDatabase } from "../test/database.ts";
 import postgres from "postgres";
 import { ResourceId } from "@destack/resource";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, test, refusal } from "@destack/test";
 import { defineDatabase } from "../declare/database.ts";
-import { DatabaseError } from "../error/error.ts";
 import { text } from "../table/column.ts";
 import { defineTable } from "../table/table.ts";
 import { connectPostgres } from "./connection.ts";
@@ -39,9 +38,11 @@ test.skipIf(!isPostgresql)(
         };
 
         // refuse the schema before its tables exist
-        await expect(connector.connect(binding, notes)).rejects.toThrow(
-            new DatabaseError("NOT_APPLIED", "database notes has not applied destack__db__note"),
-        );
+        expect(await refusal(connector.connect(binding, notes))).toEqual([
+            "INTERNAL_SERVER_ERROR",
+            "NOT_APPLIED",
+            "database notes has not applied destack__db__note",
+        ]);
 
         // migrate the schema and write a note through a sole writer
         const migration = await connectPostgres(connector.url(name), notes);

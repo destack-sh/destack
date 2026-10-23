@@ -168,7 +168,7 @@ test("read history past compaction, and refuse compacted windows and other epoch
     expect(await refusal(snapshot.read(item).findMany({ where: everything }))).toEqual([
         "GONE",
         "CHANGES_COMPACTED",
-        `changes after ${position.sequence} were compacted; list the tables again`,
+        `changes after ${position.sequence} were compacted: list the tables again`,
     ]);
 
     // refuse reads after a new epoch

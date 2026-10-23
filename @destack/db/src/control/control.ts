@@ -405,7 +405,7 @@ export class ControlLoop {
                 );
             } catch (error) {
                 // list again after compaction the controllers following the tables
-                if (!(error instanceof DatabaseError && error.reason === "CHANGES_COMPACTED")) {
+                if (!DatabaseError.is(error, "CHANGES_COMPACTED")) {
                     throw error;
                 }
                 listed = this.controllers.filter((controller) =>
@@ -455,14 +455,12 @@ export class ControlLoop {
         const unwatched = reads.tables.find((table) => !watched.has(table));
         if (unwatched !== undefined) {
             throw new TypeError(
-                `${controller.name} lists through ${unwatched[TABLE].name}, which it does not watch`,
+                `${controller.name} lists through ${unwatched[TABLE].name} but does not watch it`,
             );
         }
         // refuse a follower watching tables its list never reads, which would never list again
         else if (watched.size > 0 && reads.tables.length === 0) {
-            throw new TypeError(
-                `${controller.name} follows tables its list never reads through its view`,
-            );
+            throw new TypeError(`${controller.name} watches tables, but its list reads no table`);
         }
         this.#reads.set(controller, reads);
 
@@ -568,7 +566,7 @@ export class ControlLoop {
             return isFollowed;
         } catch (error) {
             // ask that follow to list again behind a compaction, a later one having listed
-            if (error instanceof DatabaseError && error.reason === "CHANGES_COMPACTED") {
+            if (DatabaseError.is(error, "CHANGES_COMPACTED")) {
                 relisting.abort();
 
                 return false;

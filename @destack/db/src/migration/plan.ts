@@ -15,7 +15,7 @@ import type { Merge } from "./merge.ts";
 import { canonicalize, present, Version } from "@destack/schema";
 import { v7 } from "uuid";
 import { Address, Plan, type Action, type Risk, type Step } from "@destack/resource";
-import { PlanError } from "@destack/resource/error";
+import { type PlanProblem, ResourceError, unreachablePlan } from "@destack/resource/error";
 
 /** The generated triggers every plan removes and reinstalls. */
 const TRIGGERS: readonly Triggers[] = [
@@ -51,7 +51,7 @@ export interface TablePlan extends Plan<TableStep> {
 }
 
 /** A problem the declarations must fix. */
-type Problem = PlanError["problems"][number];
+type Problem = PlanProblem;
 
 /** The inputs of a plan. */
 export interface PlanInput {
@@ -125,7 +125,7 @@ export function planTables(input: PlanInput): TablePlan {
 
     // fail with every problem at once
     if (problems.length > 0) {
-        throw new PlanError(problems);
+        throw unreachablePlan(problems);
     }
 
     // reinstall every generated trigger around the steps
@@ -936,10 +936,10 @@ function changeValues(
                 steps.push(step("update", change.target, change.risk, change.detail, []));
             }
         } catch (error) {
-            if (!(error instanceof PlanError)) {
+            if (!ResourceError.is(error, "UNREACHABLE_PLAN")) {
                 throw error;
             }
-            problems.push(...error.problems);
+            problems.push(...error.data.problems);
         }
     }
 

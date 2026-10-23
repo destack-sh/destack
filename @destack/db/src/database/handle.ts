@@ -80,7 +80,7 @@ export const DatabaseHandle = {
         await using database = await connect([]);
         const plan = await database.plan(mergeStates(desired));
         if ((await Plan.digest(plan)) !== digest) {
-            throw new DatabaseError("PLAN_CHANGED", `plan of ${id} changed since review`);
+            throw DatabaseError.of("PLAN_CHANGED", `plan of ${id} changed since review`);
         }
         await database.apply(plan);
     },

@@ -16,9 +16,9 @@ export const LogColumn = {
                   ? Number(value)
                   : Number.NaN;
         if (!Number.isSafeInteger(number) || number < 0) {
-            throw new DatabaseError(
+            throw DatabaseError.of(
                 "QUERY_FAILED",
-                `the log returned ${String(value)} for an integer`,
+                `expected an integer from the log, got ${String(value)}`,
             );
         }
 
@@ -33,7 +33,10 @@ export const LogColumn = {
     /** Read text, failing for any other value. */
     text(value: unknown): string {
         if (typeof value !== "string") {
-            throw new DatabaseError("QUERY_FAILED", `the log returned ${String(value)} for text`);
+            throw DatabaseError.of(
+                "QUERY_FAILED",
+                `expected text from the log, got ${String(value)}`,
+            );
         }
 
         return value;
@@ -48,9 +51,9 @@ export const LogColumn = {
     array(value: unknown, dialect: Dialect): readonly unknown[] {
         const parsed = parseJson(value, dialect);
         if (!Array.isArray(parsed)) {
-            throw new DatabaseError(
+            throw DatabaseError.of(
                 "QUERY_FAILED",
-                `the log returned ${String(value)} for an array`,
+                `expected an array from the log, got ${String(value)}`,
             );
         }
 
@@ -61,9 +64,9 @@ export const LogColumn = {
     object(value: unknown, dialect: Dialect): Readonly<Record<string, unknown>> {
         const parsed = parseJson(value, dialect);
         if (!isObject(parsed)) {
-            throw new DatabaseError(
+            throw DatabaseError.of(
                 "QUERY_FAILED",
-                `the log returned ${String(value)} for an object`,
+                `expected an object from the log, got ${String(value)}`,
             );
         }
 
@@ -89,7 +92,7 @@ export const LogPosition = Object.assign(logPositionSchema, {
     isAfter(position: LogPosition, other: LogPosition): boolean {
         if (position.log !== other.log) {
             throw new TypeError(
-                `positions of logs ${position.log} and ${other.log} do not compare`,
+                `cannot compare positions of logs ${position.log} and ${other.log}`,
             );
         }
 

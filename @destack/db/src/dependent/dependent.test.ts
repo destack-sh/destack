@@ -1,6 +1,5 @@
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, test, refusal } from "@destack/test";
 import { TestDatabase } from "../test/database.ts";
-import { DatabaseError } from "../error/error.ts";
 import { asc, eq } from "../index.ts";
 import { photo, post, remark, section } from "./test/fixture.ts";
 
@@ -31,12 +30,11 @@ test("delete the rows referencing a deleted row of their type, also below foreig
     expect(await read()).toEqual(["2", "4"]);
 
     // refuse deleting the remarked photo
-    await expect(database.delete(photo).where(eq(photo.id, "a"))).rejects.toThrow(
-        new DatabaseError(
-            "BROKEN_REFERENCE",
-            "the change would leave a reference to a missing record",
-        ),
-    );
+    expect(await refusal(() => database.delete(photo).where(eq(photo.id, "a")))).toEqual([
+        "CONFLICT",
+        "BROKEN_REFERENCE",
+        "the change would leave a reference to a missing record",
+    ]);
     expect(await database.select().from(photo)).toEqual([{ id: "a" }]);
     expect(await read()).toEqual(["2", "4"]);
 });

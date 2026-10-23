@@ -88,7 +88,7 @@ test("queue requests until an owner serves, and fail requests a replaced owner l
     expect(await refusal(unanswered)).toEqual([
         "SERVICE_UNAVAILABLE",
         "OWNER_CHANGED",
-        "the owner changed before answering",
+        "the owner changed before responding",
     ]);
 
     // fail a step of the first owner's transaction

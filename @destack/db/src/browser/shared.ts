@@ -163,7 +163,7 @@ function stepRunner(
         else {
             const open = transactions.get(step.transaction);
             if (open === undefined) {
-                throw new DatabaseError("TRANSACTION_CLOSED", "the shared transaction has ended");
+                throw DatabaseError.of("TRANSACTION_CLOSED", "the shared transaction has ended");
             }
             await open.end(step.type === "commit");
 
@@ -181,7 +181,7 @@ async function runStatement(
     // find the open transaction and extend it
     const open = step.transaction === undefined ? undefined : transactions.get(step.transaction);
     if (step.transaction !== undefined && open === undefined) {
-        throw new DatabaseError("TRANSACTION_CLOSED", "the shared transaction has ended");
+        throw DatabaseError.of("TRANSACTION_CLOSED", "the shared transaction has ended");
     }
     open?.touch();
     const target = open?.client ?? client;
@@ -307,7 +307,7 @@ export class SharedQuery implements SqliteQueryClient {
             parameters: parameters.map(sharedValue),
         });
         if (!Array.isArray(rows) || !rows.every((row) => Array.isArray(row))) {
-            throw new TypeError("the shared owner answered rows as arrays with another value");
+            throw new TypeError("the shared owner returned an unexpected value for rows as arrays");
         }
 
         return rows;
@@ -322,7 +322,7 @@ export class SharedQuery implements SqliteQueryClient {
             parameters: parameters.map(sharedValue),
         });
         if (!Array.isArray(rows)) {
-            throw new TypeError("the shared owner answered rows with another value");
+            throw new TypeError("the shared owner returned an unexpected value for rows");
         }
         const answered: unknown[] = rows;
 
@@ -372,9 +372,9 @@ export class SharedClient extends SharedQuery implements SqliteConnectionClient 
     /** Open the log channel of commit announcements, refusing other channel names. */
     static channel(channel: Channel<unknown>, name: string): Channel<unknown> {
         if (name !== LOG_TOPIC) {
-            throw new DatabaseError(
+            throw DatabaseError.of(
                 "NO_CHANNEL",
-                `a shared connection opens only its ${LOG_TOPIC} channel, not ${name}`,
+                `a shared connection can only open its ${LOG_TOPIC} channel, not ${name}`,
             );
         }
 
@@ -474,7 +474,7 @@ export class Party {
     async begin(mode: "deferred" | "immediate" | "exclusive"): Promise<SharedTransaction> {
         const { value, owner } = await this.#ask({ type: "begin", mode }, undefined);
         if (typeof value !== "number") {
-            throw new TypeError("the shared owner answered a transaction with another value");
+            throw new TypeError("the shared owner returned an unexpected value for a transaction");
         }
 
         return { owner, id: value };
@@ -484,7 +484,7 @@ export class Party {
     close(): void {
         this.#stop();
         for (const pending of this.#pending.values()) {
-            pending.reject(new DatabaseError("CONNECTION_CLOSED", "the shared connection closed"));
+            pending.reject(DatabaseError.of("CONNECTION_CLOSED", "the shared connection closed"));
         }
         this.#pending.clear();
     }
@@ -500,7 +500,7 @@ export class Party {
                 } else {
                     this.#pending.delete(id);
                     pending.reject(
-                        new DatabaseError("OWNER_CHANGED", "the owner changed before answering"),
+                        DatabaseError.of("OWNER_CHANGED", "the owner changed before responding"),
                     );
                 }
             }
@@ -527,7 +527,7 @@ export class Party {
         // refuse a step of a stopped owner
         if (asked !== undefined && asked !== this.#owner) {
             return Promise.reject(
-                new DatabaseError("OWNER_CHANGED", "the owner of the transaction changed"),
+                DatabaseError.of("OWNER_CHANGED", "the owner of the transaction changed"),
             );
         }
 

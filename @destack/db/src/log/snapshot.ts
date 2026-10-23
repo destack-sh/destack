@@ -286,7 +286,7 @@ export class Snapshot {
     ): Promise<(RowImage<Definition> & Row)[]> {
         const [rows] = await this.#windows(table, query, undefined);
         if (rows === undefined) {
-            throw new RangeError("an ordered read lacks its one window");
+            throw new RangeError("an ordered read needs exactly one window");
         }
 
         return rows.map((row) => Table.image(table, row));
@@ -628,7 +628,7 @@ export class Snapshot {
     /** Require a head of the position's epoch, returning its sequence. */
     #require(epoch: string, sequence: number): number {
         if (this.position !== undefined && epoch !== this.position.epoch) {
-            throw new DatabaseError(
+            throw DatabaseError.of(
                 "STALE_EPOCH",
                 `position of epoch ${this.position.epoch} is not in the log's epoch ${epoch}`,
             );

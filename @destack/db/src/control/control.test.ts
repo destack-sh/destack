@@ -212,7 +212,7 @@ test("retry a stale or moving key until it succeeds, reporting nothing", async (
                     code: "MISDIRECTED_REQUEST",
                     reason: "SCOPE_MOVED",
                     domain: "@example/object",
-                    message: "space moves to machine-b",
+                    message: "space moved to machine-b",
                     data: { scope: "space", machine: "machine-b" },
                 });
             }
@@ -832,7 +832,7 @@ test("refuse a follower whose list never reads its watched tables through its vi
 
     // fail the loop instead of never listing again
     await expect(loop.run(new AbortController().signal)).rejects.toEqual(
-        new TypeError("blind follows tables its list never reads through its view"),
+        new TypeError("blind watches tables, but its list reads no table"),
     );
 });
 

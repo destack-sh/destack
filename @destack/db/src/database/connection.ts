@@ -1,6 +1,6 @@
 import { schema } from "@destack/schema";
 import { exists, fill, render, type SQL, sql, type SQLWrapper } from "../sql/index.ts";
-import { classifyError, DatabaseError } from "../error/error.ts";
+import { classifyError, DatabaseError, type DeclaredNames } from "../error/error.ts";
 import { DatabaseDriver, type DriverOptions } from "./driver.ts";
 import type { ColumnCipher } from "./cipher.ts";
 import type { Session } from "./session.ts";
@@ -107,7 +107,7 @@ export class DatabaseConnection<
     channel(name: string): Channel<unknown> {
         const open = this.state.openChannel;
         if (open === undefined) {
-            throw new DatabaseError(
+            throw DatabaseError.of(
                 "NO_CHANNEL",
                 `the connection is its database's only writer and has no channel ${name}`,
             );
@@ -222,7 +222,7 @@ export class DatabaseConnection<
     key(cipher: ColumnCipher): void {
         // refuse a second key, which would mix the sealing of stored values
         if (this.state.cipher !== undefined && this.state.cipher !== cipher) {
-            throw new TypeError("the database is keyed already");
+            throw new TypeError("the database already has a key");
         }
         this.state.cipher = cipher;
     }
@@ -443,7 +443,7 @@ export class DatabaseConnection<
             try {
                 return await enclosing.run(execute, "report");
             } catch (error) {
-                throw classifyError(error);
+                throw classifyError(error, this.state.declared);
             }
         }
 
@@ -511,6 +511,8 @@ export class ConnectionState {
     readonly namespace: string | undefined;
     /** The searched tables whose full-text rows SQLite writes update, by SQL name. */
     readonly searched: ReadonlyMap<string, Table>;
+    /** The declared names of the tables and their columns, by SQL name. */
+    readonly declared: DeclaredNames;
     /** The SQL names of the tables without change triggers: unlogged ones and the log's tables. */
     readonly unlogged: ReadonlySet<string>;
     /** The SQL names of the tables whose reads transactions share through the read caches. */
@@ -554,6 +556,20 @@ export class ConnectionState {
                 .filter((table) => table[TABLE].fullText !== undefined)
                 .map((table) => [table[TABLE].sqlName, table]),
         );
+        this.declared = new Map(
+            tables.map((table) => [
+                table[TABLE].sqlName,
+                {
+                    name: table[TABLE].name,
+                    columns: new Map(
+                        table[TABLE].entries.map(([property, column]) => [
+                            column.definition.name,
+                            property,
+                        ]),
+                    ),
+                },
+            ]),
+        );
 
         // watch commits on the log channel, announcing those the database leaves unannounced
         const logged = tables
@@ -589,7 +605,7 @@ export class ConnectionState {
     run<Value>(operation: () => PromiseLike<Value>): Promise<Value> {
         // reject work once closing
         if (this.#closing) {
-            throw new DatabaseError("CONNECTION_CLOSED", "the connection is closing or closed");
+            throw DatabaseError.of("CONNECTION_CLOSED", "the connection is closing or closed");
         }
 
         // count and track the operation

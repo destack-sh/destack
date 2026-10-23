@@ -21,7 +21,7 @@ export async function rebuildTree(
 ): Promise<void> {
     // require a transaction
     if (!database.driver.transaction) {
-        throw new DatabaseError("TRANSACTION_REQUIRED", "tree rebuild requires a transaction");
+        throw DatabaseError.of("TRANSACTION_REQUIRED", "tree rebuild requires a transaction");
     }
 
     // lock the source against parent changes
@@ -70,7 +70,7 @@ async function readParents(
             scopes.set(row.scope, parents);
         }
         if (parents.has(row.id)) {
-            throw new DatabaseError("INVALID_MIGRATION", "tree identity already exists");
+            throw DatabaseError.of("INVALID_MIGRATION", "tree identity already exists");
         }
         parents.set(row.id, row.parent);
     }
@@ -88,11 +88,11 @@ function requireChains(scopes: ReadonlyMap<string, ReadonlyMap<string, string | 
             let current: string | null = id;
             while (current !== null && !complete.has(current)) {
                 if (path.has(current)) {
-                    throw new DatabaseError("INVALID_MIGRATION", "tree contains a cycle");
+                    throw DatabaseError.of("INVALID_MIGRATION", "tree contains a cycle");
                 }
                 const parent = parents.get(current);
                 if (parent === undefined) {
-                    throw new DatabaseError("INVALID_MIGRATION", "tree parent is missing");
+                    throw DatabaseError.of("INVALID_MIGRATION", "tree parent is missing");
                 }
                 path.add(current);
                 current = parent;

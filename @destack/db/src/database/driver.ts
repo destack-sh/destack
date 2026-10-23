@@ -76,7 +76,7 @@ export class DatabaseDriver {
             try {
                 return await operation();
             } catch (error) {
-                throw classifyError(error);
+                throw classifyError(error, this.state.declared);
             } finally {
                 const seconds = (performance.now() - started) / MILLISECONDS_PER_SECOND;
                 operationDuration.record(seconds, { "db.system.name": this.dialect });
@@ -153,7 +153,8 @@ export class DatabaseDriver {
     async execute(statement: DriverStatement): Promise<void> {
         this.transaction?.assertActive();
         await this.write(
-            (session) => failing(statement, session.run(statement.text, statement.parameters)),
+            (session) =>
+                failing(statement, session.run(statement.text, statement.parameters), this.state),
             statement.tables,
         );
     }
@@ -166,8 +167,11 @@ export class DatabaseDriver {
         this.transaction?.assertActive();
 
         return statement.isRead
-            ? this.run(() => failing(statement, query(this.session)))
-            : this.write((session) => failing(statement, query(session)), statement.tables);
+            ? this.run(() => failing(statement, query(this.session), this.state))
+            : this.write(
+                  (session) => failing(statement, query(session), this.state),
+                  statement.tables,
+              );
     }
 
     /** Decide whether a sharing driver's statement reads only shared tables. */
@@ -298,17 +302,21 @@ export class DatabaseDriver {
 }
 
 /** Report a driver failure with its statement, leaving classified failures as they are. */
-async function failing<Value>(statement: DriverStatement, pending: Promise<Value>): Promise<Value> {
+async function failing<Value>(
+    statement: DriverStatement,
+    pending: Promise<Value>,
+    state: ConnectionState,
+): Promise<Value> {
     try {
         return await pending;
     } catch (error) {
         // rethrow a classified failure, and report another with its statement
-        const classified = classifyError(error);
-        if (classified instanceof DatabaseError) {
+        const classified = classifyError(error, state.declared);
+        if (DatabaseError.is(classified)) {
             throw classified;
         }
 
-        throw new DatabaseError("QUERY_FAILED", `query failed: ${statement.text}`, {
+        throw DatabaseError.of("QUERY_FAILED", `query failed: ${statement.text}`, {
             cause: error,
         });
     }

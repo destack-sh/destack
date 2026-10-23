@@ -57,7 +57,7 @@ export class ColumnCipher {
         // require the sealed format
         const text = schema.string().parse(sealed);
         if (!text.startsWith(SEALED_PREFIX)) {
-            throw new TypeError(`${column} holds a value in an unknown sealed format`);
+            throw new TypeError(`${column} contains a value in an unknown encrypted format`);
         }
 
         // decrypt under the column's context and read the JSON
@@ -82,7 +82,7 @@ export class ColumnCipher {
     ): ColumnCipher {
         if (cipher === undefined) {
             throw new TypeError(
-                `${column.definition.name} is sensitive, but the database has no key`,
+                `cannot encrypt sensitive column ${column.definition.name}: the database has no key`,
             );
         }
 
@@ -99,7 +99,7 @@ export class ColumnCipher {
         try {
             return ColumnCipher.#aead(key, nonce, column).decrypt(ciphertext);
         } catch (error) {
-            throw new TypeError(`${column} holds a value the database key cannot open`, {
+            throw new TypeError(`cannot decrypt ${column} with the database key`, {
                 cause: error,
             });
         }

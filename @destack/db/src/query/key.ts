@@ -45,7 +45,7 @@ export const Key = {
                 : sql<boolean>`${column} = ${sql.param(value, column)}`;
         });
         if (first === undefined) {
-            throw new DatabaseError("INVALID_QUERY", `${table[TABLE].name} has no key`);
+            throw DatabaseError.of("INVALID_QUERY", `${table[TABLE].name} has no key`);
         }
 
         return and(first, ...rest);
@@ -92,7 +92,7 @@ export const Key = {
                 typeof value !== "boolean" &&
                 !(value instanceof Uint8Array)
             ) {
-                throw new DatabaseError(
+                throw DatabaseError.of(
                     "INVALID_QUERY",
                     `${table[TABLE].name} row has no key value ${property}`,
                 );
@@ -142,9 +142,9 @@ export const Key = {
         // require a name of this table
         const [owner, ...values] = KeyName.parse(JSON.parse(name));
         if (owner !== table[TABLE].sqlName) {
-            throw new DatabaseError(
+            throw DatabaseError.of(
                 "INVALID_QUERY",
-                `key name ${name} is not of ${table[TABLE].name}`,
+                `key name ${name} does not belong to ${table[TABLE].name}`,
             );
         }
 
@@ -155,7 +155,10 @@ export const Key = {
                 const value = values[index];
 
                 if (value === undefined) {
-                    throw new DatabaseError("INVALID_QUERY", `key name ${name} lacks ${property}`);
+                    throw DatabaseError.of(
+                        "INVALID_QUERY",
+                        `key name ${name} is missing ${property}`,
+                    );
                 }
 
                 return [property, table[TABLE].column(property).definition.fromJson(value)];
@@ -167,7 +170,7 @@ export const Key = {
     value(table: Table, row: Key, property: string): ColumnValue {
         const value = row[property];
         if (value === undefined) {
-            throw new DatabaseError(
+            throw DatabaseError.of(
                 "INVALID_QUERY",
                 `${table[TABLE].name} row has no key value ${property}`,
             );

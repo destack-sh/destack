@@ -500,12 +500,15 @@ test("refuse a write sharing a unique key with a committed row, the transaction'
             each.name,
         ]),
     }).toEqual({
-        batches: [["CONFLICT", "DUPLICATE", "a record with the same unique key exists"], "written"],
-        written: [
-            ["CONFLICT", "DUPLICATE", "a record with the same unique key exists"],
+        batches: [
+            ["CONFLICT", "DUPLICATE", "a record with the same unique key already exists"],
             "written",
-            ["CONFLICT", "DUPLICATE", "a record with the same unique key exists"],
-            ["CONFLICT", "DUPLICATE", "a record with the same unique key exists"],
+        ],
+        written: [
+            ["CONFLICT", "DUPLICATE", "a record with the same unique key already exists"],
+            "written",
+            ["CONFLICT", "DUPLICATE", "a record with the same unique key already exists"],
+            ["CONFLICT", "DUPLICATE", "a record with the same unique key already exists"],
             "written",
         ],
         committed: [
@@ -588,7 +591,7 @@ test("refuse a write sharing a unique key that includes a JSON column, comparing
         await write("c", { x: 2, y: 1 }),
     ]).toEqual([
         "written",
-        ["CONFLICT", "DUPLICATE", "a record with the same unique key exists"],
+        ["CONFLICT", "DUPLICATE", "a record with the same unique key already exists"],
         "written",
     ]);
 });
@@ -615,7 +618,7 @@ test("refuse a write sharing a stored row's unique JSON key in another key order
     expect(await refusal(written)).toEqual([
         "CONFLICT",
         "DUPLICATE",
-        "a record with the same unique key exists",
+        "a record with the same unique key already exists",
     ]);
 });
 
@@ -650,7 +653,7 @@ test("refuse a unique key a commit after the transaction's base took as a lost r
             "CONCURRENT_UPDATE",
             "another commit changed what the transaction read",
         ],
-        ["CONFLICT", "DUPLICATE", "a record with the same unique key exists"],
+        ["CONFLICT", "DUPLICATE", "a record with the same unique key already exists"],
     ]);
 });
 

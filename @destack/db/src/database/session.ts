@@ -168,9 +168,7 @@ export class PostgresSession implements Session {
 /** Require a driver row to be an array of values. */
 function requireArray(row: unknown): unknown[] {
     if (!Array.isArray(row)) {
-        throw new TypeError(
-            "the database driver returned a record where an array of values was asked",
-        );
+        throw new TypeError("the database driver returned a record instead of an array of values");
     }
 
     return row;
@@ -179,9 +177,7 @@ function requireArray(row: unknown): unknown[] {
 /** Require a driver row to be a record of values by column name. */
 function requireRecord(row: unknown): Record<string, unknown> {
     if (!isRecord(row)) {
-        throw new TypeError(
-            "the database driver returned an array of values where a record was asked",
-        );
+        throw new TypeError("the database driver returned an array of values instead of a record");
     }
 
     return row;

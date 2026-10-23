@@ -117,7 +117,7 @@ export function fill(
         // require each named value
         const value = values[parameter.placeholder];
         if (value === undefined) {
-            throw new DatabaseError(
+            throw DatabaseError.of(
                 "INVALID_QUERY",
                 `no value for placeholder ${parameter.placeholder}`,
             );
@@ -224,7 +224,7 @@ function bind(chunk: Parameter | Placeholder, target: Target): string {
     const value = chunk instanceof Placeholder ? chunk : encoded(chunk, target);
     if (target.parameters === undefined) {
         if (value instanceof Placeholder) {
-            throw new DatabaseError(
+            throw DatabaseError.of(
                 "INVALID_QUERY",
                 `declarations cannot bind placeholder ${value.placeholder}`,
             );
@@ -282,9 +282,9 @@ function driverValue(value: unknown): DriverValue {
         return value;
     }
 
-    throw new DatabaseError(
+    throw DatabaseError.of(
         "INVALID_QUERY",
-        `bind a ${typeof value} through its column: drivers accept text, numbers, booleans, bytes and null`,
+        `cannot bind a ${typeof value} without its column: drivers accept text, numbers, booleans, bytes and null`,
     );
 }
 
@@ -328,7 +328,7 @@ function define(table: CommonTable, target: Target): string {
     // refuse a common table in a declaration, which defines none
     const { commons } = target;
     if (commons === undefined) {
-        throw new DatabaseError(
+        throw DatabaseError.of(
             "INVALID_QUERY",
             `declarations cannot read common table ${table.name}`,
         );

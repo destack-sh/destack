@@ -1,5 +1,4 @@
-import { expect, test } from "@destack/test";
-import { DatabaseError } from "../error/error.ts";
+import { expect, test, refusal } from "@destack/test";
 import { Filter } from "./filter.ts";
 
 test("read comparisons, named values and wildcards into conditions", () => {
@@ -91,9 +90,11 @@ test("decide a filter over plain rows as SQL decides it, dotted keys named whole
     ]);
 });
 
-test("refuse a filter on a field outside the filterable ones", () => {
+test("refuse a filter on a field outside the filterable ones", async () => {
     // refuse a field the caller may not filter by
-    expect(() =>
-        Filter.parse("secret = x", { fields: new Set(["status", "title", "owner"]) }),
-    ).toThrow(new DatabaseError("INVALID_QUERY", "unknown field secret at 0 in filter secret = x"));
+    expect(
+        await refusal(() =>
+            Filter.parse("secret = x", { fields: new Set(["status", "title", "owner"]) }),
+        ),
+    ).toEqual(["BAD_REQUEST", "INVALID_QUERY", "unknown field secret at 0 in filter secret = x"]);
 });

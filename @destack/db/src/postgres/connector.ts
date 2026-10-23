@@ -45,7 +45,7 @@ export class PostgresConnector implements DatabaseConnector {
         const unapplied = await declaration.check(connection);
         if (unapplied.length > 0) {
             await connection.close();
-            throw new DatabaseError(
+            throw DatabaseError.of(
                 "NOT_APPLIED",
                 `database ${declaration.name} has not applied ${unapplied.join(", ")}`,
             );

@@ -112,7 +112,7 @@ function newestOf(states: readonly TableState[]): TableState {
             Order.codePoints(canonicalize(left), canonicalize(right)),
     );
     if (newest === undefined) {
-        throw new TypeError("merge a table from at least one state");
+        throw new TypeError("merging a table needs at least one state");
     }
 
     return newest;

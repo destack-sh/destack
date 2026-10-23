@@ -3,6 +3,7 @@ import type { Table } from "../table/table.ts";
 import type { DriverValue } from "../table/column.ts";
 import type { SqliteConnectionClient, SqliteQueryClient } from "../sqlite/client.ts";
 import { SqliteDatabase } from "../sqlite/database.ts";
+import type { FamilyError } from "@destack/error";
 import { DatabaseError } from "../error/error.ts";
 import { SQLValue } from "../sql/json.ts";
 import {
@@ -110,9 +111,9 @@ export class DurableObjectReader implements SqliteConnectionClient {
             }),
         );
         if (!response.ok) {
-            throw new DatabaseError(
+            throw DatabaseError.of(
                 "QUERY_FAILED",
-                `the object answered ${response.status}: ${await response.text()}`,
+                `the object responded with ${response.status}: ${await response.text()}`,
             );
         }
 
@@ -120,10 +121,10 @@ export class DurableObjectReader implements SqliteConnectionClient {
     }
 
     /** Build the refusal of anything but a read. */
-    static #refusal(): DatabaseError {
-        return new DatabaseError(
+    static #refusal(): FamilyError<"INVALID_QUERY"> {
+        return DatabaseError.of(
             "INVALID_QUERY",
-            "a reader of another object's database only runs reads",
+            "a reader of another object's database can only run reads",
         );
     }
 }

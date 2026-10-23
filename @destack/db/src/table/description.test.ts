@@ -1,5 +1,5 @@
 import { sql } from "../sql/index.ts";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, test, refusal } from "@destack/test";
 import { defineTable, Table, TABLE } from "../table/table.ts";
 import { integer, json, text, textEnum } from "../table/column.ts";
 import { index, unique } from "./constraint.ts";
@@ -7,7 +7,6 @@ import { describeTable } from "./description.ts";
 import { declareState } from "../migration/state.ts";
 import { present, schema } from "@destack/schema";
 import { TEST_CIPHER, TestDatabase } from "../test/database.ts";
-import { DatabaseError } from "../error/error.ts";
 
 /** Lamps with an enumerated state. */
 const lamp = defineTable("describe_lamp", {
@@ -65,11 +64,13 @@ test("refuse a value outside an enum column's values in the database itself", as
         { id: "a", state: "on" },
         { id: "b", state: null },
     ]);
-    await expect(
-        storage.database.all(
-            sql`INSERT INTO ${sql.identifier(lamp[TABLE].sqlName)} (id, state) VALUES ('c', 'dim')`,
+    expect(
+        await refusal(
+            storage.database.all(
+                sql`INSERT INTO ${sql.identifier(lamp[TABLE].sqlName)} (id, state) VALUES ('c', 'dim')`,
+            ),
         ),
-    ).rejects.toThrow(new DatabaseError("INVALID_RECORD", "a record fails a declared check"));
+    ).toEqual(["BAD_REQUEST", "INVALID_RECORD", "a record fails a declared check"]);
     expect((await storage.database.select().from(lamp)).length).toBe(2);
 });
 

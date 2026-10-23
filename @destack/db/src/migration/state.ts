@@ -363,7 +363,7 @@ export async function readState(database: DatabaseConnection): Promise<TableStat
         if (!parsed.success) {
             const name = await readName(database);
             const problem = schema.prettifyError(parsed.error);
-            throw new DatabaseError(
+            throw DatabaseError.of(
                 "INVALID_MIGRATION",
                 `the applied state of table ${row.table} in database ${name} has an unknown format: ${problem}`,
                 { cause: parsed.error },
@@ -479,7 +479,7 @@ function describeConversions(table: Table, dialect: Dialect): TableState["conver
                         kind === column.kind || (kind === "real" && column.kind === "integer");
                     if (!isSameKind) {
                         throw new TypeError(
-                            `conversion of ${definition.name}.${property} yields ${kind} for a ${column.kind} column`,
+                            `conversion of ${definition.name}.${property} produces ${kind} for a ${column.kind} column`,
                         );
                     }
 

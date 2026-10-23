@@ -1,5 +1,4 @@
-import { expect, test } from "@destack/test";
-import { DatabaseError } from "../error/error.ts";
+import { expect, test, refusal } from "@destack/test";
 import { SqliteWorkQueue } from "./client.ts";
 
 test("run queued work in arrival order, one piece at a time", async () => {
@@ -26,10 +25,7 @@ test("refuse work whose turn does not come within the wait", async () => {
     const held = Promise.withResolvers<void>();
     const holding = queue.run(() => held.promise);
     const refused = queue.run(async () => "never");
-    const failure = await refused.then(
-        () => undefined,
-        (error: unknown) => error,
-    );
+    const failure = await refusal(refused);
 
     // run later work once the holder finishes
     held.resolve();
@@ -37,10 +33,11 @@ test("refuse work whose turn does not come within the wait", async () => {
     const later = await queue.run(async () => "later");
 
     expect([failure, later]).toEqual([
-        new DatabaseError(
+        [
+            "SERVICE_UNAVAILABLE",
             "CONNECTION_TIMEOUT",
             "waited 1 ms for the connection: a transaction still has it",
-        ),
+        ],
         "later",
     ]);
 });

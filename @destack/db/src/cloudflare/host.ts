@@ -135,7 +135,7 @@ export class StorageTransaction {
         return this.#isOpen
             ? work()
             : Promise.reject(
-                  new DatabaseError("TRANSACTION_REQUIRED", "the storage transaction closed"),
+                  DatabaseError.of("TRANSACTION_REQUIRED", "the storage transaction closed"),
               );
     }
 
@@ -214,7 +214,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
             !reference.startsWith(REFERENCE_PREFIX) ||
             reference.length === REFERENCE_PREFIX.length
         ) {
-            throw new DatabaseError("INVALID_RECORD", `no Durable Object database: ${reference}`);
+            throw DatabaseError.of("INVALID_RECORD", `no Durable Object database ${reference}`);
         }
 
         return reference.slice(REFERENCE_PREFIX.length);
@@ -323,9 +323,9 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
         const content = (scope: string) => {
             const authorization = request.headers.get("authorization");
             if (authorization === null) {
-                throw new DatabaseError(
+                throw DatabaseError.of(
                     "CONTENT_UNAVAILABLE",
-                    "a copy needs the sender's credential",
+                    "a copy is missing the sender's credential",
                 );
             }
 
@@ -369,9 +369,9 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
     async read(request: Request): Promise<Response> {
         const body = DurableObjectDatabaseOperation.parse(await request.json());
         if (body.operation !== "read") {
-            throw new DatabaseError(
+            throw DatabaseError.of(
                 "INVALID_QUERY",
-                `this object answers reads alone, not ${body.operation}`,
+                `this object only accepts reads, not ${body.operation}`,
             );
         }
 
@@ -387,7 +387,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
             const query = new DurableObjectQuery(this, { kind: "joined", transaction });
             const read = await query.read(statement.sql, parameters, statement.rows);
             if (read.rowsWritten > 0) {
-                throw new DatabaseError("INVALID_QUERY", "a read of another object wrote rows");
+                throw DatabaseError.of("INVALID_QUERY", "a read of another object wrote rows");
             }
 
             return read.rows.map(encoded);

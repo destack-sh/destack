@@ -163,7 +163,8 @@ export class Table<
             const isComputed =
                 column.definition.generated !== undefined ||
                 column.definition.default instanceof SQL;
-            throw new TypeError(
+            throw DatabaseError.of(
+                "INVALID_RECORD",
                 isComputed
                     ? `column ${property} of ${definition.name} takes a value only the database computes`
                     : `column ${property} of ${definition.name} needs a value`,
@@ -198,7 +199,10 @@ export class Table<
         // refuse other properties and null in a column without nulls
         for (const [property, value] of Object.entries(row)) {
             if (value === null && !table[TABLE].column(property).definition.nullable) {
-                throw new TypeError(`column ${property} of ${table[TABLE].name} is not nullable`);
+                throw DatabaseError.of(
+                    "INVALID_RECORD",
+                    `column ${property} of ${table[TABLE].name} is not nullable`,
+                );
             }
         }
 
@@ -385,7 +389,7 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
                 const columns = constraint.columns.map((column) => {
                     if (column instanceof SQL) {
                         throw new TypeError(
-                            `unique index ${constraint.name} cannot key an expression`,
+                            `unique index ${constraint.name} cannot use an expression as key`,
                         );
                     }
 
@@ -469,7 +473,7 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
     /** Read the table's full-text index, refusing a table nothing searches. */
     requireFullText(): FullTextIndex {
         if (this.fullText === undefined) {
-            throw new DatabaseError("INVALID_QUERY", `${this.name} has no text to search`);
+            throw DatabaseError.of("INVALID_QUERY", `${this.name} has no text to search`);
         }
 
         return this.fullText;

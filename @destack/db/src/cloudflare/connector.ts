@@ -15,7 +15,7 @@ export function durableObjectConnector(host: DurableObjectDatabaseHost): Databas
             const unapplied = await declaration.check(database);
             if (unapplied.length > 0) {
                 await database.close();
-                throw new DatabaseError(
+                throw DatabaseError.of(
                     "NOT_APPLIED",
                     `database ${declaration.name} has not applied ${unapplied.join(", ")}`,
                 );

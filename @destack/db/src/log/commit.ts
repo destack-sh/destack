@@ -5,7 +5,7 @@ import { type Dialect, PARAMETER_BUDGET } from "../dialect/dialect.ts";
 import { elementValue, jsonElements, jsonOf, Statement } from "../query/statement.ts";
 import { ColumnCipher, SEALED_DIALECT } from "../database/cipher.ts";
 import { sql } from "../sql/index.ts";
-import { classifyError, DatabaseError } from "../error/error.ts";
+import { DatabaseError } from "../error/error.ts";
 import { Condition, Scalar } from "../query/condition.ts";
 import { Key } from "../query/key.ts";
 import { Namespace } from "../query/namespace.ts";
@@ -159,9 +159,7 @@ export class ChangeSet {
         }
         const image = after ?? before;
         if (image === null) {
-            throw new TypeError(
-                `a write to ${table[TABLE].name} has neither a row before nor after`,
-            );
+            throw new TypeError(`a write to ${table[TABLE].name} has no row before or after`);
         }
         const name = Key.name(table, image);
 
@@ -460,17 +458,17 @@ export class ChangeSet {
         }
         const position = await transaction.log.position();
         if (position.epoch !== base.epoch) {
-            throw new DatabaseError(
+            throw DatabaseError.of(
                 "CONCURRENT_UPDATE",
-                "the database's log restarted since the transaction read it",
+                "the database log restarted since the transaction read it",
             );
         }
 
         // read every change after the base, page by page, refusing once the log compacted some
         for (let after = base.sequence; after < position.sequence;) {
             const page = await transaction.log.read({ tables, after }).catch((error: unknown) => {
-                if (error instanceof DatabaseError && error.reason === "CHANGES_COMPACTED") {
-                    throw new DatabaseError(
+                if (DatabaseError.is(error, "CHANGES_COMPACTED")) {
+                    throw DatabaseError.of(
                         "CONCURRENT_UPDATE",
                         "the log no longer has the changes the transaction read",
                     );
@@ -478,7 +476,7 @@ export class ChangeSet {
                 throw error;
             });
             if (page.changes.some((change) => reads.touches(change))) {
-                throw new DatabaseError(
+                throw DatabaseError.of(
                     "CONCURRENT_UPDATE",
                     "another commit changed what the transaction read",
                 );
@@ -542,9 +540,8 @@ export class Transaction {
                 return await run();
             } catch (error) {
                 // rethrow any other failure, and a lost race once the attempts run out
-                const classified = classifyError(error);
-                if (!isLostRace(classified) || !RetryPolicy.isRetried(TRANSACTION_RETRY, attempt)) {
-                    throw classified;
+                if (!isLostRace(error) || !RetryPolicy.isRetried(TRANSACTION_RETRY, attempt)) {
+                    throw error;
                 }
 
                 // wait out the backoff before the next attempt
@@ -681,7 +678,7 @@ export class Transaction {
         for (const { table, before, after } of changes) {
             const image = after ?? before;
             if (image !== null && Key.isPredefined(table, image)) {
-                throw new DatabaseError(
+                throw DatabaseError.of(
                     "INVALID_RECORD",
                     `cannot write predefined row ${Key.name(table, image)} of ${table[TABLE].name}`,
                 );
@@ -785,14 +782,13 @@ export class Transaction {
             if (isShared) {
                 // refuse a key a later commit took as a lost race
                 await this.requireCurrent();
-                throw new DatabaseError("DUPLICATE", "a record with the same unique key exists", {
-                    key: {
-                        table: definition.sqlName,
-                        columns: key.columns.map(
-                            (column) => definition.column(column).definition.name,
-                        ),
+                throw DatabaseError.of(
+                    "DUPLICATE",
+                    "a record with the same unique key already exists",
+                    {
+                        data: { table: definition.name, columns: [...key.columns] },
                     },
-                });
+                );
             }
         }
     }
@@ -911,7 +907,7 @@ function keyOf(table: Table, key: UniqueKey, row: Row): string {
 
 /** Report whether a failure lost a race: a serialization failure, deadlock or busy database. */
 function isLostRace(error: unknown): boolean {
-    return error instanceof DatabaseError && error.reason === "CONCURRENT_UPDATE";
+    return DatabaseError.is(error, "CONCURRENT_UPDATE");
 }
 
 /** Update rows by key from a JSON array of each row's key and changed values, in that order. */

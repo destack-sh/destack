@@ -288,7 +288,7 @@ function resolve(condition: Condition, fields: ReadonlySet<string>): Predicate {
     const predicate = resolveCondition(condition, fields);
     const terms = Predicate.size(predicate);
     if (terms > CONDITION_TERMS) {
-        throw new DatabaseError(
+        throw DatabaseError.of(
             "INVALID_QUERY",
             `condition has ${terms} terms, more than ${CONDITION_TERMS}`,
         );
@@ -328,7 +328,7 @@ function resolveEntry(name: string, entry: OpenEntry, fields: ReadonlySet<string
     // search the row's text for every word of a query
     else if (name === "SEARCH") {
         if (typeof entry !== "string") {
-            throw new DatabaseError("INVALID_QUERY", "a search needs text");
+            throw DatabaseError.of("INVALID_QUERY", "a search needs text");
         }
 
         return { kind: "search", words: SearchText.query(entry) };
@@ -367,7 +367,7 @@ function resolveRelation(name: string, entry: OpenEntry): Predicate {
     }
     // refuse a value for a name that is not a field
     else if (typeof entry !== "object" || isList(entry) || entry instanceof Placeholder) {
-        throw new DatabaseError("INVALID_QUERY", `condition has no field ${name}`);
+        throw DatabaseError.of("INVALID_QUERY", `condition has no field ${name}`);
     }
     // follow a relation to the related rows meeting a condition
     else {
@@ -484,7 +484,7 @@ function nestedPredicates(name: string, field: FieldCondition): Predicate[] {
 function comparisonsOf(name: string, entry: OpenEntry): FieldCondition {
     const parsed = FieldCondition.safeParse(entry);
     if (!parsed.success) {
-        throw new DatabaseError(
+        throw DatabaseError.of(
             "INVALID_QUERY",
             `condition field ${name} needs a value or comparisons`,
         );
@@ -496,7 +496,7 @@ function comparisonsOf(name: string, entry: OpenEntry): FieldCondition {
 /** Read an entry as one condition. */
 function conditionOf(name: string, entry: OpenEntry): OpenCondition {
     if (typeof entry !== "object" || isList(entry) || entry instanceof Placeholder) {
-        throw new DatabaseError("INVALID_QUERY", `condition ${name} needs a condition`);
+        throw DatabaseError.of("INVALID_QUERY", `condition ${name} needs a condition`);
     }
 
     return entry;
@@ -505,14 +505,14 @@ function conditionOf(name: string, entry: OpenEntry): OpenCondition {
 /** Read an entry as a list of conditions. */
 function conditionsOf(name: string, entry: OpenEntry): readonly OpenCondition[] {
     if (typeof entry !== "object" || !isList(entry)) {
-        throw new DatabaseError("INVALID_QUERY", `condition ${name} needs a list of conditions`);
+        throw DatabaseError.of("INVALID_QUERY", `condition ${name} needs a list of conditions`);
     }
 
     // require each element to be a condition
     const conditions: OpenCondition[] = [];
     for (const element of entry) {
         if (typeof element !== "object" || element instanceof Placeholder) {
-            throw new DatabaseError(
+            throw DatabaseError.of(
                 "INVALID_QUERY",
                 `condition ${name} lists a value, not a condition`,
             );

@@ -1,5 +1,5 @@
 import { Address, type Comparator, type Plan, type Step } from "@destack/resource";
-import { PlanError } from "@destack/resource/error";
+import { ResourceError, unreachablePlan } from "@destack/resource/error";
 import { graph } from "@destack/package";
 import { schema } from "@destack/schema";
 import { type Database, DatabaseDescription } from "../declare/database.ts";
@@ -40,9 +40,9 @@ export const compareDatabase: Comparator = (before, after) => {
                 empty: new Set(),
             });
         } catch (error) {
-            throw error instanceof PlanError
-                ? new PlanError(
-                      error.problems.map((problem) => ({
+            throw ResourceError.is(error, "UNREACHABLE_PLAN")
+                ? unreachablePlan(
+                      error.data.problems.map((problem) => ({
                           ...problem,
                           target: Address.join(database, problem.target),
                       })),

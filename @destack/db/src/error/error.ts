@@ -1,87 +1,85 @@
-import type { DomainError, CallErrorCode, Failure } from "@destack/error";
+import { defineErrorFamily, type ReasonOf } from "@destack/error";
+import { schema } from "@destack/schema";
 import type {} from "@destack/package/import-meta";
 
-/** The call error code per database failure: conflict, bad request, lost history, host. */
-const CALL_CODES = {
-    INVALID_MIGRATION: "INTERNAL_SERVER_ERROR",
-    MIGRATION_FAILED: "INTERNAL_SERVER_ERROR",
-    PLAN_CHANGED: "INTERNAL_SERVER_ERROR",
-    NOT_APPLIED: "INTERNAL_SERVER_ERROR",
-    CONNECTION_CLOSED: "SERVICE_UNAVAILABLE",
-    CONNECTION_TIMEOUT: "SERVICE_UNAVAILABLE",
-    OWNER_CHANGED: "SERVICE_UNAVAILABLE",
-    TRANSACTION_CLOSED: "INTERNAL_SERVER_ERROR",
-    TRANSACTION_REQUIRED: "INTERNAL_SERVER_ERROR",
-    TREE_NOT_FOUND: "INTERNAL_SERVER_ERROR",
-    CHANGES_COMPACTED: "GONE",
-    STALE_EPOCH: "GONE",
-    CONCURRENT_UPDATE: "SERVICE_UNAVAILABLE",
-    DUPLICATE: "CONFLICT",
-    BROKEN_REFERENCE: "CONFLICT",
-    INVALID_RECORD: "BAD_REQUEST",
-    INVALID_QUERY: "BAD_REQUEST",
-    QUERY_FAILED: "INTERNAL_SERVER_ERROR",
-    NO_CHANNEL: "INTERNAL_SERVER_ERROR",
-    CONTENT_UNAVAILABLE: "SERVICE_UNAVAILABLE",
-} as const satisfies Readonly<Record<string, CallErrorCode>>;
+/** A unique key a write violated: its table and columns as the table declares them. */
+export const ViolatedKey = schema.object({
+    /** The table's declared name. */
+    table: schema.string(),
+    /** The key's columns, by their property names. */
+    columns: schema.array(schema.string()),
+});
+/** A unique key a write violated. */
+export type ViolatedKey = schema.Infer<typeof ViolatedKey>;
 
-/** The database failures' stable causes. */
-export type DatabaseReason = keyof typeof CALL_CODES;
+/** The declared names of a database's tables by SQL name: each table's name and its columns'. */
+export type DeclaredNames = ReadonlyMap<
+    string,
+    { readonly name: string; readonly columns: ReadonlyMap<string, string> }
+>;
 
-/** A database failure with its reason. */
-export class DatabaseError extends Error implements DomainError {
-    /** The failure's stable cause within its package. */
-    readonly reason: DatabaseReason;
-    /** The table and SQL key columns of a violated unique key, if the driver reports them. */
-    readonly key: { readonly table: string; readonly columns: readonly string[] } | undefined;
+/** The database package's failures, each reason with the call error code it answers. */
+export const DatabaseError = defineErrorFamily(import.meta.destack.package, {
+    // bad request
+    INVALID_QUERY: { code: "BAD_REQUEST" },
+    INVALID_RECORD: { code: "BAD_REQUEST" },
 
-    /** Create a database failure. */
-    constructor(
-        reason: DatabaseReason,
-        message: string,
-        options?: ErrorOptions & { readonly key?: DatabaseError["key"] },
-    ) {
-        // store the reason and the violated key beside the message and cause
-        super(message, options);
-        this.name = "DatabaseError";
-        this.reason = reason;
-        this.key = options?.key;
+    // conflict
+    BROKEN_REFERENCE: { code: "CONFLICT" },
+    DUPLICATE: { code: "CONFLICT", data: ViolatedKey.nullable() },
+
+    // gone
+    CHANGES_COMPACTED: { code: "GONE" },
+    STALE_EPOCH: { code: "GONE" },
+
+    // internal server error
+    INVALID_MIGRATION: { code: "INTERNAL_SERVER_ERROR" },
+    MIGRATION_FAILED: { code: "INTERNAL_SERVER_ERROR" },
+    NOT_APPLIED: { code: "INTERNAL_SERVER_ERROR" },
+    NO_CHANNEL: { code: "INTERNAL_SERVER_ERROR" },
+    PLAN_CHANGED: { code: "INTERNAL_SERVER_ERROR" },
+    QUERY_FAILED: { code: "INTERNAL_SERVER_ERROR" },
+    TRANSACTION_CLOSED: { code: "INTERNAL_SERVER_ERROR" },
+    TRANSACTION_REQUIRED: { code: "INTERNAL_SERVER_ERROR" },
+    TREE_NOT_FOUND: { code: "INTERNAL_SERVER_ERROR" },
+
+    // service unavailable
+    CONCURRENT_UPDATE: { code: "SERVICE_UNAVAILABLE" },
+    CONNECTION_CLOSED: { code: "SERVICE_UNAVAILABLE" },
+    CONNECTION_TIMEOUT: { code: "SERVICE_UNAVAILABLE" },
+    CONTENT_UNAVAILABLE: { code: "SERVICE_UNAVAILABLE" },
+    OWNER_CHANGED: { code: "SERVICE_UNAVAILABLE" },
+});
+
+/** A stable cause of database failures. */
+export type DatabaseReason = ReasonOf<typeof DatabaseError>;
+
+/** Read a driver's violated unique key by its declared names, null for an expression key. */
+export function violatedKeyOf(error: Error, declared: DeclaredNames): ViolatedKey | null {
+    // read SQLite's "UNIQUE constraint failed" message, with namespaced tables
+    const failed = /^UNIQUE constraint failed: (.+)$/u.exec(error.message)?.[1];
+    if (failed !== undefined) {
+        const named = failed.split(", ").map((entry) => entry.split("."));
+        const tables = new Set(named.map((path) => path.at(-2)));
+        const [table] = tables;
+
+        return tables.size === 1 && table !== undefined
+            ? declaredKey(
+                  declared,
+                  table,
+                  named.map((path) => path.at(-1) ?? ""),
+              )
+            : null;
     }
 
-    /** Read the key a driver's duplicate failure violates, absent if the driver gives none. */
-    static violated(error: Error): DatabaseError["key"] {
-        // read SQLite's "UNIQUE constraint failed" message, with namespaced tables
-        const failed = /^UNIQUE constraint failed: (.+)$/u.exec(error.message)?.[1];
-        if (failed !== undefined) {
-            const named = failed.split(", ").map((entry) => entry.split("."));
-            const tables = new Set(named.map((path) => path.at(-2)));
-            const [table] = tables;
+    // read PostgreSQL's table and key detail, none for an expression key
+    const table = "table_name" in error ? error.table_name : undefined;
+    const detail = "detail" in error ? error.detail : undefined;
+    const keys = typeof detail === "string" ? /^Key \((.*?)\)=\(/u.exec(detail)?.[1] : undefined;
 
-            return tables.size === 1 && table !== undefined
-                ? { table, columns: named.map((path) => path.at(-1) ?? "") }
-                : undefined;
-        }
-
-        // read PostgreSQL's table and key detail, none for an expression key
-        const table = "table_name" in error ? error.table_name : undefined;
-        const detail = "detail" in error ? error.detail : undefined;
-        const keys =
-            typeof detail === "string" ? /^Key \((.*?)\)=\(/u.exec(detail)?.[1] : undefined;
-
-        return typeof table === "string" && keys !== undefined && !keys.includes("(")
-            ? { table, columns: keys.split(", ") }
-            : undefined;
-    }
-
-    /** Convert the failure to the call error a caller receives. */
-    toCallError(): Failure {
-        return {
-            code: CALL_CODES[this.reason],
-            reason: this.reason,
-            domain: import.meta.destack.package.name,
-            message: this.message,
-        };
-    }
+    return typeof table === "string" && keys !== undefined && !keys.includes("(")
+        ? declaredKey(declared, table, keys.split(", "))
+        : null;
 }
 
 /** Reject an unhandled variant. */
@@ -90,9 +88,9 @@ export function assertNever(value: never): never {
 }
 
 /** Classify a failed statement as a conflict, duplicate, broken reference or failed check. */
-export function classifyError(error: unknown): unknown {
+export function classifyError(error: unknown, declared: DeclaredNames): unknown {
     // return classified and non-driver failures as they are
-    if (error instanceof DatabaseError || !(error instanceof Error)) {
+    if (DatabaseError.is(error) || !(error instanceof Error)) {
         return error;
     }
 
@@ -104,7 +102,7 @@ export function classifyError(error: unknown): unknown {
         error.message.includes("database is locked") ||
         error.message.includes("database table is locked")
     ) {
-        return new DatabaseError(
+        return DatabaseError.of(
             "CONCURRENT_UPDATE",
             "a concurrent transaction changed the same records",
             {
@@ -112,16 +110,16 @@ export function classifyError(error: unknown): unknown {
             },
         );
     } else if (code === "23505" || error.message.includes("UNIQUE constraint failed")) {
-        return new DatabaseError("DUPLICATE", "a record with the same unique key exists", {
+        return DatabaseError.of("DUPLICATE", "a record with the same unique key already exists", {
             cause: error,
-            key: DatabaseError.violated(error),
+            data: violatedKeyOf(error, declared),
         });
     } else if (
         code === "23503" ||
         code === "23001" ||
         error.message.includes("FOREIGN KEY constraint failed")
     ) {
-        return new DatabaseError(
+        return DatabaseError.of(
             "BROKEN_REFERENCE",
             "the change would leave a reference to a missing record",
             {
@@ -129,7 +127,7 @@ export function classifyError(error: unknown): unknown {
             },
         );
     } else if (code === "23514" || error.message.includes("CHECK constraint failed")) {
-        return new DatabaseError("INVALID_RECORD", "a record fails a declared check", {
+        return DatabaseError.of("INVALID_RECORD", "a record fails a declared check", {
             cause: error,
         });
     }
@@ -159,4 +157,20 @@ export function wraps(error: unknown, failure: unknown): boolean {
     }
 
     return false;
+}
+
+/** Name a key of SQL columns as its table declares them, null for an undeclared table. */
+function declaredKey(
+    declared: DeclaredNames,
+    table: string,
+    columns: readonly string[],
+): ViolatedKey | null {
+    // name the table and each column as the table declares them
+    const names = declared.get(table);
+    const properties = columns.map((column) => names?.columns.get(column));
+    if (names === undefined || properties.some((property) => property === undefined)) {
+        return null;
+    }
+
+    return { table: names.name, columns: properties.flatMap((property) => property ?? []) };
 }

@@ -11,7 +11,7 @@ import { TestDatabase } from "../test/database.ts";
 import { declareState, STATE } from "./state.ts";
 import type { TablePlan } from "./plan.ts";
 import { Expression } from "../expression/expression.ts";
-import { PlanError } from "@destack/resource/error";
+import { ResourceError } from "@destack/resource/error";
 
 /** Folders with documents, as first released. */
 const folderOne = defineTable("folder", {
@@ -426,17 +426,15 @@ test("refuse requiring a key stored values lack without a conversion, reading ro
     );
 
     // refuse the key every stored row lacks, and read a row exactly as stored
-    await expect(
-        database.plan({ declared: declareState([layoutSized], TestDatabase.target()) }),
-    ).rejects.toMatchObject({
-        name: "PlanError",
-        problems: [
-            {
-                target: `table/${table(layoutSized)}/column/settings`,
-                detail: "declare a conversion for 2026.10.0",
-            },
-        ],
-    });
+    expect(
+        await refusal(
+            database.plan({ declared: declareState([layoutSized], TestDatabase.target()) }),
+        ),
+    ).toEqual([
+        "CONFLICT",
+        "UNREACHABLE_PLAN",
+        `table/${table(layoutSized)}/column/settings: declare a conversion for 2026.10.0`,
+    ]);
     expect(await database.select().from(layoutOne)).toEqual([
         { id: "a", settings: { theme: "dark" } },
     ]);
@@ -471,7 +469,7 @@ test("refuse a conversion writing a value its column refuses, leaving the rows a
     expect(await refusal(database.migrate([preferenceMisconverted]))).toEqual([
         "INTERNAL_SERVER_ERROR",
         "MIGRATION_FAILED",
-        `conversion writes a value that ${table(preferenceMisconverted)}.mode refuses: ✖ Invalid option: expected one of "standard"|"vim"`,
+        `conversion writes a value that ${table(preferenceMisconverted)}.mode rejects: ✖ Invalid option: expected one of "standard"|"vim"`,
     ]);
     expect(
         await database.execute(
@@ -546,7 +544,8 @@ test("narrow values and require a new column without a default only over a table
     );
     const refused = await filled.migrate([preferenceStrict]).then(
         () => [],
-        (error: PlanError) => error.problems,
+        (error: unknown) =>
+            ResourceError.is(error, "UNREACHABLE_PLAN") ? error.data.problems : error,
     );
     expect({ changed: review(changed), refused }).toEqual({
         changed: [
@@ -601,7 +600,8 @@ test("roll back without contracting what a newer release added, and refuse table
     await moved.migrate([directoryTable]);
     const renamed = await moved.migrate([folderOne]).then(
         () => [],
-        (error: PlanError) => error.problems,
+        (error: unknown) =>
+            ResourceError.is(error, "UNREACHABLE_PLAN") ? error.data.problems : error,
     );
 
     // refuse rolling back across widened mode values the first release cannot read
@@ -609,7 +609,8 @@ test("roll back without contracting what a newer release added, and refuse table
     await widened.migrate([preferenceWide]);
     const refused = await widened.migrate([preferenceOne]).then(
         () => [],
-        (error: PlanError) => error.problems,
+        (error: unknown) =>
+            ResourceError.is(error, "UNREACHABLE_PLAN") ? error.data.problems : error,
     );
 
     // retain the theme column and table, since dropping them would lose them on the next upgrade
@@ -675,7 +676,7 @@ test("report a failing migration statement as a failed migration", async () => {
     expect(await refusal(database.migrate([labelUnique]))).toEqual([
         "INTERNAL_SERVER_ERROR",
         "MIGRATION_FAILED",
-        "migration failed: a record with the same unique key exists",
+        "migration failed: a record with the same unique key already exists",
     ]);
     expect(await database.all(sql`SELECT id FROM ${name} ORDER BY id`)).toEqual([
         { id: "a" },
@@ -722,14 +723,13 @@ test("plan the union of declarations sharing a database", async () => {
     await applyPlan(database, plan);
 
     // refuse conflicting column types
-    await expect(
-        database.plan(mergeStates([stateOf([taskOne]), stateOf([taskText])])),
-    ).rejects.toMatchObject({
-        name: "PlanError",
-        problems: [
-            { target: `table/${table(taskOne)}`, detail: "releases disagree on column urgent" },
-        ],
-    });
+    expect(
+        await refusal(database.plan(mergeStates([stateOf([taskOne]), stateOf([taskText])]))),
+    ).toEqual([
+        "CONFLICT",
+        "UNREACHABLE_PLAN",
+        `table/${table(taskOne)}: releases disagree on column urgent`,
+    ]);
 });
 
 test("expand for two running releases, bridge a renamed column, then contract", async () => {

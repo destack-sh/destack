@@ -3,7 +3,7 @@ import postgres from "postgres";
 import { v7 } from "uuid";
 import { Plan, ResourceId } from "@destack/resource";
 import { Digest, schema } from "@destack/schema";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, test, refusal } from "@destack/test";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { defineDatabase } from "../declare/database.ts";
 import { DatabaseError } from "../error/error.ts";
@@ -92,12 +92,9 @@ test.skipIf(!isPostgresql)(
         // refuse a plan other than the reviewed one, then apply the reviewed plan and connect
         const desired = [notes.state()];
         const plan = await provider.reconcile.plan(provisioned, desired);
-        const stale = await provider.reconcile
-            .apply(provisioned, desired, Digest.parse("0".repeat(64)))
-            .then(
-                () => "applied",
-                (error: unknown) => error,
-            );
+        const stale = await refusal(
+            provider.reconcile.apply(provisioned, desired, Digest.parse("0".repeat(64))),
+        );
         await provider.reconcile.apply(provisioned, desired, await Plan.digest(plan));
         const applied = await outcome(host.connector.connect(bound(reference), notes));
 
@@ -107,7 +104,7 @@ test.skipIf(!isPostgresql)(
         const refused = await host.bytes(reference).then(
             () => "counted",
             (error: unknown) =>
-                error instanceof DatabaseError && error.cause instanceof Error
+                DatabaseError.is(error) && error.cause instanceof Error
                     ? [error.reason, error.cause.message]
                     : error,
         );
@@ -139,7 +136,7 @@ test.skipIf(!isPostgresql)(
                     ],
                 },
             ],
-            stale: new DatabaseError("PLAN_CHANGED", `plan of ${id} changed since review`),
+            stale: ["INTERNAL_SERVER_ERROR", "PLAN_CHANGED", `plan of ${id} changed since review`],
             applied: "connected",
             isCounted: true,
             refused: ["QUERY_FAILED", `schema "${id}" does not exist`],

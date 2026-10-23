@@ -105,7 +105,7 @@ test("seal equal secrets apart and equal tokens alike, each bound to its column"
 
     // refuse opening the token's text as the secret's column
     expect(() => TEST_CIPHER.open(third?.token, "secret")).toThrow(
-        new TypeError("secret holds a value the database key cannot open"),
+        new TypeError("cannot decrypt secret with the database key"),
     );
 });
 
@@ -176,5 +176,7 @@ test("refuse writing a sensitive value into a database opened without its key", 
 
     await expect(
         database.insert(credential).values({ id: "a", scope: "s", secret: "x", token: "y" }),
-    ).rejects.toThrow(new TypeError("secret is sensitive, but the database has no key"));
+    ).rejects.toThrow(
+        new TypeError("cannot encrypt sensitive column secret: the database has no key"),
+    );
 });

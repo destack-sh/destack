@@ -16,7 +16,7 @@ export function broadcastChannel(name: string): Channel<unknown> {
                 }
             };
             const refused = () =>
-                fail?.(new DatabaseError("QUERY_FAILED", "a channel message could not be read"));
+                fail?.(DatabaseError.of("QUERY_FAILED", "cannot read a channel message"));
             broadcast.addEventListener("message", listener);
             broadcast.addEventListener("messageerror", refused);
             resume?.();

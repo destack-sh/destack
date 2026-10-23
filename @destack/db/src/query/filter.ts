@@ -1,3 +1,4 @@
+import type { FamilyError } from "@destack/error";
 import { DatabaseError } from "../error/error.ts";
 import { type Comparable, Condition, type JsonCondition } from "./condition.ts";
 import { Predicate } from "./predicate.ts";
@@ -231,8 +232,8 @@ class FilterReader {
     }
 
     /** Refuse a filter at an offset. */
-    #refuse(reason: string, offset: number): DatabaseError {
-        return new DatabaseError(
+    #refuse(reason: string, offset: number): FamilyError<"INVALID_QUERY"> {
+        return DatabaseError.of(
             "INVALID_QUERY",
             `${reason} at ${offset} in filter ${this.#filter}`,
         );
@@ -270,7 +271,7 @@ function tokenize(filter: string): Token[] {
                 index++;
             }
             if (index >= filter.length) {
-                throw new DatabaseError(
+                throw DatabaseError.of(
                     "INVALID_QUERY",
                     `unclosed text at ${start} in filter ${filter}`,
                 );
@@ -342,7 +343,7 @@ function escape(text: string): string {
 function nest(path: readonly string[], entry: Comparable | JsonCondition): JsonCondition {
     const [name, ...rest] = path;
     if (name === undefined) {
-        throw new DatabaseError("INVALID_QUERY", "a filter restriction has no field");
+        throw DatabaseError.of("INVALID_QUERY", "a filter restriction has no field");
     }
 
     return { [name]: rest.length === 0 ? entry : nest(rest, entry) };

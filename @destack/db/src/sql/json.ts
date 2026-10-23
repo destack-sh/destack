@@ -34,9 +34,9 @@ export const SQLValue = Object.assign(sqlValueSchema, {
             return { bytes: new Uint8Array(value).toBase64() };
         }
 
-        throw new DatabaseError(
+        throw DatabaseError.of(
             "INVALID_QUERY",
-            `a ${typeof value} has no JSON form: SQL values are text, numbers, booleans, integers, bytes or null`,
+            `cannot convert a ${typeof value} to JSON: SQL values are text, numbers, booleans, integers, bytes or null`,
         );
     },
 

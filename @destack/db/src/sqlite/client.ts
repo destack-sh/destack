@@ -85,7 +85,7 @@ export class SqliteWorkQueue {
         return settled.then((isTurn) => {
             clearTimeout(timer);
             if (!isTurn) {
-                throw new DatabaseError(
+                throw DatabaseError.of(
                     "CONNECTION_TIMEOUT",
                     `waited ${this.#wait} ms for the connection: a transaction still has it`,
                 );

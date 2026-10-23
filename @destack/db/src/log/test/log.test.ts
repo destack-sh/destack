@@ -129,7 +129,7 @@ test("log committed changes of tables in commit order", async () => {
     expect(await refusal(database.log.read({ tables, after: 0 }))).toEqual([
         "GONE",
         "CHANGES_COMPACTED",
-        "changes after 0 were compacted; list the tables again",
+        "changes after 0 were compacted: list the tables again",
     ]);
     const history = await database.execute(
         sql`SELECT "table" FROM ${sql.identifier("__destack_log")} ORDER BY sequence`,
@@ -221,7 +221,7 @@ test("preserve the log's identifier across a restore's new epoch, and refuse com
         true,
     ]);
     expect(() => LogPosition.isAfter(after, foreign)).toThrow(
-        new TypeError(`positions of logs ${after.log} and ${foreign.log} do not compare`),
+        new TypeError(`cannot compare positions of logs ${after.log} and ${foreign.log}`),
     );
 });
 
@@ -586,7 +586,7 @@ test("retain the changes after a consumer's slot until it expires or is dropped,
     expect(await refusal(database.log.read({ tables: [note], after: kept }))).toEqual([
         "GONE",
         "CHANGES_COMPACTED",
-        `changes after ${kept} were compacted; list the tables again`,
+        `changes after ${kept} were compacted: list the tables again`,
     ]);
     await database.log.drop("subscription");
     expect(
@@ -627,7 +627,7 @@ test("log the rows of a table without a scope column under its database's scope"
             (error: unknown) => error,
         );
     expect(
-        unscopedWrite instanceof DatabaseError && unscopedWrite.cause instanceof Error
+        DatabaseError.is(unscopedWrite) && unscopedWrite.cause instanceof Error
             ? [unscopedWrite.reason, unscopedWrite.cause.message]
             : unscopedWrite,
     ).toEqual(["QUERY_FAILED", "the database has no scope for the rows of destack__db__setting"]);

@@ -67,7 +67,7 @@ test("answer a transaction that loses every race as unavailable after five attem
 
     expect({
         losing,
-        code: lost instanceof DatabaseError ? lost.toCallError().code : lost,
+        code: DatabaseError.is(lost) ? lost.toCallError().code : lost,
         failing,
         failed,
     }).toEqual({

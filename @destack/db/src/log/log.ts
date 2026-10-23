@@ -183,9 +183,9 @@ const LogEntry = {
     /** Read an entry's operation, failing for any other value. */
     operation(value: unknown): LogEntry["operation"] {
         if (value !== "insert" && value !== "update" && value !== "delete") {
-            throw new DatabaseError(
+            throw DatabaseError.of(
                 "QUERY_FAILED",
-                `the log returned ${String(value)} for an operation`,
+                `expected an operation from the log, got ${String(value)}`,
             );
         }
 
@@ -288,7 +288,7 @@ export class Log {
                 }
             } catch (error) {
                 // start over once the changes were compacted away
-                if (!(error instanceof DatabaseError && error.reason === "CHANGES_COMPACTED")) {
+                if (!DatabaseError.is(error, "CHANGES_COMPACTED")) {
                     throw error;
                 }
             }
@@ -306,7 +306,7 @@ export class Log {
             const read = await this.read({ ...selection, after: reached });
             changes.push(...read.changes.filter((change) => change.sequence <= through));
             if (read.sequence <= reached) {
-                throw new DatabaseError(
+                throw DatabaseError.of(
                     "INVALID_QUERY",
                     `the log ends at ${read.sequence}, before ${through}`,
                 );
@@ -401,7 +401,7 @@ export class Log {
     stamp(): SQL {
         // require an open transaction
         if (!this.database.driver.transaction) {
-            throw new TypeError("read the transaction identity inside a transaction");
+            throw new TypeError("cannot read the transaction identity outside a transaction");
         }
 
         // read the SQLite transaction stamp
@@ -425,7 +425,7 @@ export class Log {
     async asReplica<Value>(run: () => Promise<Value>): Promise<Value> {
         // mark the open transaction as a replica's
         if (!this.database.driver.transaction) {
-            throw new TypeError("write as a replica inside a transaction");
+            throw new TypeError("cannot write as a replica outside a transaction");
         }
         const marker = sql.relation(LOG_REPLICA);
         await this.database.run(sql`INSERT INTO ${marker} (slot) VALUES (1)`);
@@ -471,9 +471,9 @@ export class Log {
         const horizon = bounds.horizon;
         const isCompacted = selection.tables.some((table) => table[TABLE].retention === "window");
         if (isCompacted && selection.after < horizon) {
-            throw new DatabaseError(
+            throw DatabaseError.of(
                 "CHANGES_COMPACTED",
-                `changes after ${selection.after} were compacted; list the tables again`,
+                `changes after ${selection.after} were compacted: list the tables again`,
             );
         }
 
@@ -513,7 +513,7 @@ export class Log {
     ): Promise<Write<Definition>[]> {
         // require a log and a writing transaction
         if (this.database.dialect === "sqlite" && !this.database.state.isLogged) {
-            throw new TypeError("read written changes of a logged database");
+            throw new TypeError("cannot read written changes of an unlogged database");
         }
         const transaction = await this.transaction();
         if (transaction === undefined) {
@@ -547,7 +547,7 @@ export class Log {
     async wait(sequence: number, signal: AbortSignal): Promise<boolean> {
         // wait on the connection
         if (this.database.driver.transaction) {
-            throw new TypeError("wait for changes outside a transaction");
+            throw new TypeError("cannot wait for changes inside a transaction");
         }
 
         return this.until(async () => await this.#includes(sequence), signal);
@@ -662,7 +662,7 @@ export class Log {
 
         // refuse a slot another consumer moved since the read
         if (moved.length === 0) {
-            throw new DatabaseError("CONCURRENT_UPDATE", `slot ${slot} moved past ${from}`);
+            throw DatabaseError.of("CONCURRENT_UPDATE", `slot ${slot} moved past ${from}`);
         }
     }
 
@@ -800,7 +800,7 @@ export class Log {
             bounds.startedAt === null ||
             bounds.committedAt === null
         ) {
-            throw new DatabaseError("CHANGES_COMPACTED", `change ${sequence} is not in the log`);
+            throw DatabaseError.of("CHANGES_COMPACTED", `change ${sequence} is not in the log`);
         }
 
         return {
@@ -943,9 +943,9 @@ function decodeKey<Definition extends Table>(
         table[TABLE].key.map((property, index) => {
             const value = key[index];
             if (value === undefined) {
-                throw new DatabaseError(
+                throw DatabaseError.of(
                     "INVALID_QUERY",
-                    `logged key of ${table[TABLE].name} lacks ${property}`,
+                    `logged key of ${table[TABLE].name} is missing ${property}`,
                 );
             }
 
@@ -976,7 +976,7 @@ function tableOf<Definition extends Table>(
 ): Definition {
     const table = tables.get(name);
     if (table === undefined) {
-        throw new DatabaseError(
+        throw DatabaseError.of(
             "INVALID_QUERY",
             `the log changed a table the read does not select: ${name}`,
         );
