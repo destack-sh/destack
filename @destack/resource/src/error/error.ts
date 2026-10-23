@@ -1,62 +1,42 @@
-import type { DomainError, CallErrorCode, Failure } from "@destack/error";
+import { defineErrorFamily, type FamilyError, type ReasonOf } from "@destack/error";
+import { schema } from "@destack/schema";
 import type {} from "@destack/package/import-meta";
 
-/** The call error code of each binding failure: every binding failure is the host's. */
-const CALL_CODES = {
-    NOT_BOUND: "INTERNAL_SERVER_ERROR",
-    ALREADY_BOUND: "INTERNAL_SERVER_ERROR",
-} as const satisfies Readonly<Record<string, CallErrorCode>>;
+/** What a resource's declarations must change, by the part of the resource it concerns. */
+export const PlanProblem = schema.object({
+    /** The part of the resource, such as a table. */
+    target: schema.string(),
+    /** What to declare, such as "declare a conversion to version 2". */
+    detail: schema.string(),
+});
+/** What a resource's declarations must change. */
+export type PlanProblem = schema.Infer<typeof PlanProblem>;
 
-/** A stable cause of failures of resource bindings. */
-export type ResourceReason = keyof typeof CALL_CODES;
+/** The problems of a desired state no plan reaches until its declarations change. */
+export const UnreachablePlan = schema.object({
+    /** Every problem at once. */
+    problems: schema.array(PlanProblem),
+});
+/** The problems of a desired state no plan reaches. */
+export type UnreachablePlan = schema.Infer<typeof UnreachablePlan>;
 
-/** A resource binding failure. */
-export class ResourceError extends Error implements DomainError {
-    /** The failure's stable cause within its package. */
-    readonly reason: ResourceReason;
+/** The resource package's failures, each reason with the call error code it answers. */
+export const ResourceError = defineErrorFamily(import.meta.destack.package, {
+    // conflict
+    UNREACHABLE_PLAN: { code: "CONFLICT", data: UnreachablePlan },
 
-    /** Describe a missing or duplicate binding. */
-    constructor(reason: ResourceReason, message: string, options?: ErrorOptions) {
-        super(message, options);
-        this.name = "ResourceError";
-        this.reason = reason;
-    }
+    // internal server error
+    ALREADY_BOUND: { code: "INTERNAL_SERVER_ERROR" },
+    NOT_BOUND: { code: "INTERNAL_SERVER_ERROR" },
+    NOT_PROVISIONED: { code: "INTERNAL_SERVER_ERROR" },
+});
 
-    /** Convert the failure to the call error a caller receives. */
-    toCallError(): Failure {
-        return {
-            code: CALL_CODES[this.reason],
-            reason: this.reason,
-            domain: import.meta.destack.package.name,
-            message: this.message,
-        };
-    }
-}
+/** A stable cause of resource failures. */
+export type ResourceReason = ReasonOf<typeof ResourceError>;
 
-/** A desired state no plan can reach until its declarations change. */
-export class PlanError extends Error implements DomainError {
-    /** What the declarations must change, by the part of the resource it concerns. */
-    readonly problems: readonly {
-        /** The part of the resource, such as a table. */
-        readonly target: string;
-        /** What to declare, such as "declare a conversion to version 2". */
-        readonly detail: string;
-    }[];
+/** Refuse a desired state no plan reaches until its declarations change, listing every problem. */
+export function unreachablePlan(problems: readonly PlanProblem[]): FamilyError<"UNREACHABLE_PLAN"> {
+    const message = problems.map((problem) => `${problem.target}: ${problem.detail}`).join("; ");
 
-    /** Describe every problem at once. */
-    constructor(problems: PlanError["problems"]) {
-        super(problems.map((problem) => `${problem.target}: ${problem.detail}`).join("; "));
-        this.name = "PlanError";
-        this.problems = problems;
-    }
-
-    /** Report the unreachable state as a conflict with the declared state. */
-    toCallError(): Failure {
-        return {
-            code: "CONFLICT",
-            reason: "UNREACHABLE_PLAN",
-            domain: import.meta.destack.package.name,
-            message: this.message,
-        };
-    }
+    return ResourceError.of("UNREACHABLE_PLAN", message, { data: { problems: [...problems] } });
 }

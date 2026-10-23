@@ -1,6 +1,6 @@
 import { compareJsonSchemas, Digest, schema, type JsonSchema, Version } from "@destack/schema";
 import { type Package, type DeclarationDescription } from "@destack/package";
-import { PlanError } from "../error/error.ts";
+import { type PlanProblem, ResourceError, unreachablePlan } from "../error/error.ts";
 import { Address } from "./address.ts";
 
 /** The risks of steps, from least to most consequential. */
@@ -107,23 +107,23 @@ function isAtLeast(plan: Plan, risk: Risk): boolean {
     );
 }
 
-/** Join plans in order, collecting every refusal into one PlanError. */
+/** Join plans in order, collecting every problem into one unreachable plan. */
 function join(plans: readonly (() => Plan)[]): Plan {
     // run each plan, keeping its steps or its problems
     const steps: Step[] = [];
-    const problems: PlanError["problems"][number][] = [];
+    const problems: PlanProblem[] = [];
     for (const plan of plans) {
         try {
             steps.push(...plan().steps);
         } catch (error) {
-            if (!(error instanceof PlanError)) {
+            if (!ResourceError.is(error, "UNREACHABLE_PLAN")) {
                 throw error;
             }
-            problems.push(...error.problems);
+            problems.push(...error.data.problems);
         }
     }
     if (problems.length > 0) {
-        throw new PlanError(problems);
+        throw unreachablePlan(problems);
     }
 
     return { steps };
@@ -167,7 +167,7 @@ function planValues(change: SchemaChange): Plan {
     }
     // require a conversion the release lacks
     else if (compatibility === "backward") {
-        throw new PlanError([{ target, detail: `declare a conversion for ${release}` }]);
+        throw unreachablePlan([{ target, detail: `declare a conversion for ${release}` }]);
     }
     // keep earlier releases serving their readers
     else {

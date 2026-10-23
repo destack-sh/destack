@@ -1,6 +1,6 @@
 import { Digest, schema, Version } from "@destack/schema";
 import type { graph } from "@destack/package";
-import { PlanError } from "../error/error.ts";
+import { type PlanProblem, unreachablePlan } from "../error/error.ts";
 import { Address } from "./address.ts";
 import type { Plan, Step } from "./plan.ts";
 
@@ -32,7 +32,7 @@ function plan(
     // compare each declared term with its entry
     const declared = terms(declarations);
     const steps: Step[] = [];
-    const problems: PlanError["problems"][number][] = [];
+    const problems: PlanProblem[] = [];
     for (const [term, digest] of declared) {
         const entry = vocabulary[term];
         // restore a removed term under its last definition
@@ -47,7 +47,7 @@ function plan(
         }
     }
     if (problems.length > 0) {
-        throw new PlanError(problems);
+        throw unreachablePlan(problems);
     }
 
     // remove the terms the release no longer declares

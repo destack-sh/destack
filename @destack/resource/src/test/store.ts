@@ -15,7 +15,7 @@ export class MemoryContentStore implements ContentStore {
     async *read(digest: Digest): AsyncIterable<Uint8Array> {
         const blob = this.#blobs.get(digest);
         if (blob === undefined) {
-            throw new TypeError(`no blob ${digest}`);
+            throw new TypeError(`blob ${digest} not found`);
         }
         yield blob;
     }
@@ -32,7 +32,7 @@ export class MemoryContentStore implements ContentStore {
 
         // refuse bytes of another digest, and keep them once
         if (expected !== undefined && digest !== expected) {
-            throw new TypeError(`blob ${expected} read as ${digest}`);
+            throw new TypeError(`expected blob ${expected}, got ${digest}`);
         }
         this.#blobs.set(digest, bytes);
 

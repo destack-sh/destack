@@ -10,7 +10,7 @@ export class ResourceContext {
     bind<Value>(resource: ResourceHandle<Value>, client: NoInfer<Value>): this {
         // bind each declaration once
         if (this.#clients.has(resource)) {
-            throw new ResourceError("ALREADY_BOUND", `resource already bound: ${resource.name}`);
+            throw ResourceError.of("ALREADY_BOUND", `resource already bound: ${resource.name}`);
         }
 
         // record the client
@@ -29,7 +29,7 @@ export class ResourceContext {
     get(resource: ResourceHandle<unknown>): unknown {
         // require a bound client
         if (!this.#clients.has(resource)) {
-            throw new ResourceError("NOT_BOUND", `resource is not bound: ${resource.name}`);
+            throw ResourceError.of("NOT_BOUND", `resource is not bound: ${resource.name}`);
         }
 
         return this.#clients.get(resource);

@@ -3,6 +3,7 @@ import { ResourceId, type ResourceDeclaration } from "../declare/declaration.ts"
 import type { KindState, ResourceKind } from "../declare/kind.ts";
 import type { Plan } from "../plan/plan.ts";
 import type { Recipient } from "@destack/identity";
+import { ResourceError } from "../error/index.ts";
 
 /** A resource as its space records it, its specification read by its kind. */
 export interface ResourceRecord<Kind extends ResourceKind = ResourceKind> {
@@ -21,7 +22,7 @@ export const ResourceRecord = {
     /** Read a provisioned resource's reference, refusing an unprovisioned one. */
     reference(record: Pick<ResourceRecord, "reference">): string {
         if (record.reference === null) {
-            throw new TypeError("resource is not provisioned");
+            throw ResourceError.of("NOT_PROVISIONED", "resource is not provisioned");
         }
 
         return record.reference;

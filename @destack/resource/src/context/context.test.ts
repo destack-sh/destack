@@ -1,6 +1,5 @@
-import { expect, test } from "@destack/test";
+import { expect, test, refusal } from "@destack/test";
 import { Package } from "@destack/package";
-import { ResourceError } from "../error/index.ts";
 import { ResourceDeclaration } from "../declare/index.ts";
 import { ResourceContext } from "./context.ts";
 
@@ -11,7 +10,7 @@ const owner = Package.parse({
     version: "2026.9.0",
 });
 
-test("bind one client per declaration and refuse missing or repeated bindings", () => {
+test("bind one client per declaration and refuse missing or repeated bindings", async () => {
     const notes = new ResourceDeclaration<string>(owner, {
         name: "notes",
         kind: "database",
@@ -28,10 +27,14 @@ test("bind one client per declaration and refuse missing or repeated bindings", 
     expect(notes.get(context)).toBe("notes client");
 
     // refuse an unbound declaration and a second binding
-    expect(() => tasks.get(context)).toThrow(
-        new ResourceError("NOT_BOUND", "resource is not bound: tasks"),
-    );
-    expect(() => context.bind(notes, "other client")).toThrow(
-        new ResourceError("ALREADY_BOUND", "resource already bound: notes"),
-    );
+    expect(await refusal(() => tasks.get(context))).toEqual([
+        "INTERNAL_SERVER_ERROR",
+        "NOT_BOUND",
+        "resource is not bound: tasks",
+    ]);
+    expect(await refusal(() => context.bind(notes, "other client"))).toEqual([
+        "INTERNAL_SERVER_ERROR",
+        "ALREADY_BOUND",
+        "resource already bound: notes",
+    ]);
 });
