@@ -1,27 +1,36 @@
+import { DomainError } from "@destack/error";
 import { schema } from "@destack/schema";
 
-/** An error with a code, as service, database and package errors are. */
-const CodedError = schema.looseObject({
-    /** The error's code. */
+/** A failure as its caller receives it: its code, its reason within its domain, and its message. */
+const ReceivedFailure = schema.looseObject({
+    /** The call error code. */
     code: schema.string(),
-    /** The error's message. */
+    /** The failure's stable cause within its domain. */
+    reason: schema.string(),
+    /** The package whose reason it is, or http. */
+    domain: schema.string(),
+    /** The readable message. */
     message: schema.string(),
 });
 
-/** Answer a pending call's refusal as its code and message, or "done" when it succeeds. */
-export function refusal(pending: Promise<unknown>): Promise<"done" | readonly [string, string]> {
+/** Answer a pending call's refusal as its code, reason and message, or "done" when it succeeds. */
+export function refusal(
+    pending: Promise<unknown>,
+): Promise<"done" | readonly [string, string, string]> {
     return pending.then(
         () => "done" as const,
         (error: unknown) => {
-            // read the error's code and message
-            const coded = CodedError.safeParse(error);
+            // read the failure the caller receives: a package error's, else the call error itself
+            const received = ReceivedFailure.safeParse(
+                DomainError.is(error) ? error.toCallError() : error,
+            );
 
-            // rethrow an error without them, failing the test that awaits it
-            if (!coded.success) {
+            // rethrow an error without one, failing the test that awaits it
+            if (!received.success) {
                 throw error;
             }
 
-            return [coded.data.code, coded.data.message] as const;
+            return [received.data.code, received.data.reason, received.data.message] as const;
         },
     );
 }

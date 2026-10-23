@@ -6,8 +6,8 @@
 import { expect, test } from "@destack/test"; // vitest
 // vitest/config's defineConfig
 export default defineConfiguration({ test: { include: ["src/**/*.test.ts"] } });
-// the code and message of a refused call
-expect(await refusal(client.read(pageId))).toEqual(["NOT_FOUND", `no page ${pageId}`]);
+// the code, reason and message of a refused call
+expect(await refusal(client.read(pageId))).toEqual(["NOT_FOUND", "PAGE_NOT_FOUND", `no page ${pageId}`]);
 const row = single(await database.select().from(page)); // the only row, or a throw
 // picks the driver by the interaction's name
 Runner.play(createTallyMarkTwice, [TallyDriver, ViewDriver]);
