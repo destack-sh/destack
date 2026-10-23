@@ -1,22 +1,17 @@
 import type { Failure } from "./failure.ts";
 
-/** The HTTP status of each call error code, from RFC 9110, 6585 and 8470 or from Destack. */
+/** The HTTP status of each call error code: oRPC's codes, and RFC 9110's names beyond them. */
 export const CALL_ERROR_STATUSES = {
     BAD_REQUEST: 400,
     UNAUTHORIZED: 401,
-    INSUFFICIENT_AUTHENTICATION: 401,
-    QUOTA_EXCEEDED: 402,
+    PAYMENT_REQUIRED: 402,
     FORBIDDEN: 403,
-    INSUFFICIENT_GRANT: 403,
-    APPROVAL_REQUIRED: 403,
     NOT_FOUND: 404,
     METHOD_NOT_SUPPORTED: 405,
     NOT_ACCEPTABLE: 406,
     TIMEOUT: 408,
     CONFLICT: 409,
-    MANAGED: 409,
     GONE: 410,
-    STALE_EPOCH: 410,
     PRECONDITION_FAILED: 412,
     PAYLOAD_TOO_LARGE: 413,
     UNSUPPORTED_MEDIA_TYPE: 415,
@@ -43,7 +38,7 @@ export const CallErrorCode = {
 
     /** Read a status's HTTP reason code, else its class's: a bad request or an internal error. */
     of(status: number): CallErrorCode {
-        // take the first code of the status, the HTTP reason name
+        // take the status's code
         const code = Object.entries(CALL_ERROR_STATUSES).find((entry) => entry[1] === status)?.[0];
         if (code !== undefined && CallErrorCode.is(code)) {
             return code;
