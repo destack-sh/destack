@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { brand } from "./brand.ts";
+import type { DigestCrypto } from "../digest/digest.ts";
 import { Uuid, type UuidEnvironment } from "./uuid.ts";
 
 /** The characters of a UUID's canonical text form, RFC 9562. */
@@ -8,8 +9,8 @@ const UUID_LENGTH = 36;
 /** The position of a UUID's version digit in its text form (RFC 9562 4.2). */
 const VERSION_POSITION = 14;
 
-/** The canonical lowercase UUIDv7 representation from RFC 9562. */
-const UUID_V7 = "[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
+/** The canonical lowercase UUIDv7, or name-based UUIDv8, representation from RFC 9562. */
+const UUID_PATTERN = "[0-9a-f]{8}-[0-9a-f]{4}-[78][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
 
 /** The text of a UUID's bytes 11 to 13, random bits after a UUIDv7's counter (RFC 9562 5.7). */
 const POSITION_RANGE = { start: 26, end: 32 } as const;
@@ -20,10 +21,10 @@ const POSITION_LIMIT = 2 ** 24;
 /** The identifier validators by prefix, each built and registered once. */
 const VALIDATORS = new Map<string, z.ZodString>();
 
-/** A prefixed UUIDv7 identifier. */
+/** A prefixed UUIDv7, or named UUIDv8, identifier. */
 export type Identifier<Prefix extends string> = z.output<ReturnType<typeof identifier<Prefix>>>;
 
-/** Define a typed entity identifier with a lowercase prefix and a UUIDv7 suffix. */
+/** Define a typed entity identifier with a lowercase prefix and a UUIDv7 or UUIDv8 suffix. */
 export function identifier<const Prefix extends string>(
     prefix: Prefix,
 ): z.core.$ZodBranded<z.ZodString, Prefix> {
@@ -38,17 +39,17 @@ export function identifier<const Prefix extends string>(
         throw new TypeError(`invalid identifier prefix: ${prefix}`);
     }
 
-    // match the prefix followed by a UUIDv7, and register the validator
-    const validator = z.string().regex(new RegExp(`^${prefix}-${UUID_V7}$`, "u"));
+    // match the prefix followed by a UUIDv7 or UUIDv8, and register the validator
+    const validator = z.string().regex(new RegExp(`^${prefix}-${UUID_PATTERN}$`, "u"));
     VALIDATORS.set(prefix, validator);
 
     return brand<Prefix>(validator);
 }
 
-/** Define an identifier of any entity kind: any lowercase prefix and a UUIDv7 suffix. */
+/** Define an identifier of any entity kind: any lowercase prefix and a UUIDv7 or UUIDv8 suffix. */
 export function anyIdentifier(): z.core.$ZodBranded<z.ZodString, string> {
-    // match any valid prefix followed by a UUIDv7
-    const pattern = new RegExp(`^[a-z][a-z0-9]*(?:-[a-z0-9]+)*-${UUID_V7}$`, "u");
+    // match any valid prefix followed by a UUIDv7 or UUIDv8
+    const pattern = new RegExp(`^[a-z][a-z0-9]*(?:-[a-z0-9]+)*-${UUID_PATTERN}$`, "u");
 
     return z.string().regex(pattern).brand<string>();
 }
@@ -61,6 +62,16 @@ export const Identifier = {
         environment: UuidEnvironment,
     ): Identifier<Prefix> {
         return identifier(prefix).parse(`${prefix}-${Uuid.v7(environment)}`);
+    },
+
+    /** Hash a name in a namespace into a prefixed UUIDv8 identifier, the same everywhere. */
+    async hash<const Prefix extends string>(
+        prefix: Prefix,
+        namespace: Uuid,
+        name: string,
+        crypto: DigestCrypto,
+    ): Promise<Identifier<Prefix>> {
+        return identifier(prefix).parse(`${prefix}-${await Uuid.v8(namespace, name, crypto)}`);
     },
 
     /** Derive a request object's identifier: the request's time and bits as a UUIDv7. */
@@ -103,7 +114,7 @@ export const Identifier = {
         });
     },
 
-    /** Read the UUIDv7 an identifier ends with. */
+    /** Read the UUID an identifier ends with. */
     uuid(value: Identifier<string>): string {
         return value.slice(-UUID_LENGTH);
     },

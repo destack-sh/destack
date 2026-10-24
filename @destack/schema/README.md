@@ -1,6 +1,6 @@
 # @destack/schema
 
-`schema` is Zod 4 limited to what JSON Schema expresses, `toJsonSchema` is Zod's `z.toJSONSchema` and `fromJsonSchema` its exact inverse with patterns matched by RE2, the time types are Temporal's `Instant`, `PlainDate`, `PlainTime` and `Duration` in JSON, and `schema.identifier` brands a prefixed UUIDv7.
+`schema` is Zod 4 limited to what JSON Schema expresses, `toJsonSchema` is Zod's `z.toJSONSchema` and `fromJsonSchema` its exact inverse with patterns matched by RE2, the time types are Temporal's `Instant`, `PlainDate`, `PlainTime` and `Duration` in JSON, and `schema.identifier` brands a prefixed UUIDv7 or name-based UUIDv8.
 
 ```ts
 // z.object
@@ -20,8 +20,17 @@ const date: PlainDate = { year: 2026, month: 10, day: 3 }; // Temporal.PlainDate
 
 ```ts
 Identifier.create("space", environment); // "space-01a16b35-0800-748f-…", the clock's millisecond first
-Uuid.v7(environment); // the bare UUIDv7: the millisecond, then 74 random bits
+Uuid.v7(environment); // the bare UUIDv7: the millisecond, a 12-bit counter, then 62 random bits
 Uuid.v4(environment.random); // 122 random bits
+```
+
+## Named identifiers
+
+`Identifier.hash` hashes a namespace and a name into a prefixed UUIDv8 by SHA-256 (RFC 9562 B.2), the same everywhere.
+
+```ts
+await Identifier.hash("installation", spaceUuid, "stack", crypto); // "installation-…-8…", one per space and name
+await Uuid.v8("6ba7b810-9dad-11d1-80b4-00c04fd430c8", "www.example.com", crypto); // "5c146b14-3c52-8afd-938a-375d0df1fbf6"
 ```
 
 ## Comparisons

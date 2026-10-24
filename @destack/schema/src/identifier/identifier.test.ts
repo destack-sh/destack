@@ -89,7 +89,7 @@ test("derive a request's objects in order of their positions, between requests w
     );
 });
 
-test("create the same identifiers in two worlds of one seed, stamped with each millisecond", async () => {
+test("create the same identifiers in two worlds of one seed, ordered within each millisecond", async () => {
     // create two identifiers per millisecond in a world of a seed
     const create = async (seed: number) => {
         await using simulation = new Simulation({ seed, start: START });
@@ -107,16 +107,31 @@ test("create the same identifiers in two worlds of one seed, stamped with each m
     // repeat identifiers for one seed
     const seeded = [
         "note-01a16b35-0800-72ed-b523-b5e148fc2bbd",
-        "note-01a16b35-0800-72b8-b42d-75fe2d705834",
-        "note-01a16b35-0801-7893-afd3-b1ae7e86dad9",
+        "note-01a16b35-0800-72ee-b42d-75fe2d705834",
+        "note-01a16b35-0801-7093-afd3-b1ae7e86dad9",
     ];
     expect({ first, again, other }).toEqual({
         first: seeded,
         again: seeded,
         other: [
             "note-01a16b35-0800-774a-9c2b-b84c515e5561",
-            "note-01a16b35-0800-70c6-bab4-2ef1b2e496de",
+            "note-01a16b35-0800-774b-bab4-2ef1b2e496de",
             "note-01a16b35-0801-7238-849f-eebbf46a8dbf",
         ],
     });
+});
+
+test("hash a name in a namespace into the same UUIDv8 identifier everywhere, accepted as its prefix's", async () => {
+    // hash an installation's name twice, and another name once
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const { crypto } = simulation.environment("schema");
+    const hash = (name: string) => Identifier.hash("installation", UUID, name, crypto);
+    const hashed = [await hash("stack"), await hash("stack"), await hash("forge")];
+
+    expect([...hashed, identifier("installation").safeParse(hashed[0]).success]).toEqual([
+        "installation-1b1d1b61-3477-89e0-9505-ddb2f256bf66",
+        "installation-1b1d1b61-3477-89e0-9505-ddb2f256bf66",
+        "installation-eeb98c34-92fe-85b9-9ba0-3e7944b02006",
+        true,
+    ]);
 });
