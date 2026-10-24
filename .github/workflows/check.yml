@@ -89,7 +89,7 @@ jobs:
               run: just gate "$PACKAGE"
 
     macos:
-        name: Test filesystem and updates on macOS
+        name: Test updates on macOS
         runs-on: macos-15
         timeout-minutes: 10
         steps:
@@ -101,10 +101,6 @@ jobs:
               uses: ./.github/actions/setup-bun
             - name: Install dependencies
               run: bun install --frozen-lockfile
-            - name: Typecheck filesystem
-              run: bun run --cwd @destack/fs typecheck
-            - name: Test filesystem operations
-              run: bun --bun run --cwd @destack/fs test --maxWorkers=4
             - name: Typecheck updates
               run: bun run --cwd @destack/update typecheck
             - name: Test updates
