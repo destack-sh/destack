@@ -111,7 +111,7 @@ export function Shader(properties: ShaderProperties): JSX.Element {
     const stopping = new AbortController();
     onCleanup(() => stopping.abort());
 
-    // follow the theme in the page alone, where the browser's clock and display run
+    // follow the theme in the page alone
     const environment = isServer ? undefined : useEnvironment();
     const preferences = THEME_QUERIES.map((query) => createMediaQuery(query));
     if (environment !== undefined) {
@@ -126,7 +126,7 @@ export function Shader(properties: ShaderProperties): JSX.Element {
     let colors: ColorCache = new Map();
     let colorTheme: unknown;
 
-    // build the mount once the canvas exists in the page, and again for a new fragment shader
+    // build the mount for each canvas and fragment shader
     createEffect(
         () => ({ element: canvas(), fragment: properties.fragmentShader }),
         ({ element, fragment }) => {

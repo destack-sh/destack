@@ -1,5 +1,5 @@
 import { Simulation } from "@destack/environment/simulation";
-import { BrowserSimulation } from "@destack/environment/browser";
+import { BrowserSimulation } from "@destack/environment/browser/simulation";
 import { expect, onTestFinished, test, vi } from "@destack/test";
 import { render } from "@destack/view/test";
 import { ShaderMount } from "../mount/mount.ts";
