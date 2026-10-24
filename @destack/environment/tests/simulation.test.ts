@@ -1,7 +1,12 @@
 import { Uuid } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { Random } from "../src/index.ts";
-import { SimulatedRandom, Simulation, SimulatedClock } from "../src/simulation/index.ts";
+import {
+    type NodeStart,
+    SimulatedClock,
+    SimulatedRandom,
+    Simulation,
+} from "../src/simulation/index.ts";
 import type { ServerSocket, TcpSocket } from "../src/index.ts";
 
 /** The simulations' start: 2026-10-16 at midnight UTC. */
@@ -306,7 +311,8 @@ test("crash a node, losing its memory and stopping its work, and start it again 
     await using simulation = new Simulation({ seed: 1, start: START });
     const stored = { starts: 0 };
     let ticks = 0;
-    const node = await simulation.add("worker", async (environment, signal) => {
+    const node = simulation.node("worker");
+    const work: NodeStart<{ readonly memory: string }> = async (environment, signal) => {
         stored.starts += 1;
         void (async () => {
             while (!signal.aborted) {
@@ -316,7 +322,8 @@ test("crash a node, losing its memory and stopping its work, and start it again 
         })();
 
         return { memory: "fresh" };
-    });
+    };
+    await node.start(work);
 
     // crash, wait and restart
     await simulation.run({ to: simulation.clock.now() + 3000 });
@@ -324,10 +331,10 @@ test("crash a node, losing its memory and stopping its work, and start it again 
     const whileDown = ticks;
     await simulation.run({ to: simulation.clock.now() + 3000 });
     const crashed = ticks;
-    await node.start();
+    const restarted = await node.start(work);
 
     // stop ticks on crash and start again
-    expect({ whileDown, crashed, starts: stored.starts, memory: node.running }).toEqual({
+    expect({ whileDown, crashed, starts: stored.starts, memory: restarted }).toEqual({
         whileDown: 3,
         crashed: 3,
         starts: 2,
@@ -412,10 +419,9 @@ test("fail a socket its listener refuses with a plain answer, and discard the an
 test("break sockets across a partition and from a crashed node, and close them on a stopped listener", async () => {
     // serve the echo from a node, and open one socket to be cut off and one to see the crash
     await using simulation = new Simulation({ seed: 9, start: START });
-    const server = await simulation.add(
-        "server",
-        async () => serveEcho(simulation, "server").listener,
-    );
+    const server = simulation.node("server");
+    const serve = async () => serveEcho(simulation, "server").listener;
+    await server.start(serve);
     const cut = open(simulation, "browser", "ada");
     const crashed = open(simulation, "laptop", "grace");
     await simulation.run({ until: () => cut.events.length === 1 && crashed.events.length === 1 });
@@ -427,7 +433,7 @@ test("break sockets across a partition and from a crashed node, and close them o
     await simulation.run({ until: () => down.events.length === 1 });
 
     // restart it, and close an open socket by stopping its listener
-    const listener = await server.start();
+    const listener = await server.start(serve);
     const stopped = open(simulation, "laptop", "ming");
     await simulation.run({ until: () => stopped.events.length === 1 });
     await listener.stop(true);
@@ -992,4 +998,29 @@ test("run timers by deadline and, within one, in start order, a zero-delay timer
         order: ["zero", "later first", "later second"],
         isOrdered: true,
     });
+});
+
+test("decode a gzip response as Bun's fetch does, and keep its encoding when asked", async () => {
+    // serve one gzip-encoded body
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const encoded = await new Response(
+        new Blob(["stored"]).stream().pipeThrough(new CompressionStream("gzip")),
+    ).bytes();
+    simulation.network.server("server").http({
+        hostname: "files.test",
+        port: 443,
+        fetch: () => new Response(encoded, { headers: { "content-encoding": "gzip" } }),
+    });
+    const { network } = simulation.environment("client");
+
+    // fetch it decoded, then as stored
+    const decoded = await simulation.drive(network.fetch(new Request("https://files.test/")));
+    const stored = await simulation.drive(
+        network.fetch(new Request("https://files.test/"), { decompress: false }),
+    );
+
+    expect({
+        decoded: [await decoded.text(), decoded.headers.get("content-encoding")],
+        stored: [(await stored.bytes()).length, stored.headers.get("content-encoding")],
+    }).toEqual({ decoded: ["stored", null], stored: [encoded.length, "gzip"] });
 });

@@ -282,7 +282,10 @@ export class SimulatedNetwork {
                     throw new TypeError("a simulated request needs a host name and port");
                 }
 
-                return await this.#transit(this.#fetch(node, request));
+                // decode the response's content encoding, as Bun's fetch does unless asked to keep it
+                const response = await this.#transit(this.#fetch(node, request));
+
+                return options?.decompress === false ? response : decoded(response);
             },
             connect: (address, options) => this.#connect(node, address, options),
             websocket: (url, protocols) => this.#websocket(node, url, protocols),
@@ -987,4 +990,25 @@ export class SimulatedNetwork {
 /** Fail a connection as the host's network does: a TypeError with Bun's error code. */
 function refusal(message: string, code: string): TypeError {
     return Object.assign(new TypeError(message), { code });
+}
+
+/** Decode a response's gzip or deflate encoding, dropping the encoding and length it states. */
+function decoded(response: Response): Response {
+    // keep a response without a body or an encoding the web's streams decode
+    const encoding = response.headers.get("content-encoding");
+    if (response.body === null || (encoding !== "gzip" && encoding !== "deflate")) {
+        return response;
+    }
+
+    // decode the body, and describe the decoded bytes
+    const headers = new Headers(response.headers);
+    headers.delete("content-encoding");
+    headers.delete("content-length");
+    const body = response.body.pipeThrough(new DecompressionStream(encoding));
+
+    return new Response(body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers,
+    });
 }

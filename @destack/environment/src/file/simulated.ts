@@ -186,6 +186,8 @@ export class SimulatedFileSystem implements FileSystem {
                     close: () => clock.trackHost(writer.close()),
                 });
             },
+            read: (buffer) => clock.trackHost(file.read(buffer)),
+            seek: (offset) => file.seek(offset),
             stat: () => clock.trackHost(file.stat()),
             sync: () => clock.trackHost(file.sync()),
             truncate: (length) => clock.trackHost(file.truncate(length)),

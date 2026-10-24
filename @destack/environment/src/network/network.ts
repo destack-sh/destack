@@ -15,6 +15,8 @@ export interface FetchOptions {
     readonly certificate?: ClientCertificate;
     /** The Unix socket to send through in place of the URL's host, as a local listener's. */
     readonly unix?: string;
+    /** Whether to decode a response's content encoding, true by default, as Bun's fetch has it. */
+    readonly decompress?: boolean;
 }
 
 /** A WebSocket a client opened, its binary messages arriving as ArrayBuffers. */
@@ -143,6 +145,14 @@ export const Network: { readonly system: Network } = {
                 throw NetworkError.of(
                     "UNSUPPORTED",
                     "a client certificate or a Unix socket needs a host network",
+                );
+            }
+
+            // refuse keeping a response's encoding, which the web's fetch always decodes
+            if (options?.decompress === false) {
+                throw NetworkError.of(
+                    "UNSUPPORTED",
+                    "keeping a response's encoding needs a host network",
                 );
             }
 

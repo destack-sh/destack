@@ -82,7 +82,8 @@ await using simulation = new Simulation({
     start: Date.UTC(2026, 9, 24),
     timeZone: "Europe/Vienna",
 });
-const host = await simulation.add("host", (environment, signal) => Host.start(environment, signal));
+const host = simulation.node("host"); // its environment, process and network identity
+await host.start((environment, signal) => Host.start(environment, signal));
 simulation.network.degrade({ drop: 0.01, delay: { least: 5, most: 80 } }); // a lost message breaks its socket
 simulation.network.partition("tab", "host");
 host.crash(); // drops its memory, listeners and sockets, keeps its files and database

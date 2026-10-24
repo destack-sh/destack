@@ -161,9 +161,11 @@ export class BunFileSystem implements FileSystem {
         return BunFileSystem.#run(`move ${from} to ${to}`, () => rename(from, to));
     }
 
-    /** Copy a file to another path. */
+    /** Copy a file to another path, cloning its blocks where the file system can. */
     copyFile(from: string, to: string): Promise<void> {
-        return BunFileSystem.#run(`copy ${from} to ${to}`, () => copyFile(from, to));
+        return BunFileSystem.#run(`copy ${from} to ${to}`, () =>
+            copyFile(from, to, constants.COPYFILE_FICLONE),
+        );
     }
 
     /** Copy a path to another, with everything inside a directory. */
@@ -193,36 +195,76 @@ export class BunFileSystem implements FileSystem {
 
     /** Open a file. */
     async open(path: string, options: OpenOptions): Promise<FileHandle> {
-        // open the file in the flags its options choose
-        const file = await BunFileSystem.#run(`open ${path}`, () =>
+        // open the file in the flags its options choose, reopening a directory on Windows with the write access its flush needs
+        const opened = await BunFileSystem.#run(`open ${path}`, () =>
             open(path, BunFileSystem.#flags(options), options.mode),
         );
+        const isWindowsDirectory =
+            process.platform === "win32" &&
+            options.write !== true &&
+            (await opened.stat()).isDirectory();
+        if (isWindowsDirectory) {
+            await opened.close();
+        }
+        const file = isWindowsDirectory
+            ? await BunFileSystem.#run(`open ${path}`, () =>
+                  open(path, BunFileSystem.#flags({ ...options, write: true }), options.mode),
+              )
+            : opened;
+
+        // read and write at one cursor, as Deno's FsFile does, appending writes at the end
+        let cursor = 0;
+        const isAppending = options.append === true;
+        const read = async (buffer: Uint8Array): Promise<number> => {
+            // read at the cursor, moving it unless a seek moved it meanwhile
+            const position = cursor;
+            const { bytesRead } = await file.read(buffer, 0, buffer.byteLength, position);
+            cursor = cursor === position ? position + bytesRead : cursor;
+
+            return bytesRead;
+        };
 
         return {
-            readable: () => {
-                // read chunks from the start on, ending at the file's end
-                let position = 0;
-
-                return new ReadableStream<Uint8Array>({
+            readable: () =>
+                new ReadableStream<Uint8Array>({
                     pull: async (controller) => {
-                        // read the next chunk, closing at the end
+                        // read the next chunk at the cursor, closing at the end
                         const chunk = new Uint8Array(CHUNK_BYTES);
-                        const { bytesRead } = await file.read(chunk, 0, CHUNK_BYTES, position);
-                        position += bytesRead;
+                        const bytesRead = await read(chunk);
                         if (bytesRead === 0) {
                             controller.close();
                         } else {
                             controller.enqueue(chunk.subarray(0, bytesRead));
                         }
                     },
-                });
-            },
+                }),
             writable: () =>
                 new WritableStream<Uint8Array>({
                     write: async (chunk) => {
-                        await file.write(chunk);
+                        // write at the cursor, or at the end while appending, which moves the cursor there
+                        const position = cursor;
+                        const { bytesWritten } = await file.write(
+                            chunk,
+                            0,
+                            chunk.byteLength,
+                            isAppending ? null : position,
+                        );
+                        const end = isAppending
+                            ? (await file.stat()).size
+                            : position + bytesWritten;
+                        cursor = cursor === position ? end : cursor;
                     },
                 }),
+            read: async (buffer) => {
+                const bytesRead = await read(buffer);
+
+                return bytesRead === 0 && buffer.byteLength > 0 ? null : bytesRead;
+            },
+            seek: async (offset) => {
+                cursor = offset;
+
+                return cursor;
+            },
             stat: async () => BunFileSystem.#status(await file.stat()),
             sync: () => file.sync(),
             truncate: (length) => file.truncate(length),

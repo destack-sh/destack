@@ -78,71 +78,76 @@ export type NodeStart<Running> = (
     signal: AbortSignal,
 ) => Promise<Running>;
 
-/** A process of a simulation, which it starts, crashes and restarts from what it stored. */
-export class SimulatedNode<Running = unknown> {
+/** A participant of a simulation, such as a machine or a tab, running work until a crash. */
+export class SimulatedNode {
     /** The node's name, which partitions and the trace use. */
     readonly name: string;
-    /** The node's environment: the simulation's clock, and its network as the node. */
+    /** The node's environment: the world's clock, randomness and files, and its own process. */
     readonly environment: Environment<HostCapability>;
-    /** Start the node's work. */
-    readonly #start: NodeStart<Running>;
     /** The simulation the node runs in. */
     readonly #simulation: Simulation;
+    /** Make the node a fresh process, as each start after a crash has. */
+    readonly #spawn: () => SimulatedProcess;
     /** Release what the world gives the node once it crashes. */
     readonly #release: () => void;
-    /** The running work and the signal stopping it, absent while crashed. */
-    #running: { readonly value: Running; readonly stop: AbortController } | undefined;
+    /** The node's current process. */
+    #process: SimulatedProcess;
+    /** The signal stopping the running work, absent while the node runs none. */
+    #stop: AbortController | undefined;
 
-    /** Prepare a node of a simulation, released by it on each crash. */
+    /** Make a node of a simulation from its effects, with a fresh process per start. */
     constructor(
         name: string,
         simulation: Simulation,
-        start: NodeStart<Running>,
+        effects: Omit<Environment<HostCapability>, "process">,
+        spawn: () => SimulatedProcess,
         release: () => void,
     ) {
-        // take the node's environment from its simulation
+        // keep the node's effects, its process read through the current one
         this.name = name;
-        this.environment = simulation.environment(name);
-        this.#start = start;
         this.#simulation = simulation;
+        this.#spawn = spawn;
         this.#release = release;
+        this.#process = spawn();
+        const read = () => this.#process;
+        this.environment = {
+            ...effects,
+            get process() {
+                return read();
+            },
+        };
     }
 
-    /** The node's running work, refusing a crashed node. */
-    get running(): Running {
-        if (this.#running === undefined) {
-            throw new Error(`node ${this.name} is not running`);
-        }
-
-        return this.#running.value;
-    }
-
-    /** Start the node, or start it again after a crash. */
-    async start(): Promise<Running> {
-        if (this.#running !== undefined) {
+    /** Start work on the node, or start it again after a crash, answering what the work answers. */
+    async start<Running>(work: NodeStart<Running>): Promise<Running> {
+        // refuse a node already running work
+        if (this.#stop !== undefined) {
             throw new Error(`node ${this.name} is already running`);
         }
+
+        // start the work under a signal a crash aborts
         const stop = new AbortController();
+        this.#stop = stop;
         this.#simulation.record({
             kind: "start",
             at: this.environment.clock.now(),
             detail: this.name,
         });
-        this.#running = { value: await this.#start(this.environment, stop.signal), stop };
 
-        return this.#running.value;
+        return await work(this.environment, stop.signal);
     }
 
     /** Stop the node at once, as a lost process, leaving only what it stored. */
     crash(): void {
-        // stop the node's work, listeners and connections
+        // stop the node's work, give it a fresh process, and release its sockets and listeners
         this.#simulation.record({
             kind: "crash",
             at: this.environment.clock.now(),
             detail: this.name,
         });
-        this.#running?.stop.abort(new Error(`node ${this.name} crashed`));
-        this.#running = undefined;
+        this.#stop?.abort(new Error(`node ${this.name} crashed`));
+        this.#stop = undefined;
+        this.#process = this.#spawn();
         this.#release();
     }
 }
@@ -205,10 +210,8 @@ export class Simulation {
     readonly #locale: string;
     /** The time zone each node formats in. */
     readonly #timeZone: string;
-    /** The environments of the nodes, by name. */
-    readonly #environments = new Map<string, Environment<HostCapability>>();
-    /** Each node's current process, fresh after every crash. */
-    readonly #processes = new Map<string, SimulatedProcess>();
+    /** The nodes, by name. */
+    readonly #nodes = new Map<string, SimulatedNode>();
     /** The listeners of node crashes. */
     readonly #crashListeners = new Set<(node: string) => void>();
     /** The runs and driven work waiting on the loop, each answered once met. */
@@ -284,50 +287,38 @@ export class Simulation {
 
     /** Read a node's environment: the world's clock and randomness, and its own effects. */
     environment(node: string): Environment<HostCapability> {
-        // reuse the node's environment
-        const known = this.#environments.get(node);
+        return this.node(node).environment;
+    }
+
+    /** Read a node by its name, made on its first read with its effects on the world's clock. */
+    node(name: string): SimulatedNode {
+        // reuse the node
+        const known = this.#nodes.get(name);
         if (known !== undefined) {
             return known;
         }
 
-        // give the node its effects, each tracked on the world's clock, and its process per start
+        // give the node its effects, a fresh process per start, and its release on a crash
         const { clock, random } = this;
-        const processes = this.#processes;
-        const start = () => {
-            const process = new SimulatedProcess(this.#process, clock);
-            processes.set(node, process);
-
-            return process;
-        };
-        const environment = {
+        const effects = {
             clock,
             random,
             crypto: Crypto.track(BunCrypto, clock),
-            network: this.network.of(node),
+            network: this.network.of(name),
             compression: SimulatedCompression,
             telemetry: this.telemetry,
             locale: this.#locale,
             timeZone: this.#timeZone,
             workers: Workers.system,
-            server: this.network.server(node),
+            server: this.network.server(name),
             files: new SimulatedFileSystem(this.root, clock, random),
-            get process() {
-                return processes.get(node) ?? start();
-            },
             host: this.#host,
         };
-        this.#environments.set(node, environment);
+        const spawn = () => new SimulatedProcess(this.#process, clock);
+        const node = new SimulatedNode(name, this, effects, spawn, () => this.#release(name));
+        this.#nodes.set(name, node);
 
-        return environment;
-    }
-
-    /** Release a crashed node's sockets, listeners and process, and tell the crash listeners. */
-    #crash(node: string): void {
-        this.network.release(node);
-        this.#processes.delete(node);
-        for (const listener of this.#crashListeners) {
-            listener(node);
-        }
+        return node;
     }
 
     /** Call a listener on each node crash until the subscription disposes. */
@@ -337,12 +328,12 @@ export class Simulation {
         return { [Symbol.dispose]: () => this.#crashListeners.delete(listener) };
     }
 
-    /** Add a node, started at once. */
-    async add<Running>(name: string, start: NodeStart<Running>): Promise<SimulatedNode<Running>> {
-        const node = new SimulatedNode(name, this, start, () => this.#crash(name));
-        await node.start();
-
-        return node;
+    /** Release a crashed node's sockets and listeners, and tell the crash listeners. */
+    #release(node: string): void {
+        this.network.release(node);
+        for (const listener of this.#crashListeners) {
+            listener(node);
+        }
     }
 
     /** Run until a condition is true or to a time, moving to each next timer once idle. */

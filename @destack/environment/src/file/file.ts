@@ -96,12 +96,16 @@ export interface WatchOptions {
     readonly signal?: AbortSignal;
 }
 
-/** An open file, read and written as web streams. */
+/** An open file, read and written as web streams at its cursor, as Deno's `FsFile` has it. */
 export interface FileHandle extends AsyncDisposable {
-    /** The file's bytes from its start. */
+    /** The file's bytes from its cursor on, moving the cursor. */
     readonly readable: () => ReadableStream<Uint8Array>;
-    /** A stream writing bytes at the file's position. */
+    /** A stream writing bytes at the file's cursor, moving the cursor. */
     readonly writable: () => WritableStream<Uint8Array>;
+    /** Read bytes at the cursor into a buffer, answering their count, or null at the file's end. */
+    readonly read: (buffer: Uint8Array) => Promise<number | null>;
+    /** Move the cursor to a byte offset from the file's start, answering the offset. */
+    readonly seek: (offset: number) => Promise<number>;
     /** Read the file's status. */
     readonly stat: () => Promise<FileStatus>;
     /** Flush the file's contents and status to the disk. */
@@ -167,7 +171,7 @@ export interface FileSystem {
     readonly remove: (path: string, options?: RemoveOptions) => Promise<void>;
     /** Move a path to another, replacing a file there. */
     readonly rename: (from: string, to: string) => Promise<void>;
-    /** Copy a file to another path. */
+    /** Copy a file to another path, cloning its blocks where the file system can. */
     readonly copyFile: (from: string, to: string) => Promise<void>;
     /** Copy a path to another, with everything inside a directory. */
     readonly copy: (from: string, to: string) => Promise<void>;

@@ -181,7 +181,8 @@ test("release a crashed tab's locks and ports, failing its waiting requests", as
     // hold one lock on the crashing tab, and wait there for a lock the other tab holds
     await using simulation = new Simulation({ seed: 1, start: START });
     const browsers = new BrowserSimulation(simulation);
-    const crashing = await simulation.add("crashing", async () => undefined);
+    const crashing = simulation.node("crashing");
+    await crashing.start(async () => undefined);
     const crashed = browsers.environment("crashing");
     const other = browsers.environment("other");
     const order: string[] = [];

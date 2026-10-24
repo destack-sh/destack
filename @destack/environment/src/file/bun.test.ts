@@ -127,6 +127,50 @@ test("list a directory's entries by name, and every entry below it by relative p
     });
 });
 
+test("read and write a file at its cursor after a seek, append at its end, and flush a directory", async () => {
+    // write a file, then overwrite one byte at an offset and append after it
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const { files } = simulation.environment("host");
+    const directory = await files.makeTemporaryDirectory("cursor-");
+    const path = join(directory, "note.txt");
+    await files.writeTextFile(path, "hello world");
+    {
+        await using file = await files.open(path, { read: true, write: true });
+        await file.seek(5);
+        await file.writable().getWriter().write(new TextEncoder().encode("!"));
+    }
+    {
+        await using file = await files.open(path, { append: true });
+        await file.writable().getWriter().write(new TextEncoder().encode(" again"));
+    }
+
+    // read from an offset into a buffer and as a stream, and flush the directory's entries
+    await using reader = await files.open(path, { read: true });
+    const offset = await reader.seek(6);
+    const buffer = new Uint8Array(5);
+    const counted = await reader.read(buffer);
+    const tail = await new Response(reader.readable()).text();
+    const end = await reader.read(buffer);
+    await using entries = await files.open(directory, { read: true });
+    await entries.sync();
+
+    expect({
+        whole: await files.readTextFile(path),
+        offset,
+        counted,
+        word: new TextDecoder().decode(buffer),
+        tail,
+        end,
+    }).toEqual({
+        whole: "hello!world again",
+        offset: 6,
+        counted: 5,
+        word: "world",
+        tail: " again",
+        end: null,
+    });
+});
+
 test("create a temporary directory inside a given directory", async () => {
     // create one directory inside another temporary one
     await using simulation = new Simulation({ seed: 1, start: START });
