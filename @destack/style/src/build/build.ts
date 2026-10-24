@@ -4,8 +4,8 @@ import { Features } from "lightningcss";
 import type { ViteDevServer } from "vite";
 import { basename, join, relative } from "node:path";
 import type { BuildExtension, Plugin } from "@destack/package/build";
-import { readBuild } from "@destack/package/bun";
 import { schema } from "@destack/schema";
+import { BuildReader } from "@destack/package/manifest";
 
 /** The stylesheet module that carries the StyleX rules a document uses. */
 const SHEET_ID = "virtual:stylex.css";
@@ -107,9 +107,10 @@ function sheetPlugin(
     dependencies: readonly string[],
     environment: Environment<"files">,
 ): Plugin {
-    // hold the development server, the rule version the sheet last carried and a queued reload
+    // hold the development server, the rule versions the sheet last carried and was last reloaded for, and a queued reload
     let server: ViteDevServer | undefined;
     let version = 0;
+    let reloaded = 0;
     let isReloadQueued = false;
 
     return {
@@ -166,10 +167,12 @@ function sheetPlugin(
             if (running === undefined || isReloadQueued) {
                 return undefined;
             }
-            if (stylex.__stylexGetSharedStore().version === version) {
+            const current = stylex.__stylexGetSharedStore().version;
+            if (current === version || current === reloaded) {
                 return undefined;
             }
             isReloadQueued = true;
+            reloaded = current;
             void environment.clock.sleep(0).then(() => {
                 // send the browser the sheet with the new rules
                 isReloadQueued = false;
@@ -191,7 +194,7 @@ async function readRules(
     environment: Pick<Environment<"files">, "files" | "crypto">,
 ): Promise<schema.Infer<typeof RuleFile>> {
     // read the build's file list, then each output's rules file
-    const build = await readBuild(directory, environment.files, environment.crypto);
+    const build = await BuildReader.openDirectory(directory, environment.files, environment.crypto);
     const listed = (await build.files()).filter((file) => basename(file.path) === RULES_FILE);
     const decoder = new TextDecoder();
     const rules = await Promise.all(
