@@ -1,6 +1,6 @@
-import { v7 } from "uuid";
 import { z } from "zod";
 import { brand } from "./brand.ts";
+import { Uuid, type UuidEnvironment } from "./uuid.ts";
 
 /** The characters of a UUID's canonical text form, RFC 9562. */
 const UUID_LENGTH = 36;
@@ -55,9 +55,12 @@ export function anyIdentifier(): z.core.$ZodBranded<z.ZodString, string> {
 
 /** Create and read prefixed identifiers. */
 export const Identifier = {
-    /** Create a new identifier with a prefix, ordered by its creation time. */
-    create<const Prefix extends string>(prefix: Prefix): Identifier<Prefix> {
-        return identifier(prefix).parse(`${prefix}-${v7()}`);
+    /** Create a new identifier with a prefix at the environment's time from its randomness. */
+    create<const Prefix extends string>(
+        prefix: Prefix,
+        environment: UuidEnvironment,
+    ): Identifier<Prefix> {
+        return identifier(prefix).parse(`${prefix}-${Uuid.v7(environment)}`);
     },
 
     /** Derive a request object's identifier: the request's time and bits as a UUIDv7. */

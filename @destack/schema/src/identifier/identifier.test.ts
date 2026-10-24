@@ -1,6 +1,10 @@
+import { Simulation } from "@destack/environment/simulation";
 import { expect, test } from "@destack/test";
 import { schema } from "../index.ts";
 import { anyIdentifier, Identifier, identifier } from "./identifier.ts";
+
+/** The clock's start: 2026-10-24 at midnight UTC. */
+const START = Date.UTC(2026, 9, 24);
 
 /** The UUIDv7 the fixture identifiers end with. */
 const UUID = "01996ab0-0000-7000-8000-000000000001";
@@ -83,4 +87,36 @@ test("derive a request's objects in order of their positions, between requests w
     expect(() => Identifier.derive("task", request, 2 ** 24)).toThrow(
         new RangeError("identifier position 16777216 is outside 0 to 2^24"),
     );
+});
+
+test("create the same identifiers in two worlds of one seed, stamped with each millisecond", async () => {
+    // create two identifiers per millisecond in a world of a seed
+    const create = async (seed: number) => {
+        await using simulation = new Simulation({ seed, start: START });
+        const environment = simulation.environment("schema");
+        const created = [
+            Identifier.create("note", environment),
+            Identifier.create("note", environment),
+        ];
+        simulation.clock.advance(1);
+
+        return [...created, Identifier.create("note", environment)];
+    };
+    const [first, again, other] = [await create(7), await create(7), await create(8)];
+
+    // repeat identifiers for one seed
+    const seeded = [
+        "note-01a16b35-0800-72ed-b523-b5e148fc2bbd",
+        "note-01a16b35-0800-72b8-b42d-75fe2d705834",
+        "note-01a16b35-0801-7893-afd3-b1ae7e86dad9",
+    ];
+    expect({ first, again, other }).toEqual({
+        first: seeded,
+        again: seeded,
+        other: [
+            "note-01a16b35-0800-774a-9c2b-b84c515e5561",
+            "note-01a16b35-0800-70c6-bab4-2ef1b2e496de",
+            "note-01a16b35-0801-7238-849f-eebbf46a8dbf",
+        ],
+    });
 });
