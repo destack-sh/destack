@@ -5,6 +5,7 @@ import { TemplateDefinition } from "../template/index.ts";
 import { PackageId, PackageName } from "./package.ts";
 import { DeclarationConstructorMap, FunctionReference, StampMap } from "./constructor.ts";
 import { Sandbox } from "./sandbox.ts";
+import { PackagePath } from "../file/file.ts";
 import { PackageError } from "../error/index.ts";
 
 /** The export of a package's test layer, serving its dependents' tests outside any build. */
@@ -51,6 +52,8 @@ const definition = schema.object({
     template: TemplateDefinition.exactOptional(),
     /** The runtimes the package's exports compile for. */
     runtimes: schema.array(Runtime).min(1).exactOptional(),
+    /** The modules a host starts beside the bin, such as Worker scripts. */
+    entrypoints: schema.array(PackagePath).min(1).exactOptional(),
     /** What the package's workloads and views always use beyond the bare sandbox. */
     sandbox: Sandbox.exactOptional(),
     /** The declaration constructors the build describes, by name. */

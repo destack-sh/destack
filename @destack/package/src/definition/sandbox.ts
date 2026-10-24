@@ -9,6 +9,9 @@ const HostPattern = schema
 /** Access to a directory: reading it, or reading and writing it. */
 const Access = schema.enum(["read", "write"]);
 
+/** The directory accesses from the widest, which a merge takes first. */
+const ACCESS_ORDER = ["write", "read"] as const;
+
 /** What a package's workloads and views may use beyond the bare sandbox, by name. */
 const sandboxSchema = schema
     .object({
@@ -19,10 +22,10 @@ const sandboxSchema = schema
             .object({ connect: schema.array(HostPattern).min(1) })
             .strict()
             .exactOptional(),
-        /** Listening for connections on loopback. */
-        listen: schema.object({}).strict().exactOptional(),
+        /** Serving connections on loopback. */
+        server: schema.object({}).strict().exactOptional(),
         /** The directories a person grants, read or written as the package declares. */
-        fs: schema.object({ access: Access }).strict().exactOptional(),
+        files: schema.object({ access: Access }).strict().exactOptional(),
         /** The host environment variables it may read. */
         env: schema
             .object({
@@ -83,8 +86,8 @@ export type SandboxName = schema.Infer<typeof SandboxName>;
 export const HOST_SANDBOX = SandboxName.extract([
     "process",
     "network",
-    "listen",
-    "fs",
+    "server",
+    "files",
     "env",
     "run",
 ]).options;
@@ -107,15 +110,15 @@ export const Sandbox = Object.assign(sandboxSchema, {
         const commands = unite(sandboxes.map((sandbox) => sandbox.run?.commands));
 
         // take writing over reading for directories
-        const access = new Set(sandboxes.map((sandbox) => sandbox.fs?.access));
-        const fs = access.has("write") ? "write" : access.has("read") ? "read" : undefined;
+        const access = new Set(sandboxes.map((sandbox) => sandbox.files?.access));
+        const files = ACCESS_ORDER.find((each) => access.has(each));
 
         return sandboxSchema.parse({
             ...abilities,
             ...(connect.length === 0 ? {} : { network: { connect } }),
             ...(names.length === 0 ? {} : { env: { names } }),
             ...(commands.length === 0 ? {} : { run: { commands } }),
-            ...(fs === undefined ? {} : { fs: { access: fs } }),
+            ...(files === undefined ? {} : { files: { access: files } }),
         });
     },
 
@@ -143,14 +146,14 @@ export const Sandbox = Object.assign(sandboxSchema, {
 /** What a package's workloads and views may use beyond the bare sandbox. */
 export type Sandbox = schema.Infer<typeof sandboxSchema>;
 
-/** A directory a person grants an installation's `fs` capability, by absolute path. */
+/** A directory a person grants an installation's `files` ability, by absolute path. */
 export const DirectoryGrant = schema.object({
     /** The directory's absolute path on the host: POSIX, a Windows drive or a UNC share. */
     path: schema.string().regex(/^(?:\/|[A-Za-z]:[\\/]|\\\\)[^\0]*$/u),
     /** Whether the installation reads it, or reads and writes it. */
     access: Access,
 });
-/** A directory a person grants an installation's `fs` capability. */
+/** A directory a person grants an installation's `files` ability. */
 export type DirectoryGrant = schema.Infer<typeof DirectoryGrant>;
 
 /** Unite lists, each value once, in first-seen order. */

@@ -1,6 +1,6 @@
 # @destack/package
 
-`destack.json` is a package's `package.json` companion with Deno's permissions as `sandbox`, `defineExample` is a Storybook story with its `args` and controls, `defineScenario` is a Storybook play function written as Playwright-style steps, `graph` keeps a build's modules and declarations under SCIP monikers, and `graph.Document` keeps one source file of the code index with its symbols and edges, as SCIP's `Document` does.
+`destack.json` is a package's `package.json` companion whose `sandbox` lists the abilities its workloads use, after Deno's permissions, `defineExample` is a Storybook story with its `args` and controls, `defineScenario` is a Storybook play function written as Playwright-style steps, `graph` keeps a build's modules and declarations under SCIP monikers, and `graph.Document` keeps one source file of the code index with its symbols and edges, as SCIP's `Document` does.
 
 ```ts
 // deno run --allow-net=api.github.com --allow-env=GITHUB_TOKEN --allow-run=git
@@ -47,7 +47,7 @@ export default definePackage({ resources: { main: pagesDatabase } });
     "runtimes": ["browser", "bun", "workerd"],
     "sandbox": {
         "network": { "connect": ["api.github.com"] },
-        "fs": { "access": "read" }
+        "files": { "access": "read" }
     },
     "declarations": {
         "defineNotification": {
@@ -98,7 +98,7 @@ export const buttonGhost = defineExample({
 ```ts
 import { BuildReader } from "@destack/package/manifest";
 
-const reader = await BuildReader.open(location, fetch, signal);
+const reader = await BuildReader.open(location, fetch, environment.crypto, signal);
 const settings = await reader.declared(
     import.meta.destack.package.id,
     "setting",

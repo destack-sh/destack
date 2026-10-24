@@ -7,12 +7,12 @@ test("merge sandboxes into every ability of each, uniting host and command lists
         process: {},
         network: { connect: ["api.github.com"] },
         run: { commands: ["git"] },
-        fs: { access: "read" },
+        files: { access: "read" },
     });
     const importing = Sandbox.parse({
         network: { connect: ["gmail.googleapis.com", "api.github.com"] },
     });
-    const syncing = Sandbox.parse({ fs: { access: "write" }, camera: {} });
+    const syncing = Sandbox.parse({ files: { access: "write" }, camera: {} });
 
     expect([Sandbox.merge(), Sandbox.merge(base), Sandbox.merge(base, importing, syncing)]).toEqual(
         [
@@ -22,7 +22,7 @@ test("merge sandboxes into every ability of each, uniting host and command lists
                 process: {},
                 network: { connect: ["api.github.com", "gmail.googleapis.com"] },
                 run: { commands: ["git"] },
-                fs: { access: "write" },
+                files: { access: "write" },
                 camera: {},
             },
         ],

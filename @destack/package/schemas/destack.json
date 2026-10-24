@@ -10,7 +10,7 @@
                 },
                 "id": {
                     "type": "string",
-                    "pattern": "^package-[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    "pattern": "^package-[0-9a-f]{8}-[0-9a-f]{4}-[78][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
                 },
                 "language": {
                     "type": "string",
@@ -56,6 +56,14 @@
                         ]
                     }
                 },
+                "entrypoints": {
+                    "minItems": 1,
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "pattern": "^(?:[^./\\\\A-Za-z\\x00-\\x1f\\x7f][^/\\\\\\x00-\\x1f\\x7f]*|[A-Za-z](?:[^:/\\\\\\x00-\\x1f\\x7f][^/\\\\\\x00-\\x1f\\x7f]*)?|\\.[^./\\\\\\x00-\\x1f\\x7f][^/\\\\\\x00-\\x1f\\x7f]*|\\.\\.[^/\\\\\\x00-\\x1f\\x7f]+)(?:\\/(?:[^./\\\\\\x00-\\x1f\\x7f][^/\\\\\\x00-\\x1f\\x7f]*|\\.[^./\\\\\\x00-\\x1f\\x7f][^/\\\\\\x00-\\x1f\\x7f]*|\\.\\.[^/\\\\\\x00-\\x1f\\x7f]+))*$"
+                    }
+                },
                 "sandbox": {
                     "type": "object",
                     "properties": {
@@ -81,12 +89,12 @@
                             ],
                             "additionalProperties": false
                         },
-                        "listen": {
+                        "server": {
                             "type": "object",
                             "properties": {},
                             "additionalProperties": false
                         },
-                        "fs": {
+                        "files": {
                             "type": "object",
                             "properties": {
                                 "access": {
