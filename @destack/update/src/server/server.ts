@@ -7,21 +7,21 @@ import {
     serveDistributions,
 } from "./distribution.ts";
 
-/** What a machine serves the update package with. */
+/** What a computer serves the update package with. */
 export interface DistributionServerOptions {
-    /** The machine, the scope of its distribution. */
-    readonly machine: Identifier<"machine">;
+    /** The computer's device, the scope of its distribution. */
+    readonly device: Identifier<"device">;
     /** The installed distribution, absent for a development build. */
     readonly host?: DistributionHost;
 }
 
-/** Serve a machine's distribution in the machine's scope, staging and activating its releases. */
+/** Serve a computer's distribution in its device's scope, staging and activating its releases. */
 export function distributionServer(options: DistributionServerOptions): PackageImplementation {
-    const { machine, host } = options;
+    const { device, host } = options;
 
     return implementPackage(updatePackage, {
         objects: [serveDistributions(host)],
         controllers:
-            host === undefined ? [] : [(store) => new DistributionController(store, machine, host)],
+            host === undefined ? [] : [(store) => new DistributionController(store, device, host)],
     });
 }

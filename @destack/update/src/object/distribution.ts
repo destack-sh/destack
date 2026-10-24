@@ -1,6 +1,5 @@
-import { machine } from "@destack/account/object";
 import type { Select } from "@destack/db";
-import { defineObject, field } from "@destack/object";
+import { defineObject, device, field } from "@destack/object";
 import { schema, Version } from "@destack/schema";
 
 /** What staging found: the installed release, and the release staged for activation. */
@@ -13,12 +12,12 @@ export const Staging = schema.object({
 /** What staging found. */
 export type Staging = schema.Infer<typeof Staging>;
 
-/** This machine's Destack distribution: the release installed and the one staged. */
+/** This computer's Destack distribution: its installed release and the one staged. */
 export const distribution = defineObject(
     {
         name: "distribution",
         plural: "distributions",
-        scope: machine,
+        scope: device,
         fields: {
             // observed
             /** The installed release's version. */

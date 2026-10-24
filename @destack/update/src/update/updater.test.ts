@@ -1,6 +1,5 @@
+import { testHost } from "@destack/test/host";
 import { afterAll, beforeAll, expect, test, refusal } from "@destack/test";
-import { createHash } from "node:crypto";
-import { readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { create } from "tar";
 import { Metadata, MetadataKind, Timestamp } from "@tufjs/models";
@@ -13,7 +12,7 @@ import { Release } from "../release/release.ts";
 import { SignedRepository, SigningKey, TrustedRoot } from "../publish/index.ts";
 
 /** Native executable filename expected by the selected archive format. */
-const COMMAND = process.platform === "win32" ? "destack.exe" : "destack";
+const COMMAND = testHost().host.os === "win32" ? "destack.exe" : "destack";
 
 /** Offline signers shared as immutable key material. */
 let rootKeys: SigningKey[];
@@ -22,25 +21,24 @@ let fixture: string;
 
 beforeAll(async () => {
     // generate offline signers once for the entire fixture
-    rootKeys = Array.from({ length: 3 }, createRootKey);
+    rootKeys = await Promise.all(Array.from({ length: 3 }, () => createRootKey(testHost().crypto)));
 
     // compile the native fixture before measuring update operations
     fixture = await UpdateFixture.compile();
 }, 10000);
 
 afterAll(async () => {
-    await rm(fixture, { recursive: true, force: true });
+    await testHost().files.remove(fixture, { recursive: true });
 });
 
 /** Hash complete executable contents without retaining the runtime binary in memory. */
 async function digest(path: string): Promise<string> {
     // stream each executable through SHA-256 once
-    const hash = createHash("sha256");
-    for await (const bytes of Bun.file(path).stream()) {
-        hash.update(bytes);
-    }
+    const { crypto, files } = testHost();
+    await using file = await files.open(path, { read: true });
+    const hash = await crypto.digest("SHA-256", file.readable());
 
-    return hash.digest("hex");
+    return Buffer.from(hash).toString("hex");
 }
 
 /** Check for an update, failing when none is available. */
@@ -65,7 +63,12 @@ async function readStaged(updater: Updater): Promise<StagedRelease> {
 
 test("retain staging across sessions and reject concurrent or stale activation", async () => {
     // open an independent signed repository and installation
-    await using repository = await UpdateFixture.open(fixture, rootKeys, "2026.9.1");
+    await using repository = await UpdateFixture.open(
+        fixture,
+        rootKeys,
+        "2026.9.1",
+        UpdateFixture.world(),
+    );
     const { options, target } = repository;
 
     // stage the complete archive under an exclusive updater session
@@ -129,7 +132,12 @@ test("retain staging across sessions and reject concurrent or stale activation",
 
 test("retry cancelled downloads and reject tampered archives before staging", async () => {
     // open an independent signed repository and installation
-    await using repository = await UpdateFixture.open(fixture, rootKeys, "2026.9.1");
+    await using repository = await UpdateFixture.open(
+        fixture,
+        rootKeys,
+        "2026.9.1",
+        UpdateFixture.world(),
+    );
     const { options, directory, archive } = repository;
 
     // reject cancellation before the download starts
@@ -157,13 +165,13 @@ test("retry cancelled downloads and reject tampered archives before staging", as
     const download = await update.download({
         onProgress: (value) => progress.push(value),
     });
-    const length = (await readFile(archive)).length;
+    const length = (await repository.environment.files.readFile(archive)).length;
     expect(progress.at(-1)).toEqual({ received: length, total: length });
     expect(await updater.current()).toBeUndefined();
 
     // reject changed archive bytes before extracting or running them
     const modified = join(directory, "modified.tar.gz");
-    await writeFile(modified, "tampered");
+    await repository.environment.files.writeTextFile(modified, "tampered");
     expect(await refusal(updater.stage({ ...download, archive: modified }))).toEqual([
         "BAD_GATEWAY",
         "VERIFICATION_FAILED",
@@ -178,10 +186,17 @@ test("retry cancelled downloads and reject tampered archives before staging", as
 
 test("retain rotated trust across sessions and reject expired or rolled-back metadata", async () => {
     // retain the original timestamp before the repository rotates
-    await using repository = await UpdateFixture.open(fixture, rootKeys, "2026.9.1");
+    await using repository = await UpdateFixture.open(
+        fixture,
+        rootKeys,
+        "2026.9.1",
+        UpdateFixture.world(),
+    );
     const { options, target, archive } = repository;
 
-    const firstTimestamp = await readFile(join(repository.path, "metadata/timestamp.json"));
+    const firstTimestamp = await repository.environment.files.readTextFile(
+        join(repository.path, "metadata/timestamp.json"),
+    );
 
     // persist initial trust before rotating the repository
     {
@@ -191,11 +206,15 @@ test("retain rotated trust across sessions and reject expired or rolled-back met
 
     // rotate both offline and online signing roles
     repository.keys = {
-        targets: SigningKey.generate(),
-        snapshot: SigningKey.generate(),
-        timestamp: SigningKey.generate(),
+        targets: await SigningKey.generate("ed25519", repository.environment.crypto),
+        snapshot: await SigningKey.generate("ed25519", repository.environment.crypto),
+        timestamp: await SigningKey.generate("ed25519", repository.environment.crypto),
     };
-    const replacement = Array.from({ length: 3 }, () => SigningKey.generate());
+    const replacement = await Promise.all(
+        Array.from({ length: 3 }, () =>
+            SigningKey.generate("ed25519", repository.environment.crypto),
+        ),
+    );
     repository.root = TrustedRoot.create(
         2,
         replacement.map((key) => key.public),
@@ -204,19 +223,27 @@ test("retain rotated trust across sessions and reject expired or rolled-back met
             snapshot: repository.keys.snapshot.public,
             timestamp: repository.keys.timestamp.public,
         },
-        new Date(Date.now() + 365 * 86_400_000).toISOString(),
+        new Date(repository.environment.clock.now() + 365 * 86_400_000).toISOString(),
+        repository.environment,
     );
     for (const key of [...rootKeys.slice(0, 2), ...replacement.slice(0, 2)]) {
-        repository.root.sign((bytes) => key.sign(bytes));
+        await key.sign(repository.root);
     }
-    await SignedRepository.create(repository.path, 2, repository.root, repository.keys, [
-        {
-            target,
-            version: "2026.9.1",
-            commit: COMMIT,
-            archive,
-        },
-    ]);
+    await SignedRepository.create(
+        repository.path,
+        2,
+        repository.root,
+        repository.keys,
+        [
+            {
+                target,
+                version: "2026.9.1",
+                commit: COMMIT,
+                archive,
+            },
+        ],
+        repository.environment,
+    );
 
     // retain rotated trust across independent updater sessions
     {
@@ -230,14 +257,14 @@ test("retain rotated trust across sessions and reject expired or rolled-back met
         Timestamp.fromJSON({
             ...Metadata.fromJSON(
                 MetadataKind.Timestamp,
-                parseObject(await readFile(timestampPath, "utf8")),
+                parseObject(await repository.environment.files.readTextFile(timestampPath)),
             ).signed.toJSON(),
             version: 3,
             expires: "2000-01-01T00:00:00Z",
         }),
     );
-    timestamp.sign((bytes) => repository.keys.timestamp.sign(bytes));
-    await writeFile(timestampPath, SignedRepository.encode(timestamp));
+    await repository.keys.timestamp.sign(timestamp);
+    await repository.environment.files.writeFile(timestampPath, SignedRepository.encode(timestamp));
     {
         await using updater = await Updater.open(options);
         await expect(updater.check()).rejects.toThrow("Final timestamp.json is expired");
@@ -246,10 +273,10 @@ test("retain rotated trust across sessions and reject expired or rolled-back met
 
     // a valid signature must not permit rollback of persisted metadata
     const rollback = new Metadata(
-        Metadata.fromJSON(MetadataKind.Timestamp, parseObject(firstTimestamp.toString())).signed,
+        Metadata.fromJSON(MetadataKind.Timestamp, parseObject(firstTimestamp)).signed,
     );
-    rollback.sign((bytes) => repository.keys.timestamp.sign(bytes));
-    await writeFile(timestampPath, SignedRepository.encode(rollback));
+    await repository.keys.timestamp.sign(rollback);
+    await repository.environment.files.writeFile(timestampPath, SignedRepository.encode(rollback));
     {
         await using updater = await Updater.open(options);
         await expect(updater.check()).rejects.toThrow(
@@ -262,7 +289,12 @@ test("retain rotated trust across sessions and reject expired or rolled-back met
 
 test("preserve the installed release when signed replacements contradict its identity", async () => {
     // open an independent signed repository and installation
-    await using repository = await UpdateFixture.open(fixture, rootKeys, "2026.9.1");
+    await using repository = await UpdateFixture.open(
+        fixture,
+        rootKeys,
+        "2026.9.1",
+        UpdateFixture.world(),
+    );
     const { options, target, source, archive } = repository;
     let installed: Awaited<ReturnType<Updater["activate"]>>;
 
@@ -274,14 +306,21 @@ test("preserve the installed release when signed replacements contradict its ide
     }
 
     // a signed archive with the wrong executable version must leave the installation unchanged
-    await SignedRepository.create(repository.path, 3, repository.root, repository.keys, [
-        {
-            target,
-            version: "2026.9.2",
-            commit: COMMIT,
-            archive,
-        },
-    ]);
+    await SignedRepository.create(
+        repository.path,
+        3,
+        repository.root,
+        repository.keys,
+        [
+            {
+                target,
+                version: "2026.9.2",
+                commit: COMMIT,
+                archive,
+            },
+        ],
+        repository.environment,
+    );
     {
         await using updater = await Updater.open(options);
         const update = await checkUpdate(updater);
@@ -296,16 +335,26 @@ test("preserve the installed release when signed replacements contradict its ide
     }
 
     // reject changed bytes published under the installed version across sessions
-    await writeFile(join(source, "Destack/changed"), "changed release contents");
+    await repository.environment.files.writeTextFile(
+        join(source, "Destack/changed"),
+        "changed release contents",
+    );
     await create({ file: archive, gzip: { level: 1 }, cwd: source }, ["bin", "Destack"]);
-    await SignedRepository.create(repository.path, 4, repository.root, repository.keys, [
-        {
-            target,
-            version: "2026.9.1",
-            commit: COMMIT,
-            archive,
-        },
-    ]);
+    await SignedRepository.create(
+        repository.path,
+        4,
+        repository.root,
+        repository.keys,
+        [
+            {
+                target,
+                version: "2026.9.1",
+                commit: COMMIT,
+                archive,
+            },
+        ],
+        repository.environment,
+    );
     {
         await using updater = await Updater.open(options);
         expect(await refusal(updater.check())).toEqual([
@@ -318,9 +367,14 @@ test("preserve the installed release when signed replacements contradict its ide
     }
 
     // refuse a correctly signed dev build in the feed
-    await SignedRepository.create(repository.path, 5, repository.root, repository.keys, [
-        { target, version: "2026.9.2-dev.1", commit: COMMIT, archive },
-    ]);
+    await SignedRepository.create(
+        repository.path,
+        5,
+        repository.root,
+        repository.keys,
+        [{ target, version: "2026.9.2-dev.1", commit: COMMIT, archive }],
+        repository.environment,
+    );
     {
         await using updater = await Updater.open(options);
         expect(await refusal(updater.check())).toEqual([

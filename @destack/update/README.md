@@ -9,6 +9,7 @@ await using updater = await Updater.open({
     repository,
     root: trustedRoot,
     target,
+    environment,
 });
 const update = await updater.check(); // refreshes root, timestamp, snapshot and targets metadata
 // verified against the targets' hashes
@@ -19,7 +20,7 @@ Release.target("darwin", "arm64"); // "aarch64-apple-darwin"
 
 ## Distributions
 
-`Distribution` is this machine's installed distribution: where it lives, the feed it follows and the release running.
+`Distribution` is this device's installed distribution: where it lives, the feed it follows and the release running.
 
 ```ts
 import { Distribution, Release } from "@destack/update";
@@ -64,10 +65,10 @@ LIFETIME_DAYS; // { targets: 365, snapshot: 14, timestamp: 14 }
 
 ## Objects
 
-`distribution` keeps the machine's distribution as an object, which `serveDistributions` serves and `DistributionController` stages daily.
+`distribution` is the device's distribution as an object, which `serveDistributions` serves and `DistributionController` stages daily.
 
 ```ts
 // { installed: "2026.10.1", staged: "2026.10.2", status: "staged", … }
-await client.distribution.stage({ machineId, requestId, id });
-await client.distribution.activate({ machineId, requestId, id });
+await client.distribution.stage({ deviceId, requestId, id });
+await client.distribution.activate({ deviceId, requestId, id });
 ```

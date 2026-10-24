@@ -1,55 +1,53 @@
+import { UpdateFixture } from "../test/index.ts";
 import { expect, test, refusal } from "@destack/test";
-import { generateKeyPairSync } from "node:crypto";
 import { SigningKey } from "./key.ts";
 import { TrustedRoot } from "./root.ts";
 import { Metadata, MetadataKind } from "@tufjs/models";
 
-/** Generate an RSA-PSS root key as the hardware keeps it. */
-function generateRsaKey(): SigningKey {
-    const pair = generateKeyPairSync("rsa", { modulusLength: 2048 });
-
-    return new SigningKey(pair.privateKey.export({ format: "pem", type: "pkcs8" }));
-}
-
 test("require independent RSA root signatures and both quorums during rotation", async () => {
+    // run in a world paused at the system's time, near the wall clock TUF checks expiry on
+    const world = UpdateFixture.world().environment("test");
+
     // exercise the same RSA-PSS scheme used by the hardware without persisting private keys
-    const first = generateRsaKey();
-    const second = generateRsaKey();
-    const third = generateRsaKey();
+    const first = await SigningKey.generate("rsassa-pss-sha256", world.crypto);
+    const second = await SigningKey.generate("rsassa-pss-sha256", world.crypto);
+    const third = await SigningKey.generate("rsassa-pss-sha256", world.crypto);
     const roots = [first, second, third];
     const keys = {
-        targets: SigningKey.generate().public,
-        snapshot: SigningKey.generate().public,
-        timestamp: SigningKey.generate().public,
+        targets: (await SigningKey.generate("ed25519", world.crypto)).public,
+        snapshot: (await SigningKey.generate("ed25519", world.crypto)).public,
+        timestamp: (await SigningKey.generate("ed25519", world.crypto)).public,
     };
-    const expires = new Date(Date.now() + 365 * 86_400_000).toISOString();
+    const expires = new Date(world.clock.now() + 365 * 86_400_000).toISOString();
     const root = TrustedRoot.create(
         1,
         roots.map((key) => key.public),
         keys,
         expires,
+        world,
     );
     expect(() => TrustedRoot.verify(root)).toThrow("root was signed by 0/2 keys");
 
     // a repeated signature from one key never satisfies the quorum
-    root.sign((bytes) => first.sign(bytes));
-    root.sign((bytes) => first.sign(bytes));
+    await first.sign(root);
+    await first.sign(root);
     expect(() => TrustedRoot.verify(root)).toThrow("root was signed by 1/2 keys");
-    root.sign((bytes) => second.sign(bytes));
+    await second.sign(root);
     TrustedRoot.verify(root);
 
     // replacing one lost key requires two surviving keys and the replacement quorum
-    const replacement = SigningKey.generate();
+    const replacement = await SigningKey.generate("ed25519", world.crypto);
     const rotated = TrustedRoot.create(
         2,
         [second.public, third.public, replacement.public],
         keys,
         expires,
+        world,
     );
-    rotated.sign((bytes) => second.sign(bytes));
-    rotated.sign((bytes) => replacement.sign(bytes));
+    await second.sign(rotated);
+    await replacement.sign(rotated);
     expect(() => TrustedRoot.verify(rotated, root)).toThrow("root was signed by 1/2 keys");
-    rotated.sign((bytes) => third.sign(bytes));
+    await third.sign(rotated);
     TrustedRoot.verify(rotated, root);
     expect(await refusal(() => TrustedRoot.verify(rotated))).toEqual([
         "BAD_REQUEST",
@@ -62,13 +60,13 @@ test("require independent RSA root signatures and both quorums during rotation",
         ...rotated.toJSON(),
         signed: {
             ...rotated.signed.toJSON(),
-            expires: new Date(Date.now() + 366 * 86_400_000).toISOString(),
+            expires: new Date(world.clock.now() + 366 * 86_400_000).toISOString(),
         },
     });
     expect(() => TrustedRoot.verify(changed, root)).toThrow("root was signed by 0/2 keys");
     expect(
         await refusal(() =>
-            TrustedRoot.create(1, [first.public, first.public, third.public], keys, expires),
+            TrustedRoot.create(1, [first.public, first.public, third.public], keys, expires, world),
         ),
     ).toEqual([
         "BAD_REQUEST",

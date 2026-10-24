@@ -64,38 +64,39 @@ export function serveDistributions(host: DistributionHost | undefined) {
     });
 }
 
-/** Keep this machine's distribution row and stage the feed's latest release daily. */
+/** Keep a computer's distribution row as its device and stage the latest release daily. */
 export class DistributionController implements ReconcileController {
     /** The controller's name in reports. */
     readonly name = "distribution";
-    /** The store keeping the distribution row. */
-    readonly #store: Pick<ObjectStore, "database" | "serving" | "mutate">;
-    /** This machine, the scope of its distribution. */
-    readonly #machineId: Identifier<"machine">;
+    /** The device's store with the distribution row. */
+    readonly #store: Pick<ObjectStore, "database" | "as" | "mutate" | "environment">;
+    /** The device, the scope of its distribution. */
+    readonly #deviceId: Identifier<"device">;
     /** The installed distribution. */
     readonly #host: DistributionHost;
 
-    /** Control the distribution of a machine. */
+    /** Control the distribution of a computer's device. */
     constructor(
-        store: Pick<ObjectStore, "database" | "serving" | "mutate">,
-        machineId: Identifier<"machine">,
+        store: Pick<ObjectStore, "database" | "as" | "mutate" | "environment">,
+        deviceId: Identifier<"device">,
         host: DistributionHost,
     ) {
         this.#store = store;
-        this.#machineId = machineId;
+        this.#deviceId = deviceId;
         this.#host = host;
     }
 
-    /** List this machine as the one key. */
+    /** List the device as the one key. */
     async list(): Promise<readonly string[]> {
-        return [this.#machineId];
+        return [this.#deviceId];
     }
 
     /** Record the installed distribution once, then stage the latest release each day. */
     async reconcile(): Promise<number> {
-        // record the distribution on its first start
-        const now = Date.now();
-        const scope = this.#machineId;
+        // record the distribution on its first start, as the device
+        const now = this.#store.environment.clock.now();
+        const scope = this.#deviceId;
+        const context = this.#store.as(distribution, now);
         const [found] = await this.#store.database
             .select()
             .from(distribution.table)
@@ -104,9 +105,9 @@ export class DistributionController implements ReconcileController {
         const [recorded] =
             found === undefined
                 ? await this.#store.mutate(
-                      this.#store.serving(distribution),
+                      context,
                       {
-                          id: RequestId.create(now),
+                          id: RequestId.create(this.#store.environment),
                           calls: [
                               distribution.call("create", {
                                   ...distribution.in(scope),
@@ -123,9 +124,9 @@ export class DistributionController implements ReconcileController {
 
         // stage the latest release
         await this.#store.mutate(
-            this.#store.serving(distribution),
+            context,
             {
-                id: RequestId.create(now),
+                id: RequestId.create(this.#store.environment),
                 calls: [distribution.call("stage", distribution.target(recorded))],
             },
             { component: this.name },

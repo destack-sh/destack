@@ -1,6 +1,7 @@
+import { Uuid } from "@destack/schema";
+import { type Environment, FileSystemError } from "@destack/environment";
 import { UpdateError } from "../error/error.ts";
 import { dirname, join } from "node:path";
-import { mkdir, mkdtemp, lstat, rename, rm } from "node:fs/promises";
 import { dlopen } from "bun:ffi";
 
 /** Copy a verified Mac application and atomically replace an existing installation. */
@@ -8,13 +9,29 @@ export async function installApplication(
     source: string,
     destination: string,
     identifier: string,
+    environment: Environment<"files" | "process">,
+): Promise<void> {
+    // run the system tools' file and process effects as host work
+    await environment.clock.trackHost(
+        replaceApplication(source, destination, identifier, environment),
+    );
+}
+
+/** Copy a verified Mac application with the system's tools, replacing the destination. */
+async function replaceApplication(
+    source: string,
+    destination: string,
+    identifier: string,
+    environment: Environment<"files" | "process">,
 ): Promise<void> {
     // stage the bundle beside the destination for atomic replacement
-    await mkdir(dirname(destination), { recursive: true });
-    const temporary = await mkdtemp(join(dirname(destination), ".destack-"));
+    const { files, process: host } = environment;
+    await files.mkdir(dirname(destination), { recursive: true });
+    const temporary = join(dirname(destination), `.destack-${Uuid.v4(environment.random)}`);
+    await files.mkdir(temporary);
     const pending = join(temporary, "Destack.app");
     try {
-        const copy = Bun.spawn(["/usr/bin/ditto", source, pending], {
+        const copy = host.spawn(["/usr/bin/ditto", source, pending], {
             stdout: "ignore",
             stderr: "pipe",
         });
@@ -25,20 +42,22 @@ export async function installApplication(
         if (copyCode !== 0) {
             throw UpdateError.of("INSTALL_FAILED", copyError);
         }
-        await verifyApplication(pending, identifier);
+        await verifyApplication(pending, identifier, environment);
 
         // exchange complete bundles in one filesystem operation and retain the old release archive
-        const hasDestination = await lstat(destination).then(
+        const hasDestination = await files.lstat(destination).then(
             () => true,
-            (error: NodeJS.ErrnoException) => {
-                if (error.code !== "ENOENT") {
+            (error: unknown) => {
+                // read a missing destination as a first installation
+                if (!FileSystemError.is(error, "NOT_FOUND")) {
                     throw error;
                 }
+
                 return false;
             },
         );
         if (hasDestination) {
-            await verifyApplication(destination, identifier);
+            await verifyApplication(destination, identifier, environment);
             const system = dlopen("/usr/lib/libSystem.B.dylib", {
                 renamex_np: { args: ["buffer", "buffer", "u32"], returns: "i32" },
             });
@@ -60,10 +79,10 @@ export async function installApplication(
                 system.close();
             }
         } else {
-            await rename(pending, destination);
+            await files.rename(pending, destination);
         }
     } finally {
-        await rm(temporary, { recursive: true });
+        await files.remove(temporary, { recursive: true });
     }
 }
 
@@ -71,9 +90,11 @@ export async function installApplication(
 export async function verifyApplication(
     application: string,
     expectedIdentifier: string,
+    environment: Environment<"process">,
 ): Promise<void> {
     // read the bundle identifier
-    const identifier = Bun.spawn(
+    const { process: host } = environment;
+    const identifier = host.spawn(
         [
             "/usr/bin/plutil",
             "-extract",
@@ -93,7 +114,7 @@ export async function verifyApplication(
             `application identifier does not match ${expectedIdentifier}: ${application}`,
         );
     }
-    const signature = Bun.spawn(
+    const signature = host.spawn(
         ["/usr/bin/codesign", "--verify", "--deep", "--strict", application],
         {
             stdout: "ignore",

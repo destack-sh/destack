@@ -1,5 +1,5 @@
 import { Key, Metadata, MetadataKind, Root } from "@tufjs/models";
-import { readFile } from "node:fs/promises";
+import type { Environment } from "@destack/environment";
 import { parseObject } from "./json.ts";
 import { UpdateError } from "../error/index.ts";
 
@@ -12,6 +12,12 @@ export interface ReleasePublicKey {
     /** Key authorizing snapshot freshness. */
     timestamp: Key;
 }
+
+/** The root keys of the two-of-three quorum. */
+const ROOT_KEYS = 3;
+
+/** The online keys: targets, snapshot and timestamp. */
+const ONLINE_KEYS = 3;
 
 /** The signed root metadata clients pin, as Sigstore's trusted root. */
 export const TrustedRoot = {
@@ -27,13 +33,15 @@ function createRoot(
     roots: Key[],
     keys: ReleasePublicKey,
     expires: string,
+    environment: Environment,
 ): Metadata<Root> {
     // require independent keys for the root quorum and each online role
     const all = [...roots, keys.targets, keys.snapshot, keys.timestamp];
+    const keyCount = ROOT_KEYS + ONLINE_KEYS;
     if (
-        roots.length !== 3 ||
-        new Set(all.map((key) => key.keyID)).size !== 6 ||
-        new Set(all.map((key) => key.keyVal["public"])).size !== 6
+        roots.length !== ROOT_KEYS ||
+        new Set(all.map((key) => key.keyID)).size !== keyCount ||
+        new Set(all.map((key) => key.keyVal["public"])).size !== keyCount
     ) {
         throw UpdateError.of(
             "INVALID_METADATA",
@@ -44,7 +52,7 @@ function createRoot(
         !Number.isSafeInteger(version) ||
         version < 1 ||
         !Number.isFinite(Date.parse(expires)) ||
-        Date.parse(expires) <= Date.now()
+        Date.parse(expires) <= environment.clock.now()
     ) {
         throw UpdateError.of(
             "INVALID_METADATA",
@@ -112,6 +120,8 @@ function authenticateRoot(root: Metadata<Root>, previous?: Metadata<Root>): void
 }
 
 /** Read a public root document, including partially signed ceremony documents. */
-async function readRoot(path: string): Promise<Metadata<Root>> {
-    return Metadata.fromJSON(MetadataKind.Root, parseObject(await readFile(path, "utf8")));
+async function readRoot(path: string, environment: Environment<"files">): Promise<Metadata<Root>> {
+    const text = await environment.files.readTextFile(path);
+
+    return Metadata.fromJSON(MetadataKind.Root, parseObject(text));
 }

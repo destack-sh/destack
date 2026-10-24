@@ -1,8 +1,7 @@
 import { createHash } from "node:crypto";
-import { openAsBlob } from "node:fs";
-import { copyFile, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { isDeepStrictEqual } from "node:util";
 import { join } from "node:path";
+import type { Clock, Environment } from "@destack/environment";
 import {
     Metadata,
     MetadataKind,
@@ -18,6 +17,9 @@ import { parseObject } from "./json.ts";
 import { TrustedRoot } from "./root.ts";
 import { TargetCustom } from "../release/release.ts";
 import { UpdateError } from "../error/index.ts";
+
+/** The milliseconds in a day. */
+const DAY_MILLISECONDS = 24 * 60 * 60 * 1000;
 
 /** The days each online role's metadata stays valid after signing. */
 export const LIFETIME_DAYS = { targets: 365, snapshot: 14, timestamp: 14 } as const;
@@ -60,18 +62,24 @@ export const SignedRepository = {
 };
 
 /** Authenticate local metadata against the embedded root before publication. */
-async function readRepository(directory: string, root: Metadata<Root>) {
+async function readRepository(
+    directory: string,
+    root: Metadata<Root>,
+    environment: Environment<"files">,
+) {
     // follow consecutive rotations from the root already trusted by installed clients
+    const { files } = environment;
     const metadata = join(directory, "metadata");
-    const files = await readdir(metadata);
-    const versions = files
+    const entries = await files.readDirectory(metadata);
+    const versions = entries
+        .map((entry) => entry.name)
         .filter((file) => /^[1-9]\d*\.root\.json$/u.test(file))
         .map((file) => Number.parseInt(file, 10))
         .toSorted((left, right) => left - right);
     for (const version of versions) {
         const next = Metadata.fromJSON(
             MetadataKind.Root,
-            parseObject(await readFile(join(metadata, `${version}.root.json`), "utf8")),
+            parseObject(await files.readTextFile(join(metadata, `${version}.root.json`))),
         );
         // retain only the trusted root or consecutive authorized replacements
         if (version === root.signed.version) {
@@ -93,12 +101,12 @@ async function readRepository(directory: string, root: Metadata<Root>) {
     // authenticate the timestamp before using its snapshot reference
     const timestamp = Metadata.fromJSON(
         MetadataKind.Timestamp,
-        parseObject(await readFile(join(metadata, "timestamp.json"), "utf8")),
+        parseObject(await files.readTextFile(join(metadata, "timestamp.json"))),
     );
     root.verifyDelegate("timestamp", timestamp);
     const snapshotReference = timestamp.signed.snapshotMeta;
-    const snapshotBytes = await readFile(
-        join(metadata, `${snapshotReference.version}.snapshot.json`),
+    const snapshotBytes = Buffer.from(
+        await files.readFile(join(metadata, `${snapshotReference.version}.snapshot.json`)),
     );
     snapshotReference.verify(snapshotBytes);
 
@@ -112,7 +120,9 @@ async function readRepository(directory: string, root: Metadata<Root>) {
     if (!targetsReference || snapshot.signed.version !== snapshotReference.version) {
         throw UpdateError.of("INVALID_METADATA", "snapshot does not match its signed reference");
     }
-    const targetsBytes = await readFile(join(metadata, `${targetsReference.version}.targets.json`));
+    const targetsBytes = Buffer.from(
+        await files.readFile(join(metadata, `${targetsReference.version}.targets.json`)),
+    );
     targetsReference.verify(targetsBytes);
 
     // reject expired authorization and mismatched signed versions
@@ -138,6 +148,7 @@ async function createRepository(
     root: Metadata<Root>,
     keys: ReleaseKeys,
     distributions: Distribution[],
+    environment: Environment<"files">,
 ): Promise<Metadata<Targets>> {
     if (!Number.isSafeInteger(revision) || revision < 1) {
         throw UpdateError.of("INVALID_METADATA", "invalid metadata revision");
@@ -146,18 +157,19 @@ async function createRepository(
         throw UpdateError.of("INVALID_METADATA", "no distributions selected");
     }
     // prepare the signed repository directories
+    const { clock, files } = environment;
     const metadata = join(directory, "metadata");
     const archives = join(directory, "targets");
-    await mkdir(metadata, { recursive: true });
-    await mkdir(archives, { recursive: true });
-    await writeFile(join(metadata, `${root.signed.version}.root.json`), encode(root));
+    await files.mkdir(metadata, { recursive: true });
+    await files.mkdir(archives, { recursive: true });
+    await files.writeFile(join(metadata, `${root.signed.version}.root.json`), encode(root));
 
     // address every archive by its digest and describe its release in signed target metadata
     const targets = new Metadata(
         new Targets({
             version: revision,
             specVersion: "1.0.31",
-            expires: expires(LIFETIME_DAYS.targets),
+            expires: expires(LIFETIME_DAYS.targets, clock),
         }),
     );
     for (const distribution of distributions) {
@@ -166,11 +178,12 @@ async function createRepository(
             throw UpdateError.of("INVALID_METADATA", `duplicate target: ${path}`);
         }
         const hash = createHash("sha256");
-        for await (const bytes of (await openAsBlob(distribution.archive)).stream()) {
+        await using archive = await files.open(distribution.archive, { read: true });
+        for await (const bytes of archive.readable()) {
             hash.update(bytes);
         }
         const sha256 = hash.digest("hex");
-        const file = await stat(distribution.archive);
+        const file = await files.stat(distribution.archive);
         const custom = TargetCustom.parse({
             version: distribution.version,
             commit: distribution.commit,
@@ -183,10 +196,10 @@ async function createRepository(
                 unrecognizedFields: { custom },
             }),
         );
-        await copyFile(distribution.archive, join(archives, `${sha256}.${path}`));
+        await files.copyFile(distribution.archive, join(archives, `${sha256}.${path}`));
     }
 
-    return await writeMetadata(directory, revision, root, keys, targets);
+    return await writeMetadata(directory, revision, root, keys, targets, environment);
 }
 
 /** Authorize targets, write the matching snapshot and timestamp, and return the signed targets. */
@@ -196,21 +209,23 @@ async function writeMetadata(
     root: Metadata<Root>,
     keys: ReleaseKeys,
     targets: Metadata<Targets>,
+    environment: Environment<"files">,
 ): Promise<Metadata<Targets>> {
     // authorize a new targets version with the release signing key
+    const { clock, files } = environment;
     const metadata = join(directory, "metadata");
-    await mkdir(metadata, { recursive: true });
-    await writeFile(join(metadata, `${root.signed.version}.root.json`), encode(root));
+    await files.mkdir(metadata, { recursive: true });
+    await files.writeFile(join(metadata, `${root.signed.version}.root.json`), encode(root));
     targets = new Metadata(
         Targets.fromJSON({
             ...targets.signed.toJSON(),
             version: revision,
-            expires: expires(LIFETIME_DAYS.targets),
+            expires: expires(LIFETIME_DAYS.targets, clock),
         }),
     );
-    targets.sign((bytes) => keys.targets.sign(bytes));
+    await keys.targets.sign(targets);
     root.verifyDelegate("targets", targets);
-    await renewMetadata(directory, revision, root, keys, encode(targets));
+    await renewMetadata(directory, revision, root, keys, encode(targets), environment);
 
     return targets;
 }
@@ -222,6 +237,7 @@ async function renewMetadata(
     root: Metadata<Root>,
     keys: RenewalKeys,
     targetBytes: Buffer,
+    environment: Environment<"files">,
 ): Promise<void> {
     // verify the existing authorization before signing its continued availability
     const targets = Metadata.fromJSON(
@@ -241,35 +257,36 @@ async function renewMetadata(
     }
 
     // retain the exact document authenticated by the previous repository
+    const { clock, files } = environment;
     const metadata = join(directory, "metadata");
-    await mkdir(metadata, { recursive: true });
-    await writeFile(join(metadata, `${root.signed.version}.root.json`), encode(root));
-    await writeFile(join(metadata, `${targets.signed.version}.targets.json`), targetBytes);
+    await files.mkdir(metadata, { recursive: true });
+    await files.writeFile(join(metadata, `${root.signed.version}.root.json`), encode(root));
+    await files.writeFile(join(metadata, `${targets.signed.version}.targets.json`), targetBytes);
 
     // bind the snapshot and timestamp to the exact metadata bytes
     const snapshot = new Metadata(
         new Snapshot({
             specVersion: "1.0.31",
             version: revision,
-            expires: expires(LIFETIME_DAYS.snapshot),
+            expires: expires(LIFETIME_DAYS.snapshot, clock),
             meta: { "targets.json": describe(targets.signed.version, targetBytes) },
         }),
     );
-    snapshot.sign((bytes) => keys.snapshot.sign(bytes));
+    await keys.snapshot.sign(snapshot);
     root.verifyDelegate("snapshot", snapshot);
     const snapshotBytes = encode(snapshot);
-    await writeFile(join(metadata, `${revision}.snapshot.json`), snapshotBytes);
+    await files.writeFile(join(metadata, `${revision}.snapshot.json`), snapshotBytes);
     const timestamp = new Metadata(
         new Timestamp({
             specVersion: "1.0.31",
             version: revision,
-            expires: expires(LIFETIME_DAYS.timestamp),
+            expires: expires(LIFETIME_DAYS.timestamp, clock),
             snapshotMeta: describe(revision, snapshotBytes),
         }),
     );
-    timestamp.sign((bytes) => keys.timestamp.sign(bytes));
+    await keys.timestamp.sign(timestamp);
     root.verifyDelegate("timestamp", timestamp);
-    await writeFile(join(metadata, "timestamp.json"), encode(timestamp));
+    await files.writeFile(join(metadata, "timestamp.json"), encode(timestamp));
 }
 
 /** Encode signed metadata for transport. */
@@ -287,7 +304,7 @@ function digest(bytes: Buffer): string {
     return createHash("sha256").update(bytes).digest("hex");
 }
 
-/** Expire metadata after a bounded number of days. */
-function expires(days: number): string {
-    return new Date(Date.now() + days * 86_400_000).toISOString();
+/** Expire metadata a bounded number of days after now. */
+function expires(days: number, clock: Clock): string {
+    return new Date(clock.now() + days * DAY_MILLISECONDS).toISOString();
 }

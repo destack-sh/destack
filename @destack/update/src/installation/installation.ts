@@ -1,7 +1,6 @@
-import { mkdir, rename, writeFile } from "node:fs/promises";
-import { readOptional } from "@destack/fs";
+import { type Environment, FileSystemError } from "@destack/environment";
 import { isAbsolute, join, resolve } from "node:path";
-import { schema } from "@destack/schema";
+import { schema, Uuid } from "@destack/schema";
 import { UpdateError } from "../error/index.ts";
 
 /** The installer responsible for application files and their removal. */
@@ -25,21 +24,23 @@ export type InstallationRecord = schema.Infer<typeof InstallationRecord>;
 export class Installation {
     /** User directory containing registration and distribution state. */
     readonly directory: string;
+    /** The files and randomness the registration is kept with. */
+    readonly environment: Environment<"files">;
 
-    /** Select the user's installation directory. */
-    constructor(directory: string) {
+    /** Select the user's installation directory, kept through an environment's files. */
+    constructor(directory: string, environment: Environment<"files">) {
         this.directory = resolve(directory);
+        this.environment = environment;
     }
 
     /** Read the registered application, absent before installation. */
     async read(): Promise<InstallationRecord | undefined> {
-        // read the atomic registration document
-        const source = await readOptional(join(this.directory, "installation.json"));
-        if (source === undefined) {
-            return undefined;
-        }
+        // read the atomic registration document, absent before installation
+        const { files } = this.environment;
+        const path = join(this.directory, "installation.json");
+        const text = await files.readTextFile(path).catch(FileSystemError.absent);
 
-        return this.validate(JSON.parse(source));
+        return text === undefined ? undefined : this.validate(JSON.parse(text));
     }
 
     /** Record a verified application without changing its installer ownership. */
@@ -55,10 +56,14 @@ export class Installation {
         }
 
         // publish the complete registration in one rename
-        await mkdir(this.directory, { recursive: true, mode: 0o700 });
-        const pending = join(this.directory, `installation.${crypto.randomUUID()}.json`);
-        await writeFile(pending, JSON.stringify(record) + "\n", { flag: "wx", mode: 0o600 });
-        await rename(pending, join(this.directory, "installation.json"));
+        const { files, random } = this.environment;
+        await files.mkdir(this.directory, { recursive: true, mode: 0o700 });
+        const pending = join(this.directory, `installation.${Uuid.v4(random)}.json`);
+        await files.writeTextFile(pending, JSON.stringify(record) + "\n", {
+            createNew: true,
+            mode: 0o600,
+        });
+        await files.rename(pending, join(this.directory, "installation.json"));
     }
 
     /** Parse a registration, rejecting unknown installers and relative application locations. */

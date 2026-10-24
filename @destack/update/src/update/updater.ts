@@ -1,17 +1,14 @@
+import type { Environment, FileLock } from "@destack/environment";
 import { UpdateError } from "../error/error.ts";
-import { spawn } from "node:child_process";
 import { isAbsolute, join } from "node:path";
-import { text } from "node:stream/consumers";
 import { type InstalledRelease, Installer, type StagedRelease } from "../install/installer.ts";
 import { Release, type Target } from "../release/release.ts";
 import { type Download, UpdateRepository } from "../repository/repository.ts";
 import { Update } from "./update.ts";
-import { FileLock } from "@destack/fs";
-import { mkdir, stat } from "node:fs/promises";
 import { schema } from "@destack/schema";
 
 /** Maximum time allowed for a staged executable to report its version, in milliseconds. */
-const VERIFY_TIMEOUT_MS = 60_000;
+const VERIFY_TIMEOUT_MILLISECONDS = 60_000;
 
 /** The version report a staged executable prints in update check mode. */
 const VersionReport = schema.looseObject({
@@ -40,7 +37,7 @@ export class Updater implements AsyncDisposable {
         this.options = { ...options };
         this.lock = lock;
         this.repository = repository;
-        this.installer = new Installer(options.directory);
+        this.installer = new Installer(options.directory, options.environment);
     }
 
     /** Lock the installation and open trusted metadata. */
@@ -70,8 +67,9 @@ export class Updater implements AsyncDisposable {
         }
 
         // serialize trust updates and installation across CLI and desktop processes
-        await mkdir(options.directory, { recursive: true, mode: 0o700 });
-        const lock = await FileLock.tryAcquire(`${options.directory}.lock`);
+        const { files } = options.environment;
+        await files.mkdir(options.directory, { recursive: true, mode: 0o700 });
+        const lock = await files.tryLock(`${options.directory}.lock`, "exclusive");
         if (!lock) {
             throw UpdateError.of("UPDATE_RUNNING", "another Destack update is running");
         }
@@ -80,6 +78,7 @@ export class Updater implements AsyncDisposable {
                 join(options.directory, "update"),
                 options.repository,
                 options.root,
+                options.environment,
             );
             const updater = new Updater(options, lock, repository);
             return updater;
@@ -158,7 +157,7 @@ export class Updater implements AsyncDisposable {
         const verified = await this.repository.download(download.release, download.archive);
         const previous = await this.installer.current();
         const installed = await this.installer.stage(verified, (directory) =>
-            verifyRelease(directory, verified.release),
+            verifyRelease(directory, verified.release, this.options.environment),
         );
         const staged = {
             ...installed,
@@ -200,7 +199,7 @@ export class Updater implements AsyncDisposable {
         // reuse the authenticated cache and derive paths from the installation directory
         const download = await this.repository.download(latest);
         const installed = await this.installer.stage(download, (directory) =>
-            verifyRelease(directory, latest),
+            verifyRelease(directory, latest, this.options.environment),
         );
         await this.installer.activate(
             installed,
@@ -254,26 +253,34 @@ export interface UpdaterOptions {
     application?: string;
     /** Expected macOS bundle identifier, required when an application destination is supplied. */
     applicationIdentifier?: string;
+    /** The clock, network, files and processes the update runs on. */
+    environment: Environment<"files" | "process">;
 }
 
 /** Check staged executable identity and the presence of its desktop application. */
-async function verifyRelease(directory: string, release: Release): Promise<void> {
+async function verifyRelease(
+    directory: string,
+    release: Release,
+    environment: Environment<"files" | "process">,
+): Promise<void> {
     // execute only an archive previously authenticated by the update repository
+    const { clock, files, process } = environment;
     const name = release.target.includes("windows") ? "destack.exe" : "destack";
-    const child = spawn(join(directory, "bin", name), ["--version", "--json"], {
-        env: { ...process.env, DESTACK_UPDATE_CHECK: "1" },
-        timeout: VERIFY_TIMEOUT_MS,
-        stdio: ["ignore", "pipe", "pipe"],
+    const child = process.spawn([join(directory, "bin", name), "--version", "--json"], {
+        variables: { ...process.variables, DESTACK_UPDATE_CHECK: "1" },
+        stdin: "ignore",
+        stdout: "pipe",
+        stderr: "pipe",
+        signal: clock.timeout(VERIFY_TIMEOUT_MILLISECONDS),
     });
-    const exited = new Promise<number | NodeJS.Signals | null>((resolve, reject) => {
-        child.once("error", reject);
-        child.once("close", (code, signal) => resolve(signal ?? code));
-    });
-    const [exit, stdout, stderr] = await Promise.all([
-        exited,
-        text(child.stdout),
-        text(child.stderr),
-    ]);
+    // run the check, its child's lifetime tracked on the world's clock
+    const [exit, stdout, stderr] = await clock.trackHost(
+        Promise.all([
+            child.exited,
+            new Response(child.stdout).text(),
+            new Response(child.stderr).text(),
+        ]),
+    );
     if (exit !== 0) {
         throw UpdateError.of(
             "VERIFICATION_FAILED",
@@ -290,7 +297,7 @@ async function verifyRelease(directory: string, release: Release): Promise<void>
         );
     }
     const desktop = release.target.endsWith("apple-darwin") ? "Destack.app" : "Destack";
-    if (!(await stat(join(directory, desktop))).isDirectory()) {
+    if ((await files.stat(join(directory, desktop))).kind !== "directory") {
         throw UpdateError.of("VERIFICATION_FAILED", "downloaded desktop is missing");
     }
 }

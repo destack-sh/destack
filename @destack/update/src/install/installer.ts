@@ -1,27 +1,26 @@
-import type { FamilyError } from "@destack/error";
-import { FileLock, readOptional } from "@destack/fs";
-import { Digest, schema } from "@destack/schema";
-import { UpdateError, type UpdateReason } from "../error/error.ts";
 import {
-    lstat,
-    mkdir,
-    mkdtemp,
-    readdir,
-    readFile,
-    readlink,
-    rename,
-    rm,
-    writeFile,
-} from "node:fs/promises";
+    type Environment,
+    type FileLock,
+    type FileSystem,
+    FileSystemError,
+} from "@destack/environment";
+import type { FamilyError } from "@destack/error";
+import { Digest, present, schema, Uuid } from "@destack/schema";
+import { UpdateError, type UpdateReason } from "../error/error.ts";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
-import { extract, type ReadEntry } from "tar";
-import type { Stats } from "node:fs";
+import { Parser, type ReadEntry } from "tar";
 import type { Download } from "../repository/repository.ts";
 import { Release } from "../release/release.ts";
 import { installApplication } from "../apple/install.ts";
 
 /** The mode of a device's private directories: the owner's alone. */
 export const PRIVATE_DIRECTORY_MODE = 0o700;
+
+/** The mode of a device's private files: the owner's alone. */
+const PRIVATE_FILE_MODE = 0o600;
+
+/** The permission bits of a mode, without its file type. */
+const PERMISSION_BITS = 0o777;
 
 /** The persisted record of the current release. */
 const CurrentRecord = schema.object({
@@ -73,17 +72,24 @@ export interface StagedRelease extends InstalledRelease {
 export class Installer {
     /** Directory containing release versions and the current installation record. */
     readonly directory: string;
+    /** The files and randomness the installation is kept with. */
+    readonly environment: Environment<"files" | "process">;
 
-    /** Select the installation managed by the local host. */
-    constructor(directory: string) {
+    /** Select the installation managed by the local host, kept through an environment's files. */
+    constructor(directory: string, environment: Environment<"files" | "process">) {
         this.directory = resolve(directory);
+        this.environment = environment;
     }
 
     /** Take the installation lock beside the directory, refusing a concurrent installation. */
     async lock(): Promise<FileLock> {
         // create the private parent directory and take the lock file beside the directory
-        await mkdir(dirname(this.directory), { recursive: true, mode: PRIVATE_DIRECTORY_MODE });
-        const lock = await FileLock.tryAcquire(`${this.directory}.lock`);
+        const { files } = this.environment;
+        await files.mkdir(dirname(this.directory), {
+            recursive: true,
+            mode: PRIVATE_DIRECTORY_MODE,
+        });
+        const lock = await files.tryLock(`${this.directory}.lock`, "exclusive");
         if (!lock) {
             throw UpdateError.of(
                 "UPDATE_RUNNING",
@@ -103,15 +109,13 @@ export class Installer {
             sha256: staged.sha256,
             previous: staged.previous,
         };
-        const temporary = join(this.directory, `staged.${crypto.randomUUID()}.json`);
-        await writeFile(temporary, JSON.stringify(record), { flag: "wx", mode: 0o600 });
-        await rename(temporary, join(this.directory, "staged.json"));
+        await this.#replace("staged.json", JSON.stringify(record));
     }
 
     /** Read the distribution waiting for an explicit restart. */
     async staged(): Promise<StagedRelease | undefined> {
         // read the staged release record, absent when none is staged
-        const source = await readOptional(join(this.directory, "staged.json"));
+        const source = await this.#read("staged.json");
         if (source === undefined) {
             return undefined;
         }
@@ -130,7 +134,7 @@ export class Installer {
     /** Read the current release without modifying application files. */
     async current(): Promise<InstalledRelease | undefined> {
         // read the current release record, absent before installation
-        const source = await readOptional(join(this.directory, "current.json"));
+        const source = await this.#read("current.json");
         if (source === undefined) {
             return undefined;
         }
@@ -167,43 +171,35 @@ export class Installer {
         }
 
         // extract into a fresh sibling directory without touching the active distribution
+        const { files, random } = this.environment;
         const versions = join(this.directory, "versions");
-        await mkdir(versions, { recursive: true, mode: PRIVATE_DIRECTORY_MODE });
-        const staging = await mkdtemp(join(versions, ".install-"));
+        await files.mkdir(versions, { recursive: true, mode: PRIVATE_DIRECTORY_MODE });
+        const staging = join(versions, `.install-${Uuid.v4(random)}`);
+        await files.mkdir(staging, { mode: PRIVATE_DIRECTORY_MODE });
         try {
-            let rejected: FamilyError<UpdateReason> | undefined;
-            await extract({
-                file: download.archive,
-                cwd: staging,
-                strict: true,
-                preservePaths: false,
-                filter(path, entry) {
-                    // keep the first rejection and fail after the parser drains
-                    rejected ??= rejectEntry(path, entry, staging);
-                    return rejected === undefined;
-                },
-            });
-            if (rejected !== undefined) {
-                throw rejected;
-            }
-            await verifyLinks(staging, staging);
+            await extractArchive(this.environment, download.archive, staging);
+            await verifyLinks(files, staging, staging);
             await check(staging);
 
             // retain verified releases after interrupted activation without overwriting them
             const destination = this.path(download.release);
             const receipt = JSON.stringify({ sha256: download.sha256 });
-            await writeFile(join(staging, "receipt.json"), receipt, { flag: "wx", mode: 0o600 });
-            const isPresent = await rename(staging, destination).then(
+            await files.writeTextFile(join(staging, "receipt.json"), receipt, {
+                createNew: true,
+                mode: PRIVATE_FILE_MODE,
+            });
+            const isPresent = await files.rename(staging, destination).then(
                 () => false,
-                (error: NodeJS.ErrnoException) => {
-                    if (error.code !== "EEXIST" && error.code !== "ENOTEMPTY") {
+                (error: unknown) => {
+                    if (!FileSystemError.is(error, "ALREADY_EXISTS")) {
                         throw error;
                     }
+
                     return true;
                 },
             );
             if (isPresent) {
-                if ((await readFile(join(destination, "receipt.json"), "utf8")) !== receipt) {
+                if ((await files.readTextFile(join(destination, "receipt.json"))) !== receipt) {
                     throw UpdateError.of(
                         "VERIFICATION_FAILED",
                         "installed release directory contains different content",
@@ -214,7 +210,8 @@ export class Installer {
 
             return { release: download.release, sha256: download.sha256, directory: destination };
         } finally {
-            await rm(staging, { recursive: true, force: true });
+            // remove the staging directory left behind by a failure or a release already present
+            await files.remove(staging, { recursive: true, force: true });
         }
     }
 
@@ -245,9 +242,7 @@ export class Installer {
             application,
             applicationIdentifier,
         };
-        const temporary = join(this.directory, `activate.${crypto.randomUUID()}.json`);
-        await writeFile(temporary, JSON.stringify(record), { flag: "wx", mode: 0o600 });
-        await rename(temporary, join(this.directory, "activate.json"));
+        await this.#replace("activate.json", JSON.stringify(record));
         try {
             await this.recover();
         } catch (error) {
@@ -262,7 +257,8 @@ export class Installer {
     /** Complete a recorded activation after affected processes have stopped. */
     async recover(): Promise<void> {
         // read only activations that were committed to the installation directory
-        const source = await readOptional(join(this.directory, "activate.json"));
+        const { files } = this.environment;
+        const source = await this.#read("activate.json");
         if (source === undefined) {
             return;
         }
@@ -276,7 +272,7 @@ export class Installer {
         const release = new Release(record.version, record.target);
         const directory = this.path(release);
         const receipt = Receipt.safeParse(
-            JSON.parse(await readFile(join(directory, "receipt.json"), "utf8")),
+            JSON.parse(await files.readTextFile(join(directory, "receipt.json"))),
         );
         if (!receipt.success || receipt.data.sha256 !== record.sha256) {
             throw UpdateError.of(
@@ -302,6 +298,7 @@ export class Installer {
                 join(directory, "Destack.app"),
                 application,
                 applicationIdentifier,
+                this.environment,
             );
         }
 
@@ -312,11 +309,25 @@ export class Installer {
                 target: release.target,
                 sha256: record.sha256,
             }) + "\n";
-        const pending = join(this.directory, `current.${crypto.randomUUID()}.json`);
-        await writeFile(pending, current, { flag: "wx", mode: 0o600 });
-        await rename(pending, join(this.directory, "current.json"));
-        await rm(join(this.directory, "staged.json"), { force: true });
-        await rm(join(this.directory, "activate.json"));
+        await this.#replace("current.json", current);
+        await files.remove(join(this.directory, "staged.json"), { force: true });
+        await files.remove(join(this.directory, "activate.json"));
+    }
+
+    /** Read a record of the installation directory, absent when none was published. */
+    async #read(name: string): Promise<string | undefined> {
+        const { files } = this.environment;
+
+        return await files.readTextFile(join(this.directory, name)).catch(FileSystemError.absent);
+    }
+
+    /** Replace a record of the installation directory whole, written aside and renamed in. */
+    async #replace(name: string, text: string): Promise<void> {
+        // write it under a fresh name, then rename it into place
+        const { files, random } = this.environment;
+        const pending = join(this.directory, `${name}.${Uuid.v4(random)}`);
+        await files.writeTextFile(pending, text, { createNew: true, mode: PRIVATE_FILE_MODE });
+        await files.rename(pending, join(this.directory, name));
     }
 
     /** Resolve a validated release beneath the installation directory. */
@@ -342,13 +353,90 @@ export class Installer {
     }
 }
 
+/** Extract an archive's safe entries under a directory, refusing an unsafe one. */
+async function extractArchive(
+    environment: Environment<"files">,
+    archive: string,
+    root: string,
+): Promise<void> {
+    // write each safe entry in turn, draining every entry after the first refusal or failed write
+    const { clock, files } = environment;
+    let rejected: FamilyError<UpdateReason> | undefined;
+    let written = Promise.resolve();
+    const parser = new Parser({
+        strict: true,
+        onReadEntry: (entry) => {
+            rejected ??= rejectEntry(entry.path, entry, root);
+            const drain = (error: unknown): never => {
+                entry.resume();
+                throw error;
+            };
+            written = written.then(async () => {
+                if (rejected === undefined) {
+                    await writeEntry(files, root, entry).catch(drain);
+                } else {
+                    entry.resume();
+                }
+            }, drain);
+        },
+    });
+    const parsed = new Promise<void>((finish, fail) => {
+        parser.on("end", finish);
+        parser.on("error", fail);
+    });
+
+    // stream the archive into the parser with backpressure
+    await using handle = await files.open(archive, { read: true });
+    for await (const chunk of handle.readable()) {
+        const bytes = Buffer.from(chunk.buffer, chunk.byteOffset, chunk.byteLength);
+        if (!parser.write(bytes)) {
+            await clock.trackHost(
+                new Promise<void>((drained) => {
+                    parser.once("drain", drained);
+                }),
+            );
+        }
+    }
+    parser.end();
+    await clock.trackHost(parsed);
+    await written;
+
+    // refuse the first unsafe entry once the archive drained
+    if (rejected !== undefined) {
+        throw rejected;
+    }
+}
+
+/** Write one safe archive entry under a directory, streaming a file's bytes as they arrive. */
+async function writeEntry(files: FileSystem, root: string, entry: ReadEntry): Promise<void> {
+    // create the entry's parent, then the entry by its type, draining a link's or directory's empty body
+    const path = join(root, entry.path);
+    await files.mkdir(dirname(path), { recursive: true });
+    if (entry.type === "SymbolicLink") {
+        entry.resume();
+        await files.symlink(present(entry.linkpath, `the link target of ${entry.path}`), path);
+    } else if (entry.type === "Directory") {
+        entry.resume();
+        const mode = present(entry.mode, `the mode of ${entry.path}`) & PERMISSION_BITS;
+        await files.mkdir(path, { recursive: true, mode });
+    } else {
+        const mode = present(entry.mode, `the mode of ${entry.path}`) & PERMISSION_BITS;
+        await using handle = await files.open(path, { write: true, createNew: true, mode });
+        const writer = handle.writable().getWriter();
+        for await (const chunk of entry) {
+            await writer.write(new Uint8Array(chunk));
+        }
+        await writer.close();
+    }
+}
+
 /** Reject symlinks that escape the extracted distribution. */
-async function verifyLinks(root: string, directory: string): Promise<void> {
-    for (const name of await readdir(directory)) {
+async function verifyLinks(files: FileSystem, root: string, directory: string): Promise<void> {
+    for (const { name } of await files.readDirectory(directory)) {
         const path = join(directory, name);
-        const stat = await lstat(path);
-        if (stat.isSymbolicLink()) {
-            const link = await readlink(path);
+        const stat = await files.lstat(path);
+        if (stat.kind === "symlink") {
+            const link = await files.readLink(path);
             const destination = resolve(directory, link);
             const relation = relative(root, destination);
             if (isAbsolute(link) || relation === ".." || relation.startsWith(`..${sep}`)) {
@@ -357,8 +445,8 @@ async function verifyLinks(root: string, directory: string): Promise<void> {
                     `archive link escapes the distribution: ${path}`,
                 );
             }
-        } else if (stat.isDirectory()) {
-            await verifyLinks(root, path);
+        } else if (stat.kind === "directory") {
+            await verifyLinks(files, root, path);
         }
     }
 }
@@ -366,19 +454,19 @@ async function verifyLinks(root: string, directory: string): Promise<void> {
 /** Find why an archive entry could write outside the staged distribution, if it could. */
 function rejectEntry(
     path: string,
-    entry: Stats | ReadEntry,
+    entry: ReadEntry,
     root: string,
 ): FamilyError<UpdateReason> | undefined {
     // split the path on both separators
     const components = path.replaceAll("\\", "/").split("/");
 
-    // require a tar entry
-    if (!("type" in entry)) {
-        return UpdateError.of("UNSAFE_ARCHIVE", "expected an archive entry");
-    }
     // require a relative path inside the distribution
-    else if (isAbsolute(path) || components.includes("..") || /^[A-Za-z]:/u.test(path)) {
+    if (isAbsolute(path) || components.includes("..") || /^[A-Za-z]:/u.test(path)) {
         return UpdateError.of("UNSAFE_ARCHIVE", `unsafe archive path: ${path}`);
+    }
+    // require a mode, which the extracted files and directories keep
+    else if (entry.mode === undefined && entry.type !== "SymbolicLink") {
+        return UpdateError.of("UNSAFE_ARCHIVE", `archive entry has no mode: ${path}`);
     }
     // require a supported entry type
     else if (!["File", "Directory", "SymbolicLink"].includes(entry.type)) {

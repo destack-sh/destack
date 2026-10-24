@@ -1,10 +1,10 @@
 import { Digest, Version } from "@destack/schema";
 import { UpdateError } from "../error/error.ts";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { type TargetFile, Updater, type UpdaterOptions } from "tuf-js";
 import { Release, type Target, TargetCustom } from "../release/release.ts";
-import { DownloadFetcher, type DownloadOptions } from "./download.ts";
+import { type Environment, FileSystemError, type FileSystem } from "@destack/environment";
+import { type DownloadOptions, Fetcher } from "./download.ts";
 
 /** An authenticated release and its downloaded archive. */
 export interface Download {
@@ -26,8 +26,12 @@ export class UpdateRepository {
         "metadataDir" | "targetDir" | "metadataBaseUrl" | "targetBaseUrl"
     >;
 
+    /** The clock, network and files metadata requests and archive downloads run on. */
+    private readonly environment: Environment<"files">;
+
     /** Configure a repository after initializing its trusted root. */
-    private constructor(directory: string, url: URL) {
+    private constructor(directory: string, url: URL, environment: Environment<"files">) {
+        this.environment = environment;
         this.locations = {
             metadataDir: join(directory, "metadata"),
             targetDir: join(directory, "downloads"),
@@ -37,7 +41,12 @@ export class UpdateRepository {
     }
 
     /** Initialize trust from the root bundled with the installed executable. */
-    static async open(directory: string, url: URL, root: string): Promise<UpdateRepository> {
+    static async open(
+        directory: string,
+        url: URL,
+        root: string,
+        environment: Environment<"files">,
+    ): Promise<UpdateRepository> {
         // permit plaintext only for local release verification
         const isLoopback = ["127.0.0.1", "[::1]", "localhost"].includes(url.hostname);
         if (url.protocol !== "https:" && !(url.protocol === "http:" && isLoopback)) {
@@ -47,45 +56,31 @@ export class UpdateRepository {
             throw UpdateError.of("INVALID_REPOSITORY", "invalid update repository URL");
         }
 
-        // retain previously verified metadata across process and release changes
-        await mkdir(join(directory, "metadata"), { recursive: true, mode: 0o700 });
-        await mkdir(join(directory, "downloads"), { recursive: true, mode: 0o700 });
-        await writeFile(join(directory, "metadata/root.json"), root, {
-            flag: "wx",
-            mode: 0o600,
-        }).catch((error: NodeJS.ErrnoException) => {
-            if (error.code !== "EEXIST") {
-                throw error;
-            }
-        });
+        // keep verified metadata across processes, safe to check then write under the installation lock
+        const { files } = environment;
+        await files.mkdir(join(directory, "metadata"), { recursive: true, mode: 0o700 });
+        await files.mkdir(join(directory, "downloads"), { recursive: true, mode: 0o700 });
+        await writeNew(files, join(directory, "metadata/root.json"), root);
 
         // prevent one cache from accepting metadata from multiple repositories
         const source = join(directory, "repository.txt");
-        const isClaimed = await writeFile(source, url.href, { flag: "wx", mode: 0o600 }).then(
-            () => false,
-            (error: NodeJS.ErrnoException) => {
-                if (error.code !== "EEXIST") {
-                    throw error;
-                }
-                return true;
-            },
-        );
-        if (isClaimed && (await readFile(source, "utf8")) !== url.href) {
+        const isClaimed = !(await writeNew(files, source, url.href));
+        if (isClaimed && (await files.readTextFile(source)) !== url.href) {
             throw UpdateError.of(
                 "CACHE_MISMATCH",
                 "update cache belongs to a different repository",
             );
         }
 
-        return new UpdateRepository(directory, url);
+        return new UpdateRepository(directory, url, environment);
     }
 
     /** Refresh trusted metadata and describe the current release for a target. */
     async latest(target: Target): Promise<Release> {
-        // each TUF refresh starts from persisted trusted metadata
+        // refresh from the persisted trusted metadata
         const updater = new Updater({
             ...this.locations,
-            config: { fetchTimeout: 30_000, fetchRetries: 2 },
+            fetcher: new Fetcher({ kind: "metadata" }, this.environment),
         });
         await updater.refresh();
         const artifact = await updater.getTargetInfo(`${target}.tar.gz`);
@@ -150,12 +145,16 @@ export class UpdateRepository {
             throw UpdateError.of("INVALID_RELEASE", "invalid release archive metadata");
         }
 
-        // authenticate an installer archive using the same signed length and hashes
+        // authenticate an installer archive by its signed length and hashes
+        const { clock } = this.environment;
         const downloader = new Updater({
             ...this.locations,
-            fetcher: new DownloadFetcher(artifact.length, options),
+            fetcher: new Fetcher(
+                { kind: "archive", total: artifact.length, options },
+                this.environment,
+            ),
         });
-        const cached = await downloader.findCachedTarget(artifact, candidate);
+        const cached = await clock.trackHost(downloader.findCachedTarget(artifact, candidate));
         if (candidate !== undefined && candidate !== "" && cached === undefined) {
             throw UpdateError.of("VERIFICATION_FAILED", "installer archive failed verification");
         }
@@ -166,5 +165,20 @@ export class UpdateRepository {
         }
 
         return { release, archive, sha256: artifact.hashes["sha256"] };
+    }
+}
+
+/** Write a private file that does not exist yet, reporting whether it wrote one. */
+async function writeNew(files: FileSystem, path: string, text: string): Promise<boolean> {
+    try {
+        await files.writeTextFile(path, text, { createNew: true, mode: 0o600 });
+
+        return true;
+    } catch (error) {
+        if (!FileSystemError.is(error, "ALREADY_EXISTS")) {
+            throw error;
+        }
+
+        return false;
     }
 }

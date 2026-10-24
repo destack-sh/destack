@@ -1,5 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { testHost } from "@destack/test/host";
 import { join } from "node:path";
 import { afterAll, beforeAll, expect, test } from "@destack/test";
 import { Release } from "../release/index.ts";
@@ -13,18 +12,23 @@ let rootKeys: SigningKey[];
 let fixture: string;
 
 beforeAll(async () => {
-    rootKeys = Array.from({ length: 3 }, createRootKey);
+    rootKeys = await Promise.all(Array.from({ length: 3 }, () => createRootKey(testHost().crypto)));
     fixture = await UpdateFixture.compile();
 }, 10000);
 
 afterAll(async () => {
-    await rm(fixture, { recursive: true, force: true });
+    await testHost().files.remove(fixture, { recursive: true });
 });
 
 test("stage a newer release once, keeping it staged while none newer is published", async () => {
     // run 2026.9.0 of a distribution following the fixture's repository
-    await using repository = await UpdateFixture.open(fixture, rootKeys, "2026.9.1");
-    const home = await mkdtemp(join(tmpdir(), "destack-distribution-"));
+    await using repository = await UpdateFixture.open(
+        fixture,
+        rootKeys,
+        "2026.9.1",
+        UpdateFixture.world(),
+    );
+    const home = await repository.environment.files.makeTemporaryDirectory("destack-distribution-");
     const distribution = new Distribution({
         home,
         repository: repository.options.repository,
@@ -34,6 +38,7 @@ test("stage a newer release once, keeping it staged while none newer is publishe
         applications: join(home, "Applications"),
         applicationIdentifier: "app.destack.desktop",
         title: "Destack",
+        environment: repository.environment,
     });
     try {
         // stage the published release, then stage again without a newer one
@@ -55,6 +60,6 @@ test("stage a newer release once, keeping it staged while none newer is publishe
             application: undefined,
         });
     } finally {
-        await rm(home, { recursive: true, force: true });
+        await repository.environment.files.remove(home, { recursive: true });
     }
 });

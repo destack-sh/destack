@@ -1,6 +1,5 @@
+import { testSimulation } from "@destack/object/test";
 import { expect, test, refusal } from "@destack/test";
-import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { create, Header, type HeaderData } from "tar";
 import { createHash } from "node:crypto";
@@ -8,18 +7,19 @@ import { Installer } from "./installer.ts";
 import { Release } from "../release/release.ts";
 
 test("recover interrupted activation and retain both distributions", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "destack-activation-"));
+    const world = testSimulation().environment("test");
+    const directory = await world.files.makeTemporaryDirectory("destack-activation-");
     try {
         // build two archived distributions
         const source = join(directory, "source");
-        await mkdir(source);
-        const installer = new Installer(join(directory, "installation"));
+        await world.files.mkdir(source);
+        const installer = new Installer(join(directory, "installation"), world);
         const installed = [];
         for (const version of ["2026.9.0", "2026.9.1"]) {
-            await writeFile(join(source, "version"), version);
+            await world.files.writeTextFile(join(source, "version"), version);
             const archive = join(directory, `${version}.tar.gz`);
             await create({ file: archive, gzip: true, cwd: source }, ["version"]);
-            const bytes = await readFile(archive);
+            const bytes = await world.files.readFile(archive);
             const sha256 = createHash("sha256").update(bytes).digest("hex");
             installed.push(
                 await installer.stage(
@@ -29,7 +29,7 @@ test("recover interrupted activation and retain both distributions", async () =>
                         sha256,
                     },
                     async (path) => {
-                        expect(await readFile(join(path, "version"), "utf8")).toBe(version);
+                        expect(await world.files.readTextFile(join(path, "version"))).toBe(version);
                     },
                 ),
             );
@@ -41,7 +41,7 @@ test("recover interrupted activation and retain both distributions", async () =>
             throw new Error("expected two staged distributions");
         }
         await installer.activate(first);
-        await writeFile(
+        await world.files.writeTextFile(
             join(installer.directory, "activate.json"),
             JSON.stringify({
                 version: second.release.version,
@@ -54,18 +54,17 @@ test("recover interrupted activation and retain both distributions", async () =>
 
         // require a complete selection and preserve the previous distribution
         expect(await installer.current()).toEqual(second);
-        expect(await readdir(join(installer.directory, "versions"))).toEqual([
-            first.release.directory,
-            second.release.directory,
-        ]);
-        await expect(readFile(join(installer.directory, "activate.json"))).rejects.toMatchObject({
-            code: "ENOENT",
-        });
+        expect(
+            (await world.files.readDirectory(join(installer.directory, "versions"))).map(
+                (entry) => entry.name,
+            ),
+        ).toEqual([first.release.directory, second.release.directory]);
+        expect(await world.files.exists(join(installer.directory, "activate.json"))).toBe(false);
         await installer.recover();
         expect(await installer.current()).toEqual(second);
 
         // reject an obsolete journal without changing the selected release
-        await writeFile(
+        await world.files.writeTextFile(
             join(installer.directory, "activate.json"),
             JSON.stringify({
                 version: first.release.version,
@@ -80,7 +79,58 @@ test("recover interrupted activation and retain both distributions", async () =>
         ]);
         expect(await installer.current()).toEqual(second);
     } finally {
-        await rm(directory, { recursive: true, force: true });
+        await world.files.remove(directory, { recursive: true });
+    }
+});
+
+test("refuse a Mac activation without its application's absolute destination and identifier", async () => {
+    // stage a Mac release in a world on a Mac
+    const world = testSimulation().environment("test");
+    const directory = await world.files.makeTemporaryDirectory("destack-mac-activation-");
+    try {
+        const source = join(directory, "source");
+        await world.files.mkdir(join(source, "Destack.app"), { recursive: true });
+        const archive = join(directory, "release.tar.gz");
+        await create({ file: archive, gzip: true, cwd: source }, ["Destack.app"]);
+        const sha256 = createHash("sha256")
+            .update(await world.files.readFile(archive))
+            .digest("hex");
+        const installer = new Installer(join(directory, "installation"), world);
+        const release = new Release("2026.9.1", "aarch64-apple-darwin");
+        const staged = await installer.stage({ release, archive, sha256 }, async () => {});
+
+        // refuse activating it without a destination or an identifier
+        const refused = [
+            await refusal(installer.activate(staged)),
+            await refusal(installer.activate(staged, "/Applications/Destack.app")),
+        ];
+
+        // refuse recovering a recorded activation with a relative destination
+        const record = { version: release.version, target: release.target, sha256 };
+        await world.files.writeTextFile(
+            join(installer.directory, "activate.json"),
+            JSON.stringify({ ...record, application: "Destack.app", applicationIdentifier: "app" }),
+        );
+        refused.push(await refusal(installer.recover()));
+        expect(refused).toEqual([
+            [
+                "BAD_REQUEST",
+                "INVALID_OPTIONS",
+                "macOS releases require an application destination and identifier",
+            ],
+            [
+                "BAD_REQUEST",
+                "INVALID_OPTIONS",
+                "macOS releases require an application destination and identifier",
+            ],
+            [
+                "INTERNAL_SERVER_ERROR",
+                "INVALID_RECORD",
+                "missing absolute application destination or identifier",
+            ],
+        ]);
+    } finally {
+        await world.files.remove(directory, { recursive: true });
     }
 });
 
@@ -118,16 +168,17 @@ test.each([
 ] satisfies { name: string; entry: HeaderData; message: string }[])(
     "reject $name without extracting or activating files",
     async ({ entry, message }) => {
-        const directory = await mkdtemp(join(tmpdir(), "destack-archive-"));
+        const world = testSimulation().environment("test");
+        const directory = await world.files.makeTemporaryDirectory("destack-archive-");
         try {
             // encode the unmodified unsafe entry, which archive creators otherwise normalize
             const bytes = Buffer.alloc(512 * 3);
             const header = new Header({ ...entry, size: 0, mode: 0o644 });
             header.encode(bytes);
             const archive = join(directory, "release.tar");
-            await writeFile(archive, bytes);
+            await world.files.writeFile(archive, bytes);
 
-            const installer = new Installer(join(directory, "installation"));
+            const installer = new Installer(join(directory, "installation"), world);
             expect(
                 await refusal(
                     installer.stage(
@@ -143,9 +194,13 @@ test.each([
                 ),
             ).toEqual(["BAD_GATEWAY", "UNSAFE_ARCHIVE", message]);
             expect(await installer.current()).toBeUndefined();
-            expect(await readdir(join(installer.directory, "versions"))).toEqual([]);
+            expect(
+                (await world.files.readDirectory(join(installer.directory, "versions"))).map(
+                    (version) => version.name,
+                ),
+            ).toEqual([]);
         } finally {
-            await rm(directory, { recursive: true, force: true });
+            await world.files.remove(directory, { recursive: true });
         }
     },
 );

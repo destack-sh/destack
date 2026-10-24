@@ -3,6 +3,7 @@
     "id": "package-01a0c80b-614e-739f-b79f-8834e4ec871f",
     "language": "typescript",
     "runtimes": ["bun"],
+    "entrypoints": ["src/test/command.ts"],
     "exports": {
         "./release": {
             "runtimes": ["browser", "bun", "workerd"]

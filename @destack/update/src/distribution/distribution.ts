@@ -1,3 +1,4 @@
+import type { Environment } from "@destack/environment";
 import { basename, dirname, join, resolve } from "node:path";
 import { Installation } from "../installation/index.ts";
 import type { StagedRelease } from "../install/installer.ts";
@@ -23,6 +24,8 @@ export interface DistributionOptions {
     readonly applicationIdentifier: string;
     /** The application's display name, such as `Destack`. */
     readonly title: string;
+    /** The clock, network, files and processes updates run on. */
+    readonly environment: Environment<"files" | "process">;
 }
 
 /** This machine's installed Destack distribution. */
@@ -46,7 +49,10 @@ export class Distribution {
         if (!this.options.running.target.endsWith("apple-darwin")) {
             return undefined;
         }
-        const registration = await new Installation(dirname(this.directory)).read();
+        const registration = await new Installation(
+            dirname(this.directory),
+            this.options.environment,
+        ).read();
 
         return (
             registration?.application ??
@@ -76,7 +82,7 @@ export class Distribution {
     /** Open a locked update session, refusing an installation that changed under it. */
     async open(isInstalling = false): Promise<Updater> {
         // read how the distribution was installed, and where its Mac application lives
-        const installation = new Installation(dirname(this.directory));
+        const installation = new Installation(dirname(this.directory), this.options.environment);
         const registration = await installation.read();
         const application = await this.application();
         const { running } = this.options;
@@ -88,6 +94,7 @@ export class Distribution {
             ...(isInstalling ? {} : { current: running }),
             ...(application === undefined ? {} : { application }),
             applicationIdentifier: this.options.applicationIdentifier,
+            environment: this.options.environment,
         });
 
         // refuse an installation another installer changed before the lock was taken

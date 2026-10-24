@@ -18,14 +18,14 @@
     },
     "dependencies": {
         "@destack/access": "workspace:*",
-        "@destack/account": "workspace:*",
         "@destack/db": "workspace:*",
+        "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
-        "@destack/fs": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/sync": "workspace:*",
+        "@tufjs/canonical-json": "2.0.0",
         "@tufjs/models": "5.0.0",
         "tar": "7.5.22",
         "tuf-js": "6.0.0"
