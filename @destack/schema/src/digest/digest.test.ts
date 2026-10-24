@@ -1,21 +1,29 @@
+import { Simulation } from "@destack/environment/simulation";
 import { expect, test } from "@destack/test";
 import { Digest } from "./digest.ts";
 
+/** The clock's start: 2026-10-24 at midnight UTC. */
+const START = Date.UTC(2026, 9, 24);
+
 test("hash text, bytes and JSON values, whatever their key order", async () => {
     // hash text and its UTF-8 bytes alike
-    expect(await Digest.of("destack")).toBe(await Digest.of(new TextEncoder().encode("destack")));
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const crypto = simulation.environment("schema").crypto;
+    expect(await Digest.of("destack", crypto)).toBe(
+        await Digest.of(new TextEncoder().encode("destack"), crypto),
+    );
 
     // hash JSON values by their canonical form
-    expect(await Digest.json({ first: 1, second: 2 })).toBe(
-        await Digest.json({ second: 2, first: 1 }),
+    expect(await Digest.json({ first: 1, second: 2 }, crypto)).toBe(
+        await Digest.json({ second: 2, first: 1 }, crypto),
     );
-    expect(await Digest.json({ first: 1 })).toBe(
+    expect(await Digest.json({ first: 1 }, crypto)).toBe(
         "774f958deec5b02dd6d95db6d282d75d329e49d0c997f40fae3b51eae9b8614e",
     );
 
     // accept only lowercase hexadecimal SHA-256
     expect(
-        [await Digest.of(""), "A".repeat(64), "a".repeat(63)].map(
+        [await Digest.of("", crypto), "A".repeat(64), "a".repeat(63)].map(
             (value) => Digest.safeParse(value).success,
         ),
     ).toEqual([true, false, false]);
