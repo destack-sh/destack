@@ -4,6 +4,9 @@ import { PlainDate, PlainTime } from "./plain.ts";
 /** The longest IANA time zone name accepted, beyond the longest in the database. */
 const TIME_ZONE_LENGTH = 64;
 
+/** The minutes in an hour. */
+const HOUR_MINUTES = 60;
+
 /** The milliseconds in a minute. */
 const MINUTE_MILLISECONDS = 60_000;
 
@@ -48,10 +51,20 @@ export const TimeZone = Object.assign(timeZoneSchema, {
         return { year: part("year"), month: part("month"), day: part("day") };
     },
 
+    /** Read the time of day an instant falls on in a time zone, to the minute. */
+    time(zone: TimeZone, at: number): PlainTime {
+        // write the hour and minute in two digits each
+        const parts = formatter(zone).formatToParts(at);
+        const hour = String(readPart(parts, "hour")).padStart(2, "0");
+        const minute = String(readPart(parts, "minute")).padStart(2, "0");
+
+        return `${hour}:${minute}`;
+    },
+
     /** Read the instant of a date's time of day in a time zone, moving a time in a gap past it. */
     instant(zone: TimeZone, date: PlainDate, time: PlainTime): number {
         // correct the wall time by its offset twice, across offset changes
-        const wall = Date.UTC(date.year, date.month - 1, date.day, 0, PlainTime.minutes(time));
+        const wall = utc(date, PlainTime.minutes(time));
         const guess = wall - offset(zone, wall);
 
         return wall - offset(zone, guess);
@@ -78,16 +91,18 @@ function offset(zone: TimeZone, at: number): number {
     // read the local wall time as UTC
     const parts = formatter(zone).formatToParts(at);
     const part = (type: Intl.DateTimeFormatPartTypes) => readPart(parts, type);
-    const wall = Date.UTC(
-        part("year"),
-        part("month") - 1,
-        part("day"),
-        part("hour"),
-        part("minute"),
-    );
+    const date = { year: part("year"), month: part("month"), day: part("day") };
+    const wall = utc(date, part("hour") * HOUR_MINUTES + part("minute"));
     const minute = at - (at % MINUTE_MILLISECONDS);
 
     return wall - minute;
+}
+
+/** Read a date's wall time, under a day of minutes, as a UTC instant keeping years below 100. */
+function utc(date: PlainDate, minutes: number): number {
+    const wall = new Date(Date.UTC(2000, 0, 1, 0, minutes));
+
+    return wall.setUTCFullYear(date.year, date.month - 1, date.day);
 }
 
 /** Read the formatter of a time zone, refusing an unknown zone. */
