@@ -1,7 +1,7 @@
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
 import { color, stroke } from "@destack/theme/tokens.stylex";
-import type { JSX } from "@destack/view";
+import { createEffect, type JSX } from "@destack/view";
 
 import { palette } from "../../palette.stylex";
 import { AgentAvatar, isAgent } from "./agent";
@@ -61,7 +61,11 @@ export const appStyles = style.create({
         gap: "0.25rem",
         gridRow: { default: "auto", [NARROW]: "3" },
         justifyContent: { default: "flex-start", [NARROW]: "space-around" },
+        overflowX: { default: "hidden", [NARROW]: "auto" },
+        overflowY: { default: "auto", [NARROW]: "hidden" },
         paddingBlock: { default: "0.75rem", [NARROW]: "0.375rem" },
+        position: "relative",
+        scrollbarWidth: "none",
     },
     railWide: {
         display: { default: "flex", [NARROW]: "none" },
@@ -261,8 +265,20 @@ export function AppRail(properties: {
     morph: string | undefined;
     onOpen?: (name: string) => void;
 }) {
+    // scroll the open app into the rail's view when more apps sit on it than fit
+    let rail: HTMLElement | undefined;
+    createEffect(
+        () => properties.open,
+        (open) => {
+            const link = rail?.querySelector<HTMLElement>(`[data-app="${open}"]`);
+            if (rail !== undefined && link !== null && link !== undefined) {
+                rail.scrollTop = link.offsetTop - rail.clientHeight / 2;
+            }
+        },
+    );
+
     return (
-        <nav data-component="AppRail" {...style.attrs(appStyles.rail)}>
+        <nav ref={rail} data-component="AppRail" {...style.attrs(appStyles.rail)}>
             <span
                 title="Your space"
                 style={{ "background-color": palette.teal }}
@@ -281,6 +297,7 @@ export function AppRail(properties: {
             {properties.apps.map(([name, label]) => (
                 <span
                     data-component="AppLink"
+                    data-app={name}
                     data-morph-icon={properties.morph === undefined ? undefined : ""}
                     title={label}
                     onClick={() => properties.onOpen?.(name)}

@@ -442,7 +442,15 @@ function ItemView(properties: {
     }
     // an app the assistant made, its note landing once it is built
     else if (item.kind === "app") {
-        return <AppCard item={item} isBuilding={properties.isBuilding} />;
+        return item.isLive ? (
+            <AppCard item={item} isBuilding={properties.isBuilding} />
+        ) : (
+            <ArtifactCard
+                item={item}
+                assistant={properties.assistant}
+                isBuilding={properties.isBuilding}
+            />
+        );
     }
     // a request for your approval while you read it, then its outcome
     else if (item.kind === "approval") {
@@ -568,6 +576,54 @@ function AppCard(properties: { item: Extract<Item, { kind: "app" }>; isBuilding:
     );
 }
 
+/** Draw an app the assistant made as its artifact: a sandboxed preview it keeps in the chat. */
+function ArtifactCard(properties: {
+    item: Extract<Item, { kind: "app" }>;
+    assistant: Assistant;
+    isBuilding: boolean;
+}) {
+    return (
+        <span data-component="ArtifactCard" {...style.attrs(styles.app)}>
+            {/* the artifact's bar: its mark, title and kind, its tabs, and publishing */}
+            <span {...style.attrs(styles.artifactBar)}>
+                <span aria-hidden="true" {...style.attrs(styles.artifactMark)}>
+                    {"</>"}
+                </span>
+                <span {...style.attrs(styles.artifactName)}>
+                    <b {...style.attrs(styles.appTitle)}>{properties.item.title}</b>
+                    <span {...style.attrs(styles.appMeta)}>
+                        {kindOf(properties.assistant)} · {properties.item.badge}
+                    </span>
+                </span>
+                <span {...style.attrs(styles.artifactTabs)}>
+                    <span {...style.attrs(styles.artifactTab, styles.artifactTabOn)}>Preview</span>
+                    <span {...style.attrs(styles.artifactTab)}>Code</span>
+                </span>
+                <span {...style.attrs(styles.artifactPublish)}>Publish</span>
+            </span>
+
+            {/* the preview */}
+            {properties.item.rows.map(([name, asked, state]) => (
+                <span {...style.attrs(styles.appRow)}>
+                    <span {...style.attrs(styles.appTitle)}>{name}</span>
+                    <span {...style.attrs(styles.appMeta, styles.appAsked)}>{asked}</span>
+                    <span {...style.attrs(styles.appState)}>{state}</span>
+                </span>
+            ))}
+
+            {/* where it runs and as whom, once it is built */}
+            {properties.isBuilding ? undefined : (
+                <span {...style.attrs(styles.appFoot)}>{properties.item.note}</span>
+            )}
+        </span>
+    );
+}
+
+/** Return what an assistant calls an app it makes in the chat. */
+function kindOf(shown: Assistant): string {
+    return shown === "ChatGPT" || shown === "Gemini" ? "Canvas" : "Artifact";
+}
+
 /** Return an approval's allow label, by how long it holds and whose chrome shows it. */
 function allowOf(grant: Grant, shown: Assistant): string {
     // hold for the rest of the chat
@@ -619,7 +675,7 @@ const breathe = style.keyframes({
 });
 
 /** Each assistant's conversation, as it ships. */
-const themes = style.create({
+export const themes = style.create({
     Claude: {},
     ChatGPT: {
         [chat.canvas]: chatgpt.canvas,
@@ -1007,6 +1063,62 @@ const styles = style.create({
         borderRadius: "50%",
         height: "6px",
         width: "6px",
+    },
+    artifactBar: {
+        alignItems: "center",
+        borderBottomColor: chat.border,
+        borderBottomStyle: "solid",
+        borderBottomWidth: "1px",
+        display: "flex",
+        gap: "0.5rem",
+        paddingBlock: "0.5rem",
+        paddingInline: "0.625rem",
+    },
+    artifactMark: {
+        alignItems: "center",
+        backgroundColor: `color-mix(in srgb, ${chat.ink} 8%, transparent)`,
+        borderRadius: "6px",
+        display: "inline-flex",
+        flexShrink: 0,
+        fontFamily: font.code,
+        fontSize: "0.625rem",
+        fontWeight: 600,
+        height: "1.75rem",
+        justifyContent: "center",
+        width: "1.75rem",
+    },
+    artifactName: {
+        display: "grid",
+        flexGrow: 1,
+        minWidth: 0,
+    },
+    artifactTabs: {
+        backgroundColor: `color-mix(in srgb, ${chat.ink} 6%, transparent)`,
+        borderRadius: "6px",
+        display: "inline-flex",
+        flexShrink: 0,
+        fontSize: "0.6875rem",
+        padding: "2px",
+    },
+    artifactTab: {
+        borderRadius: "4px",
+        opacity: 0.6,
+        paddingBlock: "1px",
+        paddingInline: "0.375rem",
+    },
+    artifactTabOn: {
+        backgroundColor: chat.canvas,
+        opacity: 1,
+    },
+    artifactPublish: {
+        backgroundColor: chat.ink,
+        borderRadius: "6px",
+        color: chat.canvas,
+        flexShrink: 0,
+        fontSize: "0.6875rem",
+        fontWeight: 600,
+        paddingBlock: "0.1875rem",
+        paddingInline: "0.5rem",
     },
     appRow: {
         alignItems: "center",

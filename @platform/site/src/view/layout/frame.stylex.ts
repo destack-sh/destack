@@ -14,7 +14,10 @@ const BAR = "56px";
 const SECTION = `clamp(720px, calc(100svh - ${BAR}), 1080px)`;
 
 /** The height of every dictionary entry on desktop, so the sections line up. */
-const ENTRY = "12.5rem";
+const ENTRY = "12rem";
+
+/** The height of a figure's label row, with its rule. */
+const LABEL = "50px";
 
 /** The stack figure window's inner width: the frame less an inset and a border each side. */
 const WINDOW_WIDTH = `calc(${WIDTH} - 50px)`;
@@ -23,7 +26,7 @@ const WINDOW_WIDTH = `calc(${WIDTH} - 50px)`;
 const PHONE_WINDOW_WIDTH = `calc(${PHONE_WIDTH} - 42px)`;
 
 /** The stack figure's row on desktop, after its labels and its window's strip and margins. */
-const STAGE = `calc((${SECTION} - ${ENTRY} - 50px - 72px) / 6)`;
+const STAGE = `calc((${SECTION} - ${ENTRY} - ${LABEL} - 72px) / 6)`;
 
 /** The stack figure's row below the desktop width, which carries only the cards. */
 const NARROW_STAGE = `clamp(112px, calc(${WIDTH} / 88 * 13), 134px)`;

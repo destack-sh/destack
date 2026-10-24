@@ -13,6 +13,7 @@ import { Picker } from "../figure/picker";
 import { StackSwitch } from "../entry/switch";
 import { pages, rowOf, SpaceBrowser, type Viewer } from "../verb/space";
 import { AgentChat, assistantOptions, createAssistantTurn } from "./chat";
+import { artifactOf } from "./artifact";
 import { BEAT, destacked, stacked, stackedConnectors } from "./scene";
 import { sources } from "../verb/source";
 import { AirtableSignups } from "../tool/airtable";
@@ -20,6 +21,9 @@ import { type Lineup, lineupAt, toolOf } from "../tool/tool";
 
 /** The rows of fig. 1 the task touches: the waitlist, its table, the chat and the workflows. */
 const ROWS: readonly number[] = (["tables", "builder", "chat", "workflows"] as const).map(rowOf);
+
+/** The row of the app you made, where the assistant's artifact opens at its public link. */
+const BUILDER_ROW = rowOf("builder");
 
 /** The tools the stacked task connects to, each row's first, Airtable open on the waitlist. */
 const lineup: Lineup = (category) =>
@@ -79,6 +83,15 @@ export function Command(properties: { isOpen: boolean }) {
     // take the assistant the reader chose, or else the next one's look each time it runs again
     const { look, progress, choose } = createAssistantTurn(beat, () => scene().length, isReduced);
 
+    // open the app the assistant made at its public link once it exists, while stacked
+    const artifact = () => {
+        const app = moment().items.find((item) => item.kind === "app");
+
+        return !properties.isOpen && app?.kind === "app"
+            ? artifactOf(look(), BUILDER_ROW, app.title, app.rows)
+            : undefined;
+    };
+
     // show the page the reader opens from a tab, or else the page the step or the walk touches
     const [viewer, setViewer] = createSignal<Viewer>("Me");
     const [opened, setOpened] = createSignal<number | undefined>(undefined);
@@ -100,13 +113,7 @@ export function Command(properties: { isOpen: boolean }) {
     return (
         <section
             ref={setSection}
-            {...style.attrs(
-                lattice.frame,
-                lattice.ruled,
-                lattice.section,
-                lattice.ruleBottom,
-                styles.section,
-            )}
+            {...style.attrs(lattice.frame, lattice.ruled, lattice.section, styles.section)}
         >
             <Entry form={command} />
             <FigureLabel
@@ -127,7 +134,7 @@ export function Command(properties: { isOpen: boolean }) {
                     change={step().change}
                     source={present(sources[0], "first source")}
                     lineup={lineup}
-                    vendor={undefined}
+                    vendor={artifact()}
                     remix={undefined}
                     isOpenAt={() => properties.isOpen}
                     page={page()}

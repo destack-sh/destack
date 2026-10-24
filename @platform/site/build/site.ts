@@ -1,5 +1,6 @@
 import { CompilerPool, LocalPackageStore, PackageBuild, Workspace } from "@destack/build";
 import { DevelopmentServer, type MetadataOptions, type WebOptions } from "@destack/web/build";
+import type { Environment } from "@destack/environment";
 import { cp, mkdir, readFile, rm } from "node:fs/promises";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -20,7 +21,10 @@ const SECURITY_LIFETIME = 183 * 24 * 60 * 60 * 1000;
 const directory = fileURLToPath(new URL("../", import.meta.url));
 
 /** Build static pages or serve the same application with live updates. */
-export async function run(command: string | undefined): Promise<void> {
+export async function run(
+    command: string | undefined,
+    environment: Environment<"files" | "process" | "host">,
+): Promise<void> {
     const application: WebOptions = {
         kind: "web",
         ssr: { runtime: "bun", emit: false },
@@ -40,6 +44,7 @@ export async function run(command: string | undefined): Promise<void> {
         await using development = await DevelopmentServer.start({
             directory,
             application,
+            environment,
             server: { port: 3737, strictPort: true, watch: { ignored: ["**/.output/**"] } },
         });
         await using content = watchContent(directory, development);
@@ -51,7 +56,7 @@ export async function run(command: string | undefined): Promise<void> {
     }
     // publish only the browser output, keeping inspection and source files private
     else if (command === "build") {
-        await using store = await LocalPackageStore.checkout(directory, "development");
+        await using store = await LocalPackageStore.checkout(directory, "development", environment);
         await using compilers = await CompilerPool.open(store);
         const workspace = await Workspace.open(directory, compilers);
         await using build = await workspace.build({ outputs: { website: application } });
@@ -60,7 +65,7 @@ export async function run(command: string | undefined): Promise<void> {
         const output = join(directory, ".output");
         await rm(output, { recursive: true, force: true });
         await mkdir(output, { recursive: true });
-        await PackageBuild.write(build.reader, join(output, "package"));
+        await PackageBuild.write(build.reader, join(output, "package"), environment.files);
         await mkdir(join(output, "public"), { recursive: true });
         const browser = build.manifest.outputs["website-browser"];
         if (browser === undefined) {

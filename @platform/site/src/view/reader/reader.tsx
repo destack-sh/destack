@@ -5,7 +5,7 @@ import { Icon } from "@destack/icon";
 import { text } from "@destack/theme/text";
 import caretDown from "@destack/icon/phosphor/caret-down";
 import { Popover, PopoverContent, PopoverTrigger } from "@destack/ui/popover";
-import { createSignal, type JSX, onSettled } from "@destack/view";
+import { createSignal, type JSX, onSettled, useTelemetry } from "@destack/view";
 import * as style from "@destack/style";
 
 import type { PageSource } from "../content/source";
@@ -61,6 +61,7 @@ export function Reader(properties: ReaderProperties) {
     // hold the article and its source commands
     let article: HTMLElement | undefined;
     const sourceCommands = createPageSourceCommands(properties.source);
+    const telemetry = useTelemetry();
 
     // render diagrams after the article mounts
     onSettled(() => {
@@ -68,7 +69,7 @@ export function Reader(properties: ReaderProperties) {
             throw new TypeError("the reader rendered without its article");
         }
 
-        return renderDiagrams(article);
+        return renderDiagrams(article, telemetry);
     });
 
     // align direct links once the webfonts load and on each hash change

@@ -1,4 +1,4 @@
-import { captureException } from "../telemetry.ts";
+import type { TelemetryScope } from "@destack/telemetry";
 
 /** The media query for a system that prefers dark colors. */
 const PREFERS_DARK = "(prefers-color-scheme: dark)";
@@ -7,7 +7,7 @@ const PREFERS_DARK = "(prefers-color-scheme: dark)";
 const leastScale = 0.75;
 
 /** Render Mermaid fences and follow the reader theme. */
-export function renderDiagrams(article: HTMLElement): () => void {
+export function renderDiagrams(article: HTMLElement, telemetry: TelemetryScope): () => void {
     // retain source for theme changes and failed renders
     const diagrams = Array.from(
         article.querySelectorAll<HTMLElement>("[data-mermaid]"),
@@ -117,7 +117,7 @@ export function renderDiagrams(article: HTMLElement): () => void {
                         }
                     } catch (error) {
                         if (!isDisposed) {
-                            showError(element, source, error);
+                            showError(element, source, error, telemetry);
                         }
                     }
                 }
@@ -127,7 +127,7 @@ export function renderDiagrams(article: HTMLElement): () => void {
                     return;
                 }
                 for (const { element, source } of diagrams) {
-                    showError(element, source, error);
+                    showError(element, source, error, telemetry);
                 }
             });
     };
@@ -167,9 +167,14 @@ function themeColor(value: string): string {
 }
 
 /** Display the rendering failure alongside the original source. */
-function showError(element: HTMLElement, source: string, error: unknown) {
+function showError(
+    element: HTMLElement,
+    source: string,
+    error: unknown,
+    telemetry: TelemetryScope,
+) {
     // log the failure and build the alert and the source listing
-    captureException(error, { tags: { feature: "diagram" } });
+    telemetry.captureException(error, { tags: { feature: "diagram" } });
     const message = document.createElement("p");
     message.setAttribute("role", "alert");
     message.textContent = `Could not render diagram: ${error instanceof Error ? error.message : String(error)}`;

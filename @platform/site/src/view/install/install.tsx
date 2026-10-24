@@ -104,7 +104,7 @@ function CopyField(properties: { name: string; text: string; children: JSX.Eleme
 }
 
 /** Offer the agent prompt as one field that copies itself. */
-export function AgentField(properties: { prompt: string }) {
+function AgentField(properties: { prompt: string }) {
     return (
         <CopyField name="prompt" text={properties.prompt}>
             <span {...style.attrs(styles.text)}>
@@ -116,7 +116,7 @@ export function AgentField(properties: { prompt: string }) {
 }
 
 /** Offer the install command as one field that copies itself. */
-export function TerminalField() {
+function TerminalField() {
     return (
         <CopyField name="command" text={installCommand}>
             <code {...style.attrs(styles.text)}>

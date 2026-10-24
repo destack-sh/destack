@@ -92,15 +92,7 @@ export function Pricing() {
             />
 
             {/* the plans */}
-            <section
-                {...style.attrs(
-                    lattice.frame,
-                    lattice.ruled,
-                    lattice.section,
-                    lattice.ruleBottom,
-                    styles.plans,
-                )}
-            >
+            <section {...style.attrs(lattice.frame, lattice.ruled, lattice.section, styles.plans)}>
                 <Entry form={pricing} isTitle />
                 <PlansLabel
                     audience={audience()}
@@ -110,23 +102,17 @@ export function Pricing() {
                 />
                 <Plans audience={audience()} currency={currency()} />
             </section>
+            <div aria-hidden="true" {...style.attrs(lattice.frame, lattice.interval)} />
 
             {/* the rate card */}
-            <section {...style.attrs(lattice.frame, lattice.ruled, lattice.ruleBottom)}>
+            <section {...style.attrs(lattice.frame, lattice.ruled)}>
                 <Entry form={rate} />
                 <Rates currency={currency()} />
             </section>
+            <div aria-hidden="true" {...style.attrs(lattice.frame, lattice.interval)} />
 
             {/* the bill: your tools at seat prices, or your apps at usage prices */}
-            <section
-                {...style.attrs(
-                    lattice.frame,
-                    lattice.ruled,
-                    lattice.section,
-                    lattice.ruleBottom,
-                    styles.figure,
-                )}
-            >
+            <section {...style.attrs(lattice.frame, lattice.ruled, lattice.section, styles.figure)}>
                 <Entry form={bill} />
                 <Tally
                     number={3}

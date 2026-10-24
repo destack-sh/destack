@@ -9,12 +9,11 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@destack/ui/dropdown-menu";
-import { createSignal, onSettled } from "@destack/view";
+import { createSignal, onSettled, useTelemetry } from "@destack/view";
 
 import { commandEvents } from "../layout/command";
 import { origin } from "../content/site";
 import type { PageSource } from "../content/source";
-import { captureException } from "../telemetry.ts";
 import { createEventListener } from "@destack/view/primitives/event-listener";
 
 /** Properties for the page source controls. */
@@ -37,6 +36,9 @@ export type PageSourceCommands = {
 
 /** Create source commands shared by responsive article controls. */
 export function createPageSourceCommands(source: PageSource): PageSourceCommands {
+    // report failures to the page's telemetry
+    const { captureException } = useTelemetry();
+
     // copy one source format to the clipboard
     const write = async (kind: SourceKind) => {
         // load the requested source format
@@ -78,6 +80,7 @@ export function createPageSourceCommands(source: PageSource): PageSourceCommands
 /** Offer the page as Markdown: copy it, view it, or open it in an assistant. */
 export function SourceActions(properties: SourceActionsProperties) {
     // load the page's Markdown once the page settles, so the copy happens inside the click
+    const { captureException } = useTelemetry();
     const commands = properties.commands;
     const [markdown, setMarkdown] = createSignal<string>();
     onSettled(() => {

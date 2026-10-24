@@ -51,8 +51,12 @@ export const lattice = style.create({
         padding: `1.5rem ${frame.inset}`,
     },
 
-    /** An empty band between two sections, closed by the frame edges so the frame runs on. */
+    /** An empty band between two sections with a rule across its middle, the frame running on. */
     interval: {
+        backgroundImage: `linear-gradient(${color.border}, ${color.border})`,
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+        backgroundSize: `100% ${stroke.border}`,
         height: { default: "6rem", [media.maxMd]: "3rem" },
     },
 

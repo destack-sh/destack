@@ -16,6 +16,9 @@ import { browserStyles } from "../figure/browser";
 import { AgentAvatar } from "../figure/agent";
 import type { Category, Lineup, Tool } from "../tool/tool";
 import { palette } from "../../palette.stylex";
+import { LocalTracker } from "../project/tracker";
+import { VercelChangelog } from "../project/changelog";
+import type { JSX } from "@destack/view";
 import { media } from "@destack/style/media.stylex";
 
 /** A browser narrower than a phone screen, which then takes a phone browser's chrome. */
@@ -127,7 +130,7 @@ export const DATA_ROW = 10;
 export function categoryAt(row: number): Category | undefined {
     const job = present(pages[row - 1], "row page").job;
 
-    return job === "data" ? undefined : job;
+    return job === "data" || isProject(job) ? undefined : job;
 }
 
 /** Return what you keep, each row rented from its tool in the lineup, the personal app's last. */
@@ -156,8 +159,44 @@ type Remixing = {
     onRemix: (row: number) => void;
 };
 
-/** The job a row does: what a team rents a tool for, or your personal app's data. */
-export type Job = Category | "data";
+/** A small app you made yourself, hosted wherever you built it until your space takes it in. */
+export type Project = "tracker" | "changelog";
+
+/** The job a row does: what a team rents a tool for, your personal app's data, or a project. */
+export type Job = Category | "data" | Project;
+
+/** Each project's tab while stacked: its name, mark, address and page where you host it now. */
+const projects: Readonly<
+    Record<
+        Project,
+        { name: string; icon: string; tint: string; site: string; page: () => JSX.Element }
+    >
+> = {
+    tracker: {
+        name: "Launch tracker",
+        icon: "computer",
+        tint: "#57606a",
+        site: "localhost:5173/",
+        page: LocalTracker,
+    },
+    changelog: {
+        name: "Changelog",
+        icon: "vercel",
+        tint: "#111111",
+        site: "changelog-destack.vercel.app/",
+        page: VercelChangelog,
+    },
+};
+
+/** Report whether a job is a project of yours. */
+function isProject(job: Job): job is Project {
+    return job === "tracker" || job === "changelog";
+}
+
+/** Report whether you made the app on a row: the waitlist you built, or a project. */
+function isYourApp(job: Job) {
+    return job === "builder" || isProject(job);
+}
 
 /** One page the browser shows: its row, job, path in your space, viewers, and what it reads. */
 export type Page = {
@@ -273,6 +312,26 @@ export const pages: readonly Page[] = [
         viewers: ["Me", "Agent"],
         links: [["workflows", "Every 15 minutes"]],
     },
+    {
+        row: 11,
+        job: "tracker",
+        path: "/launch-tracker",
+        viewers: ["Me", "Agent"],
+        links: [
+            ["tasks", "1 of 4 done"],
+            ["calendar", "Go live · Fri 24"],
+        ],
+    },
+    {
+        row: 12,
+        job: "changelog",
+        path: "/changelog",
+        viewers: ["Me", "Agent", "Public"],
+        links: [
+            ["documents", "Launch post"],
+            ["mail", "Sent to 1,840"],
+        ],
+    },
 ];
 
 /** Return the row of the page that does a job. */
@@ -286,22 +345,27 @@ export function rowOf(job: Job): number {
 /** A rented site a figure shows on a row in place of fig. 1's: its tab, address and page. */
 export type Vendor = Pick<Tool, "icon" | "tint" | "tab" | "site" | "page"> & { row: number };
 
-/** A tab of the browser: its row, mark, colour and title. */
-type Tab = readonly [row: number, icon: string, tint: string, title: string];
+/** A tab of the browser: its row, mark, colour, title, and whether you made its app. */
+type Tab = readonly [row: number, icon: string, tint: string, title: string, isYours: boolean];
 
-/** Return the browser's tabs while rented: the figure's vendor, the personal app, or the tool. */
+/** Return the browser's tabs while rented, the apps you rent first and the apps you made last. */
 function tabsOf(source: Source, vendor: Vendor | undefined, lineup: Lineup): readonly Tab[] {
-    return pages.map((page): Tab => {
-        // show the figure's vendor, the personal app, or the lineup's tool
+    const tabs = pages.map((page): Tab => {
+        // show the figure's vendor, the personal app, a project, or the lineup's tool
         if (vendor?.row === page.row) {
-            return [page.row, vendor.icon, vendor.tint, vendor.tab];
+            return [page.row, vendor.icon, vendor.tint, vendor.tab, isYourApp(page.job)];
         } else if (page.job === "data") {
-            return [page.row, source.icon, source.tint, source.name];
+            return [page.row, source.icon, source.tint, source.name, false];
+        } else if (isProject(page.job)) {
+            const project = projects[page.job];
+            return [page.row, project.icon, project.tint, project.name, true];
         }
         const tool = lineup(page.job);
 
-        return [page.row, tool.icon, tool.tint, tool.tab];
+        return [page.row, tool.icon, tool.tint, tool.tab, isYourApp(page.job)];
     });
+
+    return [...tabs.filter((tab) => !tab[4]), ...tabs.filter((tab) => tab[4])];
 }
 
 /** Every app's row, for a browser that shows them all. */
@@ -328,6 +392,8 @@ const sections: readonly (readonly [
     [8, "Workflows", "sync", "#3d6fb0", ["Me", "Agent"]],
     [9, "Waitlist", "build", "#4f8a5b", ["Me", "Agent", "Public"]],
     [10, "Connections", "cloud", "#3d6fb0", ["Me", "Agent"]],
+    [11, "Launch tracker", "telemetry", "#c64a17", ["Me", "Agent"]],
+    [12, "Changelog", "file", "#4f8a5b", ["Me", "Agent", "Public"]],
 ];
 
 /** Every glyph the rail draws, loaded before the space opens so the tab icons land on them. */
@@ -403,42 +469,52 @@ export function SpaceBrowser(properties: {
                         <Glyph name="close" size={12} />
                     </span>
                 ) : (
-                    shown().map(([row, icon, tint, title]) => (
-                        <span
-                            data-component="Tab"
-                            title={title}
-                            style={{
-                                "view-transition-name": `${properties.name}-tab-${String(row)}`,
-                            }}
-                            onClick={() => properties.onChoose(row)}
-                            {...style.attrs(
-                                browserStyles.tab,
-                                browserStyles.tabEven,
-                                row === properties.page.row && browserStyles.tabOn,
-                                properties.rows.length <= 4 && browserStyles.tabSteady,
-                            )}
-                        >
-                            {/* carry the tab's icon to its app on the rail as the space opens */}
+                    shown().map(([row, icon, tint, title, isYours], index) => (
+                        <>
+                            {/* set the apps you made apart from the apps you rent */}
+                            {isYours && shown()[index - 1]?.[4] === false ? (
+                                <span
+                                    aria-hidden="true"
+                                    title="Made by you"
+                                    {...style.attrs(styles.divider)}
+                                />
+                            ) : undefined}
                             <span
-                                data-morph-icon=""
+                                data-component="Tab"
+                                title={title}
                                 style={{
-                                    "view-transition-name": `${properties.name}-icon-${appAt(row)}`,
+                                    "view-transition-name": `${properties.name}-tab-${String(row)}`,
                                 }}
-                                {...style.attrs(browserStyles.tabIcon)}
-                            >
-                                <Favicon icon={icon} tint={tint} />
-                            </span>
-                            <span
+                                onClick={() => properties.onChoose(row)}
                                 {...style.attrs(
-                                    browserStyles.tabTitle,
-                                    row !== properties.page.row &&
-                                        properties.rows.length > 4 &&
-                                        browserStyles.tabTitleHidden,
+                                    browserStyles.tab,
+                                    browserStyles.tabEven,
+                                    row === properties.page.row && browserStyles.tabOn,
+                                    properties.rows.length <= 4 && browserStyles.tabSteady,
                                 )}
                             >
-                                {title}
+                                {/* carry the tab's icon to its app on the rail as the space opens */}
+                                <span
+                                    data-morph-icon=""
+                                    style={{
+                                        "view-transition-name": `${properties.name}-icon-${appAt(row)}`,
+                                    }}
+                                    {...style.attrs(browserStyles.tabIcon)}
+                                >
+                                    <Favicon icon={icon} tint={tint} />
+                                </span>
+                                <span
+                                    {...style.attrs(
+                                        browserStyles.tabTitle,
+                                        row !== properties.page.row &&
+                                            properties.rows.length > 4 &&
+                                            browserStyles.tabTitleHidden,
+                                    )}
+                                >
+                                    {title}
+                                </span>
                             </span>
-                        </span>
+                        </>
                     ))
                 )}
                 <span {...style.attrs(browserStyles.newTab)}>
@@ -603,11 +679,12 @@ export function SpaceBrowser(properties: {
                         style={{ "view-transition-name": `${properties.name}-page` }}
                         {...style.attrs(styles.window)}
                     >
-                        {properties.vendor?.row === properties.page.row
-                            ? properties.vendor.page()
-                            : properties.page.job === "data"
-                              ? properties.source.page()
-                              : properties.lineup(properties.page.job).page()}
+                        {pageOf(
+                            properties.page,
+                            properties.source,
+                            properties.vendor,
+                            properties.lineup,
+                        )}
                     </div>
                 )}
             </div>
@@ -633,16 +710,32 @@ function hostOf(row: number, source: Source, vendor: Vendor | undefined, lineup:
     return present(siteOf(page, source, vendor, lineup).split("/")[0], "host of a site");
 }
 
-/** Return the address of the rented site a page shows: its own, or the personal app's. */
+/** Return the address a page shows while stacked: the vendor's, or where it is hosted. */
 function siteOf(page: Page, source: Source, vendor: Vendor | undefined, lineup: Lineup): string {
-    // read the figure's own vendor, the personal app's, or the lineup's tool
+    // read the figure's own vendor, the personal app's, a project's, or the lineup's tool
     if (vendor?.row === page.row) {
         return vendor.site;
     } else if (page.job === "data") {
         return source.site;
+    } else if (isProject(page.job)) {
+        return projects[page.job].site;
     }
 
     return lineup(page.job).site;
+}
+
+/** Draw the site a page shows while stacked: the vendor's, or where it is hosted. */
+function pageOf(page: Page, source: Source, vendor: Vendor | undefined, lineup: Lineup) {
+    // draw the figure's own vendor, the personal app, a project, or the lineup's tool
+    if (vendor?.row === page.row) {
+        return vendor.page();
+    } else if (page.job === "data") {
+        return source.page();
+    } else if (isProject(page.job)) {
+        return projects[page.job].page();
+    }
+
+    return lineup(page.job).page();
 }
 
 /** Return the glyph of the app of your space on a ledger row. */
@@ -718,6 +811,14 @@ function audienceOf(page: Page): string {
 
 /** The space styles. */
 const styles = style.create({
+    divider: {
+        alignSelf: "center",
+        backgroundColor: `color-mix(in srgb, ${color.foreground} 25%, transparent)`,
+        flexShrink: 0,
+        height: "16px",
+        marginInline: "6px",
+        width: stroke.border,
+    },
     preload: {
         height: "1px",
         opacity: 0,

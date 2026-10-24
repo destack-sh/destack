@@ -3,7 +3,7 @@ import { color, font, motion, shadow, stroke } from "@destack/theme/tokens.style
 import { present } from "@destack/schema";
 import * as style from "@destack/style";
 import { Shader, type ShaderFailure } from "@destack/shader";
-import { createMemo, createSignal, For, type JSX, onSettled } from "@destack/view";
+import { createMemo, createSignal, For, type JSX, onSettled, useTelemetry } from "@destack/view";
 
 import { charge } from "../../effect/goo";
 import {
@@ -35,7 +35,7 @@ import {
 } from "./board";
 import { Remix, sceneSources, scenes, slotApps, todayScenes, usesOf } from "./remix";
 import { palette } from "../../palette.stylex";
-import { captureException } from "../../telemetry.ts";
+import type { TelemetryScope } from "@destack/telemetry";
 import { media } from "@destack/style/media.stylex";
 import { screen } from "../../layout/screen.stylex";
 import { isMotionReduced } from "@destack/view/motion";
@@ -362,7 +362,8 @@ const tapeGaps = [0, 1];
 
 /** Compare apps today, their lower layers under water, with the open Destack stack drained. */
 export function StackFigure(properties: { onChange: (isOpen: boolean) => void }) {
-    // hold the chosen stack, the scene, the canvases, and the effect timers
+    // hold the chosen stack, the scene, the canvases, the effect timers, and the telemetry
+    const telemetry = useTelemetry();
     const [stack, setStack] = createSignal<Stack>("today");
     const [isPainted, setIsPainted] = createSignal(false);
     const [scene, setScene] = createSignal(0);
@@ -555,7 +556,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
     });
 
     return (
-        <div {...style.attrs(lattice.frame, lattice.ruleBottom, styles.shell)}>
+        <div {...style.attrs(lattice.frame, styles.shell)}>
             {/* labels, each over its half of the window */}
             <div {...style.attrs(styles.labels)}>
                 <span {...style.attrs(styles.drawingLabel)}>
@@ -652,7 +653,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                         maxPixelCount={WATER_PIXELS}
                         style={spillStyle}
                         xstyle={[styles.ice, !isPainted() && styles.unpainted]}
-                        onFailure={reportFailure}
+                        onFailure={(failure) => reportFailure(failure, telemetry)}
                     />
 
                     {/* draw both configurations in the six middle columns */}
@@ -775,7 +776,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                             waterline.mount = mount;
                             setIsPainted(true);
                         }}
-                        onFailure={reportFailure}
+                        onFailure={(failure) => reportFailure(failure, telemetry)}
                     />
 
                     {/* tint the lit layer across the drawing and its legend row, fading from row to row */}
@@ -827,8 +828,8 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
 }
 
 /** Report the water failing to draw, which leaves the still pool in its place. */
-function reportFailure(failure: ShaderFailure): void {
-    captureException(new Error(`the water shader failed: ${failure}`), {
+function reportFailure(failure: ShaderFailure, telemetry: TelemetryScope): void {
+    telemetry.captureException(new Error(`the water shader failed: ${failure}`), {
         tags: { feature: "water" },
     });
 }

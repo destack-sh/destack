@@ -39,6 +39,8 @@ import {
     workflows,
 } from "./corner";
 import type { Job } from "./space";
+import { milestones } from "../project/tracker";
+import { releases } from "../project/changelog";
 import { ServiceGlyph } from "../figure/tile";
 import type { Source } from "./source";
 import { Favicon } from "../figure/glyph";
@@ -116,6 +118,10 @@ export function sectionOf(
         return <Flows change={change} isRemixed={isRemixed} />;
     } else if (job === "builder") {
         return <Signups change={change} isRemixed={isRemixed} />;
+    } else if (job === "tracker") {
+        return <Tracker isRemixed={isRemixed} />;
+    } else if (job === "changelog") {
+        return <Changelog isRemixed={isRemixed} />;
     }
 
     return <Connection source={source} isRemixed={isRemixed} />;
@@ -153,6 +159,10 @@ export function remixOf(job: Job, source: Source): Remix {
         return { ask: "Tell me in Chat when a run fails", done: "Added failure alerts" };
     } else if (job === "builder") {
         return { ask: "Show who referred each signup", done: "Added Referred by to Signups" };
+    } else if (job === "tracker") {
+        return { ask: "Link each milestone to its task", done: "Linked milestones to Tasks" };
+    } else if (job === "changelog") {
+        return { ask: "Post each release to #launch", done: "Added Posted to Changelog" };
     }
 
     return { ask: `Chart my ${source.data} by week`, done: `Charted ${source.table} by week` };
@@ -1161,6 +1171,129 @@ function Signups(properties: { change: Change; isRemixed: boolean }) {
                 <Icon icon={dotsThree} />
                 1,833 more · filled by your public waitlist form
             </span>
+        </Paned>
+    );
+}
+
+/** Draw your launch tracker as an app of your space, its dates from Calendar. */
+function Tracker(properties: { isRemixed: boolean }) {
+    return (
+        <Paned>
+            <Toolbar
+                title="Launch tracker"
+                actions={
+                    <>
+                        <Present />
+                        <span data-xray="Analytics" {...style.attrs(appStyles.action, styles.wide)}>
+                            24 signups today
+                        </span>
+                        <span data-xray="Messaging" {...style.attrs(appStyles.primary)}>
+                            Email the waitlist
+                        </span>
+                    </>
+                }
+            >
+                <span {...style.attrs(appStyles.property, styles.on)}>3 days to go</span>
+                <span data-xray="Jobs" {...style.attrs(appStyles.property)}>
+                    Reminder · Fri 09:00
+                </span>
+            </Toolbar>
+            <Table data-xray="Database">
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>Milestone</TableHead>
+                        <TableHead>
+                            <span {...style.attrs(styles.joined)}>
+                                <ServiceGlyph icon="calendar" />
+                                Due
+                            </span>
+                        </TableHead>
+                        <TableHead xstyle={properties.isRemixed && styles.changed}>
+                            {properties.isRemixed ? (
+                                <span {...style.attrs(styles.joined)}>
+                                    <ServiceGlyph icon="tasks" />
+                                    Task
+                                </span>
+                            ) : (
+                                "Status"
+                            )}
+                        </TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {milestones.map(([title, due, isDone], index) => (
+                        <TableRow>
+                            <TableCell xstyle={appText.body}>{title}</TableCell>
+                            <TableCell xstyle={[appText.body, styles.quiet]}>{due}</TableCell>
+                            <TableCell xstyle={appText.body}>
+                                {properties.isRemixed ? (
+                                    <span {...style.attrs(appStyles.property)}>
+                                        DST-{12 + index}
+                                    </span>
+                                ) : (
+                                    <span {...style.attrs(appStyles.property)}>
+                                        <span
+                                            {...style.attrs(
+                                                styles.dot,
+                                                isDone ? styles.live : styles.amber,
+                                            )}
+                                        />
+                                        {isDone ? "Done" : "Open"}
+                                    </span>
+                                )}
+                            </TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
+        </Paned>
+    );
+}
+
+/** Draw your changelog as an app of your space, public to anyone you share it with. */
+function Changelog(properties: { isRemixed: boolean }) {
+    return (
+        <Paned>
+            <Toolbar
+                title="Changelog"
+                actions={<span {...style.attrs(appStyles.primary)}>New release</span>}
+            />
+            <Table data-xray="Database">
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>Version</TableHead>
+                        <TableHead>Release</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead xstyle={properties.isRemixed && styles.changed}>
+                            {properties.isRemixed ? (
+                                <span {...style.attrs(styles.joined)}>
+                                    <ServiceGlyph icon="chat" />
+                                    Posted
+                                </span>
+                            ) : (
+                                <span {...style.attrs(styles.joined)}>
+                                    <ServiceGlyph icon="mail" />
+                                    Sent
+                                </span>
+                            )}
+                        </TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {releases.map(([version, date, title]) => (
+                        <TableRow>
+                            <TableCell xstyle={appText.body}>
+                                <span {...style.attrs(appStyles.property)}>v{version}</span>
+                            </TableCell>
+                            <TableCell xstyle={appText.body}>{title}</TableCell>
+                            <TableCell xstyle={[appText.body, styles.quiet]}>{date}</TableCell>
+                            <TableCell xstyle={[appText.body, styles.quiet]}>
+                                {properties.isRemixed ? "#launch" : "1,840"}
+                            </TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
         </Paned>
     );
 }

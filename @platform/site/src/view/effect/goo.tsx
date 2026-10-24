@@ -2,10 +2,10 @@ import { frame } from "../layout/frame.stylex";
 import * as style from "@destack/style";
 import { Shader, type ShaderFailure, type ShaderMount } from "@destack/shader";
 import { color, motion } from "@destack/theme/tokens.stylex";
-import { createSignal, type JSX, onCleanup } from "@destack/view";
+import { createSignal, type JSX, onCleanup, useTelemetry } from "@destack/view";
 
 import { night } from "../theme.ts";
-import { captureException } from "../telemetry.ts";
+import type { TelemetryScope } from "@destack/telemetry";
 import { isMotionReduced } from "@destack/view/motion";
 import { makeEventListener } from "@destack/view/primitives/event-listener";
 import { makeResizeObserver } from "@destack/view/primitives/resize-observer";
@@ -208,7 +208,8 @@ export function Goo(properties: { children?: JSX.Element; xstyle?: style.Styles 
 
 /** Draw the site's one goo field over the page and under its bars, filling every island cell. */
 export function GooField() {
-    // hold the frame loop, ending it with the field
+    // hold the frame loop, ending it with the field, and the telemetry its failures go to
+    const telemetry = useTelemetry();
     let frameRequest = 0;
     let stop: (() => void) | undefined;
     onCleanup(() => stop?.());
@@ -386,15 +387,17 @@ export function GooField() {
                 maxPixelCount={GOO_PIXELS}
                 xstyle={[styles.canvas, isFieldPainted() && styles.shown]}
                 onMount={start}
-                onFailure={reportFailure}
+                onFailure={(failure) => reportFailure(failure, telemetry)}
             />
         </div>
     );
 }
 
 /** Report the goo failing to draw, which leaves the still stars in its cells. */
-function reportFailure(failure: ShaderFailure): void {
-    captureException(new Error(`the goo shader failed: ${failure}`), { tags: { feature: "goo" } });
+function reportFailure(failure: ShaderFailure, telemetry: TelemetryScope): void {
+    telemetry.captureException(new Error(`the goo shader failed: ${failure}`), {
+        tags: { feature: "goo" },
+    });
 }
 
 /** Return how far a client point lies outside the nearest island cell and its rim, in pixels. */

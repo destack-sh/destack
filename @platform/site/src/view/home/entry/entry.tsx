@@ -53,7 +53,7 @@ export function Syllables(properties: { syllables: readonly string[] }) {
 }
 
 /** Head a section with a dictionary entry. */
-export function Entry(properties: { form: Form; isTitle?: boolean; children?: JSX.Element }) {
+export function Entry(properties: { form: Form; isTitle?: boolean }) {
     return (
         <header id={anchorOf(properties.form)} {...style.attrs(lattice.cell, styles.entry)}>
             <p {...style.attrs(styles.kicker)}>
@@ -76,7 +76,6 @@ export function Entry(properties: { form: Form; isTitle?: boolean; children?: JS
                 </h2>
             )}
             <p {...style.attrs(styles.sentence)}>{properties.form.sense.sentence}</p>
-            {properties.children}
         </header>
     );
 }
@@ -169,8 +168,8 @@ const styles = style.create({
         alignContent: "start",
         gridColumn: "1 / -1",
         minHeight: { default: frame.entry, [screen.belowDesktop]: "auto" },
-        paddingBlockStart: { default: "3rem", [media.maxMd]: "2.5rem" },
-        paddingBlockEnd: { default: "2rem", [media.maxMd]: "1.75rem" },
+        paddingBlockStart: { default: "2.75rem", [media.maxMd]: "2.25rem" },
+        paddingBlockEnd: { default: "1.75rem", [media.maxMd]: "1.5rem" },
         paddingInline: frame.inset,
         rowGap: "0.75rem",
         scrollMarginTop: frame.bar,

@@ -28,15 +28,7 @@ export function Participle(properties: {
     prompt: string;
 }) {
     return (
-        <section
-            {...style.attrs(
-                lattice.frame,
-                lattice.ruled,
-                lattice.section,
-                lattice.ruleBottom,
-                styles.section,
-            )}
-        >
+        <section {...style.attrs(lattice.frame, lattice.ruled, lattice.section, styles.section)}>
             <Entry form={participle} />
             <Tally
                 number={6}

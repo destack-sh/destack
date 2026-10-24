@@ -244,12 +244,12 @@ export const stacked = new Scene([
         item: {
             kind: "app",
             title: "Launch askers",
-            badge: "Artifact · Airtable, Slack",
+            badge: "Airtable, Slack",
             rows: matched,
             note: "Reads and writes as each viewer · Jonas connects his own",
             isLive: false,
         },
-        row: TABLES_ROW,
+        row: WAITLIST_ROW,
         change: "start",
     },
     {
@@ -257,7 +257,7 @@ export const stacked = new Scene([
             kind: "reply",
             text: "Here it is. Jonas needs his own Airtable and Slack connected to open it, and it acts with his access, so I can't stop him emailing them.",
         },
-        row: TABLES_ROW,
+        row: WAITLIST_ROW,
         change: "start",
     },
     { item: keep, row: TABLES_ROW, change: "start" },

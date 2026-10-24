@@ -94,13 +94,7 @@ export function Adjective(properties: { isOpen: boolean }) {
     return (
         <section
             ref={setSection}
-            {...style.attrs(
-                lattice.frame,
-                lattice.ruled,
-                lattice.section,
-                lattice.ruleBottom,
-                styles.section,
-            )}
+            {...style.attrs(lattice.frame, lattice.ruled, lattice.section, styles.section)}
         >
             <Entry form={destackable} />
             <FigureLabel

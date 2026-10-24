@@ -2,7 +2,7 @@ import type { SearchEntry } from "./search.ts";
 
 /** The one sentence that says what Destack is, shared by search and link previews. */
 export const tagline =
-    "Reconquer your software: build and run every app on one open, standardised stack, on your machines or ours.";
+    "Reconquer your software: the apps you use, the apps you make and the agents you run, on one open stack, on your machines or ours.";
 
 /** The site's origin, which absolute links and metadata start from. */
 export const origin = "https://destack.sh";

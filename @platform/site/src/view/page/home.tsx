@@ -116,10 +116,15 @@ export function Home() {
         <>
             <Metadata alternates={{ canonical: "/" }} />
             <Verb isOpen={isOpenAt(0)} picks={picks()} onChoose={choose} />
+            <Interval />
             <Noun isOpen={isOpenAt(1)} />
+            <Interval />
             <PastParticiple isOpen={isOpenAt(2)} onChange={setIsOpen} />
+            <Interval />
             <Command isOpen={isOpenAt(3)} />
+            <Interval />
             <Adjective isOpen={isOpenAt(4)} />
+            <Interval />
             <Participle
                 isOpen={isOpenAt(5)}
                 picks={picks()}
@@ -171,7 +176,7 @@ function spansOf(): readonly (readonly Element[])[] {
     });
 }
 
-/** Space the last section apart from the footer inside the frame, so its edges run on to it. */
+/** Space two sections, or the last one and the footer, apart inside the frame. */
 function Interval() {
     return <div aria-hidden="true" {...style.attrs(lattice.frame, lattice.interval)} />;
 }

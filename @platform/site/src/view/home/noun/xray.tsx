@@ -39,7 +39,7 @@ const wiring: readonly string[] = [
     "webhook",
 ];
 
-/** Your apps, one tab each while rented: their page, glyph, tab title, own subdomain and path. */
+/** Your apps on the rail once owned, the launch tracker first. */
 const apps: readonly (readonly [
     job: Job,
     icon: string,
@@ -47,6 +47,7 @@ const apps: readonly (readonly [
     slug: string,
     path: string,
 ])[] = [
+    ["tracker", "telemetry", "Launch tracker", "launch-tracker", "/launch-tracker"],
     ["documents", "pages", "Destack launch", "documents", "/launch"],
     ["tables", "table", "Press", "press", "/press"],
     ["tasks", "tasks", "Launch tasks", "tasks", "/tasks"],
@@ -69,6 +70,7 @@ const rail: readonly (readonly [icon: string, label: string])[] = [
     ["canvas", "Canvas"],
     ["sync", "Workflows"],
     ["build", "Waitlist"],
+    ["telemetry", "Launch tracker"],
 ];
 
 /** The space in pixels every outline leaves around the element it marks. */
@@ -104,7 +106,7 @@ type Box = {
 /** A rectangle in the browser's own coordinates. */
 type Rectangle = { left: number; top: number; right: number; bottom: number };
 
-/** Draw the docs app in a browser, x-rayed: each part outlined with the service that runs it. */
+/** Draw your launch tracker in a browser, x-rayed: each part outlined with its service. */
 export function XRay(properties: {
     rented: readonly Service[];
     isOpenAt: Stagger;
@@ -116,7 +118,7 @@ export function XRay(properties: {
     const [boxes, setBoxes] = createSignal<readonly Box[]>([]);
 
     // hold the app the browser shows, by its page
-    const [row, setRow] = createSignal<Job>("documents");
+    const [row, setRow] = createSignal<Job>("tracker");
     const app = () => appOf(row());
 
     // measure every marked element against the browser, only while it shows
@@ -229,7 +231,7 @@ export function XRay(properties: {
                         <Glyph name="close" size={12} />
                     </span>
                 ) : (
-                    apps.map(([page, , title]) => (
+                    apps.slice(0, 1).map(([page, , title]) => (
                         <span
                             data-component="Tab"
                             title={title}
@@ -240,7 +242,7 @@ export function XRay(properties: {
                                 page === row() && browserStyles.tabOn,
                             )}
                         >
-                            <span {...style.attrs(styles.monogram)}>S</span>
+                            <Favicon icon="computer" tint={palette.ink} />
                             <span
                                 {...style.attrs(
                                     browserStyles.tabTitle,
@@ -277,18 +279,16 @@ export function XRay(properties: {
                     <Glyph name="lock" size={12} />
                     <span data-xray="Hosting" {...style.attrs(browserStyles.url, styles.url)}>
                         <span {...style.attrs(browserStyles.host)}>
-                            {isHosted() ? "destack.app" : `${app()[3]}.symbol.dev`}
+                            {isHosted() ? "destack.app" : "localhost:5173"}
                         </span>
                         <span {...style.attrs(browserStyles.path)}>
-                            {isHosted() ? `/@florian${pathOf(app())}` : app()[4]}
+                            {isHosted() ? `/@florian${pathOf(app())}` : "/"}
                         </span>
                     </span>
                     <span {...style.attrs(styles.push)} />
                     <Glyph name="star" />
                 </span>
-                <span {...style.attrs(browserStyles.tabCount)}>
-                    {(isOwned() ? 1 : apps.length) + rented().length}
-                </span>
+                <span {...style.attrs(browserStyles.tabCount)}>{1 + rented().length}</span>
                 <span {...style.attrs(browserStyles.tools)}>
                     <span {...style.attrs(browserStyles.profile, browserStyles.desktopOnly)}>
                         F
@@ -639,19 +639,6 @@ const styles = style.create({
     },
     push: {
         flexGrow: 1,
-    },
-    monogram: {
-        alignItems: "center",
-        backgroundColor: palette.ink,
-        borderRadius: "4px",
-        color: palette.tileGlyph,
-        display: "inline-flex",
-        flexShrink: 0,
-        fontSize: "0.5625rem",
-        fontWeight: 800,
-        height: "14px",
-        justifyContent: "center",
-        width: "14px",
     },
     favicon: {
         borderRadius: "3px",

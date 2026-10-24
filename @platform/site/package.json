@@ -17,6 +17,7 @@
         "generate": "bun run scripts/sync-assets.ts && bun run scripts/generate-release.ts && bun run scripts/generate-pricing.ts && bun run scripts/generate-content.ts"
     },
     "dependencies": {
+        "@destack/environment": "workspace:*",
         "@destack/icon": "workspace:*",
         "@platform/brand": "workspace:*",
         "@destack/package": "workspace:*",

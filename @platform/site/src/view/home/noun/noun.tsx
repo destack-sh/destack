@@ -47,12 +47,12 @@ const noun: Form = {
         definition: "a complete, absurdly integrated software engine",
         highlight: ["complete", "absurdly integrated"],
         sentence:
-            "Auth, multiplayer, workflows, telemetry — great personal software, out of the box.",
+            "Every app you make gets auth, a database, workflows and telemetry, out of the box.",
         gloss: "Unreal Engine, for everyday software",
     },
 };
 
-/** Show the noun at work: a docs app on eight rented services, or built on one engine. */
+/** Show the noun at work: your launch tracker on eight rented services, or on one engine. */
 export function Noun(properties: { isOpen: boolean }) {
     // follow the motion the section shows
     const [section, setSection] = createSignal<HTMLElement>();
@@ -123,20 +123,14 @@ export function Noun(properties: { isOpen: boolean }) {
     return (
         <section
             ref={setSection}
-            {...style.attrs(
-                lattice.frame,
-                lattice.ruled,
-                lattice.section,
-                lattice.ruleBottom,
-                styles.section,
-            )}
+            {...style.attrs(lattice.frame, lattice.ruled, lattice.section, styles.section)}
         >
             <Entry form={noun} />
             <FigureLabel
                 number={2}
                 isOpen={properties.isOpen}
-                stacked="a simple app gluing eight services"
-                destacked="a simple app on Destack"
+                stacked="an app you made, glued across eight services"
+                destacked="an app you made, on Destack"
             >
                 <StackSwitch isOpen={properties.isOpen} place="label" />
             </FigureLabel>

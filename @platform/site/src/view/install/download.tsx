@@ -1,4 +1,4 @@
-import { createSignal, onSettled } from "@destack/view";
+import { createSignal, onSettled, useTelemetry } from "@destack/view";
 
 import {
     type Download,
@@ -7,7 +7,6 @@ import {
     type System,
     systemOfAgent,
 } from "./catalog.ts";
-import { captureException } from "../telemetry.ts";
 
 /** The one request for the published downloads that every download control on the page shares. */
 let published: Promise<Download[]> | undefined;
@@ -19,6 +18,7 @@ export function createDownloads() {
     const [downloads, setDownloads] = createSignal<Download[]>([]);
     const [selected, setSelected] = createSignal<Download>();
     const [error, setError] = createSignal<string>();
+    const { captureException } = useTelemetry();
 
     // load platform choices without delaying the rest of the landing page
     onSettled(() => {

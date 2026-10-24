@@ -1,4 +1,7 @@
+import { BrowserEnvironment } from "@destack/environment/browser";
+import { TelemetryScope } from "@destack/telemetry";
 import { DevtoolsExporter, startTelemetry } from "@destack/telemetry/browser";
+import { EnvironmentContext, TelemetryContext } from "@destack/view";
 import { hydrate } from "@destack/web/render";
 import { DefaultErrorBoundary } from "virtual:solid-ssr-error-boundary.tsx";
 import type {} from "@destack/package/import-meta";
@@ -7,18 +10,32 @@ import Document from "./document.tsx";
 
 // write the site's records to the developer tools
 // TODO #Incomplete: wire up to .. monitor? service
-void startTelemetry(new DevtoolsExporter().options(import.meta.destack.package));
+/** The page's telemetry, exporting to the developer tools. */
+const telemetry = await startTelemetry(
+    new DevtoolsExporter().options(import.meta.destack.package),
+    BrowserEnvironment.system,
+    window,
+);
+/** The page's environment: the browser's effects, recording through the page's telemetry. */
+const environment = { ...BrowserEnvironment.system, telemetry };
+
+/** The site's telemetry scope in the page. */
+const scope = TelemetryScope.of(import.meta.destack.package, telemetry);
 
 // hydrate the server-rendered document
 hydrate(
     () => (
-        <DefaultErrorBoundary>
-            <Document>
+        <EnvironmentContext value={environment}>
+            <TelemetryContext value={scope}>
                 <DefaultErrorBoundary>
-                    <App />
+                    <Document>
+                        <DefaultErrorBoundary>
+                            <App />
+                        </DefaultErrorBoundary>
+                    </Document>
                 </DefaultErrorBoundary>
-            </Document>
-        </DefaultErrorBoundary>
+            </TelemetryContext>
+        </EnvironmentContext>
     ),
     document,
 );
