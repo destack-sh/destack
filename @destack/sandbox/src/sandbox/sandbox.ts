@@ -1,8 +1,6 @@
 import type { FamilyError } from "@destack/error";
-import { spawn, type ChildProcess } from "node:child_process";
+import type { Clock, Environment, ProcessChannel, Subprocess } from "@destack/environment";
 import { isAbsolute } from "node:path";
-import { tmpdir } from "node:os";
-import type { Readable, Writable } from "node:stream";
 import { launcherCommand } from "../bun/command.ts";
 import { SandboxError, type SandboxReason } from "../error/index.ts";
 import { LauncherMessage, SandboxExit, SandboxOptions } from "./message.ts";
@@ -16,62 +14,86 @@ const STOP_TIMEOUT_MILLISECONDS = 5000;
 /** The longest graceful shutdown a caller may request, five minutes, in milliseconds. */
 const MAX_STOP_TIMEOUT_MILLISECONDS = 300000;
 
+/** The search path of the launcher, with the system's tools only. */
+const LAUNCHER_PATH = "/usr/bin:/bin:/usr/sbin:/sbin";
+
+/** The launcher process, connected to its parent by a channel. */
+type Launcher = Subprocess & { readonly channel: ProcessChannel };
+
 /** A process running under independent filesystem and network restrictions. */
 export class Sandbox implements AsyncDisposable {
     /** Workload standard input. */
-    readonly stdin: Writable;
+    readonly stdin: WritableStream<Uint8Array>;
     /** Workload standard output. */
-    readonly stdout: Readable;
+    readonly stdout: ReadableStream<Uint8Array>;
     /** Workload standard error. */
-    readonly stderr: Readable;
+    readonly stderr: ReadableStream<Uint8Array>;
     /** The workload's exit after manager cleanup, rejecting on a launcher or cleanup failure. */
     readonly exited: Promise<SandboxExit>;
     /** The launcher process outside the workload sandbox. */
-    readonly #launcher: ChildProcess;
+    readonly #launcher: Launcher;
+    /** The launcher's watched channel and termination. */
+    readonly #watched: WatchedLauncher;
     /** Shared completion of the first shutdown request. */
     #stopping: Promise<SandboxExit> | undefined;
 
     /** Retain one launcher and the workload's standard streams it passes through. */
-    private constructor(launcher: ChildProcess, exited: Promise<SandboxExit>) {
-        // retain the launcher and its output streams
-        const { stdin, stdout, stderr } = launcher;
-        if (stdin === null || stdout === null || stderr === null) {
-            throw new TypeError("sandbox launcher has no piped input and output");
-        }
+    private constructor(
+        launcher: Launcher,
+        watched: WatchedLauncher,
+        exited: Promise<SandboxExit>,
+    ) {
+        // retain the launcher, its watched channel and the streams it passes through
         this.#launcher = launcher;
-        this.stdin = stdin;
-        this.stdout = stdout;
-        this.stderr = stderr;
+        this.#watched = watched;
+        this.stdin = launcher.stdin;
+        this.stdout = launcher.stdout;
+        this.stderr = launcher.stderr;
         this.exited = exited;
     }
 
     /** Spawn a restricted command, whose application reports its own readiness. */
-    static async start(options: SandboxOptions): Promise<Sandbox> {
+    static async start(
+        options: SandboxOptions,
+        environment: Environment<"files" | "process" | "platform">,
+    ): Promise<Sandbox> {
         // refuse unsupported hosts and unsafe paths before spawning
-        await requireSupport();
+        await requireSupport(environment);
         requirePaths(options);
 
-        // spawn the launcher and watch its messages and termination
-        const launcher = spawnLauncher(options.directory);
+        // give the launcher a fresh temporary directory, removed once it closes
+        const { files } = environment;
+        const temporary = await files.realPath(
+            await files.makeTemporaryDirectory("destack-sandbox-"),
+        );
+        const launcher = spawnLauncher(options.directory, temporary, environment);
         const watched = watchLauncher(launcher);
+        const closed = watched.closed.then(() =>
+            files.remove(temporary, { recursive: true }).catch((cause: unknown) => {
+                const message = "cannot remove the sandbox's temporary directory";
+                throw SandboxError.of("STOP_FAILED", message, { cause });
+            }),
+        );
 
         // bound startup and terminate failed launchers before returning the error
-        const timeout = setTimeout(
-            () =>
-                watched.ready.reject(SandboxError.of("START_FAILED", "sandbox startup timed out")),
-            START_TIMEOUT_MILLISECONDS,
+        const deadline = new AbortController();
+        const failure = SandboxError.of("START_FAILED", "sandbox startup timed out");
+        void environment.clock.sleep(START_TIMEOUT_MILLISECONDS, deadline.signal).then(
+            () => watched.ready.reject(failure),
+            () => undefined,
         );
         try {
             configure(launcher, options, watched.ready);
             await watched.ready.promise;
 
             // expose failures after startup through the public completion promise
-            return new Sandbox(launcher, watched.closed.then(watched.outcome));
+            return new Sandbox(launcher, watched, closed.then(watched.outcome));
         } catch (error) {
-            await release(launcher, watched.closed);
+            await release(launcher, watched, environment.clock);
+            await closed;
             throw error;
         } finally {
-            clearTimeout(timeout);
+            deadline.abort();
         }
     }
 
@@ -97,16 +119,12 @@ export class Sandbox implements AsyncDisposable {
 
     /** Request shutdown once and wait for manager cleanup. */
     async #stop(gracePeriod: number): Promise<SandboxExit> {
-        if (this.#launcher.connected) {
-            await new Promise<void>((resolve, reject) => {
-                this.#launcher.send({ type: "stop", gracePeriod }, (cause) => {
-                    if (cause) {
-                        reject(SandboxError.of("STOP_FAILED", "cannot stop sandbox", { cause }));
-                    } else {
-                        resolve();
-                    }
-                });
-            });
+        if (this.#watched.isConnected()) {
+            try {
+                this.#launcher.channel.send({ type: "stop", gracePeriod });
+            } catch (cause) {
+                throw SandboxError.of("STOP_FAILED", "cannot stop sandbox", { cause });
+            }
         }
 
         return await this.exited;
@@ -122,14 +140,16 @@ export class Sandbox implements AsyncDisposable {
 interface WatchedLauncher {
     /** Settles once the workload starts, rejecting on any startup failure. */
     readonly ready: PromiseWithResolvers<void>;
-    /** Settles once the launcher process closes. */
+    /** Settles once the launcher process exits. */
     readonly closed: Promise<void>;
+    /** Report whether the channel to the launcher is still open. */
+    readonly isConnected: () => boolean;
     /** Read the workload result, throwing the launcher's failure. */
     readonly outcome: () => SandboxExit;
 }
 
 /** Refuse platforms without runtime paths and hosts missing the enforcement tools. */
-async function requireSupport(): Promise<void> {
+async function requireSupport(environment: Environment<"platform">): Promise<void> {
     // load the upstream manager on first start, since it costs hundreds of milliseconds to import
     const [{ SandboxManager }, { RUNTIME_PATHS }] = await Promise.all([
         import("@anthropic-ai/sandbox-runtime"),
@@ -137,8 +157,9 @@ async function requireSupport(): Promise<void> {
     ]);
 
     // refuse an unsupported platform or missing tools
-    if (!SandboxManager.isSupportedPlatform() || !RUNTIME_PATHS[process.platform]) {
-        throw SandboxError.of("UNSUPPORTED", `sandboxing is unsupported on ${process.platform}`);
+    const { os } = environment.platform;
+    if (!SandboxManager.isSupportedPlatform() || !RUNTIME_PATHS[os]) {
+        throw SandboxError.of("UNSUPPORTED", `sandboxing is unsupported on ${os}`);
     }
     const dependencies = SandboxManager.checkDependencies();
     if (dependencies.errors.length > 0) {
@@ -154,7 +175,7 @@ function requirePaths(options: SandboxOptions): void {
         options.directory,
         ...options.read,
         ...options.write,
-        ...(options.sockets ?? []),
+        ...options.sockets,
     ];
     if (!paths.every(isAbsolute)) {
         throw SandboxError.of("START_FAILED", "sandbox paths must be absolute");
@@ -167,36 +188,50 @@ function requirePaths(options: SandboxOptions): void {
 }
 
 /** Spawn the launcher in a directory, omitting host credentials from its environment. */
-function spawnLauncher(directory: string): ChildProcess {
-    const command = launcherCommand();
+function spawnLauncher(
+    directory: string,
+    temporary: string,
+    environment: Environment<"process">,
+): Launcher {
+    const command = launcherCommand(environment.process);
 
-    return spawn(command.executable, command.arguments, {
-        cwd: directory,
-        env: {
-            PATH: "/usr/bin:/bin:/usr/sbin:/sbin",
-            HOME: tmpdir(),
-            TMPDIR: tmpdir(),
+    return environment.process.fork([command.executable, ...command.arguments], {
+        workingDirectory: directory,
+        variables: {
+            PATH: LAUNCHER_PATH,
+            HOME: temporary,
+            TMPDIR: temporary,
+            CLAUDE_CODE_TMPDIR: temporary,
         },
-        stdio: ["pipe", "pipe", "pipe", "ipc"],
+        stdin: "pipe",
+        stdout: "pipe",
+        stderr: "pipe",
     });
 }
 
 /** Watch a launcher's messages and exit, keeping the workload result apart from failures. */
-function watchLauncher(launcher: ChildProcess): WatchedLauncher {
+function watchLauncher(launcher: Launcher): WatchedLauncher {
     // fail startup or shutdown by whether the workload has started
     const ready = Promise.withResolvers<void>();
-    const closed = Promise.withResolvers<void>();
     let result: SandboxExit | undefined;
     let failure: FamilyError<SandboxReason> | undefined;
     let isStarted = false;
-    const fail = (message: string, options?: ErrorOptions) => {
-        failure = SandboxError.of(isStarted ? "STOP_FAILED" : "START_FAILED", message, options);
+    let isConnected = true;
+    const fail = (message: string) => {
+        failure = SandboxError.of(isStarted ? "STOP_FAILED" : "START_FAILED", message);
         ready.reject(failure);
     };
 
     // retain the workload result separately from launcher failures
-    launcher.on("message", (received: unknown) => {
-        const message = LauncherMessage.parse(received);
+    launcher.channel.on((received) => {
+        // fail the sandbox on a message the launcher protocol has no shape for
+        const parsed = LauncherMessage.safeParse(received);
+        if (!parsed.success) {
+            fail("invalid launcher message");
+
+            return;
+        }
+        const message = parsed.data;
         if (message.type === "ready") {
             isStarted = true;
             ready.resolve();
@@ -206,22 +241,24 @@ function watchLauncher(launcher: ChildProcess): WatchedLauncher {
             fail(message.message);
         }
     });
-    launcher.once("error", (cause) => fail("sandbox launcher failed", { cause }));
-    launcher.once("close", (code, signal) => {
+    void launcher.channel.disconnected.then(() => {
+        isConnected = false;
+    });
+    const closed = launcher.exited.then((code) => {
         // require the workload result and successful manager cleanup
-        if (!failure && (code !== 0 || signal !== null || !result)) {
+        if (!failure && (code !== 0 || launcher.signal !== undefined || !result)) {
             failure = SandboxError.of(
                 isStarted ? "STOP_FAILED" : "START_FAILED",
                 "sandbox launcher terminated without successful cleanup",
             );
         }
         ready.reject(failure ?? SandboxError.of("START_FAILED", "sandbox exited before startup"));
-        closed.resolve();
     });
 
     return {
         ready,
-        closed: closed.promise,
+        closed,
+        isConnected: () => isConnected,
         outcome: () => {
             // throw the launcher's failure or a missing result
             if (failure) {
@@ -237,28 +274,31 @@ function watchLauncher(launcher: ChildProcess): WatchedLauncher {
 
 /** Send the sandbox options to the launcher, failing startup when they cannot be sent. */
 function configure(
-    launcher: ChildProcess,
+    launcher: Launcher,
     options: SandboxOptions,
     ready: PromiseWithResolvers<void>,
 ): void {
-    launcher.send({ type: "start", options }, (error) => {
-        if (error) {
-            ready.reject(
-                SandboxError.of("START_FAILED", "cannot configure sandbox", { cause: error }),
-            );
-        }
-    });
+    try {
+        launcher.channel.send({ type: "start", options });
+    } catch (cause) {
+        ready.reject(SandboxError.of("START_FAILED", "cannot configure sandbox", { cause }));
+    }
 }
 
-/** Disconnect a failed launcher and wait for it to close, killing it after a grace period. */
-async function release(launcher: ChildProcess, closed: Promise<void>): Promise<void> {
-    if (launcher.connected) {
-        launcher.disconnect();
+/** Disconnect a failed launcher and wait for it to exit, killing it after a grace period. */
+async function release(launcher: Launcher, watched: WatchedLauncher, clock: Clock): Promise<void> {
+    // disconnect, and kill the launcher once the grace period passes
+    if (watched.isConnected()) {
+        launcher.channel.disconnect();
     }
-    const cleanup = setTimeout(() => launcher.kill("SIGKILL"), CLEANUP_TIMEOUT_MILLISECONDS);
+    const cleanup = new AbortController();
+    void clock.sleep(CLEANUP_TIMEOUT_MILLISECONDS, cleanup.signal).then(
+        () => launcher.kill("SIGKILL"),
+        () => undefined,
+    );
     try {
-        await closed;
+        await watched.closed;
     } finally {
-        clearTimeout(cleanup);
+        cleanup.abort();
     }
 }

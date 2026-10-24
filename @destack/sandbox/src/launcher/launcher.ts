@@ -1,14 +1,17 @@
 import { SandboxManager, getDefaultWritePaths } from "@anthropic-ai/sandbox-runtime";
-import { spawn, type ChildProcess } from "node:child_process";
-import { once } from "node:events";
-import { mkdtemp, realpath, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import {
+    type Environment,
+    type OperatingSystem,
+    type Process,
+    ProcessError,
+    type Signal,
+    type Subprocess,
+} from "@destack/environment";
 import { SandboxError } from "../error/index.ts";
 import { LauncherRequest, type SandboxExit, type SandboxOptions } from "../sandbox/message.ts";
 
 /** The system files every process reads, by platform. */
-export const RUNTIME_PATHS: Partial<Record<NodeJS.Platform, readonly string[]>> = {
+export const RUNTIME_PATHS: Partial<Record<OperatingSystem, readonly string[]>> = {
     darwin: [
         "/System/Library",
         "/usr/lib",
@@ -30,24 +33,39 @@ export const RUNTIME_PATHS: Partial<Record<NodeJS.Platform, readonly string[]>> 
 };
 
 /** Run one sandbox manager under a private parent connection. */
-export async function runLauncher(): Promise<void> {
-    // reject direct invocation without the supervising process
-    if (!process.send) {
+export async function runLauncher(environment: Environment<"process" | "platform">): Promise<void> {
+    // reject direct invocation without the supervising process and its temporary directory
+    const { platform } = environment;
+    const host = environment.process;
+    const { parent } = host;
+    const temporary = host.variables["CLAUDE_CODE_TMPDIR"];
+    if (parent === undefined || temporary === undefined) {
         throw SandboxError.of("START_FAILED", "sandbox launcher requires a parent connection");
     }
     const request = Promise.withResolvers<SandboxOptions>();
     const stopped = new AbortController();
-    let child: ChildProcess | undefined;
+    let child: Subprocess | undefined;
     let exit: SandboxExit | undefined;
     let gracePeriod = 0;
-    process.on("disconnect", () => {
+    let isConnected = true;
+    let isExited = false;
+    void parent.disconnected.then(() => {
+        isConnected = false;
         stopped.abort();
         request.reject(SandboxError.of("START_FAILED", "sandbox parent disconnected"));
     });
-    process.on("SIGTERM", () => stopped.abort());
-    process.on("SIGINT", () => stopped.abort());
-    process.on("message", (received: unknown) => {
-        const message = LauncherRequest.parse(received);
+    using _terminated = host.on("SIGTERM", () => stopped.abort());
+    using _interrupted = host.on("SIGINT", () => stopped.abort());
+    using _received = parent.on((received) => {
+        // stop on a request the launcher protocol has no shape for, reporting it to the parent
+        const parsed = LauncherRequest.safeParse(received);
+        if (!parsed.success) {
+            request.reject(SandboxError.of("START_FAILED", "invalid launcher request"));
+            stopped.abort();
+
+            return;
+        }
+        const message = parsed.data;
         if (message.type === "start") {
             request.resolve(message.options);
         } else if (message.type === "stop") {
@@ -55,19 +73,12 @@ export async function runLauncher(): Promise<void> {
             stopped.abort();
         }
     });
-
-    // point the manager at a fresh temporary directory
-    const temporary = await realpath(await mkdtemp(join(tmpdir(), "destack-sandbox-")));
-    process.env["CLAUDE_CODE_TMPDIR"] = temporary;
     try {
         // require the system files of this platform
         const options = await request.promise;
-        const runtime = RUNTIME_PATHS[process.platform];
+        const runtime = RUNTIME_PATHS[platform.os];
         if (runtime === undefined) {
-            throw SandboxError.of(
-                "UNSUPPORTED",
-                `sandboxing is unsupported on ${process.platform}`,
-            );
+            throw SandboxError.of("UNSUPPORTED", `sandboxing is unsupported on ${platform.os}`);
         }
 
         // configure a fresh manager with no access to other application state
@@ -88,8 +99,8 @@ export async function runLauncher(): Promise<void> {
                 network: {
                     allowedDomains: options.network,
                     deniedDomains: [],
-                    allowUnixSockets: [...(options.sockets ?? []), temporary],
-                    allowLocalBinding: options.allowsListening === true,
+                    allowUnixSockets: [...options.sockets, temporary],
+                    allowLocalBinding: options.listening === "loopback",
                 },
             },
             undefined,
@@ -98,69 +109,68 @@ export async function runLauncher(): Promise<void> {
         stopped.signal.throwIfAborted();
 
         // quote each argument before upstream embeds the command in its shell invocation
-        const arguments_ = [options.executable, ...options.arguments].map(quote).join(" ");
-        const command = `export NO_PROXY= no_proxy=; exec ${arguments_}`;
+        const quoted = [options.executable, ...options.arguments].map(quote).join(" ");
+        const command = `export NO_PROXY= no_proxy=; exec ${quoted}`;
         const wrapped = await SandboxManager.wrapWithSandbox(
             command,
             "/bin/sh",
             undefined,
             stopped.signal,
         );
-        const environment = { ...options.environment };
-        delete environment["NODE_CHANNEL_FD"];
-        delete environment["NODE_CHANNEL_SERIALIZATION_MODE"];
-        const workload = spawn("/bin/sh", ["-c", wrapped], {
-            cwd: options.directory,
-            env: environment,
-            detached: true,
-            stdio: ["inherit", "inherit", "inherit"],
+        const workload = host.spawn(["/bin/sh", "-c", wrapped], {
+            workingDirectory: options.directory,
+            variables: options.environment,
+            isDetached: true,
+            stdin: "inherit",
+            stdout: "inherit",
+            stderr: "inherit",
         });
         child = workload;
-        const completed = new Promise<SandboxExit>((resolve) => {
-            workload.once("exit", (code, signal) => resolve({ code, signal }));
+        const completed = workload.exited.then((code): SandboxExit => {
+            isExited = true;
+            const { signal } = workload;
+
+            return signal === undefined ? { code, signal: null } : { code: null, signal };
         });
-        await once(workload, "spawn");
-        process.send?.({ type: "ready" });
+        parent.send({ type: "ready" });
 
         // terminate the process group when the parent stops or disconnects
-        let timeout: ReturnType<typeof setTimeout> | undefined;
+        const grace = new AbortController();
         const stop = () => {
-            signalGroup(workload, "SIGTERM");
-            timeout = setTimeout(() => signalGroup(workload, "SIGKILL"), gracePeriod);
+            signalGroup(workload, isExited, "SIGTERM", host);
+            void environment.clock.sleep(gracePeriod, grace.signal).then(
+                () => signalGroup(workload, isExited, "SIGKILL", host),
+                () => undefined,
+            );
         };
         stopped.signal.addEventListener("abort", stop, { once: true });
         if (stopped.signal.aborted) {
             stop();
         }
         exit = await completed;
-        clearTimeout(timeout);
+        grace.abort();
         stopped.signal.removeEventListener("abort", stop);
-        signalGroup(workload, "SIGKILL");
     } catch (error) {
         if (child) {
-            signalGroup(child, "SIGKILL");
+            signalGroup(child, isExited, "SIGKILL", host);
         }
-        if (process.connected) {
-            process.send?.({
+        if (isConnected) {
+            parent.send({
                 type: "error",
                 message: error instanceof Error ? error.message : String(error),
             });
         }
-        process.exitCode = 1;
+        host.exitCode = 1;
     } finally {
-        // report completion only after releasing proxies and temporary storage
+        // report completion only after releasing proxies
         try {
-            try {
-                await SandboxManager.reset();
-            } finally {
-                await rm(temporary, { recursive: true });
-            }
-            if (exit && process.connected) {
-                process.send?.({ type: "exit", exit });
+            await SandboxManager.reset();
+            if (exit && isConnected) {
+                parent.send({ type: "exit", exit });
             }
         } finally {
-            if (process.connected) {
-                process.disconnect?.();
+            if (isConnected) {
+                parent.disconnect();
             }
         }
     }
@@ -172,19 +182,17 @@ function quote(value: string): string {
 }
 
 /** Signal the workload process group, accepting an already terminated group. */
-function signalGroup(child: ChildProcess, signal: NodeJS.Signals): void {
+function signalGroup(child: Subprocess, isExited: boolean, signal: Signal, host: Process): void {
     // leave exited workloads alone, since their process group id may already be reused
-    if (child.pid === undefined || child.exitCode !== null || child.signalCode !== null) {
+    if (isExited) {
         return;
     }
     try {
-        process.kill(-child.pid, signal);
+        host.kill(-child.id, signal);
     } catch (error) {
         // accept gone groups, which macOS reports as not permitted for exited, unreaped workloads
         const isGone =
-            error instanceof Error &&
-            "code" in error &&
-            (error.code === "ESRCH" || error.code === "EPERM");
+            ProcessError.is(error, "NOT_FOUND") || ProcessError.is(error, "PERMISSION_DENIED");
         if (!isGone) {
             throw error;
         }

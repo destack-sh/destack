@@ -4,6 +4,9 @@
     "license": "MIT",
     "type": "module",
     "description": "Launch processes with operating system filesystem and network restrictions.",
+    "bin": {
+        "destack-sandbox": "./src/main.ts"
+    },
     "exports": {
         ".": "./src/index.ts",
         "./error": "./src/error/index.ts"
@@ -15,6 +18,7 @@
     "dependencies": {
         "@anthropic-ai/sandbox-runtime": "0.0.77",
         "@destack/schema": "workspace:*",
+        "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
         "@destack/package": "workspace:*"
     },

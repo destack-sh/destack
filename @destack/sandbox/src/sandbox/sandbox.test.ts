@@ -1,31 +1,70 @@
-import { test, expect, refusal } from "@destack/test";
-import { chmod, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { text } from "node:stream/consumers";
+import type { OperatingSystem } from "@destack/environment";
+import { testHost } from "@destack/test/host";
+import { Simulation } from "@destack/environment/simulation";
+import { test, expect, refusal } from "@destack/test";
 import { launcherCommand } from "../bun/command.ts";
 import { Sandbox } from "./sandbox.ts";
-import { once } from "node:events";
-import { createInterface } from "node:readline";
-import { spawn } from "node:child_process";
 
 /** The errors a denied read and a denied write report, by platform. */
-const DENIED_FAILURES: Partial<Record<NodeJS.Platform, readonly string[]>> = {
+const DENIED_FAILURES: Partial<Record<OperatingSystem, readonly string[]>> = {
     darwin: ["EPERM", "EPERM"],
     linux: ["ENOENT", "EROFS"],
 };
 
+/** The start of the worlds' clocks. */
+const START = Date.UTC(2026, 9, 24);
+
+/** The search path of a launcher a test starts itself. */
+const LAUNCHER_PATH = "/usr/bin:/bin:/usr/sbin:/sbin";
+
+/** Make a world on the host's platform, and a real temporary directory in it. */
+async function world(prefix: string) {
+    const simulation = new Simulation({
+        seed: 1,
+        start: START,
+        platform: testHost().platform,
+    });
+    const environment = simulation.environment("host");
+    const { files } = environment;
+    const directory = await files.realPath(await files.makeTemporaryDirectory(prefix));
+
+    return { simulation, environment, directory };
+}
+
+/** Read a stream's text up to its end. */
+function text(stream: ReadableStream<Uint8Array>): Promise<string> {
+    return new Response(stream).text();
+}
+
+/** Read a stream's first chunk, and its whole text once it ends. */
+function split(stream: ReadableStream<Uint8Array>): {
+    first: Promise<string>;
+    whole: Promise<string>;
+} {
+    const [head, whole] = stream.tee();
+    const first = head
+        .getReader()
+        .read()
+        .then(({ value }) => new TextDecoder().decode(value));
+
+    return { first, whole: text(whole) };
+}
+
 test("isolate filesystem access, environment and child processes", async () => {
-    const directory = await realpath(await mkdtemp(join(tmpdir(), "destack-sandbox-")));
+    // write a readable and a private file in a world
+    const { simulation, environment, directory } = await world("destack-sandbox-");
+    await using _simulation = simulation;
+    const { files, process, platform } = environment;
     const permitted = join(directory, "permitted.txt");
     const forbidden = join(directory, "forbidden.txt");
-    await writeFile(permitted, "permitted");
-    await writeFile(forbidden, "private");
+    await files.writeTextFile(permitted, "permitted");
+    await files.writeTextFile(forbidden, "private");
 
-    try {
-        // execute the actual runtime with only one readable application file
-        await using sandbox = await Sandbox.start({
-            executable: process.execPath,
+    // execute the actual runtime with only one readable application file
+    await using sandbox = await Sandbox.start(
+        {
+            executable: process.executable,
             arguments: [
                 "--no-env-file",
                 "-e",
@@ -55,45 +94,74 @@ test("isolate filesystem access, environment and child processes", async () => {
             read: [permitted],
             write: [],
             network: [],
-        });
-        const output = text(sandbox.stdout);
-        const error = text(sandbox.stderr);
-        expect(await sandbox.exited, await error).toEqual({ code: 0, signal: null });
-        expect(JSON.parse(await output)).toEqual({
-            content: "permitted",
-            failures: DENIED_FAILURES[process.platform],
-            childCode: 1,
-            environment: "explicit",
-            inherited: null,
-        });
-    } finally {
-        await rm(directory, { recursive: true });
-    }
+            sockets: [],
+            listening: "denied",
+        },
+        environment,
+    );
+    const output = text(sandbox.stdout);
+    const error = text(sandbox.stderr);
+    expect(await sandbox.exited, await error).toEqual({ code: 0, signal: null });
+    expect(JSON.parse(await output)).toEqual({
+        content: "permitted",
+        failures: DENIED_FAILURES[platform.os],
+        childCode: 1,
+        environment: "explicit",
+        inherited: null,
+    });
+});
+
+test("start the workload without the launcher's parent connection on file descriptor 3", async () => {
+    // report from inside the sandbox whether descriptor 3 takes a write
+    const { simulation, environment, directory } = await world("destack-sandbox-descriptor-");
+    await using _simulation = simulation;
+    await using sandbox = await Sandbox.start(
+        {
+            executable: "/bin/sh",
+            arguments: ["-c", "if { : >&3; } 2>/dev/null; then echo open; else echo closed; fi"],
+            directory,
+            environment: {},
+            read: [],
+            write: [],
+            network: [],
+            sockets: [],
+            listening: "denied",
+        },
+        environment,
+    );
+    const output = text(sandbox.stdout);
+    const error = text(sandbox.stderr);
+    expect(await sandbox.exited, await error).toEqual({ code: 0, signal: null });
+    expect(await output).toBe("closed\n");
 });
 
 test("enforce independent network permissions for concurrent workloads", async () => {
-    const directory = await realpath(await mkdtemp(join(tmpdir(), "destack-sandbox-network-")));
-    const server = Bun.serve({
+    // serve a page on a real loopback port, which a world's network cannot offer a sandbox
+    const { simulation, environment, directory } = await world("destack-sandbox-network-");
+    await using _simulation = simulation;
+    const server = testHost().server.http({
         hostname: "127.0.0.1",
         port: 0,
         fetch: () => new Response("allowed"),
     });
-    const url = `http://127.0.0.1:${server.port}`;
+    const { port } = server.url;
+    const url = `http://127.0.0.1:${port}`;
 
     try {
         // run the same client under two independent proxy policies
         const results = await Promise.all(
             [true, false].map(async (allowed) => {
-                await using sandbox = await Sandbox.start({
-                    executable: process.execPath,
-                    arguments: [
-                        "--no-env-file",
-                        "-e",
-                        `
+                await using sandbox = await Sandbox.start(
+                    {
+                        executable: environment.process.executable,
+                        arguments: [
+                            "--no-env-file",
+                            "-e",
+                            `
                     const url = ${JSON.stringify(url)};
                     const { connect } = await import("node:net");
                     const direct = await new Promise((resolve) => {
-                        const socket = connect({ host: "127.0.0.1", port: ${server.port} });
+                        const socket = connect({ host: "127.0.0.1", port: ${port} });
                         socket.once("connect", () => { socket.destroy(); resolve("allowed"); });
                         socket.once("error", () => resolve("denied"));
                     });
@@ -105,13 +173,17 @@ test("enforce independent network permissions for concurrent workloads", async (
                     }
                     console.log(JSON.stringify(result));
                 `,
-                    ],
-                    directory,
-                    environment: {},
-                    read: [],
-                    write: [],
-                    network: allowed ? [`127.0.0.1:${server.port}`] : [],
-                });
+                        ],
+                        directory,
+                        environment: {},
+                        read: [],
+                        write: [],
+                        network: allowed ? [`127.0.0.1:${port}`] : [],
+                        sockets: [],
+                        listening: "denied",
+                    },
+                    environment,
+                );
                 const output = text(sandbox.stdout);
                 const errors = text(sandbox.stderr);
                 expect(await sandbox.exited, await errors).toEqual({ code: 0, signal: null });
@@ -127,15 +199,16 @@ test("enforce independent network permissions for concurrent workloads", async (
         ]);
     } finally {
         await server.stop(true);
-        await rm(directory, { recursive: true });
     }
 });
 
 test("stop a running workload and complete graceful shutdown", async () => {
-    const directory = await realpath(await mkdtemp(join(tmpdir(), "destack-sandbox-stop-")));
-    try {
-        await using sandbox = await Sandbox.start({
-            executable: process.execPath,
+    // start a workload that prints once it runs, and again once it stops
+    const { simulation, environment, directory } = await world("destack-sandbox-stop-");
+    await using _simulation = simulation;
+    await using sandbox = await Sandbox.start(
+        {
+            executable: environment.process.executable,
             arguments: [
                 "--no-env-file",
                 "-e",
@@ -150,31 +223,35 @@ test("stop a running workload and complete graceful shutdown", async () => {
             read: [],
             write: [],
             network: [],
-        });
-        const ready = once(sandbox.stdout, "data");
-        const output = text(sandbox.stdout);
-        const errors = text(sandbox.stderr);
-        await ready;
-        expect(await refusal(() => sandbox.stop(-1))).toEqual([
-            "BAD_REQUEST",
-            "INVALID_GRACE_PERIOD",
-            "grace period must be between 0 and 300000 milliseconds",
-        ]);
-        const stopping = sandbox.stop(1000);
-        expect(sandbox.stop(0)).toBe(stopping);
-        expect(await stopping, await errors).toEqual({ code: 0, signal: null });
-        expect(await output).toBe("ready\nstopped\n");
-    } finally {
-        await rm(directory, { recursive: true });
-    }
+            sockets: [],
+            listening: "denied",
+        },
+        environment,
+    );
+    const output = split(sandbox.stdout);
+    const errors = text(sandbox.stderr);
+    await output.first;
+
+    // refuse an invalid grace period, then share one stop
+    expect(await refusal(() => sandbox.stop(-1))).toEqual([
+        "BAD_REQUEST",
+        "INVALID_GRACE_PERIOD",
+        "grace period must be between 0 and 300000 milliseconds",
+    ]);
+    const stopping = sandbox.stop(1000);
+    expect(sandbox.stop(0)).toBe(stopping);
+    expect(await stopping, await errors).toEqual({ code: 0, signal: null });
+    expect(await output.whole).toBe("ready\nstopped\n");
 });
 
 test("preserve literal arguments and application failure after cleanup", async () => {
-    const directory = await realpath(await mkdtemp(join(tmpdir(), "destack-sandbox-exit-")));
+    // run a workload that prints its last argument and fails
+    const { simulation, environment, directory } = await world("destack-sandbox-exit-");
+    await using _simulation = simulation;
     const argument = "quote' dollar$ semicolon; newline\n literal";
-    try {
-        await using sandbox = await Sandbox.start({
-            executable: process.execPath,
+    await using sandbox = await Sandbox.start(
+        {
+            executable: environment.process.executable,
             arguments: [
                 "--no-env-file",
                 "-e",
@@ -186,22 +263,25 @@ test("preserve literal arguments and application failure after cleanup", async (
             read: [],
             write: [],
             network: [],
-        });
-        const output = text(sandbox.stdout);
-        const errors = text(sandbox.stderr);
-        expect(await sandbox.exited, await errors).toEqual({ code: 7, signal: null });
-        expect(await output).toBe(`${argument}\n`);
-        expect(await sandbox.stop()).toEqual({ code: 7, signal: null });
-    } finally {
-        await rm(directory, { recursive: true });
-    }
+            sockets: [],
+            listening: "denied",
+        },
+        environment,
+    );
+    const output = text(sandbox.stdout);
+    const errors = text(sandbox.stderr);
+    expect(await sandbox.exited, await errors).toEqual({ code: 7, signal: null });
+    expect(await output).toBe(`${argument}\n`);
+    expect(await sandbox.stop()).toEqual({ code: 7, signal: null });
 });
 
 test("terminate a workload that ignores graceful shutdown", async () => {
-    const directory = await realpath(await mkdtemp(join(tmpdir(), "destack-sandbox-kill-")));
-    try {
-        await using sandbox = await Sandbox.start({
-            executable: process.execPath,
+    // start a workload that ignores SIGTERM
+    const { simulation, environment, directory } = await world("destack-sandbox-kill-");
+    await using _simulation = simulation;
+    await using sandbox = await Sandbox.start(
+        {
+            executable: environment.process.executable,
             arguments: [
                 "--no-env-file",
                 "-e",
@@ -212,25 +292,26 @@ test("terminate a workload that ignores graceful shutdown", async () => {
             read: [],
             write: [],
             network: [],
-        });
-        const ready = once(sandbox.stdout, "data");
-        const output = text(sandbox.stdout);
-        const errors = text(sandbox.stderr);
-        await ready;
-        expect(await sandbox.stop(20), await errors).toEqual({ code: null, signal: "SIGKILL" });
-        expect(await output).toBe("ready\n");
-    } finally {
-        await rm(directory, { recursive: true });
-    }
+            sockets: [],
+            listening: "denied",
+        },
+        environment,
+    );
+    const output = split(sandbox.stdout);
+    const errors = text(sandbox.stderr);
+    await output.first;
+    expect(await sandbox.stop(20), await errors).toEqual({ code: null, signal: "SIGKILL" });
+    expect(await output.whole).toBe("ready\n");
 });
 
 test("reject completion when temporary storage cleanup fails", async () => {
-    const directory = await realpath(await mkdtemp(join(tmpdir(), "destack-sandbox-cleanup-")));
-    let temporary: string | undefined;
-    try {
-        // make a private subdirectory unreadable before exiting successfully
-        const sandbox = await Sandbox.start({
-            executable: process.execPath,
+    // make a private subdirectory unreadable before exiting successfully
+    const { simulation, environment, directory } = await world("destack-sandbox-cleanup-");
+    await using _simulation = simulation;
+    const { files } = environment;
+    const sandbox = await Sandbox.start(
+        {
+            executable: environment.process.executable,
             arguments: [
                 "--no-env-file",
                 "-e",
@@ -248,89 +329,88 @@ test("reject completion when temporary storage cleanup fails", async () => {
             read: [],
             write: [],
             network: [],
-        });
-        const failed = refusal(sandbox.exited);
-        const errors = text(sandbox.stderr);
-        temporary = (await text(sandbox.stdout)).trim();
+            sockets: [],
+            listening: "denied",
+        },
+        environment,
+    );
+    const failed = refusal(sandbox.exited);
+    const errors = text(sandbox.stderr);
+    const temporary = (await text(sandbox.stdout)).trim();
+    try {
         expect(await failed).toEqual([
             "INTERNAL_SERVER_ERROR",
             "STOP_FAILED",
-            "sandbox launcher terminated without successful cleanup",
+            "cannot remove the sandbox's temporary directory",
         ]);
         await errors;
     } finally {
-        if (temporary !== undefined) {
-            await chmod(join(temporary, "locked"), 0o700);
-            await rm(temporary, { recursive: true });
-        }
-        await rm(directory, { recursive: true });
+        await files.chmod(join(temporary, "locked"), 0o700);
+        await files.remove(temporary, { recursive: true });
     }
 });
 
 test("stop the workload when its supervising client disconnects", async () => {
-    const directory = await realpath(await mkdtemp(join(tmpdir(), "destack-sandbox-parent-")));
-    const command = launcherCommand();
-    const launcher = spawn(command.executable, [...command.arguments], {
-        cwd: directory,
-        env: { PATH: "/usr/bin:/bin:/usr/sbin:/sbin", HOME: tmpdir(), TMPDIR: tmpdir() },
-        stdio: ["ignore", "pipe", "pipe", "ipc"],
+    // start a launcher by hand, connected, with its own temporary directory
+    const { simulation, environment, directory } = await world("destack-sandbox-parent-");
+    await using _simulation = simulation;
+    const { files, process } = environment;
+    const temporary = await files.realPath(await files.makeTemporaryDirectory("launcher-"));
+    const command = launcherCommand(process);
+    const launcher = process.fork([command.executable, ...command.arguments], {
+        workingDirectory: directory,
+        variables: {
+            PATH: LAUNCHER_PATH,
+            HOME: temporary,
+            TMPDIR: temporary,
+            CLAUDE_CODE_TMPDIR: temporary,
+        },
+        stdout: "pipe",
+        stderr: "pipe",
     });
-    const { stdout, stderr } = launcher;
-    if (stdout === null || stderr === null) {
-        throw new TypeError("sandbox launcher has no piped output");
-    }
-    const closed = once(launcher, "close");
-    const errors = text(stderr);
-    try {
-        // disconnect only after the restricted application has started
-        const ready = new Promise<string>((resolve) => {
-            stdout.once("data", (chunk: Buffer) => resolve(chunk.toString()));
-        });
-        launcher.send({
-            type: "start",
-            options: {
-                executable: process.execPath,
-                arguments: [
-                    "--no-env-file",
-                    "-e",
-                    "console.log(process.pid); setInterval(() => {}, 1000)",
-                ],
-                directory,
-                environment: {},
-                read: [],
-                write: [],
-                network: [],
-            },
-        });
-        const pid = Number((await ready).trim());
-        launcher.disconnect();
+    const output = split(launcher.stdout);
+    const errors = text(launcher.stderr);
 
-        // wait for the launcher to reap its workload and release the proxies
-        expect(await closed, await errors).toEqual([0, null]);
+    // disconnect only after the restricted application has started
+    launcher.channel.send({
+        type: "start",
+        options: {
+            executable: process.executable,
+            arguments: [
+                "--no-env-file",
+                "-e",
+                "console.log(process.pid); setInterval(() => {}, 1000)",
+            ],
+            directory,
+            environment: {},
+            read: [],
+            write: [],
+            network: [],
+            sockets: [],
+            listening: "denied",
+        },
+    });
+    const id = Number((await output.first).trim());
+    launcher.channel.disconnect();
 
-        // find no process of ours under the pid, which another user's process may already reuse
-        let code: unknown;
-        try {
-            process.kill(pid, 0);
-        } catch (error) {
-            code = error instanceof Error && "code" in error ? error.code : undefined;
-        }
-        expect(code).toSatisfy((value) => value === "ESRCH" || value === "EPERM");
-    } finally {
-        if (launcher.connected) {
-            launcher.disconnect();
-        }
-        await closed;
-        await rm(directory, { recursive: true });
-    }
+    // wait for the launcher to reap its workload and release the proxies
+    expect({ code: await launcher.exited, signal: launcher.signal }, await errors).toEqual({
+        code: 0,
+        signal: undefined,
+    });
+
+    // find no process under the workload's id
+    const listing = process.spawn(["/bin/ps", "-p", String(id)], { stdout: "ignore" });
+    expect(await listing.exited).toBe(1);
 });
 
 test("pass input to a workload and let it serve its host on a loopback port when allowed", async () => {
-    const directory = await realpath(await mkdtemp(join(tmpdir(), "destack-sandbox-")));
-    try {
-        // start a workload that reads its greeting and serves it on a loopback port it reports
-        await using sandbox = await Sandbox.start({
-            executable: process.execPath,
+    // start a workload that reads its greeting and serves it on a loopback port it reports
+    const { simulation, environment, directory } = await world("destack-sandbox-");
+    await using _simulation = simulation;
+    await using sandbox = await Sandbox.start(
+        {
+            executable: environment.process.executable,
             arguments: [
                 "--no-env-file",
                 "-e",
@@ -345,29 +425,29 @@ test("pass input to a workload and let it serve its host on a loopback port when
             read: [],
             write: [],
             network: [],
-            allowsListening: true,
-        });
-        sandbox.stdin.end("hello\n");
+            sockets: [],
+            listening: "loopback",
+        },
+        environment,
+    );
+    const writer = sandbox.stdin.getWriter();
+    await writer.write(new TextEncoder().encode("hello\n"));
+    await writer.close();
 
-        // read the port from the first line and fetch the greeting from it
-        let port = "";
-        for await (const line of createInterface({ input: sandbox.stdout })) {
-            port = line;
-            break;
-        }
-        const answer = await fetch(`http://127.0.0.1:${port}/`);
-        expect(await answer.text()).toBe("hello");
-    } finally {
-        await rm(directory, { recursive: true });
-    }
+    // read the port from the first chunk and fetch the greeting from it
+    const { value } = await sandbox.stdout.getReader().read();
+    const port = new TextDecoder().decode(value).trim();
+    const answer = await testHost().network.fetch(new Request(`http://127.0.0.1:${port}/`));
+    expect(await answer.text()).toBe("hello");
 });
 
 test("let a workload serve and reach a Unix socket in its temporary folder", async () => {
-    const directory = await realpath(await mkdtemp(join(tmpdir(), "destack-sandbox-socket-")));
-    try {
-        // serve a socket below the temporary folder, and connect to it
-        await using sandbox = await Sandbox.start({
-            executable: process.execPath,
+    // serve a socket below the temporary folder, and connect to it
+    const { simulation, environment, directory } = await world("destack-sandbox-socket-");
+    await using _simulation = simulation;
+    await using sandbox = await Sandbox.start(
+        {
+            executable: environment.process.executable,
             arguments: [
                 "--no-env-file",
                 "-e",
@@ -392,12 +472,13 @@ test("let a workload serve and reach a Unix socket in its temporary folder", asy
             read: [],
             write: [],
             network: [],
-        });
-        const output = text(sandbox.stdout);
-        const errors = text(sandbox.stderr);
-        expect(await sandbox.exited, await errors).toEqual({ code: 0, signal: null });
-        expect(await output).toBe("joined\n");
-    } finally {
-        await rm(directory, { recursive: true });
-    }
+            sockets: [],
+            listening: "denied",
+        },
+        environment,
+    );
+    const output = text(sandbox.stdout);
+    const errors = text(sandbox.stderr);
+    expect(await sandbox.exited, await errors).toEqual({ code: 0, signal: null });
+    expect(await output).toBe("joined\n");
 });

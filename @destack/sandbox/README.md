@@ -9,19 +9,24 @@ Run processes with explicit filesystem and network permissions on macOS (Seatbel
 ```ts
 import { Sandbox } from "@destack/sandbox";
 
-await using sandbox = await Sandbox.start({
-    executable: process.execPath,
-    arguments: ["run", "--no-env-file", "/application/main.ts"],
-    directory: "/application",
-    environment: {},
-    read: ["/application"],
-    write: ["/storage"],
-    network: ["api.example.com"],
-});
+await using sandbox = await Sandbox.start(
+    {
+        executable: environment.process.executable,
+        arguments: ["run", "--no-env-file", "/application/main.ts"],
+        directory: "/application",
+        environment: {},
+        read: ["/application"],
+        write: ["/storage"],
+        network: ["api.example.com"],
+        sockets: [],
+        listening: "denied",
+    },
+    environment,
+);
 
 // drain both streams while the workload runs
-sandbox.stdout.pipe(process.stdout);
-sandbox.stderr.pipe(process.stderr);
+const output = new Response(sandbox.stdout).text();
+const errors = new Response(sandbox.stderr).text();
 const exit = await sandbox.exited; // { code, signal }
 ```
 
@@ -30,7 +35,10 @@ const exit = await sandbox.exited; // { code, signal }
 `sockets` lists further Unix sockets the workload connects to, in addition to its private `TMPDIR` that the sandbox removes when the workload stops.
 
 ```ts
-await using sandbox = await Sandbox.start({ ...options, sockets: ["/run/destack/services.sock"] });
+await using sandbox = await Sandbox.start(
+    { ...options, sockets: ["/run/destack/services.sock"] },
+    environment,
+);
 ```
 
 ## Messages
@@ -43,11 +51,13 @@ const options = SandboxOptions.parse(JSON.parse(line));
 
 ## Runners
 
-`allowsListening` lets the workload listen on loopback ports, and `stdin` writes to its standard input.
+`listening: "loopback"` lets the workload listen on loopback ports, and `stdin` is a writable stream to its standard input.
 
 ```ts
-await using runner = await Sandbox.start({ ...options, allowsListening: true });
-runner.stdin.end(`${JSON.stringify(start)}\n`);
+await using runner = await Sandbox.start({ ...options, listening: "loopback" }, environment);
+const writer = runner.stdin.getWriter();
+await writer.write(new TextEncoder().encode(`${JSON.stringify(start)}\n`));
+await writer.close();
 ```
 
 ## Network

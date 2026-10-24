@@ -1,3 +1,4 @@
+import { BunEnvironment } from "@destack/environment/bun";
 import { runLauncher } from "./launcher/index.ts";
 
-await runLauncher();
+await runLauncher(BunEnvironment.system);

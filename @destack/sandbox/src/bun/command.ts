@@ -1,6 +1,6 @@
-/// <reference types="bun" />
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import type { Process } from "@destack/environment";
 
 /** The command starting the sandbox launcher outside the workload sandbox. */
 export interface LauncherCommand {
@@ -11,18 +11,18 @@ export interface LauncherCommand {
 }
 
 /** Find the launcher command. */
-export function launcherCommand(): LauncherCommand {
+export function launcherCommand(process: Process): LauncherCommand {
     // start the release's launcher from a standalone executable
-    if (Bun.isStandaloneExecutable) {
-        return { executable: join(dirname(process.execPath), "destack-sandbox"), arguments: [] };
+    if (process.runtime.isStandalone) {
+        return { executable: join(dirname(process.executable), "destack-sandbox"), arguments: [] };
     }
 
     // run the entry with Bun otherwise, preloading the module metadata the build would inject
     const entry = fileURLToPath(new URL("../main.ts", import.meta.url));
-    const preload = Bun.resolveSync("@destack/package/bun/preload", import.meta.dirname);
+    const preload = fileURLToPath(import.meta.resolve("@destack/package/bun/preload"));
 
     return {
-        executable: process.execPath,
+        executable: process.executable,
         arguments: ["run", "--no-env-file", "--preload", preload, entry],
     };
 }
