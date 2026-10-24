@@ -16,10 +16,10 @@ export const SandboxOptions = schema.object({
     write: schema.array(schema.string()),
     /** Allowed outgoing domains through the supplied proxies, optionally qualified by port. */
     network: schema.array(schema.string()),
-    /** Unix sockets available for host-mediated service connections. */
-    sockets: schema.array(schema.string()).exactOptional(),
-    /** Whether the workload may listen on loopback ports. */
-    allowsListening: schema.boolean().exactOptional(),
+    /** Unix sockets available for host-mediated service connections, none when empty. */
+    sockets: schema.array(schema.string()),
+    /** Where the workload may listen: nowhere, or on loopback ports. */
+    listening: schema.enum(["denied", "loopback"]),
 });
 /** Explicit process inputs and host-approved access. */
 export type SandboxOptions = schema.Infer<typeof SandboxOptions>;
