@@ -33,12 +33,11 @@ export const RUNTIME_PATHS: Partial<Record<OperatingSystem, readonly string[]>> 
 };
 
 /** Run one sandbox manager under a private parent connection. */
-export async function runLauncher(environment: Environment<"process" | "platform">): Promise<void> {
+export async function runLauncher(environment: Environment<"process" | "host">): Promise<void> {
     // reject direct invocation without the supervising process and its temporary directory
-    const { platform } = environment;
-    const host = environment.process;
-    const { parent } = host;
-    const temporary = host.variables["CLAUDE_CODE_TMPDIR"];
+    const { host, process } = environment;
+    const { parent } = process;
+    const temporary = process.variables["CLAUDE_CODE_TMPDIR"];
     if (parent === undefined || temporary === undefined) {
         throw SandboxError.of("START_FAILED", "sandbox launcher requires a parent connection");
     }
@@ -54,8 +53,8 @@ export async function runLauncher(environment: Environment<"process" | "platform
         stopped.abort();
         request.reject(SandboxError.of("START_FAILED", "sandbox parent disconnected"));
     });
-    using _terminated = host.on("SIGTERM", () => stopped.abort());
-    using _interrupted = host.on("SIGINT", () => stopped.abort());
+    using _terminated = process.on("SIGTERM", () => stopped.abort());
+    using _interrupted = process.on("SIGINT", () => stopped.abort());
     using _received = parent.on((received) => {
         // stop on a request the launcher protocol has no shape for, reporting it to the parent
         const parsed = LauncherRequest.safeParse(received);
@@ -76,9 +75,9 @@ export async function runLauncher(environment: Environment<"process" | "platform
     try {
         // require the system files of this platform
         const options = await request.promise;
-        const runtime = RUNTIME_PATHS[platform.os];
+        const runtime = RUNTIME_PATHS[host.os];
         if (runtime === undefined) {
-            throw SandboxError.of("UNSUPPORTED", `sandboxing is unsupported on ${platform.os}`);
+            throw SandboxError.of("UNSUPPORTED", `sandboxing is unsupported on ${host.os}`);
         }
 
         // configure a fresh manager with no access to other application state
@@ -117,7 +116,7 @@ export async function runLauncher(environment: Environment<"process" | "platform
             undefined,
             stopped.signal,
         );
-        const workload = host.spawn(["/bin/sh", "-c", wrapped], {
+        const workload = process.spawn(["/bin/sh", "-c", wrapped], {
             workingDirectory: options.directory,
             variables: options.environment,
             isDetached: true,
@@ -137,9 +136,9 @@ export async function runLauncher(environment: Environment<"process" | "platform
         // terminate the process group when the parent stops or disconnects
         const grace = new AbortController();
         const stop = () => {
-            signalGroup(workload, isExited, "SIGTERM", host);
+            signalGroup(workload, isExited, "SIGTERM", process);
             void environment.clock.sleep(gracePeriod, grace.signal).then(
-                () => signalGroup(workload, isExited, "SIGKILL", host),
+                () => signalGroup(workload, isExited, "SIGKILL", process),
                 () => undefined,
             );
         };
@@ -152,7 +151,7 @@ export async function runLauncher(environment: Environment<"process" | "platform
         stopped.signal.removeEventListener("abort", stop);
     } catch (error) {
         if (child) {
-            signalGroup(child, isExited, "SIGKILL", host);
+            signalGroup(child, isExited, "SIGKILL", process);
         }
         if (isConnected) {
             parent.send({
@@ -160,7 +159,7 @@ export async function runLauncher(environment: Environment<"process" | "platform
                 message: error instanceof Error ? error.message : String(error),
             });
         }
-        host.exitCode = 1;
+        process.exitCode = 1;
     } finally {
         // report completion only after releasing proxies
         try {
@@ -182,13 +181,18 @@ function quote(value: string): string {
 }
 
 /** Signal the workload process group, accepting an already terminated group. */
-function signalGroup(child: Subprocess, isExited: boolean, signal: Signal, host: Process): void {
+function signalGroup(
+    child: Subprocess,
+    isExited: boolean,
+    signal: Signal,
+    process: Process,
+): void {
     // leave exited workloads alone, since their process group id may already be reused
     if (isExited) {
         return;
     }
     try {
-        host.kill(-child.id, signal);
+        process.kill(-child.id, signal);
     } catch (error) {
         // accept gone groups, which macOS reports as not permitted for exited, unreaped workloads
         const isGone =

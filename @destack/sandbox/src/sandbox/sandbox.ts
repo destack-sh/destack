@@ -55,7 +55,7 @@ export class Sandbox implements AsyncDisposable {
     /** Spawn a restricted command, whose application reports its own readiness. */
     static async start(
         options: SandboxOptions,
-        environment: Environment<"files" | "process" | "platform">,
+        environment: Environment<"files" | "process" | "host">,
     ): Promise<Sandbox> {
         // refuse unsupported hosts and unsafe paths before spawning
         await requireSupport(environment);
@@ -149,7 +149,7 @@ interface WatchedLauncher {
 }
 
 /** Refuse platforms without runtime paths and hosts missing the enforcement tools. */
-async function requireSupport(environment: Environment<"platform">): Promise<void> {
+async function requireSupport(environment: Environment<"host">): Promise<void> {
     // load the upstream manager on first start, since it costs hundreds of milliseconds to import
     const [{ SandboxManager }, { RUNTIME_PATHS }] = await Promise.all([
         import("@anthropic-ai/sandbox-runtime"),
@@ -157,7 +157,7 @@ async function requireSupport(environment: Environment<"platform">): Promise<voi
     ]);
 
     // refuse an unsupported platform or missing tools
-    const { os } = environment.platform;
+    const { os } = environment.host;
     if (!SandboxManager.isSupportedPlatform() || !RUNTIME_PATHS[os]) {
         throw SandboxError.of("UNSUPPORTED", `sandboxing is unsupported on ${os}`);
     }

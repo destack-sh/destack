@@ -23,7 +23,7 @@ async function world(prefix: string) {
     const simulation = new Simulation({
         seed: 1,
         start: START,
-        platform: testHost().platform,
+        host: testHost().host,
     });
     const environment = simulation.environment("host");
     const { files } = environment;
@@ -55,7 +55,7 @@ test("isolate filesystem access, environment and child processes", async () => {
     // write a readable and a private file in a world
     const { simulation, environment, directory } = await world("destack-sandbox-");
     await using _simulation = simulation;
-    const { files, process, platform } = environment;
+    const { files, process, host } = environment;
     const permitted = join(directory, "permitted.txt");
     const forbidden = join(directory, "forbidden.txt");
     await files.writeTextFile(permitted, "permitted");
@@ -104,7 +104,7 @@ test("isolate filesystem access, environment and child processes", async () => {
     expect(await sandbox.exited, await error).toEqual({ code: 0, signal: null });
     expect(JSON.parse(await output)).toEqual({
         content: "permitted",
-        failures: DENIED_FAILURES[platform.os],
+        failures: DENIED_FAILURES[host.os],
         childCode: 1,
         environment: "explicit",
         inherited: null,
