@@ -17,14 +17,36 @@ const MODULES = new Map([
     ["node:tls", "environment.network.connect"],
     ["node:dgram", "environment.network"],
     ["node:worker_threads", "environment.workers"],
-    ["node:crypto", "environment.crypto, or Digest.of for hashes"],
     ["net", "environment.network.connect"],
     ["http", "environment.server.http"],
     ["https", "environment.network.fetch"],
     ["tls", "environment.network.connect"],
     ["dgram", "environment.network"],
     ["worker_threads", "environment.workers"],
-    ["crypto", "environment.crypto, or Digest.of for hashes"],
+]);
+
+/** The crypto modules, whose randomness and key generation are effects and whose hashing is not. */
+const CRYPTO_MODULES = new Set(["node:crypto", "crypto"]);
+
+/** The crypto modules' exports that compute from their inputs alone, such as hashes. */
+const PURE_CRYPTO = new Set([
+    "createHash",
+    "createHmac",
+    "createCipheriv",
+    "createDecipheriv",
+    "hash",
+    "timingSafeEqual",
+    "createPublicKey",
+    "createPrivateKey",
+    "createSecretKey",
+    "createVerify",
+    "verify",
+    "hkdfSync",
+    "pbkdf2Sync",
+    "scryptSync",
+    "Hash",
+    "Hmac",
+    "KeyObject",
 ]);
 
 /** The host globals whose every member is an effect, and the environment taking their place. */
@@ -165,28 +187,72 @@ export const noAmbientEffect: Rule = {
             return false;
         }
 
+        /** Report a host module a declaration takes, and each effect among the exports it names. */
+        function reportSource(
+            node: ESTree.Node,
+            name: string,
+            names: readonly (string | undefined)[],
+        ): void {
+            // report a host module
+            const replacement = MODULES.get(name);
+            if (replacement !== undefined) {
+                context.report({ node, messageId: "effect", data: { name, replacement } });
+            }
+
+            // report each crypto export that draws randomness or makes keys, and each uuid generator
+            for (const exported of names) {
+                const isCryptoEffect =
+                    CRYPTO_MODULES.has(name) &&
+                    exported !== undefined &&
+                    !PURE_CRYPTO.has(exported);
+                const uuid =
+                    name === "uuid" && exported !== undefined ? UUIDS.get(exported) : undefined;
+                if (isCryptoEffect) {
+                    const data = {
+                        name: exported === "*" ? `all of ${name}` : `${name}'s ${exported}`,
+                        replacement: "environment.random or environment.crypto",
+                    };
+                    context.report({ node, messageId: "effect", data });
+                } else if (uuid !== undefined) {
+                    context.report({
+                        node,
+                        messageId: "effect",
+                        data: { name: `uuid's ${exported}`, replacement: uuid },
+                    });
+                }
+            }
+        }
+
         return {
             ImportDeclaration(node) {
-                // report a host module
-                const name = node.source.value;
-                const replacement = MODULES.get(name);
-                if (replacement !== undefined) {
-                    context.report({ node, messageId: "effect", data: { name, replacement } });
+                // report a host module, each effect it names, and each generator of the uuid package
+                const isType = node.importKind === "type";
+                const names = node.specifiers.map((specifier) =>
+                    specifier.type === "ImportSpecifier" && specifier.importKind !== "type"
+                        ? importedName(specifier.imported)
+                        : specifier.type === "ImportSpecifier"
+                          ? undefined
+                          : "*",
+                );
+                reportSource(node, node.source.value, isType ? [] : names);
+            },
+            ExportNamedDeclaration(node) {
+                // report a host module re-exported, and each effect it passes on
+                if (node.source !== null && node.exportKind !== "type") {
+                    const names = node.specifiers.map((specifier) => importedName(specifier.local));
+                    reportSource(node, node.source.value, names);
                 }
-
-                // report each generator of the uuid package
-                const imported = name === "uuid" ? node.specifiers : [];
-                for (const specifier of imported) {
-                    const generator =
-                        specifier.type === "ImportSpecifier" &&
-                        specifier.imported.type === "Identifier"
-                            ? specifier.imported.name
-                            : "";
-                    const uuid = UUIDS.get(generator);
-                    if (uuid !== undefined) {
-                        const data = { name: `uuid's ${generator}`, replacement: uuid };
-                        context.report({ node: specifier, messageId: "effect", data });
-                    }
+            },
+            ExportAllDeclaration(node) {
+                // report a host module re-exported whole
+                if (node.exportKind !== "type") {
+                    reportSource(node, node.source.value, ["*"]);
+                }
+            },
+            ImportExpression(node) {
+                // report a host module imported at run time, whose members go unseen
+                if (node.source.type === "Literal" && typeof node.source.value === "string") {
+                    reportSource(node, node.source.value, ["*"]);
                 }
             },
             MemberExpression(node) {
@@ -364,4 +430,9 @@ function memberName(node: ESTree.MemberExpression): string | undefined {
     else {
         return undefined;
     }
+}
+
+/** Read the name an import or export specifier refers to in its module. */
+function importedName(name: ESTree.ModuleExportName): string {
+    return name.type === "Identifier" ? name.name : name.value;
 }

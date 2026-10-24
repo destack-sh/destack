@@ -331,6 +331,10 @@ tester.run("no-ambient-effect", rules["no-ambient-effect"], {
             filename: SOURCE,
         },
         { code: 'import { join } from "node:path";', filename: SOURCE },
+        {
+            code: 'import { createHash, createCipheriv, hkdfSync, type Hash } from "node:crypto";\nexport { createHash } from "node:crypto";',
+            filename: SOURCE,
+        },
         { code: "const at = new Date(environment.clock.now());", filename: SOURCE },
         { code: "const value = options.process.env;", filename: SOURCE },
         { code: 'const text = at.toLocaleString("en-US");', filename: SOURCE },
@@ -376,6 +380,43 @@ tester.run("no-ambient-effect", rules["no-ambient-effect"], {
                 {
                     messageId: "effect",
                     data: { name: "new WebSocket", replacement: "environment.network.websocket" },
+                },
+            ],
+        },
+        {
+            code: 'import { createHash, randomUUID } from "node:crypto";\nimport * as crypto from "crypto";',
+            filename: SOURCE,
+            errors: [
+                {
+                    messageId: "effect",
+                    data: {
+                        name: "node:crypto's randomUUID",
+                        replacement: "environment.random or environment.crypto",
+                    },
+                },
+                {
+                    messageId: "effect",
+                    data: {
+                        name: "all of crypto",
+                        replacement: "environment.random or environment.crypto",
+                    },
+                },
+            ],
+        },
+        {
+            code: 'export { randomUUID } from "node:crypto";\nconst fs = await import("node:fs/promises");',
+            filename: SOURCE,
+            errors: [
+                {
+                    messageId: "effect",
+                    data: {
+                        name: "node:crypto's randomUUID",
+                        replacement: "environment.random or environment.crypto",
+                    },
+                },
+                {
+                    messageId: "effect",
+                    data: { name: "node:fs/promises", replacement: "environment.files" },
                 },
             ],
         },
@@ -461,19 +502,6 @@ tester.run("no-ambient-effect", rules["no-ambient-effect"], {
                 {
                     messageId: "effect",
                     data: { name: "globalThis.process", replacement: "environment.process" },
-                },
-            ],
-        },
-        {
-            code: 'import { createHash } from "node:crypto";',
-            filename: SOURCE,
-            errors: [
-                {
-                    messageId: "effect",
-                    data: {
-                        name: "node:crypto",
-                        replacement: "environment.crypto, or Digest.of for hashes",
-                    },
                 },
             ],
         },
