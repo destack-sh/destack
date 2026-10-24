@@ -1,16 +1,12 @@
+import type { Crypto, Environment } from "@destack/environment";
 import { schema } from "@destack/schema";
-import { compactDecrypt, CompactEncrypt, decodeProtectedHeader, errors } from "jose";
 import { IdentityError } from "../error/error.ts";
+import { Base64Url } from "../jose/base64.ts";
+import { Jwe, type KeyManagement } from "../jose/jwe.ts";
 import { Label } from "../label/label.ts";
 
-/** The five base64url parts of a compact JWE, the encrypted key empty for a key agreed directly. */
-const COMPACT_JWE = /^[\w-]+\.[\w-]*\.[\w-]+\.[\w-]+\.[\w-]+$/u;
-
-/** The content encryption of every ciphertext. */
-const ENCRYPTION = "A256GCM";
-
-/** How a ciphertext's content key reaches its recipient (RFC 7518 4.6, 4.7). */
-export type KeyManagement = "A256GCMKW" | "ECDH-ES+A256KW";
+/** The five base64url segments of a compact JWE under a wrapped content key. */
+const COMPACT_JWE = /^[\w-]+\.[\w-]+\.[\w-]+\.[\w-]+\.[\w-]+$/u;
 
 /** Bytes encrypted as a compact JWE (RFC 7516), like a KMS ciphertext. */
 export const Ciphertext = Object.assign(schema.string().regex(COMPACT_JWE), {
@@ -20,19 +16,19 @@ export const Ciphertext = Object.assign(schema.string().regex(COMPACT_JWE), {
         key: CryptoKey,
         management: { readonly alg: KeyManagement; readonly kid?: string },
         context: Label,
+        environment: Pick<Environment, "crypto" | "random">,
     ): Promise<Ciphertext> {
-        return new CompactEncrypt(plaintext)
-            .setProtectedHeader({
-                ...management,
-                enc: ENCRYPTION,
-                ctx: await digest(Label.encode(context)),
-            })
-            .encrypt(key);
+        const digested = await digest(Label.encode(context), environment.crypto);
+        const header = { ...management, enc: "A256GCM" as const, ctx: digested };
+
+        return Jwe.encrypt(plaintext, header, key, environment);
     },
 
-    /** Read the identifier of the key a ciphertext names, absent for none. */
+    /** Read the identifier of the key a ciphertext references, absent for none. */
     keyId(ciphertext: Ciphertext): string | undefined {
-        return decodeProtectedHeader(ciphertext).kid;
+        const { kid } = Jwe.header(ciphertext);
+
+        return typeof kid === "string" ? kid : undefined;
     },
 
     /** Decrypt a ciphertext with its key, refusing one encrypted under another context. */
@@ -40,31 +36,21 @@ export const Ciphertext = Object.assign(schema.string().regex(COMPACT_JWE), {
         ciphertext: Ciphertext,
         key: CryptoKey,
         context: Label,
+        crypto: Crypto,
     ): Promise<Uint8Array<ArrayBuffer>> {
-        // decrypt it without reporting its inputs
-        const decrypted = await compactDecrypt(ciphertext, key, {
-            contentEncryptionAlgorithms: [ENCRYPTION],
-        }).catch((error: unknown) => {
-            if (!(error instanceof errors.JOSEError)) {
-                throw error;
-            }
-            throw IdentityError.of("DECRYPTION_FAILED", "ciphertext authentication failed");
-        });
-
-        // require the context it was encrypted under
-        if (decrypted.protectedHeader["ctx"] !== (await digest(Label.encode(context)))) {
+        // decrypt it, then require the context it was encrypted under
+        const decrypted = await Jwe.decrypt(ciphertext, key, crypto);
+        if (decrypted.header["ctx"] !== (await digest(Label.encode(context), crypto))) {
             throw IdentityError.of("DECRYPTION_FAILED", "ciphertext authentication failed");
         }
 
-        return new Uint8Array(decrypted.plaintext);
+        return decrypted.plaintext;
     },
 });
 /** Bytes encrypted as a compact JWE. */
 export type Ciphertext = string;
 
 /** Digest an encryption context for a ciphertext's protected header. */
-async function digest(context: Uint8Array<ArrayBuffer>): Promise<string> {
-    const hash = await crypto.subtle.digest("SHA-256", context);
-
-    return new Uint8Array(hash).toBase64({ alphabet: "base64url", omitPadding: true });
+async function digest(context: Uint8Array<ArrayBuffer>, crypto: Crypto): Promise<string> {
+    return Base64Url.encode(new Uint8Array(await crypto.digest("SHA-256", context)));
 }

@@ -1,4 +1,5 @@
 export * from "./error/index.ts";
+export * from "./jose/index.ts";
 export * from "./ciphertext/index.ts";
 export * from "./derivation/index.ts";
 export * from "./label/index.ts";

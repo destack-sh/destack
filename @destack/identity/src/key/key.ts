@@ -1,5 +1,11 @@
+import type { Crypto } from "@destack/environment";
 import { schema } from "@destack/schema";
+import { Jwk } from "../jose/jwk.ts";
+import type { JwsAlgorithm } from "../jose/algorithm.ts";
 import { IdentityError } from "../error/error.ts";
+
+/** The SEC 1 prefix of an uncompressed curve point (SEC 1 2.3.3). */
+const UNCOMPRESSED_POINT = 0x04;
 
 /** A base64url coordinate of a 256-bit curve point, 32 bytes unpadded. */
 const COORDINATE = /^[A-Za-z0-9_-]{43}$/u;
@@ -44,51 +50,55 @@ const published = {
 /** A public key as a JSON Web Key, verifying what its private half signs. */
 export const PublicKey = Object.assign(publicKey, {
     /** Export a key pair's public half. */
-    async of(key: CryptoKey): Promise<PublicKey> {
-        const { kty, crv, x, y } = await crypto.subtle.exportKey("jwk", key);
+    async of(key: CryptoKey, crypto: Crypto): Promise<PublicKey> {
+        const { kty, crv, x, y } = await crypto.exportKey("jwk", key);
 
         return PublicKey.parse(kty === "OKP" ? { kty, crv, x } : { kty, crv, x, y });
     },
 
     /** List the JWS algorithms a key verifies. */
-    algorithms(key: PublicKey): [string, ...string[]] {
+    algorithms(key: PublicKey): readonly JwsAlgorithm[] {
         return key.kty === "OKP" ? ["Ed25519", "EdDSA"] : ["ES256"];
     },
 
     /** Import a key for verifying, refusing a point off its curve. */
-    async import(key: PublicKey): Promise<CryptoKey> {
+    async import(key: PublicKey, crypto: Crypto): Promise<CryptoKey> {
         const algorithm =
             key.kty === "OKP" ? { name: "Ed25519" } : { name: "ECDSA", namedCurve: key.crv };
         try {
-            return await crypto.subtle.importKey("jwk", key, algorithm, false, ["verify"]);
+            return await crypto.importKey("jwk", key, algorithm, false, ["verify"]);
         } catch (error) {
-            throw IdentityError.of("INVALID_PUBLIC_KEY", "invalid public key", { cause: error });
+            throw IdentityError.of("KEY_INVALID", "invalid public key", { cause: error });
         }
     },
 
+    /** Write a key in WebCrypto's raw form: an uncompressed point or an Ed25519 key's bytes. */
+    raw(key: PublicKey): Uint8Array<ArrayBuffer> {
+        // write the Edwards key's bytes, or the curve point's prefix and coordinates
+        const x = Uint8Array.fromBase64(key.x, { alphabet: "base64url" });
+        if (key.kty === "OKP") {
+            return x;
+        }
+        const y = Uint8Array.fromBase64(key.y, { alphabet: "base64url" });
+        const point = new Uint8Array(1 + x.length + y.length);
+        point.set([UNCOMPRESSED_POINT], 0);
+        point.set(x, 1);
+        point.set(y, 1 + x.length);
+
+        return point;
+    },
+
     /** Compute a key's RFC 7638 thumbprint. */
-    async thumbprint(key: PublicKey): Promise<string> {
-        // order the key type's required members by name
-        const members = key.kty === "OKP" ? { crv: key.crv, kty: key.kty, x: key.x } : key;
-        const ordered = Object.fromEntries(
-            Object.entries(members).toSorted(([left], [right]) => (left < right ? -1 : 1)),
-        );
-
-        // hash their JSON with SHA-256
-        const digest = await crypto.subtle.digest(
-            "SHA-256",
-            new TextEncoder().encode(JSON.stringify(ordered)),
-        );
-
-        return new Uint8Array(digest).toBase64({ alphabet: "base64url", omitPadding: true });
+    thumbprint(key: PublicKey, crypto: Crypto): Promise<string> {
+        return Jwk.thumbprint(key, crypto);
     },
 
     /** Publish signing keys as a JSON Web Key Set (RFC 7517 5). */
-    async keySet(keys: readonly PublicKey[]): Promise<KeySet> {
+    async keySet(keys: readonly PublicKey[], crypto: Crypto): Promise<KeySet> {
         return {
             keys: await Promise.all(
                 keys.map(async (key) => {
-                    const kid = await PublicKey.thumbprint(key);
+                    const kid = await PublicKey.thumbprint(key, crypto);
 
                     return key.kty === "OKP"
                         ? { ...key, alg: "Ed25519" as const, use: "sig" as const, kid }
@@ -105,7 +115,7 @@ export type PublicKey = schema.Infer<typeof publicKey>;
 const SIGNING = { name: "ECDSA", namedCurve: "P-256" } as const;
 
 /** A P-256 private key as a JSON Web Key, as a keychain stores it. */
-const privateKey = schema.looseObject({
+export const PrivateKey = schema.looseObject({
     /** The key type of elliptic curves. */
     kty: schema.literal("EC"),
     /** The curve. */
@@ -118,6 +128,9 @@ const privateKey = schema.looseObject({
     ["d"]: schema.string().regex(COORDINATE),
 });
 
+/** A P-256 private key as a JSON Web Key. */
+export type PrivateKey = schema.Infer<typeof PrivateKey>;
+
 /** A P-256 key pair: its public half, and its private half that signs. */
 export interface KeyPair {
     /** The public half. */
@@ -129,22 +142,25 @@ export interface KeyPair {
 /** Key pairs as keychains store them: their private half as a JSON Web Key. */
 export const KeyPair = {
     /** Generate a key pair, with the private half a keychain stores. */
-    async generate(): Promise<{ readonly pair: KeyPair; readonly secret: string }> {
-        const generated = await crypto.subtle.generateKey(SIGNING, true, ["sign", "verify"]);
-        const secret = JSON.stringify(await crypto.subtle.exportKey("jwk", generated.privateKey));
+    async generate(crypto: Crypto): Promise<{ readonly pair: KeyPair; readonly secret: string }> {
+        const generated = await crypto.generateKey(SIGNING, true, ["sign", "verify"]);
+        const secret = JSON.stringify(await crypto.exportKey("jwk", generated.privateKey));
 
-        return { pair: await KeyPair.read(secret), secret };
+        return { pair: await KeyPair.read(secret, crypto), secret };
     },
 
     /** Read the key pair a keychain stores. */
-    async read(secret: string): Promise<KeyPair> {
-        // read the private half, and the public half from its coordinates
-        const jwk = privateKey.parse(JSON.parse(secret));
-        const { kty, crv, x, y } = jwk;
+    read(secret: string, crypto: Crypto): Promise<KeyPair> {
+        return KeyPair.import(PrivateKey.parse(JSON.parse(secret)), crypto);
+    },
+
+    /** Import a private key for signing, with its public half from its coordinates. */
+    async import(key: PrivateKey, crypto: Crypto): Promise<KeyPair> {
+        const { kty, crv, x, y } = key;
 
         return {
             publicKey: PublicKey.parse({ kty, crv, x, y }),
-            privateKey: await crypto.subtle.importKey("jwk", jwk, SIGNING, false, ["sign"]),
+            privateKey: await crypto.importKey("jwk", key, SIGNING, false, ["sign"]),
         };
     },
 };

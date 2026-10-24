@@ -1,10 +1,18 @@
+import type { Crypto } from "@destack/environment";
 import { Digest, schema } from "@destack/schema";
 import { IdentityError } from "../error/error.ts";
 import { PublicKey } from "../key/key.ts";
-import { CompactSign, compactVerify, decodeJwt, decodeProtectedHeader, errors } from "jose";
+import { Base64Url } from "../jose/base64.ts";
+import { Jws } from "../jose/jws.ts";
 
 /** The type a signed identity operation's header names. */
 const OPERATION_TYPE = "identity-operation+jws";
+
+/** The JWS algorithm of each WebCrypto rotation key algorithm. */
+const ROTATION_ALGORITHMS: ReadonlyMap<string, "Ed25519" | "ES256"> = new Map([
+    ["Ed25519", "Ed25519"],
+    ["ECDSA", "ES256"],
+]);
 
 /** The most rotation keys an identity lists. */
 const MAX_ROTATION_KEYS = 5;
@@ -35,12 +43,18 @@ const identityOperation = Identity.omit({ digest: true }).extend({
 /** A change of an identity, as a directory applies it. */
 export const IdentityOperation = Object.assign(identityOperation, {
     /** Sign an operation with a rotation key's private half. */
-    async sign(operation: IdentityOperation, rotationKey: CryptoKey): Promise<string> {
-        const alg = rotationKey.algorithm.name === "Ed25519" ? "Ed25519" : "ES256";
+    sign(operation: IdentityOperation, rotationKey: CryptoKey, crypto: Crypto): Promise<string> {
+        // sign with the rotation key's algorithm, refusing another curve
+        const alg = ROTATION_ALGORITHMS.get(rotationKey.algorithm.name);
+        if (alg === undefined) {
+            throw IdentityError.of(
+                "KEY_INVALID",
+                "the rotation key is not an Ed25519 or P-256 key",
+            );
+        }
+        const payload = new TextEncoder().encode(JSON.stringify(operation));
 
-        return new CompactSign(new TextEncoder().encode(JSON.stringify(operation)))
-            .setProtectedHeader({ alg, typ: OPERATION_TYPE })
-            .sign(rotationKey);
+        return Jws.sign(payload, { alg, typ: OPERATION_TYPE }, rotationKey, crypto);
     },
 
     /** Read a signed operation without verifying its signature, refusing a malformed one. */
@@ -48,7 +62,7 @@ export const IdentityOperation = Object.assign(identityOperation, {
         const claims = identityOperation.safeParse(decode(signed));
         if (!claims.success) {
             throw IdentityError.of(
-                "INVALID_OPERATION",
+                "OPERATION_INVALID",
                 "the operation is not an identity operation",
             );
         }
@@ -57,17 +71,20 @@ export const IdentityOperation = Object.assign(identityOperation, {
     },
 
     /** Verify a signed operation against rotation keys. */
-    async verify(signed: string, rotationKeys: readonly PublicKey[]): Promise<number | undefined> {
+    async verify(
+        signed: string,
+        rotationKeys: readonly PublicKey[],
+        crypto: Crypto,
+    ): Promise<number | undefined> {
         for (const [priority, key] of rotationKeys.entries()) {
             // try the next key when this one refuses the signature
             try {
-                await compactVerify(signed, await PublicKey.import(key), {
-                    algorithms: PublicKey.algorithms(key),
-                });
+                const imported = await PublicKey.import(key, crypto);
+                await Jws.verify(signed, imported, PublicKey.algorithms(key), crypto);
 
                 return priority;
             } catch (error) {
-                if (!(error instanceof errors.JOSEError)) {
+                if (!IdentityError.is(error)) {
                     throw error;
                 }
             }
@@ -77,8 +94,8 @@ export const IdentityOperation = Object.assign(identityOperation, {
     },
 
     /** Digest a signed operation, as the next operation refers to it. */
-    digest(signed: string): Promise<Digest> {
-        return Digest.of(signed);
+    digest(signed: string, crypto: Crypto): Promise<Digest> {
+        return Digest.of(signed, crypto);
     },
 });
 /** A change of an identity. */
@@ -87,11 +104,11 @@ export type IdentityOperation = schema.Infer<typeof identityOperation>;
 /** Decode the payload of an operation whose header states its type, absent for anything else. */
 function decode(operation: string): unknown {
     try {
-        return decodeProtectedHeader(operation).typ === OPERATION_TYPE
-            ? decodeJwt(operation)
+        return Jws.header(operation).typ === OPERATION_TYPE
+            ? Base64Url.json(Jws.payload(operation))
             : undefined;
     } catch (error) {
-        if (!(error instanceof errors.JOSEError || error instanceof TypeError)) {
+        if (!IdentityError.is(error, "TOKEN_MALFORMED")) {
             throw error;
         }
 

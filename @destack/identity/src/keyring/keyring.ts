@@ -1,13 +1,17 @@
-import type { JWK } from "jose";
+import type { Environment } from "@destack/environment";
 import { schema } from "@destack/schema";
 import { Ciphertext } from "../ciphertext/ciphertext.ts";
 import { Derivation, type Deriver } from "../derivation/derivation.ts";
 import { IdentityError } from "../error/error.ts";
+import type { PrivateKey } from "../key/key.ts";
 import { Keychain } from "../keychain/keychain.ts";
 import type { Label } from "../label/label.ts";
 
 /** The bytes of a root key, an AES-256 key. */
 const ROOT_KEY_BYTES = 32;
+
+/** A root key version as text: a positive integer without leading zeros. */
+const VERSION = /^[1-9]\d*$/u;
 
 /** The label of the key a root key encrypts under, apart from every secret it derives. */
 const ENCRYPTION_LABEL = { label: "@destack/identity/keyring-encryption", context: "" };
@@ -17,10 +21,13 @@ const Keyset = schema.object({
     /** The version new ciphertexts are encrypted under. */
     active: schema.number().int().positive(),
     /** The base64 bytes of each version, by its decimal version. */
-    keys: schema.record(schema.string().regex(/^[1-9]\d*$/u), schema.base64()),
+    keys: schema.record(schema.string().regex(VERSION), schema.base64()),
 });
 /** The root keys a keychain stores under one name. */
 type Keyset = schema.Infer<typeof Keyset>;
+
+/** The WebCrypto and randomness a keyring encrypts and derives with. */
+export type KeyringEnvironment = Pick<Environment, "crypto" | "random">;
 
 /** One root key version: the key it encrypts under and the HKDF key its secrets derive from. */
 interface RootKey {
@@ -48,63 +55,97 @@ export class LocalKeyring implements Keyring {
     readonly active: number;
     /** Each version's keys. */
     readonly #keys: ReadonlyMap<number, RootKey>;
+    /** The WebCrypto and randomness the keyring encrypts and derives with. */
+    readonly #environment: KeyringEnvironment;
 
     /** Store imported keys under their versions with the active one. */
-    private constructor(active: number, keys: ReadonlyMap<number, RootKey>) {
+    private constructor(
+        active: number,
+        keys: ReadonlyMap<number, RootKey>,
+        environment: KeyringEnvironment,
+    ) {
         this.active = active;
         this.#keys = keys;
+        this.#environment = environment;
     }
 
     /** Write a new keyset as a process's secret stores it, its first root key at version 1. */
-    static generate(): string {
-        return JSON.stringify(LocalKeyring.#generate());
+    static generate(environment: KeyringEnvironment): string {
+        return JSON.stringify(LocalKeyring.#generate(environment));
     }
 
     /** Open the keyset a process's secret stores. */
-    static read(text: string): Promise<LocalKeyring> {
-        return LocalKeyring.#from(LocalKeyring.#parse(text));
+    static read(text: string, environment: KeyringEnvironment): Promise<LocalKeyring> {
+        return LocalKeyring.#from(LocalKeyring.#parse(text), environment);
     }
 
     /** Open the root keys a keychain stores under a name. */
-    static open(keychain: Keychain, name: string): Promise<LocalKeyring> {
-        return LocalKeyring.#change(keychain, name, (keys) => keys ?? LocalKeyring.#generate());
+    static open(
+        keychain: Keychain,
+        name: string,
+        environment: KeyringEnvironment,
+    ): Promise<LocalKeyring> {
+        return LocalKeyring.#change(
+            keychain,
+            name,
+            (keys) => keys ?? LocalKeyring.#generate(environment),
+            environment,
+        );
     }
 
     /** Store a new active root key beside the others. */
-    static rotate(keychain: Keychain, name: string): Promise<LocalKeyring> {
-        return LocalKeyring.#change(keychain, name, (keys) =>
-            LocalKeyring.#generate(LocalKeyring.#required(keys, name)),
+    static rotate(
+        keychain: Keychain,
+        name: string,
+        environment: KeyringEnvironment,
+    ): Promise<LocalKeyring> {
+        return LocalKeyring.#change(
+            keychain,
+            name,
+            (keys) => LocalKeyring.#generate(environment, LocalKeyring.#required(keys, name)),
+            environment,
         );
     }
 
     /** Forget a root key version, refusing the active one and one the keychain does not store. */
-    static retire(keychain: Keychain, name: string, version: number): Promise<LocalKeyring> {
-        return LocalKeyring.#change(keychain, name, (stored) => {
-            // refuse forgetting the active or an unknown key
-            const keys = LocalKeyring.#required(stored, name);
-            if (keys.active === version) {
-                throw IdentityError.of("INVALID_ROOT_KEY", "cannot retire the active root key");
-            } else if (!Object.hasOwn(keys.keys, String(version))) {
-                throw IdentityError.of(
-                    "INVALID_ROOT_KEY",
-                    `root key ${version} not found in ${name}`,
-                );
-            }
+    static retire(
+        keychain: Keychain,
+        name: string,
+        version: number,
+        environment: KeyringEnvironment,
+    ): Promise<LocalKeyring> {
+        return LocalKeyring.#change(
+            keychain,
+            name,
+            (stored) => {
+                // refuse forgetting the active or an unknown key
+                const keys = LocalKeyring.#required(stored, name);
+                if (keys.active === version) {
+                    throw IdentityError.of("ROOT_KEY_INVALID", "cannot retire the active root key");
+                } else if (!Object.hasOwn(keys.keys, String(version))) {
+                    throw IdentityError.of(
+                        "ROOT_KEY_INVALID",
+                        `root key ${version} not found in ${name}`,
+                    );
+                }
 
-            // drop the retired key
-            const { [String(version)]: _retired, ...others } = keys.keys;
+                // drop the retired key
+                const { [String(version)]: _retired, ...others } = keys.keys;
 
-            return { active: keys.active, keys: others };
-        });
+                return { active: keys.active, keys: others };
+            },
+            environment,
+        );
     }
 
     /** Import independently generated 256-bit root keys by version. */
     static async import(
         active: number,
         values: ReadonlyMap<number, Uint8Array<ArrayBuffer>>,
+        environment: KeyringEnvironment,
     ): Promise<LocalKeyring> {
         if (!values.has(active)) {
-            throw IdentityError.of("INVALID_ROOT_KEY", "active root key is missing");
+            throw IdentityError.of("ROOT_KEY_INVALID", "active root key is missing");
         }
 
         // validate all versions before accepting the deployment
@@ -112,18 +153,22 @@ export class LocalKeyring implements Keyring {
         for (const [version, value] of values) {
             if (!Number.isSafeInteger(version) || version < 1 || value.length !== ROOT_KEY_BYTES) {
                 throw IdentityError.of(
-                    "INVALID_ROOT_KEY",
+                    "ROOT_KEY_INVALID",
                     "root keys require a positive whole version and 32 bytes",
                 );
             }
 
             // derive the version's encryption key apart from the secrets its root derives
-            const root = await Derivation.root(value);
-            const encryption = await Derivation.encryptionKey(root, ENCRYPTION_LABEL);
+            const root = await Derivation.root(value, environment.crypto);
+            const encryption = await Derivation.encryptionKey(
+                root,
+                ENCRYPTION_LABEL,
+                environment.crypto,
+            );
             keys.set(version, { encryption, root });
         }
 
-        return new LocalKeyring(active, keys);
+        return new LocalKeyring(active, keys, environment);
     }
 
     /** Encrypt bytes under the active root key. */
@@ -133,6 +178,7 @@ export class LocalKeyring implements Keyring {
             this.#get(this.active).encryption,
             { alg: "A256GCMKW", kid: String(this.active) },
             context,
+            this.#environment,
         );
     }
 
@@ -142,6 +188,7 @@ export class LocalKeyring implements Keyring {
             ciphertext,
             this.#get(LocalKeyring.version(ciphertext)).encryption,
             context,
+            this.#environment.crypto,
         );
     }
 
@@ -173,21 +220,21 @@ export class LocalKeyring implements Keyring {
     }
 
     /** Derive a P-256 private key under a label from the active root key. */
-    async derivePrivateKey(label: Label): Promise<JWK> {
-        return Derivation.privateKey(this.#get(this.active).root, label);
+    async derivePrivateKey(label: Label): Promise<PrivateKey> {
+        return Derivation.privateKey(this.#get(this.active).root, label, this.#environment.crypto);
     }
 
     /** Read the root key version a ciphertext is encrypted under, refusing one naming none. */
     static version(ciphertext: Ciphertext): number {
-        const version = Number(Ciphertext.keyId(ciphertext));
-        if (!Number.isSafeInteger(version)) {
+        const keyId = Ciphertext.keyId(ciphertext);
+        if (keyId === undefined || !VERSION.test(keyId)) {
             throw IdentityError.of(
-                "KEY_UNAVAILABLE",
-                "the ciphertext does not reference a root key",
+                "CIPHERTEXT_MALFORMED",
+                "the ciphertext does not reference a root key version",
             );
         }
 
-        return version;
+        return Number(keyId);
     }
 
     /** Change the root keys a keychain stores under a name, and open the keys finally stored. */
@@ -195,6 +242,7 @@ export class LocalKeyring implements Keyring {
         keychain: Keychain,
         name: string,
         change: (keys: Keyset | undefined) => Keyset,
+        environment: KeyringEnvironment,
     ): Promise<LocalKeyring> {
         // leave the text unchanged when the parsed keys are unchanged
         const secret = await Keychain.update(keychain, name, (text) => {
@@ -204,7 +252,7 @@ export class LocalKeyring implements Keyring {
             return changed === keys && text !== undefined ? text : JSON.stringify(changed);
         });
 
-        return LocalKeyring.#from(LocalKeyring.#parse(secret));
+        return LocalKeyring.#from(LocalKeyring.#parse(secret), environment);
     }
 
     /** Parse a stored keyset. */
@@ -222,7 +270,7 @@ export class LocalKeyring implements Keyring {
     }
 
     /** Import a stored keyset. */
-    static #from(keys: Keyset): Promise<LocalKeyring> {
+    static #from(keys: Keyset, environment: KeyringEnvironment): Promise<LocalKeyring> {
         return LocalKeyring.import(
             keys.active,
             new Map(
@@ -231,20 +279,21 @@ export class LocalKeyring implements Keyring {
                     Uint8Array.fromBase64(value),
                 ]),
             ),
+            environment,
         );
     }
 
-    /** Add a fresh active root key at the next version to a keyset. */
-    static #generate(keys?: Keyset): Keyset {
+    /** Add a fresh active root key at the next version to a keyset, or start a keyset with one. */
+    static #generate(environment: KeyringEnvironment, keys?: Keyset): Keyset {
         const version = Math.max(0, ...Object.keys(keys?.keys ?? {}).map(Number)) + 1;
-        const value = crypto.getRandomValues(new Uint8Array(ROOT_KEY_BYTES));
+        const value = environment.random.bytes(ROOT_KEY_BYTES);
 
         return { active: version, keys: { ...keys?.keys, [String(version)]: value.toBase64() } };
     }
 
     /** Derive a 256-bit secret under a label from a root key version. */
     #derive(version: number, label: Label): Promise<Uint8Array<ArrayBuffer>> {
-        return Derivation.secret(this.#get(version).root, label);
+        return Derivation.secret(this.#get(version).root, label, this.#environment.crypto);
     }
 
     /** Reject unavailable root key versions explicitly. */

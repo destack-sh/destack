@@ -17,10 +17,9 @@
     },
     "dependencies": {
         "@destack/error": "workspace:*",
+        "@destack/environment": "workspace:*",
         "@destack/package": "workspace:*",
-        "@destack/fs": "workspace:*",
-        "@destack/schema": "workspace:*",
-        "jose": "6.2.12"
+        "@destack/schema": "workspace:*"
     },
     "devDependencies": {
         "@destack/test": "workspace:*",

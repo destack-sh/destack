@@ -1,5 +1,7 @@
 import { expect, test } from "@destack/test";
-import { AwsSigner, EMPTY_HASH, type SignableRequest } from "./index.ts";
+import type { Crypto } from "@destack/environment";
+import { Simulation } from "@destack/environment/simulation";
+import { type AwsCredentials, AwsSigner, EMPTY_HASH, type SignableRequest } from "./index.ts";
 
 /** The AWS SigV4 test suite's example credentials. */
 const CREDENTIALS = {
@@ -7,8 +9,10 @@ const CREDENTIALS = {
     secretAccessKey: "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY",
 };
 
-/** The suite's signer of its example service. */
-const SUITE = new AwsSigner({ region: "us-east-1", service: "service", credentials: CREDENTIALS });
+/** Sign as the suite's example service with its example credentials. */
+function suiteSigner(crypto: Crypto, credentials: AwsCredentials = CREDENTIALS): AwsSigner {
+    return new AwsSigner({ region: "us-east-1", service: "service", credentials, crypto });
+}
 
 /** The suite's signing time. */
 const DATE = new Date("2015-08-30T12:36:00Z");
@@ -35,11 +39,12 @@ function suiteRequest(method: string, url: string, headers: Record<string, strin
 }
 
 test("sign the suite's get-vanilla and get-vanilla-query-order-key-case requests", async () => {
-    const vanilla = await SUITE.authorize(
+    const world = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 24) }).environment("test");
+    const vanilla = await suiteSigner(world.crypto).authorize(
         suiteRequest("GET", "https://example.amazonaws.com/"),
         DATE,
     );
-    const ordered = await SUITE.authorize(
+    const ordered = await suiteSigner(world.crypto).authorize(
         suiteRequest("GET", "https://example.amazonaws.com/?Param2=value2&Param1=value1"),
         DATE,
     );
@@ -55,13 +60,14 @@ test("sign the suite's get-vanilla and get-vanilla-query-order-key-case requests
 });
 
 test("sign the suite's post-x-www-form-urlencoded request over its content type and body", async () => {
+    const world = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 24) }).environment("test");
     const request = {
         ...suiteRequest("POST", "https://example.amazonaws.com/", {
             "Content-Type": "application/x-www-form-urlencoded",
         }),
-        payloadHash: await AwsSigner.payloadHash("Param1=value1"),
+        payloadHash: await AwsSigner.payloadHash("Param1=value1", world.crypto),
     };
-    const headers = await SUITE.authorize(request, DATE);
+    const headers = await suiteSigner(world.crypto).authorize(request, DATE);
 
     expect(headers["authorization"]).toBe(
         `${CREDENTIAL}, SignedHeaders=content-type;host;x-amz-date, Signature=ff11897932ad3f4e8b18135d722051e5ac45fc38421b1da7b9d196a0fe09473a`,
@@ -69,11 +75,8 @@ test("sign the suite's post-x-www-form-urlencoded request over its content type 
 });
 
 test("sign the suite's post-sts-header-after request with the session token as a signed header", async () => {
-    const temporary = new AwsSigner({
-        region: "us-east-1",
-        service: "service",
-        credentials: { ...CREDENTIALS, sessionToken: SESSION_TOKEN },
-    });
+    const world = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 24) }).environment("test");
+    const temporary = suiteSigner(world.crypto, { ...CREDENTIALS, sessionToken: SESSION_TOKEN });
     const headers = await temporary.authorize(
         suiteRequest("POST", "https://example.amazonaws.com/"),
         DATE,
@@ -86,7 +89,8 @@ test("sign the suite's post-sts-header-after request with the session token as a
 });
 
 test("encode each path segment again or once as S3 reads it, each query pair, and collapse header whitespace", async () => {
-    const signed = await SUITE.sign(
+    const world = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 24) }).environment("test");
+    const signed = await suiteSigner(world.crypto).sign(
         {
             ...suiteRequest("GET", "https://example.amazonaws.com/a b/ü?key=a b&key=A&tilde=~", {
                 "X-Note": "  one   two  ",

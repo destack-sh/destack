@@ -1,8 +1,10 @@
+import type { Crypto, Environment } from "@destack/environment";
 import type { FamilyError } from "@destack/error";
-import { schema } from "@destack/schema";
+import { schema, Uuid } from "@destack/schema";
 import { IdentityError } from "../error/error.ts";
 import { PublicKey } from "../key/key.ts";
-import { compactVerify, decodeJwt, decodeProtectedHeader, errors, SignJWT } from "jose";
+import { Jws } from "../jose/jws.ts";
+import { Jwt } from "../jose/jwt.ts";
 
 /** The type a key proof declares in its header. */
 const PROOF_TYPE = "key-proof+jwt";
@@ -16,7 +18,7 @@ const PROOF_LENGTH = 4096;
 /** A key proof in its compact serialization, as clients and machines present it. */
 export const CompactProof = schema.string().min(1).max(PROOF_LENGTH);
 
-/** The header carrying a key's proof bound to the request it authenticates (RFC 9449 4.1). */
+/** The header that sends a key's proof, bound to the request it authenticates (RFC 9449 4.1). */
 export const PROOF_HEADER = "dpop";
 
 /** The protected header of a key proof. */
@@ -68,15 +70,15 @@ export class Proof {
 
     /** Create a proof from its named key, claims and serialization. */
     private constructor(
-        parts: Pick<Proof, "thumbprint" | "subject" | "issuedAt" | "id" | "request">,
+        fields: Pick<Proof, "thumbprint" | "subject" | "issuedAt" | "id" | "request">,
         compact: string,
     ) {
         // set the named key, claims and serialization
-        this.thumbprint = parts.thumbprint;
-        this.subject = parts.subject;
-        this.issuedAt = parts.issuedAt;
-        this.id = parts.id;
-        this.request = parts.request;
+        this.thumbprint = fields.thumbprint;
+        this.subject = fields.subject;
+        this.issuedAt = fields.issuedAt;
+        this.id = fields.id;
+        this.request = fields.request;
         this.#compact = compact;
     }
 
@@ -88,7 +90,7 @@ export class Proof {
     /** Decide whether a bearer token is a key proof by its declared type. */
     static is(token: string): boolean {
         try {
-            return decodeProtectedHeader(token).typ === PROOF_TYPE;
+            return Jws.header(token).typ === PROOF_TYPE;
         } catch {
             return false;
         }
@@ -97,8 +99,8 @@ export class Proof {
     /** Read a proof's header and claims, refusing any other serialization, type or algorithm. */
     static read(proof: string): Proof {
         // require the declared type, algorithm, key and claims
-        const header = ProofHeader.safeParse(decoded(() => decodeProtectedHeader(proof)));
-        const claims = ProofClaims.safeParse(decoded(() => decodeJwt(proof)));
+        const header = ProofHeader.safeParse(decodeSegment(() => Jws.header(proof)));
+        const claims = ProofClaims.safeParse(decodeSegment(() => Jwt.claims(proof)));
         if (!header.success || !claims.success) {
             throw invalid("key proof has an invalid header or claims");
         }
@@ -128,22 +130,22 @@ export class Proof {
         publicKey: PublicKey,
         subject: string,
         now: number,
+        environment: Pick<Environment, "crypto" | "random">,
         request?: ProofRequest,
     ): Promise<string> {
-        return new SignJWT({
+        // claim the subject, the time and the request, under the key's thumbprint
+        const { crypto, random } = environment;
+        const claims = {
             sub: subject,
             iat: Math.floor(now / 1000),
-            jti: crypto.randomUUID(),
+            jti: Uuid.v4(random),
             ...(request === undefined
                 ? {}
                 : { htm: request.method, htu: requestTarget(request.url) }),
-        })
-            .setProtectedHeader({
-                alg: "ES256",
-                typ: PROOF_TYPE,
-                kid: await PublicKey.thumbprint(publicKey),
-            })
-            .sign(privateKey);
+        };
+        const kid = await PublicKey.thumbprint(publicKey, crypto);
+
+        return Jwt.sign(claims, { alg: "ES256", typ: PROOF_TYPE, kid }, privateKey, crypto);
     }
 
     /** Verify the proof with its signing key. */
@@ -151,18 +153,17 @@ export class Proof {
         key: PublicKey,
         subject: string,
         now: number,
+        crypto: Crypto,
         request?: ProofRequest,
     ): Promise<void> {
         // require the named key's signature
-        if (this.thumbprint !== (await PublicKey.thumbprint(key))) {
+        if (this.thumbprint !== (await PublicKey.thumbprint(key, crypto))) {
             throw invalid("key proof signature is invalid");
         }
         try {
-            await compactVerify(this.#compact, await PublicKey.import(key), {
-                algorithms: ["ES256"],
-            });
+            await Jws.verify(this.#compact, await PublicKey.import(key, crypto), ["ES256"], crypto);
         } catch (error) {
-            if (!(error instanceof errors.JOSEError)) {
+            if (!IdentityError.is(error)) {
                 throw error;
             }
             throw invalid("key proof signature is invalid", error);
@@ -187,16 +188,16 @@ export class Proof {
 }
 
 /** Refuse a malformed or unverifiable key proof. */
-function invalid(message: string, cause?: unknown): FamilyError<"INVALID_PROOF"> {
-    return IdentityError.of("INVALID_PROOF", message, cause === undefined ? undefined : { cause });
+function invalid(message: string, cause?: unknown): FamilyError<"PROOF_INVALID"> {
+    return IdentityError.of("PROOF_INVALID", message, cause === undefined ? undefined : { cause });
 }
 
-/** Decode a part of a compact JWS, refusing one that is not a JWS. */
-function decoded(decode: () => unknown): unknown {
+/** Decode a segment of a compact JWS, refusing a proof that is not a JWS. */
+function decodeSegment(decode: () => unknown): unknown {
     try {
         return decode();
     } catch (error) {
-        if (!(error instanceof errors.JOSEError || error instanceof TypeError)) {
+        if (!IdentityError.is(error, "TOKEN_MALFORMED")) {
             throw error;
         }
         throw invalid("key proof is not a compact JWS", error);

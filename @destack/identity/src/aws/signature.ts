@@ -1,3 +1,5 @@
+import type { Crypto } from "@destack/environment";
+
 /** The algorithm name Signature Version 4 writes into its string to sign, header and query. */
 export const AWS_ALGORITHM = "AWS4-HMAC-SHA256";
 
@@ -23,7 +25,7 @@ export interface AwsCredentials {
     readonly sessionToken?: string;
 }
 
-/** The parts of an HTTP request a signature covers, as its service canonicalizes them. */
+/** The request members a signature covers, canonicalized as its service does. */
 export interface SignableRequest {
     /** The method, such as POST. */
     readonly method: string;
@@ -61,6 +63,8 @@ export class AwsSigner {
     readonly service: string;
     /** The signing credentials. */
     readonly credentials: AwsCredentials;
+    /** The WebCrypto operations it signs with. */
+    readonly crypto: Crypto;
     /** The signing keys of recent days, by day. */
     readonly #keys = new Map<string, Promise<CryptoKey>>();
 
@@ -69,10 +73,13 @@ export class AwsSigner {
         readonly region: string;
         readonly service: string;
         readonly credentials: AwsCredentials;
+        readonly crypto: Crypto;
     }) {
+        // store the region, service, credentials and WebCrypto
         this.region = options.region;
         this.service = options.service;
         this.credentials = options.credentials;
+        this.crypto = options.crypto;
     }
 
     /** Write a URL's path as SigV4 canonicalizes it. */
@@ -94,15 +101,18 @@ export class AwsSigner {
     }
 
     /** Digest a body as the hexadecimal SHA-256 a signature covers. */
-    static async payloadHash(body: string | Uint8Array<ArrayBuffer>): Promise<string> {
+    static async payloadHash(
+        body: string | Uint8Array<ArrayBuffer>,
+        crypto: Crypto,
+    ): Promise<string> {
         const bytes = typeof body === "string" ? new TextEncoder().encode(body) : body;
 
-        return hex(await crypto.subtle.digest("SHA-256", bytes));
+        return hex(await crypto.digest("SHA-256", bytes));
     }
 
     /** Sign a request at a time, its headers covering the signing time and any session token. */
     async sign(request: SignableRequest, date: Date): Promise<AwsSignature> {
-        // write the canonical headers in lower case, sorted, values trimmed with inner runs of spaces collapsed
+        // write the canonical headers lowercase and sorted, with trimmed values
         const timestamp = AwsSigner.timestamp(date);
         const canonical = new Map<string, string>();
         for (const [name, value] of Object.entries(request.headers)) {
@@ -128,7 +138,7 @@ export class AwsSigner {
             AWS_ALGORITHM,
             timestamp,
             scope,
-            await AwsSigner.payloadHash(canonicalRequest),
+            await AwsSigner.payloadHash(canonicalRequest, this.crypto),
         ].join("\n");
 
         return {
@@ -201,11 +211,7 @@ export class AwsSigner {
     /** Sign a string to sign with the key of a timestamp's day, as streamed chunks are signed. */
     async signString(stringToSign: string, timestamp: string): Promise<string> {
         const key = await this.#key(timestamp.slice(0, 8));
-        const signed = await crypto.subtle.sign(
-            "HMAC",
-            key,
-            new TextEncoder().encode(stringToSign),
-        );
+        const signed = await this.crypto.sign("HMAC", key, new TextEncoder().encode(stringToSign));
 
         return hex(signed);
     }
@@ -228,12 +234,13 @@ export class AwsSigner {
             let key = await hmac(
                 new TextEncoder().encode(`AWS4${this.credentials.secretAccessKey}`),
                 day,
+                this.crypto,
             );
-            for (const part of [this.region, this.service, TERMINATOR]) {
-                key = await hmac(key, part);
+            for (const scope of [this.region, this.service, TERMINATOR]) {
+                key = await hmac(key, scope, this.crypto);
             }
 
-            return crypto.subtle.importKey("raw", key, { name: "HMAC", hash: "SHA-256" }, false, [
+            return this.crypto.importKey("raw", key, { name: "HMAC", hash: "SHA-256" }, false, [
                 "sign",
             ]);
         })();
@@ -274,18 +281,16 @@ function encode(text: string): string {
 }
 
 /** Sign text with HMAC-SHA256 under a raw key. */
-async function hmac(key: Uint8Array<ArrayBuffer>, text: string): Promise<Uint8Array<ArrayBuffer>> {
-    const imported = await crypto.subtle.importKey(
-        "raw",
-        key,
-        { name: "HMAC", hash: "SHA-256" },
-        false,
-        ["sign"],
-    );
+async function hmac(
+    key: Uint8Array<ArrayBuffer>,
+    text: string,
+    crypto: Crypto,
+): Promise<Uint8Array<ArrayBuffer>> {
+    const imported = await crypto.importKey("raw", key, { name: "HMAC", hash: "SHA-256" }, false, [
+        "sign",
+    ]);
 
-    return new Uint8Array(
-        await crypto.subtle.sign("HMAC", imported, new TextEncoder().encode(text)),
-    );
+    return new Uint8Array(await crypto.sign("HMAC", imported, new TextEncoder().encode(text)));
 }
 
 /** Write bytes as lower-case hex. */
