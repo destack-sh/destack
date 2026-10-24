@@ -8,18 +8,29 @@ import { IdentityKeystore, IdentityRegistry } from "@destack/account/identity";
 import { claim, Residency } from "@destack/account/object";
 import accountPackage, { OAUTH_PATH } from "@destack/account/package";
 import { TokenLifetime } from "@destack/account/oauth";
-import { accountServer, DnsOverHttps, Platform, UniverseRole } from "@destack/account/server";
+import {
+    accountServer,
+    DnsOverHttps,
+    Platform,
+    type ReleaseRegistry,
+} from "@destack/account/server";
 import type { Bucket } from "@destack/bucket";
 import { type DatabaseConnection, defineDatabase, Snapshot } from "@destack/db";
 import { DatabasePersonalKeyring, EventStore } from "@destack/event";
 import { type Keyring } from "@destack/identity";
 import type { MailTransport } from "@destack/account/better-auth";
-import { call, type Fetch, PackageMount, type CallKey, tablesOf } from "@destack/object";
+import {
+    call,
+    type CallKey,
+    type Fetch,
+    Installation,
+    PackageMount,
+    tablesOf,
+} from "@destack/object";
 import { Health, Server } from "@destack/object/server";
 import objectServer, { implementPackage, ObjectStore } from "@destack/object/server";
 import { Package, type PackageId } from "@destack/package";
-import type { BuildReader } from "@destack/package/manifest";
-import type { Policy } from "@destack/access";
+import { AccessContext, Authorization, Caller, type Policy } from "@destack/access";
 import { ResourceContext } from "@destack/resource/context";
 import { Digest, present, schema } from "@destack/schema";
 import type { Alarm } from "@destack/db";
@@ -91,23 +102,24 @@ export interface UniverseLink {
     readonly connect: (audience: PackageId) => Fetch;
 }
 
-/** The releases of packages a universe opens, as a registry of builds serves them. */
-export interface ReleaseRegistry {
-    /** Open a package's release. */
-    readonly open: (packageId: PackageId, release: string) => Promise<BuildReader>;
-}
-
 /** A running universe: the object, account, setting and universe packages, each below its mount. */
 export class Universe implements AsyncDisposable {
     /** What the universe declares. */
     readonly definition: UniverseDefinition;
     /** The server of each package, by its identifier. */
     readonly servers: ReadonlyMap<string, Server>;
+    /** The store serving the universe's packages, which runs their internal methods in process. */
+    readonly store: ObjectStore;
 
     /** Create a started universe. */
-    private constructor(definition: UniverseDefinition, servers: ReadonlyMap<string, Server>) {
+    private constructor(
+        definition: UniverseDefinition,
+        servers: ReadonlyMap<string, Server>,
+        store: ObjectStore,
+    ) {
         this.definition = definition;
         this.servers = servers;
+        this.store = store;
     }
 
     /** Start the universe's packages over its database. */
@@ -122,7 +134,7 @@ export class Universe implements AsyncDisposable {
             database,
             kinds: [call.eventKind()],
             files: () => options.events,
-            personal: new DatabasePersonalKeyring(database, keyring),
+            personal: new DatabasePersonalKeyring(database, keyring, options.environment),
             clock,
         });
 
@@ -145,7 +157,7 @@ export class Universe implements AsyncDisposable {
             const steps = [
                 {
                     name: "residencies",
-                    apply: (at: number) => Residency.apply(store, definition.residencies, at),
+                    apply: () => Residency.apply(store, definition.residencies),
                 },
                 ...new Platform(store, definition.platform, definition.stacks.residency).steps(),
             ];
@@ -158,15 +170,18 @@ export class Universe implements AsyncDisposable {
             }
         });
 
-        // serve the account, setting and universe packages over one store
+        // serve the account, setting and universe packages over one store, each as its base installation
+        const base = (handle: (typeof UNIVERSE_PACKAGES)[number]) =>
+            Installation.base(Scope.universe, handle, options.environment.crypto);
         const store: ObjectStore = new ObjectStore({
             servers: [
-                objectServer,
+                objectServer.at(await base(objectPackage)),
                 accountServer({
                     resolver: new DnsOverHttps((request) => network.fetch(request)),
                     stacks: definition.stacks,
                     signIn: signIn.promise,
-                }),
+                    releases,
+                }).at(await base(accountPackage)),
                 settingServer({
                     declared: Setting.declared((value) =>
                         releases.open(
@@ -175,11 +190,11 @@ export class Universe implements AsyncDisposable {
                         ),
                     ),
                     after: [],
-                }),
+                }).at(await base(settingPackage)),
                 implementPackage(universePackage, {
                     objects: applied.objects,
                     controllers: applied.controllers,
-                }),
+                }).at(await base(universePackage)),
             ],
             // follow no chain at the universe, the root of every chain
             chain: async () => undefined,
@@ -188,21 +203,29 @@ export class Universe implements AsyncDisposable {
             policies: options.policies,
             database,
             claims: { object: claim },
-            clock,
+            environment: options.environment,
             callKey,
             events,
             origin: { package: Package.of(accountPackage) },
             // follow the residencies' homes where their machines answer
             publisher: (scope) =>
-                directory.publisher(scope, connect(objectPackage.id), () => clock.now()),
+                directory.publisher(scope, connect(objectPackage.id), options.environment),
         });
 
-        // trust the universe as its own owner, and start applying its definition unless a run applies it
-        await UniverseRole.trust(store, now);
-        const digest = await Digest.json(definition);
-        await store.mutate(store.serving(apply.run), {
-            id: RequestId.create(now),
-            calls: [apply.start({ digest }, { key: digest, actor: Scope.universe })],
+        // receive the universe at its first start, and start applying its definition unless a run applies it
+        await Authorization.run(
+            store.authorizer,
+            store.database,
+            () => AccessContext.of(Caller.of(Scope.universe), now),
+            store.environment,
+            (authorization) =>
+                Installation.receive(authorization, Scope.universe, [], UNIVERSE_PACKAGES, store),
+        );
+        const digest = await Digest.json(definition, options.environment.crypto);
+        const applier = store.as(apply.run);
+        await store.mutate(applier, {
+            id: RequestId.create(store.environment),
+            calls: [apply.start({ digest }, { key: digest, actor: applier.subject })],
         });
         const [started] = await Snapshot.live(database)
             .read(apply.run.table)
@@ -214,7 +237,7 @@ export class Universe implements AsyncDisposable {
             keyring,
             database,
             IdentityRegistry.of(store),
-            clock,
+            options.environment,
         );
 
         // key the universe's sensitive columns with its identity's column key
@@ -223,7 +246,6 @@ export class Universe implements AsyncDisposable {
         signIn.resolve(
             await BetterAuthAuthenticator.create({
                 keystore,
-                clock,
                 callKey,
                 issuer,
                 trustedOrigins: [origin],
@@ -240,6 +262,7 @@ export class Universe implements AsyncDisposable {
         // call packages in spaces as the universe, with tokens its identity signs, its own origin on loopback
         const source = keystore.source(database, Scope.universe, {
             issuer,
+            environment: options.environment,
             send: async (request) =>
                 request.url.startsWith(origin)
                     ? await (await serving.promise).fetch(request)
@@ -265,7 +288,7 @@ export class Universe implements AsyncDisposable {
                 implementation.package.id,
                 Server.start({
                     ...implementation,
-                    clock,
+                    environment: options.environment,
                     health: new Health(implementation.package.name),
                     resources: new ResourceContext(),
                     authenticate: (request) =>
@@ -274,6 +297,7 @@ export class Universe implements AsyncDisposable {
                             issuer,
                             audience: implementation.package.id,
                             now: clock.now(),
+                            environment: options.environment,
                         }),
                     authorizeMachine: async () => {},
                     drainTimeout: DRAIN_MILLISECONDS,
@@ -283,7 +307,7 @@ export class Universe implements AsyncDisposable {
                 }),
             ]),
         );
-        const universe = new Universe(definition, servers);
+        const universe = new Universe(definition, servers, store);
         serving.resolve(universe);
 
         return universe;

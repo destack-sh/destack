@@ -1,6 +1,8 @@
 import { Account, group, Placement } from "@destack/account/object";
 import accountPackage from "@destack/account/package";
+import { DOMAINS, MachineAddress } from "@destack/account/address";
 import { expect, test } from "@destack/test";
+import { TestMachine } from "./machine.ts";
 import { TestUniverse } from "./universe.ts";
 
 test("sign a person up through the mailed code a native client redeems, make an example's calls in their account, and refuse an example it cannot make", async () => {
@@ -43,16 +45,17 @@ test("place a person's home on their residency's cloud machine, as the machine's
     expect(placed).toEqual({ id: home, scope: ada.account, machine: machine.id, epoch: 1 });
 });
 
-test("enroll a person's machine of their account and publish where it answers, as the directory reads it", async () => {
-    // enroll ada's machine in her personal account at its origin, and follow the directory as it
+test("enroll a person's machine of their account, published at its name through its residency's relay, as the directory reads it", async () => {
+    // enroll ada's machine in her personal account behind a relay, and follow the directory as it
     await using universe = await TestUniverse.open();
     const ada = await universe.signIn("ada@example.test");
-    const machine = await universe.enroll(ada, ada.account, "https://ada.machine.test/");
+    const machine = await universe.enroll(ada, ada.account, "https://eu.relay.test");
     await universe.settle();
     await machine.settle();
 
-    // locate the machine at its origin
+    // locate the machine at its name below her handle
+    const name = { machine: TestMachine.nameOf(machine.id), handle: ada.handle };
     expect(await machine.directory.answering(machine.id, universe.clock.now())).toBe(
-        "https://ada.machine.test/",
+        `https://${MachineAddress.format(name, DOMAINS.machine)}`,
     );
 });
