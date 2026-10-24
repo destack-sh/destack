@@ -14,6 +14,23 @@ CALL_ERROR_STATUSES.MISDIRECTED_REQUEST; // 421
 const code: CallErrorCode = "PAYMENT_REQUIRED"; // 402
 ```
 
+## Families
+
+`defineErrorFamily` declares a package's reasons and the code each answers.
+
+```ts
+import { defineErrorFamily } from "@destack/error";
+
+const NoteError = defineErrorFamily(import.meta.destack.package, {
+    NOTE_NOT_FOUND: { code: "NOT_FOUND" },
+    NOTE_LOCKED: { code: "CONFLICT", data: schema.object({ holder: schema.string() }) },
+});
+
+throw NoteError.of("NOTE_LOCKED", "note-1 is locked", { data: { holder: "ada" } });
+if (NoteError.is(error, "NOTE_LOCKED")) error.data.holder; // "ada", raised here or returned by a call
+NoteError.reason; // the schema of the reason names
+```
+
 ## Domain errors
 
 A `DomainError` is a package's failure that knows the `Failure` its caller receives, its `reason` a cause within the package's domain.
@@ -23,7 +40,12 @@ import { DomainError, type Failure } from "@destack/error";
 
 class NoteError extends Error implements DomainError {
     toCallError(): Failure {
-        return { code: "NOT_FOUND", reason: "NOTE_NOT_FOUND", domain: "@example/notes", message: this.message };
+        return {
+            code: "NOT_FOUND",
+            reason: "NOTE_NOT_FOUND",
+            domain: "@example/notes",
+            message: this.message,
+        };
     }
 }
 

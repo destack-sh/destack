@@ -45,7 +45,7 @@ export const Failure = Object.assign(failureSchema, {
         if (DomainError.is(error)) {
             return error.toCallError();
         }
-        // read a call error by its code, reason and details, one without a reason as HTTP's
+        // read a call error by its code, reason and details
         else if (
             error instanceof Error &&
             "code" in error &&
@@ -56,16 +56,14 @@ export const Failure = Object.assign(failureSchema, {
                 "data" in error && error.data !== undefined
                     ? { data: JsonValue.of(error.data) }
                     : {};
-            const reason =
-                "reason" in error && typeof error.reason === "string" ? error.reason : undefined;
+            const named = FailureReason.safeParse("reason" in error ? error.reason : undefined);
+            const reason = named.success ? named.data : undefined;
             const domain =
                 "domain" in error && typeof error.domain === "string" ? error.domain : undefined;
 
             return {
                 ...Failure.http(error.code, error.message),
-                ...(reason === undefined || domain === undefined
-                    ? {}
-                    : { reason: FailureReason.parse(reason), domain }),
+                ...(reason === undefined || domain === undefined ? {} : { reason, domain }),
                 ...data,
             };
         }
@@ -106,6 +104,7 @@ export const Failure = Object.assign(failureSchema, {
             code: failure.code,
             reason: failure.reason,
             domain: failure.domain,
+            data: failure.data,
             toCallError: (): Failure => failure,
         });
     },
@@ -117,7 +116,7 @@ export const Failure = Object.assign(failureSchema, {
 
     /** Read the failure a failed response answers: its body's, else its status's with the text. */
     async read(response: Response): Promise<Failure> {
-        // read the body's failure, one without a reason as HTTP's
+        // read the body's failure
         const text = await response.text();
         const answered = failureSchema
             .partial({ reason: true, domain: true })

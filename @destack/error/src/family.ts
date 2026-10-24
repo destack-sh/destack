@@ -35,6 +35,21 @@ export const ReasonDescription = Failure.pick({ domain: true, reason: true, code
 /** A reason as the manifest lists it. */
 export type ReasonDescription = schema.Infer<typeof ReasonDescription>;
 
+/** A thrown failure of one reason a family declares, raised here or decoded from a call. */
+export type FamilyFailure<
+    Reason extends string = string,
+    Data extends JsonValue | undefined = JsonValue | undefined,
+> = Error & {
+    /** The package whose reason it is. */
+    readonly domain: string;
+    /** The failure's stable cause within its package. */
+    readonly reason: Reason;
+    /** The call error code a caller receives. */
+    readonly code: CallErrorCode;
+    /** The structured details. */
+    readonly data: Data;
+};
+
 /** A failure of one reason a family declares, as a caller receives it. */
 export class FamilyError<
     Reason extends string = string,
@@ -91,11 +106,18 @@ export class ErrorFamily<Declared extends ReasonDeclarations> {
     readonly domain: string;
     /** The declared reasons, by name. */
     readonly reasons: Declared;
+    /** The schema of the family's reason names, such as for a column storing a reason. */
+    readonly reason: schema.Schema<keyof Declared & string, keyof Declared & string>;
 
     /** Create a family of a package's declared reasons. */
     constructor(domain: string, reasons: Declared) {
         this.domain = domain;
         this.reasons = reasons;
+        this.reason = schema.enum(
+            Object.keys(reasons).filter((name): name is keyof Declared & string =>
+                Object.hasOwn(reasons, name),
+            ),
+        );
     }
 
     /** Create a failure of a reason, with the data its schema checks when it declares one. */
@@ -115,18 +137,29 @@ export class ErrorFamily<Declared extends ReasonDeclarations> {
         );
     }
 
-    /** Report whether a value is a failure of this family, of one reason when given. */
+    /** Report whether a thrown value is a failure of this family, raised or decoded. */
     is<const Reason extends keyof Declared & string = keyof Declared & string>(
         value: unknown,
         reason?: Reason,
-    ): value is FamilyError<Reason, ReasonDetail<Declared[Reason]>> {
-        // match the family's domain, then one of its reasons or the given one
-        if (!(value instanceof FamilyError) || value.domain !== this.domain) {
+    ): value is FamilyFailure<Reason, ReasonDetail<Declared[Reason]>> {
+        // read the value as the failure its caller receives
+        if (!(value instanceof Error)) {
             return false;
         }
-        const failed = value.toCallError().reason;
+        const failure = Failure.of(value);
 
-        return reason === undefined ? Object.hasOwn(this.reasons, failed) : failed === reason;
+        // match the domain and reason
+        const declared = Object.hasOwn(this.reasons, failure.reason)
+            ? this.reasons[failure.reason]
+            : undefined;
+        if (failure.domain !== this.domain || declared === undefined) {
+            return false;
+        }
+
+        // require the declared data
+        const isData = declared.data === undefined || declared.data.safeParse(failure.data).success;
+
+        return isData && (reason === undefined || failure.reason === reason);
     }
 
     /** Describe the family's reasons as the manifest lists them. */

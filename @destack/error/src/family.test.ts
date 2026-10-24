@@ -1,6 +1,7 @@
 import { schema } from "@destack/schema";
 import { expect, test } from "vitest";
 import { defineErrorFamily } from "./family.ts";
+import { Failure } from "./failure.ts";
 
 /** A note package's errors, one with typed data. */
 const NoteError = defineErrorFamily(
@@ -25,6 +26,11 @@ test("declare a package's reasons, convert their failures to call errors, tell i
         cause: missing,
     });
 
+    // decode failures as a call returns them
+    const decoded = Failure.error(missing.toCallError());
+    const received = Failure.error(locked.toCallError());
+    const foreign = Failure.error({ ...locked.toCallError(), data: { holder: 7 } });
+
     // convert, recognise and describe them
     expect({
         calls: [missing.toCallError(), locked.toCallError()],
@@ -35,7 +41,12 @@ test("declare a package's reasons, convert their failures to call errors, tell i
             NoteError.is(missing, "NOTE_LOCKED"),
             PageError.is(missing),
             NoteError.is(new Error("note note-1 not found")),
+            NoteError.is(decoded, "NOTE_NOT_FOUND"),
+            PageError.is(decoded),
+            NoteError.is(received, "NOTE_LOCKED"),
+            NoteError.is(foreign, "NOTE_LOCKED"),
         ],
+        data: NoteError.is(received, "NOTE_LOCKED") ? received.data : undefined,
         described: NoteError.describe(),
     }).toEqual({
         calls: [
@@ -54,7 +65,8 @@ test("declare a package's reasons, convert their failures to call errors, tell i
             },
         ],
         cause: missing,
-        is: [true, true, false, false, false],
+        is: [true, true, false, false, false, true, false, true, false],
+        data: { holder: "ada" },
         described: [
             { domain: "@destack/note", reason: "NOTE_NOT_FOUND", code: "NOT_FOUND" },
             { domain: "@destack/note", reason: "NOTE_LOCKED", code: "CONFLICT" },
