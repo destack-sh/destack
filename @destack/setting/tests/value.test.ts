@@ -25,7 +25,7 @@ test("write declared values at their placements and refuse invalid, undeclared a
         values.create({
             ...placed,
             value: "vim",
-            requestId: RequestId.create(Date.now()),
+            requestId: RequestId.create(served.environment),
             ...input,
         });
 
@@ -36,7 +36,7 @@ test("write declared values at their placements and refuse invalid, undeclared a
         scope: alice,
         id: override.id,
         value: "vim",
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(served.environment),
     });
     const rows = await served.database
         .select()
@@ -78,7 +78,7 @@ test("write declared values at their placements and refuse invalid, undeclared a
     // refuse duplicate, invalid, later, undeclared and misplaced values as the client receives them
     const mismatch = [
         "BAD_REQUEST",
-        "INVALID_VALUE",
+        "VALUE_INVALID",
         "setting value does not match its declaration",
     ];
     expect([
@@ -89,7 +89,7 @@ test("write declared values at their placements and refuse invalid, undeclared a
                 scope: alice,
                 id: base.id,
                 value: "emacs",
-                requestId: RequestId.create(Date.now()),
+                requestId: RequestId.create(served.environment),
             }),
         ),
         await refusal(create({ release: "2026.10.0" })),
@@ -106,16 +106,16 @@ test("write declared values at their placements and refuse invalid, undeclared a
         mismatch,
         [
             "BAD_REQUEST",
-            "INVALID_VALUE",
+            "VALUE_INVALID",
             "setting value is at release 2026.10.0, but its declaration is at 2026.9.0",
         ],
         [
             "NOT_FOUND",
-            "UNDECLARED",
+            "SETTING_UNDECLARED",
             `setting ${editor.reference.packageId}/editor.theme is not declared`,
         ],
-        ["BAD_REQUEST", "INVALID_PLACEMENT", "setting value in its declared scope must be set"],
-        ["BAD_REQUEST", "INVALID_PLACEMENT", "setting value uses an unsupported setting override"],
+        ["BAD_REQUEST", "PLACEMENT_INVALID", "setting value in its declared scope must be set"],
+        ["BAD_REQUEST", "PLACEMENT_INVALID", "setting value uses an unsupported setting override"],
     ]);
 });
 
@@ -131,7 +131,7 @@ test("resolve a setting from the values placed along a scope's chain, and its de
             mode: "set",
             value: "vim",
             release: editor.package.version,
-            requestId: RequestId.create(Date.now()),
+            requestId: RequestId.create(served.environment),
         });
 
     // resolve the set value and the other setting's default
@@ -156,7 +156,7 @@ test("read the retention a package's setting of days gives a space that sets it,
             mode: "set",
             value: 7,
             release: history.package.version,
-            requestId: RequestId.create(Date.now()),
+            requestId: RequestId.create(kept.environment),
         });
 
     // read the space's week, the default in the other space, and the default in Alice's personal scope
@@ -166,6 +166,26 @@ test("read the retention a package's setting of days gives a space that sets it,
         await SettingValue.retention(other.database)(definition, history.package, other.scope),
         await SettingValue.retention(personal.database)(definition, history.package, alice),
     ]).toEqual([7 * DAY, 30 * DAY, 30 * DAY]);
+});
+
+test("refuse reading the retention of a days setting declared without a default", async () => {
+    // describe the history setting as required, with no default to resolve to
+    await using kept = await openSettings();
+    const { default: _default, ...required } = history.definition;
+
+    expect(
+        await refusal(
+            SettingValue.retention(kept.database)(
+                { ...required, required: true },
+                history.package,
+                kept.scope,
+            ),
+        ),
+    ).toEqual([
+        "PRECONDITION_FAILED",
+        "DEFAULT_MISSING",
+        `retention setting ${history.definition.name} of ${history.package.name} has no default`,
+    ]);
 });
 
 test("follow a scope's values for a setting and yield them again after a change", async () => {
@@ -178,7 +198,7 @@ test("follow a scope's values for a setting and yield them again after a change"
         mode: "set",
         value: "vim",
         release: editor.package.version,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(served.environment),
     });
 
     // read the values before and after a change, stopping the follower with the test
@@ -195,7 +215,7 @@ test("follow a scope's values for a setting and yield them again after a change"
         scope: alice,
         id: created.id,
         value: "standard",
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(served.environment),
     });
     const second = await followed.next();
 

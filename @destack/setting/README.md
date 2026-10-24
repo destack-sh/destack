@@ -28,6 +28,8 @@ await client
     .create({ ...editorMode.reference, ...placement, mode: "set", value: "vim", release });
 ```
 
+## Stack values
+
 A stack declares a space's values under `settings`, and stamps each with the release of the build declaring the setting.
 
 ```ts
@@ -56,7 +58,7 @@ const mode = await SettingValue.resolve(Snapshot.live(database), editorMode, {
 
 ```ts
 for await (const { chain, values } of SettingValue.replicate(
-    { endpoint, scope: userId, caller, database, settings: [editorMode.reference], clock },
+    { endpoint, scope: userId, caller, database, settings: [editorMode.reference], environment },
     signal,
 )) {
     editorMode.resolve(selection, values, chain);

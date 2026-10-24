@@ -6,7 +6,7 @@ import { fromJsonSchema, nth, schema, Version, canonicalize } from "@destack/sch
 import type { JsonObject, JsonValue } from "@destack/schema";
 import { Expression, Condition, type Table } from "@destack/db";
 import type { RelationalQueryBuilder } from "@destack/db";
-import type { SettingDefinition } from "../declare/setting.ts";
+import type { SettingDefault, SettingDefinition } from "../declare/setting.ts";
 import type { SettingValue } from "../object/setting.ts";
 import type { DeviceSettingValue } from "../object/device-setting.ts";
 import type { SettingResolution, SettingSource } from "./resolution.ts";
@@ -83,8 +83,10 @@ const fields = SettingMetadata.extend({
     package: Package,
     /** The value's JSON Schema. */
     schema: schema.jsonObject(),
-    /** The default value. */
-    default: schema.json(),
+    /** The default value, absent for a required setting. */
+    default: schema.json().exactOptional(),
+    /** Whether each scope must place a value, as the setting has no default. */
+    required: schema.literal(true).exactOptional(),
     /** The conversions of earlier values, by the release introducing each. */
     convert: schema.record(Version, Expression.schema).exactOptional(),
 });
@@ -108,24 +110,42 @@ export type SettingWrite = Omit<SettingPlacement, "scope"> & {
     readonly release: Version;
 };
 
-/** A typed setting declaration. */
-export class Setting<Value extends schema.Schema = schema.Schema> {
+/** A typed setting declaration, typed by whether it has a default. */
+export class Setting<
+    Value extends schema.Schema = schema.Schema,
+    Default extends SettingDefault<Value> = SettingDefault<Value>,
+> {
     /** The declaring package. */
     readonly package: Package;
     /** The name, schema, default, scopes and conversions. */
-    readonly definition: SettingDefinition<Value>;
+    readonly definition: SettingDefinition<Value, Default>;
 
-    /** Hold a checked declaration. */
-    constructor(owner: Package, definition: SettingDefinition<Value>) {
+    /** Create a setting from a checked declaration. */
+    constructor(owner: Package, definition: SettingDefinition<Value, Default>) {
         this.package = owner;
         this.definition = definition;
     }
 
     /** Rebuild a setting from its description, its schema from its JSON Schema. */
     static of(description: SettingDescription): Setting {
-        const { package: owner, schema: valueSchema, ...definition } = description;
+        // require exactly one of a default and a requirement
+        const {
+            package: owner,
+            schema: valueSchema,
+            default: given,
+            required,
+            ...definition
+        } = description;
+        if ((given === undefined) !== (required === true)) {
+            throw new TypeError(`setting ${definition.name} needs either a default or required`);
+        }
+        const defaulted = given === undefined ? { required: true as const } : { default: given };
 
-        return new Setting(owner, { ...definition, schema: fromJsonSchema(valueSchema) });
+        return new Setting(owner, {
+            ...definition,
+            ...defaulted,
+            schema: fromJsonSchema(valueSchema),
+        });
     }
 
     /** Read the settings a build declares, in declaration order. */
@@ -145,7 +165,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         const key = DeclarationReference.key(reference);
         const setting = settings.find((each) => DeclarationReference.key(each.reference) === key);
         if (setting === undefined) {
-            throw SettingError.of("UNDECLARED", `setting ${key} is not declared`);
+            throw SettingError.of("SETTING_UNDECLARED", `setting ${key} is not declared`);
         }
 
         return setting;
@@ -177,7 +197,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         const key = DeclarationReference.key(this.reference);
         if (!Object.hasOwn(settings, key)) {
             throw SettingError.of(
-                "UNDECLARED",
+                "SETTING_UNDECLARED",
                 `the installation's machine did not resolve ${key}`,
             );
         }
@@ -212,12 +232,23 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
     ): SettingResolution<schema.Infer<Value>> {
         // rank the default and each applicable placed and device value of a selection of the setting's scope
         this.#requireSelectable(selection);
-        const { ordinary, required, invalid } = this.#candidates(values, selection, chain, device);
+        const { ordinary, enforced, invalid } = this.#candidates(values, selection, chain, device);
+
+        // refuse a setting without a default that no scope placed, or placed only invalid values
+        const key = DeclarationReference.key(this.reference);
+        if (ordinary.length === 0 && enforced.length === 0 && invalid.length === 0) {
+            throw SettingError.of("SETTING_UNSET", `setting ${key} has no default and is not set`);
+        } else if (ordinary.length === 0 && enforced.length === 0) {
+            throw SettingError.of(
+                "SETTING_INVALID",
+                `setting ${key} has no default and no valid value`,
+            );
+        }
 
         // combine each key from its own nearest placement for a setting merging keys, or take one value
         return this.definition.merge === "key"
-            ? this.#mergeKeys(selection, ordinary, required, invalid)
-            : this.#decide(selection, ordinary, required, invalid);
+            ? this.#mergeKeys(selection, ordinary, enforced, invalid)
+            : this.#decide(selection, ordinary, enforced, invalid);
     }
 
     /** Report whether devices store values of this setting. */
@@ -235,7 +266,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
                 : schema.identifier(this.definition.scope).safeParse(selection.scope).success;
         if (!isSelectable) {
             throw SettingError.of(
-                "INVALID_PLACEMENT",
+                "PLACEMENT_INVALID",
                 "setting scope does not match the selected scope",
             );
         }
@@ -249,19 +280,23 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         device: readonly DeviceSettingValue[],
     ): {
         readonly ordinary: Candidate[];
-        readonly required: Candidate[];
+        readonly enforced: Candidate[];
         readonly invalid: SettingSource[];
     } {
-        // collect the default and each applicable value of this setting, apart from invalid ones
-        const ordinary: Candidate[] = [
-            {
-                rank: [DEFAULT_TIER, 0],
-                source: { kind: "default", package: this.package },
-                value: this.definition.default,
-                mode: "set",
-            },
-        ];
-        const required: Candidate[] = [];
+        // collect the default of a setting with one, and each applicable value apart from invalid ones
+        const { definition } = this;
+        const ordinary: Candidate[] =
+            "default" in definition
+                ? [
+                      {
+                          rank: [DEFAULT_TIER, 0],
+                          source: { kind: "default", package: this.package },
+                          value: definition.default,
+                          mode: "set",
+                      },
+                  ]
+                : [];
+        const enforced: Candidate[] = [];
         const invalid: SettingSource[] = [];
         const candidates = [
             ...values.map((value) => this.#candidate(value, selection, chain)),
@@ -274,23 +309,23 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
             }
             // a requirement or an ordinary value
             else {
-                (candidate.mode === "require" ? required : ordinary).push(candidate);
+                (candidate.mode === "require" ? enforced : ordinary).push(candidate);
             }
         }
 
         // order candidates independently of arrival order
         ordinary.sort((left, right) => compareRanks(left, right) || compareSources(left, right));
-        required.sort(compareSources);
+        enforced.sort(compareSources);
         invalid.sort((left, right) => compareCanonical(left, right));
 
-        return { ordinary, required, invalid };
+        return { ordinary, enforced, invalid };
     }
 
     /** Decide one value: agreeing requirements, or else the highest-ranked candidates. */
     #decide(
         selection: SettingSelection,
         ordinary: readonly Candidate[],
-        required: readonly Candidate[],
+        enforced: readonly Candidate[],
         invalid: readonly SettingSource[],
     ): SettingResolution<schema.Infer<Value>> {
         // reject equally ranked candidates other than agreeing recommendations
@@ -303,29 +338,29 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
                 equalValue(previous.value, current.value);
             if (compareRanks(previous, current) === 0 && !isShared) {
                 throw SettingError.of(
-                    "CONFLICTING_VALUES",
+                    "VALUES_CONFLICTING",
                     "multiple setting values have the same precedence",
                 );
             }
         }
 
         // reject disagreeing requirements
-        const [requirement] = required;
+        const [requirement] = enforced;
         if (
             requirement !== undefined &&
-            required.some((candidate) => !equalValue(candidate.value, requirement.value))
+            enforced.some((candidate) => !equalValue(candidate.value, requirement.value))
         ) {
-            throw SettingError.of("CONFLICTING_VALUES", "required setting values conflict");
+            throw SettingError.of("VALUES_CONFLICTING", "required setting values conflict");
         }
 
         // take the requirements, or else the highest ranked candidates
         const winner = requirement ?? nth(ordinary, -1);
         const winners =
-            required.length > 0
-                ? required
+            enforced.length > 0
+                ? enforced
                 : ordinary.filter((candidate) => compareRanks(candidate, winner) === 0);
         const overridden =
-            required.length > 0
+            enforced.length > 0
                 ? ordinary
                 : ordinary.filter((candidate) => compareRanks(candidate, winner) < 0);
 
@@ -335,7 +370,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
             value: this.definition.schema.parse(winner.value),
             sources: [...winners.map((candidate) => candidate.source), ...invalid],
             overridden: overridden.map((candidate) => candidate.source),
-            enforcement: required.length > 0 ? "required" : "ordinary",
+            enforcement: enforced.length > 0 ? "required" : "ordinary",
         };
     }
 
@@ -343,13 +378,13 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
     #mergeKeys(
         selection: SettingSelection,
         ordinary: readonly Candidate[],
-        required: readonly Candidate[],
+        enforced: readonly Candidate[],
         invalid: readonly SettingSource[],
     ): SettingResolution<schema.Infer<Value>> {
         // decide each key from the candidates setting it
         const value: Record<string, JsonValue> = {};
         const keys: NonNullable<SettingResolution["keys"]> = {};
-        for (const [key, candidates] of keyCandidates(ordinary, required)) {
+        for (const [key, candidates] of keyCandidates(ordinary, enforced)) {
             const decided = decideKey(key, candidates);
             value[key] = decided.value;
             keys[key] = decided.key;
@@ -357,7 +392,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
 
         // report the default and the candidates deciding a key as sources, the rest as overridden
         const decided = new Set(Object.values(keys).map((key) => key.source));
-        const candidates = [...ordinary, ...required];
+        const candidates = [...ordinary, ...enforced];
         const isSource = (candidate: Candidate) =>
             candidate.source.kind === "default" || decided.has(candidate.source);
 
@@ -372,7 +407,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
             overridden: candidates
                 .filter((candidate) => !isSource(candidate))
                 .map((candidate) => candidate.source),
-            enforcement: required.length > 0 ? "required" : "ordinary",
+            enforcement: enforced.length > 0 ? "required" : "ordinary",
             keys,
         };
     }
@@ -381,7 +416,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
     requireValue(value: unknown): schema.Infer<Value> {
         const parsed = this.definition.schema.safeParse(value);
         if (!parsed.success) {
-            throw SettingError.of("INVALID_VALUE", "setting value does not match its declaration");
+            throw SettingError.of("VALUE_INVALID", "setting value does not match its declaration");
         }
 
         return parsed.data;
@@ -393,7 +428,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         const converted = this.#convert(write.value, write.release);
         if (!converted.isConverted) {
             throw SettingError.of(
-                "INVALID_VALUE",
+                "VALUE_INVALID",
                 `setting value is at release ${write.release}, but its declaration is at ${this.package.version}`,
             );
         }
@@ -414,14 +449,14 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         // require set values in the setting's declared scope
         if (position === "declared" && value.mode !== "set") {
             throw SettingError.of(
-                "INVALID_PLACEMENT",
+                "PLACEMENT_INVALID",
                 "setting value in its declared scope must be set",
             );
         }
         // require recommendations or requirements from enclosing scopes
         else if (position === "enclosing" && value.mode === "set") {
             throw SettingError.of(
-                "INVALID_PLACEMENT",
+                "PLACEMENT_INVALID",
                 "setting value outside its declared scope must be a recommendation or a requirement",
             );
         }
@@ -429,7 +464,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         // refuse an installation together with its space
         if (value.installation !== undefined && value.space !== undefined) {
             throw SettingError.of(
-                "INVALID_PLACEMENT",
+                "PLACEMENT_INVALID",
                 "setting value has both an installation and its space",
             );
         }
@@ -448,7 +483,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
             .map(([override]) => override);
         if (overrides.some((override) => !permitted.includes(override))) {
             throw SettingError.of(
-                "INVALID_PLACEMENT",
+                "PLACEMENT_INVALID",
                 "setting value uses an unsupported setting override",
             );
         }
@@ -490,7 +525,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
             return undefined;
         } else if (!this.isDeviceStored()) {
             throw SettingError.of(
-                "INVALID_PLACEMENT",
+                "PLACEMENT_INVALID",
                 `devices cannot store values of ${DeclarationReference.key(this.reference)}`,
             );
         }
@@ -535,7 +570,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         // refuse a value set in another scope, such as another user's
         else if (value.mode === "set") {
             throw SettingError.of(
-                "INVALID_PLACEMENT",
+                "PLACEMENT_INVALID",
                 "the resolution got a value set in another scope",
             );
         }
@@ -545,7 +580,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
             const depth = chain.indexOf(value.scope);
             if (depth === -1) {
                 throw SettingError.of(
-                    "INVALID_PLACEMENT",
+                    "PLACEMENT_INVALID",
                     "the resolution got a value from outside the selection's scope chain",
                 );
             }
@@ -620,22 +655,22 @@ interface KeyCandidates {
     /** The ordinary candidates, in ascending rank. */
     readonly ordinary: Candidate[];
     /** The requirements. */
-    readonly required: Candidate[];
+    readonly enforced: Candidate[];
 }
 
 /** Collect the candidates setting each key of a merged setting's record values. */
 function keyCandidates(
     ordinary: readonly Candidate[],
-    required: readonly Candidate[],
+    enforced: readonly Candidate[],
 ): Map<string, KeyCandidates> {
     const setting = new Map<string, KeyCandidates>();
     for (const [candidates, kind] of [
         [ordinary, "ordinary"],
-        [required, "required"],
+        [enforced, "enforced"],
     ] as const) {
         for (const candidate of candidates) {
             for (const key of Object.keys(recordOf(candidate.value))) {
-                const entry = setting.get(key) ?? { ordinary: [], required: [] };
+                const entry = setting.get(key) ?? { ordinary: [], enforced: [] };
                 entry[kind].push(candidate);
                 setting.set(key, entry);
             }
@@ -652,14 +687,14 @@ function decideKey(
 ): { readonly value: JsonValue; readonly key: NonNullable<SettingResolution["keys"]>[string] } {
     // refuse disagreeing requirements
     const entryOf = (candidate: Candidate) => recordOf(candidate.value)[key] ?? null;
-    const [requirement] = candidates.required;
+    const [requirement] = candidates.enforced;
     if (
         requirement !== undefined &&
-        candidates.required.some(
+        candidates.enforced.some(
             (candidate) => !equalValue(entryOf(candidate), entryOf(requirement)),
         )
     ) {
-        throw SettingError.of("CONFLICTING_VALUES", `required values of ${key} conflict`);
+        throw SettingError.of("VALUES_CONFLICTING", `required values of ${key} conflict`);
     }
 
     // take the requirement or the highest ranked candidate, refusing a tie of different values
@@ -671,14 +706,17 @@ function decideKey(
         requirement === undefined &&
         tied.some((candidate) => !equalValue(entryOf(candidate), entryOf(winner)))
     ) {
-        throw SettingError.of("CONFLICTING_VALUES", `multiple values of ${key} have the same precedence`);
+        throw SettingError.of(
+            "VALUES_CONFLICTING",
+            `multiple values of ${key} have the same precedence`,
+        );
     }
 
     return {
         value: entryOf(winner),
         key: {
             source: winner.source,
-            overridden: [...candidates.ordinary, ...candidates.required]
+            overridden: [...candidates.ordinary, ...candidates.enforced]
                 .filter((candidate) => candidate !== winner)
                 .map((candidate) => candidate.source),
             enforcement: requirement === undefined ? "ordinary" : "required",

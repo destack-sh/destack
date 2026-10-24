@@ -44,7 +44,7 @@ test("set, recommend and require declared values in the space and refuse undecla
             scope: spaceId,
             document,
             applied,
-        }).apply(Date.now());
+        }).apply(served.environment.clock.now());
         applied = document;
 
         return plan;
@@ -110,11 +110,11 @@ test("set, recommend and require declared values in the space and refuse undecla
         await refusal(apply({ theme: { ...unknown, value: "vim", mode: "recommend" } })),
         await refusal(apply({ editor: { ...editor.reference, value: "vim", mode: "set" } })),
     ]).toEqual([
-        ["BAD_REQUEST", "INVALID_VALUE", "setting value does not match its declaration"],
-        ["NOT_FOUND", "UNDECLARED", `setting ${notes.id}/editor.theme is not declared`],
+        ["BAD_REQUEST", "VALUE_INVALID", "setting value does not match its declaration"],
+        ["NOT_FOUND", "SETTING_UNDECLARED", `setting ${notes.id}/editor.theme is not declared`],
         [
             "BAD_REQUEST",
-            "INVALID_PLACEMENT",
+            "PLACEMENT_INVALID",
             "setting value outside its declared scope must be a recommendation or a requirement",
         ],
     ]);
@@ -159,7 +159,7 @@ test("stamp a declared value with the release of the build declaring its setting
             settings: { editor: { ...editor.reference, value: "vim", mode: "recommend" } },
         },
         applied: {},
-    }).apply(Date.now());
+    }).apply(served.environment.clock.now());
 
     // stamp the value with the installed build's release, then check the write against that release
     const placed = single(await served.database.select().from(setting.table));

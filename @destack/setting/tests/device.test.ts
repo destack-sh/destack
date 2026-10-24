@@ -18,7 +18,6 @@ import { editor, lineNumbers, notes } from "./fixture/setting/index.ts";
 import settingPackage from "../src/package.ts";
 import { openSettings } from "./fixture/store.ts";
 import { alice, aliceUser, deviceSource, named, source } from "./fixture/value.ts";
-import { Clock } from "@destack/environment";
 
 test("resolve and watch values over live queries of the user's scope and the space she acts in", async () => {
     // serve Alice's personal scope and a space she reads
@@ -116,7 +115,7 @@ test("resolve and watch values over live queries of the user's scope and the spa
             mode: "recommend",
             value: false,
             release: lineNumbers.package.version,
-            requestId: RequestId.create(Date.now()),
+            requestId: RequestId.create(spaceStore.environment),
         });
     const lowered = {
         ...numbered,
@@ -160,7 +159,7 @@ test("resolve a value the device stores over the user's own, off the server", as
             mode: "set",
             value: "vim",
             release,
-            requestId: RequestId.create(Date.now()),
+            requestId: RequestId.create(served.environment),
         });
     const local = personal.mutate(deviceSetting).create({
         ...named(editor),
@@ -246,7 +245,9 @@ test("replicate a person's values along their chain into a database, yielding ea
     const stopping = new AbortController();
     onTestFinished(() => stopping.abort());
     const replica = (fetch: (request: Request) => Promise<Response>) =>
-        connectBunSqlite(":memory:", ObjectClient.tables({ setting })).then((database) => {
+        connectBunSqlite(":memory:", ObjectClient.tables({ setting }), {
+            environment: served.environment,
+        }).then((database) => {
             onTestFinished(() => database.close());
 
             return SettingValue.replicate(
@@ -256,7 +257,7 @@ test("replicate a person's values along their chain into a database, yielding ea
                     caller: aliceUser,
                     database,
                     settings: [editor.reference],
-                    clock: Clock.system,
+                    environment: served.environment,
                 },
                 stopping.signal,
             );
@@ -274,7 +275,7 @@ test("replicate a person's values along their chain into a database, yielding ea
             mode: "set",
             value: "vim",
             release: editor.package.version,
-            requestId: RequestId.create(Date.now()),
+            requestId: RequestId.create(served.environment),
         });
     const second = await replicated.next();
     await replicated.return(undefined);
@@ -319,13 +320,15 @@ test("yield a person's values set before the replica starts in its first yield, 
             mode: "set",
             value: "vim",
             release: editor.package.version,
-            requestId: RequestId.create(Date.now()),
+            requestId: RequestId.create(served.environment),
         });
 
     // replicate them, the access rows carrying the scope chain arriving late, and read the first yield
     const stopping = new AbortController();
     onTestFinished(() => stopping.abort());
-    const database = await connectBunSqlite(":memory:", ObjectClient.tables({ setting }));
+    const database = await connectBunSqlite(":memory:", ObjectClient.tables({ setting }), {
+        environment: served.environment,
+    });
     onTestFinished(() => database.close());
     const settingsServed = Promise.withResolvers<void>();
     const late = async (request: Request) => {
@@ -350,7 +353,7 @@ test("yield a person's values set before the replica starts in its first yield, 
             caller: aliceUser,
             database,
             settings: [editor.reference],
-            clock: Clock.system,
+            environment: served.environment,
         },
         stopping.signal,
     );
@@ -379,15 +382,19 @@ async function follow(
     const local = await connectBunSqlite(
         ":memory:",
         ObjectClient.tables({ setting, deviceSetting }),
+        { environment: served.environment },
     );
     onTestFinished(() => local.close());
     const client = await ObjectClient.open({
-        clock: Clock.system,
+        environment: served.environment,
         database: local,
         objects: { setting, deviceSetting },
         scope,
         caller: aliceUser,
-        device: principal.device.reference(Scope.universe.id, Identifier.create("device")),
+        device: principal.device.reference(
+            Scope.universe.id,
+            Identifier.create("device", served.environment),
+        ),
         endpoint: served.as(alice).endpoint(settingPackage),
         reconnect: (cell) => {
             throw new TypeError(`no scope moves in this test, yet one moved to ${cell}`);

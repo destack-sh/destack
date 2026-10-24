@@ -27,7 +27,7 @@ import {
     source,
     space,
 } from "./fixture/index.ts";
-import { editor, keybindings, notes, release } from "./fixture/setting/index.ts";
+import { editor, keybindings, notes, release, signature } from "./fixture/setting/index.ts";
 
 /** The package whose releases the entries declare. */
 const PACKAGE = {
@@ -90,7 +90,7 @@ test("refuse values set in other scopes or outside the chain, and disagreeing re
     const anonymous = SettingSelection.parse({ scope: null });
     const misplaced = [
         "BAD_REQUEST",
-        "INVALID_PLACEMENT",
+        "PLACEMENT_INVALID",
         "the resolution got a value set in another scope",
     ];
     expect([
@@ -104,7 +104,7 @@ test("refuse values set in other scopes or outside the chain, and disagreeing re
         misplaced,
         [
             "BAD_REQUEST",
-            "INVALID_PLACEMENT",
+            "PLACEMENT_INVALID",
             "the resolution got a value from outside the selection's scope chain",
         ],
     ]);
@@ -117,8 +117,8 @@ test("refuse values set in other scopes or outside the chain, and disagreeing re
         ),
         await refusal(() => editor.resolve(SettingSelection.parse({ scope: space }), [], chain)),
     ]).toEqual([
-        ["CONFLICT", "CONFLICTING_VALUES", "required setting values conflict"],
-        ["BAD_REQUEST", "INVALID_PLACEMENT", "setting scope does not match the selected scope"],
+        ["CONFLICT", "VALUES_CONFLICTING", "required setting values conflict"],
+        ["BAD_REQUEST", "PLACEMENT_INVALID", "setting scope does not match the selected scope"],
     ]);
 });
 
@@ -169,7 +169,7 @@ test("resolve each key of a merged setting from its own nearest placement, requi
         ),
     ).toEqual([
         "CONFLICT",
-        "CONFLICTING_VALUES",
+        "VALUES_CONFLICTING",
         "multiple values of note.archive have the same precedence",
     ]);
 });
@@ -256,7 +256,7 @@ test("describe a setting and read the settings a build declares", async () => {
     // refuse a setting the build does not declare
     expect(
         await refusal(() => Setting.find(settings, { ...editor.reference, name: "theme" })),
-    ).toEqual(["NOT_FOUND", "UNDECLARED", `setting ${notes.id}/theme is not declared`]);
+    ).toEqual(["NOT_FOUND", "SETTING_UNDECLARED", `setting ${notes.id}/theme is not declared`]);
 });
 
 test("resolve space settings per installation and machine settings per machine", async () => {
@@ -333,7 +333,7 @@ test("resolve space settings per installation and machine settings per machine",
         ),
     ).toEqual([
         "BAD_REQUEST",
-        "INVALID_PLACEMENT",
+        "PLACEMENT_INVALID",
         "the resolution got a value set in another scope",
     ]);
 });
@@ -343,7 +343,7 @@ test("refuse placements and writes a setting does not permit", async () => {
     const plain = defineSetting({ ...editor.definition, overrides: [] }, { package: notes });
     const unsupported = [
         "BAD_REQUEST",
-        "INVALID_PLACEMENT",
+        "PLACEMENT_INVALID",
         "setting value uses an unsupported setting override",
     ];
     expect([
@@ -358,18 +358,18 @@ test("refuse placements and writes a setting does not permit", async () => {
         unsupported,
         [
             "BAD_REQUEST",
-            "INVALID_PLACEMENT",
+            "PLACEMENT_INVALID",
             `devices cannot store values of ${DeclarationReference.key(plain.reference)}`,
         ],
         [
             "BAD_REQUEST",
-            "INVALID_PLACEMENT",
+            "PLACEMENT_INVALID",
             "setting value outside its declared scope must be a recommendation or a requirement",
         ],
-        ["BAD_REQUEST", "INVALID_PLACEMENT", "setting value in its declared scope must be set"],
+        ["BAD_REQUEST", "PLACEMENT_INVALID", "setting value in its declared scope must be set"],
         [
             "BAD_REQUEST",
-            "INVALID_PLACEMENT",
+            "PLACEMENT_INVALID",
             "setting value has both an installation and its space",
         ],
     ]);
@@ -385,10 +385,10 @@ test("refuse placements and writes a setting does not permit", async () => {
         "done",
         [
             "BAD_REQUEST",
-            "INVALID_VALUE",
+            "VALUE_INVALID",
             "setting value is at release 2026.10.0, but its declaration is at 2026.9.0",
         ],
-        ["BAD_REQUEST", "INVALID_VALUE", "setting value does not match its declaration"],
+        ["BAD_REQUEST", "VALUE_INVALID", "setting value does not match its declaration"],
         "done",
     ]);
 });
@@ -551,7 +551,7 @@ test("resolve a value for its consuming package, and rank recommendations by the
     };
     expect(await refusal(() => shared.resolve(home, [nearer, sibling], chain))).toEqual([
         "CONFLICT",
-        "CONFLICTING_VALUES",
+        "VALUES_CONFLICTING",
         "multiple setting values have the same precedence",
     ]);
 });
@@ -629,7 +629,59 @@ test("read a setting's value among an installation's resolved settings, refusing
     expect(() => editor.read({ [key]: "emacs" })).toThrow(schema.Error);
     expect(await refusal(() => editor.read({}))).toEqual([
         "NOT_FOUND",
-        "UNDECLARED",
+        "SETTING_UNDECLARED",
         `the installation's machine did not resolve ${key}`,
+    ]);
+});
+
+test("describe a required setting without a default, rebuild it as required, and refuse declaring both", () => {
+    // describe the signature and rebuild it from its description
+    const described = describeSetting(signature);
+    const rebuilt = Setting.of(SettingDescription.parse(JSON.parse(JSON.stringify(described))));
+
+    // refuse a declaration with a default beside its requirement
+    const both = { ...signature.definition, default: "Alice", required: true };
+
+    expect({
+        described: { required: described.required, hasDefault: "default" in described },
+        rebuilt: {
+            required: rebuilt.definition.required,
+            hasDefault: "default" in rebuilt.definition,
+        },
+        both: (() => {
+            try {
+                Reflect.apply(defineSetting, undefined, [both, { package: notes }]);
+
+                return "declared";
+            } catch (error) {
+                return error instanceof TypeError ? error.message : "other";
+            }
+        })(),
+    }).toEqual({
+        described: { required: true, hasDefault: false },
+        rebuilt: { required: true, hasDefault: false },
+        both: "setting editor.signature needs either a default or required",
+    });
+});
+
+test("refuse a setting without a default that no scope sets or sets only invalidly, and resolve it once a person sets it", async () => {
+    // set alice's signature as her own value, and once as a value its schema rejects
+    const signed: SettingValue = { ...personal, ...named(signature), value: "Alice" };
+    const invalid: SettingValue = { ...signed, value: 42 };
+    const key = DeclarationReference.key(signature.reference);
+
+    // refuse it unset and set invalidly, and take her value once set
+    expect([
+        await refusal(() => signature.resolve(selection, [], chain)),
+        await refusal(() => signature.resolve(selection, [invalid], chain)),
+        signature.resolve(selection, [signed], chain).value,
+    ]).toEqual([
+        ["PRECONDITION_FAILED", "SETTING_UNSET", `setting ${key} has no default and is not set`],
+        [
+            "PRECONDITION_FAILED",
+            "SETTING_INVALID",
+            `setting ${key} has no default and no valid value`,
+        ],
+        "Alice",
     ]);
 });

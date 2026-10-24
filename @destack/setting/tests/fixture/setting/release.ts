@@ -1,5 +1,6 @@
 import { type BuildReader } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
+import { testHost } from "@destack/test/host";
 import { describeSetting } from "../../../src/inspect/index.ts";
 import { setting } from "../../../src/object/index.ts";
 import type { Setting } from "../../../src/setting/index.ts";
@@ -13,5 +14,5 @@ export async function release(settings: readonly Setting[]): Promise<BuildReader
         description: describeSetting(declared),
     }));
 
-    return await MemoryBuild.of(setting.package, declarations);
+    return await MemoryBuild.of(setting.package, declarations, testHost().crypto);
 }

@@ -11,7 +11,7 @@ import { defineObject, field } from "@destack/object";
 import { Duration, type Identifier, schema, Version } from "@destack/schema";
 import { DeclarationName, type Package, PackageId } from "@destack/package";
 import { SETTING_MODES } from "../setting/mode.ts";
-import type { Clock } from "@destack/environment";
+import type { Environment } from "@destack/environment";
 
 /** A setting value placed in a scope. */
 export const setting = defineObject({
@@ -92,7 +92,7 @@ export const SettingValue = {
             const definition = schema.record(schema.string(), schema.unknown()).parse(described);
             const {
                 schema: value,
-                default: fallback,
+                default: declaredDefault,
                 scope: kind,
                 overrides,
                 ...metadata
@@ -102,18 +102,27 @@ export const SettingValue = {
                     `setting ${String(metadata["name"])} of ${owner.name} has no value schema`,
                 );
             }
+
+            // require a default, which a scope without a placed value resolves to
+            if (declaredDefault === undefined) {
+                throw SettingError.of(
+                    "DEFAULT_MISSING",
+                    `retention setting ${String(metadata["name"])} of ${owner.name} has no default`,
+                );
+            }
+            const defaultDays = schema.number().int().positive().parse(declaredDefault);
             const declared = new Setting(owner, {
                 ...SettingMetadata.parse(metadata),
                 ...SettingScope.parse({ scope: kind, overrides }),
                 schema: value,
-                default: schema.number().int().positive().parse(fallback),
+                default: defaultDays,
             });
 
             // resolve it in a scope of its scope type, and give its default where none can be placed, such as a machine
             const isApplied = schema.identifier(declared.definition.scope).safeParse(scope).success;
             const days = isApplied
                 ? await SettingValue.resolve(Snapshot.live(database), declared, { scope })
-                : declared.definition.default;
+                : defaultDays;
 
             return Duration.milliseconds({ days: schema.number().int().positive().parse(days) });
         };
@@ -140,7 +149,7 @@ export const SettingValue = {
     async chain(reader: Pick<Snapshot, "read">, scope: string): Promise<string[]> {
         const chain = (await Scope.chain(reader, scope)).map((link) => link.object.id);
         if (chain.length === 0) {
-            throw SettingError.of("UNKNOWN_SCOPE", `unknown scope ${scope}`);
+            throw SettingError.of("SCOPE_UNKNOWN", `unknown scope ${scope}`);
         }
 
         return chain;
@@ -193,15 +202,15 @@ export const SettingValue = {
             readonly database: DatabaseConnection;
             /** The settings yielded. */
             readonly settings: readonly DeclarationReference[];
-            /** The clock the replica runs at. */
-            readonly clock: Clock;
+            /** The environment the replica runs in. */
+            readonly environment: Environment;
         },
         signal: AbortSignal,
     ): AsyncGenerator<SettingChain> {
         // open a client of the scope's values over the database
-        const { endpoint, scope, caller, database, clock } = options;
+        const { endpoint, scope, caller, database, environment } = options;
         const client = await ObjectClient.open({
-            clock,
+            environment,
             database,
             objects: { setting },
             scope,

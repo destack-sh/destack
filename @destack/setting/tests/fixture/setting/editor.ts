@@ -24,6 +24,21 @@ export const editor = defineSetting(
     { package: notes },
 );
 
+/** The person's signature, which each person must set, as it has no default. */
+export const signature = defineSetting(
+    {
+        name: "editor.signature",
+        title: "Signature",
+        description: "The line closing each note.",
+        schema: schema.string().min(1),
+        scope: "user",
+        overrides: ["space", "installation", "device"],
+        apply: "immediate",
+        required: true,
+    },
+    { package: notes },
+);
+
 /** A distinct value type resolved alongside the editor mode. */
 export const lineNumbers = defineSetting(
     {
