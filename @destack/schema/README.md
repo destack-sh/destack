@@ -7,11 +7,21 @@
 const Note = schema.object({ title: schema.string().min(1), archived: schema.boolean() });
 type Note = schema.Infer<typeof Note>; // z.infer
 toJsonSchema(Note); // z.toJSONSchema, refusing transforms, refinements, dates and loose objects
-// the same Note, refusing defaults, open objects and unknown keywords
+// the same Note, filling in defaults, refusing open objects and unknown keywords
 fromJsonSchema(toJsonSchema(Note));
 // Identifier<"space">
 schema.identifier("space").parse("space-01995f12-3456-7890-8abc-123456789abc");
 const date: PlainDate = { year: 2026, month: 10, day: 3 }; // Temporal.PlainDate in JSON
+```
+
+## Identifiers
+
+`Identifier.create` creates a prefixed UUIDv7 from an environment's clock and randomness, so one seed creates the same identifiers.
+
+```ts
+Identifier.create("space", environment); // "space-01a16b35-0800-748f-…", the clock's millisecond first
+Uuid.v7(environment); // the bare UUIDv7: the millisecond, then 74 random bits
+Uuid.v4(environment.random); // 122 random bits
 ```
 
 ## Comparisons
@@ -70,9 +80,11 @@ const columns = mapValues<Builders, TableColumnMap<Builders, Name>>(
 
 ## Digests
 
-`canonicalize` writes RFC 8785's canonical JSON, keys sorted by UTF-16 code units, and `Digest.json` hashes that form with SHA-256.
+`canonicalize` writes RFC 8785's canonical JSON, keys sorted by UTF-16 code units, and `Digest.json` hashes that form with the environment's SHA-256.
 
 ```ts
 canonicalize({ b: 1, a: [true] }); // '{"a":[true],"b":1}'
-await Digest.json({ b: 1, a: [true] });
+await Digest.of("destack", environment.crypto); // lowercase hexadecimal SHA-256
+await Digest.json({ b: 1, a: [true] }, environment.crypto);
+Commit.parse("a".repeat(40)); // a Git commit's SHA-1 or SHA-256 object ID
 ```

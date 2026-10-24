@@ -510,9 +510,27 @@ function strictObject(
     const { properties, required = [] } = node;
     const shape = Object.fromEntries(
         Object.entries(properties ?? {}).map(([key, property]) => {
-            const built = build(property, context);
+            // require a required property, and leave out one without a default
+            if (required.includes(key)) {
+                return [key, build(property, context)];
+            } else if (typeof property === "boolean" || property.default === undefined) {
+                return [key, build(property, context).exactOptional()];
+            }
 
-            return [key, required.includes(key) ? built : built.exactOptional()];
+            // refuse a default its own schema refuses
+            const { default: defaultValue, ...validated } = property;
+            const built = build(validated, context);
+            const parsed = built.safeParse(defaultValue);
+            if (!parsed.success) {
+                throw new TypeError(
+                    `json schema default ${JSON.stringify(defaultValue)} does not match its schema`,
+                );
+            }
+
+            // fill in a fresh copy of the default for each absent property
+            const value = parsed.data;
+
+            return [key, built.default(() => structuredClone(value))];
         }),
     );
 

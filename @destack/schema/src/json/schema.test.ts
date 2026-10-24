@@ -71,6 +71,8 @@ function declared() {
         rest: schema.tuple([schema.string()], schema.int()),
         nothing: schema.tuple([]),
         option: schema.string().exactOptional(),
+        limit: schema.int().positive().default(10),
+        keywords: schema.array(schema.string()).max(3).default([]),
 
         // recursion and unions of objects
         tree: node,
@@ -133,6 +135,60 @@ test("validate as the declared schema does: formats, bounds, recursion and union
     expect(values.map((value) => built.safeParse(value).success)).toEqual(
         values.map((value) => declaredSchema.safeParse(value).success),
     );
+});
+
+test("fill a declared default once built from its description, and keep a given value", () => {
+    // build a body whose mentions default to none
+    const body = schema.object({
+        text: schema.string(),
+        mentions: schema.array(schema.string()).default([]),
+    });
+    const built = fromJsonSchema(toJsonSchema(body));
+
+    // fill the missing mentions, keep the given ones, and describe the default
+    expect({
+        filled: built.parse({ text: "Done" }),
+        given: built.parse({ text: "Done", mentions: ["bob"] }),
+        described: toJsonSchema(body),
+    }).toEqual({
+        filled: { text: "Done", mentions: [] },
+        given: { text: "Done", mentions: ["bob"] },
+        described: {
+            $schema: "https://json-schema.org/draft/2020-12/schema",
+            type: "object",
+            properties: {
+                text: { type: "string" },
+                mentions: { default: [], type: "array", items: { type: "string" } },
+            },
+            required: ["text"],
+            additionalProperties: false,
+        },
+    });
+});
+
+test("fill each absent property with its own copy of an imported default", () => {
+    // build a body whose tags default to one tag
+    const built = fromJsonSchema({
+        type: "object",
+        properties: { tags: { type: "array", items: { type: "string" }, default: ["new"] } },
+        additionalProperties: false,
+    });
+
+    // change one filled default, and fill the next absent property untouched
+    const first = schema.object({ tags: schema.array(schema.string()) }).parse(built.parse({}));
+    first.tags.push("changed");
+
+    expect([first, built.parse({})]).toEqual([{ tags: ["new", "changed"] }, { tags: ["new"] }]);
+});
+
+test("refuse an imported default its own schema refuses", () => {
+    expect(() =>
+        fromJsonSchema({
+            type: "object",
+            properties: { limit: { type: "integer", minimum: 1, default: 0 } },
+            additionalProperties: false,
+        }),
+    ).toThrow(new TypeError("json schema default 0 does not match its schema"));
 });
 
 test("refuse a reference that does not resolve, naming its pointer", () => {
