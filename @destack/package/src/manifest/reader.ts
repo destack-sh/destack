@@ -1,3 +1,5 @@
+import { resolve } from "node:path";
+import type { Crypto, FileSystem } from "@destack/environment";
 import { Digest, present, schema } from "@destack/schema";
 import { PackageFile, PackagePath } from "../file/file.ts";
 import { DependencyResolution } from "../definition/dependency.ts";
@@ -30,11 +32,14 @@ export class BuildReader {
     readonly #modules = new Once<readonly Module[]>();
     /** The listed files by path, read once. */
     readonly #listed = new Once<ReadonlyMap<string, PackageFile>>();
+    /** The crypto verifying the files' digests. */
+    readonly #crypto: Crypto;
 
-    /** Bind a manifest to local, registry or browser file access. */
-    constructor(manifest: PackageManifest, stream: BuildReader["stream"]) {
+    /** Bind a manifest to local, registry or browser file access, verifying with the crypto. */
+    constructor(manifest: PackageManifest, stream: BuildReader["stream"], crypto: Crypto) {
         this.manifest = manifest;
         this.stream = stream;
+        this.#crypto = crypto;
     }
 
     /** Read one distributed file whole by its relative path and verify its exact bytes. */
@@ -52,7 +57,7 @@ export class BuildReader {
         }
 
         // require the listed size and digest
-        await PackageFile.verify(file, bytes.subarray(0, size));
+        await PackageFile.verify(file, bytes.subarray(0, size), this.#crypto);
 
         return bytes;
     }
@@ -134,7 +139,7 @@ export class BuildReader {
         // verify the content address before parsing the file
         const path = `graph/${digest}.json`;
         const bytes = new Uint8Array(await new Response(await this.stream(path)).arrayBuffer());
-        if ((await Digest.of(bytes)) !== digest) {
+        if ((await Digest.of(bytes, this.#crypto)) !== digest) {
             throw PackageError.of("INVALID_FILE", `file digest mismatch: ${path}`);
         }
 
@@ -186,10 +191,29 @@ export class BuildReader {
         return definition.parse(decode(await this.load(file.path)));
     }
 
+    /** Open the build a directory keeps in files: its manifest at the root and its files below. */
+    static async openDirectory(
+        directory: string,
+        files: FileSystem,
+        crypto: Crypto,
+    ): Promise<BuildReader> {
+        // read the manifest, then stream each file it lists from the directory
+        const bytes = await files.readFile(resolve(directory, MANIFEST_PATH));
+        const manifest = PackageManifest.parse(decode(bytes));
+
+        return new BuildReader(
+            manifest,
+            (path, signal) =>
+                streamFile(resolve(directory, PackagePath.parse(path)), files, signal),
+            crypto,
+        );
+    }
+
     /** Open an immutable remote package and verify its root manifest. */
     static async open(
         location: PackageLocation,
         fetch: (input: URL, init: RequestInit) => Promise<Response>,
+        crypto: Crypto,
         signal?: AbortSignal,
     ): Promise<BuildReader> {
         // restrict relative reads to this package's HTTP endpoint
@@ -219,21 +243,29 @@ export class BuildReader {
                 mediaType: "application/json",
             },
             bytes,
+            crypto,
         );
         const manifest = PackageManifest.parse(
             JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)),
         );
 
-        return new BuildReader(manifest, async (path, read) => {
-            const encoded = PackagePath.parse(path).split("/").map(encodeURIComponent).join("/");
-            const file = await BuildReader.#request(
-                new URL(`files/${encoded}`, base),
-                fetch,
-                read ?? signal,
-            );
+        return new BuildReader(
+            manifest,
+            async (path, read) => {
+                const encoded = PackagePath.parse(path)
+                    .split("/")
+                    .map(encodeURIComponent)
+                    .join("/");
+                const file = await BuildReader.#request(
+                    new URL(`files/${encoded}`, base),
+                    fetch,
+                    read ?? signal,
+                );
 
-            return present(file.body, "a package file's body");
-        });
+                return present(file.body, "a package file's body");
+            },
+            crypto,
+        );
     }
 
     /** Request one package file, rejecting HTTP failures before its body is read. */
@@ -253,6 +285,50 @@ export class BuildReader {
 
         return response;
     }
+}
+
+/** Stream a file's bytes, closing it at its end, on cancel, a failure or once a signal aborts. */
+async function streamFile(
+    file: string,
+    files: FileSystem,
+    signal: AbortSignal | undefined,
+): Promise<ReadableStream<Uint8Array>> {
+    // open the file and read its chunks
+    signal?.throwIfAborted();
+    const handle = await files.open(file, { read: true });
+    const reader = handle.readable().getReader();
+
+    // close the file once, whichever of its end, a failure, a cancel or the abort comes first
+    let closing: Promise<void> | undefined;
+    const close = () => (closing ??= handle.close());
+    signal?.addEventListener("abort", () => void close(), { once: true });
+
+    return new ReadableStream<Uint8Array>({
+        pull: async (controller) => {
+            try {
+                // pass the next chunk on, refusing a read after the abort
+                signal?.throwIfAborted();
+                const next = await reader.read();
+
+                // close the file at its end
+                if (next.done) {
+                    await close();
+                    controller.close();
+                }
+                // pass a chunk on
+                else {
+                    controller.enqueue(next.value);
+                }
+            } catch (error) {
+                await close();
+                throw error;
+            }
+        },
+        cancel: async () => {
+            await reader.cancel();
+            await close();
+        },
+    });
 }
 
 /** Decode a JSON file's verified bytes. */

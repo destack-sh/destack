@@ -1,16 +1,12 @@
-import { expect, onTestFinished, test } from "@destack/test";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { Environment } from "@destack/environment";
+import { Simulation } from "@destack/environment/simulation";
+import { expect, test } from "@destack/test";
+import { testHost } from "@destack/test/host";
 import { Tarball, type TarballEntry } from "./tarball.ts";
 
-/** Create a temporary directory removed when the test finishes. */
-async function temporary(): Promise<string> {
-    const directory = await mkdtemp(join(tmpdir(), "destack-tarball-"));
-    onTestFinished(() => rm(directory, { recursive: true, force: true }));
-
-    return directory;
-}
+/** The start of every test's world: 2026-10-24 at midnight UTC. */
+const START = Date.UTC(2026, 9, 24);
 
 /** Read a stream's bytes. */
 async function read(stream: ReadableStream<Uint8Array>): Promise<Uint8Array<ArrayBuffer>> {
@@ -18,11 +14,16 @@ async function read(stream: ReadableStream<Uint8Array>): Promise<Uint8Array<Arra
 }
 
 /** Extract a gzip tarball with the system tar into a directory. */
-async function extract(archive: Uint8Array, directory: string): Promise<void> {
-    await writeFile(join(directory, "archive.tgz"), archive);
-    await mkdir(join(directory, "extracted"));
-    const child = Bun.spawn(["tar", "-xzf", "archive.tgz", "-C", "extracted"], {
-        cwd: directory,
+async function extract(
+    archive: Uint8Array,
+    directory: string,
+    environment: Environment<"files" | "process">,
+): Promise<void> {
+    const { files } = environment;
+    await files.writeFile(join(directory, "archive.tgz"), archive);
+    await files.mkdir(join(directory, "extracted"));
+    const child = environment.process.spawn(["tar", "-xzf", "archive.tgz", "-C", "extracted"], {
+        workingDirectory: directory,
         stderr: "pipe",
     });
     const [code, errors] = await Promise.all([child.exited, new Response(child.stderr).text()]);
@@ -32,7 +33,9 @@ async function extract(archive: Uint8Array, directory: string): Promise<void> {
 }
 
 test("roundtrip files of short, prefixed and extended paths through a tarball the system tar extracts", async () => {
-    const directory = await temporary();
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const environment = simulation.environment("test");
+    const directory = await environment.files.makeTemporaryDirectory("tarball-");
 
     // archive a short path, a path split into prefix and name, a path that fits only an extended header, and an empty file
     const files: Record<string, string> = {
@@ -49,9 +52,11 @@ test("roundtrip files of short, prefixed and extended paths through a tarball th
                         yield { path, contents: new TextEncoder().encode(text) };
                     }
                 })(),
+                environment.compression,
             ),
         ),
         directory,
+        environment,
     );
 
     // extract every file with its exact contents
@@ -59,7 +64,7 @@ test("roundtrip files of short, prefixed and extended paths through a tarball th
         await Promise.all(
             Object.keys(files).map(async (path): Promise<[string, string]> => [
                 path,
-                await readFile(join(directory, "extracted", path), "utf8"),
+                await environment.files.readTextFile(join(directory, "extracted", path)),
             ]),
         ),
     );
@@ -67,22 +72,27 @@ test("roundtrip files of short, prefixed and extended paths through a tarball th
 });
 
 test("write equal entries to identical tarball bytes with a fixed gzip header, a checked trailer and a pinned digest", async () => {
-    // stream the same entries twice
-    const first = await read(Tarball.stream(entries()));
-    const second = await read(Tarball.stream(entries()));
+    // stream the same entries twice in a world, and once through the host's compression streams
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const { compression, crypto } = simulation.environment("test");
+    const first = await read(Tarball.stream(entries(), compression));
+    const second = await read(Tarball.stream(entries(), compression));
+    const hosted = await read(Tarball.stream(entries(), testHost().compression));
 
-    // set no time and an unknown system, and inflate through the runtime's gzip, which checks the CRC and size
+    // set no time and an unknown system, and inflate through the world's gzip, which checks the CRC and size
     const inflated = await read(
-        new Blob([first]).stream().pipeThrough(new DecompressionStream("gzip")),
+        new Blob([first]).stream().pipeThrough(compression.decompress("gzip")),
     );
-    const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", first)).toHex();
+    const digest = new Uint8Array(await crypto.digest("SHA-256", first)).toHex();
     expect([
         second,
+        hosted,
         [...first.subarray(0, 10)],
         inflated.byteLength,
         new TextDecoder().decode(inflated.subarray(0, 20)),
         digest,
     ]).toEqual([
+        first,
         first,
         [0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 0, 0xff],
         512 * 6,

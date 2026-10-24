@@ -1,9 +1,13 @@
+import { Simulation } from "@destack/environment/simulation";
 import { Digest } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { PackageId } from "../definition/package.ts";
 import { Moniker } from "../graph/moniker.ts";
 import { MemoryBuild } from "../test/memory.ts";
 import { Attribution } from "./attribution.ts";
+
+/** The start of every test's world: 2026-10-24 at midnight UTC. */
+const START = Date.UTC(2026, 9, 24);
 
 /** The package the note module belongs to. */
 const PACKAGE_ID = PackageId.parse("package-01996ab0-0000-7000-8000-0000000000a1");
@@ -29,30 +33,36 @@ function at(name: string): Moniker {
 
 test("attribute an in-app frame to its innermost symbol and its declaration, leaving other frames", async () => {
     // build the note module with its rename method's declaration, and index its code
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const { crypto } = simulation.environment("test");
     const bytes = new TextEncoder().encode(SOURCE);
-    const digest = await Digest.of(bytes);
-    const build = await MemoryBuild.write(new Map([["src/note.ts", bytes]]), {
-        package: { id: PACKAGE_ID, name: "@example/note", version: "2026.10.0" },
-        graph: [
-            {
-                path: "src/note.ts",
-                digest,
-                imports: [],
-                exports: [],
-                declarations: [
-                    {
-                        moniker: `${at("Note.rename")}:method`,
-                        symbol: at("Note"),
-                        kind: "method",
-                        kindPackageId: PACKAGE_ID,
-                        name: "rename",
-                        description: {},
-                    },
-                ],
-                edges: [],
-            },
-        ],
-    });
+    const digest = await Digest.of(bytes, crypto);
+    const build = await MemoryBuild.write(
+        new Map([["src/note.ts", bytes]]),
+        {
+            package: { id: PACKAGE_ID, name: "@example/note", version: "2026.10.0" },
+            graph: [
+                {
+                    path: "src/note.ts",
+                    digest,
+                    imports: [],
+                    exports: [],
+                    declarations: [
+                        {
+                            moniker: `${at("Note.rename")}:method`,
+                            symbol: at("Note"),
+                            kind: "method",
+                            kindPackageId: PACKAGE_ID,
+                            name: "rename",
+                            description: {},
+                        },
+                    ],
+                    edges: [],
+                },
+            ],
+        },
+        crypto,
+    );
     const rename = SOURCE.indexOf("    rename");
     const attribution = new Attribution(build, [
         {

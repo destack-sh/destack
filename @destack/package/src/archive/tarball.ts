@@ -1,3 +1,5 @@
+import type { Compression } from "@destack/environment";
+
 /** The size of a tar block, with a header or a slice of a file. */
 const BLOCK_BYTES = 512;
 
@@ -27,9 +29,12 @@ export interface TarballEntry {
 /** A gzip-compressed ustar archive of regular files, equal entries always giving equal bytes. */
 export const Tarball = {
     /** Stream entries as one gzip member: each file's ustar blocks, then the two end blocks. */
-    stream(entries: AsyncIterable<TarballEntry>): ReadableStream<Uint8Array<ArrayBuffer>> {
+    stream(
+        entries: AsyncIterable<TarballEntry>,
+        compression: Compression,
+    ): ReadableStream<Uint8Array<ArrayBuffer>> {
         // pull one chunk at a time, stopping the entries when the reader cancels
-        const chunks = compress(entries);
+        const chunks = compress(entries, compression);
 
         return new ReadableStream<Uint8Array<ArrayBuffer>>({
             async pull(controller) {
@@ -50,9 +55,10 @@ export const Tarball = {
 /** Write the gzip member of the entries' tar blocks under the fixed header. */
 async function* compress(
     entries: AsyncIterable<TarballEntry>,
+    compression: Compression,
 ): AsyncGenerator<Uint8Array<ArrayBuffer>> {
     // compress the blocks as they are written, and fail the output with their failure
-    const gzip = new CompressionStream("gzip");
+    const gzip = compression.compress("gzip");
     const writer = gzip.writable.getWriter();
     const writing = (async () => {
         try {

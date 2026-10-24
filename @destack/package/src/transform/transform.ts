@@ -27,14 +27,14 @@ export interface ModuleTransform {
 }
 
 /** Inject module metadata into import.meta.destack and the calls and tags of stamped functions. */
-export function transformModule(
+export async function transformModule(
     code: string,
     path: string,
     owner: ModulePackage,
     packages: PackageLocator,
-): ModuleTransform | undefined {
+): Promise<ModuleTransform | undefined> {
     // skip modules without metadata reads or imported stamped functions
-    if (!isStampable(code, path, owner.metadata, packages)) {
+    if (!(await isStampable(code, path, owner.metadata, packages))) {
         return undefined;
     }
 
@@ -45,7 +45,7 @@ export function transformModule(
         if (statement.type !== "ImportDeclaration" || statement.importKind === "type") {
             continue;
         }
-        const stamps = packages.imported(statement.source.value, path, owner.metadata);
+        const stamps = await packages.imported(statement.source.value, path, owner.metadata);
         if (stamps.size === 0) {
             continue;
         }
@@ -102,12 +102,12 @@ export function transformModule(
 }
 
 /** Report whether a module reads its metadata or imports a stamped function, without parsing it. */
-function isStampable(
+async function isStampable(
     code: string,
     path: string,
     metadata: ModuleMetadata,
     packages: PackageLocator,
-): boolean {
+): Promise<boolean> {
     // read the metadata
     if (code.includes("import.meta.destack")) {
         return true;
@@ -118,7 +118,7 @@ function isStampable(
         if (specifier === undefined) {
             throw new TypeError("the import source pattern captures no specifier");
         }
-        const stamps = packages.imported(specifier, path, metadata);
+        const stamps = await packages.imported(specifier, path, metadata);
         if ([...stamps.keys()].some((name) => code.includes(name.split(".", 1)[0] ?? name))) {
             return true;
         }

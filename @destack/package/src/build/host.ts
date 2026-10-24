@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { type FileSystem, FileSystemError } from "@destack/environment";
 import { dirname, join } from "node:path";
 import type { Plugin } from "vite";
 import { schema } from "@destack/schema";
@@ -27,17 +27,23 @@ export class HostModules {
     /** The runtime the compilation targets. */
     readonly runtime: Runtime;
     /** The host modules each package's `browser` field replaces with nothing, by directory. */
-    readonly #replaced = new Map<string, ReadonlySet<string>>();
+    readonly #replaced = new Map<string, Promise<ReadonlySet<string>>>();
+    /** The files the package manifests are read from. */
+    readonly #files: FileSystem;
 
-    /** Hold the host modules of one runtime. */
-    constructor(runtime: Runtime) {
+    /** Describe the host modules of one runtime, reading manifests from files. */
+    constructor(runtime: Runtime, files: FileSystem) {
         this.runtime = runtime;
+        this.#files = files;
     }
 
     /** Resolve a host module, refusing one the runtime lacks and the importing package keeps. */
-    resolve(specifier: string, importer: string | undefined): HostResolution | undefined {
+    async resolve(
+        specifier: string,
+        importer: string | undefined,
+    ): Promise<HostResolution | undefined> {
         // refuse the host modules the runtime lacks before Vite emits browser stubs
-        const resolution = this.classify(specifier, importer);
+        const resolution = await this.classify(specifier, importer);
         if (resolution === "unavailable") {
             const importedBy = importer === undefined ? "" : `, imported by ${importer}`;
             throw PackageError.of(
@@ -50,16 +56,16 @@ export class HostModules {
     }
 
     /** Classify a host module: kept, replaced with nothing, or unavailable; nothing for others. */
-    classify(
+    async classify(
         specifier: string,
         importer: string | undefined,
-    ): HostResolution | "unavailable" | undefined {
+    ): Promise<HostResolution | "unavailable" | undefined> {
         // keep host modules the runtime supplies
         if (isRuntimeModule(specifier, this.runtime)) {
             return "external";
         }
         // take the empty module for a host module the importing package replaces with nothing
-        else if (this.#isReplaced(specifier, importer)) {
+        else if (await this.#isReplaced(specifier, importer)) {
             return "empty";
         }
         // mark the other host modules unavailable
@@ -70,19 +76,33 @@ export class HostModules {
         return undefined;
     }
 
-    /** Resolve the host modules the importing packages replace with nothing to an empty module. */
+    /** Resolve host modules as the build takes them: kept external, empty, or refused. */
     plugin(): Plugin {
         return {
             name: "@destack/package/host",
             enforce: "pre",
-            resolveId: (specifier, importer) =>
-                this.#isReplaced(specifier, importer) ? EMPTY_MODULE : null,
+            resolveId: async (specifier, importer) => {
+                const resolution = await this.resolve(specifier, importer);
+
+                // keep a supplied host module external
+                if (resolution === "external") {
+                    return { id: specifier, external: true };
+                }
+                // take the empty module for a replaced one
+                else if (resolution === "empty") {
+                    return EMPTY_MODULE;
+                }
+                // leave every other module to the build
+                else {
+                    return null;
+                }
+            },
             load: (id) => (id === EMPTY_MODULE ? "export default {};\n" : null),
         };
     }
 
     /** Report whether the importer's `browser` field replaces a host module with nothing. */
-    #isReplaced(specifier: string, importer: string | undefined): boolean {
+    async #isReplaced(specifier: string, importer: string | undefined): Promise<boolean> {
         // replace nothing on Bun, which supplies every host module, or for an entry
         if (this.runtime === "bun" || importer === undefined || !isHostModule(specifier)) {
             return false;
@@ -92,19 +112,21 @@ export class HostModules {
         const directory = dirname(importer.replace(/\?[\s\S]*$/u, ""));
         let replaced = this.#replaced.get(directory);
         if (replaced === undefined) {
-            replaced = readReplaced(directory);
+            replaced = readReplaced(directory, this.#files);
             this.#replaced.set(directory, replaced);
         }
 
-        return replaced.has(specifier);
+        return (await replaced).has(specifier);
     }
 }
 
 /** Read the host modules the nearest package manifest's `browser` field replaces with nothing. */
-function readReplaced(directory: string): ReadonlySet<string> {
+async function readReplaced(directory: string, files: FileSystem): Promise<ReadonlySet<string>> {
     for (let current = directory; ; current = dirname(current)) {
         // list the modules the nearest manifest's replacements map to false
-        const text = readManifest(join(current, "package.json"));
+        const text = await files
+            .readTextFile(join(current, "package.json"))
+            .catch(FileSystemError.absent);
         if (text !== undefined) {
             const { browser } = BrowserField.parse(JSON.parse(text));
             const replacements = typeof browser === "object" ? Object.entries(browser) : [];
@@ -115,17 +137,5 @@ function readReplaced(directory: string): ReadonlySet<string> {
         else if (dirname(current) === current) {
             return new Set();
         }
-    }
-}
-
-/** Read a package manifest, absent where none exists. */
-function readManifest(path: string): string | undefined {
-    try {
-        return readFileSync(path, "utf8");
-    } catch (error) {
-        if (error instanceof Error && "code" in error && error.code === "ENOENT") {
-            return undefined;
-        }
-        throw error;
     }
 }

@@ -1,3 +1,4 @@
+import type { Crypto } from "@destack/environment";
 import { Digest, schema } from "@destack/schema";
 import { PackagePath } from "../file/file.ts";
 import { Declaration } from "./declaration.ts";
@@ -44,7 +45,10 @@ export const Root = schema.object({
 export type Root = schema.Infer<typeof Root>;
 
 /** Encode a module as its graph file: the bytes and their digest, the file's content address. */
-async function file(module: Module): Promise<{ digest: Digest; bytes: Uint8Array<ArrayBuffer> }> {
+async function file(
+    module: Module,
+    crypto: Crypto,
+): Promise<{ digest: Digest; bytes: Uint8Array<ArrayBuffer> }> {
     // refuse a declaration declared in another module
     const stray = module.declarations.find(
         (declaration) => Moniker.module(declaration.symbol) !== module.path,
@@ -59,5 +63,5 @@ async function file(module: Module): Promise<{ digest: Digest; bytes: Uint8Array
     // encode the module
     const bytes = new TextEncoder().encode(`${JSON.stringify(module)}\n`);
 
-    return { digest: await Digest.of(bytes), bytes };
+    return { digest: await Digest.of(bytes, crypto), bytes };
 }

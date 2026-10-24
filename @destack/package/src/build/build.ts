@@ -1,5 +1,6 @@
+import type { Environment } from "@destack/environment";
 import type { Manifest, Plugin, PluginOption } from "vite";
-import { schema } from "@destack/schema";
+import { type Digest, schema } from "@destack/schema";
 import type { ModuleDescription } from "../code/index.ts";
 import type { Sandbox } from "../definition/sandbox.ts";
 import type { Package } from "../definition/package.ts";
@@ -35,14 +36,16 @@ export interface TransformContext {
     readonly cache?: TransformCache;
     /** The directory of each Destack dependency's build, by package name. */
     readonly dependencies: Readonly<Record<string, string>>;
+    /** The clock and files the transforms run on. */
+    readonly environment: Environment<"files">;
 }
 
 /** The build's content-addressed cache, keeping the files transforms derive under their keys. */
 export interface TransformCache {
     /** Read the bytes kept under a key, a SHA-256 digest of what derived them, absent on a miss. */
-    readonly read: (key: string) => Promise<Uint8Array<ArrayBuffer> | undefined>;
+    readonly read: (key: Digest) => Promise<Uint8Array<ArrayBuffer> | undefined>;
     /** Keep bytes under a key for later builds. */
-    readonly write: (key: string, bytes: Uint8Array<ArrayBuffer>) => Promise<void>;
+    readonly write: (key: Digest, bytes: Uint8Array<ArrayBuffer>) => Promise<void>;
 }
 
 /** An output kind compiled in one pass into several outputs, such as a web app's two sides. */
@@ -85,8 +88,10 @@ export interface Pass {
     readonly plugins: () => Plugin[];
     /** Return the plugins of the dependency closure's extensions, transforming the modules. */
     readonly transforms: (
-        context: Omit<TransformContext, "directory" | "dependencies">,
+        context: Omit<TransformContext, "directory" | "dependencies" | "environment">,
     ) => PluginOption[];
+    /** The clock and files the build runs on. */
+    readonly environment: Environment<"files">;
     /** Return the plugin recording what one Vite environment compiles, into its output if any. */
     readonly record: (environment: string, output?: string) => Plugin;
     /** Map a generated file's source map source to its package path. */

@@ -1,3 +1,4 @@
+import type { Crypto } from "@destack/environment";
 import { Digest, found } from "@destack/schema";
 import type { Package } from "../definition/package.ts";
 import { Declaration } from "../graph/declaration.ts";
@@ -21,21 +22,27 @@ export const MemoryBuild = {
     async write(
         files: ReadonlyMap<string, Uint8Array<ArrayBuffer>>,
         contents: BuildContents,
+        crypto: Crypto,
     ): Promise<BuildReader> {
         // write the files, then the format listing them
         const stored = new Map<string, Uint8Array<ArrayBuffer>>();
-        const writer = new BuildWriter({
-            write: async (path, bytes) => {
-                stored.set(path, bytes);
+        const writer = new BuildWriter(
+            {
+                write: async (path, bytes) => {
+                    stored.set(path, bytes);
+                },
             },
-        });
+            crypto,
+        );
         for (const [path, bytes] of files) {
             await writer.write(path, bytes);
         }
 
         // read the written files back
-        return new BuildReader(await writer.finish(contents), async (path) =>
-            new Blob([found(stored, path)]).stream(),
+        return new BuildReader(
+            await writer.finish(contents),
+            async (path) => new Blob([found(stored, path)]).stream(),
+            crypto,
         );
     },
 
@@ -50,6 +57,7 @@ export const MemoryBuild = {
             /** The declaring module, the entry module when absent. */
             readonly module?: string;
         })[],
+        crypto: Crypto,
         contents: Omit<BuildContents, "package" | "graph"> & {
             /** Further files by package path. */
             readonly files?: ReadonlyMap<string, Uint8Array<ArrayBuffer>>;
@@ -82,7 +90,7 @@ export const MemoryBuild = {
             const names = [...new Set(values.map((value) => value.name))];
             graph.push({
                 path,
-                digest: await Digest.of(source),
+                digest: await Digest.of(source, crypto),
                 imports: [],
                 exports: names.map((name) => ({ name, symbol: symbol(name), isTypeOnly: false })),
                 declarations: values.map(({ module: _module, ...value }) =>
@@ -95,6 +103,10 @@ export const MemoryBuild = {
         // record the package by its identity, name and version
         const { id, name, version } = owner;
 
-        return await MemoryBuild.write(files, { ...rest, package: { id, name, version }, graph });
+        return await MemoryBuild.write(
+            files,
+            { ...rest, package: { id, name, version }, graph },
+            crypto,
+        );
     },
 };

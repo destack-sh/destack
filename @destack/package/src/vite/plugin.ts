@@ -1,18 +1,22 @@
 import type { Plugin } from "vite";
+import type { FileSystem } from "@destack/environment";
 import type { Version } from "@destack/schema";
 import { PackageLocator } from "../locator/index.ts";
 import { transformModule } from "../transform/transform.ts";
 
-/** Inject module metadata while Vite loads package sources, at the versions a build releases. */
-export function modulePlugin(versions: Readonly<Record<string, Version>> = {}): Plugin {
-    let packages = new PackageLocator(versions);
+/** Inject module metadata while Vite loads package sources from files, at a build's versions. */
+export function modulePlugin(
+    files: FileSystem,
+    versions: Readonly<Record<string, Version>> = {},
+): Plugin {
+    let packages = new PackageLocator(files, versions);
 
     return {
         name: "destack-module",
         enforce: "pre",
         buildStart() {
             // read package definitions afresh for each build of a warm builder
-            packages = new PackageLocator(versions);
+            packages = new PackageLocator(files, versions);
         },
         transform: {
             filter: { id: /\.[cm]?tsx?$/u },
@@ -29,7 +33,7 @@ export function modulePlugin(versions: Readonly<Record<string, Version>> = {}): 
                 }
 
                 // stamp declarations with a full map
-                const result = transformModule(code, path, owner, packages);
+                const result = await transformModule(code, path, owner, packages);
 
                 return (
                     result && {

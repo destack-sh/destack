@@ -1,3 +1,4 @@
+import type { Crypto } from "@destack/environment";
 import type { Commit, JsonValue } from "@destack/schema";
 import type { DependencyResolution, NpmPackage, Package } from "../definition/index.ts";
 import { PackageError } from "../error/error.ts";
@@ -52,12 +53,15 @@ export interface BuildContents {
 export class BuildWriter {
     /** Where the bytes go. */
     readonly #storage: BuildStorage;
+    /** The crypto digesting the written files. */
+    readonly #crypto: Crypto;
     /** The written files, by package path. */
     readonly #files = new Map<string, PackageFile>();
 
-    /** Write a build into storage. */
-    constructor(storage: BuildStorage) {
+    /** Write a build into storage, digesting its files with the crypto. */
+    constructor(storage: BuildStorage, crypto: Crypto) {
         this.#storage = storage;
+        this.#crypto = crypto;
     }
 
     /** Name a build file's media type by its extension. */
@@ -68,7 +72,12 @@ export class BuildWriter {
     /** Write a file once, accepting a second write of equal bytes. */
     async write(path: string, bytes: Uint8Array<ArrayBuffer>): Promise<PackageFile> {
         // accept an equal file written before
-        const file = await PackageFile.describe(path, BuildWriter.mediaType(path), bytes);
+        const file = await PackageFile.describe(
+            path,
+            BuildWriter.mediaType(path),
+            bytes,
+            this.#crypto,
+        );
         if (this.#isWritten(file)) {
             return file;
         }
@@ -108,7 +117,7 @@ export class BuildWriter {
                     `graph module without a build file: ${module.path}`,
                 );
             }
-            const encoded = await Module.file(module);
+            const encoded = await Module.file(module, this.#crypto);
             await this.write(`graph/${encoded.digest}.json`, encoded.bytes);
             root.modules[module.path] = encoded.digest;
         }

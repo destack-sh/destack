@@ -1,5 +1,5 @@
-/// <reference types="bun" />
-import { registerModulePlugin } from "./plugin.ts";
+import { BunEnvironment } from "@destack/environment/bun";
+import { modulePlugin } from "./plugin.ts";
 
 // inject module metadata into every package source loaded by this process
-registerModulePlugin();
+await BunEnvironment.system.process.runtime.plugin(modulePlugin(BunEnvironment.system.files));

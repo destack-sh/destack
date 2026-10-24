@@ -1,4 +1,4 @@
-import { Digest, schema } from "@destack/schema";
+import { Digest, type DigestCrypto, schema } from "@destack/schema";
 import { PackageError } from "../error/index.ts";
 
 /** A canonical package-relative path using slash separators. */
@@ -30,20 +30,25 @@ async function describe(
     path: string,
     mediaType: string,
     bytes: Uint8Array<ArrayBuffer>,
+    crypto: DigestCrypto,
 ): Promise<PackageFile> {
-    const digest = await Digest.of(bytes);
+    const digest = await Digest.of(bytes, crypto);
 
     return packageFileSchema.parse({ path, mediaType, size: bytes.byteLength, digest });
 }
 
 /** Verify a file's exact size and digest before reading its contents. */
-async function verify(file: PackageFile, bytes: Uint8Array<ArrayBuffer>): Promise<void> {
+async function verify(
+    file: PackageFile,
+    bytes: Uint8Array<ArrayBuffer>,
+    crypto: DigestCrypto,
+): Promise<void> {
     if (bytes.byteLength !== file.size) {
         throw PackageError.of("INVALID_FILE", `file size mismatch: ${file.path}`);
     }
 
     // reject any content change, including changes that preserve the length
-    const digest = await Digest.of(bytes);
+    const digest = await Digest.of(bytes, crypto);
     if (digest !== file.digest) {
         throw PackageError.of("INVALID_FILE", `file digest mismatch: ${file.path}`);
     }

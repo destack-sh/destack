@@ -1,5 +1,4 @@
-import { existsSync, readFileSync, realpathSync } from "node:fs";
-import { readFile } from "node:fs/promises";
+import { type FileSystem, FileSystemError } from "@destack/environment";
 import { basename, dirname, join, sep } from "node:path";
 import type { DeclarationConstructorMap } from "../definition/constructor.ts";
 import { Definition, type PackageDefinition } from "../definition/definition.ts";
@@ -29,19 +28,22 @@ export interface ModulePackage {
 export class PackageLocator {
     /** The Destack package above each directory, pending or found. */
     readonly #owners = new Map<string, Promise<ModulePackage | undefined>>();
-    /** The directory of each package name, by requesting directory. */
-    readonly #directories = new Map<string, string | undefined>();
-    /** The name each directory's package.json declares. */
-    readonly #names = new Map<string, string | undefined>();
+    /** The directory of each package name, by requesting directory, pending or found. */
+    readonly #directories = new Map<string, Promise<string | undefined>>();
+    /** The name each directory's package.json declares, pending or read. */
+    readonly #names = new Map<string, Promise<string | undefined>>();
     /** The definition of each package directory, absent without a package definition. */
-    readonly #definitions = new Map<string, PackageDefinition | undefined>();
+    readonly #definitions = new Map<string, Promise<PackageDefinition | undefined>>();
     /** The module parameter positions of stamped functions, by package name and directory. */
     readonly #imported = new Map<string, ReadonlyMap<string, number>>();
     /** The versions the build releases its source packages at, by package name. */
     readonly #versions: Readonly<Record<string, Version>>;
+    /** The files the packages are read from. */
+    readonly #files: FileSystem;
 
-    /** Find packages by directory, the sources at the versions the build releases them at. */
-    constructor(versions: Readonly<Record<string, Version>> = {}) {
+    /** Find packages in files, the sources at the versions the build releases them at. */
+    constructor(files: FileSystem, versions: Readonly<Record<string, Version>> = {}) {
+        this.#files = files;
         this.#versions = versions;
     }
 
@@ -51,45 +53,64 @@ export class PackageLocator {
     }
 
     /** Find a package's directory, an ancestor named like it or its node_modules installation. */
-    directory(name: string, from: string): string | undefined {
-        // answer a directory asked before
+    directory(name: string, from: string): Promise<string | undefined> {
+        // answer a directory asked before, else look it up once
         const key = `${from}\0${name}`;
-        if (this.#directories.has(key)) {
-            return this.#directories.get(key);
+        let found = this.#directories.get(key);
+        if (found === undefined) {
+            found = this.#lookUp(name, from);
+            this.#directories.set(key, found);
         }
 
+        return found;
+    }
+
+    /** Look a package's directory up from a directory towards the filesystem root. */
+    async #lookUp(name: string, from: string): Promise<string | undefined> {
         // accept the package containing the directory
         const installed = join(from, "node_modules", name);
-        let root: string | undefined;
-        if (this.#name(from) === name) {
-            root = from;
+        if ((await this.#name(from)) === name) {
+            return from;
         }
+
         // accept an installation of the package
-        else if (existsSync(join(installed, "package.json"))) {
-            root = realpathSync(installed);
+        if (await this.#isInstalled(join(installed, "package.json"))) {
+            return this.#files.realPath(installed);
         }
-        // continue with the parent directory, stopping at the filesystem root
+        // continue with the parent directory up to the filesystem root
         else if (dirname(from) !== from) {
-            root = this.directory(name, dirname(from));
+            return this.directory(name, dirname(from));
         }
+        // stop at the filesystem root
+        else {
+            return undefined;
+        }
+    }
 
-        // remember the answer for the directory
-        this.#directories.set(key, root);
-
-        return root;
+    /** Report whether a manifest exists, an unreadable directory having none as in Node. */
+    async #isInstalled(manifest: string): Promise<boolean> {
+        try {
+            return await this.#files.exists(manifest);
+        } catch (error) {
+            // read a directory the process cannot open as without the manifest
+            if (FileSystemError.is(error, "PERMISSION_DENIED")) {
+                return false;
+            }
+            throw error;
+        }
     }
 
     /** Read the declaration constructors of a package's build, resolved from a directory. */
-    constructors(name: string, from: string): DeclarationConstructorMap {
-        return this.#definition(name, from)?.declarations ?? {};
+    async constructors(name: string, from: string): Promise<DeclarationConstructorMap> {
+        return (await this.#definition(name, from))?.declarations ?? {};
     }
 
     /** Map a module specifier's functions to their module parameters, by export path. */
-    imported(
+    async imported(
         specifier: string,
         path: string,
         metadata: ModuleMetadata,
-    ): ReadonlyMap<string, number> {
+    ): Promise<ReadonlyMap<string, number>> {
         // read relative imports from the module's own package, and bare imports from the named package
         const owner = specifier.startsWith(".")
             ? metadata.package.name
@@ -101,7 +122,7 @@ export class PackageLocator {
         }
 
         // keep the stamped functions by parameter position
-        const definition = this.#definition(owner, dirname(path));
+        const definition = await this.#definition(owner, dirname(path));
         stamps = new Map(
             Object.entries(definition?.stamps ?? {}).map(([name, stamp]) => [name, stamp.module]),
         );
@@ -111,25 +132,26 @@ export class PackageLocator {
     }
 
     /** Read a package's destack.json once, resolved by name from a directory, if any. */
-    #definition(name: string, from: string): PackageDefinition | undefined {
+    async #definition(name: string, from: string): Promise<PackageDefinition | undefined> {
         // find the package itself or its installation above the directory
-        const root = this.directory(name, from);
+        const root = await this.directory(name, from);
         if (root === undefined) {
             return undefined;
         }
 
         // read its definition once
-        if (!this.#definitions.has(root)) {
-            const path = join(root, "destack.json");
-            this.#definitions.set(
-                root,
-                existsSync(path)
-                    ? Definition.package(Definition.read(readFileSync(path, "utf8")))
-                    : undefined,
-            );
+        let definition = this.#definitions.get(root);
+        if (definition === undefined) {
+            definition = this.#files
+                .readTextFile(join(root, "destack.json"))
+                .catch(FileSystemError.absent)
+                .then((text) =>
+                    text === undefined ? undefined : Definition.package(Definition.read(text)),
+                );
+            this.#definitions.set(root, definition);
         }
 
-        return this.#definitions.get(root);
+        return definition;
     }
 
     /** Share one lookup of the package above a directory across concurrent module loads. */
@@ -151,7 +173,9 @@ export class PackageLocator {
         }
 
         // continue with the parent directory when this one defines no package
-        const text = await readOptional(join(directory, "destack.json"));
+        const text = await this.#files
+            .readTextFile(join(directory, "destack.json"))
+            .catch(FileSystemError.absent);
         const definition =
             text === undefined ? undefined : Definition.package(Definition.read(text));
         if (definition === undefined) {
@@ -159,7 +183,9 @@ export class PackageLocator {
         }
 
         // refuse a definition without the manifest of its package
-        const manifestText = await readOptional(join(directory, "package.json"));
+        const manifestText = await this.#files
+            .readTextFile(join(directory, "package.json"))
+            .catch(FileSystemError.absent);
         if (manifestText === undefined) {
             throw PackageError.of(
                 "INVALID_DEFINITION",
@@ -192,31 +218,19 @@ export class PackageLocator {
     }
 
     /** Read the name in a directory's package.json once, or nothing without one. */
-    #name(directory: string): string | undefined {
+    #name(directory: string): Promise<string | undefined> {
         // read the manifest once
-        if (!this.#names.has(directory)) {
-            const manifest = join(directory, "package.json");
-            this.#names.set(
-                directory,
-                existsSync(manifest)
-                    ? Manifest.parse(JSON.parse(readFileSync(manifest, "utf8"))).name
-                    : undefined,
-            );
+        let name = this.#names.get(directory);
+        if (name === undefined) {
+            name = this.#files
+                .readTextFile(join(directory, "package.json"))
+                .catch(FileSystemError.absent)
+                .then((text) =>
+                    text === undefined ? undefined : Manifest.parse(JSON.parse(text)).name,
+                );
+            this.#names.set(directory, name);
         }
 
-        return this.#names.get(directory);
-    }
-}
-
-/** Read a file's text, or nothing when it does not exist. */
-async function readOptional(path: string): Promise<string | undefined> {
-    try {
-        return await readFile(path, "utf8");
-    } catch (error) {
-        // treat only a missing file as absent
-        if (error instanceof Error && "code" in error && error.code === "ENOENT") {
-            return undefined;
-        }
-        throw error;
+        return name;
     }
 }

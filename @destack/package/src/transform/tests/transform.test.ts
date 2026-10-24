@@ -1,8 +1,12 @@
 import { fileURLToPath } from "node:url";
+import { Simulation } from "@destack/environment/simulation";
 import { expect, test } from "@destack/test";
 import { PackageLocator, type ModulePackage } from "../../locator/index.ts";
 import { transformModule } from "../transform.ts";
 import { ModuleMetadata } from "../../definition/metadata.ts";
+
+/** The start of every test's world: 2026-10-24 at midnight UTC. */
+const START = Date.UTC(2026, 9, 24);
 
 /** The package whose metadata the transform injects. */
 const owner: ModulePackage = {
@@ -19,7 +23,9 @@ const owner: ModulePackage = {
 /** A module inside the fixture package declaring defineNote with its module third. */
 const NOTE_PATH = fileURLToPath(new URL("fixture/notes/note.ts", import.meta.url));
 
-test("stamp declaration constructors and metadata reads with the calling module", () => {
+test("stamp declaration constructors and metadata reads with the calling module", async () => {
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const { files } = simulation.environment("test");
     const code = [
         'import { defineNote } from "./declare.ts";',
         'import { definePackage } from "@destack/package";',
@@ -33,7 +39,7 @@ test("stamp declaration constructors and metadata reads with the calling module"
 
     // pad omitted options before the module and keep explicit modules
     const metadata = JSON.stringify(owner.metadata);
-    const transformed = transformModule(code, NOTE_PATH, owner, new PackageLocator());
+    const transformed = await transformModule(code, NOTE_PATH, owner, new PackageLocator(files));
     if (transformed === undefined) {
         throw new TypeError("the module was left unchanged");
     }
@@ -50,11 +56,18 @@ test("stamp declaration constructors and metadata reads with the calling module"
         "export const id = __destackModule.package.id;",
     ]);
     expect(
-        transformModule("export const plain = 1;", NOTE_PATH, owner, new PackageLocator()),
+        await transformModule(
+            "export const plain = 1;",
+            NOTE_PATH,
+            owner,
+            new PackageLocator(files),
+        ),
     ).toBeUndefined();
 });
 
-test("pass the calling module to stamped tags and to members of named and namespace imports", () => {
+test("pass the calling module to stamped tags and to members of named and namespace imports", async () => {
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const { files } = simulation.environment("test");
     const code = [
         'import { Note, note } from "./declare.ts";',
         'import * as notes from "./declare.ts";',
@@ -67,7 +80,7 @@ test("pass the calling module to stamped tags and to members of named and namesp
 
     // call bare tags with the module, and append it to calls building tags
     const metadata = JSON.stringify(owner.metadata);
-    const transformed = transformModule(code, NOTE_PATH, owner, new PackageLocator());
+    const transformed = await transformModule(code, NOTE_PATH, owner, new PackageLocator(files));
     expect(transformed?.code.split("\n")).toEqual([
         `const __destackModule = Object.freeze(${metadata});`,
         'import { Note, note } from "./declare.ts";',
