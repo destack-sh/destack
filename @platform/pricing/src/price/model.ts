@@ -27,7 +27,7 @@ export class PricingModel {
         // require the meter's components
         const components = this.components(meter);
         if (components === undefined) {
-            throw new TypeError(`a pricing model prices no meter ${meter.name}`);
+            throw new TypeError(`a pricing model has no price for meter ${meter.name}`);
         }
 
         // rate each component's share of the quantity at its list price in US cents

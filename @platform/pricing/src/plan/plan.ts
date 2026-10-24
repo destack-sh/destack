@@ -1,5 +1,5 @@
 import { t } from "@destack/locale";
-import type { StackDefinition } from "@destack/stack/declare";
+import type { CatalogProduct } from "@destack/finance/declare";
 import { Fee } from "../price/book.ts";
 import {
     compute,
@@ -40,7 +40,7 @@ export const PLANS = {
             storage: storage.grant(FREE_STORAGE),
             compute: compute.grant(FREE_COMPUTE),
             network: network.grant(FREE_NETWORK),
-            tenancy: tenancy.grant(["shared", "own"]),
+            tenancy: tenancy.grant(["shared", "local"]),
             support: support.grant("community"),
             retention: retention.grant(RETENTION_DAYS.free),
         },
@@ -55,7 +55,7 @@ export const PLANS = {
             storage: storage.grant(null),
             compute: compute.grant(null),
             network: network.grant(null),
-            tenancy: tenancy.grant(["shared", "own"]),
+            tenancy: tenancy.grant(["shared", "local"]),
             support: support.grant("community"),
             retention: retention.grant(RETENTION_DAYS.go),
             "early-access": earlyAccess.grant(null),
@@ -71,7 +71,7 @@ export const PLANS = {
             storage: storage.grant(null),
             compute: compute.grant(null),
             network: network.grant(null),
-            tenancy: tenancy.grant(["shared", "own"]),
+            tenancy: tenancy.grant(["shared", "local"]),
             support: support.grant("email"),
             "custom-domains": customDomains.grant(null),
             retention: retention.grant(RETENTION_DAYS.plus),
@@ -95,11 +95,11 @@ export const PLANS = {
             storage: storage.grant(null),
             compute: compute.grant(null),
             network: network.grant(null),
-            tenancy: tenancy.grant(["shared", "dedicated", "own"]),
+            tenancy: tenancy.grant(["shared", "dedicated", "local"]),
             support: support.grant("priority"),
             "custom-domains": customDomains.grant(null),
             retention: retention.grant(RETENTION_DAYS.pro),
             "early-access": earlyAccess.grant(null),
         },
     },
-} satisfies StackDefinition["products"];
+} satisfies Readonly<Record<string, CatalogProduct>>;
