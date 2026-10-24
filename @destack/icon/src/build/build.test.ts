@@ -1,9 +1,13 @@
 // @vitest-environment node
+import { Simulation } from "@destack/environment/simulation";
 import { expect, test } from "@destack/test";
 import type { Plugin } from "@destack/package/build";
 import { originalPositionFor, TraceMap } from "@jridgewell/trace-mapping";
 import { rolldown } from "rolldown";
 import { iconExtension } from "./build.ts";
+
+/** The world the icon plugin compiles in. */
+const simulation = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 24) });
 
 /** Return the icon plugin the extension transforms modules with. */
 function iconPlugin(): Plugin {
@@ -14,6 +18,7 @@ function iconPlugin(): Plugin {
             server: false,
             options: {},
             dependencies: {},
+            environment: simulation.environment("test"),
         }) ?? [];
     if (
         typeof plugin !== "object" ||

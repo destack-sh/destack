@@ -17,6 +17,7 @@
         "generate": "bun run src/phosphor/generate.ts"
     },
     "dependencies": {
+        "@destack/environment": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/style": "workspace:*",
         "@solidjs/web": "2.0.0-rc.8",

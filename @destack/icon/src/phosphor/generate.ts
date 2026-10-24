@@ -1,4 +1,5 @@
-import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import type { FileSystem } from "@destack/environment";
+import { BunEnvironment } from "@destack/environment/bun";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { formatSource } from "@destack/check";
@@ -36,9 +37,9 @@ interface PhosphorIcon {
 }
 
 /** Write one module per icon with its SVG body in each weight, and the list of every icon. */
-async function generate(): Promise<void> {
+async function generate(files: FileSystem): Promise<void> {
     // read every weight's icon bodies
-    const bodies = await Promise.all(WEIGHTS.map((weight) => readWeight(weight)));
+    const bodies = await Promise.all(WEIGHTS.map((weight) => readWeight(files, weight)));
     const names = [...(bodies[0]?.keys() ?? [])].toSorted();
 
     // write every icon with its categories and search words, without Phosphor's release markers, rejecting an icon without metadata
@@ -55,13 +56,16 @@ async function generate(): Promise<void> {
         return `    { name: ${JSON.stringify(name)}, categories: ${JSON.stringify(icon.categories)}, tags: ${JSON.stringify(tags)} },\n`;
     });
     await writeModule(
+        files,
         ICONS_LIST,
         `/** Every Phosphor icon in name order: its name, the categories it belongs to and the words that find it. */\nexport const ICONS = [\n${listed.join("")}] as const;\n\n/** The name of a Phosphor icon. */\nexport type IconName = (typeof ICONS)[number]["name"];\n`,
     );
 
     // replace the icon modules, dropping icons Phosphor removed
-    await rm(ICONS, { recursive: true, force: true });
-    await mkdir(ICONS);
+    if (await files.exists(ICONS)) {
+        await files.remove(ICONS, { recursive: true });
+    }
+    await files.mkdir(ICONS);
 
     // write each icon's bodies, rejecting an icon a weight misses
     for (const name of names) {
@@ -74,26 +78,30 @@ async function generate(): Promise<void> {
             return `    ${weight}: ${JSON.stringify(body)},\n`;
         });
         const source = `import type { IconBodies } from "../../icon/icon.tsx";\n\n/** The SVG body of the ${name} icon in each weight. */\nconst icon: IconBodies = {\n${entries.join("")}};\n\nexport default icon;\n`;
-        await writeModule(join(ICONS, `${name}.ts`), source);
+        await writeModule(files, join(ICONS, `${name}.ts`), source);
     }
 }
 
 /** Write one generated module in the package's format. */
-async function writeModule(path: string, source: string): Promise<void> {
-    await writeFile(path, await formatSource(path, source));
+async function writeModule(files: FileSystem, path: string, source: string): Promise<void> {
+    await files.writeTextFile(path, await formatSource(path, source));
 }
 
 /** Read the SVG body of each icon of one weight, keyed by the icon name. */
-async function readWeight(weight: (typeof WEIGHTS)[number]): Promise<Map<string, string>> {
+async function readWeight(
+    files: FileSystem,
+    weight: (typeof WEIGHTS)[number],
+): Promise<Map<string, string>> {
     // list the weight's files in name order
     const directory = join(ASSETS, weight);
-    const files = (await readdir(directory)).filter((file) => file.endsWith(".svg")).toSorted();
+    const entries = await files.readDirectory(directory);
+    const names = entries.map((entry) => entry.name).filter((file) => file.endsWith(".svg"));
     const suffix = weight === "regular" ? ".svg" : `-${weight}.svg`;
 
     // strip the weight suffix and the SVG element from each file
     const bodies = new Map<string, string>();
-    for (const file of files) {
-        const match = SVG_ELEMENT.exec(await readFile(join(directory, file), "utf8"));
+    for (const file of names.toSorted()) {
+        const match = SVG_ELEMENT.exec(await files.readTextFile(join(directory, file)));
         if (match?.groups?.["body"] === undefined) {
             throw new Error(`${file} has no SVG element`);
         }
@@ -103,4 +111,4 @@ async function readWeight(weight: (typeof WEIGHTS)[number]): Promise<Map<string,
     return bodies;
 }
 
-await generate();
+await generate(BunEnvironment.system.files);
