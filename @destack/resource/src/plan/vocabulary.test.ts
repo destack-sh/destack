@@ -1,18 +1,19 @@
+import { Digest } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { Vocabulary } from "./vocabulary.ts";
 
 /** The digest of the owner relation's definition. */
-const OWNER = "a".repeat(64);
+const OWNER = Digest.parse("a".repeat(64));
 /** The digest of the editor relation's first definition. */
-const EDITOR = "b".repeat(64);
+const EDITOR = Digest.parse("b".repeat(64));
 /** The digest of another definition under the editor name. */
-const WRITER = "c".repeat(64);
+const WRITER = Digest.parse("c".repeat(64));
 
 /** A release declaring terms with their digests. */
-const release = (terms: Record<string, string>) => [{ vocabulary: terms }];
+const release = (terms: Record<string, Digest>) => [{ vocabulary: terms }];
 
 /** Plan a release against a vocabulary, reading a refusal as its message. */
-function plan(vocabulary: Vocabulary, terms: Record<string, string>) {
+function plan(vocabulary: Vocabulary, terms: Record<string, Digest>) {
     try {
         return Vocabulary.plan(vocabulary, release(terms)).steps;
     } catch (error) {

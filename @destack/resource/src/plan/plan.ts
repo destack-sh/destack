@@ -1,3 +1,4 @@
+import type { Crypto } from "@destack/environment";
 import { compareJsonSchemas, Digest, schema, type JsonSchema, Version } from "@destack/schema";
 import { type Package, type DeclarationDescription } from "@destack/package";
 import { type PlanProblem, ResourceError, unreachablePlan } from "../error/error.ts";
@@ -130,7 +131,7 @@ function join(plans: readonly (() => Plan)[]): Plan {
 }
 
 /** Digest a plan's reviewed steps, so an apply can require the plan a review saw. */
-function digestSteps(plan: Plan): Promise<Digest> {
+function digestSteps(plan: Plan, crypto: Pick<Crypto, "digest">): Promise<Digest> {
     return Digest.json(
         plan.steps.map((step) => ({
             action: step.action,
@@ -139,6 +140,7 @@ function digestSteps(plan: Plan): Promise<Digest> {
             detail: step.detail,
             ...(step.fields === undefined ? {} : { fields: step.fields }),
         })),
+        crypto,
     );
 }
 

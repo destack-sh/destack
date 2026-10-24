@@ -1,3 +1,4 @@
+import type { Crypto } from "@destack/environment";
 import { Digest } from "@destack/schema";
 import type { ContentStore } from "../provider/provider.ts";
 
@@ -5,6 +6,13 @@ import type { ContentStore } from "../provider/provider.ts";
 export class MemoryContentStore implements ContentStore {
     /** The kept blobs, by digest. */
     readonly #blobs = new Map<Digest, Uint8Array>();
+    /** The crypto digesting the kept blobs. */
+    readonly #crypto: Pick<Crypto, "digest">;
+
+    /** Keep blobs in memory, digesting them with some crypto. */
+    constructor(crypto: Pick<Crypto, "digest">) {
+        this.#crypto = crypto;
+    }
 
     /** Count the kept blobs. */
     get size(): number {
@@ -26,9 +34,7 @@ export class MemoryContentStore implements ContentStore {
         const bytes = await new Blob(
             (await Array.fromAsync(body)).map((chunk) => new Uint8Array(chunk)),
         ).bytes();
-        const digest = Digest.parse(
-            new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)).toHex(),
-        );
+        const digest = await Digest.of(bytes, this.#crypto);
 
         // refuse bytes of another digest, and keep them once
         if (expected !== undefined && digest !== expected) {
