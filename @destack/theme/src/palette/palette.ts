@@ -1,5 +1,5 @@
 import { schema } from "@destack/schema";
-import { Color, HexColor } from "./color.ts";
+import { Color, HexColor, Srgb } from "./color.ts";
 import { PRESETS, Preset } from "../preset/index.ts";
 
 /** The exponent chroma falls by from the seed's lightness toward white. */
@@ -13,6 +13,9 @@ const LIGHTNESS_STEP = 0.001;
 
 /** The fine steps in each coarse stride of a tone search. */
 const COARSE_STEPS = 16;
+
+/** The palettes grown so far by seed, shared by every theme as pure functions of their seeds. */
+const PALETTES = new Map<Seed, Palette>();
 
 /** A palette's seed: a preset name or a six-digit sRGB hex color. */
 export const Seed = schema.union([Preset, HexColor]);
@@ -31,6 +34,8 @@ export class Palette {
     readonly seed: string;
     /** The seed in OKLCH. */
     readonly #color: Color;
+    /** The tones read so far, by lightness. */
+    readonly #tones = new Map<number, Srgb>();
 
     /** Grow a palette from a six-digit sRGB hex color. */
     constructor(seed: string) {
@@ -40,9 +45,18 @@ export class Palette {
 
     /** Grow a palette from a preset or a hex seed. */
     static of(seed: Seed): Palette {
-        const preset = Preset.safeParse(seed);
+        // reuse the palette of a known seed
+        const known = PALETTES.get(seed);
+        if (known !== undefined) {
+            return known;
+        }
 
-        return new Palette(preset.success ? PRESETS[preset.data] : seed);
+        // grow the palette of a preset's color or of a hex seed
+        const preset = Preset.safeParse(seed);
+        const palette = new Palette(preset.success ? PRESETS[preset.data] : seed);
+        PALETTES.set(seed, palette);
+
+        return palette;
     }
 
     /** The seed's OKLCH lightness. */
@@ -56,12 +70,25 @@ export class Palette {
     }
 
     /** Read the color at an OKLCH lightness. */
-    tone(lightness: number): string {
+    tone(lightness: number): Srgb {
+        // reuse a tone read before
+        const known = this.#tones.get(lightness);
+        if (known !== undefined) {
+            return known;
+        }
+        const tone = this.#grow(lightness);
+        this.#tones.set(lightness, tone);
+
+        return tone;
+    }
+
+    /** Grow the color at an OKLCH lightness from the seed. */
+    #grow(lightness: number): Srgb {
         // keep the seed exact at its own lightness
         const seed = this.#color;
         const clamped = Math.min(1, Math.max(0, lightness));
         if (Math.abs(clamped - seed.lightness) < LIGHTNESS_STEP / 2) {
-            return this.seed;
+            return Srgb.parse(this.seed);
         }
 
         // scale the seed's chroma by the distance toward white or black
@@ -70,13 +97,13 @@ export class Palette {
                 ? ((1 - clamped) / Math.max(1 - seed.lightness, LIGHTNESS_STEP)) ** LIGHTER_FALLOFF
                 : (clamped / Math.max(seed.lightness, LIGHTNESS_STEP)) ** DARKER_FALLOFF;
 
-        return new Color(clamped, seed.chroma * relative, seed.hue).hex();
+        return Srgb.parse(new Color(clamped, seed.chroma * relative, seed.hue).hex());
     }
 
     /** Find the lightness nearest a start whose tone passes, absent when none does. */
     nearest(
         start: number,
-        passes: (color: string) => boolean,
+        passes: (color: Srgb) => boolean,
         direction: Direction,
     ): number | undefined {
         // keep a passing start, else take the closer of the first passing lightness each way
@@ -93,7 +120,7 @@ export class Palette {
     }
 
     /** Find the first passing lightness one way from a start, in coarse strides then fine steps. */
-    #first(start: number, sign: number, passes: (color: string) => boolean): number | undefined {
+    #first(start: number, sign: number, passes: (color: Srgb) => boolean): number | undefined {
         // stride from the start toward the bound
         const bound = sign < 0 ? 0 : 1;
         const stride = LIGHTNESS_STEP * COARSE_STEPS;

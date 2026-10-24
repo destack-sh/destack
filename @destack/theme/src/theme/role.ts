@@ -1,5 +1,5 @@
 import { schema } from "@destack/schema";
-import { apca, Color, HexColor, type Palette, type Scheme } from "../palette/index.ts";
+import { apca, Color, HexColor, type Palette, type Scheme, Srgb } from "../palette/index.ts";
 
 /** An APCA lightness contrast Lc a role needs. */
 export interface Floor {
@@ -37,7 +37,7 @@ const MUTED_LIGHTNESS: Lightness = { light: 0.502, dark: 0.768 };
 const SUBTLE_OFFSET: Lightness = { light: -0.034, dark: 0.077 };
 
 /** The light label candidate on solid colors. */
-const WHITE = "#ffffff";
+const WHITE = Srgb.parse("#ffffff");
 
 /** The halvings of the opacity search, enough for a step below one 8-bit alpha level. */
 const OPACITY_STEPS = 9;
@@ -313,8 +313,9 @@ export class Resolution {
 
         // measure a translucent role blended over the role it reads on
         const ground = this.color(reading.on);
+        const blended = Srgb.parse(Color.composite(this.color(name), ground));
 
-        return Math.abs(apca(Color.composite(this.color(name), ground), ground));
+        return Math.abs(apca(blended, Srgb.parse(ground)));
     }
 
     /** Read a floor at the level. */
@@ -323,11 +324,11 @@ export class Resolution {
     }
 
     /** Pick the label that reads best on a background. */
-    label(palette: Palette, background: string): string {
+    label(palette: Palette, background: Srgb): Srgb {
         // measure each candidate on the background and keep the strongest
         const dark = TEXT_LIGHTNESS.light;
         const candidates = [WHITE, palette.tone(dark), this.#palettes.base.tone(dark)];
-        const reading = (candidate: string) => Math.abs(apca(candidate, background));
+        const reading = (candidate: Srgb) => Math.abs(apca(candidate, background));
 
         return candidates.reduce((best, candidate) =>
             reading(candidate) > reading(best) ? candidate : best,
@@ -357,13 +358,13 @@ export class Resolution {
 
                 // settle an opaque tone in lightness, a translucent one in opacity
                 return source.alpha === undefined
-                    ? palette.tone(this.#settle(palette, start, role))
-                    : this.#translucent(palette.tone(start), source.alpha, role);
+                    ? palette.tone(this.#settle(palette, start, role)).hex
+                    : this.#translucent(palette.tone(start).hex, source.alpha, role);
             }
             case "solid": {
                 const palette = this.#palettes[source.palette];
 
-                return palette.tone(this.#settle(palette, palette.lightness, role));
+                return palette.tone(this.#settle(palette, palette.lightness, role)).hex;
             }
             case "label": {
                 // pick among the candidates of the palette the background grows from
@@ -374,7 +375,7 @@ export class Resolution {
                 const under = this.#roles[reading.on].source;
                 const palette = this.#palettes["palette" in under ? under.palette : "base"];
 
-                return this.label(palette, this.color(reading.on));
+                return this.label(palette, Srgb.parse(this.color(reading.on))).hex;
             }
             case "color":
                 return this.#translucent(source[this.scheme], source.alpha, role);
@@ -393,10 +394,13 @@ export class Resolution {
 
         // find the least opacity at or above the declared one whose blend reaches the floor
         const ground = this.color(reading.on);
+        const under = Srgb.parse(ground);
         const floor = this.floor(reading.contrast);
-        const reads = (opacity: number) =>
-            Math.abs(apca(Color.composite(Color.translucent(color, opacity), ground), ground)) >=
-            floor;
+        const reads = (opacity: number) => {
+            const blended = Srgb.parse(Color.composite(Color.translucent(color, opacity), ground));
+
+            return Math.abs(apca(blended, under)) >= floor;
+        };
         let low = alpha;
         let high = 1;
         if (reads(low) || !reads(high)) {
@@ -414,8 +418,8 @@ export class Resolution {
     #settle(palette: Palette, start: number, role: Role): number {
         // require the role's reading and its label's at the level
         const { reading, labelled } = role;
-        const background = reading === undefined ? undefined : this.color(reading.on);
-        const passes = (color: string) =>
+        const background = reading === undefined ? undefined : Srgb.parse(this.color(reading.on));
+        const passes = (color: Srgb) =>
             (reading === undefined ||
                 background === undefined ||
                 Math.abs(apca(color, background)) >= this.floor(reading.contrast)) &&
@@ -426,7 +430,7 @@ export class Resolution {
         if (background === undefined || role.source.kind === "solid") {
             return palette.nearest(start, passes, "either") ?? start;
         }
-        const isLighter = start >= Color.parse(background).lightness;
+        const isLighter = start >= Color.parse(background.hex).lightness;
 
         return (
             palette.nearest(start, passes, isLighter ? "lighter" : "darker") ?? (isLighter ? 1 : 0)

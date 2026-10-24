@@ -40,6 +40,18 @@ const GAMUT_TOLERANCE = 0.0001;
 /** The halvings of the chroma search, enough for a chroma step below 1e-6. */
 const GAMUT_ITERATIONS = 20;
 
+/** The sRGB channel exponent of APCA-W3 0.0.98G. */
+const MAIN_TRC = 2.4;
+
+/** The red luminance coefficient of APCA-W3 0.0.98G. */
+const RED = 0.2126729;
+
+/** The green luminance coefficient of APCA-W3 0.0.98G. */
+const GREEN = 0.7151522;
+
+/** The blue luminance coefficient of APCA-W3 0.0.98G. */
+const BLUE = 0.072175;
+
 /** The pattern of a six-digit sRGB hex color. */
 const HEX = /^#[0-9a-f]{6}$/iu;
 
@@ -152,6 +164,29 @@ export class Color {
         const lms = apply(multiply(LMS_FROM_LAB, lab), (value) => value ** 3);
 
         return multiply(RGB_FROM_LMS, lms);
+    }
+}
+
+/** An opaque sRGB color: its six-digit hex form and the screen luminance APCA reads from it. */
+export class Srgb {
+    /** The lowercase six-digit hex form, such as `#3e63dd`. */
+    readonly hex: string;
+    /** The screen luminance APCA-W3 0.0.98G estimates, from 0 to 1. */
+    readonly luminance: number;
+
+    /** Hold a color and its luminance. */
+    private constructor(hex: string, luminance: number) {
+        this.hex = hex;
+        this.luminance = luminance;
+    }
+
+    /** Read a six-digit sRGB hex color, estimating its luminance once. */
+    static parse(hex: string): Srgb {
+        const [red, green, blue] = Color.channels(hex);
+        const luminance =
+            RED * red ** MAIN_TRC + GREEN * green ** MAIN_TRC + BLUE * blue ** MAIN_TRC;
+
+        return new Srgb(hex.toLowerCase(), luminance);
     }
 }
 

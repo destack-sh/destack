@@ -1,7 +1,7 @@
 import { Package } from "@destack/package";
 import { expect, refusal, test } from "@destack/test";
 import { defineTheme } from "../declare/index.ts";
-import { apca, Color, Palette } from "../palette/index.ts";
+import { apca, Color, Palette, Srgb } from "../palette/index.ts";
 import { GRAY_PRESETS, PRESET_NAMES, PRESETS } from "../preset/index.ts";
 import {
     DEFAULT_DISPLAY,
@@ -126,7 +126,7 @@ test("give every preset accent on every base five chart series of hues apart, st
             const faint = series.filter((entry) =>
                 (["light", "dark"] as const).some(
                     (scheme) =>
-                        Math.abs(apca(entry[scheme], background[scheme])) <
+                        Math.abs(apca(Srgb.parse(entry[scheme]), Srgb.parse(background[scheme]))) <
                         GRAPHIC_CONTRAST.standard,
                 ),
             );
@@ -185,7 +185,7 @@ test("keep a legible preset's seed and label it with its own palette's darkest t
 
     expect([resolution.color("primary"), resolution.color("primaryForeground")]).toEqual([
         PRESETS.amber,
-        Palette.of("amber").tone(0.242),
+        Palette.of("amber").tone(0.242).hex,
     ]);
 });
 
@@ -324,7 +324,7 @@ test("label an overridden primary with the candidate that reads best on it", () 
     // the warning palette's darkest text reads on amber, where the indigo accent's white label would not
     expect([resolution.color("primary"), resolution.color("primaryForeground")]).toEqual([
         PRESETS.amber,
-        Palette.of("amber").tone(0.242),
+        Palette.of("amber").tone(0.242).hex,
     ]);
 });
 

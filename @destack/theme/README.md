@@ -5,7 +5,7 @@
 ```ts
 // Radix Themes has no density
 defineTheme({ name: "notes", base: "sand", accent: "orange", density: "compact" });
-Palette.of("indigo").tone(0.95); // OKLCH tones from a seed, where Radix has twelve steps
+Palette.of("indigo").tone(0.95).hex; // OKLCH tones from a seed, where Radix has twelve steps
 theme.resolve("light", 1).color("mutedForeground"); // roles solved for APCA contrast
 theme.variables(display); // custom properties, where Radix has a <Theme> component
 ```

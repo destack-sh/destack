@@ -1,13 +1,4 @@
-import { Color } from "./color.ts";
-
-/** The sRGB channel exponent of APCA-W3 0.0.98G. */
-const MAIN_TRC = 2.4;
-/** The red luminance coefficient of APCA-W3 0.0.98G. */
-const RED = 0.2126729;
-/** The green luminance coefficient of APCA-W3 0.0.98G. */
-const GREEN = 0.7151522;
-/** The blue luminance coefficient of APCA-W3 0.0.98G. */
-const BLUE = 0.072175;
+import type { Srgb } from "./color.ts";
 
 /** The background exponent for dark text on a light background, APCA-W3 0.0.98G `normBG`. */
 const NORMAL_BACKGROUND = 0.56;
@@ -32,10 +23,10 @@ const LOW_CLIP = 0.1;
 const DELTA_MIN = 0.0005;
 
 /** Measure the APCA-W3 0.0.98G lightness contrast Lc of text on a background. */
-export function apca(foreground: string, background: string): number {
+export function apca(foreground: Srgb, background: Srgb): number {
     // soft-clamp both luminances near black
-    const text = clamp(luminance(foreground));
-    const ground = clamp(luminance(background));
+    const text = clamp(foreground.luminance);
+    const ground = clamp(background.luminance);
     if (Math.abs(ground - text) < DELTA_MIN) {
         return 0;
     }
@@ -52,13 +43,6 @@ export function apca(foreground: string, background: string): number {
 
         return contrast > -LOW_CLIP ? 0 : (contrast + OFFSET) * 100;
     }
-}
-
-/** Estimate the screen luminance APCA reads from a six-digit sRGB hex color. */
-function luminance(hex: string): number {
-    const [red, green, blue] = Color.channels(hex);
-
-    return RED * red ** MAIN_TRC + GREEN * green ** MAIN_TRC + BLUE * blue ** MAIN_TRC;
 }
 
 /** Soft-clamp a luminance near black. */

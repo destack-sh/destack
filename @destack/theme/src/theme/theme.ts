@@ -1,6 +1,6 @@
 import { Package, PackageError } from "@destack/package";
 import { present, schema } from "@destack/schema";
-import { apca, Palette, Seed, type Scheme } from "../palette/index.ts";
+import { apca, Palette, Seed, type Scheme, Srgb } from "../palette/index.ts";
 import { ACCENT_PRESETS } from "../preset/index.ts";
 import { MOTION_VARIABLE, TOKENS, VARIABLE_PREFIX, type Variable } from "../token/index.ts";
 import { DENSITY_SCALES, Density, TEXT_SCALES, type Contrast, type Display } from "./display.ts";
@@ -431,10 +431,10 @@ function lightDark(light: string, dark: string): string {
 }
 
 /** Pick the chart series after the accent. */
-function seriesOf(accent: Palette, declared: readonly Palette[], background: string): Palette[] {
+function seriesOf(accent: Palette, declared: readonly Palette[], background: Srgb): Palette[] {
     // keep the candidates whose seeds read as graphics on the light background, where pale hues would darken into muddy tones
     const isVisible = (palette: Palette) =>
-        Math.abs(apca(palette.seed, background)) >= GRAPHIC_CONTRAST.standard;
+        Math.abs(apca(Srgb.parse(palette.seed), background)) >= GRAPHIC_CONTRAST.standard;
     const candidates = ACCENT_PRESETS.map((name) => Palette.of(name)).filter((palette) =>
         isVisible(palette),
     );
