@@ -26,6 +26,9 @@ import { eventTables } from "../stack/db.ts";
 import { EventStore } from "../store/store.ts";
 import { VirtualClock } from "@destack/environment/simulation";
 
+/** When every fixture's clock starts: 1 October 2026, UTC. */
+const START = Date.UTC(2026, 9, 1);
+
 /** Build a test kind and its table: the event columns, and an indexed column per key. */
 export function testKind<Fields extends EventKeyFields, Data extends JsonValue>(
     description: Omit<EventKindDescription<Fields, Data>, "table">,
@@ -93,10 +96,10 @@ export class EventFixture implements AsyncDisposable {
     readonly store: EventStore;
     /** The test database that stores the hot events, the catalog and people's keys. */
     readonly database: TestDatabase;
-    /** The clock the controllers and the bucket's locks read, which tests set. */
-    readonly clock = new VirtualClock(Date.UTC(2026, 9, 1));
+    /** The clock the database, the controllers and the bucket's locks read, which tests set. */
+    readonly clock: VirtualClock;
     /** The memory bucket that stores the segments, its locks on the fixture's clock. */
-    readonly bucket = new MemoryBucket(this.clock);
+    readonly bucket: MemoryBucket;
     /** The telemetry that records the exceptions the store captures. */
     readonly telemetry = TestTelemetry.register();
     /** The stop of the store's control loop. */
@@ -107,9 +110,15 @@ export class EventFixture implements AsyncDisposable {
     #controlled: { readonly loop: ControlLoop; readonly running: Promise<void> } | undefined;
 
     /** Store opened events. */
-    private constructor(open: (fixture: EventFixture) => EventStore, database: TestDatabase) {
-        // store the database, then open the store on the fixture's bucket and clock
+    private constructor(
+        open: (fixture: EventFixture) => EventStore,
+        database: TestDatabase,
+        clock: VirtualClock,
+    ) {
+        // store the database and clock, then open the store on the fixture's bucket
         this.database = database;
+        this.clock = clock;
+        this.bucket = new MemoryBucket(clock);
         this.store = open(this);
     }
 
@@ -118,9 +127,10 @@ export class EventFixture implements AsyncDisposable {
         kinds: readonly EventKind[],
         settings?: SettingRetention,
     ): Promise<EventFixture> {
-        // migrate the kinds' tables
+        // migrate the kinds' tables on the fixture's clock
         const tables = eventTables(kinds);
-        const database = await TestDatabase.create(tables);
+        const clock = new VirtualClock(START);
+        const database = await TestDatabase.create(tables, { clock });
         await database.database.migrate(tables);
         const keyring = await LocalKeyring.read(LocalKeyring.generate());
 
@@ -136,6 +146,7 @@ export class EventFixture implements AsyncDisposable {
                     clock: fixture.clock,
                 }),
             database,
+            clock,
         );
     }
 

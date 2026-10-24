@@ -475,7 +475,9 @@ test("drop an at-most-once event whose write fails, capturing the failure", asyn
     const { store, database } = fixture;
 
     // append a log line once its table is gone
-    await database.database.run(sql`DROP TABLE ${line.table}`);
+    await database.database.transaction(
+        async (transaction) => await transaction.run(sql`DROP TABLE ${line.table}`),
+    );
     await store.append(line, [
         {
             scope: "space-1",
