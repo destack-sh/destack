@@ -1,4 +1,5 @@
 import { unplugin } from "@stylexjs/unplugin";
+import type { Environment } from "@destack/environment";
 import { Features } from "lightningcss";
 import type { ViteDevServer } from "vite";
 import { basename, join, relative } from "node:path";
@@ -53,7 +54,7 @@ interface StylexPlugin extends Plugin {
 
 /** Compile StyleX styles in builds of packages that depend on `@destack/style`. */
 export const styleExtension = {
-    transform: ({ directory, dependencies }) => {
+    transform: ({ directory, dependencies, environment }) => {
         // read the plugin StyleX declares without a type, with the base layer before its own
         const sheet: SheetTarget = { file: undefined };
         const plugin: unknown = unplugin.vite({
@@ -85,7 +86,10 @@ export const styleExtension = {
             },
         };
 
-        return [filtered, sheetPlugin(plugin, sheet, directory, Object.values(dependencies))];
+        // collect the dependencies' rules into the sheet beside the compiler
+        const built = Object.values(dependencies);
+
+        return [filtered, sheetPlugin(plugin, sheet, directory, built, environment)];
     },
 } satisfies BuildExtension;
 
@@ -101,6 +105,7 @@ function sheetPlugin(
     sheet: SheetTarget,
     directory: string,
     dependencies: readonly string[],
+    environment: Environment<"files">,
 ): Plugin {
     // hold the development server, the rule version the sheet last carried and a queued reload
     let server: ViteDevServer | undefined;
@@ -119,7 +124,7 @@ function sheetPlugin(
 
             // add the rules each dependency's build keeps under its modules, ordered with this build's own
             for (const dependency of dependencies) {
-                for (const [module, rule] of await readRules(dependency)) {
+                for (const [module, rule] of await readRules(dependency, environment)) {
                     rules.set(join(dependency, module), rule);
                 }
             }
@@ -165,7 +170,7 @@ function sheetPlugin(
                 return undefined;
             }
             isReloadQueued = true;
-            setTimeout(() => {
+            void environment.clock.sleep(0).then(() => {
                 // send the browser the sheet with the new rules
                 isReloadQueued = false;
                 const client = running.environments.client;
@@ -181,13 +186,16 @@ function sheetPlugin(
 }
 
 /** Read the StyleX rules a dependency's build keeps, in the rules files its file list has. */
-async function readRules(directory: string): Promise<schema.Infer<typeof RuleFile>> {
+async function readRules(
+    directory: string,
+    environment: Pick<Environment<"files">, "files" | "crypto">,
+): Promise<schema.Infer<typeof RuleFile>> {
     // read the build's file list, then each output's rules file
-    const build = await readBuild(directory);
-    const files = (await build.files()).filter((file) => basename(file.path) === RULES_FILE);
+    const build = await readBuild(directory, environment.files, environment.crypto);
+    const listed = (await build.files()).filter((file) => basename(file.path) === RULES_FILE);
     const decoder = new TextDecoder();
     const rules = await Promise.all(
-        files.map(async (file) =>
+        listed.map(async (file) =>
             RuleFile.parse(JSON.parse(decoder.decode(await build.load(file.path)))),
         ),
     );
