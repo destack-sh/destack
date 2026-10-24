@@ -107,7 +107,7 @@ function sheetPlugin(
     dependencies: readonly string[],
     environment: Environment<"files">,
 ): Plugin {
-    // hold the development server, the rule versions the sheet last carried and was last reloaded for, and a queued reload
+    // the server, the rule versions and the queued reload
     let server: ViteDevServer | undefined;
     let version = 0;
     let reloaded = 0;
