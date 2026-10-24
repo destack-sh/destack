@@ -1,10 +1,10 @@
 # @platform/pricing
 
-Declare Destack's plans as products, its units by resource, its price book, the features its plans grant, and the list prices of the vendors it runs on.
+Destack's plans, units, price book and plan features, and the list prices of the vendors it runs on.
 
 ## Plans
 
-`PLANS` lists Free, every account's default product, and Go, Plus and Pro at round local fees, 8, 20 and 100 a month in USD, EUR, CHF and GBP, 11, 28 and 140 in CAD, and 13, 32 and 160 in AUD, named and described as messages, each fee including as much usage; Go lifts the caps and adds early access, Plus adds custom domains and email support, and Pro adds dedicated machines and priority support, every plan keeping events for longer.
+`PLANS` declares Free, Go, Plus and Pro as products, and each monthly fee includes the same amount of usage.
 
 ```ts
 import { CREDIT_PRICES, PLANS } from "@platform/pricing";
@@ -13,11 +13,17 @@ export const platform = defineStack({
     sellers: { platform: { provider: "stripe", country: "AT", creditPrices: CREDIT_PRICES } },
     products: PLANS, // { free: { name: t`Free`, … }, go, plus, pro }
 });
+
+// free: every account's default, capped usage, community support
+// go:   8 USD, EUR, CHF or GBP, 11 CAD, 13 AUD a month: no caps, early access
+// plus: 20, 28 or 32 a month: custom domains, email support
+// pro:  100, 140 or 160 a month: dedicated machines, priority support
+// each plan keeps events longer than the plan before it
 ```
 
 ## Price book
 
-`CREDIT_PRICES` prices a credit in each currency Destack bills, kept by the platform seller, and `Fee.conversion` reads a list price's currency in US cents.
+`CREDIT_PRICES` prices a credit in each billing currency, and `Fee.conversion` converts a list price's currency to US cents.
 
 ```ts
 import { CREDIT_PRICES, Fee } from "@platform/pricing";
@@ -28,7 +34,7 @@ Fee.conversion("x-credits"); // "1"
 
 ## Machines
 
-`MACHINES` sizes Destack's dedicated machines, which sleep when idle, at 8, 16, 32 and 64 credit cents per awake hour capped at 40, 80, 160 and 320 credits a month, about twice their share of a Hetzner server, and `MACHINE_SKUS` rate each size's `machine.hours` as usage like every other unit.
+`MACHINES` sizes the dedicated machines, each billed per awake hour through `MACHINE_SKUS` and capped each month at about twice its share of a Hetzner server.
 
 ```ts
 import { MACHINE_HOST, MACHINE_SKUS, MACHINES } from "@platform/pricing";
@@ -40,7 +46,7 @@ MACHINE_HOST.quote(MACHINES.small); // { name: "AX42-1", monthly: 1906.51, … }
 
 ## Units
 
-`UNIT_SKUS` are Destack's SKUs in credits, one per generic meter, each at twice its Cloudflare cost, egress free, priced alike on every host and in every region, each under the resource people see as its FOCUS service: Compute, Database, Storage or Network.
+`UNIT_SKUS` prices each generic meter in credits at twice its Cloudflare cost, the same on every host and in every region, and egress is free.
 
 ```ts
 import { memoryUnit, RESOURCES, requestsUnit, rowsWrittenUnit } from "@platform/pricing";
@@ -53,7 +59,7 @@ rowsWrittenUnit.definition.service; // "Database"
 
 ### Pricing models
 
-`PricingModel` keeps a provider's SKUs and their quantities per unit of each generic meter, and `PricingModel.price` prices a meter's quantity in US cents; `UNIT_PRICING` is Destack's, each meter at its one unit.
+`PricingModel` maps each generic meter to a provider's SKUs, and `price` rates a meter's quantity in US cents.
 
 ```ts
 import { UNIT_PRICING } from "@platform/pricing";
@@ -67,7 +73,7 @@ UNIT_PRICING.price(requests.reference, 1_000_000); // 90 US cents
 
 ## Vendors
 
-`CLOUDFLARE_SKUS` keeps Cloudflare's list prices as FOCUS SKUs in their published pricing units, each on the meter its pricing unit counts, with their sources and the day they were read, and `CLOUDFLARE_PRICING` prices each meter over them, the cost every unit doubles.
+`CLOUDFLARE_SKUS` lists Cloudflare's published prices as FOCUS SKUs with their sources, and `CLOUDFLARE_PRICING` prices each meter with them.
 
 ```ts
 import { CLOUDFLARE_PRICING, r2Storage } from "@platform/pricing/cloudflare";
@@ -79,7 +85,7 @@ CLOUDFLARE_PRICING.price(requests.reference, 1_000_000); // 45 US cents
 
 ### Refresh
 
-`just refresh` reads Cloudflare's docs pages and rewrites the module's amounts and day.
+`just refresh` reads Cloudflare's docs pages and rewrites the module's prices and date.
 
 ```sh
 just refresh
@@ -87,7 +93,7 @@ just refresh
 
 ### Machine vendors
 
-`hetzner` keeps Hetzner's list prices with their source and the day they were read, and quotes the cheapest share of a server with some resources, the cost every machine cap doubles.
+`hetzner` lists Hetzner's prices and quotes the cheapest share of a server with the given resources.
 
 ```ts
 import { hetzner } from "@platform/pricing/hetzner";
@@ -97,13 +103,13 @@ hetzner.quote({ vcpus: 16, memory: 32, disk: 640 }); // { name: "AX102-1", month
 
 ## Features
 
-`database` and `storage` count the bytes kept in databases and buckets, `compute` the GB-seconds and `network` the bytes sent out each period, each an entitlement a machine enforces, `retention` the days events stay, and `tenancy`, `support`, `customDomains` and `earlyAccess` what a plan unlocks.
+Each feature is an entitlement a plan grants: usage amounts per period, event retention in days, and what a plan unlocks.
 
 ```ts
 import { compute, database, network, retention, tenancy } from "@platform/pricing";
 
 database.grant(1_000_000_000);
 network.grant(100_000_000_000);
-tenancy.grant(["shared", "dedicated", "own"]);
+tenancy.grant(["shared", "dedicated", "local"]);
 retention.grant(90);
 ```
