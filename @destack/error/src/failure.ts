@@ -12,6 +12,16 @@ const TRANSIENT_CODES: ReadonlySet<CallErrorCode> = new Set([
     "SERVICE_UNAVAILABLE",
 ]);
 
+/** The error codes of failed connections in Node and Bun, which a retry may reach. */
+const UNAVAILABLE_CODES: ReadonlySet<string> = new Set([
+    "ECONNREFUSED",
+    "ECONNRESET",
+    "ETIMEDOUT",
+    "ConnectionRefused",
+    "ConnectionClosed",
+    "FailedToOpenSocket",
+]);
+
 /** The domain of failures without a package's reason: HTTP, whose status code is their reason. */
 export const HTTP_DOMAIN = "http";
 
@@ -41,50 +51,17 @@ export type Failure = schema.Infer<typeof failureSchema>;
 export const Failure = Object.assign(failureSchema, {
     /** Describe a thrown value as the failure its caller receives. */
     of(error: unknown): Failure {
-        // read a domain error as the call error it converts to
-        if (DomainError.is(error)) {
-            return error.toCallError();
-        }
-        // read a call error by its code, reason and details
-        else if (
-            error instanceof Error &&
-            "code" in error &&
-            typeof error.code === "string" &&
-            CallErrorCode.is(error.code)
-        ) {
-            const data =
-                "data" in error && error.data !== undefined
-                    ? { data: JsonValue.of(error.data) }
-                    : {};
-            const named = FailureReason.safeParse("reason" in error ? error.reason : undefined);
-            const reason = named.success ? named.data : undefined;
-            const domain =
-                "domain" in error && typeof error.domain === "string" ? error.domain : undefined;
+        // read an undeclared value as an internal failure with its message
+        const message = error instanceof Error ? error.message : String(error);
 
-            return {
-                ...Failure.http(error.code, error.message),
-                ...(reason === undefined || domain === undefined ? {} : { reason, domain }),
-                ...data,
-            };
-        }
-        // read a refused connection as the peer being unavailable
-        else if (
-            error instanceof Error &&
-            "code" in error &&
-            (error.code === "ECONNREFUSED" || error.code === "ConnectionRefused")
-        ) {
-            return Failure.http("SERVICE_UNAVAILABLE", error.message);
-        }
-        // read an error with only an HTTP status by the status's code
-        else if (error instanceof Error && "status" in error && typeof error.status === "number") {
-            return Failure.http(CallErrorCode.of(error.status), error.message);
-        }
-        // read any other thrown value as an internal failure with its message
-        else {
-            const message = error instanceof Error ? error.message : String(error);
+        return readFailure(error) ?? Failure.http("INTERNAL_SERVER_ERROR", message);
+    },
 
-            return Failure.http("INTERNAL_SERVER_ERROR", message);
-        }
+    /** Report whether a thrown value declares a failure other than an internal one. */
+    isDeclared(error: unknown): boolean {
+        const failure = readFailure(error);
+
+        return failure !== undefined && failure.code !== "INTERNAL_SERVER_ERROR";
     },
 
     /** Report whether a later or rerouted attempt may succeed: a timeout, move, limit or outage. */
@@ -132,3 +109,48 @@ export const Failure = Object.assign(failureSchema, {
             : { ...failure, reason, domain };
     },
 });
+
+/** Read the failure a thrown value declares, absent for an undeclared one. */
+function readFailure(error: unknown): Failure | undefined {
+    // read a domain error as the call error it converts to
+    if (DomainError.is(error)) {
+        return error.toCallError();
+    }
+    // read a call error by its code, reason and details
+    else if (
+        error instanceof Error &&
+        "code" in error &&
+        typeof error.code === "string" &&
+        CallErrorCode.is(error.code)
+    ) {
+        const data =
+            "data" in error && error.data !== undefined ? { data: JsonValue.of(error.data) } : {};
+        const named = FailureReason.safeParse("reason" in error ? error.reason : undefined);
+        const reason = named.success ? named.data : undefined;
+        const domain =
+            "domain" in error && typeof error.domain === "string" ? error.domain : undefined;
+
+        return {
+            ...Failure.http(error.code, error.message),
+            ...(reason === undefined || domain === undefined ? {} : { reason, domain }),
+            ...data,
+        };
+    }
+    // read a failed connection as the peer being unavailable
+    else if (
+        error instanceof Error &&
+        "code" in error &&
+        typeof error.code === "string" &&
+        UNAVAILABLE_CODES.has(error.code)
+    ) {
+        return Failure.http("SERVICE_UNAVAILABLE", error.message);
+    }
+    // read an error with only an HTTP status by the status's code
+    else if (error instanceof Error && "status" in error && typeof error.status === "number") {
+        return Failure.http(CallErrorCode.of(error.status), error.message);
+    }
+    // leave any other thrown value undeclared
+    else {
+        return undefined;
+    }
+}

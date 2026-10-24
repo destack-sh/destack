@@ -1,9 +1,13 @@
+import { BunEnvironment } from "@destack/environment/bun";
 import { defineConfiguration } from "@destack/test/config";
 
-export default defineConfiguration({
-    test: {
-        include: ["src/**/*.test.ts"],
-        testTimeout: 5000,
-        hookTimeout: 5000,
+export default defineConfiguration(
+    {
+        test: {
+            include: ["src/**/*.test.ts"],
+            testTimeout: 5000,
+            hookTimeout: 5000,
+        },
     },
-});
+    BunEnvironment.system,
+);

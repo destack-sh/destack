@@ -16,6 +16,7 @@
         "@destack/schema": "workspace:*"
     },
     "devDependencies": {
+        "@destack/environment": "workspace:*",
         "@destack/test": "workspace:*"
     }
 }

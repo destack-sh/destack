@@ -137,6 +137,29 @@ test("read a refused connection as the peer unavailable, and that as transient",
     ]);
 });
 
+test("declare domain, call, connection and status errors, and leave programming and internal errors undeclared", () => {
+    const closed = Object.assign(new TypeError("the socket closed"), { code: "ConnectionClosed" });
+    const reset = Object.assign(new Error("reset"), { code: "ECONNRESET" });
+    const status = Object.assign(new Error("teapot"), { status: 418 });
+    const call = Object.assign(new Error("gone"), { code: "NOT_FOUND" });
+    const internal = Object.assign(new Error("broken"), { code: "INTERNAL_SERVER_ERROR" });
+    const failed = Object.assign(new Error("broken"), { status: 500 });
+
+    expect(
+        [
+            new NoteError("missing"),
+            call,
+            closed,
+            reset,
+            status,
+            internal,
+            failed,
+            new TypeError("x is undefined"),
+            "text",
+        ].map((error) => Failure.isDeclared(error)),
+    ).toEqual([true, true, true, true, true, false, false, false, false]);
+});
+
 test("describe a failure without a package's reason as HTTP's, its code its reason", () => {
     expect(Failure.http("NOT_FOUND", "no note")).toEqual({
         code: "NOT_FOUND",
