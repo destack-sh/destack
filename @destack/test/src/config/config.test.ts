@@ -1,12 +1,9 @@
-import { Simulation } from "@destack/environment/simulation";
+import { testSimulation } from "../world/world.ts";
 import { expect, test } from "vitest";
 import { defineConfiguration } from "./config.ts";
 
-/** The fixed start of every test world. */
-const START = Date.UTC(2026, 9, 24);
-
 test("run each project once per combination of its targets, named after them, with the root's setup in each extending project", async () => {
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
 
     // declare a root matrix, a project with targets and a colored label, and one extending the root
     const configuration = defineConfiguration(
@@ -65,7 +62,7 @@ test("run each project once per combination of its targets, named after them, wi
 });
 
 test("run the whole configuration once per combination of its targets without declared projects", async () => {
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
 
     // declare a matrix and a setup on the root alone
     const configuration = defineConfiguration(
