@@ -28,18 +28,17 @@ const text = document ? await document.text() : undefined;
 
 ## Hosts
 
-`LocalBucket` keeps a bucket in a local directory, `R2Bucket` wraps a Workers R2 binding, and `MemoryBucket` keeps files in memory on a clock a test sets.
+`LocalBucket` keeps a bucket in a directory of an environment's files, `R2Bucket` wraps a Workers R2 binding, and `MemoryBucket` keeps files in memory on a clock a test sets.
 
 ```ts
-import { Clock } from "@destack/environment";
 import { LocalBucket } from "@destack/bucket/bun";
 import { R2Bucket } from "@destack/bucket/cloudflare";
 import { MemoryBucket } from "@destack/bucket/test";
 
-await using local = await LocalBucket.open("./resources/files", undefined, Clock.system);
+await using local = await LocalBucket.open("./resources/files", undefined, environment); // its files, clock and randomness
 const remote = new R2Bucket(environment.FILES);
 remote.takeOperations(); // { classA: 1, classB: 1 }, R2's billing classes
-const memory = new MemoryBucket(() => now);
+const memory = new MemoryBucket(world.clock); // versions counted per bucket
 ```
 
 ## Providers
@@ -50,7 +49,13 @@ const memory = new MemoryBucket(() => now);
 import { LocalBucketHost } from "@destack/bucket/bun";
 import { bucketProvider } from "@destack/bucket/provider";
 
-const buckets = new LocalBucketHost({ directory, endpoint, region: "local", credentials, clock });
+const buckets = new LocalBucketHost({
+    directory,
+    endpoint,
+    region: "local",
+    credentials,
+    environment,
+});
 const provider = bucketProvider(buckets, implementBucket(buckets));
 ```
 
@@ -63,12 +68,15 @@ import { S3Client, S3Server } from "@destack/bucket/s3";
 
 const server = new S3Server({
     region: "auto",
+    environment, // the clock signatures are checked on, and the randomness of request ids
     credentials: async (accessKeyId) => keys.get(accessKeyId),
     open: async (bucketName, accessKeyId) => host.open(bucketName, accessKeyId),
     cors: [{ allowed: { origins: ["https://app.example"], methods: ["GET", "PUT"] } }],
 });
 const response = await server.fetch(request); // SigV4, or server.serve(request, accessKeyId) once authorized
-const files = new S3Client(`${egress}/${bucketId}`, fetch);
+// a send reads bodies as stored, never decoded by their content encoding
+const send = (request: Request) => environment.network.fetch(request, { decompress: false });
+const files = new S3Client(`${egress}/${bucketId}`, send, environment.crypto);
 await files.put("notes/first.txt", "Hello", { sha256 }); // PUT with x-amz-checksum-sha256
-const builds = S3Client.of({ location, credentials }, clock); // SigV4 on every request, as R2 takes
+const builds = S3Client.of({ location, credentials }, environment); // SigV4 on every request through environment.network
 ```

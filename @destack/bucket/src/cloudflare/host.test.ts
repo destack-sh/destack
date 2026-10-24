@@ -1,19 +1,21 @@
 import { createHash } from "node:crypto";
-import { Clock } from "@destack/environment";
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { Environment } from "@destack/environment";
 import { join } from "node:path";
 import type { Table } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { ResourceId } from "@destack/resource";
 import { type Identifier, present, schema } from "@destack/schema";
-import { expect, onTestFinished, refusal, test } from "@destack/test";
+import { expect, refusal, test } from "@destack/test";
 import { BucketError } from "../error/index.ts";
 import { LocalBucket, LocalBucketHost, LocalBlobStore } from "../bun/index.ts";
 import { bucketProvider } from "../provider/index.ts";
 import { S3Location, S3Server, S3Signature } from "../s3/index.ts";
 import type { CatalogueStore } from "../catalogue/index.ts";
 import { R2BucketHost } from "./host.ts";
+import { Simulation } from "@destack/environment/simulation";
+
+/** The start of every test's world: 2026-10-24 at midnight UTC. */
+const START = Date.UTC(2026, 9, 24);
 
 /** The bucket resource the hosts keep. */
 const record = {
@@ -41,6 +43,13 @@ function digest(text: string): string {
 class TestCatalogueStore implements CatalogueStore, AsyncDisposable {
     /** The database of each bucket. */
     readonly #databases = new Map<string, TestDatabase>();
+    /** The world the databases run in. */
+    readonly #environment: Environment;
+
+    /** Keep the catalogues in a world. */
+    constructor(environment: Environment) {
+        this.#environment = environment;
+    }
 
     /** Report whether a bucket has a catalogue. */
     async has(id: Identifier<"bucket">): Promise<boolean> {
@@ -51,7 +60,11 @@ class TestCatalogueStore implements CatalogueStore, AsyncDisposable {
     async connect(id: Identifier<"bucket">, tables: readonly Table[]) {
         let database = this.#databases.get(id);
         if (database === undefined) {
-            database = await TestDatabase.create([], { dialect: "sqlite", storage: "file" });
+            database = await TestDatabase.create([], {
+                environment: this.#environment,
+                dialect: "sqlite",
+                storage: "file",
+            });
             this.#databases.set(id, database);
         }
 
@@ -72,22 +85,16 @@ class TestCatalogueStore implements CatalogueStore, AsyncDisposable {
     }
 }
 
-/** Open a temporary directory removed after the test. */
-async function temporary(): Promise<string> {
-    const directory = await mkdtemp(join(tmpdir(), "destack-r2-host-"));
-    onTestFinished(() => rm(directory, { recursive: true, force: true }));
-
-    return directory;
-}
-
 test("provision a bucket as a prefix of the residency's bucket beside its catalogue, serve presigned writes and reads, and destroy both", async () => {
     // keep the residency's bucket locally, as R2 keeps it, and the catalogues in test databases
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const world = simulation.environment("host");
     await using files = await LocalBucket.open(
-        join(await temporary(), "files"),
+        join(await world.files.makeTemporaryDirectory("r2-host-"), "files"),
         "residency",
-        Clock.system,
+        world,
     );
-    await using catalogues = new TestCatalogueStore();
+    await using catalogues = new TestCatalogueStore(world);
     await using buckets = new R2BucketHost({
         files,
         name: "destack-test-files-eu",
@@ -95,7 +102,7 @@ test("provision a bucket as a prefix of the residency's bucket beside its catalo
         endpoint: ENDPOINT,
         region: "auto",
         credentials: async () => CREDENTIALS,
-        clock: Clock.system,
+        environment: world,
     });
     const provider = bucketProvider(buckets, null);
 
@@ -111,22 +118,22 @@ test("provision a bucket as a prefix of the residency's bucket beside its catalo
     // write a file through a URL presigned at the located endpoint, and read it back the same way
     const server = new S3Server({
         region: "auto",
-        clock: Clock.system,
+        environment: world,
         credentials: async (id) => (id === CREDENTIALS.accessKeyId ? CREDENTIALS : undefined),
         open: (name) => buckets.named(name),
     });
     const { location } = await buckets.locate({ scope: record.scope, bucketId }, "write");
-    const signer = new S3Signature({ region: location.region });
+    const signer = new S3Signature({ region: location.region, crypto: world.crypto });
     const url = S3Location.url(location, "notes/a.txt").href;
     const write = await signer.presign(
         new Request(url, { method: "PUT" }),
         CREDENTIALS,
         60,
-        Date.now(),
+        world.clock.now(),
     );
     const written = await server.fetch(new Request(write.url, { method: "PUT", body: "first" }));
     const read = await server.fetch(
-        await signer.presign(new Request(url), CREDENTIALS, 60, Date.now()),
+        await signer.presign(new Request(url), CREDENTIALS, 60, world.clock.now()),
     );
 
     // keep the blob below the bucket's prefix, then replace the file and collect the old blob
@@ -158,19 +165,21 @@ test("provision a bucket as a prefix of the residency's bucket beside its catalo
 
 test("move a bucket from a device host to a cell: snapshot its catalogue and files into a content store once fenced, and restore them into the cell's bucket", async () => {
     // keep a bucket with two files on the device host, and provision it on the cell
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const world = simulation.environment("host");
     await using device = new LocalBucketHost({
-        clock: Clock.system,
-        directory: await temporary(),
+        environment: world,
+        directory: await world.files.makeTemporaryDirectory("r2-host-"),
         endpoint: new URL("http://s3.localhost"),
         region: "local",
         credentials: async () => CREDENTIALS,
     });
     await using files = await LocalBucket.open(
-        join(await temporary(), "files"),
+        join(await world.files.makeTemporaryDirectory("r2-host-"), "files"),
         "residency",
-        Clock.system,
+        world,
     );
-    await using catalogues = new TestCatalogueStore();
+    await using catalogues = new TestCatalogueStore(world);
     await using cell = new R2BucketHost({
         files,
         name: "destack-test-files-eu",
@@ -178,7 +187,7 @@ test("move a bucket from a device host to a cell: snapshot its catalogue and fil
         endpoint: ENDPOINT,
         region: "auto",
         credentials: async () => CREDENTIALS,
-        clock: Clock.system,
+        environment: world,
     });
     const [source, target] = [bucketProvider(device, null), bucketProvider(cell, null)];
     const written = await device.open({ bucketId }, record.scope);
@@ -189,7 +198,10 @@ test("move a bucket from a device host to a cell: snapshot its catalogue and fil
     const to = { ...record, ...(await target.provision.provision(record)) };
 
     // fence the device's bucket, snapshot it into a content store, and restore it on the cell
-    const store = await LocalBlobStore.open(await temporary());
+    const store = await LocalBlobStore.open(
+        await world.files.makeTemporaryDirectory("r2-host-"),
+        world,
+    );
     await source.fence.fence(from);
     const snapshot = await source.snapshot.snapshot(from, [], store);
     await target.snapshot.restore(to, [], snapshot, store);
@@ -206,12 +218,14 @@ test("move a bucket from a device host to a cell: snapshot its catalogue and fil
 
 test("fence a cell bucket through its provider: refuse presigned and direct writes across a restart, read on, and lift", async () => {
     // keep a bucket with one file on the cell, served over S3
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const world = simulation.environment("host");
     await using files = await LocalBucket.open(
-        join(await temporary(), "files"),
+        join(await world.files.makeTemporaryDirectory("r2-host-"), "files"),
         "residency",
-        Clock.system,
+        world,
     );
-    await using catalogues = new TestCatalogueStore();
+    await using catalogues = new TestCatalogueStore(world);
     const options = {
         files,
         name: "destack-test-files-eu",
@@ -219,7 +233,7 @@ test("fence a cell bucket through its provider: refuse presigned and direct writ
         endpoint: ENDPOINT,
         region: "auto",
         credentials: async () => CREDENTIALS,
-        clock: Clock.system,
+        environment: world,
     };
     const buckets = new R2BucketHost(options);
     const provider = bucketProvider(buckets, null);
@@ -229,17 +243,17 @@ test("fence a cell bucket through its provider: refuse presigned and direct writ
     const { location } = await buckets.locate(reference, "write");
     const server = new S3Server({
         region: "auto",
-        clock: Clock.system,
+        environment: world,
         credentials: async (id) => (id === CREDENTIALS.accessKeyId ? CREDENTIALS : undefined),
         open: (name) => buckets.named(name),
     });
-    const signer = new S3Signature({ region: location.region });
+    const signer = new S3Signature({ region: location.region, crypto: world.crypto });
     const url = S3Location.url(location, "notes/b.txt").href;
     const presigned = await signer.presign(
         new Request(url, { method: "PUT" }),
         CREDENTIALS,
         60,
-        Date.now(),
+        world.clock.now(),
     );
 
     // fence the bucket, refusing the presigned write and a lease for another, while reads go on
@@ -276,12 +290,14 @@ test("fence a cell bucket through its provider: refuse presigned and direct writ
 
 test("list a cell bucket's files and groups in key byte order", async () => {
     // keep keys whose byte order differs from a language's collation
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const world = simulation.environment("host");
     await using files = await LocalBucket.open(
-        join(await temporary(), "files"),
+        join(await world.files.makeTemporaryDirectory("r2-host-"), "files"),
         "residency",
-        Clock.system,
+        world,
     );
-    await using catalogues = new TestCatalogueStore();
+    await using catalogues = new TestCatalogueStore(world);
     await using buckets = new R2BucketHost({
         files,
         name: "destack-test-files-eu",
@@ -289,7 +305,7 @@ test("list a cell bucket's files and groups in key byte order", async () => {
         endpoint: ENDPOINT,
         region: "auto",
         credentials: async () => CREDENTIALS,
-        clock: Clock.system,
+        environment: world,
     });
     const bucket = await buckets.open({ bucketId }, record.scope);
     const keys = ["ab", "a_c", "aB", "a-b", "a/z", "Z", "é"];

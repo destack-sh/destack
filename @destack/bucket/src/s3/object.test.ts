@@ -96,8 +96,8 @@ test("apply conditional headers and byte ranges through the AWS SDK", async () =
         client.send(new GetObjectCommand({ Bucket: "files", Key: "report.txt", ...options }));
 
     // answer failed conditions with 412 or 304 as S3 does
-    const later = new Date(Date.now() + 60_000);
-    const earlier = new Date(Date.now() - 60_000);
+    const later = new Date(fixture.environment.clock.now() + 60_000);
+    const earlier = new Date(fixture.environment.clock.now() - 60_000);
     expect(await failure(get({ IfMatch: '"other"' }))).toEqual({
         name: "PreconditionFailed",
         status: 412,
@@ -522,7 +522,9 @@ test("lock an object in compliance mode through the AWS SDK, refusing its deleti
     const client = fixture.client();
 
     // store an object locked for an hour
-    const retainUntil = new Date(Math.ceil((Date.now() + 3_600_000) / 1000) * 1000);
+    const retainUntil = new Date(
+        Math.ceil((fixture.environment.clock.now() + 3_600_000) / 1000) * 1000,
+    );
     await client.send(
         new PutObjectCommand({
             Bucket: "files",

@@ -1,8 +1,9 @@
-import { mkdtemp, readdir, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, test } from "@destack/test";
 import { LocalBlobStore } from "./store.ts";
+import { Simulation } from "@destack/environment/simulation";
+
+/** The start of every test's world: 2026-10-24 at midnight UTC. */
+const START = Date.UTC(2026, 9, 24);
 
 /** Yield text as one chunk of bytes. */
 async function* bytesOf(content: string): AsyncIterable<Uint8Array> {
@@ -11,9 +12,10 @@ async function* bytesOf(content: string): AsyncIterable<Uint8Array> {
 
 test("keep a body once under its digest, list the kept blobs and delete one", async () => {
     // keep two blobs, write one's bytes again and delete the other
-    const directory = await mkdtemp(join(tmpdir(), "destack-blobs-"));
-    onTestFinished(() => rm(directory, { recursive: true, force: true }));
-    const store = await LocalBlobStore.open(directory);
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const world = simulation.environment("host");
+    const directory = await world.files.makeTemporaryDirectory("blobs-");
+    const store = await LocalBlobStore.open(directory, world);
     const kept = await store.write(bytesOf("kept"));
     const dropped = await store.write(bytesOf("dropped"));
     const again = await store.write(bytesOf("kept"));
@@ -23,6 +25,38 @@ test("keep a body once under its digest, list the kept blobs and delete one", as
     expect({
         again,
         listed: await Array.fromAsync(store.digests()),
-        files: await readdir(directory),
+        files: (await world.files.readDirectory(directory)).map((entry) => entry.name),
     }).toEqual({ again: kept, listed: [kept], files: [kept] });
+});
+
+test("read a range of a blob at an unaligned offset across read-sized chunks, and nothing of an empty range", async () => {
+    // keep a blob of two and a half read sizes
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const world = simulation.environment("host");
+    const store = await LocalBlobStore.open(
+        await world.files.makeTemporaryDirectory("slice-"),
+        world,
+    );
+    const bytes = new Uint8Array(160 * 1024).map((_, index) => index % 251);
+    const digest = await store.write(
+        (async function* () {
+            yield bytes;
+        })(),
+    );
+
+    // read a range starting mid-chunk and ending past the second chunk, and an empty one
+    const chunks = await Array.fromAsync(store.slice(digest, 1000, 70_000));
+    const empty = await Array.fromAsync(store.slice(digest, 1000, 0));
+    const joined = new Uint8Array(chunks.reduce((length, chunk) => length + chunk.length, 0));
+    let offset = 0;
+    for (const chunk of chunks) {
+        joined.set(chunk, offset);
+        offset += chunk.length;
+    }
+
+    expect({
+        sizes: chunks.map((chunk) => chunk.length),
+        isExact: joined.every((byte, index) => byte === bytes[1000 + index]),
+        empty: empty.length,
+    }).toEqual({ sizes: [65_536, 4464], isExact: true, empty: 0 });
 });

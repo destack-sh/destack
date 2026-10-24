@@ -1,4 +1,3 @@
-import { Clock } from "@destack/environment";
 import {
     exerciseContents,
     exerciseConditions,
@@ -8,10 +7,12 @@ import {
 } from "./scenario/bucket.ts";
 import { runR2 } from "./cloudflare/local.ts";
 import { test } from "@destack/test";
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { LocalBucket } from "../src/bun/index.ts";
+import { Simulation } from "@destack/environment/simulation";
+
+/** The start of every test's world: 2026-10-24 at midnight UTC. */
+const START = Date.UTC(2026, 9, 24);
 
 /** Independent bucket behaviors exercised against both implementations. */
 const cases = [
@@ -26,18 +27,12 @@ const cases = [
 ];
 
 test.each(cases)("$name through local and R2 buckets", async ({ run }) => {
-    const directory = await mkdtemp(join(tmpdir(), "destack-bucket-"));
-    try {
-        await using local = await LocalBucket.open(
-            join(directory, "local"),
-            "space-test",
-            Clock.system,
-        );
-        await run(local);
-        await runR2(run.name);
-    } finally {
-        await rm(directory, { recursive: true });
-    }
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const world = simulation.environment("host");
+    const directory = await world.files.makeTemporaryDirectory("bucket-");
+    await using local = await LocalBucket.open(join(directory, "local"), "space-test", world);
+    await run(local);
+    await runR2(run.name);
 });
 
 test("count each R2 operation a bucket sends in the class R2 bills it in, each in exactly one take", async () => {

@@ -1,4 +1,6 @@
-import { modulePlugin } from "@destack/package/bun";
+import { modulePlugin } from "@destack/package/vite";
+import { testHost } from "@destack/test/host";
+import { rolldown } from "rolldown";
 import { WORKERD_COMPATIBILITY_DATE } from "@destack/package/build";
 import { Miniflare } from "miniflare";
 import { fileURLToPath } from "node:url";
@@ -6,22 +8,20 @@ import { expect, onTestFinished, test } from "@destack/test";
 
 test("sign, presign and verify the documented S3 examples in workerd without Node.js compatibility", async () => {
     // bundle the worker as Wrangler resolves workerd modules
-    const compiled = await Bun.build({
-        entrypoints: [fileURLToPath(new URL("./test/worker.ts", import.meta.url))],
-        format: "esm",
-        target: "browser",
-        conditions: ["workerd", "worker", "browser"],
-        plugins: [modulePlugin],
+    const bundle = await rolldown({
+        input: fileURLToPath(new URL("./test/worker.ts", import.meta.url)),
+        platform: "browser",
+        resolve: { conditionNames: ["workerd", "worker", "browser"] },
+        plugins: [modulePlugin(testHost().files)],
     });
-    const [output] = compiled.outputs;
-    if (output === undefined) {
-        throw new Error("the worker bundled into no file");
-    }
+    const { output } = await bundle.generate({ format: "esm" });
+    await bundle.close();
+    const [chunk] = output;
 
     // run it without nodejs_compat
     const worker = new Miniflare({
         modules: true,
-        script: await output.text(),
+        script: chunk.code,
         compatibilityDate: WORKERD_COMPATIBILITY_DATE,
     });
     onTestFinished(() => worker.dispose());

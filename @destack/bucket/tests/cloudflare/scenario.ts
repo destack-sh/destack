@@ -1,4 +1,5 @@
 import type * as Cloudflare from "@cloudflare/workers-types";
+import { Environment } from "@destack/environment";
 import { R2Bucket } from "../../src/cloudflare/bucket.ts";
 import {
     exerciseContents,
@@ -37,7 +38,7 @@ export default {
                     await exerciseMultipart(bucket);
                     break;
                 case "/exerciseBlobStore":
-                    await exerciseBlobStore(bucket);
+                    await exerciseBlobStore(bucket, Environment.system.random);
                     break;
                 case "/exerciseOperations":
                     await exerciseOperations(bucket);

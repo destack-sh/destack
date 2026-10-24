@@ -1,5 +1,5 @@
 import { createHash, type Hash } from "node:crypto";
-import type { ContentStore } from "@destack/resource";
+import { type Digest, Uuid } from "@destack/schema";
 import {
     type BucketBody,
     type BucketPutOptions,
@@ -9,6 +9,7 @@ import {
 } from "../bucket/index.ts";
 import { BucketError } from "../error/index.ts";
 import { CustomerKey } from "./encryption.ts";
+import type { CatalogueStorage } from "./storage.ts";
 
 /** The hashes of a body on its way into the blob store. */
 interface ContentHash {
@@ -31,7 +32,7 @@ export class Content {
     /** The write's random identifier. */
     readonly version: string;
     /** The digest of the stored bytes in the blob store. */
-    readonly blob: string;
+    readonly blob: Digest;
     /** The customer key's counter nonce as hexadecimal, absent for plain content. */
     readonly nonce: string | null;
     /** The length in bytes. */
@@ -44,7 +45,7 @@ export class Content {
     /** Retain the written content's identifier, blob, length, and digest. */
     constructor(
         version: string,
-        blob: string,
+        blob: Digest,
         nonce: string | null,
         size: number,
         etag: string,
@@ -61,7 +62,7 @@ export class Content {
 
     /** Write contents into the blob store before the catalogue refers to them. */
     static async write(
-        blobs: Pick<ContentStore, "write">,
+        storage: Pick<CatalogueStorage, "blobs" | "environment">,
         body: BucketBody | null,
         options: BucketPutOptions = {},
         key?: CustomerKey,
@@ -80,7 +81,8 @@ export class Content {
         const expected = checksum?.value;
 
         // stream the stored bytes into the store, which keeps none of a mismatched body
-        const nonce = key === undefined ? null : CustomerKey.nonce();
+        const { blobs, environment } = storage;
+        const nonce = key === undefined ? null : CustomerKey.nonce(environment.random);
         const hashes: ContentHash = {
             md5: createHash("md5"),
             checksum:
@@ -103,7 +105,7 @@ export class Content {
             digest[algorithm] = actual;
         }
 
-        return new Content(crypto.randomUUID(), blob, nonce, hashes.size, etag, digest);
+        return new Content(Uuid.v7(environment), blob, nonce, hashes.size, etag, digest);
     }
 }
 
@@ -125,7 +127,7 @@ async function* encode(
 
     // hash the bytes stored and the bytes given
     for await (const chunk of stream) {
-        const stored = cipher === undefined ? chunk : await cipher(chunk, hashes.size);
+        const stored = cipher === undefined ? chunk : cipher(chunk, hashes.size);
         hashes.md5.update(stored);
         hashes.checksum?.update(chunk);
         hashes.size += chunk.byteLength;

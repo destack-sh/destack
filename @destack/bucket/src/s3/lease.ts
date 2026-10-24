@@ -1,3 +1,4 @@
+import type { Crypto } from "@destack/environment";
 import type { Lease, LeaseMode } from "@destack/resource";
 import type { BucketHost, BucketReference } from "./host.ts";
 import { BucketKey } from "../bucket/key.ts";
@@ -30,6 +31,7 @@ export const BucketLease = {
         target: BucketReference,
         lease: BucketLeaseRequest,
         now: number,
+        crypto: Crypto,
     ): Promise<Lease> {
         // refuse a key the bucket refuses, then address it and the part the query selects
         BucketKey.check(lease.key);
@@ -48,7 +50,7 @@ export const BucketLease = {
         // sign the request at the time, keeping the headers the caller sends
         const method = LEASE_METHODS[lease.mode];
         const request = new Request(url.href, { method, headers: lease.headers });
-        const signature = new S3Signature({ region: location.region });
+        const signature = new S3Signature({ region: location.region, crypto });
         const presigned = await signature.presign(
             request,
             credentials,

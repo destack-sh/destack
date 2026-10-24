@@ -1,6 +1,7 @@
 import { createHash, type Hash } from "node:crypto";
+import type { Random } from "@destack/environment";
 import type { ContentStore } from "@destack/resource";
-import { Digest, present } from "@destack/schema";
+import { Digest, present, Uuid } from "@destack/schema";
 import { type Bucket, type UploadedPart, MAX_BATCH_FILES } from "../bucket/index.ts";
 import type { BlobStore } from "../catalogue/index.ts";
 import { BucketError } from "../error/index.ts";
@@ -17,11 +18,14 @@ export class R2BlobStore implements BlobStore {
     readonly #files: Bucket;
     /** The prefix of the bucket's blobs, such as `bucket-…/`. */
     readonly #prefix: string;
+    /** The randomness naming each staged write. */
+    readonly #random: Random;
 
     /** Keep a bucket's blobs below a prefix of the residency's bucket. */
-    constructor(files: Bucket, prefix: string) {
+    constructor(files: Bucket, prefix: string, random: Random) {
         this.#files = files;
         this.#prefix = prefix;
+        this.#random = random;
     }
 
     /** List the digests the store lacks, in the given order. */
@@ -65,7 +69,7 @@ export class R2BlobStore implements BlobStore {
         }
 
         // stage a longer body in parts, then keep it under its digest once
-        const staged = `${this.#prefix}${STAGING}${crypto.randomUUID()}`;
+        const staged = `${this.#prefix}${STAGING}${Uuid.v4(this.#random)}`;
         try {
             await this.#stage(staged, resumed([first.value, second.value], parts));
             const digest = verified(hash, expected);
@@ -98,8 +102,9 @@ export class R2BlobStore implements BlobStore {
         for await (const keys of this.#pages(this.#prefix, "/")) {
             for (const key of keys) {
                 const name = key.slice(this.#prefix.length);
-                if (Digest.safeParse(name).success) {
-                    yield name;
+                const parsed = Digest.safeParse(name);
+                if (parsed.success) {
+                    yield parsed.data;
                 }
             }
         }
@@ -224,7 +229,7 @@ function joined(chunks: readonly Uint8Array[], size: number): Uint8Array<ArrayBu
 
 /** Finish a body's digest, refusing one that differs from the expected digest. */
 function verified(hash: Hash, expected: Digest | undefined): Digest {
-    const digest = hash.digest("hex");
+    const digest = Digest.parse(hash.digest("hex"));
     if (expected !== undefined && digest !== expected) {
         throw BucketError.of("BAD_DIGEST", `expected blob ${expected}, got ${digest}`);
     }

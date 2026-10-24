@@ -1,3 +1,4 @@
+import { Uuid } from "@destack/schema";
 import { and, gt, inArray, Order, sum } from "@destack/db";
 import type {
     BucketBody,
@@ -184,7 +185,7 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
         }
 
         // stream the file from its source
-        const response = await fetch(url);
+        const response = await this.#storage.environment.network.fetch(new Request(url));
         if (!response.ok) {
             throw BucketError.of("WRITE_FAILED", `fetching ${key} returned ${response.status}`);
         }
@@ -227,7 +228,7 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
         let isPublished = false;
         let content: Content | undefined;
         try {
-            content = await Content.write(this.#storage.blobs, body, options, customerKey);
+            content = await Content.write(this.#storage, body, options, customerKey);
 
             // describe the file its blob becomes
             const segments = [{ blob: content.blob, nonce: content.nonce, size: content.size }];
@@ -237,7 +238,7 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
                     content,
                     options,
                     identity,
-                    this.#storage.clock.now(),
+                    this.#storage.environment.clock.now(),
                 ),
                 storageClass,
                 ssecKeyMd5: customerKey?.md5 ?? null,
@@ -323,8 +324,8 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
             const copied = {
                 ...entry,
                 key: destination,
-                version: crypto.randomUUID(),
-                uploaded: this.#storage.clock.now(),
+                version: Uuid.v7(this.#storage.environment),
+                uploaded: this.#storage.environment.clock.now(),
                 httpMetadata:
                     options.httpMetadata === undefined
                         ? entry.httpMetadata
@@ -368,7 +369,10 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
                 .select({ key: file.key })
                 .from(file)
                 .where(
-                    and(inArray(file.key, keys), gt(file.retainUntil, this.#storage.clock.now())),
+                    and(
+                        inArray(file.key, keys),
+                        gt(file.retainUntil, this.#storage.environment.clock.now()),
+                    ),
                 );
             if (locked.length > 0) {
                 throw BucketError.of(

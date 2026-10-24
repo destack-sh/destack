@@ -1,3 +1,4 @@
+import { Crypto } from "@destack/environment";
 import { EMPTY_HASH } from "@destack/identity/aws";
 import { S3Signature } from "../signature.ts";
 
@@ -15,7 +16,7 @@ export default {
     /** Answer the signed authorization, the presigned URL and the access keys both verify as. */
     async fetch(): Promise<Response> {
         // sign the ranged GET and presign the plain GET
-        const signer = new S3Signature({ region: "us-east-1" });
+        const signer = new S3Signature({ region: "us-east-1", crypto: Crypto.system });
         const signed = await signer.sign(
             new Request("https://examplebucket.s3.amazonaws.com/test.txt", {
                 headers: { range: "bytes=0-9", "x-amz-content-sha256": EMPTY_HASH },

@@ -8,7 +8,7 @@ import {
     defineDatabase,
     textEnum,
 } from "@destack/db";
-import { schema } from "@destack/schema";
+import { Digest, schema } from "@destack/schema";
 import { DIGEST_ALGORITHMS, STORAGE_CLASSES } from "../../bucket/index.ts";
 
 /** Stored HTTP metadata with textual expiration times. */
@@ -66,7 +66,7 @@ export const segment = defineTable(
         /** The position within the file, from 0. */
         position: integer("position").primaryKey(),
         /** The digest of the stored content in the bucket's content store. */
-        blob: text("blob").notNull(),
+        blob: text("blob").validate(Digest).notNull(),
         /** The customer key's counter nonce as hexadecimal, absent for plain content. */
         nonce: text("nonce"),
         /** The content length. */
@@ -123,7 +123,7 @@ export const part = defineTable(
         /** The part number. */
         partNumber: integer("part_number").primaryKey(),
         /** The digest of the stored content in the bucket's content store. */
-        blob: text("blob").notNull(),
+        blob: text("blob").validate(Digest).notNull(),
         /** The customer key's counter nonce as hexadecimal, absent for plain content. */
         nonce: text("nonce"),
         /** The content length. */

@@ -6,7 +6,7 @@ import {
     UNSIGNED_PAYLOAD,
 } from "@destack/identity/aws";
 import { nth, present } from "@destack/schema";
-import { copyRequest } from "@destack/environment";
+import { copyRequest, type Crypto } from "@destack/environment";
 import type { S3Credentials } from "./credentials.ts";
 import { BucketError } from "../error/index.ts";
 import { decodeUri, encodeUri, readQuery } from "./uri.ts";
@@ -109,9 +109,14 @@ export class S3Signature {
     /** The signer of each access key, which keeps its daily signing keys. */
     readonly #signers = new Map<string, AwsSigner>();
 
-    /** Sign for a region. */
-    constructor(options: { region: string }) {
+    /** The WebCrypto operations it signs with. */
+    readonly crypto: Crypto;
+
+    /** Sign for a region with WebCrypto. */
+    constructor(options: { readonly region: string; readonly crypto: Crypto }) {
+        // store the region and WebCrypto
         this.region = options.region;
+        this.crypto = options.crypto;
     }
 
     /** Sign a request with an Authorization header. */
@@ -352,7 +357,12 @@ export class S3Signature {
         }
 
         // sign with the new secret from now on
-        const signer = new AwsSigner({ region: this.region, service: SERVICE, credentials });
+        const signer = new AwsSigner({
+            region: this.region,
+            service: SERVICE,
+            credentials,
+            crypto: this.crypto,
+        });
         this.#signers.set(credentials.accessKeyId, signer);
 
         return signer;

@@ -12,7 +12,7 @@ import type {} from "@destack/package/import-meta";
 import { S3Upload } from "./upload.ts";
 import { decodeUri } from "./uri.ts";
 import { writeErrorXml } from "./xml.ts";
-import type { Clock } from "@destack/environment";
+import type { Clock, Environment, Random } from "@destack/environment";
 import { BucketError, preconditionFailed } from "../error/index.ts";
 
 /** The package serving buckets over S3, which a workload's calls to its buckets address. */
@@ -28,8 +28,8 @@ export interface S3ServerOptions {
     open: (bucketName: string, accessKeyId: string) => Promise<S3Bucket | undefined>;
     /** The CORS rules of every bucket. */
     cors?: CorsRule[];
-    /** The clock signed requests are checked against. */
-    clock: Clock;
+    /** The clock signed requests are checked against, and the WebCrypto checking them. */
+    environment: Pick<Environment, "clock" | "crypto" | "random">;
 }
 
 /** Serve the S3 API path-style over buckets, answering failures with S3 error documents. */
@@ -44,15 +44,21 @@ export class S3Server {
     readonly #open: S3ServerOptions["open"];
     /** The clock signed requests are checked against. */
     readonly #clock: Clock;
+    /** The randomness of request identifiers. */
+    readonly #random: Random;
 
     /** Serve buckets in a region. */
     constructor(options: S3ServerOptions) {
         // retain the verifier, the CORS rules and the host's lookups
-        this.signature = new S3Signature({ region: options.region });
+        this.signature = new S3Signature({
+            region: options.region,
+            crypto: options.environment.crypto,
+        });
         this.cors = options.cors ?? [];
         this.#credentials = options.credentials;
         this.#open = options.open;
-        this.#clock = options.clock;
+        this.#clock = options.environment.clock;
+        this.#random = options.environment.random;
     }
 
     /** The region clients sign requests for. */
@@ -82,7 +88,7 @@ export class S3Server {
     /** Authorize and run a request, answering failures with S3 error documents. */
     async #answer(request: Request, authorize: () => Promise<S3Authorization>): Promise<Response> {
         // read the request and run it
-        const requestId = crypto.getRandomValues(new Uint8Array(8)).toHex().toUpperCase();
+        const requestId = this.#random.bytes(8).toHex().toUpperCase();
         const url = new URL(request.url);
         let response: Response;
         try {

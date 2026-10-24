@@ -1,30 +1,39 @@
 import { createHash } from "node:crypto";
-import { closeSync, openSync, readSync } from "node:fs";
-import { mkdir, open, opendir, rename, stat, unlink } from "node:fs/promises";
 import { join } from "node:path";
+import type { DirectoryEntry, Environment, FileSystem, Random } from "@destack/environment";
 import type { ContentStore } from "@destack/resource";
-import { Digest } from "@destack/schema";
+import { Digest, Uuid } from "@destack/schema";
 import type { BlobStore } from "../catalogue/store.ts";
 import { BucketError } from "../error/index.ts";
+import { createDurably, syncDirectory } from "./directory.ts";
 
 /** The bytes one read of a blob file takes: 64 KiB, about 10 µs from the page cache. */
 const READ_BYTES = 64 * 1024;
+
+/** The files a blob store keeps its blobs in, and the randomness naming its writes. */
+export type BlobEnvironment = Pick<Environment<"files">, "files" | "random">;
 
 /** A bucket's blobs as files in a directory, each keyed by its digest. */
 export class LocalBlobStore implements BlobStore {
     /** The directory of blob files. */
     readonly directory: string;
+    /** The files the blobs live in. */
+    readonly #files: FileSystem;
+    /** The randomness naming each write's temporary file. */
+    readonly #random: Random;
 
-    /** Keep blobs in a directory. */
-    private constructor(directory: string) {
+    /** Keep blobs in a directory of a file system. */
+    private constructor(directory: string, environment: BlobEnvironment) {
         this.directory = directory;
+        this.#files = environment.files;
+        this.#random = environment.random;
     }
 
-    /** Open a directory of blobs, creating it when missing. */
-    static async open(directory: string): Promise<LocalBlobStore> {
-        await mkdir(directory, { recursive: true, mode: 0o700 });
+    /** Open a directory of blobs, creating it durably when missing. */
+    static async open(directory: string, environment: BlobEnvironment): Promise<LocalBlobStore> {
+        await createDurably(directory, environment.files);
 
-        return new LocalBlobStore(directory);
+        return new LocalBlobStore(directory, environment);
     }
 
     /** Build the path of a blob's file, refusing anything but a digest. */
@@ -38,7 +47,9 @@ export class LocalBlobStore implements BlobStore {
 
     /** List the digests the directory lacks, in the given order. */
     async missing(digests: readonly Digest[]): Promise<readonly Digest[]> {
-        const found = await Promise.all(digests.map((digest) => this.#has(digest)));
+        const found = await Promise.all(
+            digests.map((digest) => this.#files.exists(this.path(digest))),
+        );
 
         return digests.filter((_, index) => found[index] !== true);
     }
@@ -48,47 +59,48 @@ export class LocalBlobStore implements BlobStore {
         return this.slice(digest, 0, Number.POSITIVE_INFINITY);
     }
 
-    /** Read a range of a blob's bytes from its file, each chunk in place as the catalogue reads. */
+    /** Read a range of a blob's bytes from its file, each chunk read at its exact size. */
     async *slice(digest: Digest, offset: number, length: number): AsyncIterable<Uint8Array> {
-        const file = openSync(this.path(digest), "r");
-        try {
-            for (let position = offset; position < offset + length;) {
-                // read the next chunk within the range
-                const size = Math.min(READ_BYTES, offset + length - position);
-                const buffer = new Uint8Array(size);
-                const bytesRead = readSync(file, buffer, 0, size, position);
-                if (bytesRead === 0) {
-                    return;
-                }
-                yield buffer.subarray(0, bytesRead);
-                position += bytesRead;
+        // read from the offset in chunks of the range's remaining size, up to one read's bytes
+        await using file = await this.#files.open(this.path(digest), { read: true });
+        await file.seek(offset);
+        for (let remaining = length; remaining > 0;) {
+            const buffer = new Uint8Array(Math.min(READ_BYTES, remaining));
+            const bytesRead = await file.read(buffer);
+            if (bytesRead === null) {
+                return;
             }
-        } finally {
-            closeSync(file);
+            yield buffer.subarray(0, bytesRead);
+            remaining -= bytesRead;
         }
+    }
+
+    /** Copy a blob's bytes to a path, cloning its blocks where the file system can. */
+    copy(digest: Digest, destination: string): Promise<void> {
+        return this.#files.copyFile(this.path(digest), destination);
     }
 
     /** Write bytes to a temporary file, then keep it under its digest. */
     async write(body: AsyncIterable<Uint8Array>, expected?: Digest): Promise<Digest> {
-        const temporary = join(this.directory, `.${crypto.randomUUID()}`);
+        const temporary = join(this.directory, `.${Uuid.v4(this.#random)}`);
         try {
             // write and hash the bytes into a temporary file
-            const digest = await written(temporary, body);
+            const digest = await this.#written(temporary, body);
             if (expected !== undefined && digest !== expected) {
                 throw BucketError.of("BAD_DIGEST", `expected blob ${expected}, got ${digest}`);
             }
 
             // keep the file under its digest once
-            if (await this.#has(digest)) {
-                await unlink(temporary);
+            if (await this.#files.exists(this.path(digest))) {
+                await this.#files.remove(temporary);
             } else {
-                await rename(temporary, this.path(digest));
-                await sync(this.directory);
+                await this.#files.rename(temporary, this.path(digest));
+                await syncDirectory(this.directory, this.#files);
             }
 
             return digest;
         } catch (error) {
-            await removed(temporary, error);
+            await this.#removed(temporary, error);
             throw error;
         }
     }
@@ -97,7 +109,7 @@ export class LocalBlobStore implements BlobStore {
     async fetch(digests: readonly Digest[], source: Pick<ContentStore, "read">): Promise<void> {
         for (const digest of new Set(digests)) {
             // copy a missing blob
-            if (!(await this.#has(digest))) {
+            if (!(await this.#files.exists(this.path(digest)))) {
                 await this.write(source.read(digest), digest);
             }
         }
@@ -105,71 +117,59 @@ export class LocalBlobStore implements BlobStore {
 
     /** Delete a blob's file. */
     async delete(digest: Digest): Promise<void> {
-        await unlink(this.path(digest));
+        await this.#files.remove(this.path(digest));
     }
 
     /** List the blob files. */
     async *digests(): AsyncIterable<Digest> {
-        for await (const entry of await opendir(this.directory)) {
-            if (entry.isFile() && Digest.safeParse(entry.name).success) {
-                yield entry.name;
+        for (const entry of await this.#entries()) {
+            const parsed = Digest.safeParse(entry.name);
+            if (entry.kind === "file" && parsed.success) {
+                yield parsed.data;
             }
         }
     }
 
     /** Delete the temporary files of writes a terminated host left. */
     async clean(): Promise<void> {
-        for await (const entry of await opendir(this.directory)) {
-            if (entry.isFile() && entry.name.startsWith(".")) {
-                await unlink(join(this.directory, entry.name));
+        for (const entry of await this.#entries()) {
+            if (entry.kind === "file" && entry.name.startsWith(".")) {
+                await this.#files.remove(join(this.directory, entry.name));
             }
         }
     }
 
-    /** Report whether the directory keeps a blob. */
-    #has(digest: Digest): Promise<boolean> {
-        return stat(this.path(digest)).then(
-            () => true,
-            (error: NodeJS.ErrnoException) => {
-                if (error.code !== "ENOENT") {
-                    throw error;
-                }
-
-                return false;
-            },
-        );
+    /** List the directory's entries. */
+    #entries(): Promise<readonly DirectoryEntry[]> {
+        return this.#files.readDirectory(this.directory);
     }
-}
 
-/** Write and hash a body into a new file, synced to disk, and return its digest. */
-async function written(path: string, body: AsyncIterable<Uint8Array>): Promise<Digest> {
-    // write each chunk and hash it on the way
-    const hash = createHash("sha256");
-    await using file = await open(path, "wx", 0o600);
-    for await (const chunk of body) {
-        await file.write(chunk);
-        hash.update(chunk);
+    /** Write and hash a body into a new file, synced to disk. */
+    async #written(path: string, body: AsyncIterable<Uint8Array>): Promise<Digest> {
+        // write each chunk and hash it on the way
+        const hash = createHash("sha256");
+        await using file = await this.#files.open(path, {
+            write: true,
+            createNew: true,
+            mode: 0o600,
+        });
+        const writer = file.writable().getWriter();
+        for await (const chunk of body) {
+            await writer.write(chunk);
+            hash.update(chunk);
+        }
+        await writer.close();
+        await file.sync();
+
+        return Digest.parse(hash.digest("hex"));
     }
-    await file.sync();
 
-    return hash.digest("hex");
-}
-
-/** Remove an unfinished write's temporary file after a failure. */
-async function removed(path: string, error: unknown): Promise<void> {
-    await unlink(path).catch((cleanup: NodeJS.ErrnoException) => {
-        if (cleanup.code !== "ENOENT") {
+    /** Remove an unfinished write's temporary file after a failure. */
+    async #removed(path: string, error: unknown): Promise<void> {
+        await this.#files.remove(path, { force: true }).catch((cleanup: unknown) => {
             throw new AggregateError([error, cleanup], "blob write and cleanup failed", {
                 cause: error,
             });
-        }
-    });
-}
-
-/** Flush a directory's entries, so a renamed file survives a crash. */
-async function sync(directory: string): Promise<void> {
-    // request write access for Windows FlushFileBuffers
-    const mode = process.platform === "win32" ? "r+" : "r";
-    await using handle = await open(directory, mode);
-    await handle.sync();
+        });
+    }
 }

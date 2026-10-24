@@ -1,14 +1,16 @@
 import { createHash } from "node:crypto";
-import { Clock } from "@destack/environment";
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import type { Environment, HostCapability } from "@destack/environment";
 import { join } from "node:path";
-import { expect, onTestFinished, test, refusal } from "@destack/test";
+import { expect, test, refusal } from "@destack/test";
 import { type Bucket, BucketFile } from "../bucket/index.ts";
 import { BucketError } from "../error/index.ts";
 import { LocalBucket } from "../bun/index.ts";
 import { S3Client } from "./client.ts";
 import { S3Server } from "./server.ts";
+import { Simulation } from "@destack/environment/simulation";
+
+/** The start of every test's world: 2026-10-24 at midnight UTC. */
+const START = Date.UTC(2026, 9, 24);
 
 /** The access key the host authorized the client's requests for. */
 const ACCESS_KEY_ID = "space-test";
@@ -86,13 +88,12 @@ async function listings(bucket: Bucket) {
 }
 
 /** Serve a fresh local bucket over S3, authenticating signed requests by the known credentials. */
-async function serveBucket() {
-    const directory = await mkdtemp(join(tmpdir(), "destack-s3-client-"));
-    onTestFinished(() => rm(directory, { recursive: true, force: true }));
-    const bucket = await LocalBucket.open(join(directory, "files"), ACCESS_KEY_ID, Clock.system);
+async function serveBucket(world: Environment<HostCapability>) {
+    const directory = await world.files.makeTemporaryDirectory("s3-client-");
+    const bucket = await LocalBucket.open(join(directory, "files"), ACCESS_KEY_ID, world);
     const server = new S3Server({
         region: "auto",
-        clock: Clock.system,
+        environment: world,
         credentials: async (accessKeyId) =>
             accessKeyId === ACCESS_KEY_ID ? CREDENTIALS : undefined,
         open: async (name, accessKeyId) =>
@@ -102,33 +103,38 @@ async function serveBucket() {
     return { bucket, server };
 }
 
-/** Serve S3 at a local port, closed when the test finishes, answering the bucket's location. */
-function listen(server: S3Server) {
-    const served = Bun.serve({
-        port: 0,
-        hostname: "127.0.0.1",
+/** Serve S3 on the world's network, answering the bucket's location. */
+function listen(server: S3Server, world: Environment<HostCapability>) {
+    const served = world.server.http({
+        hostname: "s3.test",
+        port: 443,
         fetch: (request) => server.fetch(request),
     });
-    onTestFinished(() => served.stop(true));
 
     return {
-        endpoint: new URL(`http://127.0.0.1:${served.port}/`),
+        endpoint: served.url,
         bucket: "files",
         region: "auto",
     };
 }
 
 /** Open a client of a kind: authorized by the host in process, or signing over a local port. */
-function connect(kind: (typeof CLIENTS)[number], server: S3Server): S3Client {
+function connect(
+    kind: (typeof CLIENTS)[number],
+    server: S3Server,
+    world: Environment<HostCapability>,
+): S3Client {
     // send in process as the access key the host authorized
     if (kind === "authorized") {
-        return new S3Client("https://s3.test/files/", (request) =>
-            server.serve(request, ACCESS_KEY_ID),
+        return new S3Client(
+            "https://s3.test/files/",
+            (request) => server.serve(request, ACCESS_KEY_ID),
+            world.crypto,
         );
     }
     // sign every request over a local port
     else {
-        return S3Client.of({ location: listen(server), credentials: CREDENTIALS }, Clock.system);
+        return S3Client.of({ location: listen(server, world), credentials: CREDENTIALS }, world);
     }
 }
 
@@ -136,9 +142,11 @@ test.for(CLIENTS)(
     "roundtrip every bucket operation through S3 as a %s client, answering as the bucket answers directly",
     async (kind) => {
         // serve a local bucket over S3 to the client
-        const served = await serveBucket();
+        await using simulation = new Simulation({ seed: 1, start: START });
+        const world = simulation.environment("host");
+        const served = await serveBucket(world);
         await using bucket = served.bucket;
-        const client = connect(kind, served.server);
+        const client = connect(kind, served.server, world);
 
         // store files with metadata, a storage class, a checksum and a customer key, as the bucket then keeps them
         const body = "Hello, world!";
@@ -159,7 +167,7 @@ test.for(CLIENTS)(
         });
         const sealed = await client.put("documents/sealed.txt", body, { ssecKey: CUSTOMER_KEY });
         const locked = await client.put("documents/locked.txt", body, {
-            retainUntil: new Date(Date.now() + 3_600_000),
+            retainUntil: new Date(world.clock.now() + 3_600_000),
         });
         const empty = await client.put("documents/empty.txt", null);
         expect([stored, hashed, sealed, locked, empty].map(describe)).toEqual(
@@ -191,7 +199,7 @@ test.for(CLIENTS)(
 
         // refuse failed preconditions of reads and writes with the file they met, and pass held ones
         const etag = stored.etag;
-        const second = new Date(Math.floor(Date.now() / 1000) * 1000 - 60_000);
+        const second = new Date(Math.floor(world.clock.now() / 1000) * 1000 - 60_000);
         const conditions = async (on: Bucket) => [
             await outcome(on.get("documents/readme.txt", { onlyIf: { etagMatches: "other" } })),
             await outcome(on.get("documents/readme.txt", { onlyIf: { etagDoesNotMatch: etag } })),
@@ -264,11 +272,13 @@ test.for(CLIENTS)(
 
 test("refuse a client signing with another secret, keeping the bucket unchanged", async () => {
     // serve a local bucket over S3 at a port, and sign a write under a forged secret
-    const served = await serveBucket();
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const world = simulation.environment("host");
+    const served = await serveBucket(world);
     await using bucket = served.bucket;
-    const location = listen(served.server);
+    const location = listen(served.server, world);
     const credentials = { ...CREDENTIALS, secretAccessKey: "forged" };
-    const forged = S3Client.of({ location, credentials }, Clock.system);
+    const forged = S3Client.of({ location, credentials }, world);
 
     // refuse the write by its signature
     expect({
@@ -282,4 +292,28 @@ test("refuse a client signing with another secret, keeping the bucket unchanged"
         ],
         kept: null,
     });
+});
+
+test("read a file stored with a content encoding as its stored bytes, never decoded on the way", async () => {
+    // store gzip bytes under a gzip content encoding in a local bucket served over S3
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const world = simulation.environment("host");
+    const served = await serveBucket(world);
+    await using bucket = served.bucket;
+    const encoded = await new Response(
+        new Blob(["compressed notes"]).stream().pipeThrough(world.compression.compress("gzip")),
+    ).bytes();
+    await bucket.put("notes.txt.gz", encoded, { httpMetadata: { contentEncoding: "gzip" } });
+
+    // read it through a signing client over the world's network
+    const client = S3Client.of(
+        { location: listen(served.server, world), credentials: CREDENTIALS },
+        world,
+    );
+    const file = await client.get("notes.txt.gz");
+
+    expect({
+        encoding: file?.httpMetadata.contentEncoding,
+        isStored: (await file?.bytes())?.every((byte, index) => byte === encoded[index]),
+    }).toEqual({ encoding: "gzip", isStored: true });
 });

@@ -105,7 +105,7 @@ export class ContentReader {
 
         // decrypt the chunk at its position and pass it on
         const read = next.value;
-        const bytes = this.#cipher === undefined ? read : await this.#cipher(read, this.#offset);
+        const bytes = this.#cipher === undefined ? read : this.#cipher(read, this.#offset);
         if (this.#isCancelled) {
             return;
         }

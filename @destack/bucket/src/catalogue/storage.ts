@@ -1,5 +1,5 @@
-import { found } from "@destack/schema";
-import type { Clock } from "@destack/environment";
+import { Digest, found } from "@destack/schema";
+import type { Environment } from "@destack/environment";
 import {
     and,
     asc,
@@ -42,12 +42,15 @@ const REFERENCE_BATCH_SIZE = 500;
 /** A catalogue transaction. */
 export type CatalogueTransaction = Parameters<Parameters<DatabaseConnection["transaction"]>[0]>[0];
 
+/** The clock, randomness and network a catalogue's writes run on. */
+export type CatalogueEnvironment = Pick<Environment, "clock" | "random" | "network">;
+
 /** A bucket's catalogue database, opened by its host only for it, and its blob store. */
 export interface Catalogue extends DatabaseHandle {
     /** The store of the blobs the catalogue's segments and parts reference. */
     readonly blobs: BlobStore;
-    /** The clock uploads expire by, retention ends by and files are stamped with. */
-    readonly clock: Clock;
+    /** The clock, randomness and network the catalogue's writes run on. */
+    readonly environment: CatalogueEnvironment;
     /** Delete blobs while no other process has the catalogue open, answering whether it ran. */
     readonly reclaim: (deletion: () => Promise<void>) => Promise<boolean>;
 }
@@ -61,7 +64,7 @@ export class CatalogueStorage implements AsyncDisposable {
     /** Open download streams by blob. */
     readonly #readers = new Map<string, number>();
     /** Blobs detached from their keys. */
-    readonly retired = new Set<string>();
+    readonly retired = new Set<Digest>();
     /** The number of writers and holds keeping blobs they have not yet published. */
     #holders = 0;
     /** Whether a transfer fenced the bucket, which refuses new writes. */
@@ -78,13 +81,13 @@ export class CatalogueStorage implements AsyncDisposable {
         this.#catalogue = catalogue;
     }
 
-    /** The clock uploads expire by, retention ends by and files are stamped with. */
-    get clock(): Clock {
-        return this.#catalogue.clock;
+    /** The clock, randomness and network the catalogue's writes run on. */
+    get environment(): CatalogueEnvironment {
+        return this.#catalogue.environment;
     }
 
     /** Select the blobs a segment or a part references, at most one batch of them. */
-    async #referenced(digests: string[]): Promise<Set<string>> {
+    async #referenced(digests: readonly Digest[]): Promise<Set<Digest>> {
         const segments = await this.database
             .select({ blob: segment.blob })
             .from(segment)
@@ -149,7 +152,7 @@ export class CatalogueStorage implements AsyncDisposable {
             const expired = await this.database
                 .select({ id: upload.id })
                 .from(upload)
-                .where(lte(upload.expires, this.clock.now()))
+                .where(lte(upload.expires, this.environment.clock.now()))
                 .limit(1)
                 .get();
             if (!expired) {
@@ -274,7 +277,7 @@ export class CatalogueStorage implements AsyncDisposable {
     }
 
     /** Retire the blobs that deleted rows referenced, deleting those nothing references. */
-    async retire(digests: readonly string[]): Promise<void> {
+    async retire(digests: readonly Digest[]): Promise<void> {
         await this.exclusive(async () => {
             for (const digest of digests) {
                 this.retired.add(digest);
@@ -314,7 +317,7 @@ export class CatalogueStorage implements AsyncDisposable {
         }
 
         // read the blobs in bounded batches, deleting each batch's unreferenced ones while no writer runs
-        let batch: string[] = [];
+        let batch: Digest[] = [];
         for await (const digest of this.blobs.digests()) {
             batch.push(digest);
             if (batch.length === REFERENCE_BATCH_SIZE) {
@@ -329,7 +332,7 @@ export class CatalogueStorage implements AsyncDisposable {
     }
 
     /** Delete the blobs of a batch no segment, part or reader keeps. */
-    async #sweep(digests: string[]): Promise<boolean> {
+    async #sweep(digests: readonly Digest[]): Promise<boolean> {
         return await this.exclusive(async () => {
             // keep every blob while a writer may share one it has not yet published
             if (this.#holders > 0) {
@@ -372,14 +375,14 @@ export class CatalogueStorage implements AsyncDisposable {
         entry: CatalogueFile,
         segments: Segment[],
         transaction: CatalogueTransaction,
-    ): Promise<string[]> {
+    ): Promise<Digest[]> {
         // refuse replacing a locked file, then replace the key's file and detach the segments of its previous version
         const previous = await transaction
             .select({ version: file.version, retainUntil: file.retainUntil })
             .from(file)
             .where(eq(file.key, entry.key))
             .get();
-        if (previous?.retainUntil != null && previous.retainUntil > this.clock.now()) {
+        if (previous?.retainUntil != null && previous.retainUntil > this.environment.clock.now()) {
             throw BucketError.of(
                 "ACCESS_DENIED",
                 `file ${entry.key} is retained until its lock expires`,

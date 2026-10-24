@@ -4,7 +4,6 @@ import { Readable } from "node:stream";
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { expect, test } from "@destack/test";
-import { VirtualClock } from "@destack/environment/simulation";
 import { S3Signature } from "./signature.ts";
 import { CREDENTIALS, failure, REGION, S3Fixture } from "./test/fixture.ts";
 
@@ -87,7 +86,7 @@ test("follow presigned GET and PUT URLs and refuse forged or expired ones", asyn
         new GetObjectCommand({ Bucket: "files", Key: "shared.txt" }),
         {
             expiresIn: 60,
-            signingDate: new Date(Date.now() - 120_000),
+            signingDate: new Date(fixture.environment.clock.now() - 120_000),
         },
     );
     const forged = await fixture.fetch(download.replace("shared.txt", "other.txt"));
@@ -114,7 +113,7 @@ test("follow presigned GET and PUT URLs and refuse forged or expired ones", asyn
 });
 
 test("refuse a request signed an hour before the server's clock", async () => {
-    await using fixture = await S3Fixture.open(new VirtualClock(Date.now() + 3_600_000));
+    await using fixture = await S3Fixture.open(3_600_000);
     const read = fixture
         .client()
         .send(new GetObjectCommand({ Bucket: "files", Key: "readme.txt" }));
@@ -202,14 +201,14 @@ test("answer CORS preflights and expose headers to allowed origins", async () =>
 
 test("refuse bodies whose signed hash or checksum differs, storing nothing", async () => {
     await using fixture = await S3Fixture.open();
-    const signer = new S3Signature({ region: REGION });
+    const signer = new S3Signature({ region: REGION, crypto: fixture.environment.crypto });
 
     // sign writes declaring the hash or CRC32 of other contents
     const put = (key: string, headers: Record<string, string>) =>
         signer.sign(
             new Request(`http://s3.test/files/${key}`, { method: "PUT", body: "actual", headers }),
             CREDENTIALS,
-            Date.now(),
+            fixture.environment.clock.now(),
         );
     const requests = [
         await put("hashed.txt", {

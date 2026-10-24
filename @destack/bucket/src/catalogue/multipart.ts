@@ -1,4 +1,4 @@
-import { nth } from "@destack/schema";
+import { type Digest, nth, Uuid } from "@destack/schema";
 import { createHash } from "node:crypto";
 import { and, asc, eq, gt, gte, lt, or } from "@destack/db";
 import type {
@@ -69,27 +69,32 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
         BucketKey.check(key);
         const customerKey = await CustomerKey.read(options.ssecKey);
         const storageClass = StorageClass.read(options.storageClass ?? "Standard");
-        const uploadId = crypto.randomUUID();
+        const uploadId = Uuid.v7(storage.environment);
 
         // register the upload in an unfenced bucket after deleting retired blobs
         await storage.exclusive(async () => {
             storage.checkWritable();
             await storage.collect();
-            await storage.database.insert(upload).values({
-                id: uploadId,
-                key,
-                state: "active",
-                expires: storage.clock.now() + UPLOAD_RETENTION,
-                storageClass,
-                ssecKeyMd5: customerKey?.md5 ?? null,
-                options: {
-                    httpMetadata: CatalogueFile.encodeHttpMetadata(options.httpMetadata ?? {}),
-                    customMetadata: options.customMetadata ?? {},
-                    ...(options.retainUntil === undefined
-                        ? {}
-                        : { retainUntil: options.retainUntil.getTime() }),
-                },
-            });
+            await storage.database.transaction(
+                async (transaction) =>
+                    await transaction.insert(upload).values({
+                        id: uploadId,
+                        key,
+                        state: "active",
+                        expires: storage.environment.clock.now() + UPLOAD_RETENTION,
+                        storageClass,
+                        ssecKeyMd5: customerKey?.md5 ?? null,
+                        options: {
+                            httpMetadata: CatalogueFile.encodeHttpMetadata(
+                                options.httpMetadata ?? {},
+                            ),
+                            customMetadata: options.customMetadata ?? {},
+                            ...(options.retainUntil === undefined
+                                ? {}
+                                : { retainUntil: options.retainUntil.getTime() }),
+                        },
+                    }),
+            );
         });
 
         return new CatalogueMultipartUpload(storage, bucket, key, uploadId);
@@ -129,7 +134,7 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
                     .where(
                         and(
                             eq(upload.state, "active"),
-                            gt(upload.expires, storage.clock.now()),
+                            gt(upload.expires, storage.environment.clock.now()),
                             gte(key, prefix),
                             end === undefined ? undefined : lt(key, end),
                             after,
@@ -168,7 +173,7 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
         let isPublished = false;
         try {
             // write immutable contents before publishing the part
-            content = await Content.write(this.#storage.blobs, body, {}, customerKey);
+            content = await Content.write(this.#storage, body, {}, customerKey);
             const entry = {
                 uploadId: this.uploadId,
                 partNumber,
@@ -177,7 +182,7 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
                 size: content.size,
                 etag: content.version,
                 md5: content.etag,
-                uploaded: this.#storage.clock.now(),
+                uploaded: this.#storage.environment.clock.now(),
             };
 
             // publish only if the upload remains active
@@ -212,13 +217,16 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
             .get();
 
         // replace one part without invalidating existing readers
-        await this.#storage.database
-            .insert(part)
-            .values(entry)
-            .onConflictDoUpdate({
-                target: [part.uploadId, part.partNumber],
-                set: entry,
-            });
+        await this.#storage.database.transaction(
+            async (transaction) =>
+                await transaction
+                    .insert(part)
+                    .values(entry)
+                    .onConflictDoUpdate({
+                        target: [part.uploadId, part.partNumber],
+                        set: entry,
+                    }),
+        );
 
         // retire replaced contents after committing their replacement
         if (previous) {
@@ -320,7 +328,7 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
             size: ordered.reduce((total, entry) => total + entry.size, 0),
             etag: multipartEtag(ordered),
             digest: {},
-            uploaded: this.#storage.clock.now(),
+            uploaded: this.#storage.environment.clock.now(),
             httpMetadata: metadata.options.httpMetadata ?? {},
             customMetadata: metadata.options.customMetadata ?? {},
             storageClass: metadata.storageClass,
@@ -333,7 +341,7 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
     async #publish(
         published: CatalogueFile,
         ordered: readonly (typeof part.$inferSelect)[],
-    ): Promise<string[]> {
+    ): Promise<Digest[]> {
         return await this.#storage.database.transaction(async (transaction) => {
             // publish the segments, then drop the parts and close the upload
             const released = await this.#storage.publish(published, [...ordered], transaction);
@@ -360,7 +368,7 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
                     and(
                         eq(upload.id, this.uploadId),
                         eq(upload.key, this.key),
-                        gt(upload.expires, this.#storage.clock.now()),
+                        gt(upload.expires, this.#storage.environment.clock.now()),
                     ),
                 )
                 .get();
@@ -400,7 +408,7 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
                     eq(upload.id, this.uploadId),
                     eq(upload.key, this.key),
                     eq(upload.state, "active"),
-                    gt(upload.expires, this.#storage.clock.now()),
+                    gt(upload.expires, this.#storage.environment.clock.now()),
                 ),
             )
             .get();

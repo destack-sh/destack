@@ -1,10 +1,7 @@
-import { constants } from "node:fs";
-import { copyFile, mkdir, stat } from "node:fs/promises";
-import type { Clock } from "@destack/environment";
-import { dirname, join, resolve } from "node:path";
+import { dirname, isAbsolute, join } from "node:path";
 import { connectBunSqlite } from "@destack/db/bun";
 import type { SqliteDatabase } from "@destack/db/sqlite";
-import { FileLock } from "@destack/fs";
+import type { Environment, FileLock, FileSystem } from "@destack/environment";
 import { BucketKey } from "../bucket/index.ts";
 import { BucketError } from "../error/index.ts";
 import { CatalogueBucket } from "../catalogue/bucket.ts";
@@ -12,6 +9,9 @@ import { CatalogueStorage } from "../catalogue/storage.ts";
 import { catalogueDatabase } from "../catalogue/stack/index.ts";
 import { syncDirectory } from "./directory.ts";
 import { LocalBlobStore } from "./store.ts";
+
+/** The effects a local bucket runs on: its files, and its catalogue's clock, random and network. */
+export type LocalBucketEnvironment = Environment<"files">;
 
 /** A bucket in a local directory, which processes share: a SQLite catalogue beside blob files. */
 export class LocalBucket extends CatalogueBucket {
@@ -31,30 +31,39 @@ export class LocalBucket extends CatalogueBucket {
     static async open(
         directory: string,
         scope: string | undefined,
-        clock: Clock,
+        environment: LocalBucketEnvironment,
     ): Promise<LocalBucket> {
-        // refuse creating a bucket without the scope it belongs to
-        directory = resolve(directory);
+        // refuse a relative directory, and creating a bucket without the scope it belongs to
+        const { files } = environment;
+        if (!isAbsolute(directory)) {
+            throw BucketError.of(
+                "INVALID_ARGUMENT",
+                `a bucket directory is absolute: ${directory}`,
+            );
+        }
         const catalogue = join(directory, "bucket.db");
-        const isNew = await isMissing(catalogue);
+        const isNew = !(await files.exists(catalogue));
         if (isNew && scope === undefined) {
             throw BucketError.of("NO_SUCH_BUCKET", `no bucket at ${directory}`);
         }
 
-        // create the blob directory before publishing any catalogue entries
-        const contents = join(directory, "files");
-        await createDurably(contents);
-        const blobs = await LocalBlobStore.open(contents);
-        const lock = await FileLock.acquireShared(join(directory, "bucket.lock"));
+        // create the blob directory before publishing any catalogue entries, and share the bucket's lock until the open fails or the storage takes it
+        const blobs = await LocalBlobStore.open(join(directory, "files"), environment);
+        await using opening = new AsyncDisposableStack();
+        const lock = opening.use(await files.lock(join(directory, "bucket.lock"), "shared"));
 
         // prepare the catalogue while no other opener migrates it, then serve it through storage
-        const database = await migrating(directory, async () => {
-            const isCreated = await isMissing(catalogue);
+        const database = await migrating(directory, files, async () => {
+            const isCreated = !(await files.exists(catalogue));
 
-            return await prepare(directory, catalogue, isCreated ? scope : undefined, lock);
+            return await prepare(directory, catalogue, isCreated ? scope : undefined, environment);
         });
 
-        return new LocalBucket(openedStorage(catalogue, database, blobs, lock, clock), blobs);
+        // serve the prepared catalogue through storage, which now holds the lock
+        const storage = openedStorage(catalogue, database, blobs, lock, environment);
+        opening.move();
+
+        return new LocalBucket(storage, blobs);
     }
 
     /** Clone a plain file's bytes to a path, copying them where the file system cannot clone. */
@@ -83,7 +92,7 @@ export class LocalBucket extends CatalogueBucket {
 
         // clone the blob file, then release it
         try {
-            await copyFile(this.#blobs.path(blob), destination, constants.COPYFILE_FICLONE);
+            await this.#blobs.copy(blob, destination);
         } finally {
             this.#storage.release(blob);
         }
@@ -93,101 +102,35 @@ export class LocalBucket extends CatalogueBucket {
 /** Migrate a catalogue under the bucket's migration lock, as openers migrate one at a time. */
 async function migrating<Result>(
     directory: string,
+    files: FileSystem,
     migration: () => Promise<Result>,
 ): Promise<Result> {
-    const lock = await FileLock.acquire(join(directory, "migrate.lock"));
-    try {
-        return await migration();
-    } finally {
-        await lock.close();
-    }
+    await using _lock = await files.lock(join(directory, "migrate.lock"), "exclusive");
+
+    return await migration();
 }
 
-/** Decide whether a path is missing, rethrowing every other failure. */
-async function isMissing(path: string): Promise<boolean> {
-    return await stat(path).then(
-        () => false,
-        (error: NodeJS.ErrnoException) => {
-            if (error.code !== "ENOENT") {
-                throw error;
-            }
-
-            return true;
-        },
-    );
-}
-
-/** Create a directory and persist each newly created entry through its existing parent. */
-async function createDurably(directory: string): Promise<void> {
-    // create the directory and its missing parents
-    const created = await mkdir(directory, { recursive: true, mode: 0o700 });
-    if (created === undefined) {
-        return;
-    }
-
-    // sync each created entry up to the first one
-    const parent = dirname(created);
-    let current = directory;
-    while (true) {
-        await syncDirectory(current);
-        if (current === parent) {
-            break;
-        }
-        current = dirname(current);
-    }
-}
-
-/** Prepare a bucket's private catalogue through the shared database lifecycle. */
+/** Prepare a bucket's private catalogue, closing it on failure. */
 async function prepare(
     directory: string,
     catalogue: string,
     created: string | undefined,
-    lock: FileLock,
+    environment: LocalBucketEnvironment,
 ): Promise<SqliteDatabase> {
-    let database: SqliteDatabase | undefined;
-    try {
-        // migrate the catalogue, creating the log of a new bucket
-        database = await connectBunSqlite(catalogue, catalogueDatabase);
-        if (created !== undefined) {
-            await database.log.create(created);
-        }
-        await database.migrate(catalogueDatabase.tables);
-
-        // persist the initial catalogue and lock entries before accepting writes
-        await syncDirectory(directory);
-
-        return database;
-    } catch (error) {
-        return await closeFailed(error, database, lock);
+    // migrate the catalogue, creating the log of a new bucket
+    await using preparing = new AsyncDisposableStack();
+    const database = await connectBunSqlite(catalogue, catalogueDatabase, { environment });
+    preparing.defer(() => database.close());
+    if (created !== undefined) {
+        await database.log.create(created);
     }
-}
+    await database.migrate(catalogueDatabase.tables);
 
-/** Close a catalogue and its lock after a failed preparation. */
-async function closeFailed(
-    error: unknown,
-    database: SqliteDatabase | undefined,
-    lock: FileLock,
-): Promise<never> {
-    // close the database and the lock, keeping each closure failure
-    const failures = [error];
-    try {
-        await database?.close();
-    } catch (cleanup) {
-        failures.push(cleanup);
-    }
-    try {
-        await lock.close();
-    } catch (cleanup) {
-        failures.push(cleanup);
-    }
+    // persist the initial catalogue and lock entries before accepting writes
+    await syncDirectory(directory, environment.files);
+    preparing.move();
 
-    // rethrow the failure with the closure failures beside it
-    if (failures.length > 1) {
-        throw new AggregateError(failures, "storage initialization and closure failed", {
-            cause: error,
-        });
-    }
-    throw error;
+    return database;
 }
 
 /** Serve a catalogue and its blobs. */
@@ -196,8 +139,9 @@ function openedStorage(
     database: SqliteDatabase,
     blobs: LocalBlobStore,
     lock: FileLock,
-    clock: Clock,
+    environment: LocalBucketEnvironment,
 ): CatalogueStorage {
+    const { files } = environment;
     let opened = database;
 
     return new CatalogueStorage({
@@ -205,13 +149,13 @@ function openedStorage(
             return opened;
         },
         blobs,
-        clock,
+        environment,
         migrate: async (beside) => {
             // migrate while no other opener migrates, then reopen the connection declaring every table
             const tables = [...catalogueDatabase.tables, ...beside];
-            await migrating(dirname(catalogue), () => opened.migrate(tables));
+            await migrating(dirname(catalogue), files, () => opened.migrate(tables));
             await opened.close();
-            opened = await connectBunSqlite(catalogue, tables);
+            opened = await connectBunSqlite(catalogue, tables, { environment });
         },
         reclaim: async (deletion) => {
             // delete blobs only while this process alone holds the bucket, sharing it again after

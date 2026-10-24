@@ -19,7 +19,7 @@ import {
     type MultipartUpload,
 } from "../bucket/index.ts";
 import { BucketError, preconditionFailed } from "../error/index.ts";
-import { Clock } from "@destack/environment";
+import type { Clock } from "@destack/environment";
 
 /** A file a memory bucket keeps: its metadata and bytes. */
 interface MemoryFile {
@@ -35,9 +35,11 @@ export class MemoryBucket implements Bucket {
     readonly #files = new Map<string, MemoryFile>();
     /** The clock object locks lapse by. */
     readonly #clock: Clock;
+    /** The version the next write takes, counted per bucket. */
+    #version = 1;
 
     /** Keep files on a clock. */
-    constructor(clock: Clock = Clock.system) {
+    constructor(clock: Clock) {
         this.#clock = clock;
     }
 
@@ -114,7 +116,7 @@ export class MemoryBucket implements Bucket {
         }
         const file = new BucketFile(
             key,
-            crypto.randomUUID(),
+            String(this.#version++),
             bytes.byteLength,
             etag,
             new Date(this.#clock.now()),

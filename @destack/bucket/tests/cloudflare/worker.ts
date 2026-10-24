@@ -1,11 +1,12 @@
+import { Environment } from "@destack/environment";
 import { present } from "@destack/schema";
 import assert from "node:assert/strict";
 import type * as Cloudflare from "@cloudflare/workers-types";
 import { R2Bucket } from "../../src/cloudflare/bucket.ts";
 import { BucketError } from "../../src/error/index.ts";
 
-/** The disposable bucket and test authorization supplied at deployment. */
-interface Environment {
+/** The Worker's bindings: the disposable bucket and test authorization supplied at deployment. */
+interface Bindings {
     /** The disposable R2 bucket. */
     BUCKET: Cloudflare.R2Bucket;
     /** The bearer token authorizing test requests. */
@@ -15,7 +16,7 @@ interface Environment {
 /** The Worker running the hosted adapter checks. */
 export default {
     /** Exercise the adapter inside a hosted Worker. */
-    async fetch(request: Request, environment: Environment): Promise<Response> {
+    async fetch(request: Request, environment: Bindings): Promise<Response> {
         if (request.headers.get("authorization") !== `Bearer ${environment.TOKEN}`) {
             return new Response(null, { status: 401 });
         }
@@ -126,8 +127,8 @@ async function exerciseMultipart(bucket: R2Bucket): Promise<void> {
         assert.equal(completed.size, contents.length + 4);
         const restored = await present(await bucket.get("multipart"), "multipart").bytes();
         const [expected, actual] = await Promise.all([
-            crypto.subtle.digest("SHA-256", contents),
-            crypto.subtle.digest("SHA-256", restored.subarray(0, contents.length)),
+            Environment.system.crypto.digest("SHA-256", contents),
+            Environment.system.crypto.digest("SHA-256", restored.subarray(0, contents.length)),
         ]);
         assert.deepEqual(new Uint8Array(actual), new Uint8Array(expected));
         assert.equal(new TextDecoder().decode(restored.subarray(contents.length)), "tail");

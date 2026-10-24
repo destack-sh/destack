@@ -1,15 +1,16 @@
 import { createHash } from "node:crypto";
-import { Clock } from "@destack/environment";
-import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setImmediate } from "node:timers/promises";
 import { present, schema } from "@destack/schema";
-import { expect, onTestFinished, refusal, test } from "@destack/test";
+import { expect, refusal, test } from "@destack/test";
 import { SweepController } from "../provider/index.ts";
 import { BucketError } from "../error/index.ts";
 import { S3Location, S3Server, S3Signature } from "../s3/index.ts";
 import { LocalBucketHost } from "./host.ts";
+import { Simulation } from "@destack/environment/simulation";
+
+/** The start of every test's world: 2026-10-24 at midnight UTC. */
+const START = Date.UTC(2026, 9, 24);
 
 /** The bucket the scenarios keep. */
 const BUCKET_ID = "bucket-01996ab0-0000-7000-8000-000000000002";
@@ -18,13 +19,14 @@ const BUCKET_ID = "bucket-01996ab0-0000-7000-8000-000000000002";
 const SPACE_ID = "space-01996ab0-0000-7000-8000-000000000001";
 
 test("serve a host's buckets over S3 by name, presigned with the credentials of each bucket's space", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "destack-buckets-"));
-    onTestFinished(() => rm(directory, { recursive: true, force: true }));
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const world = simulation.environment("host");
+    const directory = await world.files.makeTemporaryDirectory("buckets-");
 
     // serve the buckets the host keeps, and no other name, with one space's credentials
     const credentials = { accessKeyId: SPACE_ID, secretAccessKey: "space-secret" };
     await using buckets = new LocalBucketHost({
-        clock: Clock.system,
+        environment: world,
         directory,
         endpoint: new URL("http://s3.localhost:4200"),
         region: "local",
@@ -32,7 +34,7 @@ test("serve a host's buckets over S3 by name, presigned with the credentials of 
     });
     const server = new S3Server({
         region: "local",
-        clock: Clock.system,
+        environment: world,
         credentials: async (id) => (id === credentials.accessKeyId ? credentials : undefined),
         open: (name) => buckets.named(name),
     });
@@ -49,11 +51,14 @@ test("serve a host's buckets over S3 by name, presigned with the credentials of 
 
     // read the file through a URL presigned at the located endpoint with the space's credentials
     const located = await buckets.locate(reference, "read");
-    const presigned = await new S3Signature({ region: located.location.region }).presign(
+    const presigned = await new S3Signature({
+        region: located.location.region,
+        crypto: world.crypto,
+    }).presign(
         new Request(S3Location.url(located.location, "notes/a.txt").href),
         located.credentials,
         60,
-        Date.now(),
+        world.clock.now(),
     );
     const response = await server.fetch(presigned);
 
@@ -76,12 +81,13 @@ test("serve a host's buckets over S3 by name, presigned with the credentials of 
 });
 
 test("sweep a host's open buckets daily, again a minute later while a copy holds the blobs it fetched", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "destack-buckets-"));
-    onTestFinished(() => rm(directory, { recursive: true, force: true }));
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const world = simulation.environment("host");
+    const directory = await world.files.makeTemporaryDirectory("buckets-");
 
     // keep a file and a blob no file references, as an interrupted write leaves it
     await using buckets = new LocalBucketHost({
-        clock: Clock.system,
+        environment: world,
         directory,
         endpoint: new URL("http://s3.localhost:4200"),
         region: "local",
@@ -93,14 +99,20 @@ test("sweep a host's open buckets daily, again a minute later while a copy holds
     const bucket = await buckets.open({ bucketId }, "space-test");
     await bucket.put("notes/a.txt", "kept");
     const files = join(buckets.path({ bucketId }), "files");
-    await writeFile(join(files, digestOf("abandoned")), "abandoned");
+    await world.files.writeTextFile(join(files, digestOf("abandoned")), "abandoned");
     const sweep = new SweepController(buckets);
 
     // keep every blob while a copy keeps the blobs it fetched, and sweep the abandoned one once released
     const held = await bucket.database().hold();
-    const busy = [await sweep.reconcile(), (await readdir(files)).toSorted()];
+    const busy = [
+        await sweep.reconcile(),
+        (await world.files.readDirectory(files)).map((entry) => entry.name).toSorted(),
+    ];
     await held[Symbol.asyncDispose]();
-    const swept = [await sweep.reconcile(), await readdir(files)];
+    const swept = [
+        await sweep.reconcile(),
+        (await world.files.readDirectory(files)).map((entry) => entry.name),
+    ];
     expect({ busy, swept }).toEqual({
         busy: [60_000, [digestOf("abandoned"), digestOf("kept")].toSorted()],
         swept: [24 * 60 * 60_000, [digestOf("kept")]],
@@ -108,10 +120,11 @@ test("sweep a host's open buckets daily, again a minute later while a copy holds
 });
 
 test("open a bucket again after a failed open", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "destack-buckets-"));
-    onTestFinished(() => rm(directory, { recursive: true, force: true }));
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const world = simulation.environment("host");
+    const directory = await world.files.makeTemporaryDirectory("buckets-");
     await using buckets = new LocalBucketHost({
-        clock: Clock.system,
+        environment: world,
         directory,
         endpoint: new URL("http://s3.localhost:4200"),
         region: "local",
@@ -130,8 +143,9 @@ test("open a bucket again after a failed open", async () => {
 });
 
 test("fence a bucket during a transfer: finish the write in flight, refuse every later write across a restart, read on, and lift", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "destack-buckets-"));
-    onTestFinished(() => rm(directory, { recursive: true, force: true }));
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const world = simulation.environment("host");
+    const directory = await world.files.makeTemporaryDirectory("buckets-");
     const credentials = { accessKeyId: "HOST", secretAccessKey: "host-secret" };
     const options = {
         directory,
@@ -145,7 +159,7 @@ test("fence a bucket during a transfer: finish the write in flight, refuse every
     };
 
     // keep a file and an upload with one part, and stream another file's body
-    const buckets = new LocalBucketHost({ ...options, clock: Clock.system });
+    const buckets = new LocalBucketHost({ ...options, environment: world });
     const bucket = await buckets.open(reference, "space-test");
     await bucket.put("notes/a.txt", "first");
     const upload = await bucket.createMultipartUpload("notes/b.txt");
@@ -172,18 +186,18 @@ test("fence a bucket during a transfer: finish the write in flight, refuse every
     // refuse direct writes, multipart writes, presigned writes and their leases, while reads go on
     const server = new S3Server({
         region: "local",
-        clock: Clock.system,
+        environment: world,
         credentials: async (id) => (id === credentials.accessKeyId ? credentials : undefined),
         open: (name) => buckets.named(name),
     });
     const { location } = await buckets.locate(reference, "read");
-    const signer = new S3Signature({ region: location.region });
+    const signer = new S3Signature({ region: location.region, crypto: world.crypto });
     const url = S3Location.url(location, "notes/d.txt").href;
     const presigned = await signer.presign(
         new Request(url, { method: "PUT" }),
         credentials,
         60,
-        Date.now(),
+        world.clock.now(),
     );
     const put = await server.fetch(new Request(presigned.url, { method: "PUT", body: "fourth" }));
     const fenced = BucketError.of("UNAVAILABLE", "bucket is fenced while a transfer copies it");
@@ -223,7 +237,7 @@ test("fence a bucket during a transfer: finish the write in flight, refuse every
 
     // keep refusing writes after a restart, until the fence lifts
     await buckets[Symbol.asyncDispose]();
-    await using restarted = new LocalBucketHost({ ...options, clock: Clock.system });
+    await using restarted = new LocalBucketHost({ ...options, environment: world });
     const reopened = await restarted.open(reference);
     const refused = await reopened.put("notes/d.txt", "fourth").catch((error: unknown) => error);
     await restarted.lift(reference);

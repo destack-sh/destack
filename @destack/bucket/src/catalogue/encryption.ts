@@ -1,4 +1,5 @@
-import { createHash } from "node:crypto";
+import { createCipheriv, createHash } from "node:crypto";
+import type { Random } from "@destack/environment";
 import { BucketError } from "../error/index.ts";
 
 /** The bytes of an AES-256 customer key. */
@@ -14,11 +15,11 @@ const NONCE_BYTES = 8;
 export class CustomerKey {
     /** The base64 MD5 digest of the key, which files record. */
     readonly md5: string;
-    /** The imported key. */
-    readonly #key: CryptoKey;
+    /** The key's bytes. */
+    readonly #key: Uint8Array;
 
-    /** Keep an imported key and its digest. */
-    private constructor(md5: string, key: CryptoKey) {
+    /** Keep a key and its digest. */
+    private constructor(md5: string, key: Uint8Array) {
         this.md5 = md5;
         this.#key = key;
     }
@@ -42,11 +43,10 @@ export class CustomerKey {
             );
         }
 
-        // import it with its digest
+        // keep it with its digest
         const md5 = createHash("md5").update(bytes).digest("base64");
-        const key = await crypto.subtle.importKey("raw", bytes, "AES-CTR", false, ["encrypt"]);
 
-        return new CustomerKey(md5, key);
+        return new CustomerKey(md5, bytes);
     }
 
     /** Require the key a file or upload was encrypted with, or none for plain content. */
@@ -65,23 +65,19 @@ export class CustomerKey {
     }
 
     /** Draw a random counter nonce for one write, as hexadecimal. */
-    static nonce(): string {
-        return crypto.getRandomValues(new Uint8Array(NONCE_BYTES)).toHex();
+    static nonce(random: Random): string {
+        return random.bytes(NONCE_BYTES).toHex();
     }
 
     /** Bind the key to one write's content under its counter nonce. */
-    cipher(nonce: string): (bytes: Uint8Array, offset: number) => Promise<Uint8Array<ArrayBuffer>> {
+    cipher(nonce: string): (bytes: Uint8Array, offset: number) => Uint8Array<ArrayBuffer> {
         const bytes = Uint8Array.fromHex(nonce);
 
         return (content, offset) => this.#apply(bytes, content, offset);
     }
 
     /** Encrypt or decrypt bytes at an offset of the content under a nonce. */
-    async #apply(
-        nonce: Uint8Array,
-        bytes: Uint8Array,
-        offset: number,
-    ): Promise<Uint8Array<ArrayBuffer>> {
+    #apply(nonce: Uint8Array, bytes: Uint8Array, offset: number): Uint8Array<ArrayBuffer> {
         // start the counter at the block with the offset, under the write's nonce
         const counter = new Uint8Array(BLOCK_BYTES);
         counter.set(nonce);
@@ -94,12 +90,9 @@ export class CustomerKey {
         const skipped = offset % BLOCK_BYTES;
         const padded = new Uint8Array(skipped + bytes.byteLength);
         padded.set(bytes, skipped);
-        const applied = await crypto.subtle.encrypt(
-            { name: "AES-CTR", counter, length: 64 },
-            this.#key,
-            padded,
-        );
+        const cipher = createCipheriv("aes-256-ctr", this.#key, counter);
+        const applied = new Uint8Array(cipher.update(padded));
 
-        return new Uint8Array(applied, skipped);
+        return applied.subarray(skipped);
     }
 }

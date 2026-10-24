@@ -1,4 +1,5 @@
 import { expect, test, refusal } from "@destack/test";
+import { testHost } from "@destack/test/host";
 import { Payload } from "./payload.ts";
 import { S3Signature } from "./signature.ts";
 
@@ -10,7 +11,7 @@ const CREDENTIALS = {
 /** The signing time of the documentation's examples, 20130524T000000Z. */
 const NOW = Date.parse("2013-05-24T00:00:00Z");
 /** The signer of the documentation's examples. */
-const SIGNER = new S3Signature({ region: "us-east-1" });
+const SIGNER = new S3Signature({ region: "us-east-1", crypto: testHost().crypto });
 
 test("presign the documented GET example", async () => {
     // sign the example URL for 86400 seconds

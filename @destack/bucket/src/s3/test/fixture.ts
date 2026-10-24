@@ -1,8 +1,7 @@
-import { schema } from "@destack/schema";
-import { Clock } from "@destack/environment";
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { schema } from "@destack/schema";
+import { Clock, type Environment, type HostCapability } from "@destack/environment";
+import { Simulation } from "@destack/environment/simulation";
 import { Buffer } from "node:buffer";
 import { Readable } from "node:stream";
 import { S3Client } from "@aws-sdk/client-s3";
@@ -22,16 +21,23 @@ export class S3Fixture implements AsyncDisposable {
     readonly server: S3Server;
     /** The payload hashes of the requests SDK clients sent, in order. */
     readonly payloadHashes: string[] = [];
-    /** The directory with the buckets. */
-    readonly #directory: string;
+    /** The world the buckets live in, removed with their files on dispose. */
+    readonly #simulation: Simulation;
 
-    /** Serve the buckets, checking signed requests against a clock. */
-    private constructor(directory: string, buckets: Map<string, LocalBucket>, clock: Clock) {
-        this.#directory = directory;
+    /** The environment the server checks signatures and presigned expiries on. */
+    get environment(): Environment<HostCapability> {
+        return this.#simulation.environment("host");
+    }
+
+    /** Serve the buckets, checking signed requests against the world's clock. */
+    private constructor(simulation: Simulation, buckets: Map<string, LocalBucket>) {
+        // keep the world and the buckets, and serve them on the world's clock
+        this.#simulation = simulation;
         this.buckets = buckets;
+        const environment = simulation.environment("host");
         this.server = new S3Server({
             region: REGION,
-            clock,
+            environment,
             credentials: async (accessKeyId) =>
                 accessKeyId === CREDENTIALS.accessKeyId ? CREDENTIALS : undefined,
             open: async (name) => buckets.get(name),
@@ -49,18 +55,26 @@ export class S3Fixture implements AsyncDisposable {
         });
     }
 
-    /** Open the files and archive buckets in a temporary directory, served at a clock's time. */
-    static async open(clock: Clock = Clock.system): Promise<S3Fixture> {
-        const directory = await mkdtemp(join(tmpdir(), "destack-s3-"));
-        const buckets = new Map([
-            ["files", await LocalBucket.open(join(directory, "files"), "space-test", Clock.system)],
-            [
-                "archive",
-                await LocalBucket.open(join(directory, "archive"), "space-test", Clock.system),
-            ],
-        ]);
+    /** Open the files and archive buckets in a world at the host's time, shifted by an offset. */
+    static async open(offset = 0): Promise<S3Fixture> {
+        // start the world at the host's time, disposing it and every opened bucket if an open fails
+        await using opening = new AsyncDisposableStack();
+        const simulation = opening.use(
+            new Simulation({ seed: 1, start: Clock.system.now() + offset }),
+        );
+        const environment = simulation.environment("host");
+        const directory = await environment.files.makeTemporaryDirectory("s3-");
 
-        return new S3Fixture(directory, buckets, clock);
+        // open the files and archive buckets in the world's files
+        const open = async (name: string) =>
+            opening.use(await LocalBucket.open(join(directory, name), "space-test", environment));
+        const buckets = new Map([
+            ["files", await open("files")],
+            ["archive", await open("archive")],
+        ]);
+        opening.move();
+
+        return new S3Fixture(simulation, buckets);
     }
 
     /** Create an AWS SDK client that sends its requests to the server. */
@@ -132,7 +146,7 @@ export class S3Fixture implements AsyncDisposable {
         for (const bucket of this.buckets.values()) {
             await bucket[Symbol.asyncDispose]();
         }
-        await rm(this.#directory, { recursive: true });
+        await this.#simulation[Symbol.asyncDispose]();
     }
 }
 

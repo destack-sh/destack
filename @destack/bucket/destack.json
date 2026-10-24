@@ -3,6 +3,22 @@
     "id": "package-01a0c80b-614e-73a0-82d0-e8fa51e85a5b",
     "language": "typescript",
     "runtimes": ["browser", "bun", "workerd"],
+    "entrypoints": [
+        "src/bun/test/open.ts",
+        "src/s3/test/worker.ts",
+        "tests/cloudflare/run.ts",
+        "tests/cloudflare/scenario.ts",
+        "tests/cloudflare/worker.ts"
+    ],
+    "check": {
+        "expect": [
+            {
+                "files": ["src/s3/test/fixture.ts"],
+                "rules": ["destack/no-system-environment"],
+                "reason": "the AWS SDK clients sign on the host's clock, so the fixture's world starts at the host's time"
+            }
+        ]
+    },
     "exports": {
         "./inspect": {
             "runtimes": ["bun"]

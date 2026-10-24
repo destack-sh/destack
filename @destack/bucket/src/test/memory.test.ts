@@ -1,10 +1,11 @@
+import { createHash } from "node:crypto";
 import { expect, refusal, test } from "@destack/test";
 import { MemoryBucket } from "./memory.ts";
-import { VirtualClock } from "@destack/environment/simulation";
+import { SimulatedClock } from "@destack/environment/simulation";
 
 test("keep files in memory as a host does: conditional reads and writes, ranges, locks until they lapse, and pages that list each delimited prefix once", async () => {
     // write three files, one locked for a minute
-    const clock = new VirtualClock(Date.UTC(2026, 9, 1));
+    const clock = new SimulatedClock(Date.UTC(2026, 9, 1));
     const bucket = new MemoryBucket(clock);
     const first = await bucket.put("a/1", "hello");
     await bucket.put("a/2", "world", { retainUntil: new Date(clock.now() + 60_000) });
@@ -55,8 +56,8 @@ test("keep files in memory as a host does: conditional reads and writes, ranges,
 });
 
 test("record the checksum a write supplies, and refuse one its bytes do not match", async () => {
-    const bucket = new MemoryBucket(new VirtualClock(Date.UTC(2026, 9, 1)));
-    const sha256 = new Bun.CryptoHasher("sha256").update("hello").digest("hex");
+    const bucket = new MemoryBucket(new SimulatedClock(Date.UTC(2026, 9, 1)));
+    const sha256 = createHash("sha256").update("hello").digest("hex");
 
     const stored = await bucket.put("a", "hello", { sha256 });
     expect([
@@ -66,4 +67,18 @@ test("record the checksum a write supplies, and refuse one its bytes do not matc
         sha256,
         ["BAD_REQUEST", "BAD_DIGEST", "object checksum does not match its contents"],
     ]);
+});
+
+test("count each bucket's versions from one, apart from every other bucket's", async () => {
+    // write twice to one bucket and once to another
+    const clock = new SimulatedClock(Date.UTC(2026, 9, 1));
+    const first = new MemoryBucket(clock);
+    const second = new MemoryBucket(clock);
+    const versions = [
+        (await first.put("a", "1")).version,
+        (await first.put("a", "2")).version,
+        (await second.put("a", "1")).version,
+    ];
+
+    expect(versions).toEqual(["1", "2", "1"]);
 });

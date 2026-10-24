@@ -1,7 +1,6 @@
-import type { Clock } from "@destack/environment";
 import type { Connector } from "@destack/resource";
 import { Failure } from "@destack/error";
-import { copyRequest } from "@destack/environment";
+import { copyRequest, type Crypto, type Environment } from "@destack/environment";
 import {
     type Bucket,
     type BucketBody,
@@ -42,6 +41,9 @@ export const S3_PROVIDER = "s3";
 /** The headers a write answers with, which describe the stored file beside what the client sent. */
 const ANSWERED_HEADERS = ["etag", "x-amz-version-id", "last-modified"] as const;
 
+/** The fetch options reading a body as stored, never decoded by its stored content encoding. */
+const STORED = { decompress: false } as const;
+
 /** One S3 request on the bucket. */
 interface S3Call {
     /** The HTTP method. */
@@ -66,7 +68,7 @@ export class S3Client implements Bucket {
     /** The connector of buckets a host serves over S3 at its egress. */
     static readonly connector: Connector<Bucket> = {
         code: S3_PROVIDER,
-        connect: async (binding) => {
+        connect: async (binding, _declaration, environment) => {
             // require the credential the egress identifies the instance by
             const credential = binding.credential;
             if (credential === undefined) {
@@ -78,35 +80,46 @@ export class S3Client implements Bucket {
                 const headers = new Headers(request.headers);
                 headers.set("authorization", `Bearer ${credential}`);
 
-                return fetchStored(copyRequest(request, { headers }));
+                return environment.network.fetch(copyRequest(request, { headers }), STORED);
             };
 
-            return Object.assign(new S3Client(binding.reference, send), {
+            return Object.assign(new S3Client(binding.reference, send, environment.crypto), {
                 [Symbol.asyncDispose]: () => Promise.resolve(),
             });
         },
     };
 
     /** Open a bucket at its S3 location, signing every request with its credentials. */
-    static of(endpoint: BucketEndpoint, clock: Clock): S3Client {
+    static of(
+        endpoint: BucketEndpoint,
+        environment: Pick<Environment, "clock" | "crypto" | "network">,
+    ): S3Client {
         // sign each request for the bucket's region at the time it is sent
         const { location, credentials } = endpoint;
-        const signature = new S3Signature({ region: location.region });
+        const { clock, crypto, network } = environment;
+        const signature = new S3Signature({ region: location.region, crypto });
         const send = async (request: Request) =>
-            await fetchStored(await signature.sign(request, credentials, clock.now()));
+            await network.fetch(await signature.sign(request, credentials, clock.now()), STORED);
 
-        return new S3Client(S3Location.url(location).href, send);
+        return new S3Client(S3Location.url(location).href, send, crypto);
     }
 
     /** The bucket's URL, below which keys are addressed path-style. */
     readonly url: string;
     /** Send one request to the bucket. */
     readonly #fetch: (request: Request) => Promise<Response>;
+    /** The crypto checksumming request documents. */
+    readonly #crypto: Pick<Crypto, "digest">;
 
-    /** Reach a bucket at its URL through a fetch. */
-    constructor(url: string, fetch: (request: Request) => Promise<Response>) {
+    /** Reach a bucket at its URL through a fetch, checksumming documents with a crypto. */
+    constructor(
+        url: string,
+        fetch: (request: Request) => Promise<Response>,
+        crypto: Pick<Crypto, "digest">,
+    ) {
         this.url = url.replace(/\/$/u, "");
         this.#fetch = fetch;
+        this.#crypto = crypto;
     }
 
     /** Read metadata; return null when the key does not exist. */
@@ -217,7 +230,9 @@ export class S3Client implements Bucket {
             Quiet: true,
             Object: key.map((each) => ({ Key: each })),
         });
-        const headers = new Headers({ "x-amz-checksum-sha256": await sha256(document) });
+        const headers = new Headers({
+            "x-amz-checksum-sha256": await sha256(document, this.#crypto),
+        });
         const answer = await this.#send({
             method: "POST",
             query: { delete: "" },
@@ -597,15 +612,8 @@ function base64(value: string | ArrayBuffer | ArrayBufferView): string {
 }
 
 /** Compute the base64 SHA-256 checksum of a request document. */
-async function sha256(document: string): Promise<string> {
-    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(document));
+async function sha256(document: string, crypto: Pick<Crypto, "digest">): Promise<string> {
+    const digest = await crypto.digest("SHA-256", new TextEncoder().encode(document));
 
     return new Uint8Array(digest).toBase64();
-}
-
-/** Send a request, reading the body as stored, never decoded by its stored content encoding. */
-function fetchStored(request: Request): Promise<Response> {
-    const stored: RequestInit & { readonly decompress: false } = { decompress: false };
-
-    return fetch(request, stored);
 }

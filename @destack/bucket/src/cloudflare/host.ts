@@ -1,11 +1,11 @@
 import type { Table } from "@destack/db";
-import type { Clock } from "@destack/environment";
 import type { DurableObjectDatabaseHost } from "@destack/db/cloudflare";
 import { schema, type Identifier } from "@destack/schema";
 import type { Bucket } from "../bucket/index.ts";
 import {
     CatalogueBucket,
     CatalogueBucketHost,
+    type CatalogueEnvironment,
     type CatalogueStore,
     catalogueDatabase,
 } from "../catalogue/index.ts";
@@ -30,8 +30,8 @@ export interface R2BucketHostOptions {
     readonly region: string;
     /** Read the S3 credentials of a scope, absent for a scope without credentials on the host. */
     readonly credentials: (scope: string) => Promise<S3Credentials | undefined>;
-    /** The clock uploads expire by, retention ends by and files are stamped with. */
-    readonly clock: Clock;
+    /** The clock, randomness and network the catalogues' writes run on. */
+    readonly environment: CatalogueEnvironment;
 }
 
 /** A cell that keeps buckets, each opened once and served over S3 at one endpoint. */
@@ -44,8 +44,8 @@ export class R2BucketHost extends CatalogueBucketHost {
     readonly name: string;
     /** The databases of the buckets' catalogues. */
     readonly #catalogues: CatalogueStore;
-    /** The clock uploads expire by, retention ends by and files are stamped with. */
-    readonly #clock: Clock;
+    /** The clock, randomness and network the catalogues' writes run on. */
+    readonly #environment: CatalogueEnvironment;
 
     /** Keep a cell's buckets in the residency's R2 bucket and the cell's database. */
     constructor(options: R2BucketHostOptions) {
@@ -55,7 +55,7 @@ export class R2BucketHost extends CatalogueBucketHost {
         this.#files = options.files;
         this.name = options.name;
         this.#catalogues = options.catalogues;
-        this.#clock = options.clock;
+        this.#environment = options.environment;
     }
 
     /** Name where a bucket's blobs live: its prefix in the residency's R2 bucket. */
@@ -93,7 +93,7 @@ export class R2BucketHost extends CatalogueBucketHost {
     /** Close a bucket, then delete its blobs and its catalogue. */
     override async destroy(bucket: Pick<BucketReference, "bucketId">): Promise<void> {
         await this.close(bucket);
-        await new R2BlobStore(this.#files, `${bucket.bucketId}/`).clear();
+        await new R2BlobStore(this.#files, `${bucket.bucketId}/`, this.#environment.random).clear();
         await this.#catalogues.destroy(bucket.bucketId);
     }
 
@@ -129,8 +129,8 @@ export class R2BucketHost extends CatalogueBucketHost {
             get database() {
                 return database;
             },
-            blobs: new R2BlobStore(this.#files, `${bucketId}/`),
-            clock: this.#clock,
+            blobs: new R2BlobStore(this.#files, `${bucketId}/`, this.#environment.random),
+            environment: this.#environment,
             migrate: async (beside) => {
                 // migrate, then reconnect declaring every table
                 const migrated = [...tables, ...beside];
