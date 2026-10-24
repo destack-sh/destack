@@ -90,8 +90,8 @@ export interface Pass {
     readonly transforms: (
         context: Omit<TransformContext, "directory" | "dependencies" | "environment">,
     ) => PluginOption[];
-    /** The clock and files the build runs on. */
-    readonly environment: Environment<"files">;
+    /** The clock, files and process the build runs on, which a pass spawns its renderers from. */
+    readonly environment: Environment<"files" | "process">;
     /** Return the plugin recording what one Vite environment compiles, into its output if any. */
     readonly record: (environment: string, output?: string) => Plugin;
     /** Map a generated file's source map source to its package path. */

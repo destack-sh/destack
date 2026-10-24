@@ -1,4 +1,3 @@
-import { resolve } from "node:path";
 import type { Crypto, FileSystem } from "@destack/environment";
 import { Digest, present, schema } from "@destack/schema";
 import { PackageFile, PackagePath } from "../file/file.ts";
@@ -198,13 +197,12 @@ export class BuildReader {
         crypto: Crypto,
     ): Promise<BuildReader> {
         // read the manifest, then stream each file it lists from the directory
-        const bytes = await files.readFile(resolve(directory, MANIFEST_PATH));
+        const bytes = await files.readFile(`${directory}/${MANIFEST_PATH}`);
         const manifest = PackageManifest.parse(decode(bytes));
 
         return new BuildReader(
             manifest,
-            (path, signal) =>
-                streamFile(resolve(directory, PackagePath.parse(path)), files, signal),
+            (path, signal) => streamFile(`${directory}/${PackagePath.parse(path)}`, files, signal),
             crypto,
         );
     }
