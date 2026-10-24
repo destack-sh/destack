@@ -7,6 +7,7 @@ import { errorMessageStyle } from "./error-message-style.ts";
 import { exactOptional } from "./exact-optional.ts";
 import { jsdocSentence } from "./jsdoc-sentence.ts";
 import { methodSignatureStyle } from "./method-signature-style.ts";
+import { noAmbientEffect } from "./no-ambient-effect.ts";
 import { noClassName } from "./no-class-name.ts";
 import { noImportAlias } from "./no-import-alias.ts";
 import { noIndexLogic } from "./no-index-logic.ts";
@@ -14,6 +15,7 @@ import { noInlineConfiguration } from "./no-inline-config.ts";
 import { noManifestImport } from "./no-manifest-import.ts";
 import { noOverloadCast } from "./no-overload-cast.ts";
 import { noPartialAssertions } from "./no-partial-assertions.ts";
+import { noSystemEnvironment } from "./no-system-environment.ts";
 import { paddingBeforeReturn } from "./padding-before-return.ts";
 import { preventAbbreviations } from "./prevent-abbreviations.ts";
 import { requireBlockComment } from "./require-block-comment.ts";
@@ -49,9 +51,11 @@ export const rules = {
     "no-import-alias": noImportAlias,
     "no-index-logic": noIndexLogic,
     "no-inline-config": noInlineConfiguration,
+    "no-ambient-effect": noAmbientEffect,
     "no-manifest-import": noManifestImport,
     "no-overload-cast": noOverloadCast,
     "no-partial-assertions": noPartialAssertions,
+    "no-system-environment": noSystemEnvironment,
     "padding-before-return": paddingBeforeReturn,
     "prevent-abbreviations": preventAbbreviations,
     "require-block-comment": requireBlockComment,

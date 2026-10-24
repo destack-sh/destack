@@ -9,12 +9,23 @@ RuleTester.it = it;
 /** The tester running each rule's valid and invalid cases. */
 const tester = new RuleTester();
 
+/** The lint settings listing this package as the workspace's one Destack package. */
+const SETTINGS = {
+    destack: { packages: ["@destack/check"], entrypoints: ["@destack/check/src/main.ts"] },
+};
+
+/** The module this package's bin runs. */
+const ENTRYPOINT = new URL("../src/main.ts", import.meta.url).pathname;
+
 /** The handle module path of a Destack package. */
 const PACKAGE_HANDLE = new URL("../src/package.ts", import.meta.url).pathname;
 /** The index module path of a Destack package. */
 const PACKAGE_INDEX = new URL("../src/index.ts", import.meta.url).pathname;
 /** A package source path for rules that depend on the module location. */
 const SOURCE = new URL("../src/note/note.ts", import.meta.url).pathname;
+
+/** A host module path of the environment package, which alone reaches the host's effects. */
+const ENVIRONMENT_HOST = "/workspace/@destack/environment/src/file/bun.ts";
 
 /** A test module path of a Destack package. */
 const TEST = new URL("../src/note/note.test.ts", import.meta.url).pathname;
@@ -306,6 +317,321 @@ tester.run("deterministic-handler", rules["deterministic-handler"], {
     ],
 });
 
+tester.run("no-ambient-effect", rules["no-ambient-effect"], {
+    valid: [
+        { code: 'import { validate } from "uuid";', filename: SOURCE },
+        { code: "const answer = await environment.network.fetch(request);", filename: SOURCE },
+        {
+            code: "function read(fetch: typeof globalThis.fetch, process: { env: object }) {\n    return [fetch(url), process.env];\n}",
+            filename: SOURCE,
+        },
+        { code: "const now = environment.clock.now();", filename: SOURCE },
+        {
+            code: 'const imports = new Bun.Transpiler({ loader: "ts" }).scanImports(text);',
+            filename: SOURCE,
+        },
+        { code: 'import { join } from "node:path";', filename: SOURCE },
+        { code: "const at = new Date(environment.clock.now());", filename: SOURCE },
+        { code: "const value = options.process.env;", filename: SOURCE },
+        { code: 'const text = at.toLocaleString("en-US");', filename: SOURCE },
+        { code: 'const gzip = environment.compression.compress("gzip");', filename: SOURCE },
+        {
+            code: 'const { process } = environment;\nconst child = process.spawn(["git"]);',
+            filename: SOURCE,
+        },
+        {
+            code: 'import { readFile } from "node:fs/promises";\nconst now = Date.now();',
+            filename: ENVIRONMENT_HOST,
+        },
+    ],
+    invalid: [
+        {
+            code: "const active = context.active();\nconst span = trace.getActiveSpan();",
+            filename: SOURCE,
+            errors: [
+                {
+                    messageId: "effect",
+                    data: {
+                        name: "context.active",
+                        replacement: "environment.telemetry.context.active",
+                    },
+                },
+                {
+                    messageId: "effect",
+                    data: {
+                        name: "trace.getActiveSpan",
+                        replacement: "trace.getSpan(environment.telemetry.context.active())",
+                    },
+                },
+            ],
+        },
+        {
+            code: "const answer = await fetch(url);\nconst socket = new WebSocket(url);",
+            filename: SOURCE,
+            errors: [
+                {
+                    messageId: "effect",
+                    data: { name: "fetch", replacement: "environment.network.fetch" },
+                },
+                {
+                    messageId: "effect",
+                    data: { name: "new WebSocket", replacement: "environment.network.websocket" },
+                },
+            ],
+        },
+        {
+            code: 'import { v4, v7, validate } from "uuid";',
+            filename: SOURCE,
+            errors: [
+                {
+                    messageId: "effect",
+                    data: { name: "uuid's v4", replacement: "Uuid.v4(environment.random)" },
+                },
+                {
+                    messageId: "effect",
+                    data: { name: "uuid's v7", replacement: "Uuid.v7(environment)" },
+                },
+            ],
+        },
+        {
+            code: 'const gzip = new CompressionStream("gzip");\nconst text = at.toLocaleString();\nconst tracer = trace.getTracer("notes");\nconst format = new Intl.DateTimeFormat();',
+            filename: SOURCE,
+            errors: [
+                {
+                    messageId: "effect",
+                    data: {
+                        name: "new CompressionStream",
+                        replacement: "environment.compression.compress",
+                    },
+                },
+                {
+                    messageId: "effect",
+                    data: { name: "toLocaleString()", replacement: "environment.locale" },
+                },
+                {
+                    messageId: "effect",
+                    data: { name: "trace.getTracer", replacement: "environment.telemetry.tracers" },
+                },
+                {
+                    messageId: "effect",
+                    data: { name: "Intl without a locale", replacement: "environment.locale" },
+                },
+            ],
+        },
+        {
+            code: 'import { readFile } from "node:fs/promises";',
+            filename: SOURCE,
+            errors: [
+                {
+                    messageId: "effect",
+                    data: { name: "node:fs/promises", replacement: "environment.files" },
+                },
+            ],
+        },
+        {
+            code: "const home = process.env.HOME;\nconst at = new Date();",
+            filename: SOURCE,
+            errors: [
+                {
+                    messageId: "effect",
+                    data: { name: "process.env", replacement: "environment.process.variables" },
+                },
+                {
+                    messageId: "effect",
+                    data: { name: "new Date()", replacement: "new Date(environment.clock.now())" },
+                },
+            ],
+        },
+        {
+            code: 'const git = Bun.which("git");\nconst version = process.version;\nconst host = globalThis["process"];\nconst isNode = "process" in globalThis;',
+            filename: SOURCE,
+            errors: [
+                {
+                    messageId: "effect",
+                    data: { name: "Bun.which", replacement: "the environment" },
+                },
+                {
+                    messageId: "effect",
+                    data: { name: "process.version", replacement: "environment.process" },
+                },
+                {
+                    messageId: "effect",
+                    data: { name: "globalThis.process", replacement: "environment.process" },
+                },
+                {
+                    messageId: "effect",
+                    data: { name: "globalThis.process", replacement: "environment.process" },
+                },
+            ],
+        },
+        {
+            code: 'import { createHash } from "node:crypto";',
+            filename: SOURCE,
+            errors: [
+                {
+                    messageId: "effect",
+                    data: {
+                        name: "node:crypto",
+                        replacement: "environment.crypto, or Digest.of for hashes",
+                    },
+                },
+            ],
+        },
+        {
+            code: 'import { connect } from "node:net";\nconst { subtle } = crypto;\nconst { env } = process;\nglobalThis.console = logger;',
+            filename: SOURCE,
+            errors: [
+                {
+                    messageId: "effect",
+                    data: { name: "node:net", replacement: "environment.network.connect" },
+                },
+                {
+                    messageId: "effect",
+                    data: { name: "crypto.subtle", replacement: "environment.crypto" },
+                },
+                {
+                    messageId: "effect",
+                    data: { name: "process.env", replacement: "environment.process.variables" },
+                },
+                {
+                    messageId: "effect",
+                    data: { name: "globalThis.console", replacement: "environment.process.stderr" },
+                },
+            ],
+        },
+        {
+            code: 'const online = navigator.onLine;\nawait navigator.share(data);\nnavigator.vibrate(200);\nconst camera = await navigator.permissions.query({ name: "camera" });',
+            filename: SOURCE,
+            errors: [
+                {
+                    messageId: "effect",
+                    data: {
+                        name: "navigator.onLine",
+                        replacement: "environment.connectivity.isOnline",
+                    },
+                },
+                {
+                    messageId: "effect",
+                    data: { name: "navigator.share", replacement: "environment.share.share" },
+                },
+                {
+                    messageId: "effect",
+                    data: {
+                        name: "navigator.vibrate",
+                        replacement: "environment.vibration.vibrate",
+                    },
+                },
+                {
+                    messageId: "effect",
+                    data: { name: "navigator.permissions", replacement: "environment.permissions" },
+                },
+            ],
+        },
+        {
+            code: 'const theme = localStorage.getItem("theme");\nconst path = window.location.pathname;\nawait navigator.clipboard.writeText(text);\nrequestAnimationFrame(draw);\nconst events = new EventSource(url);',
+            filename: SOURCE,
+            errors: [
+                {
+                    messageId: "effect",
+                    data: { name: "localStorage.getItem", replacement: "environment.storage" },
+                },
+                {
+                    messageId: "effect",
+                    data: {
+                        name: "window.location",
+                        replacement: "environment.navigation.currentEntry",
+                    },
+                },
+                {
+                    messageId: "effect",
+                    data: { name: "navigator.clipboard", replacement: "environment.clipboard" },
+                },
+                {
+                    messageId: "effect",
+                    data: {
+                        name: "requestAnimationFrame",
+                        replacement: "environment.display.frame",
+                    },
+                },
+                {
+                    messageId: "effect",
+                    data: {
+                        name: "new EventSource",
+                        replacement: "a streamed environment.network.fetch",
+                    },
+                },
+            ],
+        },
+        {
+            code: 'setTimeout(retry, 10);\nconst bytes = await crypto.subtle.digest("SHA-256", data);',
+            filename: SOURCE,
+            errors: [
+                {
+                    messageId: "effect",
+                    data: { name: "setTimeout", replacement: "environment.clock.sleep" },
+                },
+                {
+                    messageId: "effect",
+                    data: { name: "crypto.subtle", replacement: "environment.crypto" },
+                },
+            ],
+        },
+    ],
+});
+
+tester.run("no-system-environment", rules["no-system-environment"], {
+    valid: [
+        {
+            code: 'import { BunEnvironment } from "@destack/environment/bun";\nconst environment = BunEnvironment.system;',
+            filename: ENTRYPOINT,
+            settings: SETTINGS,
+        },
+        {
+            code: 'import { Crypto } from "./crypto.ts";\nconst crypto = Crypto.system;',
+            filename: ENVIRONMENT_HOST,
+            settings: SETTINGS,
+        },
+        {
+            code: 'import { BunEnvironment } from "@destack/environment/bun";\nexport default defineConfiguration({}, BunEnvironment.system);',
+            filename: "/workspace/@destack/check/vitest.config.ts",
+            settings: SETTINGS,
+        },
+        { code: "const crypto = environment.crypto;", filename: SOURCE, settings: SETTINGS },
+        {
+            code: 'import { Theme } from "./theme.ts";\nconst theme = Theme.system;',
+            filename: SOURCE,
+            settings: SETTINGS,
+        },
+        {
+            code: 'import type { Clock } from "@destack/environment";\nfunction read(Clock: { system: number }) {\n    return Clock.system;\n}',
+            filename: SOURCE,
+            settings: SETTINGS,
+        },
+    ],
+    invalid: [
+        {
+            code: 'import { Crypto, Environment } from "@destack/environment";\nimport { BrowserEnvironment } from "@destack/environment/browser";\nconst crypto = Crypto.system;\nconst environment = Environment.system;\nconst browser = BrowserEnvironment.system;',
+            filename: SOURCE,
+            settings: SETTINGS,
+            errors: [
+                { messageId: "system", data: { name: "Crypto.system" } },
+                { messageId: "system", data: { name: "Environment.system" } },
+                { messageId: "system", data: { name: "BrowserEnvironment.system" } },
+            ],
+        },
+        {
+            code: 'import * as environment from "@destack/environment";\nimport { Random } from "@destack/environment";\nconst clock = environment.Clock.system;\nconst { system } = Random;\nconst random = Random["system"];',
+            filename: SOURCE,
+            settings: SETTINGS,
+            errors: [
+                { messageId: "system", data: { name: "environment.Clock.system" } },
+                { messageId: "system", data: { name: "Random.system" } },
+                { messageId: "system", data: { name: "Random.system" } },
+            ],
+        },
+    ],
+});
+
 tester.run("exact-optional", rules["exact-optional"], {
     valid: [
         "const title = schema.string().exactOptional();",
@@ -437,18 +763,20 @@ tester.run("no-partial-assertions", rules["no-partial-assertions"], {
 
 tester.run("valid-package-handle", rules["valid-package-handle"], {
     valid: [
-        { code: "export default definePackage({});", filename: PACKAGE_HANDLE },
-        { code: "const notes = definePackage({});", filename: TEST },
+        { code: "export default definePackage({});", filename: PACKAGE_HANDLE, settings: SETTINGS },
+        { code: "const notes = definePackage({});", filename: TEST, settings: SETTINGS },
     ],
     invalid: [
         {
             code: "export const notes = definePackage({});",
             filename: PACKAGE_HANDLE,
+            settings: SETTINGS,
             errors: [{ messageId: "missing" }, { messageId: "location" }],
         },
         {
             code: "export default definePackage({});",
             filename: SOURCE,
+            settings: SETTINGS,
             errors: [{ messageId: "location" }],
         },
     ],
@@ -456,16 +784,18 @@ tester.run("valid-package-handle", rules["valid-package-handle"], {
 
 tester.run("no-manifest-import", rules["no-manifest-import"], {
     valid: [
-        { code: 'import note from "./note.ts";', filename: SOURCE },
+        { code: 'import note from "./note.ts";', filename: SOURCE, settings: SETTINGS },
         {
             code: 'import manifest from "../package.json" with { type: "json" };',
             filename: "/tmp/site/src/main.ts",
+            settings: SETTINGS,
         },
     ],
     invalid: [
         {
             code: 'import definition from "../../destack.json" with { type: "json" };',
             filename: SOURCE,
+            settings: SETTINGS,
             errors: [{ messageId: "manifest" }],
         },
     ],
@@ -476,12 +806,14 @@ tester.run("no-index-logic", rules["no-index-logic"], {
         {
             code: 'export * from "./note.ts";\nexport { title } from "./title.ts";',
             filename: PACKAGE_INDEX,
+            settings: SETTINGS,
         },
     ],
     invalid: [
         {
             code: "export const title = 1;",
             filename: PACKAGE_INDEX,
+            settings: SETTINGS,
             errors: [{ messageId: "logic" }],
         },
     ],

@@ -1,39 +1,57 @@
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { Definition } from "@destack/package";
+import { schema } from "@destack/schema";
 
-/** Package roots found above source directories, cached by directory. */
-const roots = new Map<string, boolean>();
+/** A tool's configuration module, such as `vitest.config.ts`, which the tool runs as a program. */
+const CONFIGURATION = /\/[\w-]+\.config\.[cm]?[jt]s$/u;
 
-/** Report whether a source file belongs to a Destack package, marked by a destack.json above it. */
-export function isPackageFile(path: string): boolean {
-    return isInPackage(dirname(path));
+/** The package whose host modules define the system effects. */
+const ENVIRONMENT_PACKAGE = /[\\/]@destack[\\/]environment[\\/]/u;
+
+/** The Destack settings of a lint configuration, as configure writes them. */
+const lintSettings = schema.object({
+    /** The package directories relative to the settings root, "." for the root. */
+    packages: schema.array(schema.string()),
+    /** The modules the packages start: `bin`, entrypoints, Bun scripts and preloads. */
+    entrypoints: schema.array(schema.string()),
+});
+
+/** The Destack settings of a lint configuration, as configure writes them. */
+export type LintSettings = schema.Infer<typeof lintSettings>;
+
+/** The Destack settings of a lint configuration, as configure writes them. */
+export const LintSettings = Object.assign(lintSettings, {
+    /** Read the settings a rule receives, refusing a configuration without them. */
+    read(settings: unknown): LintSettings {
+        const parsed = schema.looseObject({ destack: lintSettings }).safeParse(settings);
+        if (!parsed.success) {
+            throw new TypeError("the lint configuration lists no Destack packages; run configure");
+        }
+
+        return parsed.data.destack;
+    },
+});
+
+/** Report whether a source file belongs to a Destack package the lint settings list. */
+export function isPackageFile(filename: string, settings: unknown): boolean {
+    const path = filename.replaceAll("\\", "/");
+
+    return LintSettings.read(settings).packages.some(
+        (directory) => directory === "." || path.includes(`/${directory}/`),
+    );
 }
 
-/** Report whether a directory or one of its parents has a package's destack.json. */
-function isInPackage(directory: string): boolean {
-    // reuse earlier answers for shared parent directories
-    const cached = roots.get(directory);
-    if (cached !== undefined) {
-        return cached;
-    }
-
-    // stop at dependency installations and the filesystem root
-    const parent = dirname(directory);
-    const isPackage =
-        !directory.endsWith("node_modules") &&
-        (definesPackage(directory) || (parent !== directory && isInPackage(parent)));
-    roots.set(directory, isPackage);
-
-    return isPackage;
-}
-
-/** Report whether a directory's destack.json defines a package, not only a workspace root. */
-function definesPackage(directory: string): boolean {
-    const path = join(directory, "destack.json");
+/** Report whether a source file is a program entrypoint or a tool's configuration module. */
+export function isEntrypoint(filename: string, settings: unknown): boolean {
+    const path = filename.replaceAll("\\", "/");
 
     return (
-        existsSync(path) &&
-        Definition.package(Definition.read(readFileSync(path, "utf8"))) !== undefined
+        CONFIGURATION.test(path) ||
+        LintSettings.read(settings).entrypoints.some((entrypoint) =>
+            path.endsWith(`/${entrypoint}`),
+        )
     );
+}
+
+/** Report whether a source file belongs to the environment package. */
+export function isEnvironmentFile(filename: string): boolean {
+    return ENVIRONMENT_PACKAGE.test(filename);
 }
