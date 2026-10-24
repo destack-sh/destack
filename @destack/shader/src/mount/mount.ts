@@ -1,3 +1,4 @@
+import type { Display } from "@destack/environment/browser";
 import { VERTEX_SHADER } from "./vertex.ts";
 import { ShaderError } from "../error/index.ts";
 
@@ -147,10 +148,12 @@ export class ShaderMount {
     /** Whether slow frames lower the resolution. */
     readonly #resolution: ShaderResolution;
 
-    /** The pending animation frame, or null when no frame is scheduled. */
-    #frameRequest: number | null = null;
-    /** The time of the last drawn frame, in milliseconds. */
-    #renderedAt = 0;
+    /** The display the frames come from. */
+    readonly #display: Display;
+    /** The pending animation frame's cancellation, or null when no frame is scheduled. */
+    #frameRequest: AbortController | null = null;
+    /** The time of the last animation frame in milliseconds, null before the first. */
+    #renderedAt: number | null = null;
     /** The animation time played so far, in milliseconds, which the shader reads as seconds. */
     #frame: number;
     /** The speed of animation time as set. */
@@ -186,10 +189,12 @@ export class ShaderMount {
         canvas: HTMLCanvasElement,
         fragment: string,
         uniforms: ShaderUniforms,
-        options: ShaderMountOptions = {},
+        options: ShaderMountOptions,
+        display: Display,
     ) {
-        // hold the canvas and options
+        // hold the canvas, options and display
         this.canvas = canvas;
+        this.#display = display;
         this.#frame = options.frame ?? 0;
         this.#minPixelRatio = options.minPixelRatio ?? MIN_PIXEL_RATIO;
         this.#maxPixelCount = options.maxPixelCount ?? MAX_PIXEL_COUNT;
@@ -235,7 +240,7 @@ export class ShaderMount {
     /** Set uniforms that changed and draw a frame. */
     setUniforms(uniforms: ShaderUniforms): void {
         this.#upload(uniforms);
-        this.#draw(performance.now());
+        this.#draw();
     }
 
     /** Set the speed of animation time, 0 to hold the current frame. */
@@ -247,8 +252,7 @@ export class ShaderMount {
     /** Set the animation time in milliseconds and draw it. */
     setFrame(frame: number): void {
         this.#frame = frame;
-        this.#renderedAt = performance.now();
-        this.#draw(this.#renderedAt);
+        this.#draw();
     }
 
     /** Set the least pixel ratio and size the canvas again. */
@@ -271,7 +275,7 @@ export class ShaderMount {
         }
         this.#isDisposed = true;
         if (this.#frameRequest !== null) {
-            cancelAnimationFrame(this.#frameRequest);
+            this.#frameRequest.abort();
             this.#frameRequest = null;
         }
 
@@ -353,7 +357,7 @@ export class ShaderMount {
             this.canvas.height = height;
             this.#isResized = true;
             this.#context.viewport(0, 0, width, height);
-            this.#draw(performance.now());
+            this.#draw();
         }
     }
 
@@ -387,12 +391,12 @@ export class ShaderMount {
 
         // start the loop when animation begins
         if (this.#frameRequest === null && this.#currentSpeed !== 0) {
-            this.#renderedAt = performance.now();
-            this.#frameRequest = requestAnimationFrame(this.#tick);
+            this.#renderedAt = null;
+            this.#requestFrame();
         }
         // stop the loop when it ends
         else if (this.#frameRequest !== null && this.#currentSpeed === 0) {
-            cancelAnimationFrame(this.#frameRequest);
+            this.#frameRequest.abort();
             this.#frameRequest = null;
         }
     };
@@ -408,23 +412,35 @@ export class ShaderMount {
             this.#resize();
         }
 
-        // draw, and schedule the next frame while animating
-        this.#draw(now);
+        // advance animation time from the last frame, and draw
+        const elapsed = now - (this.#renderedAt ?? now);
+        this.#frame += elapsed * this.#currentSpeed;
+        this.#renderedAt = now;
+        this.#draw();
+
+        // schedule the next frame while animating
         if (this.#currentSpeed !== 0 && !this.#isDisposed) {
-            this.#frameRequest = requestAnimationFrame(this.#tick);
+            this.#requestFrame();
         }
     };
 
-    /** Draw the frame at a time, advancing animation time by the speed. */
-    #draw(now: number): void {
+    /** Request the next animation frame, ticking once it shows unless the request aborts. */
+    #requestFrame(): void {
+        const request = new AbortController();
+        this.#frameRequest = request;
+        void this.#display.frame(request.signal).then(this.#tick, (error: unknown) => {
+            if (!request.signal.aborted) {
+                throw error;
+            }
+        });
+    }
+
+    /** Draw the current animation time. */
+    #draw(): void {
         // skip drawing after disposal
         if (this.#isDisposed) {
             return;
         }
-
-        // advance animation time
-        this.#frame += (now - this.#renderedAt) * this.#currentSpeed;
-        this.#renderedAt = now;
 
         // set time, and resolution after a resize
         const context = this.#context;

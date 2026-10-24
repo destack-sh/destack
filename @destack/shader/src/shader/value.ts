@@ -48,17 +48,18 @@ export async function resolveValues(
     const entries = await Promise.all(
         Object.entries(values).map(async ([name, value]): Promise<[string, ShaderUniform]> => [
             name,
-            await resolveValue(value, colors),
+            await resolveValue(value, colors, element),
         ]),
     );
 
     return Object.fromEntries(entries);
 }
 
-/** Resolve one value, its colors from the colors computed for it. */
+/** Resolve one value: its colors from those computed, its images from the element's page. */
 async function resolveValue(
     value: ShaderValue,
     colors: ReadonlyMap<string, Rgba>,
+    element: Element,
 ): Promise<ShaderUniform> {
     // resolve colors and lists of colors
     if (typeof value === "string") {
@@ -68,7 +69,7 @@ async function resolveValue(
     }
     // load images
     else if (typeof value === "object" && "image" in value) {
-        return await loadImage(value.image);
+        return await loadImage(value.image, element);
     }
 
     return value;
@@ -157,7 +158,7 @@ function paintedColor(color: string, document: Document): Rgba {
 }
 
 /** Load an image once per address, at least at the least side, cross-origin images anonymously. */
-function loadImage(source: string | HTMLImageElement): Promise<HTMLImageElement> {
+function loadImage(source: string | HTMLImageElement, element: Element): Promise<HTMLImageElement> {
     // decode an element as it is
     if (typeof source !== "string") {
         return source.decode().then(() => raised(source));
@@ -169,9 +170,10 @@ function loadImage(source: string | HTMLImageElement): Promise<HTMLImageElement>
         return loading;
     }
 
-    // load the address
+    // load the address, anonymously from another origin than the element's document
     const image = new Image();
-    if (new URL(source, location.href).origin !== location.origin) {
+    const page = new URL(element.baseURI);
+    if (new URL(source, page).origin !== page.origin) {
         image.crossOrigin = "anonymous";
     }
     image.src = source;

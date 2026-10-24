@@ -1,18 +1,29 @@
+import { Simulation } from "@destack/environment/simulation";
+import { BrowserSimulation } from "@destack/environment/browser";
 import { expect, onTestFinished, test, vi } from "@destack/test";
 import { render } from "@destack/view/test";
 import { ShaderMount } from "../mount/mount.ts";
 import { Shader } from "./shader.tsx";
 
+/** The start of every test's world: 2026-10-24 at midnight UTC. */
+const START = Date.UTC(2026, 9, 24);
+
 test("show the fallback and report why where the browser draws no WebGL 2", async () => {
+    await using simulation = new Simulation({ seed: 1, start: START });
     const failures: (readonly [string, string, string])[] = [];
-    const { container } = render(() => (
-        <Shader
-            fragmentShader="#version 300 es"
-            uniforms={{ u_size: 1 }}
-            fallback={<img alt="" src="/still.png" />}
-            onFailure={(failure) => failures.push([failure.code, failure.reason, failure.message])}
-        />
-    ));
+    const { container } = render(
+        () => (
+            <Shader
+                fragmentShader="#version 300 es"
+                uniforms={{ u_size: 1 }}
+                fallback={<img alt="" src="/still.png" />}
+                onFailure={(failure) =>
+                    failures.push([failure.code, failure.reason, failure.message])
+                }
+            />
+        ),
+        { environment: new BrowserSimulation(simulation).environment("browser") },
+    );
 
     // the canvas gives way to the fallback once the mount finds no WebGL 2 context
     await expect
@@ -41,7 +52,8 @@ function stubContext(): object {
 }
 
 test("hand each built mount to onMount and hold it still while the theme's motion scale reads zero", async () => {
-    // draw on a stand-in context, recording the speeds the mount takes
+    // draw on a stand-in context in a world, recording the speeds the mount takes
+    await using simulation = new Simulation({ seed: 1, start: START });
     const getContext = Object.getOwnPropertyDescriptor(HTMLCanvasElement.prototype, "getContext");
     Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
         configurable: true,
@@ -55,21 +67,24 @@ test("hand each built mount to onMount and hold it still while the theme's motio
     vi.stubGlobal("visualViewport", undefined);
     const speed = vi.spyOn(ShaderMount.prototype, "setSpeed");
     const mounts: ShaderMount[] = [];
-    const { container } = render(() => (
-        <Shader
-            fragmentShader="#version 300 es"
-            uniforms={{}}
-            speed={1}
-            onMount={(mount) => mounts.push(mount)}
-        />
-    ));
+    const { container } = render(
+        () => (
+            <Shader
+                fragmentShader="#version 300 es"
+                uniforms={{}}
+                speed={1}
+                onMount={(mount) => mounts.push(mount)}
+            />
+        ),
+        { environment: new BrowserSimulation(simulation).environment("browser") },
+    );
     await expect.poll(() => mounts.length).toBe(1);
     const running = speed.mock.calls.at(-1);
 
     // turn the person's motion off and change the theme root, the test DOM resolving only the canvas's own custom properties
     container.querySelector("canvas")?.style.setProperty("--destack-motion-scale", "0");
     container.className = "reduced";
-    await expect.poll(() => speed.mock.calls.at(-1)).toEqual([0]);
+    await simulation.run({ until: () => speed.mock.calls.at(-1)?.[0] === 0 });
 
     expect([mounts[0]?.canvas === container.querySelector("canvas"), running]).toEqual([true, [1]]);
 });

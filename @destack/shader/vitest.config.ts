@@ -1,7 +1,11 @@
+import { BunEnvironment } from "@destack/environment/bun";
 import { fileURLToPath } from "node:url";
 import { defineConfiguration } from "@destack/view/test";
 
-export default defineConfiguration({
-    root: fileURLToPath(new URL(".", import.meta.url)),
-    test: { include: ["src/**/*.test.{ts,tsx}"], testTimeout: 2000 },
-});
+export default defineConfiguration(
+    {
+        root: fileURLToPath(new URL(".", import.meta.url)),
+        test: { include: ["src/**/*.test.{ts,tsx}"], testTimeout: 2000 },
+    },
+    BunEnvironment.system,
+);

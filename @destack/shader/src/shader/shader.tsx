@@ -1,13 +1,17 @@
 import * as style from "@destack/style";
+import type { Environment } from "@destack/environment";
 import {
+    type Accessor,
     createEffect,
     createMemo,
     createSignal,
+    isServer,
     type JSX,
     omit,
     onCleanup,
     Show,
     untrack,
+    useEnvironment,
 } from "@destack/view";
 import { createMediaQuery } from "@destack/view/primitives/media";
 import { createMutationObserver } from "@destack/view/primitives/mutation-observer";
@@ -103,37 +107,16 @@ export function Shader(properties: ShaderProperties): JSX.Element {
     });
     const [mutations, setMutations] = createSignal(0, { ownedWrite: true });
 
-    // read the theme again once a burst of changes above the canvas has painted, when styles are settled
-    let request = 0;
-    let timeout = 0;
-    const settle = () => {
-        if (request !== 0 || timeout !== 0) {
-            return;
-        }
-        request = requestAnimationFrame(() => {
-            request = 0;
-            timeout = window.setTimeout(() => {
-                timeout = 0;
-                setMutations((count) => count + 1);
-            });
-        });
-    };
-    onCleanup(() => {
-        // cancel only what is scheduled, which never happens while rendering on the server
-        if (request !== 0) {
-            cancelAnimationFrame(request);
-        } else if (timeout !== 0) {
-            clearTimeout(timeout);
-        }
-    });
+    // stop the theme reads with the shader
+    const stopping = new AbortController();
+    onCleanup(() => stopping.abort());
 
-    // follow the theme: the device preferences it reads and the theme roots above the canvas
+    // follow the theme in the page alone, where the browser's clock and display run
+    const environment = isServer ? undefined : useEnvironment();
     const preferences = THEME_QUERIES.map((query) => createMediaQuery(query));
-    createMutationObserver(
-        () => ancestorsOf(canvas()),
-        { attributes: true, attributeFilter: ["style", "class"] },
-        settle,
-    );
+    if (environment !== undefined) {
+        followTheme(canvas, environment, stopping.signal, () => setMutations((count) => count + 1));
+    }
     const theme = createMemo(() => [mutations(), ...preferences.map((matches) => matches())]);
 
     // hold still where the theme's motion scale, the person's motion setting, reads zero
@@ -143,11 +126,11 @@ export function Shader(properties: ShaderProperties): JSX.Element {
     let colors: ColorCache = new Map();
     let colorTheme: unknown;
 
-    // build the mount once the canvas exists, and again for a new fragment shader
+    // build the mount once the canvas exists in the page, and again for a new fragment shader
     createEffect(
         () => ({ element: canvas(), fragment: properties.fragmentShader }),
         ({ element, fragment }) => {
-            if (element === undefined) {
+            if (element === undefined || environment === undefined) {
                 return undefined;
             }
             // build from the uniforms of the moment, which the next effect keeps current
@@ -162,14 +145,20 @@ export function Shader(properties: ShaderProperties): JSX.Element {
                     return;
                 }
                 try {
-                    const built = new ShaderMount(element, fragment, uniforms, {
-                        speed: isStill() ? 0 : (properties.speed ?? 0),
-                        frame: properties.frame ?? 0,
-                        minPixelRatio: properties.minPixelRatio,
-                        maxPixelCount: properties.maxPixelCount,
-                        resolution: properties.resolution,
-                        mipmaps: properties.mipmaps,
-                    });
+                    const built = new ShaderMount(
+                        element,
+                        fragment,
+                        uniforms,
+                        {
+                            speed: isStill() ? 0 : (properties.speed ?? 0),
+                            frame: properties.frame ?? 0,
+                            minPixelRatio: properties.minPixelRatio,
+                            maxPixelCount: properties.maxPixelCount,
+                            resolution: properties.resolution,
+                            mipmaps: properties.mipmaps,
+                        },
+                        environment.display,
+                    );
                     setMount(built);
                     properties.onMount?.(built);
                 } catch (error) {
@@ -270,6 +259,45 @@ export function Shader(properties: ShaderProperties): JSX.Element {
             </Show>
             {properties.children}
         </div>
+    );
+}
+
+/** Count each settled burst of changes above the canvas, once the browser painted it. */
+function followTheme(
+    canvas: Accessor<HTMLCanvasElement | undefined>,
+    environment: Pick<Environment<"display">, "clock" | "display">,
+    signal: AbortSignal,
+    onSettle: () => void,
+): void {
+    // read the theme again once a burst has painted, when styles are settled
+    const { clock, display } = environment;
+    let isSettling = false;
+    const settle = () => {
+        if (isSettling) {
+            return;
+        }
+        isSettling = true;
+        void display
+            .frame(signal)
+            .then(() => clock.sleep(0, signal))
+            .then(
+                () => {
+                    isSettling = false;
+                    onSettle();
+                },
+                (error: unknown) => {
+                    if (!signal.aborted) {
+                        throw error;
+                    }
+                },
+            );
+    };
+
+    // watch the theme roots above the canvas
+    createMutationObserver(
+        () => ancestorsOf(canvas()),
+        { attributes: true, attributeFilter: ["style", "class"] },
+        settle,
     );
 }
 

@@ -1,5 +1,5 @@
+import { Simulation } from "@destack/environment/simulation";
 import { expect, test } from "@destack/test";
-import { readdirSync } from "node:fs";
 import { VERTEX_SHADER } from "./mount/vertex.ts";
 
 /** The uniforms the mount sets on every program. */
@@ -28,8 +28,11 @@ function isMapping(
 }
 
 test("declare every uniform an effect sets, and set every uniform its fragment shader reads", async () => {
-    const effects = readdirSync(import.meta.dirname, { withFileTypes: true })
-        .filter((entry) => entry.isDirectory() && !CORE.has(entry.name))
+    // list the effect directories in a world
+    await using simulation = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 24) });
+    const { files } = simulation.environment("test");
+    const effects = (await files.readDirectory(import.meta.dirname))
+        .filter((entry) => entry.kind === "directory" && !CORE.has(entry.name))
         .map((entry) => entry.name);
     const mismatches: Record<string, { unset: string[]; undeclared: string[] }> = {};
     for (const name of effects) {
