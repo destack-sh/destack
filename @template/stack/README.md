@@ -7,15 +7,14 @@ Declare the base configuration of a space.
 `personal` declares a space holding the `files` bucket and the `credentials` vault, and an alert rule rolling an installation back to its previous revision when a new fatal issue opens.
 
 ```ts
-import type {} from "@destack/observability/stack";
+import observabilityPackage from "@destack/observability/package";
 import { defineStack } from "@destack/stack";
+import vaultPackage from "@destack/vault/package";
 import { credentials, files } from "@template/stack";
 
-export const personal = defineStack({
-    resources: {
-        files: { declaration: files, retention: { within: { days: 30 } }, tags: {} },
-        credentials: { declaration: credentials, retention: { within: { days: 30 } }, tags: {} },
-    },
+export const personal = defineStack([vaultPackage, observabilityPackage], {
+    buckets: { files: files.declare({ retention: { within: { days: 30 } } }) },
+    vaults: { credentials: credentials.declare({ retention: { within: { days: 30 } } }) },
     alertRules: {
         rollback: {
             title: "Roll back installation on new fatal issues",
