@@ -14,7 +14,7 @@ import {
     listed,
     sql,
 } from "@destack/db";
-import { present } from "@destack/schema";
+import { present, Digest } from "@destack/schema";
 import { SearchText, TABLE } from "@destack/db";
 import type { AsyncBuffer } from "hyparquet";
 import { BloomFilter, type ChosenSegment, chosenSegment, eventSegment } from "./catalog.ts";
@@ -355,7 +355,7 @@ export class EventArchive {
         const first = present(events.at(0), "a segment's first event");
         const last = present(events.at(-1), "a segment's last event");
         const data = await SegmentFile.encode(kind, events);
-        const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", data)).toHex();
+        const digest = await Digest.of(data, this.#database.state.environment.crypto);
         const id = `${String(first.time)}-${String(last.time)}-${digest.slice(0, 16)}`;
         const file = `${this.#directory(kind, scope)}/${id}.parquet`;
         await this.#files(scope).put(file, data, {

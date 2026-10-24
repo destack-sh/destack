@@ -1,6 +1,6 @@
 import { integer, json, TABLE, text, type Row, type Table, type TableColumnMap } from "@destack/db";
 import type { Package } from "@destack/package";
-import { JsonValue, schema, toJsonSchema } from "@destack/schema";
+import { Digest, type DigestCrypto, JsonValue, schema, toJsonSchema } from "@destack/schema";
 import { Histogram } from "./histogram.ts";
 
 /** The microseconds in a millisecond, the unit of event times. */
@@ -76,11 +76,14 @@ const EventSchema = schema.object({
 /** Events of any kind, and identities for events without one. */
 export const Event = Object.assign(EventSchema, {
     /** Identify an event by a digest of its scope and contents, the same on every retry. */
-    async identity(scope: string, contents: readonly unknown[]): Promise<string> {
-        const bytes = new TextEncoder().encode(JSON.stringify([scope, ...contents]));
-        const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+    async identity(
+        scope: string,
+        contents: readonly unknown[],
+        crypto: DigestCrypto,
+    ): Promise<string> {
+        const digest = await Digest.of(JSON.stringify([scope, ...contents]), crypto);
 
-        return digest.slice(0, IDENTITY_BYTES).toHex();
+        return digest.slice(0, IDENTITY_BYTES * 2);
     },
 });
 

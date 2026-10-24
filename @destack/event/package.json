@@ -26,8 +26,7 @@
         "@destack/schema": "workspace:*",
         "@destack/telemetry": "workspace:*",
         "hyparquet": "1.31.2",
-        "hyparquet-writer": "0.16.10",
-        "uuid": "14.0.2"
+        "hyparquet-writer": "0.16.10"
     },
     "devDependencies": {
         "@destack/check": "workspace:*",

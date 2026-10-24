@@ -23,7 +23,7 @@ import {
 } from "@destack/db";
 import { canonicalize, type JsonValue, schema } from "@destack/schema";
 import { EventError } from "../error/index.ts";
-import { telemetry } from "@destack/telemetry";
+import { TelemetryScope } from "@destack/telemetry";
 import type { Bucket } from "@destack/bucket";
 import type { Controller } from "@destack/db";
 import { ArchiveController } from "../archive/controller.ts";
@@ -33,9 +33,6 @@ import { type PersonalKeyring, PersonalSeal } from "./personal-keyring.ts";
 import { EventCursor, EventFilter, type EventOrder } from "./filter.ts";
 import { Fold, type Series, SeriesFold, type SeriesRequest, type StepFold } from "./series.ts";
 import { Clock } from "@destack/environment";
-
-/** The instruments capturing the dropped writes of events stored at most once. */
-const instruments = telemetry.scope(import.meta.destack.package);
 
 /** The bucket key prefix segments are written under unless a host sets another. */
 const SEGMENT_PREFIX = "events";
@@ -84,6 +81,8 @@ export class EventStore {
     readonly #archive: EventArchive;
     /** The keyring sealing personal values. */
     readonly #personal: PersonalKeyring | undefined;
+    /** The instruments capturing the dropped writes of events stored at most once. */
+    readonly #telemetry: TelemetryScope;
 
     /** Store events of some kinds over a host's database and buckets. */
     constructor(options: EventStoreOptions) {
@@ -107,6 +106,10 @@ export class EventStore {
 
         // store segments under each kind's policy, flushed and delivered by the controllers
         this.database = options.database;
+        this.#telemetry = TelemetryScope.of(
+            import.meta.destack.package,
+            options.database.state.environment.telemetry,
+        );
         this.#kinds = new Map(kinds.map((kind) => [kind.key, kind]));
         this.#archive = new EventArchive({
             database: options.database,
@@ -144,7 +147,7 @@ export class EventStore {
             await write(transaction);
         } else if (kind.delivery === "at-most-once") {
             await this.database.transaction(write).catch((error: unknown) => {
-                instruments.captureException(error);
+                this.#telemetry.captureException(error);
             });
         } else {
             await this.database.transaction(write);

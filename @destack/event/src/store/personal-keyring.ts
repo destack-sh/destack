@@ -1,7 +1,7 @@
+import type { Crypto, Environment } from "@destack/environment";
 import { and, defineTable, desc, eq, integer, text, type DatabaseConnection } from "@destack/db";
 import { Ciphertext, type Keyring, type Label } from "@destack/identity";
-import { JsonValue, present, schema } from "@destack/schema";
-import { v7 } from "uuid";
+import { JsonValue, present, schema, Uuid } from "@destack/schema";
 import type { EventKind } from "../kind/kind.ts";
 
 /** The keys sealing people's personal values, gone once a person is forgotten. */
@@ -15,6 +15,8 @@ export interface PersonalKeyring {
     readonly key: (subject: string, id: string) => Promise<CryptoKey | undefined>;
     /** Forget a person's keys, erasing their personal fields in every event sealed under them. */
     readonly forget: (subject: string) => Promise<void>;
+    /** The WebCrypto and randomness sealing the people's values. */
+    readonly environment: Pick<Environment, "crypto" | "random">;
 }
 
 /** The keys of the people in a database's events, each encrypted under the host's keyring. */
@@ -35,11 +37,18 @@ export class DatabasePersonalKeyring implements PersonalKeyring {
     readonly #database: DatabaseConnection;
     /** The host's keyring encrypting each person's key. */
     readonly #keyring: Keyring;
+    /** The WebCrypto and randomness of the people's keys. */
+    readonly environment: Pick<Environment, "clock" | "crypto" | "random">;
 
     /** Store keys in a database under a host's keyring. */
-    constructor(database: DatabaseConnection, keyring: Keyring) {
+    constructor(
+        database: DatabaseConnection,
+        keyring: Keyring,
+        environment: Pick<Environment, "clock" | "crypto" | "random">,
+    ) {
         this.#database = database;
         this.#keyring = keyring;
+        this.environment = environment;
     }
 
     /** Read a person's newest key, creating one when missing. */
@@ -61,12 +70,14 @@ export class DatabasePersonalKeyring implements PersonalKeyring {
         }
 
         // create a key and store it encrypted under the keyring
-        const id = v7();
-        const bytes = crypto.getRandomValues(new Uint8Array(32));
+        const id = Uuid.v7(this.environment);
+        const bytes = this.environment.random.bytes(32);
         const sealed = await this.#keyring.encrypt(bytes, encryptionContext(subject, id));
-        await connection.insert(personalKey).values({ subject, id, sealed, createdAt: Date.now() });
+        await connection
+            .insert(personalKey)
+            .values({ subject, id, sealed, createdAt: this.environment.clock.now() });
 
-        return { id, key: await importKey(bytes) };
+        return { id, key: await importKey(bytes, this.environment.crypto) };
     }
 
     /** Read one of a person's keys, absent once the person is forgotten. */
@@ -88,6 +99,7 @@ export class DatabasePersonalKeyring implements PersonalKeyring {
     async #open(subject: string, id: string, sealed: string): Promise<CryptoKey> {
         return importKey(
             await this.#keyring.decrypt(Ciphertext.parse(sealed), encryptionContext(subject, id)),
+            this.environment.crypto,
         );
     }
 }
@@ -119,7 +131,8 @@ export const PersonalSeal = {
         }
 
         // encrypt each personal value's JSON under the person's current key and its identifier
-        const { id, key } = await required(keyring, kind).currentKey(subject, transaction);
+        const personal = required(keyring, kind);
+        const { id, key } = await personal.currentKey(subject, transaction);
         const sealed = new Map<object, JsonValue>();
         for (const [marker, value] of held) {
             const plain = new TextEncoder().encode(JSON.stringify(value));
@@ -128,6 +141,7 @@ export const PersonalSeal = {
                 key,
                 { alg: "A256GCMKW", kid: id },
                 valueContext(kind.key, subject),
+                personal.environment,
             );
             sealed.set(marker, { $sealed: ciphertext });
         }
@@ -168,11 +182,17 @@ export const PersonalSeal = {
         const opened = new Map<object, JsonValue | undefined>();
         for (const [marker, ciphertext] of held) {
             const id = present(Ciphertext.keyId(ciphertext), "a sealed value's key");
-            const key = await required(keyring, kind).key(subject, id);
+            const personal = required(keyring, kind);
+            const key = await personal.key(subject, id);
             const plain =
                 key === undefined
                     ? undefined
-                    : await Ciphertext.decrypt(ciphertext, key, valueContext(kind.key, subject));
+                    : await Ciphertext.decrypt(
+                          ciphertext,
+                          key,
+                          valueContext(kind.key, subject),
+                          personal.environment.crypto,
+                      );
             opened.set(
                 marker,
                 plain === undefined
@@ -214,8 +234,8 @@ function isGone(value: JsonValue, values: ReadonlyMap<object, JsonValue | undefi
 }
 
 /** Import a person's key from its bytes. */
-function importKey(bytes: Uint8Array<ArrayBuffer>): Promise<CryptoKey> {
-    return crypto.subtle.importKey("raw", bytes, { name: "AES-GCM", length: 256 }, false, [
+function importKey(bytes: Uint8Array<ArrayBuffer>, crypto: Crypto): Promise<CryptoKey> {
+    return crypto.importKey("raw", bytes, { name: "AES-GCM", length: 256 }, false, [
         "encrypt",
         "decrypt",
     ]);

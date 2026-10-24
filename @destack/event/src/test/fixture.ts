@@ -24,7 +24,7 @@ import {
 } from "../kind/kind.ts";
 import { eventTables } from "../stack/db.ts";
 import { EventStore } from "../store/store.ts";
-import { VirtualClock } from "@destack/environment/simulation";
+import { Simulation, type SimulatedClock } from "@destack/environment/simulation";
 
 /** When every fixture's clock starts: 1 October 2026, UTC. */
 const START = Date.UTC(2026, 9, 1);
@@ -97,11 +97,11 @@ export class EventFixture implements AsyncDisposable {
     /** The test database that stores the hot events, the catalog and people's keys. */
     readonly database: TestDatabase;
     /** The clock the database, the controllers and the bucket's locks read, which tests set. */
-    readonly clock: VirtualClock;
+    readonly clock: SimulatedClock;
     /** The memory bucket that stores the segments, its locks on the fixture's clock. */
     readonly bucket: MemoryBucket;
     /** The telemetry that records the exceptions the store captures. */
-    readonly telemetry = TestTelemetry.register();
+    readonly telemetry: TestTelemetry;
     /** The stop of the store's control loop. */
     readonly #stop = new AbortController();
     /** The failures the store's controllers reported. */
@@ -113,11 +113,13 @@ export class EventFixture implements AsyncDisposable {
     private constructor(
         open: (fixture: EventFixture) => EventStore,
         database: TestDatabase,
-        clock: VirtualClock,
+        clock: SimulatedClock,
+        telemetry: TestTelemetry,
     ) {
-        // store the database and clock, then open the store on the fixture's bucket
+        // store the database, clock and telemetry, then open the store on the fixture's bucket
         this.database = database;
         this.clock = clock;
+        this.telemetry = telemetry;
         this.bucket = new MemoryBucket(clock);
         this.store = open(this);
     }
@@ -129,10 +131,12 @@ export class EventFixture implements AsyncDisposable {
     ): Promise<EventFixture> {
         // migrate the kinds' tables on the fixture's clock
         const tables = eventTables(kinds);
-        const clock = new VirtualClock(START);
-        const database = await TestDatabase.create(tables, { clock });
+        const simulation = new Simulation({ seed: 1, start: START });
+        const environment = simulation.environment("events");
+        const { clock } = simulation;
+        const database = await TestDatabase.create(tables, { environment });
         await database.database.migrate(tables);
-        const keyring = await LocalKeyring.read(LocalKeyring.generate());
+        const keyring = await LocalKeyring.read(LocalKeyring.generate(environment), environment);
 
         // store every scope's segments in the one bucket, on the fixture's clock
         return new EventFixture(
@@ -141,12 +145,13 @@ export class EventFixture implements AsyncDisposable {
                     database: database.database,
                     kinds,
                     files: () => fixture.bucket,
-                    personal: new DatabasePersonalKeyring(database.database, keyring),
+                    personal: new DatabasePersonalKeyring(database.database, keyring, environment),
                     ...(settings === undefined ? {} : { settings }),
                     clock: fixture.clock,
                 }),
             database,
             clock,
+            new TestTelemetry(simulation.telemetry),
         );
     }
 
