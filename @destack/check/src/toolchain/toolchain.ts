@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
 import { dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { Platform, Process } from "@destack/environment";
+import type { Host, Process } from "@destack/environment";
 
 /** The name of the toolchain directory beside a standalone executable. */
 const TOOLCHAIN = "toolchain";
@@ -14,8 +14,8 @@ export const Toolchain = {
     },
 
     /** Read the suffix of a platform's native addon packages. */
-    platform(platform: Platform): string {
-        const { os, architecture } = platform;
+    platform(host: Host): string {
+        const { os, architecture } = host;
 
         return `${os}-${architecture}${os === "linux" ? "-gnu" : ""}`;
     },

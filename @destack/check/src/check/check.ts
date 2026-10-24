@@ -33,7 +33,7 @@ export interface CheckOptions {
     /** Additional trusted plugins selected by the host, with every rule enabled. */
     plugins?: readonly Plugin[];
     /** The files, process and machine the tools run on. */
-    environment: Environment<"files" | "process" | "platform">;
+    environment: Environment<"files" | "process" | "host">;
 }
 
 /** Check source using the canonical rules. */
@@ -157,10 +157,10 @@ async function listFiles(directory: string, files: FileSystem): Promise<string[]
 /** Lint TypeScript and JavaScript sources with Oxc and the Destack rules. */
 async function lintSources(options: CheckOptions, fix: boolean): Promise<CheckResult> {
     // find the linter and the type checker of this platform among the tools
-    const { files, process, platform } = options.environment;
+    const { files, process, host } = options.environment;
     const executable = join(Toolchain.locate(["oxlint"], PACKAGE, process), "bin", "oxlint");
-    const checker = `@oxlint-tsgolint/${platform.os}-${platform.architecture}`;
-    const binary = platform.os === "win32" ? "tsgolint.exe" : "tsgolint";
+    const checker = `@oxlint-tsgolint/${host.os}-${host.architecture}`;
+    const binary = host.os === "win32" ? "tsgolint.exe" : "tsgolint";
     const typeChecker = join(
         Toolchain.locate(["oxlint-tsgolint", checker], PACKAGE, process),
         binary,
