@@ -15,7 +15,7 @@ export const noManifestImport: Rule = {
     },
     create(context) {
         // apply only to Destack packages
-        if (!isPackageFile(context.filename)) {
+        if (!isPackageFile(context.filename, context.settings)) {
             return {};
         }
 

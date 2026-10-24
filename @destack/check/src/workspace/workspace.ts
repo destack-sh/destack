@@ -1,4 +1,5 @@
 import { resolve } from "node:path";
+import type { FileSystem } from "@destack/environment";
 import { BunLockfile } from "../bun/lockfile.ts";
 
 /** One package of a workspace. */
@@ -25,9 +26,9 @@ export class Workspace {
     }
 
     /** Read the workspace enclosing a directory, absent without an enclosing lockfile. */
-    static async read(directory: string): Promise<Workspace | undefined> {
+    static async read(directory: string, files: FileSystem): Promise<Workspace | undefined> {
         // read the lockfile of the enclosing workspace
-        const lockfile = await BunLockfile.read(directory);
+        const lockfile = await BunLockfile.read(directory, files);
         if (lockfile === undefined) {
             return undefined;
         }
@@ -120,6 +121,6 @@ export class Workspace {
 }
 
 /** Find the nearest directory with a Bun lockfile, the directory itself without one. */
-export async function locateWorkspace(directory: string): Promise<string> {
-    return (await BunLockfile.locate(directory)) ?? resolve(directory);
+export async function locateWorkspace(directory: string, files: FileSystem): Promise<string> {
+    return (await BunLockfile.locate(directory, files)) ?? resolve(directory);
 }

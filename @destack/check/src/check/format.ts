@@ -1,5 +1,3 @@
-import { mkdtemp, writeFile, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { checkConfiguration, formatConfiguration } from "./configuration.ts";
@@ -29,20 +27,21 @@ export async function formatSource(filename: string, source: string): Promise<st
 /** Format package source, or check its formatting without writing. */
 export async function formatPackage(options: CheckOptions, write = true): Promise<ToolResult> {
     // verify editor settings before preparing the managed invocation
-    await checkConfiguration(options.directory, options.plugins);
+    const { files, process } = options.environment;
+    await checkConfiguration(options.directory, files, options.plugins);
 
     // find the formatter among the tools
-    const executable = join(Toolchain.locate(["oxfmt"], PACKAGE), "bin", "oxfmt");
+    const executable = join(Toolchain.locate(["oxfmt"], PACKAGE, process), "bin", "oxfmt");
 
     // isolate the generated format configuration
-    const temporary = await mkdtemp(join(tmpdir(), "destack-format-"));
+    const temporary = await files.makeTemporaryDirectory("destack-format-");
     try {
         // supply fixed formatting and include every selected file
         const configuration = join(temporary, "format.json");
-        await writeFile(configuration, JSON.stringify(formatConfiguration));
+        await files.writeTextFile(configuration, JSON.stringify(formatConfiguration));
         // leave migration snapshots, generated JSON Schemas and byte-exact fixture files as written
         const ignore = join(temporary, "ignore");
-        await writeFile(
+        await files.writeTextFile(
             ignore,
             [
                 "**/migration/**/snapshot.json",
@@ -67,12 +66,15 @@ export async function formatPackage(options: CheckOptions, write = true): Promis
                 ...(options.files ?? ["src"]).map((file) => resolve(options.directory, file)),
             ],
             resolve(options.directory),
-            AbortSignal.any([
-                AbortSignal.timeout(FORMAT_TIMEOUT),
-                ...(options.signal === undefined ? [] : [options.signal]),
-            ]),
+            options.environment,
+            {
+                signal: AbortSignal.any([
+                    options.environment.clock.timeout(FORMAT_TIMEOUT),
+                    ...(options.signal === undefined ? [] : [options.signal]),
+                ]),
+            },
         );
     } finally {
-        await rm(temporary, { recursive: true });
+        await files.remove(temporary, { recursive: true });
     }
 }

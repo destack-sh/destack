@@ -22,14 +22,15 @@
         "test": "vitest run"
     },
     "dependencies": {
-        "@oxlint/plugins": "1.83.0",
-        "typescript": "7.0.2",
+        "@destack/environment": "workspace:*",
+        "@destack/error": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
+        "@oxlint/plugins": "1.83.0",
         "oxfmt": "0.68.0",
         "oxlint": "1.83.0",
         "oxlint-tsgolint": "7.0.2002",
-        "@destack/error": "workspace:*"
+        "typescript": "7.0.2"
     },
     "devDependencies": {
         "@destack/test": "workspace:*",

@@ -1,6 +1,6 @@
-import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import type { FileSystem } from "@destack/environment";
+import { Simulation } from "@destack/environment/simulation";
+import { expect, refusal, test } from "@destack/test";
 import { join } from "node:path";
 import { TYPESCRIPT_OPTIONS } from "@destack/package/build";
 import {
@@ -8,38 +8,40 @@ import {
     configurePackage,
     settingsRoot,
     typescriptConfiguration,
+    lintSettings,
 } from "../src/check/configuration.ts";
 import { readExpectations, applyExpectations } from "../src/check/expectation.ts";
 
+/** The start of every test's world: 2026-10-24 at midnight UTC. */
+const START = Date.UTC(2026, 9, 24);
+
+/** Open a world for one test, whose files it removes once disposed. */
+function world(): Simulation {
+    return new Simulation({ seed: 1, start: START });
+}
+
 /** Write a package with its manifests and sources into a temporary directory. */
 async function writePackage(
+    files: FileSystem,
     runtimes: string[],
     manifest: Record<string, unknown>,
-    files: Record<string, string>,
+    sources: Record<string, string>,
 ): Promise<string> {
-    const directory = await mkdtemp(join(tmpdir(), "destack-configuration-"));
+    const directory = await files.makeTemporaryDirectory("configuration-");
     const definition = {
         $schema: "https://destack.app/schemas/2026.9.0/destack.json",
         id: "package-01a0c80b-614d-75ac-841e-b27280bf3db3",
         language: "typescript",
         runtimes,
     };
-    await writeFile(join(directory, "destack.json"), JSON.stringify(definition));
-    await writeFile(join(directory, "package.json"), JSON.stringify(manifest));
-    for (const [path, source] of Object.entries(files)) {
-        await mkdir(join(directory, path, ".."), { recursive: true });
-        await writeFile(join(directory, path), source);
+    await files.writeTextFile(join(directory, "destack.json"), JSON.stringify(definition));
+    await files.writeTextFile(join(directory, "package.json"), JSON.stringify(manifest));
+    for (const [path, source] of Object.entries(sources)) {
+        await files.mkdir(join(directory, path, ".."), { recursive: true });
+        await files.writeTextFile(join(directory, path), source);
     }
 
     return directory;
-}
-
-/** Report whether a file exists. */
-function exists(path: string): Promise<boolean> {
-    return readFile(path, "utf8").then(
-        () => true,
-        () => false,
-    );
 }
 
 /** Build a finding of a rule in a file. */
@@ -48,43 +50,44 @@ function finding(filename: string, code: string) {
 }
 
 test("compile a browser package with views against DOM, the view JSX runtime and its asset types", async () => {
+    await using simulation = world();
+    const { files } = simulation.environment("test");
     const directory = await writePackage(
+        files,
         ["browser"],
         { name: "@example/app", dependencies: { "@destack/view": "2026.9.0" } },
         { "src/app.tsx": "export {};\n" },
     );
-    try {
-        expect(await typescriptConfiguration(directory)).toEqual({
-            compilerOptions: {
-                ...TYPESCRIPT_OPTIONS,
-                lib: ["ESNext", "DOM", "DOM.Iterable"],
-                jsx: "preserve",
-                jsxImportSource: "@destack/view",
-                types: ["@destack/view/client"],
-            },
-            include: ["src", "tests", "*.config.ts"],
-        });
-    } finally {
-        await rm(directory, { recursive: true });
-    }
+    expect(await typescriptConfiguration(directory, files)).toEqual({
+        compilerOptions: {
+            ...TYPESCRIPT_OPTIONS,
+            lib: ["ESNext", "DOM", "DOM.Iterable"],
+            jsx: "preserve",
+            jsxImportSource: "@destack/view",
+            types: ["@destack/view/client"],
+        },
+        include: ["src", "tests", "*.config.ts"],
+    });
 });
 
 test("compile a Bun-only package against Bun's types without DOM", async () => {
+    await using simulation = world();
+    const { files } = simulation.environment("test");
     const directory = await writePackage(
+        files,
         ["bun"],
         { name: "@example/server", devDependencies: { "@types/bun": "1.4.2" } },
         { "src/index.ts": "export {};\n" },
     );
-    try {
-        const { compilerOptions } = await typescriptConfiguration(directory);
-        expect(compilerOptions).toEqual({ ...TYPESCRIPT_OPTIONS, lib: ["ESNext"], types: ["bun"] });
-    } finally {
-        await rm(directory, { recursive: true });
-    }
+    const { compilerOptions } = await typescriptConfiguration(directory, files);
+    expect(compilerOptions).toEqual({ ...TYPESCRIPT_OPTIONS, lib: ["ESNext"], types: ["bun"] });
 });
 
 test("compile a Bun package with Solid's terminal renderer against DOM and the renderer's JSX runtime", async () => {
+    await using simulation = world();
+    const { files } = simulation.environment("test");
     const directory = await writePackage(
+        files,
         ["bun"],
         {
             name: "@example/terminal",
@@ -93,63 +96,75 @@ test("compile a Bun package with Solid's terminal renderer against DOM and the r
         },
         { "src/view.tsx": "export {};\n" },
     );
-    try {
-        const { compilerOptions } = await typescriptConfiguration(directory);
-        expect(compilerOptions).toEqual({
-            ...TYPESCRIPT_OPTIONS,
-            lib: ["ESNext", "DOM", "DOM.Iterable"],
-            types: ["bun"],
-            jsx: "preserve",
-            jsxImportSource: "@opentui/solid",
-        });
-    } finally {
-        await rm(directory, { recursive: true });
-    }
+    const { compilerOptions } = await typescriptConfiguration(directory, files);
+    expect(compilerOptions).toEqual({
+        ...TYPESCRIPT_OPTIONS,
+        lib: ["ESNext", "DOM", "DOM.Iterable"],
+        types: ["bun"],
+        jsx: "preserve",
+        jsxImportSource: "@opentui/solid",
+    });
 });
 
 test("refuse a hand-edited tsconfig.json", async () => {
-    const directory = await writePackage(["bun"], { name: "@example/server" }, {});
-    try {
-        // accept the written configuration and refuse an edited option
-        await configurePackage(directory);
-        await checkConfiguration(directory);
-        const path = join(directory, "tsconfig.json");
-        const source = await readFile(path, "utf8");
-        await writeFile(path, source.replace('"strict": true', '"strict": false'));
-        expect(await refusal(checkConfiguration(directory))).toEqual([
-            "BAD_REQUEST",
-            "INVALID_CONFIGURATION",
-            "tsconfig.json differs from the shared configuration; run configure",
-        ]);
-    } finally {
-        await rm(directory, { recursive: true });
-    }
+    await using simulation = world();
+    const { files } = simulation.environment("test");
+    const directory = await writePackage(files, ["bun"], { name: "@example/server" }, {});
+    // accept the written configuration and refuse an edited option
+    await configurePackage(directory, files);
+    await checkConfiguration(directory, files);
+    const path = join(directory, "tsconfig.json");
+    const source = await files.readTextFile(path);
+    await files.writeTextFile(path, source.replace('"strict": true', '"strict": false'));
+    expect(await refusal(checkConfiguration(directory, files))).toEqual([
+        "BAD_REQUEST",
+        "INVALID_CONFIGURATION",
+        "tsconfig.json differs from the shared configuration; run configure",
+    ]);
 });
 
 test("write lint and format settings at the workspace root and compiler settings in each member", async () => {
     // place a member package inside a workspace root in a separate temporary directory
-    const workspace = await mkdtemp(join(tmpdir(), "destack-workspace-"));
-    onTestFinished(() => rm(workspace, { recursive: true }));
+    await using simulation = world();
+    const { files } = simulation.environment("test");
+    const workspace = await files.makeTemporaryDirectory("workspace-");
     const member = join(workspace, "member");
-    await mkdir(member);
-    await writeFile(join(workspace, "package.json"), JSON.stringify({ workspaces: ["member"] }));
-    await writeFile(join(member, "package.json"), JSON.stringify({ name: "@example/member" }));
-    await writeFile(
+    await files.mkdir(member);
+    await files.writeTextFile(
+        join(workspace, "package.json"),
+        JSON.stringify({ workspaces: ["member"] }),
+    );
+    await files.writeTextFile(
+        join(member, "package.json"),
+        JSON.stringify({
+            name: "@example/member",
+            bin: { member: "./src/main.ts" },
+            main: "./src/index.ts",
+            scripts: {
+                refresh: "bun run scripts/refresh.ts --all",
+                lint: "destack-check check src content.ts",
+                test: "vitest run",
+            },
+            exports: { "./preload": "./src/preload.ts" },
+        }),
+    );
+    await files.writeTextFile(
         join(member, "destack.json"),
         JSON.stringify({
             $schema: "https://destack.app/schemas/2026.9.0/destack.json",
             id: "package-01a0c80b-614d-75ac-841e-b27280bf3db3",
             language: "typescript",
             runtimes: ["bun"],
+            entrypoints: ["src/worker.ts"],
         }),
     );
 
     // configure both, the member taking only its compiler settings
-    await configurePackage(member);
+    await configurePackage(member, files);
     expect([
-        await exists(join(member, "tsconfig.json")),
-        await exists(join(member, ".oxlintrc.json")),
-        await exists(join(member, ".oxfmtrc.json")),
+        await files.exists(join(member, "tsconfig.json")),
+        await files.exists(join(member, ".oxlintrc.json")),
+        await files.exists(join(member, ".oxfmtrc.json")),
     ]).toEqual([true, false, false]);
 
     // read the root's expectations beside the member's, each against its directory
@@ -158,27 +173,46 @@ test("write lint and format settings at the workspace root and compiler settings
         rules: ["eslint/no-console"],
         reason: "the release script reports to its terminal",
     };
-    await writeFile(
+    await files.writeTextFile(
         join(workspace, "destack.json"),
         JSON.stringify({
             $schema: "https://destack.app/schemas/2026.9.0/destack.json",
             workspace: { check: { expect: [expectation] } },
         }),
     );
-    expect(await readExpectations(workspace)).toEqual([{ directory: workspace, expectation }]);
+    expect(await readExpectations(workspace, files)).toEqual([
+        { directory: workspace, expectation },
+    ]);
+
+    // list the modules its bin, declared entrypoints, Bun scripts and preloads run, leaving main and arguments out
+    await files.writeTextFile(
+        join(member, "bunfig.toml"),
+        'preload = ["@example/member/preload", "@example/outside/preload"]\n',
+    );
+    expect(await lintSettings(workspace, files)).toEqual({
+        packages: ["member"],
+        entrypoints: [
+            "member/src/main.ts",
+            "member/src/worker.ts",
+            "member/scripts/refresh.ts",
+            "member/src/preload.ts",
+        ],
+    });
 
     // find the workspace's settings from the root, the member and a directory inside it
-    expect(await Promise.all([workspace, member, join(member, "src")].map(settingsRoot))).toEqual([
-        workspace,
-        workspace,
-        workspace,
-    ]);
+    expect(
+        await Promise.all(
+            [workspace, member, join(member, "src")].map((path) => settingsRoot(path, files)),
+        ),
+    ).toEqual([workspace, workspace, workspace]);
 });
 
 test("accept the findings a package expects and refuse an expectation nothing matches", async () => {
     // expect console use in one file and an unused rule in another
-    const directory = await mkdtemp(join(tmpdir(), "destack-expectation-"));
-    onTestFinished(() => rm(directory, { recursive: true }));
+    await using simulation = world();
+    const directory = await simulation
+        .environment("test")
+        .files.makeTemporaryDirectory("expectation-");
     const expectations = [
         {
             directory,

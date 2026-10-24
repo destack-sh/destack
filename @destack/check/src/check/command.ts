@@ -1,14 +1,17 @@
-import process from "node:process";
+import type { Environment } from "@destack/environment";
 import { checkPackage, fixPackage } from "./check.ts";
 import { formatPackage } from "./format.ts";
 import { configurePackage } from "./configuration.ts";
 import { CheckError } from "../error/index.ts";
 import { listAffected } from "../workspace/index.ts";
 
-/** Run the shared package commands. */
-export async function main(): Promise<void> {
+/** Run the shared package commands in an environment. */
+export async function main(
+    environment: Environment<"files" | "process" | "platform">,
+): Promise<void> {
     // read the command and its source selection
-    let [command = "check", ...files] = process.argv.slice(2);
+    const { process } = environment;
+    let [command = "check", ...files] = process.arguments;
 
     // retain the conventional read-only formatter flag
     if (command === "format" && files.includes("--check")) {
@@ -22,9 +25,13 @@ export async function main(): Promise<void> {
     }
 
     // write direct-tool settings when requested
-    const options = { directory: process.cwd(), ...(files.length ? { files } : {}) };
+    const options = {
+        directory: process.workingDirectory,
+        environment,
+        ...(files.length ? { files } : {}),
+    };
     if (command === "configure") {
-        await configurePackage(options.directory);
+        await configurePackage(options.directory, environment.files);
         return;
     }
 
@@ -34,8 +41,8 @@ export async function main(): Promise<void> {
         if (base === undefined) {
             throw CheckError.of("INVALID_CONFIGURATION", "affected needs a base commit");
         }
-        const directories = await listAffected(options.directory, base);
-        process.stdout.write(
+        const directories = await listAffected(options.directory, base, environment);
+        await process.stdout.write(
             directories === undefined ? "*\n" : directories.map((path) => `${path}\n`).join(""),
         );
 
@@ -56,11 +63,11 @@ export async function main(): Promise<void> {
 
     // report diagnostics or formatter output and preserve failure status
     if ("diagnostics" in result) {
-        process.stdout.write(`${JSON.stringify(result, null, 4)}\n`);
+        await process.stdout.write(`${JSON.stringify(result, null, 4)}\n`);
         process.exitCode = result.diagnostics.length > 0 ? 1 : 0;
     } else {
-        process.stdout.write(result.stdout);
-        process.stderr.write(result.stderr);
+        await process.stdout.write(result.stdout);
+        await process.stderr.write(result.stderr);
         process.exitCode = result.code;
     }
 }

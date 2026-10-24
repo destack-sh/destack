@@ -1,8 +1,5 @@
-import { spawn } from "node:child_process";
-import { mkdtemp, open, readFile, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { basename, join } from "node:path";
-import process from "node:process";
+import { basename } from "node:path";
+import type { Environment } from "@destack/environment";
 import { CheckError } from "../error/index.ts";
 
 /** Captured output from a checking tool at a fixed version. */
@@ -15,63 +12,45 @@ export interface ToolResult {
     stderr: string;
 }
 
-/** Run an installed tool on the current Bun runtime, writing its output to a file. */
+/** Run an installed tool on the current Bun runtime, reading its output. */
 export async function runTool(
     executable: string,
     toolArguments: string[],
     directory: string,
-    signal?: AbortSignal,
-    environment?: NodeJS.ProcessEnv,
+    environment: Environment<"process">,
+    options: {
+        /** Cancel the tool. */
+        readonly signal?: AbortSignal;
+        /** The variables beside the process's own. */
+        readonly variables?: Readonly<Record<string, string>>;
+    } = {},
 ): Promise<ToolResult> {
-    // collect the tool's output in a temporary file
+    // run the tool under the caller's cancellation, refusing a tool the host cannot start
+    const { process } = environment;
     const tool = basename(executable);
-    const folder = await mkdtemp(join(tmpdir(), "destack-tool-"));
-    const path = join(folder, "stdout");
-    const output = await open(path, "w");
-    try {
-        // run the child with its output in the file
-        const { code, stderr } = await new Promise<{ code: number; stderr: string }>(
-            (complete, reject) => {
-                // run the child under the caller's cancellation
-                const child = spawn(
-                    process.execPath,
-                    ["run", "--no-env-file", executable, ...toolArguments],
-                    {
-                        cwd: directory,
-                        env: { ...(environment ?? process.env), BUN_BE_BUN: "1" },
-                        stdio: ["ignore", output.fd, "pipe"],
-                        ...(signal === undefined ? {} : { signal }),
-                    },
-                );
+    const child = (() => {
+        try {
+            return process.spawn(
+                [process.executable, "run", "--no-env-file", executable, ...toolArguments],
+                {
+                    workingDirectory: directory,
+                    variables: { ...process.variables, ...options.variables, BUN_BE_BUN: "1" },
+                    stdout: "pipe",
+                    stderr: "pipe",
+                    ...(options.signal === undefined ? {} : { signal: options.signal }),
+                },
+            );
+        } catch (error) {
+            throw CheckError.of("TOOL_FAILED", `cannot run ${tool}`, { cause: error });
+        }
+    })();
 
-                // capture the error stream until the child closes
-                let captured = "";
-                child.stderr?.setEncoding("utf8").on("data", (chunk: string) => {
-                    captured += chunk;
-                });
-
-                // reject launch failures and signal termination
-                child.on("error", (error) =>
-                    reject(CheckError.of("TOOL_FAILED", `cannot start ${tool}`, { cause: error })),
-                );
-                child.on("close", (exit, terminated) => {
-                    if (exit === null) {
-                        reject(
-                            CheckError.of(
-                                "TOOL_FAILED",
-                                `${tool} terminated by ${String(terminated)}`,
-                            ),
-                        );
-                    } else {
-                        complete({ code: exit, stderr: captured });
-                    }
-                });
-            },
-        );
-
-        return { code, stdout: await readFile(path, "utf8"), stderr };
-    } finally {
-        await output.close();
-        await rm(folder, { recursive: true, force: true });
+    // read both of its output streams, refusing a tool a signal ended
+    const { code, signal, stdout, stderr } = await child.output();
+    if (signal !== undefined) {
+        throw CheckError.of("TOOL_FAILED", `${tool} terminated by ${signal}`);
     }
+    const decoder = new TextDecoder();
+
+    return { code, stdout: decoder.decode(stdout), stderr: decoder.decode(stderr) };
 }

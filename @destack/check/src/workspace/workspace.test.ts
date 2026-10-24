@@ -1,21 +1,26 @@
-import { expect, onTestFinished, test } from "@destack/test";
-import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { Simulation } from "@destack/environment/simulation";
+import { expect, test } from "@destack/test";
 import { join } from "node:path";
 import { Workspace } from "./workspace.ts";
 
-test("find no workspace outside any lockfile", async () => {
-    const directory = await realpath(await mkdtemp(join(tmpdir(), "destack-workspace-")));
-    onTestFinished(() => rm(directory, { recursive: true }));
+/** The start of every test's world: 2026-10-24 at midnight UTC. */
+const START = Date.UTC(2026, 9, 24);
 
-    expect(await Workspace.read(directory)).toBeUndefined();
+test("find no workspace outside any lockfile", async () => {
+    // open an empty directory in a world
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const { files } = simulation.environment("test");
+    const directory = await files.makeTemporaryDirectory("workspace-");
+
+    expect(await Workspace.read(directory, files)).toBeUndefined();
 });
 
 test("read a workspace's members from its lockfile and walk their workspace dependencies both ways", async () => {
     // record a root on the library, the library, an app on it, a fixture inside the app and a tool on the app
-    const root = await realpath(await mkdtemp(join(tmpdir(), "destack-workspace-")));
-    onTestFinished(() => rm(root, { recursive: true }));
-    await writeFile(
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const { files } = simulation.environment("test");
+    const root = await files.makeTemporaryDirectory("workspace-");
+    await files.writeTextFile(
         join(root, "bun.lock"),
         `{
   "lockfileVersion": 1,
@@ -30,10 +35,10 @@ test("read a workspace's members from its lockfile and walk their workspace depe
 }
 `,
     );
-    await mkdir(join(root, "packages/app/src"), { recursive: true });
+    await files.mkdir(join(root, "packages/app/src"), { recursive: true });
 
     // read from a directory inside a member and walk from the library and the app
-    const workspace = await Workspace.read(join(root, "packages/app/src"));
+    const workspace = await Workspace.read(join(root, "packages/app/src"), files);
     if (workspace === undefined) {
         throw new TypeError("the fixture has a lockfile");
     }

@@ -1,5 +1,4 @@
-import { readdir, readFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import type { FileSystem } from "@destack/environment";
 import { relative, resolve, sep } from "node:path";
 import { Definition, type Expectation } from "@destack/package";
 import type { Diagnostic } from "../diagnostic/index.ts";
@@ -14,10 +13,15 @@ export interface DeclaredExpectation {
 }
 
 /** Read a package's expectations, and every member's when the directory is a workspace root. */
-export async function readExpectations(directory: string): Promise<DeclaredExpectation[]> {
+export async function readExpectations(
+    directory: string,
+    files: FileSystem,
+): Promise<DeclaredExpectation[]> {
     // read the declarations of the directory and its members
-    const members = await workspaceMembers(directory);
-    const expectations = await Promise.all([directory, ...members].map(packageExpectations));
+    const members = await workspaceMembers(directory, files);
+    const expectations = await Promise.all(
+        [directory, ...members].map((member) => packageExpectations(member, files)),
+    );
 
     return expectations.flat();
 }
@@ -80,13 +84,16 @@ export function applyExpectations(
 }
 
 /** Read the expectations a destack.json declares for its package and workspace. */
-async function packageExpectations(directory: string): Promise<DeclaredExpectation[]> {
+async function packageExpectations(
+    directory: string,
+    files: FileSystem,
+): Promise<DeclaredExpectation[]> {
     // read the package's and the workspace's declarations
     const path = resolve(directory, "destack.json");
-    if (!existsSync(path)) {
+    if (!(await files.exists(path))) {
         return [];
     }
-    const definition = Definition.read(await readFile(path, "utf8"));
+    const definition = Definition.read(await files.readTextFile(path));
     const declared = [
         ...(Definition.package(definition)?.check?.expect ?? []),
         ...(definition.workspace?.check?.expect ?? []),
@@ -96,9 +103,9 @@ async function packageExpectations(directory: string): Promise<DeclaredExpectati
 }
 
 /** List a workspace root's member directories, none for a directory that is not a workspace. */
-async function workspaceMembers(directory: string): Promise<string[]> {
+export async function workspaceMembers(directory: string, files: FileSystem): Promise<string[]> {
     // read the member patterns
-    const workspaces = (await readManifest(directory))?.workspaces;
+    const workspaces = (await readManifest(directory, files))?.workspaces;
 
     // expand each pattern segment by segment, retaining directories with a package manifest
     const members: string[] = [];
@@ -108,12 +115,12 @@ async function workspaceMembers(directory: string): Promise<string[]> {
             const next: string[] = [];
             for (const parent of directories) {
                 if (segment === "*") {
-                    const entries = existsSync(parent)
-                        ? await readdir(parent, { withFileTypes: true })
+                    const entries = (await files.exists(parent))
+                        ? await files.readDirectory(parent)
                         : [];
                     next.push(
                         ...entries
-                            .filter((entry) => entry.isDirectory())
+                            .filter((entry) => entry.kind === "directory")
                             .map((entry) => entry.name)
                             .toSorted()
                             .map((name) => resolve(parent, name)),
@@ -124,9 +131,11 @@ async function workspaceMembers(directory: string): Promise<string[]> {
             }
             directories = next;
         }
-        members.push(
-            ...directories.filter((member) => existsSync(resolve(member, "package.json"))),
-        );
+        for (const member of directories) {
+            if (await files.exists(resolve(member, "package.json"))) {
+                members.push(member);
+            }
+        }
     }
 
     return members;

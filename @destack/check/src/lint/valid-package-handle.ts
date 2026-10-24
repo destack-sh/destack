@@ -15,7 +15,7 @@ export const validPackageHandle: Rule = {
     },
     create(context) {
         // apply only to Destack packages, leaving tests their handles
-        if (isTestFile(context.filename) || !isPackageFile(context.filename)) {
+        if (isTestFile(context.filename) || !isPackageFile(context.filename, context.settings)) {
             return {};
         }
 

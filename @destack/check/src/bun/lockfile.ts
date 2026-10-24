@@ -1,4 +1,4 @@
-import { readFile, stat } from "node:fs/promises";
+import type { FileSystem } from "@destack/environment";
 import { dirname, join, resolve } from "node:path";
 import { schema } from "@destack/schema";
 
@@ -61,23 +61,23 @@ export class BunLockfile {
     }
 
     /** Read the nearest lockfile in a directory or above it, absent without one. */
-    static async read(directory: string): Promise<BunLockfile | undefined> {
+    static async read(directory: string, files: FileSystem): Promise<BunLockfile | undefined> {
         // locate the nearest lockfile
-        const root = await BunLockfile.locate(directory);
+        const root = await BunLockfile.locate(directory, files);
         if (root === undefined) {
             return undefined;
         }
 
         // parse its text, which has trailing commas
-        const text = await readFile(join(root, LOCKFILE), "utf8");
+        const text = await files.readTextFile(join(root, LOCKFILE));
 
         return new BunLockfile(root, LockfileText.parse(JSON.parse(dropTrailingCommas(text))));
     }
 
     /** Find the nearest directory with a lockfile, absent without one. */
-    static async locate(directory: string): Promise<string | undefined> {
+    static async locate(directory: string, files: FileSystem): Promise<string | undefined> {
         for (let current = resolve(directory); ; current = dirname(current)) {
-            if (await exists(join(current, LOCKFILE))) {
+            if (await files.exists(join(current, LOCKFILE))) {
                 return current;
             }
             if (dirname(current) === current) {
@@ -85,26 +85,6 @@ export class BunLockfile {
             }
         }
     }
-}
-
-/** Report whether a path exists. */
-async function exists(path: string): Promise<boolean> {
-    try {
-        await stat(path);
-
-        return true;
-    } catch (error) {
-        if (!isMissing(error)) {
-            throw error;
-        }
-
-        return false;
-    }
-}
-
-/** Report whether a file system error means a missing path. */
-function isMissing(error: unknown): boolean {
-    return error instanceof Error && "code" in error && error.code === "ENOENT";
 }
 
 /** Drop the trailing commas Bun writes into lockfiles, matching strings whole to leave theirs. */

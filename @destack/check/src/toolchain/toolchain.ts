@@ -1,20 +1,24 @@
 import { createRequire } from "node:module";
 import { dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { BunProcess } from "../bun/process.ts";
+import type { Platform, Process } from "@destack/environment";
 
 /** The name of the toolchain directory beside a standalone executable. */
 const TOOLCHAIN = "toolchain";
 
 /** The tools on disk. */
 export const Toolchain = {
-    /** The toolchain directory of a standalone executable, absent in a workspace. */
-    get directory(): string | undefined {
-        return BunProcess.isStandalone ? Toolchain.of(process.execPath) : undefined;
+    /** Find the toolchain directory of a standalone executable, absent in a workspace. */
+    directory(process: Process): string | undefined {
+        return process.runtime.isStandalone ? Toolchain.of(process.executable) : undefined;
     },
 
-    /** The suffix of this platform's native addon packages. */
-    platform: `${process.platform}-${process.arch}${process.platform === "linux" ? "-gnu" : ""}`,
+    /** Read the suffix of a platform's native addon packages. */
+    platform(platform: Platform): string {
+        const { os, architecture } = platform;
+
+        return `${os}-${architecture}${os === "linux" ? "-gnu" : ""}`;
+    },
 
     /** Find an executable's toolchain: in its macOS application's resources, else beside it. */
     of(executable: string): string {
@@ -30,10 +34,11 @@ export const Toolchain = {
     },
 
     /** Find an installed package's directory among the toolchain's packages. */
-    locate(chain: readonly string[], from: string): string {
+    locate(chain: readonly string[], from: string, process: Process): string {
         // find the last package among the toolchain's, else each package from the one before
-        const names = Toolchain.directory === undefined ? chain : chain.slice(-1);
-        let directory = Toolchain.directory ?? from;
+        const toolchain = Toolchain.directory(process);
+        const names = toolchain === undefined ? chain : chain.slice(-1);
+        let directory = toolchain ?? from;
         for (const name of names) {
             const require = createRequire(join(directory, "package.json"));
             directory = dirname(require.resolve(`${name}/package.json`));
@@ -43,9 +48,11 @@ export const Toolchain = {
     },
 
     /** Find the module with this package's lint rules: the toolchain's bundle, or the source. */
-    lint(): string {
-        return Toolchain.directory === undefined
+    lint(process: Process): string {
+        const toolchain = Toolchain.directory(process);
+
+        return toolchain === undefined
             ? fileURLToPath(new URL("../lint/index.ts", import.meta.url))
-            : join(Toolchain.directory, "lint.js");
+            : join(toolchain, "lint.js");
     },
 };

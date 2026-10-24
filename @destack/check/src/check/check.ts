@@ -1,11 +1,13 @@
-import { mkdtemp, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { join, relative, resolve } from "node:path";
-import process from "node:process";
 import { fileURLToPath } from "node:url";
+import type { Environment, FileSystem } from "@destack/environment";
 import { readExpectations, applyExpectations } from "./expectation.ts";
-import { checkConfiguration, lintConfiguration, settingsRoot } from "./configuration.ts";
+import {
+    checkConfiguration,
+    lintConfiguration,
+    lintSettings,
+    settingsRoot,
+} from "./configuration.ts";
 import { runTool } from "./tool.ts";
 import { Toolchain } from "../toolchain/index.ts";
 import { CheckResult, type Diagnostic } from "../diagnostic/diagnostic.ts";
@@ -30,6 +32,8 @@ export interface CheckOptions {
     signal?: AbortSignal;
     /** Additional trusted plugins selected by the host, with every rule enabled. */
     plugins?: readonly Plugin[];
+    /** The files, process and machine the tools run on. */
+    environment: Environment<"files" | "process" | "platform">;
 }
 
 /** Check source using the canonical rules. */
@@ -46,21 +50,22 @@ export function fixPackage(options: CheckOptions): Promise<CheckResult> {
 async function lintPackage(options: CheckOptions, fix: boolean): Promise<CheckResult> {
     // verify editor settings before preparing the managed invocation
     const directory = resolve(options.directory);
-    await checkConfiguration(directory, options.plugins);
+    const { files } = options.environment;
+    await checkConfiguration(directory, files, options.plugins);
 
     // require every selected path
     const selection = options.files ?? ["src"];
     for (const entry of selection) {
-        if (!existsSync(resolve(directory, entry))) {
+        if (!(await files.exists(resolve(directory, entry)))) {
             throw CheckError.of("INVALID_CONFIGURATION", `selected path does not exist: ${entry}`);
         }
     }
 
     // check Markdown separately and lint the remaining selection with Oxc
-    const markdown = await checkMarkdownFiles(directory, selection, fix);
+    const markdown = await checkMarkdownFiles(directory, selection, fix, files);
     const sources: string[] = [];
     for (const entry of selection) {
-        if (!entry.endsWith(".md") && (await hasSources(resolve(directory, entry)))) {
+        if (!entry.endsWith(".md") && (await hasSources(resolve(directory, entry), files))) {
             sources.push(entry);
         }
     }
@@ -70,7 +75,7 @@ async function lintPackage(options: CheckOptions, fix: boolean): Promise<CheckRe
     const result = await lintSources({ ...options, directory, files: sources }, fix);
 
     // accept the findings the workspace's packages expect, and refuse expectations nothing met
-    const expectations = await readExpectations(await settingsRoot(directory));
+    const expectations = await readExpectations(await settingsRoot(directory, files), files);
 
     return CheckResult.parse({
         diagnostics: [
@@ -85,27 +90,28 @@ async function checkMarkdownFiles(
     directory: string,
     selection: readonly string[],
     fix: boolean,
+    files: FileSystem,
 ): Promise<Diagnostic[]> {
     // expand directories into their Markdown files outside dependencies
-    const files: string[] = [];
+    const documents: string[] = [];
     for (const entry of selection) {
         const path = resolve(directory, entry);
-        const stats = await stat(path);
-        if (stats.isDirectory()) {
-            files.push(...(await listFiles(path)).filter((file) => file.endsWith(".md")));
+        if ((await files.stat(path)).kind === "directory") {
+            const listed = await listFiles(path, files);
+            documents.push(...listed.filter((file) => file.endsWith(".md")));
         } else if (entry.endsWith(".md")) {
-            files.push(path);
+            documents.push(path);
         }
     }
 
     // fix sentence breaks before reporting what remains
     const diagnostics: Diagnostic[] = [];
-    for (const file of files) {
-        let text = await readFile(file, "utf8");
+    for (const file of documents) {
+        let text = await files.readTextFile(file);
         if (fix) {
             const fixed = fixMarkdown(text);
             if (fixed !== text) {
-                await writeFile(file, fixed);
+                await files.writeTextFile(file, fixed);
                 text = fixed;
             }
         }
@@ -116,48 +122,61 @@ async function checkMarkdownFiles(
 }
 
 /** Report whether a selected file or directory contains JavaScript or TypeScript sources. */
-async function hasSources(path: string): Promise<boolean> {
+async function hasSources(path: string, files: FileSystem): Promise<boolean> {
     // match a selected file directly and search a selected directory outside dependencies
     const pattern = /\.[cm]?[jt]sx?$/u;
-    if (!(await stat(path)).isDirectory()) {
+    if ((await files.stat(path)).kind !== "directory") {
         return pattern.test(path);
     }
 
-    return (await listFiles(path)).some((file) => pattern.test(file));
+    return (await listFiles(path, files)).some((file) => pattern.test(file));
 }
 
 /** List the files below a directory. */
-async function listFiles(directory: string): Promise<string[]> {
-    const files: string[] = [];
-    for (const entry of await readdir(directory, { withFileTypes: true })) {
+async function listFiles(directory: string, files: FileSystem): Promise<string[]> {
+    const listed: string[] = [];
+    for (const entry of await files.readDirectory(directory)) {
         // descend into real directories outside dependencies and hidden ones, such as .terraform
         const path = join(directory, entry.name);
-        if (entry.isDirectory() && entry.name !== "node_modules" && !entry.name.startsWith(".")) {
-            files.push(...(await listFiles(path)));
+        const isDescended =
+            entry.kind === "directory" &&
+            entry.name !== "node_modules" &&
+            !entry.name.startsWith(".");
+        if (isDescended) {
+            listed.push(...(await listFiles(path, files)));
         }
         // take regular files
-        else if (entry.isFile()) {
-            files.push(path);
+        else if (entry.kind === "file") {
+            listed.push(path);
         }
     }
 
-    return files;
+    return listed;
 }
 
 /** Lint TypeScript and JavaScript sources with Oxc and the Destack rules. */
 async function lintSources(options: CheckOptions, fix: boolean): Promise<CheckResult> {
     // find the linter and the type checker of this platform among the tools
-    const executable = join(Toolchain.locate(["oxlint"], PACKAGE), "bin", "oxlint");
-    const platform = `@oxlint-tsgolint/${process.platform}-${process.arch}`;
-    const binary = process.platform === "win32" ? "tsgolint.exe" : "tsgolint";
-    const typeChecker = join(Toolchain.locate(["oxlint-tsgolint", platform], PACKAGE), binary);
+    const { files, process, platform } = options.environment;
+    const executable = join(Toolchain.locate(["oxlint"], PACKAGE, process), "bin", "oxlint");
+    const checker = `@oxlint-tsgolint/${platform.os}-${platform.architecture}`;
+    const binary = platform.os === "win32" ? "tsgolint.exe" : "tsgolint";
+    const typeChecker = join(
+        Toolchain.locate(["oxlint-tsgolint", checker], PACKAGE, process),
+        binary,
+    );
 
     // isolate the generated lint configuration
-    const temporary = await mkdtemp(join(tmpdir(), "destack-check-"));
+    const temporary = await files.makeTemporaryDirectory("destack-check-");
     try {
-        // write the fixed rules with absolute plugin paths
+        // write the fixed rules with absolute plugin paths, and the settings root's packages
         const configuration = join(temporary, "lint.json");
-        await writeFile(configuration, JSON.stringify(lintConfiguration(options.plugins, true)));
+        const settings = await lintSettings(await settingsRoot(options.directory, files), files);
+        const lint = lintConfiguration(settings, {
+            ...(options.plugins === undefined ? {} : { plugins: options.plugins }),
+            builtin: Toolchain.lint(process),
+        });
+        await files.writeTextFile(configuration, JSON.stringify(lint));
 
         // run the checker against the selected source
         const output = await runTool(
@@ -174,8 +193,11 @@ async function lintSources(options: CheckOptions, fix: boolean): Promise<CheckRe
                 ...(options.files ?? ["src"]).map((file) => resolve(options.directory, file)),
             ],
             options.directory,
-            options.signal,
-            { ...process.env, OXLINT_TSGOLINT_PATH: typeChecker },
+            options.environment,
+            {
+                ...(options.signal === undefined ? {} : { signal: options.signal }),
+                variables: { OXLINT_TSGOLINT_PATH: typeChecker },
+            },
         );
 
         // distinguish tool failure from ordinary rule diagnostics
@@ -206,6 +228,6 @@ async function lintSources(options: CheckOptions, fix: boolean): Promise<CheckRe
 
         return result;
     } finally {
-        await rm(temporary, { recursive: true });
+        await files.remove(temporary, { recursive: true });
     }
 }

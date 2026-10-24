@@ -1,16 +1,28 @@
-import { readdir, readFile, writeFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import type { FileSystem } from "@destack/environment";
 import { isDeepStrictEqual } from "node:util";
-import { dirname, resolve } from "node:path";
+import { dirname, relative, resolve, sep } from "node:path";
 import { Definition, type PackageDefinition } from "@destack/package";
 import { TYPESCRIPT_OPTIONS } from "@destack/package/build";
 import * as lint from "../lint/plugin.ts";
 import type { Plugin } from "../lint/plugin.ts";
+import type { LintSettings } from "../lint/package.ts";
 import { CheckError } from "../error/index.ts";
-import { expectationOverrides, readExpectations } from "./expectation.ts";
-import { readManifest } from "./manifest.ts";
-import { Toolchain } from "../toolchain/index.ts";
+import { expectationOverrides, readExpectations, workspaceMembers } from "./expectation.ts";
+import { type Manifest, readManifest } from "./manifest.ts";
 import { formatSource } from "./format.ts";
+import { present } from "@destack/schema";
+
+/** A bunfig.toml preload list, its quoted modules captured. */
+const PRELOAD = /^\s*preload\s*=\s*\[([^\]]*)\]/gmu;
+
+/** A module a script runs directly, such as `scripts/refresh.ts`. */
+const SCRIPT_MODULE = /^[\w./@-]+\.[cm]?[jt]sx?$/u;
+
+/** The operators separating the commands of a package script. */
+const SCRIPT_COMMANDS = /&&|\|\||;/u;
+
+/** The directories a package's compiler configuration includes beside its configuration files. */
+const SOURCES = ["src", "tests"] as const;
 
 /** Fixed source formatting shared by editors and managed commands. */
 export const formatConfiguration = {
@@ -28,12 +40,18 @@ export const formatConfiguration = {
 
 /** Produce the fixed rules and explicitly selected trusted plugins. */
 export function lintConfiguration(
-    plugins: readonly Plugin[] = [],
-    absolute = false,
-    overrides: readonly { files: string[]; rules: Record<string, "off"> }[] = [],
+    settings: LintSettings,
+    options: {
+        /** The trusted plugins beside the built-in one. */
+        readonly plugins?: readonly Plugin[];
+        /** The module of the built-in rules, its export for editors by default. */
+        readonly builtin?: string;
+        /** The rules expectations turn off, by file. */
+        readonly overrides?: readonly { files: string[]; rules: Record<string, "off"> }[];
+    } = {},
 ) {
-    // load the built-in rules by path for managed checks and by export for editors
-    const builtin = absolute ? Toolchain.lint() : "@destack/check/lint";
+    // load the built-in rules by export for editors, or the module a managed check names
+    const { plugins = [], builtin = "@destack/check/lint", overrides = [] } = options;
 
     // reserve each namespace before enabling the provider's complete rule set
     const names = new Set(["destack", "typescript", "oxc", "unicorn", "eslint"]);
@@ -158,17 +176,124 @@ export function lintConfiguration(
             // accept the findings packages expect, so editors show what checking reports
             ...overrides,
         ],
+        settings: {
+            destack: { packages: [...settings.packages], entrypoints: [...settings.entrypoints] },
+        },
         options: { denyWarnings: true, typeAware: true, respectEslintDisableDirectives: false },
     };
 }
 
-/** The directories a package's compiler configuration includes beside its configuration files. */
-const SOURCES = ["src", "tests"] as const;
+/** A workspace member defining a Destack package: its directory and package manifest. */
+interface WorkspaceMember {
+    /** The member's directory. */
+    readonly directory: string;
+    /** The member's package.json. */
+    readonly manifest: Manifest;
+}
+
+/** Read the lint settings of a settings root: its own package, or its workspace's packages. */
+export async function lintSettings(directory: string, files: FileSystem): Promise<LintSettings> {
+    // read the root and every workspace member defining a Destack package
+    const members: WorkspaceMember[] = [];
+    const declared = new Map<string, readonly string[]>();
+    for (const member of [directory, ...(await workspaceMembers(directory, files))]) {
+        const definition = await readDefinition(member, files);
+        if (definition !== undefined) {
+            members.push({
+                directory: member,
+                manifest: (await readManifest(member, files)) ?? {},
+            });
+            declared.set(member, definition.entrypoints ?? []);
+        }
+    }
+
+    // take the modules each package's bin, declared entrypoints, Bun scripts and preloads run
+    const entrypoints: string[] = [];
+    for (const member of members) {
+        const { bin = {}, scripts = {} } = member.manifest;
+        const run = Object.values(scripts).flatMap((script) => scriptModules(script));
+        const programs = typeof bin === "string" ? [bin] : Object.values(bin);
+        const starts = declared.get(member.directory) ?? [];
+        const preloads = await readPreloads(member.directory, members, files);
+        for (const program of [...programs, ...starts, ...run]) {
+            entrypoints.push(resolve(member.directory, program));
+        }
+        entrypoints.push(...preloads);
+    }
+
+    return {
+        packages: members.map(
+            (member) => relative(directory, member.directory).split(sep).join("/") || ".",
+        ),
+        entrypoints: [
+            ...new Set(entrypoints.map((path) => relative(directory, path).split(sep).join("/"))),
+        ],
+    };
+}
+
+/** Read the modules a package script runs with Bun: each command's module after `bun run`. */
+function scriptModules(script: string): string[] {
+    return script.split(SCRIPT_COMMANDS).flatMap((command) => {
+        // skip Bun's flags and its run subcommand, taking the module it runs
+        const [program, ...rest] = command.trim().split(/\s+/u);
+        const module = rest.find((word) => !word.startsWith("-") && word !== "run");
+
+        return program === "bun" && module !== undefined && SCRIPT_MODULE.test(module)
+            ? [module]
+            : [];
+    });
+}
+
+/** Read the modules a package's bunfig.toml preloads, each package export from its member. */
+async function readPreloads(
+    directory: string,
+    members: readonly WorkspaceMember[],
+    files: FileSystem,
+): Promise<string[]> {
+    // read the preload lists, absent without a bunfig.toml
+    const path = resolve(directory, "bunfig.toml");
+    const text = (await files.exists(path)) ? await files.readTextFile(path) : "";
+    const specifiers = [...text.matchAll(PRELOAD)].flatMap((match) =>
+        [...present(match[1], "a preload list").matchAll(/"([^"]+)"/gu)].map((quoted) =>
+            present(quoted[1], "a quoted preload"),
+        ),
+    );
+
+    // resolve each specifier to the module it loads
+    return specifiers.flatMap((specifier) => {
+        const member = members.find(({ manifest: { name } }) =>
+            name === undefined ? false : specifier === name || specifier.startsWith(`${name}/`),
+        );
+
+        // resolve a relative module against the package
+        if (specifier.startsWith(".")) {
+            return [resolve(directory, specifier)];
+        }
+        // leave a dependency's preload, whose module lies outside the workspace
+        else if (member === undefined) {
+            return [];
+        }
+        // resolve a member's export to its one module, refusing an export of conditions
+        else {
+            const name = present(member.manifest.name, "the member's name");
+            const subpath = specifier === name ? "." : `.${specifier.slice(name.length)}`;
+            const target = member.manifest.exports?.[subpath];
+            if (typeof target !== "string") {
+                throw CheckError.of(
+                    "INVALID_CONFIGURATION",
+                    `${specifier} is no single module its package exports`,
+                );
+            }
+
+            return [resolve(member.directory, target)];
+        }
+    });
+}
 
 /** Produce a package's compiler configuration from its manifests and sources. */
-export async function typescriptConfiguration(directory: string) {
+export async function typescriptConfiguration(directory: string, files: FileSystem) {
     // read the package's name and declared dependency names
-    const manifest = (await readManifest(directory)) ?? {};
+    const manifest = (await readManifest(directory, files)) ?? {};
     const names = new Set([
         ...Object.keys(manifest.dependencies ?? {}),
         ...Object.keys(manifest.devDependencies ?? {}),
@@ -176,14 +301,14 @@ export async function typescriptConfiguration(directory: string) {
     const uses = (name: string) => manifest.name === name || names.has(name);
 
     // read the runtimes of the package and of each export
-    const definition = await readDefinition(directory);
+    const definition = await readDefinition(directory, files);
     const runtimes = new Set([
         ...(definition?.runtimes ?? []),
         ...Object.values(definition?.exports ?? {}).flatMap((entry) => entry.runtimes),
     ]);
 
     // separate nested packages and find the views among the package's sources
-    const sources = await readSources(directory);
+    const sources = await readSources(directory, files);
     const hasViews = uses("@destack/view") && sources.hasViews;
 
     // select ambient types from the declared type packages, the view library and the build
@@ -256,21 +381,26 @@ function jsxOptions(
 }
 
 /** Find the nested packages and TSX modules in a package's included directories. */
-async function readSources(directory: string) {
+async function readSources(directory: string, files: FileSystem) {
     // walk the included directories, stopping at each directory with a manifest
     const packages: string[] = [];
     let hasViews = false;
-    const pending: string[] = SOURCES.filter((name) => existsSync(resolve(directory, name)));
+    const pending: string[] = [];
+    for (const name of SOURCES) {
+        if (await files.exists(resolve(directory, name))) {
+            pending.push(name);
+        }
+    }
     for (let path = pending.pop(); path !== undefined; path = pending.pop()) {
-        for (const entry of await readdir(resolve(directory, path), { withFileTypes: true })) {
+        for (const entry of await files.readDirectory(resolve(directory, path))) {
             const child = `${path}/${entry.name}`;
-            if (entry.isDirectory() && entry.name !== "node_modules") {
-                if (existsSync(resolve(directory, child, "package.json"))) {
+            if (entry.kind === "directory" && entry.name !== "node_modules") {
+                if (await files.exists(resolve(directory, child, "package.json"))) {
                     packages.push(child);
                 } else {
                     pending.push(child);
                 }
-            } else if (entry.isFile() && entry.name.endsWith(".tsx")) {
+            } else if (entry.kind === "file" && entry.name.endsWith(".tsx")) {
                 hasViews = true;
             }
         }
@@ -282,61 +412,71 @@ async function readSources(directory: string) {
 /** Write editor and direct-tool configuration from the canonical settings. */
 export async function configurePackage(
     directory: string,
+    files: FileSystem,
     plugins: readonly Plugin[] = [],
 ): Promise<void> {
     // write the compiler settings of a Destack package or workspace root
-    if (existsSync(resolve(directory, "destack.json"))) {
+    if (await files.exists(resolve(directory, "destack.json"))) {
         await writeJson(
             resolve(directory, "tsconfig.json"),
-            await typescriptConfiguration(directory),
+            await typescriptConfiguration(directory, files),
+            files,
         );
     }
 
     // write the lint and format settings once per workspace, which Oxc finds above each file
-    if (await holdsToolSettings(directory)) {
+    if (await hasToolSettings(directory, files)) {
         await Promise.all([
             writeJson(
                 resolve(directory, ".oxlintrc.json"),
-                lintConfiguration(
-                    plugins,
-                    false,
-                    expectationOverrides(await readExpectations(directory), directory),
-                ),
+                await editorLintConfiguration(directory, files, plugins),
+                files,
             ),
-            writeJson(resolve(directory, ".oxfmtrc.json"), formatConfiguration),
+            writeJson(resolve(directory, ".oxfmtrc.json"), formatConfiguration, files),
         ]);
     }
 }
 
+/** Produce the lint configuration editors read at a settings root. */
+async function editorLintConfiguration(
+    directory: string,
+    files: FileSystem,
+    plugins: readonly Plugin[],
+) {
+    const overrides = expectationOverrides(await readExpectations(directory, files), directory);
+
+    return lintConfiguration(await lintSettings(directory, files), { plugins, overrides });
+}
+
 /** Write a configuration as formatted JSON, as the formatter writes package files. */
-async function writeJson(path: string, value: unknown): Promise<void> {
-    await writeFile(path, await formatSource(path, `${JSON.stringify(value)}\n`));
+async function writeJson(path: string, value: unknown, files: FileSystem): Promise<void> {
+    await files.writeTextFile(path, await formatSource(path, `${JSON.stringify(value)}\n`));
 }
 
 /** Reject existing tool configuration that differs from the generated settings. */
 export async function checkConfiguration(
     directory: string,
+    files: FileSystem,
     plugins: readonly Plugin[] = [],
 ): Promise<void> {
-    // write the configurations, with compiler settings for Destack packages alone
+    // build each configuration a file exists for, with compiler settings for Destack packages alone
     const configurations = [
+        [".oxlintrc.json", () => editorLintConfiguration(directory, files, plugins)],
+        [".oxfmtrc.json", () => formatConfiguration],
         [
-            ".oxlintrc.json",
-            lintConfiguration(
-                plugins,
-                false,
-                expectationOverrides(await readExpectations(directory), directory),
-            ),
+            "tsconfig.json",
+            async () =>
+                (await files.exists(resolve(directory, "destack.json")))
+                    ? await typescriptConfiguration(directory, files)
+                    : undefined,
         ],
-        [".oxfmtrc.json", formatConfiguration],
-        ...(existsSync(resolve(directory, "destack.json"))
-            ? [["tsconfig.json", await typescriptConfiguration(directory)] as const]
-            : []),
     ] as const;
-    for (const [name, configuration] of configurations) {
+    for (const [name, build] of configurations) {
+        // refuse an existing file that differs from the generated configuration
         const path = resolve(directory, name);
-        if (existsSync(path)) {
-            const source = await readFile(path, "utf8");
+        const configuration = (await files.exists(path)) ? await build() : undefined;
+        if (configuration !== undefined) {
+            const source = await files.readTextFile(path);
             if (!isDeepStrictEqual(JSON.parse(source), configuration)) {
                 throw CheckError.of(
                     "INVALID_CONFIGURATION",
@@ -348,12 +488,12 @@ export async function checkConfiguration(
 }
 
 /** Decide whether a directory has the lint and format settings. */
-async function holdsToolSettings(directory: string): Promise<boolean> {
+async function hasToolSettings(directory: string, files: FileSystem): Promise<boolean> {
     // put them at a workspace root and in a template
-    if ((await readManifest(directory))?.workspaces !== undefined) {
+    if ((await readManifest(directory, files))?.workspaces !== undefined) {
         return true;
     }
-    const definition = await readDefinition(directory);
+    const definition = await readDefinition(directory, files);
     if (definition?.template !== undefined) {
         return true;
     }
@@ -364,7 +504,7 @@ async function holdsToolSettings(directory: string): Promise<boolean> {
         parent !== dirname(parent);
         parent = dirname(parent)
     ) {
-        if ((await readManifest(parent))?.workspaces !== undefined) {
+        if ((await readManifest(parent, files))?.workspaces !== undefined) {
             return false;
         }
     }
@@ -373,9 +513,9 @@ async function holdsToolSettings(directory: string): Promise<boolean> {
 }
 
 /** Find the directory whose tool settings cover a directory: itself or the nearest one above. */
-export async function settingsRoot(directory: string): Promise<string> {
+export async function settingsRoot(directory: string, files: FileSystem): Promise<string> {
     let current = resolve(directory);
-    while (!(await holdsToolSettings(current)) && current !== dirname(current)) {
+    while (!(await hasToolSettings(current, files)) && current !== dirname(current)) {
         current = dirname(current);
     }
 
@@ -383,10 +523,13 @@ export async function settingsRoot(directory: string): Promise<string> {
 }
 
 /** Read the package a directory's destack.json defines. */
-async function readDefinition(directory: string): Promise<PackageDefinition | undefined> {
+async function readDefinition(
+    directory: string,
+    files: FileSystem,
+): Promise<PackageDefinition | undefined> {
     const path = resolve(directory, "destack.json");
 
-    return existsSync(path)
-        ? Definition.package(Definition.read(await readFile(path, "utf8")))
+    return (await files.exists(path))
+        ? Definition.package(Definition.read(await files.readTextFile(path)))
         : undefined;
 }
