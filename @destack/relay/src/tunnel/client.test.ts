@@ -1,220 +1,155 @@
+import { testSimulation } from "@destack/test/world";
 import { TestTelemetry } from "@destack/telemetry/test";
-import { expect, test } from "@destack/test";
-import { createHash } from "node:crypto";
-import { createServer, type Socket } from "node:net";
+import { expect, refusal, test } from "@destack/test";
+import { Simulation } from "@destack/environment/simulation";
+import { schema } from "@destack/schema";
 import { Frame, FrameFlag, FrameType, PING_MESSAGE, TUNNEL_PROTOCOL } from "../session/index.ts";
-import { until } from "../test/index.ts";
 import { TunnelClient } from "./client.ts";
-import { Clock, Environment, type Network } from "@destack/environment";
-import { SeededRandom, SimulatedNetwork, VirtualClock } from "@destack/environment/simulation";
 
-/** The GUID a WebSocket server appends to the client's key to accept it (RFC 6455 1.3). */
-const WEBSOCKET_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+/** The close code of a normal closure, from RFC 6455 section 7.4.1. */
+const NORMAL_CLOSURE = 1000;
 
-/** The opcode of a text WebSocket message, from RFC 6455 section 5.2. */
-const TEXT_OPCODE = 1;
+/** The tunnel URL of a relay where nothing listens. */
+const NOWHERE = "http://relay.test/tunnel";
 
-/** The opcode of a binary WebSocket message, from RFC 6455 section 5.2. */
-const BINARY_OPCODE = 2;
-
-/** The opcode of a WebSocket close, from RFC 6455 section 5.2. */
-const CLOSE_OPCODE = 8;
-
-/** Make a network on which nothing listens, for dials that never connect. */
-function emptyNetwork(): Network {
-    const clock = new VirtualClock(Date.now()).resume();
-
-    return new SimulatedNetwork(clock, new SeededRandom(1), () => {}).of("machine");
-}
+/** The machine dialing the tunnels. */
+const MACHINE = schema.identifier("machine").parse("machine-01996ab0-0000-7000-8000-000000000001");
 
 /** A connection to a silent relay. */
 interface SilentConnection {
     /** The offered subprotocols, as the client listed them. */
-    readonly protocols: string | undefined;
-    /** The chunks the client sent after the upgrade. */
-    readonly chunks: Buffer[];
+    readonly protocols: string | null;
+    /** The messages the client sent after the upgrade, in order. */
+    readonly messages: (string | Uint8Array)[];
+    /** The close code the client sent, absent while open. */
+    closed?: number;
 }
 
-/** One WebSocket frame a client sent, unmasked. */
-interface ClientFrame {
-    /** The frame's opcode. */
-    readonly opcode: number;
-    /** The unmasked payload. */
-    readonly payload: Uint8Array;
-}
-
-/** Read the masked frames a client sent, with payloads under 64 KiB, per RFC 6455 section 5.2. */
-function clientFrames(chunks: readonly Buffer[]): ClientFrame[] {
-    const bytes = new Uint8Array(Buffer.concat(chunks));
-    const view = new DataView(bytes.buffer);
-    const frames: ClientFrame[] = [];
-    let offset = 0;
-    while (offset < bytes.length) {
-        // read the opcode and the 7-bit or 16-bit length
-        const opcode = view.getUint8(offset) & 0x0f;
-        const short = view.getUint8(offset + 1) & 0x7f;
-        const isExtended = short === 126;
-        const length = isExtended ? view.getUint16(offset + 2) : short;
-
-        // unmask the payload behind the mask key
-        const maskAt = offset + (isExtended ? 4 : 2);
-        const masked = bytes.subarray(maskAt + 4, maskAt + 4 + length);
-        const payload = masked.map((byte, index) => byte ^ view.getUint8(maskAt + (index % 4)));
-        frames.push({ opcode, payload });
-        offset = maskAt + 4 + length;
-    }
-
-    return frames;
-}
-
-/** Accept WebSocket upgrades and leave every later frame unanswered, recording each connection. */
-async function silentRelay() {
-    // answer each upgrade with the tunnel protocol and count the bytes it sends
+/** Serve a relay that accepts upgrades and answers nothing after, recording each connection. */
+function silentRelay(simulation: Simulation) {
+    // accept each upgrade with the tunnel protocol, recording what the client sends
     const connections: SilentConnection[] = [];
-    const sockets = new Set<Socket>();
-    const server = createServer((socket) => {
-        sockets.add(socket);
-        let head = "";
-        const read = (chunk: Buffer) => {
-            head += chunk.toString("latin1");
-            if (!head.includes("\r\n\r\n")) {
-                return;
-            }
-            socket.off("data", read);
-            const field = (name: string) =>
-                new RegExp(`^${name}: (.*)$`, "imu").exec(head)?.[1]?.trim();
+    const listener = simulation.network.server("relay").http<SilentConnection>({
+        hostname: "relay.test",
+        port: 80,
+        fetch: (request, listening) => {
             const connection: SilentConnection = {
-                protocols: field("sec-websocket-protocol"),
-                chunks: [],
+                protocols: request.headers.get("sec-websocket-protocol"),
+                messages: [],
             };
             connections.push(connection);
-            socket.on("data", (frames: Buffer) => connection.chunks.push(frames));
-            const accept = createHash("sha1")
-                .update(`${field("sec-websocket-key")}${WEBSOCKET_GUID}`)
-                .digest("base64");
-            socket.write(
-                [
-                    "HTTP/1.1 101 Switching Protocols",
-                    "upgrade: websocket",
-                    "connection: Upgrade",
-                    `sec-websocket-accept: ${accept}`,
-                    `sec-websocket-protocol: ${TUNNEL_PROTOCOL}`,
-                    "",
-                    "",
-                ].join("\r\n"),
-            );
-        };
-        socket.on("data", read);
-    });
-    await new Promise<void>((resolve) => {
-        server.listen(0, "127.0.0.1", resolve);
-    });
-    const address = server.address();
-    if (address === null || typeof address === "string") {
-        throw new TypeError("the silent relay bound no TCP port");
-    }
-
-    return {
-        url: `http://127.0.0.1:${address.port}/tunnel`,
-        connections,
-        [Symbol.asyncDispose]: async () => {
-            for (const socket of sockets) {
-                socket.destroy();
-            }
-            await new Promise<void>((resolve) => {
-                server.close(() => resolve());
+            listening.upgrade(request, {
+                attachment: connection,
+                headers: { "sec-websocket-protocol": TUNNEL_PROTOCOL },
             });
+
+            return undefined;
         },
+        websocket: {
+            message: (socket, message) => socket.attachment.messages.push(message),
+            close: (socket, code) => {
+                socket.attachment.closed = code;
+            },
+        },
+    });
+
+    return { url: `${listener.url.origin}/tunnel`, connections };
+}
+
+/** Describe a warning the relay package recorded. */
+function warning(message: string) {
+    return {
+        scope: "@destack/relay",
+        event: "exception",
+        severity: "WARN",
+        attributes: { "exception.escaped": false, "exception.message": message },
     };
 }
 
 test("refuse callers waiting for a tunnel once the client closes", async () => {
     // dial a relay that never answers, as a machine with a token
+    await using simulation = testSimulation();
     const client = TunnelClient.open({
-        url: "http://relay.test/tunnel",
+        url: NOWHERE,
+        machineId: MACHINE,
         token: async () => "token",
         fetch: async () => new Response(null, { status: 204 }),
         renewed: () => {},
-        environment: { clock: Clock.system, network: emptyNetwork() },
+        environment: simulation.environment("machine"),
         retry: { initialInterval: 10, maximumInterval: 10 },
     });
-    const waiting = Promise.allSettled([client.opened()]);
+    const waiting = refusal(client.opened());
 
     // refuse the caller waiting before the close, and one asking after it
     await client.close();
-    expect([await waiting, await Promise.allSettled([client.opened()])]).toEqual([
-        [{ status: "rejected", reason: new Error("tunnel client is closed") }],
-        [{ status: "rejected", reason: new Error("tunnel client is closed") }],
+    expect([await waiting, await refusal(client.opened())]).toEqual([
+        ["SERVICE_UNAVAILABLE", "CLIENT_CLOSED", "tunnel client is closed"],
+        ["SERVICE_UNAVAILABLE", "CLIENT_CLOSED", "tunnel client is closed"],
     ]);
 });
 
 test("dial again after the issuer grants no token, warning of each failed dial", async () => {
     // dial with a token the issuer refuses
-    using telemetry = TestTelemetry.register();
-    const url = "http://relay.test/tunnel";
+    await using simulation = testSimulation();
+    using telemetry = new TestTelemetry(simulation.telemetry);
     const client = TunnelClient.open({
-        url,
+        url: NOWHERE,
+        machineId: MACHINE,
         token: async () => {
             throw new TypeError("the issuer is unreachable");
         },
         fetch: async () => new Response(null, { status: 204 }),
         renewed: () => {},
-        environment: { clock: Clock.system, network: emptyNetwork() },
+        environment: simulation.environment("machine"),
         retry: { initialInterval: 10, maximumInterval: 10 },
     });
 
-    // warn of every failed dial and stop cleanly
-    await until(() => telemetry.messages().length >= 4);
+    // warn of two failed dials and stop cleanly
+    await simulation.run({ until: () => telemetry.records().length === 4 });
     await client.close();
-    const relay = "@destack/relay";
-    expect(telemetry.messages().slice(0, 2)).toEqual([
-        {
-            scope: relay,
-            severity: "WARN",
-            message: `dialing ${url} failed: TypeError: the issuer is unreachable`,
-        },
-        { scope: relay, severity: "WARN", message: `tunnel to ${url} did not open` },
-    ]);
+    const failed = [
+        warning(`dialing ${NOWHERE} failed: TypeError: the issuer is unreachable`),
+        warning(`tunnel to ${NOWHERE} did not open`),
+    ];
+    expect(telemetry.records()).toEqual([...failed, ...failed]);
 });
 
 test("drop a tunnel whose relay stops answering, dialing again and closing without its close answered", async () => {
     // dial a relay that accepts the upgrade and answers nothing after
-    await using relay = await silentRelay();
-    using telemetry = TestTelemetry.register();
+    await using simulation = testSimulation();
+    using telemetry = new TestTelemetry(simulation.telemetry);
+    const relay = silentRelay(simulation);
     const client = TunnelClient.open({
         url: relay.url,
+        machineId: MACHINE,
         token: async () => "token",
         fetch: async () => new Response(null, { status: 204 }),
         renewed: () => {},
-        environment: Environment.system,
+        environment: simulation.environment("machine"),
         heartbeat: 20,
         retry: { initialInterval: 10, maximumInterval: 10 },
     });
 
-    // dial again after the unanswered liveness probe drops the socket and close while connected to a peer that never answers the close
-    await until(() => relay.connections.length >= 2);
+    // dial again after the unanswered liveness probe drops the socket, and close while connected to a peer that never answers the close
+    await simulation.run({ until: () => relay.connections.length >= 2 });
     await client.close();
-    const [first] = relay.connections;
+    await simulation.run({ until: () => relay.connections[1]?.closed !== undefined });
 
-    // offer the token and ping and probe before closing normally
-    expect({
-        protocols: first?.protocols,
-        frames: clientFrames(first?.chunks ?? []),
-        warned: telemetry.messages().at(0),
-    }).toEqual({
-        protocols: `${TUNNEL_PROTOCOL}, destack.bearer.dG9rZW4`,
-        frames: [
+    // offer the token, ping and probe before dropping the first connection, and ping on the second before the close
+    const ping = new Frame(FrameType.ping, FrameFlag.syn, 0).encode();
+    expect([relay.connections, telemetry.records()]).toEqual([
+        [
             {
-                opcode: BINARY_OPCODE,
-                payload: new Frame(FrameType.ping, FrameFlag.syn, 0).encode(),
+                protocols: `${TUNNEL_PROTOCOL}, destack.bearer.dG9rZW4`,
+                messages: [ping, PING_MESSAGE],
+                closed: NORMAL_CLOSURE,
             },
-            { opcode: TEXT_OPCODE, payload: new TextEncoder().encode(PING_MESSAGE) },
-            { opcode: CLOSE_OPCODE, payload: Uint8Array.of(0x03, 0xe8) },
+            {
+                protocols: `${TUNNEL_PROTOCOL}, destack.bearer.dG9rZW4`,
+                messages: [ping],
+                closed: NORMAL_CLOSURE,
+            },
         ],
-        warned: {
-            scope: "@destack/relay",
-            severity: "WARN",
-            message: `tunnel to ${relay.url} did not open`,
-        },
-    });
+        [warning(`tunnel to ${relay.url} did not open`)],
+    ]);
 });

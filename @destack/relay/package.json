@@ -7,6 +7,7 @@
     "description": "Relay HTTP requests for Destack names to the machines serving them.",
     "exports": {
         ".": "./src/index.ts",
+        "./error": "./src/error/index.ts",
         "./server": "./src/server/index.ts",
         "./tunnel": "./src/tunnel/index.ts",
         "./test": "./src/test/index.ts",
@@ -17,14 +18,14 @@
         "@destack/account": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/environment": "workspace:*",
-        "@destack/event": "workspace:*",
+        "@destack/error": "workspace:*",
+        "@destack/identity": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
-        "@destack/resource": "workspace:*",
         "@destack/schema": "workspace:*",
+        "@destack/setting": "workspace:*",
         "@destack/sync": "workspace:*",
-        "@destack/telemetry": "workspace:*",
-        "jose": "6.2.12"
+        "@destack/telemetry": "workspace:*"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",
@@ -32,6 +33,7 @@
     },
     "devDependencies": {
         "@destack/test": "workspace:*",
+        "@destack/universe": "workspace:*",
         "@types/bun": "1.4.2"
     }
 }

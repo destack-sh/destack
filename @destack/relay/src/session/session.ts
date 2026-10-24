@@ -1,3 +1,4 @@
+import { RelayError } from "../error/index.ts";
 import { Frame, FrameFlag, FrameType, GoAwayCode } from "./frame.ts";
 import { Head, type RequestHead } from "./head.ts";
 import { Stream } from "./stream.ts";
@@ -71,7 +72,7 @@ export class Session {
     open(head: RequestHead): Stream {
         // refuse streams on an ended session
         if (this.#isClosed) {
-            throw new TypeError("session is closed");
+            throw RelayError.of("SESSION_CLOSED", "session is closed");
         }
 
         // announce the stream with the request's head
@@ -108,7 +109,7 @@ export class Session {
     ping(): Promise<void> {
         // refuse pings on an ended session
         if (this.#isClosed) {
-            return Promise.reject(new Error("session is closed"));
+            return Promise.reject(RelayError.of("SESSION_CLOSED", "session is closed"));
         }
 
         // send a value the answer names
@@ -127,7 +128,7 @@ export class Session {
         try {
             accepted = this.#receive(Frame.decode(message));
         } catch (error) {
-            if (!(error instanceof TypeError)) {
+            if (!RelayError.is(error, "PROTOCOL_VIOLATION")) {
                 throw error;
             }
             this.close(GoAwayCode.protocol);
@@ -160,7 +161,7 @@ export class Session {
     async credited(): Promise<void> {
         // fail at once on an ended session
         if (this.#isClosed) {
-            throw new Error("session is closed");
+            throw RelayError.of("SESSION_CLOSED", "session is closed");
         }
 
         // wait for the peer's next credit
@@ -177,7 +178,7 @@ export class Session {
     /** Count bytes a stream received against the session's window. */
     take(bytes: number): void {
         if (bytes > this.#receiveWindow) {
-            throw new TypeError("session received beyond its window");
+            throw RelayError.of("PROTOCOL_VIOLATION", "session received data beyond its window");
         }
         this.#receiveWindow -= bytes;
     }
@@ -204,15 +205,15 @@ export class Session {
         // refuse further frames, fail unanswered pings, and end every stream
         this.#isClosed = true;
         for (const answer of this.#pings.values()) {
-            answer.reject(new Error("session is closed"));
+            answer.reject(RelayError.of("SESSION_CLOSED", "session is closed"));
         }
         this.#pings.clear();
         for (const waiting of this.#waiting) {
-            waiting.reject(new Error("session is closed"));
+            waiting.reject(RelayError.of("SESSION_CLOSED", "session is closed"));
         }
         this.#waiting.clear();
         for (const stream of this.#streams.values()) {
-            stream.destroy(new Error("session closed"));
+            stream.destroy(RelayError.of("SESSION_CLOSED", "session is closed"));
         }
         this.#streams.clear();
     }
@@ -258,7 +259,10 @@ export class Session {
         // refuse identifiers the peer may not open
         const isOwn = frame.stream % 2 === this.#next % 2;
         if (frame.stream === 0 || isOwn || this.#streams.has(frame.stream)) {
-            throw new TypeError(`peer opened stream ${frame.stream}, which it may not open`);
+            throw RelayError.of(
+                "PROTOCOL_VIOLATION",
+                `peer opened stream ${frame.stream}, which it is not allowed to open`,
+            );
         }
         // reset a stream beyond the open streams a session allows
         else if (this.#streams.size >= MAX_STREAMS) {
@@ -270,7 +274,10 @@ export class Session {
         // add the stream under its request head
         const head = Head.decodeRequest(frame.payload);
         if (head === undefined) {
-            throw new TypeError(`peer opened stream ${frame.stream} without a request head`);
+            throw RelayError.of(
+                "PROTOCOL_VIOLATION",
+                `peer opened stream ${frame.stream} without a request head`,
+            );
         }
         const stream = new Stream(this, frame.stream, head);
         this.#streams.set(stream.id, stream);

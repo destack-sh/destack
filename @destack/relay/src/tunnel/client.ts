@@ -1,4 +1,4 @@
-import { telemetry } from "@destack/telemetry";
+import { TelemetryScope } from "@destack/telemetry";
 import { RetryPolicy } from "@destack/environment";
 import {
     PING_MESSAGE,
@@ -9,9 +9,8 @@ import {
     TunnelProtocol,
 } from "../session/index.ts";
 import type { ClientSocket, Environment } from "@destack/environment";
-
-/** The instruments capturing the failed dials, renewals and forwarded requests. */
-const instruments = telemetry.scope(import.meta.destack.package);
+import type { Identifier } from "@destack/schema";
+import { RelayError } from "../error/index.ts";
 
 /** How often a machine probes its tunnel: 15 s, under Cloudflare's 100 s idle WebSocket timeout. */
 const HEARTBEAT_MILLISECONDS = 15_000;
@@ -32,6 +31,8 @@ const RETRY = RetryPolicy.of({ initialInterval: 500, maximumInterval: 30_000, ji
 export interface TunnelClientOptions {
     /** The relay's tunnel URL. */
     readonly url: string;
+    /** The machine dialing, whose identifier seeds the backoff's jitter. */
+    readonly machineId: Identifier<"machine">;
     /** Read the machine's current access token for the relay. */
     readonly token: () => Promise<string>;
     /** Answer a request the relay forwards. */
@@ -50,6 +51,8 @@ export interface TunnelClientOptions {
 export class TunnelClient {
     /** How the tunnel runs. */
     readonly #options: TunnelClientOptions;
+    /** The instruments capturing the failed dials, renewals and forwarded requests. */
+    readonly #instruments: TelemetryScope;
     /** How to wait between attempts. */
     readonly #retry: RetryPolicy;
     /** How often to probe the tunnel's liveness, in milliseconds. */
@@ -65,7 +68,12 @@ export class TunnelClient {
 
     /** Create a tunnel as the options describe. */
     private constructor(options: TunnelClientOptions) {
+        // store the options, the client's instruments and its retry policy
         this.#options = options;
+        this.#instruments = TelemetryScope.of(
+            import.meta.destack.package,
+            options.environment.telemetry,
+        );
         this.#retry = RetryPolicy.of({ ...RETRY, ...options.retry });
         this.#heartbeat = options.heartbeat ?? HEARTBEAT_MILLISECONDS;
     }
@@ -84,7 +92,7 @@ export class TunnelClient {
         if (this.#session !== undefined) {
             return Promise.resolve();
         } else if (this.#stopping.signal.aborted) {
-            return Promise.reject(new Error("tunnel client is closed"));
+            return Promise.reject(RelayError.of("CLIENT_CLOSED", "tunnel client is closed"));
         }
 
         // wait for the next open
@@ -97,7 +105,7 @@ export class TunnelClient {
     async close(): Promise<void> {
         // stop dialing, and refuse the callers still waiting
         this.#stopping.abort();
-        this.#waiting?.reject(new Error("tunnel client is closed"));
+        this.#waiting?.reject(RelayError.of("CLIENT_CLOSED", "tunnel client is closed"));
         this.#waiting = undefined;
 
         // wait for the loop to end
@@ -114,17 +122,19 @@ export class TunnelClient {
                 failures = 1;
             } else if (!this.#stopping.signal.aborted) {
                 failures += 1;
-                instruments.captureMessage(`tunnel to ${this.#options.url} did not open`, {
+                this.#instruments.captureMessage(`tunnel to ${this.#options.url} did not open`, {
                     level: "warning",
                 });
             }
 
-            // wait out the jittered backoff
+            // wait out the backoff, jittered by the machine and the failure count
+            const drawn = RetryPolicy.draw(`${this.#options.machineId} ${failures}`);
             const isWaited = await RetryPolicy.pause(
                 this.#retry,
                 failures,
                 this.#options.environment.clock,
                 this.#stopping.signal,
+                () => drawn,
             );
             if (!isWaited) {
                 return;
@@ -140,15 +150,18 @@ export class TunnelClient {
             socket = await this.#connect();
         } catch (error) {
             // warn of a dial the backoff retries
-            instruments.captureMessage(`dialing ${this.#options.url} failed: ${String(error)}`, {
-                level: "warning",
-            });
+            this.#instruments.captureMessage(
+                `dialing ${this.#options.url} failed: ${String(error)}`,
+                {
+                    level: "warning",
+                },
+            );
 
             return false;
         }
 
-        // follow the socket and the client's close until the connection ends
-        const connection: Connection = {
+        // follow the socket and the client's close until the dial ends
+        const dial: Dial = {
             socket,
             following: new AbortController(),
             ended: Promise.withResolvers<boolean>(),
@@ -156,9 +169,9 @@ export class TunnelClient {
             renewal: undefined,
             isAlive: true,
         };
-        this.#follow(connection);
+        this.#follow(dial);
 
-        return connection.ended.promise;
+        return dial.ended.promise;
     }
 
     /** Open a socket to the relay that offers the machine's token as a subprotocol. */
@@ -170,126 +183,126 @@ export class TunnelClient {
         // offer the machine's token
         const token = await this.#options.token();
 
-        return this.#options.environment.network.connect(url.href, TunnelProtocol.offer(token));
+        return this.#options.environment.network.websocket(url.href, TunnelProtocol.offer(token));
     }
 
-    /** Listen to the client's close and the socket's events for one connection. */
-    #follow(connection: Connection): void {
+    /** Listen to the client's close and the socket's events for one dial. */
+    #follow(dial: Dial): void {
         // drop the socket when the client closes
-        const drop = () => this.#drop(connection);
+        const drop = () => this.#drop(dial);
         this.#stopping.signal.addEventListener("abort", drop, {
             once: true,
-            signal: connection.following.signal,
+            signal: dial.following.signal,
         });
         if (this.#stopping.signal.aborted) {
             drop();
         }
 
         // run the session over the socket's events
-        const socket = connection.socket;
-        socket.addEventListener("open", () => this.#start(connection));
-        socket.addEventListener("message", (event) => this.#receive(connection, event));
-        socket.addEventListener("close", () => this.#end(connection));
+        const socket = dial.socket;
+        socket.addEventListener("open", () => this.#start(dial));
+        socket.addEventListener("message", (event) => this.#receive(dial, event));
+        socket.addEventListener("close", () => this.#end(dial));
     }
 
     /** Start a session over an opened socket. */
-    #start(connection: Connection): void {
+    #start(dial: Dial): void {
         // run the session over the socket
-        const socket = connection.socket;
+        const socket = dial.socket;
         const session = new Session(
             { send: (message) => socket.send(message), close: () => socket.close() },
             "client",
-            { accept: (stream) => void this.#answer(session, connection, stream) },
+            { accept: (stream) => void this.#answer(session, dial, stream) },
         );
-        connection.session = session;
+        dial.session = session;
 
         // probe liveness each heartbeat
-        void this.#beat(connection);
+        void this.#beat(dial);
 
         // open the tunnel once the relay answers its first ping
         session.ping().then(
-            () => this.#release(connection, session),
+            () => this.#release(dial, session),
             () => {},
         );
     }
 
     /** Open the tunnel over a session the relay answered, and renew its token near each lapse. */
-    #release(connection: Connection, session: Session): void {
+    #release(dial: Dial, session: Session): void {
         // release the callers
         this.#session = session;
         this.#waiting?.resolve();
         this.#waiting = undefined;
 
         // learn the machine's name and its token's lifetime
-        void this.#schedule(connection, session, 0);
+        void this.#schedule(dial, session, 0);
     }
 
     /** Pass a binary frame to the session, and take a liveness answer. */
-    #receive(connection: Connection, event: MessageEvent): void {
+    #receive(dial: Dial, event: MessageEvent): void {
         // read a binary frame
         if (event.data instanceof ArrayBuffer) {
-            connection.session?.receive(new Uint8Array(event.data));
+            dial.session?.receive(new Uint8Array(event.data));
         }
         // take the answer to a liveness probe
         else if (event.data === PONG_MESSAGE) {
-            connection.isAlive = true;
+            dial.isAlive = true;
         }
         // refuse other text
         else {
-            connection.socket.close(UNSUPPORTED_DATA, "the relay sends binary frames only");
+            dial.socket.close(UNSUPPORTED_DATA, "the relay sends binary frames only");
         }
     }
 
-    /** Close the socket and end the connection. */
-    #drop(connection: Connection): void {
-        connection.socket.close();
-        this.#end(connection);
+    /** Close the socket and end the dial. */
+    #drop(dial: Dial): void {
+        dial.socket.close();
+        this.#end(dial);
     }
 
-    /** End the connection once and resolve whether its tunnel opened. */
-    #end(connection: Connection): void {
-        if (connection.following.signal.aborted) {
+    /** End the dial once and resolve whether its tunnel opened. */
+    #end(dial: Dial): void {
+        if (dial.following.signal.aborted) {
             return;
         }
 
         // forget the session, noting whether the tunnel opened
-        const session = connection.session;
+        const session = dial.session;
         const isOpened = this.#session === session && session !== undefined;
         this.#session = undefined;
 
         // stop following the client's close, probing and renewing
-        connection.following.abort();
-        connection.renewal?.abort();
+        dial.following.abort();
+        dial.renewal?.abort();
 
         // end the session's streams
         session?.terminate();
-        connection.ended.resolve(isOpened);
+        dial.ended.resolve(isOpened);
     }
 
-    /** Probe the tunnel's liveness each heartbeat until the connection ends. */
-    async #beat(connection: Connection): Promise<void> {
-        const { signal } = connection.following;
+    /** Probe the tunnel's liveness each heartbeat until the dial ends. */
+    async #beat(dial: Dial): Promise<void> {
+        const { signal } = dial.following;
         while (await this.#sleep(this.#heartbeat, signal)) {
             // drop a socket whose last probe the relay did not answer
-            if (!connection.isAlive) {
-                this.#drop(connection);
+            if (!dial.isAlive) {
+                this.#drop(dial);
 
                 return;
             }
 
             // probe again for the relay to answer without waking
-            connection.isAlive = false;
-            connection.socket.send(PING_MESSAGE);
+            dial.isAlive = false;
+            dial.socket.send(PING_MESSAGE);
         }
     }
 
     /** Renew the tunnel's token after a delay, replacing a scheduled renewal. */
-    async #schedule(connection: Connection, session: Session, delay: number): Promise<void> {
-        // replace the scheduled renewal, ending with the connection
-        connection.renewal?.abort();
+    async #schedule(dial: Dial, session: Session, delay: number): Promise<void> {
+        // replace the scheduled renewal, ending with the dial
+        dial.renewal?.abort();
         const renewal = new AbortController();
-        connection.renewal = renewal;
-        const signal = AbortSignal.any([renewal.signal, connection.following.signal]);
+        dial.renewal = renewal;
+        const signal = AbortSignal.any([renewal.signal, dial.following.signal]);
         if (!(await this.#sleep(delay, signal))) {
             return;
         }
@@ -298,11 +311,11 @@ export class TunnelClient {
         try {
             const renewed = await this.#renew(session);
             const lifetime = renewed.lapsesAt - this.#options.environment.clock.now();
-            void this.#schedule(connection, session, lifetime * RENEWAL_SHARE);
+            void this.#schedule(dial, session, lifetime * RENEWAL_SHARE);
         } catch (error) {
             if (!session.isClosed) {
-                instruments.captureException(error);
-                void this.#schedule(connection, session, this.#heartbeat);
+                this.#instruments.captureException(error);
+                void this.#schedule(dial, session, this.#heartbeat);
             }
         }
     }
@@ -326,7 +339,8 @@ export class TunnelClient {
             }),
         );
         if (!response.ok) {
-            throw new Error(
+            throw RelayError.of(
+                "RENEWAL_REFUSED",
                 `relay refused the renewal: ${response.status} ${await response.text()}`,
             );
         }
@@ -339,14 +353,14 @@ export class TunnelClient {
     }
 
     /** Answer a request the relay forwards. */
-    async #answer(session: Session, connection: Connection, stream: Stream): Promise<void> {
+    async #answer(session: Session, dial: Dial, stream: Stream): Promise<void> {
         // read the relay's request
         const request = stream.request();
         let response: Response;
         try {
             // renew at once as the relay asks at its own tunnel URL, learning a new name
             if (request.method === "PUT" && request.url === this.#options.url) {
-                void this.#schedule(connection, session, 0);
+                void this.#schedule(dial, session, 0);
                 response = new Response(null, { status: 204 });
             }
             // answer a forwarded request
@@ -354,7 +368,7 @@ export class TunnelClient {
                 response = await this.#options.fetch(request);
             }
         } catch (error) {
-            instruments.captureException(error);
+            this.#instruments.captureException(error);
             response = new Response(null, { status: BAD_GATEWAY });
         }
 
@@ -367,12 +381,12 @@ export class TunnelClient {
 }
 
 /** One dial's socket and the session over it. */
-interface Connection {
+interface Dial {
     /** The socket to the relay. */
     readonly socket: ClientSocket;
-    /** Stops following the client's close once the connection ends. */
+    /** Stops following the client's close once the dial ends. */
     readonly following: AbortController;
-    /** Resolves whether the tunnel opened once the connection ends. */
+    /** Resolves whether the tunnel opened once the dial ends. */
     readonly ended: PromiseWithResolvers<boolean>;
     /** The session over the socket, absent until the socket opens. */
     session: Session | undefined;

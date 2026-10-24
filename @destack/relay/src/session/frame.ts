@@ -1,3 +1,5 @@
+import { RelayError } from "../error/index.ts";
+
 /** The length of a frame header: type, flags, stream and value. */
 const HEADER_BYTES = 10;
 
@@ -75,14 +77,17 @@ export class Frame {
     static decode(message: Uint8Array): Frame {
         // require a whole header and a bounded payload
         if (message.length < HEADER_BYTES) {
-            throw new TypeError("frame is shorter than its header");
+            throw RelayError.of("PROTOCOL_VIOLATION", "frame is shorter than its header");
         } else if (message.length > MAX_FRAME_BYTES) {
-            throw new TypeError(`frame is longer than ${MAX_FRAME_BYTES} bytes`);
+            throw RelayError.of(
+                "PROTOCOL_VIOLATION",
+                `frame is longer than ${MAX_FRAME_BYTES} bytes`,
+            );
         }
         const view = new DataView(message.buffer, message.byteOffset, message.byteLength);
         const type = view.getUint8(0);
         if (!isFrameType(type)) {
-            throw new TypeError(`frame type ${type} is unknown`);
+            throw RelayError.of("PROTOCOL_VIOLATION", `frame type ${type} is unknown`);
         }
 
         return new Frame(

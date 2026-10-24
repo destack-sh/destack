@@ -1,418 +1,467 @@
+import { AccessContext, Caller } from "@destack/access";
+import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/access/token";
+import { machine, Residency } from "@destack/account/object";
+import accountPackage from "@destack/account/package";
+import { type DatabaseConnection, Snapshot } from "@destack/db";
+import { connectBunSqlite } from "@destack/db/bun";
+import { type Environment, type Listener } from "@destack/environment";
+import { Egress, PackageMount } from "@destack/object";
+import { createClient } from "@destack/object/client";
+import {
+    type EphemeralHost,
+    FORWARDED_HEAD_HEADER,
+    ForwardedRequest,
+    HibernationHost,
+    PARTITION_HEADER,
+    ROUTE_PATH,
+    SOCKET_HEADER,
+    SOCKET_INSTANCE_HEADER,
+    SOCKET_PATH,
+    WorkloadRunner,
+} from "@destack/object/workload";
+import { Package } from "@destack/package";
+import { DeclarationReference } from "@destack/package/declare";
+import { MemoryBuild } from "@destack/package/test";
+import { Identifier, present, schema, Uuid } from "@destack/schema";
+import { Replica, Scope, type Subject, type Uplink } from "@destack/sync";
+import { TelemetryScope } from "@destack/telemetry";
+import type { TestMachine, TestUniverse } from "@destack/universe/test";
 import relayPackage from "../package.ts";
-import { telemetry } from "@destack/telemetry";
-import { TestTelemetry } from "@destack/telemetry/test";
-import type { MachineIdentity } from "@destack/account/client";
-import { endpoint, type Endpoint, space } from "@destack/account/object";
-import { type AccountFixture, ids, ISSUER, TestDirectory } from "@destack/account/test";
-import { journal, type JournalEntry, Claim, Claimant } from "@destack/object";
-import { asc, eq, Snapshot } from "@destack/db";
-import { TestDatabase } from "@destack/db/test";
-import { Identifier, schema } from "@destack/schema";
-import { RequestId, replicaPosition, type Subject } from "@destack/sync";
-import { testCallKey } from "@destack/object/test";
-import { testEvents } from "@destack/object/test";
-import { RELAY_TOKEN_LIFETIME_MILLISECONDS } from "../server/index.ts";
-import { homeDatabase, tunnelDatabase } from "./database.ts";
-import { TunnelClient, type TunnelClientOptions } from "../tunnel/index.ts";
-import type { Renewal } from "../session/index.ts";
-import { RelayHost } from "./host.ts";
-import type { SimulatedNetwork, Simulation, VirtualClock } from "@destack/environment/simulation";
+import { issuer, origin, relayWorkload, TUNNELS_PATH } from "../server/index.ts";
+import { residency } from "../declare/setting.ts";
 
-/** The instruments capturing the failed publications of the scenario machine. */
-const instruments = telemetry.scope(import.meta.destack.package);
+/** The status of an upgrade the front door failed to complete (RFC 9110 15.5.22). */
+const UPGRADE_REQUIRED = 426;
 
-/** The longest a scenario polls a condition, in milliseconds. */
-const UNTIL_MILLISECONDS = 2000;
+/** The port HTTPS names reach the relay at. */
+const HTTPS_PORT = 443;
 
-/** How often a scenario polls a condition, in milliseconds. */
-const POLL_MILLISECONDS = 10;
+/** The status of a call to an address the front door does not serve (RFC 9110 15.5.5). */
+const NOT_FOUND = 404;
 
-/** Timings short enough for scenarios to watch renewals and reconnects. */
-const QUICK = {
-    heartbeat: 100,
-    retry: { initialInterval: 20, maximumInterval: 40 },
-} as const;
+/** The name the relay installation has in its residency's home. */
+const NAME = "relay";
 
-/** The code of a refusal's JSON body. */
-const Refusal = schema.looseObject({ code: schema.string() });
-
-/** An enrolled machine serving a space, and the relays routing to it. */
-export class RelayFixture implements AsyncDisposable {
-    /** The account package. */
-    readonly accounts: AccountFixture;
-    /** The relay installation in the residency's home space. */
-    readonly installation: Subject;
-    /** The machine serving the space. */
-    readonly identity: MachineIdentity;
-    /** The machine's identifier. */
-    readonly machineId: Identifier<"machine">;
-    /** The account the machine belongs to. */
-    readonly accountId: Identifier<"account">;
-    /** The name of the machine's space. */
-    readonly space: string;
-    /** The machine's space. */
-    readonly spaceId: Identifier<"space">;
-    /** The requests the machine answered, as method and URL. */
-    readonly received: string[] = [];
-    /** The names the relays told the machine they route to it, in order. */
-    readonly names: string[] = [];
-    /** The telemetry recording the exceptions the relays, tunnels and machine captured. */
-    readonly telemetry = TestTelemetry.register();
-    /** The simulation the account package, the relays and the machine run in. */
-    readonly simulation: Simulation;
-    /** The relays started with their stores and servers, closed on disposal. */
-    readonly #relays = new Set<RelayHost>();
-    /** The relays' databases, closed on disposal. */
-    readonly #databases: TestDatabase[] = [];
-    /** The tunnels and cloud machine servers started, closed on disposal. */
-    readonly #machines: { readonly close: () => Promise<void> }[] = [];
-
-    /** Create the fixture over a prepared account package. */
-    private constructor(
-        simulation: Simulation,
-        accounts: AccountFixture,
-        installation: Subject,
-        identity: MachineIdentity,
-        accountId: Identifier<"account">,
-        name: string,
-        spaceId: Identifier<"space">,
-    ) {
-        // set the simulation, the account package and the relay installation
-        this.simulation = simulation;
-        this.accounts = accounts;
-        this.installation = installation;
-
-        // set the machine and its space
-        this.identity = identity;
-        this.machineId = schema.identifier("machine").parse(identity.machineId);
-        this.accountId = accountId;
-        this.space = name;
-        this.spaceId = spaceId;
-    }
-
-    /** Enroll a new personal machine of an account in the account package. */
-    static async open(
-        simulation: Simulation,
-        accounts: AccountFixture,
-        installation: Subject,
-        accountId: Identifier<"account"> = ids.account,
-    ): Promise<RelayFixture> {
-        // enroll the machine and place its space in it
-        const identity = await accounts.enroll(accountId);
-        const name = `space-${Identifier.create("space").slice(-12)}`;
-        const spaceId = await RelayFixture.place(accounts, name, identity.machineId, accountId);
-
-        return new RelayFixture(
-            simulation,
-            accounts,
-            installation,
-            identity,
-            accountId,
-            name,
-            spaceId,
-        );
-    }
-
-    /** The clock the account package, the relays and the machine run on. */
-    get clock(): VirtualClock {
-        return this.simulation.clock;
-    }
-
-    /** The network between the relays, the machine, the cloud machines and their callers. */
-    get network(): SimulatedNetwork {
-        return this.simulation.network;
-    }
-
-    /** Run the simulation until a condition holds, within a relay token's lifetime of its time. */
-    async until(condition: () => Promise<boolean> | boolean): Promise<void> {
-        await this.simulation.run({
-            until: condition,
-            for: { milliseconds: RELAY_TOKEN_LIFETIME_MILLISECONDS },
-        });
-    }
-
-    /** The name of the notes app of the machine's space. */
-    get notes(): string {
-        return `notes--${this.space}--acme.destack.space`;
-    }
-
-    /** Read the name of the machine itself. */
-    async computer(): Promise<string> {
-        const { name } = await this.accounts
-            .machine(this.identity)
-            .machine.get({ scope: ids.account, id: this.machineId });
-
-        return `${name}--acme.destack.computer`;
-    }
-
-    /** Place the machine's space under another name, releasing its current one. */
-    async rename(name: string): Promise<void> {
-        await RelayFixture.#claim(this.accounts, { id: this.spaceId, scope: ids.account, name });
-    }
-
-    /** Create a space of an account, the acme account by default, and place it on a machine. */
-    static async place(
-        accounts: AccountFixture,
-        name: string,
-        machineId: Identifier<"machine">,
-        accountId: Identifier<"account"> = ids.account,
-    ): Promise<Identifier<"space">> {
-        // claim the name and place the space
-        const id = Identifier.create("space");
-        await RelayFixture.#claim(accounts, { id, scope: accountId, name });
-        await TestDirectory.place(accounts.database, {
-            id,
-            scope: accountId,
-            machine: machineId,
-            epoch: 1,
-        });
-
-        return id;
-    }
-
-    /** Claim a space's name in the account package, releasing its earlier one. */
-    static async #claim(
-        accounts: AccountFixture,
-        row: { readonly id: Identifier<"space">; readonly scope: string; readonly name: string },
-    ): Promise<void> {
-        const snapshot = Snapshot.live(accounts.database);
-        const object = { objectId: row.id, owner: row.scope };
-        await Claim.replace(accounts.database, await Claimant.of(space, object, row, snapshot));
-    }
-
-    /** Start a relay installation, the fixture's unless given, over a home's database. */
-    async relay(
-        options: {
-            readonly installation?: Subject;
-            readonly port?: number;
-        } = {},
-    ): Promise<RelayHost> {
-        // store the relay's rows and replicas in a home's main database
-        const { installation = this.installation, port = 0 } = options;
-        const storage = await TestDatabase.create("sqlite", homeDatabase, { isMigrated: true });
-        this.#databases.push(storage);
-
-        // insert the home space's row, as the space's own store stores it where the space is placed
-        const universe = Snapshot.live(this.accounts.database);
-        await RelayHost.home(storage.database, universe, installation);
-
-        // follow and call the account package as its residency home's relay, served as a machine hosts it
-        const host = RelayHost.start(installation, {
-            environment: this.simulation.environment(`relay-${this.#relays.size}`),
-            port,
-            database: storage.database,
-            events: await testEvents(storage.database),
-            accounts: this.accounts.installation(installation),
-            issuer: ISSUER,
-            callKey: testCallKey,
-            // open each tunnel's partition over its own database, as a machine opens its object
-            partitions: async () => {
-                const partition = await TestDatabase.create("sqlite", tunnelDatabase, {
-                    isMigrated: true,
-                });
-                this.#databases.push(partition);
-
-                return {
-                    database: partition.database,
-                    events: await testEvents(partition.database),
-                };
-            },
-        });
-        this.#relays.add(host);
-        await this.settle(host);
-
-        return host;
-    }
-
-    /** Wait until a relay's replicas reflect the account package as of now. */
-    async settle(relay: RelayHost): Promise<void> {
-        await this.accounts.settle(relay.implementation.objects);
-    }
-
-    /** Run the clock ahead, letting each relay's follows confirm their replicas at heartbeats. */
-    async advance(milliseconds: number): Promise<void> {
-        // move the clock past the heartbeats on the way
-        this.clock.advance(milliseconds);
-        const now = this.clock.now();
-
-        // run until each relay's replicas, its partitions' among them, are confirmed at the new time
-        const isConfirmed = async (storage: TestDatabase) => {
-            const rows = await storage.database
-                .select({ confirmedAt: replicaPosition.confirmedAt })
-                .from(replicaPosition);
-
-            return rows.every((row) => row.confirmedAt >= now);
-        };
-        await this.until(async () =>
-            (await Promise.all(this.#databases.map(isConfirmed))).every(Boolean),
-        );
-    }
-
-    /** List the identifiers of the connections a relay records. */
-    async connections(relay: RelayHost): Promise<string[]> {
-        return relay.connections();
-    }
-
-    /** Read the calls the relays journaled with their inputs, each relay's in start order. */
-    async journaled(): Promise<JournalEntry[]> {
-        const calls: JournalEntry[] = [];
-        for (const storage of this.#databases) {
-            const rows = await storage.database
-                .select({ call: journal.call })
-                .from(journal)
-                .orderBy(asc(journal.startedAt), asc(journal.id));
-            calls.push(...rows.map((row) => row.call));
-        }
-
-        return calls;
-    }
-
-    /** Close a relay before the scenario ends. */
-    async stop(relay: RelayHost): Promise<void> {
-        // forget the relay and close it
-        this.#relays.delete(relay);
-        await relay.close();
-    }
-
-    /** Read a token of the machine for its relays. */
-    async token(): Promise<string> {
-        return this.identity.token(relayPackage.id, { url: ISSUER }, (request) =>
-            this.accounts.fetch(request),
-        );
-    }
-
-    /** Read the machine's endpoint as the account package stores it, null before it publishes. */
-    async endpoint(): Promise<Endpoint | null> {
-        const [row] = await this.accounts.database
-            .select()
-            .from(endpoint.table)
-            .where(eq(endpoint.table.id, this.machineId));
-
-        return row ?? null;
-    }
-
-    /** Open a tunnel from the machine to a relay, publishing its endpoint at each renewal. */
-    async tunnel(
-        relay: RelayHost,
-        options: Partial<TunnelClientOptions> = {},
-    ): Promise<TunnelClient> {
-        // record the name and publish the endpoint as the machine, unless the scenario renews itself
-        const { renewed = (renewal) => this.#publish(relay, renewal), ...rest } = options;
-        const first = Promise.withResolvers<void>();
-        const renew = (renewal: Renewal) => {
-            Promise.resolve(renewed(renewal)).then(
-                () => first.resolve(),
-                (error: unknown) => instruments.captureException(error),
-            );
-        };
-
-        // dial with the machine's relay tokens, recording and greeting each request
-        const client = TunnelClient.open({
-            url: relay.url,
-            token: () => this.token(),
-            fetch: async (request) => {
-                // record the request, and greet it with its method, path and body
-                const url = new URL(request.url);
-                this.received.push(`${request.method} ${url.host}${url.pathname}`);
-                const body = request.body === null ? "" : ` ${await request.text()}`;
-
-                return new Response(`hello ${request.method} ${url.pathname}${body}`);
-            },
-            renewed: renew,
-            heartbeat: QUICK.heartbeat,
-            retry: QUICK.retry,
-            environment: this.simulation.environment("machine"),
-            ...rest,
-        });
-        this.#machines.push(client);
-
-        // return once the tunnel opened and the machine handled its first renewal
-        await client.opened();
-        await first.promise;
-
-        return client;
-    }
-
-    /** Record a renewal's name and publish the machine's endpoint at it. */
-    async #publish(relay: RelayHost, renewal: Renewal): Promise<void> {
-        this.names.push(renewal.name);
-        await this.accounts.machine(this.identity).machine.publish({
-            scope: this.accountId,
-            id: this.machineId,
-            requestId: RequestId.create(Date.now()),
-            url: `https://${renewal.name}`,
-            relay: { url: new URL(relay.url).origin, lapsesAt: renewal.lapsesAt },
-        });
-    }
-
-    /** Serve some spaces' apps as a cloud machine of the platform, eu unless given. */
-    async cloud(name: string, machineId: Identifier<"machine"> = ids.machine): Promise<void> {
-        const listener = this.network.of(`cloud-${name}`).serve({
-            hostname: "127.0.0.1",
-            port: 0,
-            fetch: (request) => new Response(`${name} ${request.headers.get("forwarded")}`),
-        });
-        this.#machines.push({ close: () => listener.stop(true) });
-        await TestDirectory.publish(
-            this.accounts.database,
-            machineId,
-            this.accounts.platform,
-            listener.url.href,
-        );
-    }
-
-    /** Request a path of a name through a relay. */
-    async request(
-        relay: RelayHost,
-        name: string,
-        path: string,
-        request: RequestInit = {},
-    ): Promise<string> {
-        // ask the relay's listener for the name
-        const headers = new Headers(request.headers);
-        headers.set("host", name);
-        const response = await this.network
-            .of("caller")
-            .fetch(new Request(`http://127.0.0.1:${relay.port}${path}`, { ...request, headers }));
-
-        // answer the body, or the refusal's status and code
-        if (response.ok) {
-            return response.text();
-        }
-        const { code } = Refusal.parse(await response.json());
-
-        return `${response.status} ${code}`;
-    }
-
-    /** Refuse exceptions the scenario left untaken, then close every tunnel, relay and database. */
-    async [Symbol.asyncDispose](): Promise<void> {
-        try {
-            // refuse the exceptions before the closes add their own
-            this.telemetry[Symbol.dispose]();
-        } finally {
-            // close the machines' tunnels, the relays and their databases
-            for (const started of this.#machines) {
-                await started.close();
-            }
-            for (const relay of this.#relays) {
-                await relay.close();
-            }
-            for (const storage of this.#databases) {
-                await storage.close();
-            }
-        }
-    }
+/** One started instance of the relay's workload: the root, or a machine's partition. */
+interface Instance {
+    /** The instance's runner. */
+    readonly runner: WorkloadRunner;
+    /** The secret the front door and the runner prove each other's requests with. */
+    readonly secret: string;
 }
 
-/** Wait until a condition is true, polling it every few milliseconds for at most two seconds. */
-export async function until(condition: () => Promise<boolean> | boolean): Promise<void> {
-    const deadline = Date.now() + UNTIL_MILLISECONDS;
-    while (!(await condition())) {
-        if (Date.now() > deadline) {
-            throw new Error(`condition was not true within ${UNTIL_MILLISECONDS} ms`);
-        }
-        await new Promise((resolve) => {
-            setTimeout(resolve, POLL_MILLISECONDS);
+/** What a test relay is served with: its host, its node's environment and its relays' number. */
+export interface TestRelayOptions {
+    /** The universe whose names the relay routes. */
+    readonly universe: TestUniverse;
+    /** The residency's cloud machine hosting the relay in the residency's home. */
+    readonly host: TestMachine;
+    /** The clock and server of the relay's node. */
+    readonly environment: Environment<"server">;
+    /** The host name the relay answers at, where machines open their tunnels. */
+    readonly hostname: string;
+    /** The relay installation it serves as, a new one in the residency's home by default. */
+    readonly installation?: Subject;
+    /** The names DNS sends to the relay over HTTPS, such as `*.destack.computer`, or none. */
+    readonly names?: readonly string[];
+}
+
+/** A relay installation's workload run in process behind its machine's front door. */
+export class TestRelay implements AsyncDisposable {
+    /** The relay installation in the residency's home space. */
+    readonly installation: Subject;
+    /** The origin the relay answers at. */
+    readonly origin: string;
+    /** The universe whose rows the relay follows. */
+    readonly #universe: TestUniverse;
+    /** The memory databases of the instances, the root's under no partition. */
+    readonly #memories: ReadonlyMap<string | undefined, Promise<DatabaseConnection>>;
+    /** The instances started so far, the root's under no partition. */
+    readonly #instances: Map<string | undefined, Promise<Instance>>;
+    /** Start the root's or a partition's instance once. */
+    readonly #start: (partition: string | undefined) => Promise<Instance>;
+    /** The front door's listeners: the relay's origin and the host's egress. */
+    readonly #listeners: readonly Pick<Listener<unknown>, "stop">[];
+    /** Call the root or a partition as the installation itself, below its address at the egress. */
+    readonly #call: (request: Request) => Promise<Response>;
+    /** The URL of the installation's own address at the host's egress. */
+    readonly #address: string;
+    /** The stop once asked for, which every later disposal waits for. */
+    #stopping: Promise<void> | undefined;
+
+    /** Keep a started relay's instances and listeners. */
+    private constructor(
+        universe: TestUniverse,
+        installation: Subject,
+        relayOrigin: string,
+        running: {
+            readonly instances: Map<string | undefined, Promise<Instance>>;
+            readonly memories: ReadonlyMap<string | undefined, Promise<DatabaseConnection>>;
+            readonly start: (partition: string | undefined) => Promise<Instance>;
+            readonly call: (request: Request) => Promise<Response>;
+            readonly itself: string;
+        },
+        listeners: readonly Pick<Listener<unknown>, "stop">[],
+    ) {
+        // keep the universe, the installation and its origin
+        this.#universe = universe;
+        this.#memories = running.memories;
+        this.installation = installation;
+        this.origin = relayOrigin;
+        this.#instances = running.instances;
+        this.#start = running.start;
+        this.#call = running.call;
+        this.#address = running.itself;
+        this.#listeners = listeners;
+    }
+
+    /** Run a relay installation in its host's residency home, its universe rows from the host. */
+    static async open(options: TestRelayOptions): Promise<TestRelay> {
+        // take the installation in the home of the host's residency
+        const { universe, host, environment, hostname } = options;
+        const directory = Snapshot.live(universe.storage.database);
+        const hosted = present(
+            await directory.read(machine.table).findFirst({ where: { id: host.id } }),
+            `the machine ${host.id}`,
+        );
+        const residencyId = present(hosted.residencyId, "a residency");
+        const home = await Residency.home(directory, residencyId);
+        const installation = options.installation ?? (await universe.relay(residencyId));
+        const relayOrigin = `http://${hostname}`;
+        const egress = `http://host.${hostname}${Egress.path}`;
+
+        // stand in for the home space's replicas: the universe's rows as its machine follows them
+        const accounts = createClient(
+            accountPackage,
+            {
+                url: host.universe.accounts,
+                fetch: host.fetch(accountPackage.id),
+            },
+            environment,
+        ).store;
+        const replicas: Uplink = {
+            async *stream(subscription, signal) {
+                const followed = { ...subscription, target: Scope.universe.id };
+                yield* await accounts.stream(followed, { signal });
+            },
+            confirm: async (subscription, watermark) => {
+                const followed = { ...subscription, target: Scope.universe.id };
+                await accounts.confirm({ subscription: followed, watermark });
+            },
+            receive: async (mutation, signer) => {
+                // run the relay's changes at the universe as their signer, as the home's machine sends them
+                const caller = Caller.of(signer ?? installation);
+
+                return universe.universe.store.mutate(
+                    AccessContext.of(caller, environment.clock.now()),
+                    mutation,
+                );
+            },
+            call: async () => {
+                throw new TypeError("the relay asks the universe no queries");
+            },
+        };
+
+        // keep each instance's memory in its own database, the root's read for its replicas' progress
+        const { clock, server, random } = environment;
+        const memories = new Map<string | undefined, Promise<DatabaseConnection>>();
+        const memory = (partition: string | undefined): EphemeralHost => ({
+            open: (tables) => {
+                const opened = connectBunSqlite(":memory:", tables, { environment });
+                memories.set(partition, opened);
+
+                return opened;
+            },
+            channel: () => {
+                throw new TypeError("a test relay runs one instance per partition");
+            },
         });
+
+        // hibernate the tunnels' sockets, delivering their events to the instances that accepted them
+        const instances = new Map<string | undefined, Promise<Instance>>();
+        const partitions = new Map<string, string | undefined>();
+        const sockets = new HibernationHost(async (instanceId, path, request) => {
+            // deliver the event to the instance below the socket's path, with its secret
+            if (!partitions.has(instanceId)) {
+                throw new TypeError(`the test relay started no instance ${instanceId}`);
+            }
+            const { runner, secret } = await start(partitions.get(instanceId));
+            const headers = new Headers(request.headers);
+            headers.set("authorization", `Bearer ${secret}`);
+
+            return runner.fetch(new Request(`http://runner${path}`, { ...request, headers }));
+        }, environment.telemetry);
+
+        // start the root, or a machine's partition on its first call, as the machine starts them
+        const build = await MemoryBuild.write(
+            new Map(),
+            { package: Package.of(relayPackage) },
+            environment.crypto,
+        );
+        const settings = {
+            [DeclarationReference.key(origin.reference)]: relayOrigin,
+            [DeclarationReference.key(issuer.reference)]: host.universe.issuer,
+            [DeclarationReference.key(residency.reference)]: residencyId,
+        };
+        const start = (partition: string | undefined): Promise<Instance> => {
+            // take a started instance
+            const existing = instances.get(partition);
+            if (existing !== undefined) {
+                return existing;
+            }
+
+            // start the workload as a new instance with its own secret
+            const instance = TestRelay.#instance(partitions, partition, environment);
+            const secret = Uuid.v4(random);
+            const started = WorkloadRunner.start(
+                {
+                    workload: relayWorkload,
+                    resources: {},
+                    publisher: () => replicas,
+                    socketHost: {
+                        url: `http://host.${hostname}${SOCKET_PATH}`,
+                        fetch: (request) => sockets.answer(instance, request),
+                    },
+                    ephemeral: memory(partition),
+                    environment,
+                },
+                {
+                    root: "00".repeat(32),
+                    capabilities: [],
+                    instance,
+                    scope: home,
+                    installation: schema.identifier("installation").parse(installation.id),
+                    origin: "declared",
+                    name: NAME,
+                    ...(partition === undefined ? {} : { partition }),
+                    bindings: {},
+                    settings,
+                    secret,
+                    egress,
+                    url: relayOrigin,
+                    sampling: 0,
+                },
+                build,
+                // record the workload's telemetry in the world, as its node's
+                async () => ({ ...environment.telemetry, shutdown: async () => {} }),
+                (error) =>
+                    TelemetryScope.of(
+                        import.meta.destack.package,
+                        environment.telemetry,
+                    ).captureException(error),
+            ).then((runner) => ({ runner, secret }));
+            instances.set(partition, started);
+
+            return started;
+        };
+
+        // call the root or a partition as the installation itself, below its address at the egress
+        const call = async (request: Request): Promise<Response> => {
+            // require the installation's own address
+            const addressed = Egress.of(request);
+            if (addressed?.address !== Egress.address(NAME, home)) {
+                return new Response(null, { status: NOT_FOUND });
+            }
+
+            // forward it to the partition it names, else the root, as the installation
+            const partition = addressed.request.headers.get(PARTITION_HEADER) ?? undefined;
+            const target = await start(partition);
+            const headers = new Headers(addressed.request.headers);
+            headers.set("authorization", `Bearer ${target.secret}`);
+            Caller.forward(TestRelay.#itself(installation, clock.now()), headers);
+            const url = new URL(addressed.request.url);
+            const answer = await target.runner.fetch(
+                new Request(`http://runner${url.pathname}${url.search}`, {
+                    method: addressed.request.method,
+                    headers,
+                    body: addressed.request.body,
+                }),
+            );
+
+            // name the instance that accepted a socket
+            if (!answer.headers.has(SOCKET_HEADER)) {
+                return answer;
+            }
+            const accepted = new Headers(answer.headers);
+            accepted.set(SOCKET_INSTANCE_HEADER, target.runner.start.instance);
+
+            return new Response(answer.body, { status: answer.status, headers: accepted });
+        };
+        const egressListener = server.http({
+            hostname: `host.${hostname}`,
+            port: 80,
+            fetch: (request) => call(request),
+        });
+
+        // hand names and tunnel openings to the root's route, hibernating the sockets the partitions accept
+        const route = async (
+            request: Request,
+            listening: Parameters<typeof sockets.upgrade>[0],
+        ) => {
+            // hand the client's head to the root's route at the URL it asked for
+            const root = await start(undefined);
+            const url = new URL(request.url);
+            const authority = request.headers.get("host") ?? url.host;
+            const asked = `http://${authority}${url.pathname}${url.search}`;
+            const headers = new Headers({
+                [FORWARDED_HEAD_HEADER]: ForwardedRequest.head(request, asked),
+                authorization: `Bearer ${root.secret}`,
+            });
+            const answer = await root.runner.fetch(
+                new Request(`http://runner${ROUTE_PATH}`, {
+                    method: request.method,
+                    headers,
+                    body: request.body,
+                }),
+            );
+
+            // hibernate a socket a partition accepted for an upgrade
+            if (
+                request.headers.get("upgrade") !== "websocket" ||
+                !answer.headers.has(SOCKET_HEADER)
+            ) {
+                return answer;
+            }
+
+            return sockets.upgrade(listening, request, answer)
+                ? undefined
+                : new Response(null, { status: UPGRADE_REQUIRED });
+        };
+        const routeListener = server.http({
+            hostname,
+            port: 80,
+            fetch: route,
+            websocket: sockets.websocket,
+        });
+
+        // answer the names DNS sends to the relay as well
+        const named = (options.names ?? []).map((name) =>
+            server.http({
+                hostname: name,
+                port: HTTPS_PORT,
+                fetch: route,
+                websocket: sockets.websocket,
+            }),
+        );
+
+        // start the root at once
+        await start(undefined);
+
+        // keep the installation's own address at the egress
+        const itself = Egress.url(egress, Egress.address(NAME, home));
+
+        return new TestRelay(
+            universe,
+            installation,
+            relayOrigin,
+            { instances, memories, start, call, itself },
+            [routeListener, egressListener, ...named],
+        );
+    }
+
+    /** The URL machines open their tunnels at. */
+    get url(): string {
+        return `${this.origin}/tunnel`;
+    }
+
+    /** The partitions started so far, the root's as absent. */
+    get partitions(): readonly (string | undefined)[] {
+        return [...this.#instances.keys()];
+    }
+
+    /** Call the relay's tunnels as the installation itself, in a partition or at the root. */
+    itself(path: string, request: RequestInit, partition?: string): Promise<Response> {
+        // address the partition, else the root
+        const headers = new Headers(request.headers);
+        if (partition !== undefined) {
+            headers.set(PARTITION_HEADER, partition);
+        }
+        const tunnels = `${PackageMount.path(relayPackage.id)}${TUNNELS_PATH}`;
+
+        return this.#call(
+            new Request(`${this.#address}${tunnels}${path}`, { ...request, headers }),
+        );
+    }
+
+    /** Report whether the root's replicas reached the universe's log as of now. */
+    async isSettled(): Promise<boolean> {
+        const position = await this.#universe.storage.database.log.position();
+        const root = await present(this.#memories.get(undefined), "the root's memory");
+
+        return Replica.isAt(root, Scope.universe.id, position);
+    }
+
+    /** Wait until the root's replicas reach the universe's log, at each commit of the root. */
+    async settled(signal: AbortSignal): Promise<boolean> {
+        const root = await present(this.#memories.get(undefined), "the root's memory");
+
+        return root.log.until(() => this.isSettled(), signal);
+    }
+
+    /** Stop the instances, take a step meanwhile, then start them again as their host does. */
+    async restart(meanwhile: () => Promise<void>): Promise<void> {
+        // stop every instance, keeping the sockets the front door hibernates
+        const stopped = [...this.#instances];
+        this.#instances.clear();
+        for (const [, started] of stopped) {
+            await (await started).runner.close();
+        }
+
+        // take the step, then start the same instances again
+        await meanwhile();
+        for (const [partition] of stopped) {
+            await this.#start(partition);
+        }
+    }
+
+    /** Stop listening, ending every tunnel, then the instances, once. */
+    [Symbol.asyncDispose](): Promise<void> {
+        this.#stopping ??= this.#stop();
+
+        return this.#stopping;
+    }
+
+    /** Stop listening, ending every tunnel, then the instances. */
+    async #stop(): Promise<void> {
+        for (const listener of this.#listeners) {
+            await listener.stop(true);
+        }
+        for (const started of this.#instances.values()) {
+            await (await started).runner.close();
+        }
+    }
+
+    /** Read the instance of a partition, the one it started as before, else a new one. */
+    static #instance(
+        partitions: Map<string, string | undefined>,
+        partition: string | undefined,
+        environment: Pick<Environment, "clock" | "random">,
+    ) {
+        // take the instance the partition started as before
+        for (const [instance, started] of partitions) {
+            if (started === partition) {
+                return schema.identifier("instance").parse(instance);
+            }
+        }
+
+        // add a new one
+        const instance = Identifier.create("instance", environment);
+        partitions.set(instance, partition);
+
+        return instance;
+    }
+
+    /** Authenticate a call as the relay installation itself. */
+    static #itself(installation: Subject, now: number) {
+        return {
+            caller: Caller.of(installation),
+            credential: {
+                kind: "installation",
+                id: installation.id,
+                audience: relayPackage.id,
+                verifiedAt: now,
+                expiresAt: now + TOKEN_LIFETIME_MILLISECONDS,
+            },
+        };
     }
 }

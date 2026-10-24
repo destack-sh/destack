@@ -1,3 +1,4 @@
+import { RelayError } from "../error/index.ts";
 import { Frame, FrameFlag, FrameType, MAX_PAYLOAD_BYTES } from "./frame.ts";
 import { Head, type RequestHead, type ResponseHead } from "./head.ts";
 import type { Session } from "./session.ts";
@@ -38,8 +39,10 @@ export class Stream {
     #owed = 0;
     /** The bytes received that readers have not returned to the session's window yet. */
     #unreleased = 0;
-    /** The received chunks no reader took yet, oldest first. */
+    /** The received chunks, oldest first, the first `#taken` of them already handed to readers. */
     readonly #pending: Uint8Array[] = [];
+    /** How many chunks at the front of `#pending` readers took. */
+    #taken = 0;
     /** The bytes of the received chunks no reader took yet. */
     #pendingBytes = 0;
     /** Wakes the read waiting for bytes, if any. */
@@ -48,6 +51,8 @@ export class Stream {
     #sample = 0;
     /** Whether a window probe waits for its ping's answer. */
     #isProbing = false;
+    /** Whether the last probe's round trip carried most of the window, growing the next credit. */
+    #isFilled = false;
     /** Wakes the write waiting for window, if any. */
     #credited: PromiseWithResolvers<void> | undefined;
     /** Whether this side sent FIN. */
@@ -58,6 +63,8 @@ export class Stream {
     readonly #ended = new AbortController();
     /** Why the stream ended early, once it did. */
     #failure: Error | undefined;
+    /** Why this side stopped sending on the peer's reset after its FIN, once it did. */
+    #sendFailure: Error | undefined;
 
     /** Create a stream of a session. */
     constructor(session: Session, id: number, head: RequestHead) {
@@ -92,9 +99,14 @@ export class Stream {
 
     /** Take a frame the peer sent for this stream. */
     receive(frame: Frame): void {
-        // abort on the peer's reset
+        // abort on the peer's reset, keeping an answer the peer already finished, as RFC 9113 8.1 does
         if (frame.has(FrameFlag.rst)) {
-            this.destroy(new Error(`stream ${this.id} was reset by the peer`));
+            const error = new Error(`stream ${this.id} was reset by the peer`);
+            if (this.#isFinishReceived) {
+                this.#stopSending(error);
+            } else {
+                this.destroy(error);
+            }
 
             return;
         }
@@ -112,7 +124,10 @@ export class Stream {
         // take bytes within the window
         else if (frame.type === FrameType.data && frame.payload.length > 0) {
             if (frame.payload.length > this.#receiveWindow) {
-                throw new TypeError(`stream ${this.id} received beyond its window`);
+                throw RelayError.of(
+                    "PROTOCOL_VIOLATION",
+                    `stream ${this.id} received data beyond its window`,
+                );
             }
             this.#session.take(frame.payload.length);
             this.#receiveWindow -= frame.payload.length;
@@ -223,13 +238,20 @@ export class Stream {
     /** Hand a reader the oldest received chunk once one arrives, crediting what it took. */
     async #deliver(): Promise<void> {
         // wait for a chunk or the peer's FIN
-        while (this.#pending.length === 0 && !this.#isFinishReceived) {
+        while (this.#pending.length === this.#taken && !this.#isFinishReceived) {
             this.#arrived = Promise.withResolvers<void>();
             await this.#arrived.promise;
         }
 
-        // hand over the oldest chunk and credit the bytes taken
-        const chunk = this.#pending.shift();
+        // take the oldest chunk, dropping the taken ones once they are half the queue
+        const chunk = this.#pending[this.#taken];
+        this.#taken += chunk === undefined ? 0 : 1;
+        if (this.#taken * 2 >= this.#pending.length) {
+            this.#pending.splice(0, this.#taken);
+            this.#taken = 0;
+        }
+
+        // hand it over and credit the bytes taken
         if (chunk !== undefined) {
             this.#pendingBytes -= chunk.length;
             this.#controller.enqueue(chunk);
@@ -245,9 +267,10 @@ export class Stream {
     async #send(chunk: Uint8Array): Promise<void> {
         let bytes = chunk;
         while (bytes.length > 0) {
-            // refuse writes to an ended stream
-            if (this.#failure !== undefined) {
-                throw this.#failure;
+            // refuse writes to an ended stream, or to one the peer stopped reading
+            const failure = this.#failure ?? this.#sendFailure;
+            if (failure !== undefined) {
+                throw failure;
             }
 
             // wait for credit once the stream's window ran out
@@ -279,8 +302,25 @@ export class Stream {
 
     /** Send FIN once every written byte left. */
     #finish(): void {
+        // send nothing on a stream the peer reset, closed as RFC 9113 5.1 has it
+        if (this.#sendFailure !== undefined) {
+            return;
+        }
         this.#isFinishSent = true;
         this.#session.send(new Frame(FrameType.data, FrameFlag.fin, this.id));
+        this.#settle();
+    }
+
+    /** Stop sending on the peer's reset after its FIN, keeping its answer for readers. */
+    #stopSending(error: Error): void {
+        // refuse further writes, fail the one waiting for credit, and tell the work sending that its peer stopped
+        this.#sendFailure = error;
+        this.#isFinishSent = true;
+        this.#credited?.reject(error);
+        this.#credited = undefined;
+        this.#ended.abort(error);
+
+        // forget the stream once both sides ended
         this.#settle();
     }
 
@@ -306,9 +346,14 @@ export class Stream {
             return;
         }
 
-        // credit the bytes taken to the stream and the session
-        this.#session.send(new Frame(FrameType.window, 0, this.id, taken));
-        this.#receiveWindow += taken;
+        // grow the window with the credit once a round trip filled it and readers took half of it
+        const growth = this.#isFilled ? Math.min(this.#window, MAX_WINDOW_BYTES - this.#window) : 0;
+        this.#isFilled = false;
+        this.#window += growth;
+
+        // credit the bytes taken and the growth to the stream and the session
+        this.#session.send(new Frame(FrameType.window, 0, this.id, taken + growth));
+        this.#receiveWindow += taken + growth;
         this.#owed -= taken;
     }
 
@@ -319,30 +364,19 @@ export class Stream {
             return;
         }
 
-        // count from the ping and grow after the answer
+        // count from the ping and measure after the answer
         this.#isProbing = true;
         this.#sample = 0;
         this.#session.ping().then(
-            () => this.#grow(),
+            () => this.#measure(),
             // end the probe of a session that ended before answering
             () => (this.#isProbing = false),
         );
     }
 
-    /** Double the window once a round trip carried two thirds of it to readers that caught up. */
-    #grow(): void {
-        // end the probe, leaving a window the round trip did not fill or readers left waiting
+    /** End a probe, noting whether its round trip carried two thirds of the window. */
+    #measure(): void {
         this.#isProbing = false;
-        const isFilled = this.#sample >= (this.#window * 2) / 3;
-        const isCaughtUp = this.#pendingBytes < this.#window / 2;
-        if (this.#failure !== undefined || !isFilled || !isCaughtUp) {
-            return;
-        }
-
-        // credit the peer the added window
-        const growth = Math.min(this.#window, MAX_WINDOW_BYTES - this.#window);
-        this.#window += growth;
-        this.#receiveWindow += growth;
-        this.#session.send(new Frame(FrameType.window, 0, this.id, growth));
+        this.#isFilled = this.#failure === undefined && this.#sample >= (this.#window * 2) / 3;
     }
 }

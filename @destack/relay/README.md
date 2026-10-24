@@ -4,34 +4,30 @@
 
 ```ts
 await fetch("https://pages--feature-x---personal--ada.destack.space/");
-const tunnel = TunnelClient.open({ url, token, fetch, renewed, environment });
+const tunnel = TunnelClient.open({ url, machineId, token, fetch, renewed, environment });
 ```
 
 ## Server
 
-`implementRelay` runs a residency's relay installation: the root routes names, and each machine's tunnel lives in a partition of its own.
+`relayWorkload` runs a residency's relay installation as a workload with no durable rows: its root routes names over an in-memory replica of the universe's directory, and each machine's tunnel runs in a partition of its own over the sockets its host hibernates.
 
 ```ts
-import { implementRelay } from "@destack/relay/server";
+import { relayWorkload } from "@destack/relay/server";
 
-const served = implementRelay({
-    origin: "https://relay.destack.space",
-    database,
-    events,
-    callKey,
-    accounts,
-    server,
-    hibernation,
-    issuer, // the universe's issuer, verified by the identity keys the relay replicates
-    fetch: (request) => environment.network.fetch(request),
-    clock: environment.clock,
-});
-// the root without server.partition, a machine's tunnel partition with it
-const answer =
-    served.kind === "root"
-        ? await served.relay.fetch(request) // a name's request, or a machine's handshake
-        : await served.tunnel.fetch(request); // a request through the machine's tunnel
+// a host starts the root without a partition, and each machine's tunnel in the partition it names
+const runner = await WorkloadRunner.start(
+    { workload: relayWorkload, resources: {}, publisher, socketHost, ephemeral, environment },
+    { ...start, partition: `tunnel-${Identifier.uuid(machineId)}` },
+    build,
+    startTelemetry,
+    report,
+);
+// each socket keeps { machineId, lapsesAt, kid } beside it; tunnel.open and tunnel.close are telemetry events
 ```
+
+## Settings
+
+The installation's `origin` setting is where machines open their tunnels, and its `issuer` setting is whose tokens they offer.
 
 ## Installing
 
@@ -52,6 +48,7 @@ import { TunnelClient } from "@destack/relay/tunnel";
 
 const tunnel = TunnelClient.open({
     url: "https://relay.destack.space/tunnel",
+    machineId: machine.id,
     token: () => identity.token(relayPackage.id, issuer, fetch),
     fetch: (request) => gateway.relay(request),
     renewed: ({ name, lapsesAt }) =>
@@ -63,12 +60,12 @@ await tunnel.opened();
 
 ## Tests
 
-`RelayHost` serves a relay installation in process, and `RelayFixture` enrolls a test machine with a space and starts relays and tunnels to it, all inside one simulation.
+`TestRelay` runs the relay's workload in process behind its machine's front door, its universe rows followed as its residency's cloud machine follows them, and `TestTunnelMachine` enrolls a person's computer serving a space in a simulated universe and starts relays and tunnels to it.
 
 ```ts
-const simulation = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 16) }).install();
-await using fixture = await RelayFixture.open(simulation, accounts, await accounts.install());
-const relay = await fixture.relay();
-await fixture.tunnel(relay);
-await fixture.until(async () => (await fixture.endpoint()) !== null); // runs virtual time
+await using computer = await TestTunnelMachine.open(); // the acme account in Europe
+const relay = await computer.relay();
+await computer.tunnel(relay);
+await computer.request(relay, computer.notes, "/"); // "hello GET /"
+computer.tunnels(); // [["tunnel.open", { machine }]]
 ```

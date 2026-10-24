@@ -1,31 +1,24 @@
-import { telemetry } from "@destack/telemetry";
-import relayPackage from "../package.ts";
-import { principal } from "@destack/access";
-import { asc, eq, type Snapshot } from "@destack/db";
-import type { ObjectStore } from "@destack/object/server";
-import { RequestId, type Call, Scope } from "@destack/sync";
+import { Bearer } from "@destack/access/token";
+import type { Environment } from "@destack/environment";
+import { refusal } from "@destack/object";
 import type { Hibernation, Socket, SocketHandler } from "@destack/object/workload";
-import { connection, tunnel } from "../object/index.ts";
+import type {} from "@destack/package/import-meta";
+import { Identifier, present, schema, Uuid } from "@destack/schema";
+import { TelemetryScope } from "@destack/telemetry";
+import { RelayError } from "../error/index.ts";
+import relayPackage from "../package.ts";
 import {
+    MAX_STREAMS,
     PING_MESSAGE,
     PONG_MESSAGE,
-    TUNNEL_PROTOCOL,
-    MAX_STREAMS,
     type Renewal,
     Session,
     type Stream,
+    TUNNEL_PROTOCOL,
 } from "../session/index.ts";
-import { type Domains, MachineAddress } from "@destack/account/address";
-import { Identifier, schema } from "@destack/schema";
-import { Bearer, TokenVerifier } from "@destack/access/token";
-import { Identity } from "@destack/account/object";
-import { createLocalJWKSet } from "jose";
-import { CallError, refusal } from "@destack/object";
+import type { TunnelToken } from "./token.ts";
 
-/** The instruments capturing the renewals that fail outside any request. */
-const instruments = telemetry.scope(import.meta.destack.package);
-
-/** The path below the relay package's mount for the router's opens and forwards per machine. */
+/** The path below the relay package's mount of the calls between the root and each tunnel. */
 export const TUNNELS_PATH = relayPackage.adapters.tunnels.path;
 
 /** The header with a machine's accepted opening handshake. */
@@ -34,13 +27,23 @@ export const HANDSHAKE_HEADER = "Destack-Handshake";
 /** The path machines open and renew their tunnels at. */
 export const TUNNEL_PATH = "/tunnel";
 
-/** The lifetime of tunnel tokens: ten minutes, Kubernetes' shortest bound service account token. */
-export const RELAY_TOKEN_LIFETIME_MILLISECONDS = 10 * 60_000;
-
 /** How long a machine may take to answer a request's head: 100 s, Cloudflare's read timeout. */
-const ANSWER_TIMEOUT_MILLISECONDS = 100_000;
+export const ANSWER_TIMEOUT_MILLISECONDS = 100_000;
 
-/** A machine's accepted opening handshake (RFC 6455 section 4): its token's lapse and name. */
+/** The prefix of a machine's tunnel partition, beside the machine's identifier's UUID. */
+const PARTITION_PREFIX = "tunnel-";
+
+/** The errors the relay answers for each reason a machine no longer stands. */
+export const STANDING_ERRORS = {
+    "machine-revoked": ["MACHINE_REVOKED", "is revoked"],
+    "key-revoked": ["MACHINE_UNKEYED", "has no key"],
+    "machine-unknown": ["MACHINE_UNKNOWN", "is not in the directory"],
+} as const;
+
+/** The answers that end a socket's standing: unauthorized and forbidden (RFC 9110 15.5). */
+const REFUSED_STATUSES: ReadonlySet<number> = new Set([401, 403]);
+
+/** A machine's accepted opening handshake (RFC 6455 section 4): its token's lapse, key and name. */
 export const Handshake = schema.object({
     /** The machine. */
     machineId: schema.identifier("machine"),
@@ -48,128 +51,149 @@ export const Handshake = schema.object({
     lapsesAt: schema.number(),
     /** The name the relay routes to the machine, such as `laptop--florian.destack.computer`. */
     name: schema.string().min(1),
+    /** The account the machine is enrolled in, which its endpoint lives in. */
+    account: schema.identifier("account"),
+    /** The universe key that signed the machine's token. */
+    kid: schema.string().min(1),
 });
 /** A machine's accepted opening handshake. */
 export type Handshake = schema.Infer<typeof Handshake>;
 
-/** The attachment of a hibernated tunnel socket: the machine it connects. */
-const SocketAttachment = schema.object({
+/** The value stored with a hibernated tunnel socket: its machine, its token's lapse and key. */
+export const TunnelAttachment = schema.object({
     /** The machine the socket connects. */
     machineId: schema.identifier("machine"),
+    /** When the socket's token lapses, in UTC epoch milliseconds. */
+    lapsesAt: schema.number(),
+    /** The universe key that signed the socket's token. */
+    kid: schema.string().min(1),
 });
+/** The value stored with a hibernated tunnel socket. */
+export type TunnelAttachment = schema.Infer<typeof TunnelAttachment>;
 
-/** One connection of a machine's tunnel: a hibernated socket's session until its token lapses. */
-interface Connection {
-    /** The hibernated socket's identifier, the connection row's key. */
+/** The calls the relay's root makes to a machine's tunnel in its partition. */
+export type TunnelCall = "open" | "forward" | "rename" | "close";
+
+/** Why a tunnel's socket ends: a revoke, a lapsed token, its endpoint's move, or its close. */
+export const TunnelCloseReason = schema.enum([
+    "machine-revoked",
+    "key-revoked",
+    "machine-unknown",
+    "lapsed",
+    "moved",
+    "closed",
+]);
+/** Why a tunnel's socket ends. */
+export type TunnelCloseReason = schema.Infer<typeof TunnelCloseReason>;
+
+/** Why a machine does not stand here: its revoke, no standing key, or no directory entry. */
+export const TunnelStandingReason = schema.enum([
+    "machine-revoked",
+    "key-revoked",
+    "machine-unknown",
+]);
+
+/** Whether a machine stands: the name the relay routes to it, or why its tunnel ends. */
+export const TunnelStanding = schema.union([
+    schema.object({
+        /** The name the relay routes to the standing machine. */
+        name: schema.string().min(1),
+        /** The account the machine is enrolled in, which its endpoint lives in. */
+        account: schema.identifier("account"),
+    }),
+    schema.object({
+        /** Why the tunnel of a machine that no longer stands ends. */
+        reason: TunnelStandingReason,
+    }),
+]);
+/** Whether a machine stands. */
+export type TunnelStanding = schema.Infer<typeof TunnelStanding>;
+
+/** One socket of a machine's tunnel: a hibernated socket's session until its token lapses. */
+interface TunnelSocket {
+    /** The hibernated socket's identifier. */
     readonly id: string;
-    /** The session over the connection. */
+    /** The session over the socket. */
     readonly session: Session;
+    /** When the socket's token lapses, in UTC epoch milliseconds, and the key that signed it. */
+    attachment: TunnelAttachment;
+    /** Whether the socket stands as of this instance: accepted here, or verified since it woke. */
+    isVerified: boolean;
 }
 
 /** What a machine's tunnel runs with in its partition. */
 export interface TunnelOptions {
-    /** The partition's store, with the tunnel's connection rows. */
-    readonly store: Pick<ObjectStore, "database" | "clock" | "mutate" | "serving">;
     /** The host of the partition's hibernated sockets. */
-    readonly hibernation: Pick<Hibernation, "list" | "socket" | "accept">;
+    readonly hibernation: Pick<Hibernation, "list" | "socket" | "accept" | "attach">;
     /** The relay's tunnel URL the machine dials, which its renames come from. */
     readonly url: string;
-    /** Verify the universe's tokens machines renew their tunnels with. */
-    readonly tokens: Pick<TokenVerifier, "verify">;
-    /** The domains names resolve under. */
-    readonly domains: Domains;
-    /** How long the machine may take to answer a request's head, 100 s by default. */
-    readonly answerTimeout?: number;
+    /** The universe's tunnel tokens and keys, which machines renew their tunnels with. */
+    readonly tokens: Pick<TunnelToken, "verify" | "isStanding">;
+    /** Wait until the partition follows the universe's identities, whose keys verify the tokens. */
+    readonly identities: () => Promise<void>;
+    /** Read from the relay's root whether the machine stands, and its name. */
+    readonly standing: () => Promise<TunnelStanding>;
+    /** Tell the lapses' controller a socket opened or its lapse moved. */
+    readonly changed: () => void;
+    /** Publish the machine's tunnel here at the universe, lapsing with its token. */
+    readonly publish: (account: Identifier<"account">, lapsesAt: number) => Promise<void>;
+    /** The clock, randomness and telemetry the tunnel's lapses, socket ids and records run on. */
+    readonly environment: Pick<Environment, "clock" | "random" | "telemetry">;
 }
 
-/** A machine's tunnel to the relay in its partition: its connections and their rows. */
+/** A machine's tunnel to the relay in its partition: its hibernated sockets and their sessions. */
 export class Tunnel implements SocketHandler {
     /** The machine the tunnel leads to. */
     readonly machineId: Identifier<"machine">;
     /** What the tunnel runs with. */
     readonly #options: TunnelOptions;
-    /** The open connections, oldest first. */
-    readonly #connections: Connection[] = [];
-    /** The name the relay routes to the machine, read from the tunnel's row once needed. */
+    /** The tunnel's log records and captures. */
+    readonly #instruments: TelemetryScope;
+    /** The sockets running a session, oldest first. */
+    readonly #sockets: TunnelSocket[] = [];
+    /** The sockets accepted here that the host has not delivered an event of yet, by identifier. */
+    readonly #accepted = new Map<string, TunnelAttachment>();
+    /** The sessions over the sockets hibernated before this instance started, once listed. */
+    #listing: Promise<void> | undefined;
+    /** The name the root last told the tunnel, absent since the instance started. */
     #name: string | undefined;
-    /** The last write of the tunnel's rows, which the next write follows. */
-    #writing: Promise<unknown> = Promise.resolve();
+    /** The account the machine is enrolled in, as its opening or its last renewal read it. */
+    #account: Identifier<"account"> | undefined;
 
     /** Run a machine's tunnel in its partition. */
     constructor(machineId: Identifier<"machine">, options: TunnelOptions) {
         this.machineId = machineId;
         this.#options = options;
-    }
-
-    /** Derive the identifier of a machine's tunnel, the partition of its connections. */
-    static id(machineId: Identifier<"machine">): Identifier<"tunnel"> {
-        return schema.identifier("tunnel").parse(`tunnel-${Identifier.uuid(machineId)}`);
-    }
-
-    /** Read the machine a tunnel leads to from the tunnel's identifier. */
-    static machine(tunnelId: string): Identifier<"machine"> {
-        const id = schema.identifier("tunnel").parse(tunnelId);
-
-        return schema.identifier("machine").parse(`machine-${Identifier.uuid(id)}`);
-    }
-
-    /** Build the verifier of machines' tunnel tokens over a replica of the universe's keys. */
-    static verifier(issuer: string, replica: Pick<Snapshot, "read">): TokenVerifier {
-        return new TokenVerifier({
-            authority: { kind: "universe" },
-            issuer,
-            audience: relayPackage.id,
-            lifetime: RELAY_TOKEN_LIFETIME_MILLISECONDS,
-            // read the current keys at each verify, following their rotations
-            keys: async (header, token) => {
-                const keys = await Identity.keys(replica, Scope.universe.id);
-
-                return createLocalJWKSet(keys)(header, token);
-            },
-        });
-    }
-
-    /** Verify a machine's token, answering the machine and its token's lapse. */
-    static async verify(
-        tokens: Pick<TokenVerifier, "verify">,
-        token: string,
-        now: number,
-    ): Promise<{ readonly machineId: Identifier<"machine">; readonly lapsesAt: number }> {
-        // require a machine's token
-        const { caller, credential } = await tokens.verify(token, now);
-        const { subject } = caller;
-        if (!principal.machine.is(subject)) {
-            throw new CallError("FORBIDDEN", { message: "only machines open tunnels" });
-        }
-
-        return {
-            machineId: schema.identifier("machine").parse(subject.id),
-            lapsesAt: credential.expiresAt,
-        };
-    }
-
-    /** Whether no connection of the machine is open here. */
-    get isEmpty(): boolean {
-        return this.#connections.length === 0;
-    }
-
-    /** Accept the machine's WebSocket after its handshake and record its connection. */
-    async accept(handshake: Handshake): Promise<Response> {
-        // record the connection, its identifier its hibernated socket's
-        const [created] = await this.#serially(() =>
-            this.#mutate([
-                connection.call("create", {
-                    ...connection.in(Tunnel.id(this.machineId)),
-                    lapsesAt: handshake.lapsesAt,
-                }),
-            ]),
+        this.#instruments = TelemetryScope.of(
+            import.meta.destack.package,
+            options.environment.telemetry,
         );
-        const { id } = schema.looseObject({ id: schema.identifier("connection") }).parse(created);
+    }
 
-        // run a session over the socket the host accepts next
+    /** Derive the partition of a machine's tunnel. */
+    static partition(machineId: Identifier<"machine">): string {
+        return `${PARTITION_PREFIX}${Identifier.uuid(machineId)}`;
+    }
+
+    /** Read the machine a tunnel's partition leads to. */
+    static machine(partition: string): Identifier<"machine"> {
+        return schema
+            .identifier("machine")
+            .parse(`machine-${partition.slice(PARTITION_PREFIX.length)}`);
+    }
+
+    /** Accept the machine's WebSocket after its handshake, keeping its lapse and key beside it. */
+    accept(handshake: Handshake): Response {
+        // remember the accepted socket until the host delivers its first event
+        const id = Uuid.v4(this.#options.environment.random);
+        const attachment: TunnelAttachment = {
+            machineId: this.machineId,
+            lapsesAt: handshake.lapsesAt,
+            kid: handshake.kid,
+        };
         this.#name = handshake.name;
-        const attachment = { machineId: this.machineId };
-        this.#attach(id, this.#options.hibernation.socket({ id, attachment }));
+        this.#account = handshake.account;
+        this.#accepted.set(id, attachment);
 
         return this.#options.hibernation.accept({
             id,
@@ -179,226 +203,220 @@ export class Tunnel implements SocketHandler {
         });
     }
 
-    /** Take a hibernated socket's message into its connection's session. */
+    /** Take a hibernated socket's message into its session. */
     async message(socket: Socket, message: Uint8Array<ArrayBuffer>): Promise<void> {
-        if (await this.#resume(socket)) {
-            this.#connections.find((each) => each.id === socket.id)?.session.receive(message);
-        }
+        await this.#list();
+        this.#running(socket)?.session.receive(message);
     }
 
-    /** Forget a hibernated socket's connection and its row once it closed. */
+    /** Forget a hibernated socket once it closed. */
     async close(socket: Socket): Promise<void> {
-        this.#remove(socket.id)?.session.terminate();
-        await this.#serially(async () => {
-            const rows = await this.#rows();
-            const closed = rows.filter((row) => row.id === socket.id).map((row) => row.id);
-            await this.#mutate(Tunnel.#deletions(this.machineId, closed));
-        });
+        // forget a socket that never ran, and close a running one's session
+        await this.#list();
+        this.#accepted.delete(socket.id);
+        const closed = this.#remove(socket.id);
+        if (closed !== undefined) {
+            closed.session.terminate();
+            this.#closed("closed");
+        }
     }
 
-    /** End every connection and remove their rows, answering whether any was open. */
-    async end(): Promise<boolean> {
-        return this.#serially(async () => {
-            // end the connections, and remove every row
-            for (const ended of this.#connections.splice(0)) {
-                ended.session.close();
-            }
-            const rows = await this.#rows();
-            await this.#mutate(
-                Tunnel.#deletions(
-                    this.machineId,
-                    rows.map((row) => row.id),
-                ),
-            );
-
-            return rows.length > 0;
-        });
+    /** Close every socket for a reason, telling the machine. */
+    async closeAll(reason: TunnelCloseReason): Promise<void> {
+        await this.#list();
+        this.#closeAll(reason);
     }
 
-    /** End the connections whose tokens lapsed, answering the wait until the next lapse. */
-    async lapse(): Promise<number | undefined> {
-        return this.#serially(async () => {
-            // end each lapsed connection, telling the machine, and remove its row
-            const now = this.#options.store.clock.now();
-            const rows = await this.#rows();
-            const lapsed = rows.filter((row) => row.lapsesAt <= now);
-            for (const row of lapsed) {
-                this.#remove(row.id)?.session.close();
-            }
-            await this.#mutate(
-                Tunnel.#deletions(
-                    this.machineId,
-                    lapsed.map((row) => row.id),
-                ),
-            );
+    /** Close the sockets that no longer stand or lapsed, answering the wait for the next lapse. */
+    async closeLapsed(): Promise<number | undefined> {
+        // close the woken sockets of a machine or key that no longer stands
+        await this.#list();
+        await this.#verifyWoken();
 
-            // wake at the next lapse, the rows ordered by lapse
-            const next = rows.find((row) => row.lapsesAt > now);
-
-            return next === undefined ? undefined : next.lapsesAt - now;
-        });
-    }
-
-    /** Read whether the tunnel has a connection row. */
-    async isConnected(): Promise<boolean> {
-        return (await this.#rows()).length > 0;
-    }
-
-    /** Forward a request through the newest connection, resuming the connections after a sleep. */
-    async fetch(request: Request): Promise<Response> {
-        // resume the hibernated sockets, and refuse a machine-domain name other than the machine's own
-        await this.#resumeAll();
-        const hostname = new URL(request.url).hostname;
-        const address = MachineAddress.parse(hostname, this.#options.domains.machine);
-        if (address !== undefined && hostname !== (await this.#readName())) {
-            throw new CallError("MISDIRECTED_REQUEST", {
-                message: `${hostname} is unassigned now`,
-            });
+        // close each lapsed socket, telling the machine
+        const now = this.#options.environment.clock.now();
+        for (const lapsed of this.#sockets.filter((each) => each.attachment.lapsesAt <= now)) {
+            this.#remove(lapsed.id)?.session.close();
+            this.#closed("lapsed");
         }
 
-        // require a connected machine with room for another request
-        const newest = this.#connections.at(-1);
+        // wait for the next lapse
+        const lapses = this.#sockets.map((each) => each.attachment.lapsesAt);
+
+        return lapses.length === 0 ? undefined : Math.min(...lapses) - now;
+    }
+
+    /** Forward a request through the newest verified socket whose token has not lapsed. */
+    async fetch(request: Request): Promise<Response> {
+        // verify the sockets woken since the partition slept, then require one with room for another request
+        await this.#list();
+        await this.#verifyWoken();
+        const now = this.#options.environment.clock.now();
+        const newest = this.#sockets.findLast((each) => each.attachment.lapsesAt > now);
         if (newest === undefined) {
-            throw new CallError("SERVICE_UNAVAILABLE", {
-                message: `machine ${this.machineId} is disconnected`,
-            });
+            throw RelayError.of(
+                "MACHINE_DISCONNECTED",
+                `machine ${this.machineId} is disconnected`,
+            );
         } else if (newest.session.size >= MAX_STREAMS) {
-            throw new CallError("SERVICE_UNAVAILABLE", {
-                message: `machine ${this.machineId} has ${MAX_STREAMS} requests open`,
-            });
+            throw RelayError.of(
+                "STREAMS_EXHAUSTED",
+                `machine ${this.machineId} already has ${MAX_STREAMS} open requests`,
+            );
         }
 
         return this.#send(newest.session, request);
     }
 
-    /** Take the name the relay routes to the machine now, asking a connected machine to renew. */
+    /** Take the machine's name from the root, asking the machine to renew once it changed. */
     async rename(name: string): Promise<void> {
-        // take the name for later renewals and requests, and leave a machine without a connection
+        // leave a name the tunnel has, and a machine without a socket
+        await this.#list();
+        const isRenamed = this.#name !== name;
         this.#name = name;
-        await this.#resumeAll();
-        if (this.isEmpty) {
+        if (!isRenamed || this.#sockets.length === 0) {
             return;
         }
 
         // ask the connected machine to renew, to learn the name
         const response = await this.fetch(new Request(this.#options.url, { method: "PUT" }));
         if (!response.ok) {
-            throw new CallError("BAD_GATEWAY", {
-                message: `machine ${this.machineId} refused to renew: ${response.status}`,
-            });
+            throw RelayError.of(
+                "RENEWAL_REFUSED",
+                `machine ${this.machineId} refused to renew: ${response.status}`,
+            );
         }
+    }
+
+    /** Read the running socket of a host's event, running one accepted here on its first event. */
+    #running(socket: Socket): TunnelSocket | undefined {
+        // take a running socket
+        const running = this.#sockets.find((each) => each.id === socket.id);
+        const accepted = this.#accepted.get(socket.id);
+        if (running !== undefined || accepted === undefined) {
+            return running;
+        }
+
+        // run the socket the host connected, telling the lapses' controller and publishing the tunnel
+        this.#accepted.delete(socket.id);
+        const added = this.#attach(socket, accepted, true);
+        this.#instruments.log.info("tunnel.open", { machine: this.machineId });
+        this.#options.changed();
+        this.#publish(accepted.lapsesAt);
+
+        return added;
     }
 
     /** Run a session over a socket, taking the machine's renewals on the streams it opens. */
-    #attach(id: string, socket: Socket): void {
-        const added: Connection = {
-            id,
+    #attach(socket: Socket, attachment: TunnelAttachment, isVerified: boolean): TunnelSocket {
+        const added: TunnelSocket = {
+            id: socket.id,
+            attachment,
+            isVerified,
             session: new Session(socket, "server", {
                 accept: (stream) =>
                     void this.#renew(added, stream).catch((error: unknown) =>
-                        instruments.captureException(error),
+                        this.#instruments.captureException(error),
                     ),
             }),
         };
-        this.#connections.push(added);
+        this.#sockets.push(added);
+
+        return added;
     }
 
-    /** Run a session again over a hibernated socket with a connection row, closing one without. */
-    async #resume(socket: Socket): Promise<boolean> {
-        // take a connection already running
-        if (this.#connections.some((each) => each.id === socket.id)) {
-            return true;
-        }
-
-        // close a socket without its row, else run a session over it again
-        const rows = await this.#rows();
-        if (!rows.some((row) => row.id === socket.id)) {
-            socket.close();
-
-            return false;
-        }
-        this.#attach(socket.id, socket);
-
-        return true;
-    }
-
-    /** Resume every hibernated socket of the machine after the partition slept. */
-    async #resumeAll(): Promise<void> {
-        if (this.isEmpty) {
-            for (const socket of await this.#options.hibernation.list()) {
-                SocketAttachment.parse(socket.attachment);
-                await this.#resume(socket);
-            }
-        }
-    }
-
-    /** Read the name the relay routes to the machine, from the tunnel's row after a sleep. */
-    async #readName(): Promise<string> {
-        if (this.#name === undefined) {
-            const [row] = await this.#options.store.database
-                .select({ name: tunnel.table.name })
-                .from(tunnel.table)
-                .where(eq(tunnel.table.id, tunnel.identifier(Tunnel.id(this.machineId))));
-            if (row === undefined) {
-                throw new CallError("NOT_FOUND", {
-                    message: `machine ${this.machineId} has no tunnel`,
-                });
-            }
-            this.#name = row.name;
-        }
-
-        return this.#name;
-    }
-
-    /** Read the tunnel's connection rows, oldest lapse first. */
-    async #rows(): Promise<readonly { readonly id: string; readonly lapsesAt: number }[]> {
-        return this.#options.store.database
-            .select({ id: connection.table.id, lapsesAt: connection.table.lapsesAt })
-            .from(connection.table)
-            .where(eq(connection.table.scope, Tunnel.id(this.machineId)))
-            .orderBy(asc(connection.table.lapsesAt));
-    }
-
-    /** List the calls deleting some of a machine's connection rows. */
-    static #deletions(machineId: Identifier<"machine">, ids: readonly string[]): Call[] {
-        const scope = Tunnel.id(machineId);
-
-        return ids.map((id) => connection.call("delete", connection.target({ scope, id })));
-    }
-
-    /** Run calls on the tunnel's rows as the relay installation, skipping an empty list. */
-    async #mutate(calls: readonly Call[]): Promise<readonly unknown[]> {
-        // run nothing without calls
-        if (calls.length === 0) {
-            return [];
-        }
-
-        // run them in one mutation as the installation
-        const { store } = this.#options;
-
-        return store.mutate(store.serving(connection), {
-            id: RequestId.create(store.clock.now()),
-            calls,
+    /** Run a session over each socket hibernated before this instance started, once listed. */
+    #list(): Promise<void> {
+        // list once, and again after a failed listing
+        this.#listing ??= this.#listHibernated().catch((error: unknown) => {
+            this.#listing = undefined;
+            throw error;
         });
+
+        return this.#listing;
     }
 
-    /** Take a connection out of the tunnel, absent when none has the identifier. */
-    #remove(id: string): Connection | undefined {
-        const index = this.#connections.findIndex((each) => each.id === id);
+    /** Run an unverified session over each socket hibernated before this instance started. */
+    async #listHibernated(): Promise<void> {
+        const listed = await this.#options.hibernation.list();
+        const woken = listed
+            .filter((socket) => !this.#accepted.has(socket.id))
+            .filter((socket) => !this.#sockets.some((each) => each.id === socket.id))
+            .map((socket) => ({ socket, attachment: TunnelAttachment.parse(socket.attachment) }))
+            .toSorted((left, right) => left.attachment.lapsesAt - right.attachment.lapsesAt);
+        for (const { socket, attachment } of woken) {
+            this.#attach(socket, attachment, false);
+        }
+    }
 
-        return index === -1 ? undefined : this.#connections.splice(index, 1)[0];
+    /** Close the woken sockets of a machine that no longer stands, or of a revoked key. */
+    async #verifyWoken(): Promise<void> {
+        // close every socket of a machine revoked or left keyless while the partition slept
+        const woken = this.#sockets.filter((each) => !each.isVerified);
+        if (woken.length === 0) {
+            return;
+        }
+        const standing = await this.#options.standing();
+        if ("reason" in standing) {
+            this.#closeAll(standing.reason);
+
+            return;
+        }
+
+        // close each woken socket whose token's key the universe revoked, keeping the others
+        await this.#options.identities();
+        for (const socket of woken) {
+            // keep a socket whose key stands, and close one a concurrent close did not take meanwhile
+            const isStanding = await this.#options.tokens.isStanding(socket.attachment.kid);
+            const removed = isStanding ? undefined : this.#remove(socket.id);
+            if (isStanding) {
+                socket.isVerified = true;
+            } else if (removed !== undefined) {
+                removed.session.close();
+                this.#closed("key-revoked");
+            }
+        }
+    }
+
+    /** Close every running socket for a reason, telling the machine. */
+    #closeAll(reason: TunnelCloseReason): void {
+        for (const closed of this.#sockets.splice(0)) {
+            closed.session.close();
+            this.#closed(reason);
+        }
+    }
+
+    /** Take a socket out of the tunnel, absent when none has the identifier. */
+    #remove(id: string): TunnelSocket | undefined {
+        const index = this.#sockets.findIndex((each) => each.id === id);
+
+        return index === -1 ? undefined : this.#sockets.splice(index, 1)[0];
+    }
+
+    /** Record a socket's close as an event of the machine's tunnel. */
+    #closed(reason: TunnelCloseReason): void {
+        this.#instruments.log.info("tunnel.close", { machine: this.machineId, reason });
+    }
+
+    /** Store a socket's new lapse and key with it at the host. */
+    #relapse(socket: TunnelSocket, attachment: TunnelAttachment): void {
+        // move the lapse here and at the host, telling the lapses' controller
+        socket.attachment = attachment;
+        this.#options.hibernation.attach(socket.id, attachment);
+        this.#options.changed();
     }
 
     /** Send a request over a session. */
     async #send(session: Session, request: Request): Promise<Response> {
         // abort the request once the answer timeout passes on the tunnel's clock
-        const answerTimeout = this.#options.answerTimeout ?? ANSWER_TIMEOUT_MILLISECONDS;
         const expiring = new AbortController();
         const answered = new AbortController();
-        void this.#options.store.clock.sleep(answerTimeout, answered.signal).then(
-            () => expiring.abort(),
-            () => undefined,
-        );
+        void this.#options.environment.clock
+            .sleep(ANSWER_TIMEOUT_MILLISECONDS, answered.signal)
+            .then(
+                () => expiring.abort(),
+                () => undefined,
+            );
         const signal = AbortSignal.any([request.signal, expiring.signal]);
 
         // forward it and tell a timeout from the caller's own abort
@@ -406,9 +424,10 @@ export class Tunnel implements SocketHandler {
             return await session.fetch(new Request(request, { signal }));
         } catch (error) {
             if (expiring.signal.aborted) {
-                throw new CallError("GATEWAY_TIMEOUT", {
-                    message: `machine ${this.machineId} answered no head within ${answerTimeout} ms`,
-                });
+                throw RelayError.of(
+                    "HEAD_TIMEOUT",
+                    `machine ${this.machineId} sent no response head within ${ANSWER_TIMEOUT_MILLISECONDS} ms`,
+                );
             }
             throw error;
         } finally {
@@ -416,72 +435,86 @@ export class Tunnel implements SocketHandler {
         }
     }
 
-    /** Move a connection row's lapse to its renewed token's. */
-    async #renewed(id: string, lapsesAt: number): Promise<void> {
-        await this.#serially(() =>
-            this.#mutate([
-                connection.call("renew", {
-                    ...connection.target({ scope: Tunnel.id(this.machineId), id }),
-                    lapsesAt,
-                }),
-            ]),
-        );
-    }
-
-    /** Write the tunnel's rows after its earlier writes, one write at a time. */
-    #serially<Value>(write: () => Promise<Value>): Promise<Value> {
-        // chain the write after the last, which a failure leaves usable
-        const next = this.#writing.then(write);
-        this.#writing = next.catch(() => undefined);
-
-        return next;
-    }
-
-    /** Renew a connection's token through a stream the machine opened. */
-    async #renew(renewing: Connection, stream: Stream): Promise<void> {
-        // verify a renewal through the tunnel path, and refuse any other request
+    /** Renew a socket's token through a stream the machine opened. */
+    async #renew(renewing: TunnelSocket, stream: Stream): Promise<void> {
+        // refuse any request but a renewal through the tunnel path
         const request = stream.request();
         const isRenewal = request.method === "PUT" && new URL(request.url).pathname === TUNNEL_PATH;
-        const response = isRenewal
-            ? await this.#verifyRenewal(request).then(
-                  async (lapsesAt) => {
-                      // record the lapse and answer the name and the lapse
-                      await this.#renewed(renewing.id, lapsesAt);
-                      const renewal: Renewal = { name: await this.#readName(), lapsesAt };
+        if (!isRenewal) {
+            await stream.respond(
+                refusal(
+                    RelayError.of("RENEWAL_ONLY", "machines can only renew their own tunnel"),
+                    this.#options.environment.telemetry,
+                ),
+            );
 
-                      return Response.json(renewal);
-                  },
-                  (error: unknown) => (renewing.session.isClosed ? undefined : refusal(error)),
-              )
-            : refusal(new CallError("NOT_FOUND", { message: "machines only renew their tunnel" }));
-
-        // leave a renewal whose session closed while it was read, as nobody takes its answer
-        if (response === undefined) {
             return;
         }
 
-        // answer the renewal
-        await stream.respond(response);
+        // verify the token and the machine's standing, then store the lapse and answer the name
+        let response: Response;
+        try {
+            await this.#options.identities();
+            const attachment = await this.#verifyRenewal(request);
+            const name = await this.#requireName();
+            this.#relapse(renewing, attachment);
+            this.#publish(attachment.lapsesAt);
+            response = Response.json({ name, lapsesAt: attachment.lapsesAt } satisfies Renewal);
+        }
+        // leave a renewal whose session closed meanwhile, else refuse it
+        catch (error) {
+            if (renewing.session.isClosed) {
+                return;
+            }
+            response = refusal(error, this.#options.environment.telemetry);
+        }
 
-        // lapse a connection whose renewal the relay refused, for the lapse controller to end
-        if (isRenewal && !response.ok) {
-            await this.#renewed(renewing.id, this.#options.store.clock.now());
+        // answer the renewal, then lapse a socket whose token or standing the relay refused
+        try {
+            await stream.respond(response);
+        } finally {
+            if (REFUSED_STATUSES.has(response.status)) {
+                this.#relapse(renewing, {
+                    ...renewing.attachment,
+                    lapsesAt: this.#options.environment.clock.now(),
+                });
+            }
         }
     }
 
-    /** Verify the machine's own renewed token in a request's bearer header. */
-    async #verifyRenewal(request: Request): Promise<number> {
-        const verified = await Tunnel.verify(
-            this.#options.tokens,
-            Bearer.require(request.headers),
-            this.#options.store.clock.now(),
-        );
-        if (verified.machineId !== this.machineId) {
-            throw new CallError("FORBIDDEN", {
-                message: "machines only renew their own tunnels",
-            });
+    /** Read the name of the machine, refusing a machine that no longer stands for its reason. */
+    async #requireName(): Promise<string> {
+        // refuse a machine that no longer stands
+        const standing = await this.#options.standing();
+        if ("reason" in standing) {
+            const [reason, refused] = STANDING_ERRORS[standing.reason];
+            throw RelayError.of(reason, `machine ${this.machineId} ${refused}`);
         }
 
-        return verified.lapsesAt;
+        // keep the machine's account, which its endpoint lives in
+        this.#account = standing.account;
+
+        return standing.name;
+    }
+
+    /** Publish the machine's tunnel at the universe in the background, reporting a failure. */
+    #publish(lapsesAt: number): void {
+        const account = present(this.#account, `the account of machine ${this.machineId}`);
+        this.#options.publish(account, lapsesAt).catch((error: unknown) => {
+            this.#instruments.captureException(error);
+        });
+    }
+
+    /** Verify the machine's own renewed token in a request's bearer header. */
+    async #verifyRenewal(request: Request): Promise<TunnelAttachment> {
+        const verified = await this.#options.tokens.verify(
+            Bearer.require(request.headers),
+            this.#options.environment.clock.now(),
+        );
+        if (verified.machineId !== this.machineId) {
+            throw RelayError.of("TUNNEL_FOREIGN", "machines can only renew their own tunnels");
+        }
+
+        return verified;
     }
 }

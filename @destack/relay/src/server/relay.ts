@@ -1,6 +1,5 @@
 import {
     Directory,
-    DOMAINS,
     type Domains,
     InstallationOrigin,
     MachineAddress,
@@ -11,28 +10,37 @@ import {
     endpoint,
     Endpoint,
     key,
-    type Machine,
     machine,
     Placement,
+    type ResidencyCode,
     space,
 } from "@destack/account/object";
-import { and, eq, gt, isNull, Snapshot } from "@destack/db";
-import type { ObjectStore } from "@destack/object/server";
-import type { Identifier } from "@destack/schema";
+import type { Snapshot } from "@destack/db";
+import type { Clock, Environment } from "@destack/environment";
+import { Failure } from "@destack/error";
+import { type Identifier, schema } from "@destack/schema";
 import type { Fetch } from "@destack/object";
-import type { TokenVerifier } from "@destack/access/token";
-import { CallError, PackageMount, refusal, reportError } from "@destack/object";
-import { RequestId } from "@destack/sync";
-import type { Call } from "@destack/sync";
+import { PackageMount, refusal, reportError } from "@destack/object";
 import {
-    FORWARDED_URL_HEADER,
-    type ServerContext,
+    FORWARDED_HEAD_HEADER,
+    ForwardedRequest,
     PARTITION_HEADER,
 } from "@destack/object/workload";
-import { tunnel } from "../object/index.ts";
+import { RelayError } from "../error/index.ts";
 import relayPackage from "../package.ts";
 import { TunnelProtocol } from "../session/index.ts";
-import { HANDSHAKE_HEADER, type Handshake, Tunnel, TUNNEL_PATH, TUNNELS_PATH } from "./tunnel.ts";
+import {
+    HANDSHAKE_HEADER,
+    type Handshake,
+    STANDING_ERRORS,
+    Tunnel,
+    type TunnelCloseReason,
+    type TunnelStanding,
+    TUNNEL_PATH,
+    TUNNELS_PATH,
+    type TunnelCall,
+} from "./tunnel.ts";
+import { TunnelToken } from "./token.ts";
 
 /** The parameters a relay sets in the Forwarded header of a request it forwards (RFC 7239). */
 const FORWARDED = {
@@ -48,14 +56,20 @@ export interface RelayOptions {
     readonly origin: string;
     /** The universe's issuer, which machines' tokens carry. */
     readonly issuer: string;
+    /** The residency the relay serves, whose accounts' machines alone tunnel to it. */
+    readonly residency: ResidencyCode;
     /** The relay installation itself, which calls each machine's tunnel in its partition. */
-    readonly itself: ReturnType<ServerContext["at"]>;
-    /** The relay installation's store, with a row per tunnelled machine and the replicas. */
-    readonly store: Pick<ObjectStore, "principal" | "serving" | "clock" | "database" | "mutate">;
+    readonly itself: { readonly url: string; readonly fetch: Fetch };
+    /** The replica of the universe's directory and identities. */
+    readonly view: Snapshot;
     /** The domains names resolve under. */
-    readonly domains?: Domains;
+    readonly domains: Domains;
     /** Call cloud machines at their published endpoints. */
     readonly fetch: Fetch;
+    /** The clock tokens and endpoints lapse on, and the WebCrypto verifying the tokens. */
+    readonly environment: Pick<Environment, "clock" | "crypto" | "network" | "telemetry">;
+    /** Wait until the directory's and the residents' replicas synced, which standing reads. */
+    readonly synced: () => Promise<void>;
 }
 
 /** Where the relay forwards a name's requests: a machine's tunnel, or a published endpoint. */
@@ -68,39 +82,50 @@ export class Relay {
     /** The domains names resolve under. */
     readonly domains: Domains;
 
-    /** The directory's replica: placements, machines, endpoints and claims of names. */
+    /** The replica of the directory and the identities: placements, machines and keys. */
     readonly #view: Snapshot;
+    /** Wait until the replicas standing reads synced. */
+    readonly #synced: () => Promise<void>;
 
-    /** The directory's replica: names, placements and machines. */
+    /** The directory over the replica, which resolves names, handles and placements. */
     readonly #directory: Directory;
 
     /** The relay installation itself, which calls each machine's tunnel in its partition. */
-    readonly #itself: ReturnType<ServerContext["at"]>;
+    readonly #itself: RelayOptions["itself"];
 
-    /** The relay installation's store, with a row per tunnelled machine and the replicas. */
-    readonly #store: RelayOptions["store"];
+    /** The clock tokens and endpoints lapse on. */
+    readonly #clock: Clock;
 
-    /** Verify the universe's tokens machines open their tunnels with. */
-    readonly #tokens: TokenVerifier;
+    /** The universe's tunnel tokens, which machines open their tunnels with. */
+    readonly #tokens: TunnelToken;
 
     /** The relay's own origin. */
     readonly #origin: URL;
 
+    /** The residency the relay serves. */
+    readonly #residency: ResidencyCode;
+
     /** Call cloud machines. */
     readonly #fetch: Fetch;
 
+    /** The telemetry the relay's refused requests are captured on. */
+    readonly #telemetry: Environment["telemetry"];
+
     /** Route as the options describe. */
     constructor(options: RelayOptions) {
-        // resolve handles and names through the replicas in the store's database
-        this.#store = options.store;
-        this.#view = Snapshot.live(options.store.database);
-        this.#directory = new Directory(this.#view);
+        // resolve handles and names through the replicas
+        this.#view = options.view;
+        this.#synced = options.synced;
+        this.#directory = new Directory(options.view);
+        this.#clock = options.environment.clock;
+        this.#telemetry = options.environment.telemetry;
 
         // set the token verifier and the calls to tunnels and cloud machines
-        this.#tokens = Tunnel.verifier(options.issuer, this.#view);
-        this.domains = options.domains ?? DOMAINS;
+        this.#tokens = new TunnelToken(options.issuer, this.#view, options.environment);
+        this.domains = options.domains;
         this.#itself = options.itself;
         this.#origin = new URL(options.origin);
+        this.#residency = options.residency;
         this.#fetch = options.fetch;
     }
 
@@ -120,102 +145,144 @@ export class Relay {
 
         // accept the machine's handshake and open its tunnel, answering a refusal's status alone
         try {
-            const handshake = await this.handshake(request, this.#store.clock.now());
+            const handshake = await this.handshake(request);
 
-            return await this.tunnel(handshake.machineId, "open", {
+            return await this.call(handshake.machineId, "open", {
                 method: "POST",
                 headers: { [HANDSHAKE_HEADER]: JSON.stringify(handshake) },
             });
         } catch (error) {
-            const reported = reportError(error);
+            const reported = reportError(error, this.#telemetry);
 
             return new Response(null, { status: reported.status });
         }
     }
 
     /** Accept a machine's opening handshake with the token it offers as a WebSocket subprotocol. */
-    async handshake(request: Request, now: number): Promise<Handshake> {
+    async handshake(request: Request): Promise<Handshake> {
         // require a machine's token
         const token = TunnelProtocol.token(request.headers.get("sec-websocket-protocol"));
         if (token === undefined) {
-            throw new CallError("UNAUTHORIZED", { message: "invalid bearer subprotocol" });
+            throw RelayError.of("SUBPROTOCOL_INVALID", "invalid bearer subprotocol");
         }
-        const { machineId, lapsesAt } = await Tunnel.verify(this.#tokens, token, now);
+        const { machineId, lapsesAt, kid } = await this.#tokens.verify(token, this.#clock.now());
 
         // require the machine to stand with a standing key
-        const replicated = await this.#machine(machineId);
-        if (replicated === undefined || replicated.isRevoked) {
-            throw new CallError("UNAUTHORIZED", { message: `machine ${machineId} is revoked` });
-        } else if (!(await this.#isKeyed(machineId, now))) {
-            throw new CallError("UNAUTHORIZED", { message: `machine ${machineId} lacks a key` });
+        const standing = await this.standing(machineId);
+        if ("reason" in standing) {
+            const [reason, refused] = STANDING_ERRORS[standing.reason];
+            throw RelayError.of(reason, `machine ${machineId} ${refused}`);
         }
-        const { name } = replicated;
 
-        // open the tunnel under its name, or rename a reopened one, which the machine publishes at each renewal
-        await this.#upsertTunnel(machineId, name);
+        // require its account to live in the relay's residency
+        const resident = await this.#view
+            .read(account.table)
+            .findFirst({ where: { id: standing.account } });
+        if (resident?.residencyId !== this.#residency) {
+            throw RelayError.of(
+                "RESIDENCY_FOREIGN",
+                `machine ${machineId} tunnels through the relay of its account's residency`,
+            );
+        }
 
-        return { machineId, lapsesAt, name };
+        return { machineId, lapsesAt, kid, name: standing.name, account: standing.account };
     }
 
     /** List the standing machines of an account. */
     async machines(accountId: Identifier<"account">): Promise<readonly Identifier<"machine">[]> {
-        const rows = await this.#store.database
-            .select({ id: machine.table.id })
-            .from(machine.table)
-            .where(and(eq(machine.table.scope, accountId), isNull(machine.table.revokedAt)));
+        const rows = await this.#view
+            .read(machine.table)
+            .findMany({ where: { scope: accountId, revokedAt: { isNull: true } } });
 
         return rows.map((row) => row.id);
     }
 
-    /** Bring a machine's tunnel in line with its replica. */
-    async reconcile(machineId: Identifier<"machine">): Promise<void> {
-        // leave a machine the replicas no longer have, and one without a tunnel
+    /** Report whether an endpoint leads to a tunnel at this relay. */
+    isHere(published: Pick<Endpoint, "relay">): boolean {
+        return published.relay !== null && new URL(published.relay.url).host === this.#origin.host;
+    }
+
+    /** List the machines whose endpoints lead to tunnels here. */
+    async tunnelled(): Promise<readonly Identifier<"machine">[]> {
+        const relayed = { relay: { isNotNull: true } } as const;
+        const rows = await this.#view.read(endpoint.table).findMany({ where: relayed });
+
+        return rows.filter((row) => this.isHere(row)).map((row) => row.id);
+    }
+
+    /** Report whether a machine's endpoint leads to a tunnel here. */
+    async isTunnelled(machineId: Identifier<"machine">): Promise<boolean> {
+        const published = await this.#view
+            .read(endpoint.table)
+            .findFirst({ where: { id: machineId } });
+
+        return published !== undefined && this.isHere(published);
+    }
+
+    /** Read whether a machine stands with a standing key: its name, or why its tunnel ends. */
+    async standing(machineId: Identifier<"machine">): Promise<TunnelStanding> {
+        // wait for the synced replicas, then read the machine and its keys
+        await this.#synced();
         const replicated = await this.#machine(machineId);
-        const opened = await this.#opened(machineId);
-        if (replicated === undefined || opened === undefined) {
-            return;
+        if (replicated === undefined) {
+            return { reason: "machine-unknown" };
+        } else if (replicated.isRevoked) {
+            return { reason: "machine-revoked" };
+        } else if (!(await this.#isKeyed(machineId, this.#clock.now()))) {
+            return { reason: "key-revoked" };
         }
 
-        // read whether the machine stands with a standing key
-        const { name, isRevoked } = replicated;
-        const target = tunnel.target({
-            scope: this.#store.principal.scope,
-            id: Tunnel.id(machineId),
-        });
-        const now = this.#store.clock.now();
-        const isStanding = !isRevoked && (await this.#isKeyed(machineId, now));
+        return { name: replicated.name, account: replicated.account };
+    }
 
-        // close the tunnel of a revoked or keyless machine
-        let call: Call;
-        if (!isStanding) {
-            const reason = isRevoked ? "machine-revoked" : "key-revoked";
-            call = tunnel.call("close", { ...target, reason });
+    /** Bring a machine's tunnel here in line with its replica: its name, or its close. */
+    async reconcile(machineId: Identifier<"machine">): Promise<void> {
+        // read whether the machine stands, and where its endpoint leads
+        const standing = await this.standing(machineId);
+        const published = await this.#view
+            .read(endpoint.table)
+            .findFirst({ where: { id: machineId } });
+
+        // close the tunnel of a machine that no longer stands
+        if ("reason" in standing) {
+            await this.#post(machineId, "close", { reason: standing.reason });
         }
-        // rename the tunnel of a renamed machine, which tells the machine
-        else if (opened.name !== name) {
-            call = tunnel.call("rename", { ...target, name });
+        // tell a tunnel still here its machine's name, which a renamed machine renews to learn
+        else if (published !== undefined && this.isHere(published)) {
+            await this.#post(machineId, "rename", { name: standing.name });
         }
-        // leave a tunnel under its name
+        // close the tunnel here of a machine whose endpoint moved to another relay, or that unpublished it
         else {
-            return;
+            await this.#post(machineId, "close", {
+                reason: published === undefined ? "closed" : "moved",
+            });
         }
+    }
 
-        // call it as the relay installation
-        await this.#store.mutate(this.#store.serving(tunnel), {
-            id: RequestId.create(now),
-            calls: [call],
+    /** Post a body to a machine's tunnel, failing with its refusal. */
+    async #post(
+        machineId: Identifier<"machine">,
+        call: Extract<TunnelCall, "close" | "rename">,
+        body: { readonly reason: TunnelCloseReason } | { readonly name: string },
+    ): Promise<void> {
+        const response = await this.call(machineId, call, {
+            method: "POST",
+            body: JSON.stringify(body),
         });
+        if (!response.ok) {
+            throw Failure.error(await Failure.read(response));
+        }
     }
 
     /** Call a machine's tunnel in its partition through the relay installation itself. */
-    tunnel(
+    call(
         machineId: Identifier<"machine">,
-        call: string,
+        call: TunnelCall,
         options: RequestInit,
     ): Promise<Response> {
         // address the machine's tunnel partition
         const headers = new Headers(options.headers);
-        headers.set(PARTITION_HEADER, Tunnel.id(machineId));
+        headers.set(PARTITION_HEADER, Tunnel.partition(machineId));
         const path = `${PackageMount.path(relayPackage.id)}${TUNNELS_PATH}`;
         const url = `${this.#itself.url}${path}/${machineId}/${call}`;
 
@@ -231,7 +298,7 @@ export class Relay {
                 ? this.#forward(request, false)
                 : this.#forward(restored, true));
         } catch (error) {
-            return refusal(error);
+            return refusal(error, this.#telemetry);
         }
     }
 
@@ -248,9 +315,10 @@ export class Relay {
         const host = FORWARDED.host.exec(forwarded)?.[1];
         const proto = FORWARDED.proto.exec(forwarded)?.[1];
         if (host === undefined || proto === undefined) {
-            throw new CallError("BAD_REQUEST", {
-                message: "the forwarded request lacks a host or protocol",
-            });
+            throw RelayError.of(
+                "FORWARDED_HOST_MISSING",
+                "the forwarded request has no host or protocol",
+            );
         }
 
         // ask for the name as the client did
@@ -268,9 +336,7 @@ export class Relay {
 
         // refuse a forwarded request for a machine tunnelled elsewhere, which its relay resolves again
         if (isForwarded && destination.kind !== "tunnel") {
-            throw new CallError("MISDIRECTED_REQUEST", {
-                message: `${name} is tunnelled through another relay`,
-            });
+            throw RelayError.of("RELAY_OTHER", `${name} is tunnelled through another relay`);
         }
 
         return this.#send(destination, request);
@@ -278,12 +344,13 @@ export class Relay {
 
     /** Forward a request to a machine through its tunnel (RFC 7239). */
     async #send(destination: Destination, request: Request): Promise<Response> {
-        // call a machine through its tunnel
+        // call a machine through its tunnel, handing on the client's head alone
         if (destination.kind === "tunnel") {
-            const headers = new Headers(request.headers);
-            headers.set(FORWARDED_URL_HEADER, request.url);
+            const headers = new Headers({
+                [FORWARDED_HEAD_HEADER]: ForwardedRequest.head(request),
+            });
 
-            return this.tunnel(destination.machineId, "forward", {
+            return this.call(destination.machineId, "forward", {
                 method: request.method,
                 headers,
                 body: request.body,
@@ -297,7 +364,14 @@ export class Relay {
         const forwarded = new Request(target.href, request);
         forwarded.headers.set("forwarded", `host="${url.host}";proto=${url.protocol.slice(0, -1)}`);
 
-        return this.#fetch(forwarded);
+        // refuse an endpoint the network cannot reach as a bad gateway
+        try {
+            return await this.#fetch(forwarded);
+        } catch (error) {
+            throw RelayError.of("ENDPOINT_UNREACHABLE", `${destination.url} does not answer`, {
+                cause: error,
+            });
+        }
     }
 
     /** Find where a name's requests go through the replicas of the directory and the machines. */
@@ -315,7 +389,7 @@ export class Relay {
         }
         // resolve nothing else
         else {
-            throw new CallError("NOT_FOUND", { message: `${name} resolves to nothing` });
+            throw RelayError.of("NAME_UNRESOLVED", `${name} does not resolve`);
         }
     }
 
@@ -325,7 +399,7 @@ export class Relay {
         const named = await this.#directory.find(space, address);
         const [placed] = named === undefined ? [] : await Placement.find(this.#view, [named.id]);
         if (placed === undefined) {
-            throw new CallError("NOT_FOUND", { message: `${name} resolves to nothing` });
+            throw RelayError.of("NAME_UNRESOLVED", `${name} does not resolve`);
         }
 
         return this.#destination(placed.machine);
@@ -346,7 +420,7 @@ export class Relay {
                       },
                   });
         if (named === undefined) {
-            throw new CallError("NOT_FOUND", { message: `${name} resolves to nothing` });
+            throw RelayError.of("NAME_UNRESOLVED", `${name} does not resolve`);
         }
 
         return this.#destination(named.id);
@@ -354,110 +428,60 @@ export class Relay {
 
     /** Find where a machine's requests go. */
     async #destination(machineId: Identifier<"machine">): Promise<Destination> {
-        // route to a person's computer through its tunnel here
-        const replicated = await this.#machine(machineId);
-        if (replicated?.kind === "personal" && (await this.#opened(machineId)) !== undefined) {
-            return { kind: "tunnel", machineId };
-        }
-
-        // route to a cloud machine at its URL, or to the relay with a computer's tunnel, unless that is this relay
+        // refuse a machine without an answering endpoint
         const published = await this.#view
             .read(endpoint.table)
             .findFirst({ where: { id: machineId } });
-        const url = published?.relay?.url ?? published?.url;
-        const isLostHere = url !== undefined && new URL(url).host === this.#origin.host;
-        if (
-            published === undefined ||
-            url === undefined ||
-            isLostHere ||
-            !Endpoint.isAnswering(published, this.#store.clock.now())
-        ) {
-            throw new CallError("SERVICE_UNAVAILABLE", {
-                message: `machine ${machineId} is disconnected`,
-            });
+        if (published === undefined || !Endpoint.isAnswering(published, this.#clock.now())) {
+            throw RelayError.of("MACHINE_DISCONNECTED", `machine ${machineId} is disconnected`);
         }
 
-        return { kind: "endpoint", url };
+        // route through its tunnel here, else to the relay with its tunnel or its own URL
+        return this.isHere(published)
+            ? { kind: "tunnel", machineId }
+            : { kind: "endpoint", url: published.relay?.url ?? published.url };
     }
 
-    /** Read a replicated machine's kind, name and whether it was revoked. */
+    /** Read a replicated machine's name, its account and whether it was revoked. */
     async #machine(machineId: Identifier<"machine">): Promise<
         | {
-              readonly kind: Machine["kind"];
               readonly name: string;
+              readonly account: Identifier<"account">;
               readonly isRevoked: boolean;
           }
         | undefined
     > {
-        // read the machine with its account's handle
-        const [replicated] = await this.#store.database
-            .select({
-                machine: machine.table.name,
-                kind: machine.table.kind,
-                revokedAt: machine.table.revokedAt,
-                handle: account.table.handle,
-            })
-            .from(machine.table)
-            .innerJoin(account.table, eq(account.table.id, machine.table.scope))
-            .where(eq(machine.table.id, machineId));
-        if (replicated === undefined) {
+        // read the machine and the handle its account claims, none for a machine outside accounts
+        const replicated = await this.#view
+            .read(machine.table)
+            .findFirst({ where: { id: machineId } });
+        const handle =
+            replicated === undefined ? undefined : await this.#directory.handle(replicated.scope);
+        if (replicated === undefined || handle === undefined) {
             return undefined;
         }
 
         // read the machine's name and whether it was revoked
+        const address = { machine: replicated.name, handle };
+
         return {
-            kind: replicated.kind,
-            name: MachineAddress.format(replicated, this.domains.machine),
+            name: MachineAddress.format(address, this.domains.machine),
+            account: schema.identifier("account").parse(replicated.scope),
             isRevoked: replicated.revokedAt !== null,
         };
     }
 
-    /** Open a machine's tunnel under the name the relay routes to it, or rename a reopened one. */
-    async #upsertTunnel(machineId: Identifier<"machine">, name: string): Promise<void> {
-        // open a new tunnel, rename an open one under another name, and leave one under its name
-        const target = tunnel.target({
-            scope: this.#store.principal.scope,
-            id: Tunnel.id(machineId),
-        });
-        const opened = await this.#opened(machineId);
-        if (opened?.name === name) {
-            return;
-        }
-        const call =
-            opened === undefined
-                ? tunnel.call("open", { ...target, name })
-                : tunnel.call("rename", { ...target, name });
-
-        // call it as the relay installation
-        const now = this.#store.clock.now();
-        await this.#store.mutate(this.#store.serving(tunnel), {
-            id: RequestId.create(now),
-            calls: [call],
-        });
-    }
-
-    /** Read a machine's open tunnel row, absent before its first open. */
-    async #opened(machineId: Identifier<"machine">) {
-        return this.#view
-            .read(tunnel.table)
-            .findFirst({ where: { id: tunnel.identifier(Tunnel.id(machineId)) } });
-    }
-
     /** Report whether a machine has a standing key, unrevoked, unsuspended and unexpired. */
     async #isKeyed(machineId: Identifier<"machine">, now: number): Promise<boolean> {
-        const [standing] = await this.#store.database
-            .select({ id: key.table.id })
-            .from(key.table)
-            .where(
-                and(
-                    eq(key.table.parentType, machine.name),
-                    eq(key.table.parentId, machineId),
-                    isNull(key.table.revokedAt),
-                    isNull(key.table.suspendedAt),
-                    gt(key.table.expiresAt, now),
-                ),
-            )
-            .limit(1);
+        const standing = await this.#view.read(key.table).findFirst({
+            where: {
+                parentType: machine.name,
+                parentId: machineId,
+                revokedAt: { isNull: true },
+                suspendedAt: { isNull: true },
+                expiresAt: { gt: now },
+            },
+        });
 
         return standing !== undefined;
     }
