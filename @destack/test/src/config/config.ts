@@ -1,5 +1,3 @@
-import { existsSync, globSync, readFileSync } from "node:fs";
-import { createHash } from "node:crypto";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import * as vitest from "vitest/config";
@@ -10,7 +8,13 @@ import type {
 } from "vitest/config";
 import type { Plugin, PluginOption } from "vite";
 import { modulePlugin } from "@destack/package/vite";
-import { schema } from "@destack/schema";
+import {
+    type DirectoryEntry,
+    type Environment,
+    type FileSystem,
+    FileSystemError,
+} from "@destack/environment";
+import { Digest, present, schema } from "@destack/schema";
 import type { TestMatrix } from "../project/index.ts";
 
 /** The shared test options: one module graph per worker, cached modules, and quick polls. */
@@ -46,7 +50,10 @@ export type TestConfiguration = Omit<ViteUserConfig, "test"> & {
 };
 
 /** Define a test configuration whose package sources receive Destack module metadata. */
-export function defineConfiguration(configuration: TestConfiguration): ViteUserConfig {
+export function defineConfiguration(
+    configuration: TestConfiguration,
+    environment: Environment<"files" | "process">,
+): ViteUserConfig {
     // split off the targets, the projects and the global setup the projects run in the root's place
     const { targets, test, ...rest } = configuration;
     const { projects: declared, globalSetup, ...options } = test ?? {};
@@ -60,18 +67,25 @@ export function defineConfiguration(configuration: TestConfiguration): ViteUserC
             expect: POLL,
             ...(projects === undefined ? { ...options, ...setup } : { ...options, projects }),
         },
-        plugins: [modulePlugin(), cachePlugin(), ...(rest.plugins ?? []).map(withoutServer)],
+        plugins: [
+            modulePlugin(environment.files),
+            cachePlugin(environment),
+            ...(rest.plugins ?? []).map(withoutServer),
+        ],
     });
 }
 
 /** Define a test project whose package sources receive Destack module metadata. */
-export function defineProject(configuration: UserWorkspaceConfig): UserWorkspaceConfig {
+export function defineProject(
+    configuration: UserWorkspaceConfig,
+    environment: Environment<"files" | "process">,
+): UserWorkspaceConfig {
     return vitest.defineProject({
         ...configuration,
         test: { ...TEST, expect: POLL, ...configuration.test },
         plugins: [
-            modulePlugin(),
-            cachePlugin(),
+            modulePlugin(environment.files),
+            cachePlugin(environment),
             ...(configuration.plugins ?? []).map(withoutServer),
         ],
     });
@@ -205,74 +219,149 @@ function targetProjects(
 }
 
 /** Key cached module transforms by every package definition the module transform reads. */
-function cachePlugin(): Plugin {
+function cachePlugin(environment: Environment<"files" | "process">): Plugin {
     let fingerprint: string | undefined;
 
     return {
         name: "destack-module-cache",
+        async configResolved() {
+            // digest the definitions once, before any transform asks for the key
+            fingerprint = await definitions(environment);
+        },
         configureVitest({ defineCacheKeyGenerator }) {
-            defineCacheKeyGenerator(() => (fingerprint ??= definitions()));
+            defineCacheKeyGenerator(() => present(fingerprint, "the definitions' fingerprint"));
         },
     };
 }
 
 /** Digest the workspace's package definitions and the module transform's sources. */
-function definitions(): string {
+async function definitions(environment: Environment<"files" | "process">): Promise<string> {
     // find the workspace root listing the packages
-    let root = process.cwd();
-    let workspaces = readWorkspaces(root);
+    const { files } = environment;
+    const start = environment.process.workingDirectory;
+    let root = start;
+    let workspaces = await readWorkspaces(root, files);
     while (workspaces === undefined) {
         if (dirname(root) === root) {
-            throw new TypeError(`no workspace above ${process.cwd()}`);
+            throw new TypeError(`no workspace above ${start}`);
         }
         root = dirname(root);
-        workspaces = readWorkspaces(root);
+        workspaces = await readWorkspaces(root, files);
     }
 
     // read each package's destack.json and package.json, skipping dependencies and hidden folders
-    const packages = globSync(
-        workspaces.flatMap((pattern) => [
-            `${pattern}/**/destack.json`,
-            `${pattern}/**/package.json`,
-        ]),
-        {
-            cwd: root,
-            exclude: (path) => basename(path) === "node_modules" || basename(path).startsWith("."),
-        },
-    ).map((file) => join(root, file));
+    const packages: string[] = [];
+    for (const member of await members(root, workspaces, files)) {
+        const found = await walk(member, files);
+        packages.push(
+            ...found.filter((file) => ["destack.json", "package.json"].includes(basename(file))),
+        );
+    }
 
     // read the module transform's sources and its Vite plugin
     const transform = dirname(fileURLToPath(import.meta.resolve("@destack/package/transform")));
+    const entries = await files.readDirectory(transform);
     const sources = [
-        ...globSync("*.ts", { cwd: transform }).map((file) => join(transform, file)),
+        ...entries
+            .filter((entry) => entry.kind === "file" && entry.name.endsWith(".ts"))
+            .map((entry) => join(transform, entry.name)),
         fileURLToPath(import.meta.resolve("@destack/package/vite")),
     ];
-    const extensions = packages
-        .filter((file) => basename(file) === "destack.json")
-        .flatMap((file) => extensionSources(dirname(file)));
-    const files = [...packages, ...sources, ...extensions].toSorted();
+    const extensions: string[] = [];
+    for (const file of packages.filter((path) => basename(path) === "destack.json")) {
+        extensions.push(...(await extensionSources(dirname(file), files)));
+    }
+    const digested = [...packages, ...sources, ...extensions].toSorted();
 
     // hash each file's path and content
-    const hash = createHash("sha256");
-    for (const file of files) {
-        hash.update(file).update("\0").update(readFileSync(file)).update("\0");
+    return Digest.of(fingerprinted(digested, files), environment.crypto);
+}
+
+/** Stream each file's path and content, each ending in a zero byte. */
+async function* fingerprinted(
+    paths: readonly string[],
+    files: FileSystem,
+): AsyncGenerator<Uint8Array> {
+    const encoder = new TextEncoder();
+    for (const path of paths) {
+        yield encoder.encode(`${path}\0`);
+        yield await files.readFile(path);
+        yield encoder.encode("\0");
+    }
+}
+
+/** Expand a workspace's member patterns, a `*` segment matching any directory. */
+async function members(
+    root: string,
+    patterns: readonly string[],
+    files: FileSystem,
+): Promise<string[]> {
+    const expanded: string[] = [];
+    for (const pattern of patterns) {
+        // expand the pattern segment by segment
+        let directories = [root];
+        for (const segment of pattern.split("/")) {
+            const next: string[] = [];
+            for (const parent of directories) {
+                if (segment !== "*") {
+                    next.push(join(parent, segment));
+                } else {
+                    const entries = await entriesOf(parent, files);
+                    next.push(
+                        ...entries
+                            .filter((entry) => entry.kind === "directory")
+                            .map((entry) => join(parent, entry.name)),
+                    );
+                }
+            }
+            directories = next;
+        }
+        expanded.push(...directories);
     }
 
-    return hash.digest("hex");
+    return expanded;
+}
+
+/** List the files below a directory, skipping dependencies and hidden folders. */
+async function walk(directory: string, files: FileSystem): Promise<string[]> {
+    // descend into the directories and take the files, finding none in a missing directory
+    const found: string[] = [];
+    for (const entry of await entriesOf(directory, files)) {
+        const path = join(directory, entry.name);
+        const isSkipped = entry.name === "node_modules" || entry.name.startsWith(".");
+        if (entry.kind === "directory" && !isSkipped) {
+            found.push(...(await walk(path, files)));
+        } else if (entry.kind === "file") {
+            found.push(path);
+        }
+    }
+
+    return found;
+}
+
+/** List a directory's entries, none for a directory that does not exist. */
+async function entriesOf(directory: string, files: FileSystem): Promise<DirectoryEntry[]> {
+    return await files.readDirectory(directory).catch((error: unknown) => {
+        // read a missing directory as empty
+        if (FileSystemError.is(error, "NOT_FOUND")) {
+            return [];
+        }
+        throw error;
+    });
 }
 
 /** List the sources of a package's build extension: the modules beside its build export. */
-function extensionSources(directory: string): string[] {
+async function extensionSources(directory: string, files: FileSystem): Promise<string[]> {
     // read the build export the package's definition names, if it names one
     const definition = Definition.parse(
-        JSON.parse(readFileSync(join(directory, "destack.json"), "utf8")),
+        JSON.parse(await files.readTextFile(join(directory, "destack.json"))),
     );
     if (definition.build === undefined) {
         return [];
     }
     const [subpath = ""] = definition.build.split("#", 1);
     const manifest = Manifest.parse(
-        JSON.parse(readFileSync(join(directory, "package.json"), "utf8")),
+        JSON.parse(await files.readTextFile(join(directory, "package.json"))),
     );
     const file = manifest.exports?.[subpath];
     if (typeof file !== "string") {
@@ -281,19 +370,22 @@ function extensionSources(directory: string): string[] {
 
     // list the modules of the export's directory, its tests aside
     const root = dirname(join(directory, file));
+    const modules = await walk(root, files);
 
-    return globSync("**/*.{ts,tsx}", {
-        cwd: root,
-        exclude: (path) => path.endsWith(".test.ts"),
-    }).map((path) => join(root, path));
+    return modules.filter((path) => /\.tsx?$/u.test(path) && !path.endsWith(".test.ts"));
 }
 
 /** Read the workspace patterns a directory's package.json lists, if it lists any. */
-function readWorkspaces(directory: string): string[] | undefined {
-    const file = join(directory, "package.json");
-    if (!existsSync(file)) {
-        return undefined;
-    }
+async function readWorkspaces(directory: string, files: FileSystem): Promise<string[] | undefined> {
+    // read no workspaces from a directory without a package.json
+    const text = await files
+        .readTextFile(join(directory, "package.json"))
+        .catch((error: unknown) => {
+            if (FileSystemError.is(error, "NOT_FOUND")) {
+                return undefined;
+            }
+            throw error;
+        });
 
-    return Manifest.parse(JSON.parse(readFileSync(file, "utf8"))).workspaces;
+    return text === undefined ? undefined : Manifest.parse(JSON.parse(text)).workspaces;
 }

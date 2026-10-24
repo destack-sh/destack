@@ -1,22 +1,31 @@
+import { Simulation } from "@destack/environment/simulation";
 import { expect, test } from "vitest";
 import { defineConfiguration } from "./config.ts";
 
-test("run each project once per combination of its targets, named after them, with the root's setup in each extending project", () => {
+/** The fixed start of every test world. */
+const START = Date.UTC(2026, 9, 24);
+
+test("run each project once per combination of its targets, named after them, with the root's setup in each extending project", async () => {
+    await using simulation = new Simulation({ seed: 1, start: START });
+
     // declare a root matrix, a project with targets and a colored label, and one extending the root
-    const configuration = defineConfiguration({
-        targets: { database: ["sqlite", "postgresql"] },
-        test: {
-            globalSetup: ["setup.ts"],
-            projects: [
-                {
-                    extends: false,
-                    targets: { database: ["sqlite"], runtime: ["bun", "node"] },
-                    test: { name: { label: "unit", color: "green" }, include: ["src/**"] },
-                },
-                { extends: true, test: { name: "simulation" } },
-            ],
+    const configuration = defineConfiguration(
+        {
+            targets: { database: ["sqlite", "postgresql"] },
+            test: {
+                globalSetup: ["setup.ts"],
+                projects: [
+                    {
+                        extends: false,
+                        targets: { database: ["sqlite"], runtime: ["bun", "node"] },
+                        test: { name: { label: "unit", color: "green" }, include: ["src/**"] },
+                    },
+                    { extends: true, test: { name: "simulation" } },
+                ],
+            },
         },
-    });
+        simulation.environment("test"),
+    );
 
     // expect one project per combination with its values, and the root's setup in extending ones
     expect(configuration.test?.projects).toEqual([
@@ -55,12 +64,17 @@ test("run each project once per combination of its targets, named after them, wi
     ]);
 });
 
-test("run the whole configuration once per combination of its targets without declared projects", () => {
+test("run the whole configuration once per combination of its targets without declared projects", async () => {
+    await using simulation = new Simulation({ seed: 1, start: START });
+
     // declare a matrix and a setup on the root alone
-    const configuration = defineConfiguration({
-        targets: { database: ["sqlite", "postgresql"] },
-        test: { globalSetup: ["setup.ts"], include: ["tests/**"] },
-    });
+    const configuration = defineConfiguration(
+        {
+            targets: { database: ["sqlite", "postgresql"] },
+            test: { globalSetup: ["setup.ts"], include: ["tests/**"] },
+        },
+        simulation.environment("test"),
+    );
 
     // expect the root's options as they are, and one extending project per value with the setup
     expect([
