@@ -6,9 +6,7 @@ import { CheckError } from "../error/index.ts";
 import { listAffected } from "../workspace/index.ts";
 
 /** Run the shared package commands in an environment. */
-export async function main(
-    environment: Environment<"files" | "process" | "host">,
-): Promise<void> {
+export async function main(environment: Environment<"files" | "process" | "host">): Promise<void> {
     // read the command and its source selection
     const { process } = environment;
     let [command = "check", ...files] = process.arguments;

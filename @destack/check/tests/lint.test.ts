@@ -344,6 +344,18 @@ tester.run("no-ambient-effect", rules["no-ambient-effect"], {
             filename: SOURCE,
         },
         {
+            code: 'await navigator.clipboard.writeText(text);\nnavigator.vibrate(200);\nconst dark = matchMedia("(prefers-color-scheme: dark)");\nrequestAnimationFrame(draw);\nconst online = navigator.onLine;',
+            filename: SOURCE,
+        },
+        {
+            code: 'import { history } from "@destack/setting";\nconst owner = history.package;',
+            filename: SOURCE,
+        },
+        {
+            code: 'import { history } from "./setting.ts";\nconst owner = history.package;\nconst { definition } = history;',
+            filename: SOURCE,
+        },
+        {
             code: 'import { readFile } from "node:fs/promises";\nconst now = Date.now();',
             filename: ENVIRONMENT_HOST,
         },
@@ -528,35 +540,7 @@ tester.run("no-ambient-effect", rules["no-ambient-effect"], {
             ],
         },
         {
-            code: 'const online = navigator.onLine;\nawait navigator.share(data);\nnavigator.vibrate(200);\nconst camera = await navigator.permissions.query({ name: "camera" });',
-            filename: SOURCE,
-            errors: [
-                {
-                    messageId: "effect",
-                    data: {
-                        name: "navigator.onLine",
-                        replacement: "environment.connectivity.isOnline",
-                    },
-                },
-                {
-                    messageId: "effect",
-                    data: { name: "navigator.share", replacement: "environment.share.share" },
-                },
-                {
-                    messageId: "effect",
-                    data: {
-                        name: "navigator.vibrate",
-                        replacement: "environment.vibration.vibrate",
-                    },
-                },
-                {
-                    messageId: "effect",
-                    data: { name: "navigator.permissions", replacement: "environment.permissions" },
-                },
-            ],
-        },
-        {
-            code: 'const theme = localStorage.getItem("theme");\nconst path = window.location.pathname;\nawait navigator.clipboard.writeText(text);\nrequestAnimationFrame(draw);\nconst events = new EventSource(url);',
+            code: 'const theme = localStorage.getItem("theme");\nconst path = window.location.pathname;\nconst lock = await navigator.locks.request("sync", work);\nconst events = new EventSource(url);',
             filename: SOURCE,
             errors: [
                 {
@@ -572,14 +556,7 @@ tester.run("no-ambient-effect", rules["no-ambient-effect"], {
                 },
                 {
                     messageId: "effect",
-                    data: { name: "navigator.clipboard", replacement: "environment.clipboard" },
-                },
-                {
-                    messageId: "effect",
-                    data: {
-                        name: "requestAnimationFrame",
-                        replacement: "environment.display.frame",
-                    },
+                    data: { name: "navigator.locks", replacement: "environment.locks" },
                 },
                 {
                     messageId: "effect",
@@ -591,12 +568,29 @@ tester.run("no-ambient-effect", rules["no-ambient-effect"], {
             ],
         },
         {
+            code: 'import { trace } from "@opentelemetry/api";\nconst tracer = trace.getTracer("notes");\nnavigator.sendBeacon(url, body);',
+            filename: SOURCE,
+            errors: [
+                {
+                    messageId: "effect",
+                    data: { name: "trace.getTracer", replacement: "environment.telemetry.tracers" },
+                },
+                {
+                    messageId: "effect",
+                    data: {
+                        name: "navigator.sendBeacon",
+                        replacement: "environment.network.fetch",
+                    },
+                },
+            ],
+        },
+        {
             code: 'setTimeout(retry, 10);\nconst bytes = await crypto.subtle.digest("SHA-256", data);',
             filename: SOURCE,
             errors: [
                 {
                     messageId: "effect",
-                    data: { name: "setTimeout", replacement: "environment.clock.sleep" },
+                    data: { name: "setTimeout", replacement: "environment.clock.setTimeout" },
                 },
                 {
                     messageId: "effect",

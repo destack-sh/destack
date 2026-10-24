@@ -25,7 +25,7 @@ export async function runTool(
         readonly variables?: Readonly<Record<string, string>>;
     } = {},
 ): Promise<ToolResult> {
-    // run the tool under the caller's cancellation, refusing a tool the host cannot start
+    // start the tool under the caller's cancellation
     const { process } = environment;
     const tool = basename(executable);
     const child = (() => {
@@ -45,7 +45,7 @@ export async function runTool(
         }
     })();
 
-    // read both of its output streams, refusing a tool a signal ended
+    // refuse a tool a signal ended
     const { code, signal, stdout, stderr } = await child.output();
     if (signal !== undefined) {
         throw CheckError.of("TOOL_FAILED", `${tool} terminated by ${signal}`);

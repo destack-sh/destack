@@ -56,7 +56,6 @@ const HOSTS = new Map([
     ["localStorage", "environment.storage"],
     ["sessionStorage", "environment.storage"],
     ["location", "environment.navigation.currentEntry"],
-    ["navigator", "the environment"],
     ["history", "environment.navigation"],
 ]);
 
@@ -99,14 +98,10 @@ const MEMBERS = new Map([
     ["Bun.nanoseconds", "environment.clock.now"],
     ["globalThis.fetch", "environment.network.fetch"],
     ["crypto.subtle", "environment.crypto"],
-    ["navigator.clipboard", "environment.clipboard"],
-    ["navigator.onLine", "environment.connectivity.isOnline"],
-    ["navigator.mediaDevices", "environment.capture"],
-    ["navigator.geolocation", "environment.geolocation"],
-    ["navigator.share", "environment.share.share"],
-    ["navigator.canShare", "environment.share.canShare"],
-    ["navigator.vibrate", "environment.vibration.vibrate"],
-    ["navigator.permissions", "environment.permissions"],
+    ["navigator.locks", "environment.locks"],
+    ["navigator.sendBeacon", "environment.network.fetch"],
+    ["navigator.serviceWorker", "environment.workers"],
+    ["navigator.storage", "environment.storage"],
     ["navigator.language", "environment.locale"],
     ["navigator.languages", "environment.locale"],
     ["crypto.randomUUID", "Uuid.v4(environment.random)"],
@@ -147,14 +142,9 @@ const FORMATTING = new Set(["toLocaleString", "toLocaleDateString", "toLocaleTim
 
 /** The host functions, timers and fetch, and the environment member taking their place. */
 const FUNCTIONS = new Map([
-    ["setTimeout", "environment.clock.sleep"],
-    ["setInterval", "environment.clock.sleep"],
+    ["setTimeout", "environment.clock.setTimeout"],
+    ["setInterval", "environment.clock.setInterval"],
     ["fetch", "environment.network.fetch"],
-    ["matchMedia", "environment.display.media"],
-    ["requestAnimationFrame", "environment.display.frame"],
-    ["cancelAnimationFrame", "environment.display.frame's signal"],
-    ["requestIdleCallback", "environment.display.idle"],
-    ["cancelIdleCallback", "environment.display.idle's signal"],
 ]);
 
 /** Reject reaching the host's effects outside the environment's host modules. */
@@ -171,15 +161,17 @@ export const noAmbientEffect: Rule = {
             return {};
         }
 
-        /** Report whether a name resolves to a declaration of the file other than an import. */
+        /** Report whether the file declares a name or imports it from the workspace. */
         function isLocal(node: ESTree.Node, name: string): boolean {
             // walk the scopes outward to the name's declaration
             let scope: ReturnType<typeof context.sourceCode.getScope> | null =
                 context.sourceCode.getScope(node);
             while (scope) {
                 const definition = scope.set.get(name)?.defs[0];
-                if (definition !== undefined) {
-                    return definition.type !== "ImportBinding";
+                if (definition?.type === "ImportBinding") {
+                    return isLocalSource(definition.parent);
+                } else if (definition !== undefined) {
+                    return true;
                 }
                 scope = scope.upper;
             }
@@ -435,4 +427,14 @@ function memberName(node: ESTree.MemberExpression): string | undefined {
 /** Read the name an import or export specifier refers to in its module. */
 function importedName(name: ESTree.ModuleExportName): string {
     return name.type === "Identifier" ? name.name : name.value;
+}
+
+/** Report whether an import takes from the workspace or a relative path. */
+function isLocalSource(declaration: ESTree.Node | null | undefined): boolean {
+    if (declaration?.type !== "ImportDeclaration") {
+        return false;
+    }
+    const source = declaration.source.value;
+
+    return source.startsWith(".") || source.startsWith("@destack/");
 }
