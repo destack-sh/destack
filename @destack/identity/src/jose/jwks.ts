@@ -77,12 +77,10 @@ export const Jwks = {
 
 /** A fetch of a remote key set: the set, its time, and the lookup of its keys. */
 interface JwksFetch {
-    /** The fetched set. */
-    readonly set: Promise<JwkSet>;
+    /** The fetched set with the lookup of its keys, each imported once. */
+    readonly keys: Promise<{ readonly set: JwkSet; readonly lookup: KeyLookup }>;
     /** When the fetch began. */
     readonly at: number;
-    /** The lookup of the set's keys, each imported once. */
-    readonly lookup: Promise<KeyLookup>;
 }
 
 /** A key set fetched from a URL, used until stale and fetched again for an unknown key. */
@@ -116,7 +114,7 @@ class RemoteJwks {
             fetched === undefined || clock.now() - fetched.at >= this.#options.maxAge
                 ? this.#refresh(fetched)
                 : fetched;
-        const set = await current.set;
+        const { set } = await current.keys;
 
         // fetch once more for an unknown key after the cooldown, sharing one fetch among lookups
         const isCooled = clock.now() - current.at >= this.#options.cooldown;
@@ -127,24 +125,24 @@ class RemoteJwks {
                     ? this.#refresh(current)
                     : (this.#fetched ?? current)
                 : current;
+        const { lookup } = await known.keys;
 
-        return (await known.lookup)(header);
+        return lookup(header);
     }
 
     /** Fetch the set after a previous fetch, falling back to the previous one once it fails. */
     #refresh(previous: JwksFetch | undefined): JwksFetch {
         // fetch the set, and use it as the last fetch
         const { clock, crypto } = this.#environment;
-        const set = fetchKeys(this.#url, this.#options, clock);
-        const fetched = {
+        const keys = fetchKeys(this.#url, this.#options, clock).then((set) => ({
             set,
-            at: clock.now(),
-            lookup: set.then((each) => Jwks.local(each, crypto)),
-        };
+            lookup: Jwks.local(set, crypto),
+        }));
+        const fetched = { keys, at: clock.now() };
         this.#fetched = fetched;
 
         // restore the previous fetch once this one fails
-        set.catch(() => {
+        keys.catch(() => {
             if (this.#fetched === fetched) {
                 this.#fetched = previous;
             }

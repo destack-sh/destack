@@ -48,9 +48,14 @@ async function update(
 /** A keychain in memory, lost with the process. */
 export class MemoryKeychain implements Keychain {
     /** The stored secrets, by name. */
-    readonly secrets = new Map<string, string>();
+    readonly secrets: Map<string, string>;
     /** The last lock of each name, which the next one waits for. */
     readonly #locks = new Map<string, Promise<void>>();
+
+    /** Keep secrets in memory, starting from kept ones by name. */
+    constructor(secrets: Readonly<Record<string, string>> = {}) {
+        this.secrets = new Map(Object.entries(secrets));
+    }
 
     /** Lock a name exclusively until disposed, after its earlier locks. */
     async lock(name: string): Promise<AsyncDisposable> {
