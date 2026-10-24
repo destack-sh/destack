@@ -13,6 +13,9 @@ import { BunServer } from "./server/bun.ts";
 /** The system's environment on Bun, built on its first read. */
 let system: ReturnType<typeof buildSystem> | undefined;
 
+/** The environment on Bun: the base and the host's capabilities. */
+export type BunEnvironment = Environment<HostCapability>;
+
 /** Environments on Bun. */
 export const BunEnvironment = {
     /** The system's base and the server capabilities, on the machine Bun runs on. */

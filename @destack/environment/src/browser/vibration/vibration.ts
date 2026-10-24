@@ -8,6 +8,6 @@ export interface Vibration {
 export const Vibration: { readonly system: Vibration } = {
     /** The browser's vibration motor. */
     system: {
-        vibrate: (pattern) => navigator.vibrate(pattern),
+        vibrate: (pattern) => typeof navigator.vibrate === "function" && navigator.vibrate(pattern),
     },
 };

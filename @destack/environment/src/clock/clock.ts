@@ -10,6 +10,14 @@ export interface Clock {
     readonly track: <Value>(work: Promise<Value>) => Promise<Value>;
     /** Count host input and output in flight until it settles, such as a database round trip. */
     readonly trackHost: <Value>(work: Promise<Value>) => Promise<Value>;
+    /** Run a function once some milliseconds of this clock pass, as the web's setTimeout. */
+    readonly setTimeout: (handler: () => void, delay?: number) => number;
+    /** Run a function each period of this clock, as the web's setInterval. */
+    readonly setInterval: (handler: () => void, delay?: number) => number;
+    /** Stop a timer by its handle, as the web's clearTimeout. */
+    readonly clearTimeout: (handle?: number) => void;
+    /** Stop an interval by its handle, as the web's clearInterval. */
+    readonly clearInterval: (handle?: number) => void;
 }
 
 /** The longest timer delay, the largest signed 32 bit integer, in milliseconds. */
@@ -54,5 +62,9 @@ export const Clock: { readonly system: Clock } = {
         timeout: (milliseconds) => AbortSignal.timeout(milliseconds),
         track: (work) => work,
         trackHost: (work) => work,
+        setTimeout: (handler, delay) => Number(setTimeout(handler, delay)),
+        setInterval: (handler, delay) => Number(setInterval(handler, delay)),
+        clearTimeout: (handle) => clearTimeout(handle),
+        clearInterval: (handle) => clearInterval(handle),
     },
 };

@@ -1,4 +1,4 @@
-import { Clock } from "./clock.ts";
+import { Clock, LONGEST_DELAY } from "./clock.ts";
 
 /** A wait on a simulated clock, released once the clock reaches its deadline. */
 interface SimulatedSleep {
@@ -301,8 +301,11 @@ export class SimulatedClock implements Clock {
         const stop = new AbortController();
         this.#timers.set(handle, stop);
 
-        // run a timer on the clock, a single one of no time due at once and an interval each millisecond at least
-        const period = isRepeating ? Math.max(delay, 1) : Math.max(delay, 0);
+        // run a delay past the longest one after a millisecond, as Node's and Bun's timers overflow
+        const bounded = delay > LONGEST_DELAY ? 1 : delay;
+
+        // run a single timer of no time due at once and an interval each millisecond at least
+        const period = isRepeating ? Math.max(bounded, 1) : Math.max(bounded, 0);
         this.#arm(handle, handler, period, values, isRepeating, stop.signal);
 
         return handle;

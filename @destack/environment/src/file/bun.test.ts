@@ -205,7 +205,7 @@ test("refuse reading below a directory without permissions as denied", async () 
     }
 });
 
-test("watch a directory, reading a new file as created, a write as modified and a deletion as removed", async () => {
+test("watch a directory from the call on, reading a new file as created, a write as modified and a deletion as removed, until aborted", async () => {
     // watch a temporary directory of the host's files
     await using simulation = new Simulation({ seed: 1, start: START });
     const { files } = simulation.environment("host");
@@ -218,7 +218,7 @@ test("watch a directory, reading a new file as created, a write as modified and 
         return read.done === true ? undefined : read.value;
     };
 
-    // create, write and remove one file, reading each event as it arrives
+    // create, write and remove one file, the first before any read, reading each event as it arrives
     const path = join(directory, "note.txt");
     await new BunFileSystem().writeTextFile(path, "draft");
     const created = await next();
@@ -226,11 +226,15 @@ test("watch a directory, reading a new file as created, a write as modified and 
     const modified = await next();
     await new BunFileSystem().remove(path);
     const removed = await next();
-    stopping.abort();
 
-    expect([created, modified, removed]).toEqual([
+    // end the watch once aborted
+    stopping.abort();
+    const ended = await next();
+
+    expect([created, modified, removed, ended]).toEqual([
         { kind: "create", path: "note.txt" },
         { kind: "modify", path: "note.txt" },
         { kind: "remove", path: "note.txt" },
+        undefined,
     ]);
 });

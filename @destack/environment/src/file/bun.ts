@@ -1,4 +1,4 @@
-import { constants, type Dirent, type Stats } from "node:fs";
+import { constants, type Dirent, type Stats, watch } from "node:fs";
 import {
     chmod,
     copyFile,
@@ -16,7 +16,6 @@ import {
     rm,
     stat,
     symlink,
-    watch,
     writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -275,52 +274,116 @@ export class BunFileSystem implements FileSystem {
 
     /** Watch a path's changes from the call on, until the signal aborts. */
     watch(path: string, options: WatchOptions = {}): AsyncIterable<FileEvent> {
-        // list the names and start watching at once
+        // list the names and start watching at once, so a name made while the listing runs reads as modified
         const recursive = options.recursive ?? false;
         const listing = this.readDirectory(path, { recursive });
-        const events = watch(path, {
-            recursive,
-            ...(options.signal === undefined ? {} : { signal: options.signal }),
-        });
+        const watcher = BunFileSystem.#listen(path, recursive, options.signal);
 
-        return this.#watched(path, listing, events);
+        return this.#watched(path, listing, watcher);
     }
 
-    /** Read a watch's changes as created, modified or removed against the names it knows. */
+    /** Start the host's watcher of a path at once, buffering its changes until read. */
+    static #listen(
+        path: string,
+        recursive: boolean,
+        signal: AbortSignal | undefined,
+    ): { readonly names: AsyncIterable<string | null>; readonly close: () => void } {
+        // buffer each changed name, failure and close the watcher reports
+        const changes: { readonly name: string | null }[] = [];
+        let failure: Error | undefined;
+        let isClosed = signal?.aborted === true;
+        let wake: (() => void) | undefined;
+        const watcher = watch(path, { recursive, encoding: "utf8" }, (_, filename) => {
+            changes.push({ name: filename });
+            wake?.();
+        });
+        watcher.on("error", (error: Error) => {
+            failure = error;
+            wake?.();
+        });
+
+        // stop the watcher once closed
+        const close = () => {
+            // mark it closed, stop listening and wake a waiting reader
+            isClosed = true;
+            signal?.removeEventListener("abort", close);
+            watcher.close();
+            wake?.();
+        };
+
+        // close on abort, and at once for an aborted signal
+        signal?.addEventListener("abort", close, { once: true });
+        if (isClosed) {
+            close();
+        }
+
+        // wait for the next report, as the reader does once the buffer runs dry
+        const changed = () =>
+            new Promise<void>((resolve) => {
+                wake = resolve;
+            });
+
+        // read the buffered names as they come
+        const names = (async function* () {
+            // yield each buffered change, then fail, end or wait for the next
+            for (;;) {
+                const change = changes.shift();
+                if (change !== undefined) {
+                    yield change.name;
+                } else if (failure !== undefined) {
+                    throw failure;
+                } else if (isClosed) {
+                    return;
+                } else {
+                    await changed();
+                    wake = undefined;
+                }
+            }
+        })();
+
+        return { names, close };
+    }
+
+    /** Read a watch's changes, closing its watcher however the reading ends. */
     async *#watched(
         path: string,
         listing: Promise<readonly DirectoryEntry[]>,
-        events: AsyncIterable<{ readonly eventType: string; readonly filename: string | null }>,
+        watcher: { readonly names: AsyncIterable<string | null>; readonly close: () => void },
+    ): AsyncIterable<FileEvent> {
+        // close the watcher however the reading ends, a failed listing included
+        try {
+            yield* this.#classified(path, await listing, watcher.names);
+        } finally {
+            watcher.close();
+        }
+    }
+
+    /** Classify a watch's changed names as created, modified or removed by the names it knows. */
+    async *#classified(
+        path: string,
+        entries: readonly DirectoryEntry[],
+        names: AsyncIterable<string | null>,
     ): AsyncIterable<FileEvent> {
         // know the names present at the start
-        const known = new Set((await listing).map((entry) => entry.name));
+        const known = new Set(entries.map((entry) => entry.name));
 
-        // read each change until the signal aborts
-        try {
-            for await (const event of events) {
-                // refuse a host that reports a change without its path
-                const name = event.filename;
-                if (name === null) {
-                    throw new TypeError(
-                        `the host reported a change under ${path} without its path`,
-                    );
-                }
-
-                // classify the change by the names known
-                const isPresent = await this.exists(join(path, name));
-                if (!isPresent) {
-                    known.delete(name);
-                    yield { kind: "remove", path: name };
-                } else if (known.has(name)) {
-                    yield { kind: "modify", path: name };
-                } else {
-                    known.add(name);
-                    yield { kind: "create", path: name };
-                }
+        // read each change until the watcher closes
+        for await (const name of names) {
+            // refuse a host that reports a change without its path
+            if (name === null) {
+                throw new TypeError(`the host reported a change under ${path} without its path`);
             }
-        } catch (error) {
-            if (!(error instanceof Error) || error.name !== "AbortError") {
-                throw error;
+
+            // classify the change by the names known
+            const isPresent = await this.exists(join(path, name));
+            if (!isPresent) {
+                known.delete(name);
+                yield { kind: "remove", path: name };
+            } else if (known.has(name)) {
+                yield { kind: "modify", path: name };
+            } else {
+                known.add(name);
+                yield { kind: "create", path: name };
             }
         }
     }
@@ -370,9 +433,9 @@ export class BunFileSystem implements FileSystem {
             : await BunFileLock.acquireShared(path, options);
     }
 
-    /** Open or create a file and lock it exclusively, absent while another holder has it. */
-    async tryLock(path: string): Promise<FileLock | undefined> {
-        return await BunFileLock.tryAcquire(path);
+    /** Lock a file in a mode now, absent while another holder has it. */
+    async tryLock(path: string, mode: FileLockMode): Promise<FileLock | undefined> {
+        return await BunFileLock.tryAcquire(path, mode);
     }
 
     /** Read the POSIX open flags of a file's open options. */

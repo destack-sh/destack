@@ -64,15 +64,15 @@ export class BunFileLock implements FileLock {
         }
     }
 
-    /** Open or create a file and lock it, absent on contention, throwing on a filesystem error. */
-    static async tryAcquire(path: string): Promise<BunFileLock | undefined> {
+    /** Lock a file in a mode now, absent on contention, throwing on a filesystem error. */
+    static async tryAcquire(path: string, mode: FileLockMode): Promise<BunFileLock | undefined> {
         // retain the file only after acquiring ownership
         const native = await open(path);
         let isAcquired = false;
         try {
-            isAcquired = native.tryAcquire("exclusive");
+            isAcquired = native.tryAcquire(mode);
             if (isAcquired) {
-                return new BunFileLock(native.path, native, "exclusive");
+                return new BunFileLock(native.path, native, mode);
             }
         } finally {
             if (!isAcquired) {

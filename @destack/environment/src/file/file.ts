@@ -195,6 +195,6 @@ export interface FileSystem {
         mode: FileLockMode,
         options?: { readonly signal?: AbortSignal },
     ) => Promise<FileLock>;
-    /** Open or create a file and lock it exclusively, absent while another holder has it. */
-    readonly tryLock: (path: string) => Promise<FileLock | undefined>;
+    /** Lock a file in a mode now, absent while another holder has it. */
+    readonly tryLock: (path: string, mode: FileLockMode) => Promise<FileLock | undefined>;
 }

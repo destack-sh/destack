@@ -36,7 +36,7 @@ test.for(["release", "terminate"] as const)(
             const ready = await lines[Symbol.asyncIterator]().next();
             expect(ready.value).toBe("locked");
             lines.close();
-            expect(await BunFileLock.tryAcquire(path)).toBeUndefined();
+            expect(await BunFileLock.tryAcquire(path, "exclusive")).toBeUndefined();
 
             // cancel a waiting acquisition without disturbing the current owner
             const controller = new AbortController();
@@ -45,7 +45,7 @@ test.for(["release", "terminate"] as const)(
             await setTimeout(30);
             controller.abort();
             await rejected;
-            expect(await BunFileLock.tryAcquire(path)).toBeUndefined();
+            expect(await BunFileLock.tryAcquire(path, "exclusive")).toBeUndefined();
 
             // recover ownership after either explicit release or abrupt process termination
             const acquired = BunFileLock.acquire(path, { signal: AbortSignal.timeout(1000) });
@@ -61,11 +61,11 @@ test.for(["release", "terminate"] as const)(
             }
 
             // preserve the file through repeated close and subsequent acquisition
-            expect(await BunFileLock.tryAcquire(path)).toBeUndefined();
+            expect(await BunFileLock.tryAcquire(path, "exclusive")).toBeUndefined();
             await owner.close();
             await owner.close();
             expect(await readFile(path, "utf8")).toBe("preserve this file");
-            await using next = await BunFileLock.tryAcquire(path);
+            await using next = await BunFileLock.tryAcquire(path, "exclusive");
             expect(next?.path).toBe(path);
         } finally {
             if (child.exitCode === null && child.signalCode === null) {
@@ -81,7 +81,7 @@ test("reject invalid paths without changing the filesystem", async () => {
     const directory = await mkdtemp(join(tmpdir(), "destack-file-lock-"));
     try {
         const path = join(directory, "missing", "owner.lock");
-        expect(await refusal(BunFileLock.tryAcquire(path))).toEqual([
+        expect(await refusal(BunFileLock.tryAcquire(path, "exclusive"))).toEqual([
             "NOT_FOUND",
             "NOT_FOUND",
             `cannot open ${path}: ${process.platform === "win32" ? 3 : "ENOENT"}`,
@@ -89,7 +89,7 @@ test("reject invalid paths without changing the filesystem", async () => {
 
         // preserve native string termination across both platform implementations
         const invalid = join(directory, "owner.lock") + "\0suffix";
-        expect(await refusal(BunFileLock.tryAcquire(invalid))).toEqual([
+        expect(await refusal(BunFileLock.tryAcquire(invalid, "exclusive"))).toEqual([
             "INTERNAL_SERVER_ERROR",
             "FILE_SYSTEM_FAILED",
             `cannot open ${invalid}: EINVAL`,
@@ -108,13 +108,13 @@ test("share a lock among shared holders, keep it shared after a failed conversio
         const second = await BunFileLock.acquireShared(path);
         const whileShared = {
             converted: await first.tryExclusive(),
-            acquired: await BunFileLock.tryAcquire(path),
+            acquired: await BunFileLock.tryAcquire(path, "exclusive"),
             modes: [first.mode, second.mode],
         };
 
         // keep the first held shared after its failed conversion, refusing exclusive access to others
         await second.close();
-        const keptShared = await BunFileLock.tryAcquire(path);
+        const keptShared = await BunFileLock.tryAcquire(path, "exclusive");
 
         // convert the first, refusing a shared holder until it shares again
         const converted = await first.tryExclusive();

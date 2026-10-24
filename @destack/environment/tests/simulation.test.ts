@@ -1,6 +1,6 @@
 import { Uuid } from "@destack/schema";
 import { expect, test } from "@destack/test";
-import { Random } from "../src/index.ts";
+import { LONGEST_DELAY, Random } from "../src/index.ts";
 import {
     type NodeStart,
     SimulatedClock,
@@ -973,14 +973,15 @@ test("refuse host work stalled past the stall timeout, and hand work driven duri
     });
 });
 
-test("run timers by deadline and, within one, in start order, a zero-delay timer first, across many waits", async () => {
-    // start a zero-delay timer after two later ones, and many sleeps of seeded delays
+test("run timers by deadline and, within one, in start order, a zero-delay timer first and an overflowing one a millisecond later, across many waits", async () => {
+    // start a zero-delay timer and an overflowing one after two later ones, and many sleeps of seeded delays
     await using simulation = new Simulation({ seed: 3, start: START });
     const { clock, random } = simulation;
     const order: string[] = [];
     clock.setTimeout(() => order.push("later first"), 10);
     clock.setTimeout(() => order.push("zero"), 0);
     clock.setTimeout(() => order.push("later second"), 10);
+    clock.setTimeout(() => order.push("overflow"), LONGEST_DELAY + 1);
     const released: [number, number][] = [];
     const delays = Array.from({ length: 2000 }, () => Random.int(random, 50));
     for (const [index, delay] of delays.entries()) {
@@ -995,7 +996,7 @@ test("run timers by deadline and, within one, in start order, a zero-delay timer
             ([left, leftIndex], [right, rightIndex]) => left - right || leftIndex - rightIndex,
         );
     expect({ order, isOrdered: JSON.stringify(released) === JSON.stringify(expected) }).toEqual({
-        order: ["zero", "later first", "later second"],
+        order: ["zero", "overflow", "later first", "later second"],
         isOrdered: true,
     });
 });

@@ -216,16 +216,16 @@ export class SimulatedFileSystem implements FileSystem {
         mode: FileLockMode,
         options?: { readonly signal?: AbortSignal },
     ): Promise<FileLock> {
-        // take a free exclusive lock at once, else wait for the holder, who may wait on simulated time
+        // take a free lock at once, else wait for the holder, who may wait on simulated time
         options?.signal?.throwIfAborted();
-        const free = mode === "exclusive" ? await this.tryLock(path) : undefined;
+        const free = await this.tryLock(path, mode);
 
         return free ?? this.#adopt(await this.#host.lock(path, mode, options));
     }
 
-    /** Open or create a file and lock it exclusively, absent while another holder has it. */
-    async tryLock(path: string): Promise<FileLock | undefined> {
-        const lock = await this.#clock.trackHost(this.#host.tryLock(path));
+    /** Lock a file in a mode now, absent while another holder has it. */
+    async tryLock(path: string, mode: FileLockMode): Promise<FileLock | undefined> {
+        const lock = await this.#clock.trackHost(this.#host.tryLock(path, mode));
 
         return lock === undefined ? undefined : this.#adopt(lock);
     }
