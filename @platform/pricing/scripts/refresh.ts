@@ -1,5 +1,6 @@
-import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import type { Network } from "@destack/environment";
+import { BunEnvironment } from "@destack/environment/bun";
 import { Cost } from "@destack/finance";
 import { CLOUDFLARE_SKUS } from "../src/vendor/cloudflare.ts";
 
@@ -62,12 +63,15 @@ const LOOKUPS: Readonly<Record<string, Lookup>> = {
     },
 };
 
+/** The machine the refresh runs on. */
+const environment = BunEnvironment.system;
+
 /** The pages read so far, by URL, each read once. */
 const pages = new Map<string, Promise<string>>();
 
 // read every SKU's price in cents before writing anything
 /** The day the prices are read, as YYYY-MM-DD. */
-const today = new Date().toISOString().slice(0, 10);
+const today = new Date(environment.clock.now()).toISOString().slice(0, 10);
 /** Each SKU with its price read in cents. */
 const read = await Promise.all(
     CLOUDFLARE_SKUS.map(async (sku) => {
@@ -78,7 +82,7 @@ const read = await Promise.all(
         }
 
         // read it in dollars and write it in cents
-        const dollars = await priceOf(sku.name, lookup);
+        const dollars = await priceOf(sku.name, lookup, environment.network);
 
         return { sku, cents: Cost.of(Cost.scaled(dollars) * CENTS) };
     }),
@@ -88,7 +92,7 @@ const read = await Promise.all(
 /** The Cloudflare module the refresh rewrites. */
 const file = fileURLToPath(new URL("../src/vendor/cloudflare.ts", import.meta.url));
 /** The module's text, each amount rewritten in turn. */
-let module = readFileSync(file, "utf8");
+let module = await environment.files.readTextFile(file);
 for (const { sku, cents } of read) {
     module = replaced(
         module,
@@ -97,16 +101,18 @@ for (const { sku, cents } of read) {
         sku.name,
     );
     if (cents !== sku.definition.unitAmount) {
-        process.stdout.write(`${sku.name}: ${sku.definition.unitAmount} -> ${cents}\n`);
+        await environment.process.stdout.write(
+            `${sku.name}: ${sku.definition.unitAmount} -> ${cents}\n`,
+        );
     }
 }
 module = replaced(module, /(const OBSERVED_AT = ")([^"]*)(")/u, today, "cloudflare");
-writeFileSync(file, module);
+await environment.files.writeTextFile(file, module);
 
 /** Read a Cloudflare price from its docs page, refusing a pattern matching never or differently. */
-async function priceOf(name: string, lookup: Lookup): Promise<string> {
+async function priceOf(name: string, lookup: Lookup, network: Network): Promise<string> {
     // read every match's captured price, a free one as zero
-    const page = await text(`https://developers.cloudflare.com/${lookup.page}/index.md`);
+    const page = await text(`https://developers.cloudflare.com/${lookup.page}/index.md`, network);
     const prices = new Set(
         [...page.matchAll(lookup.pattern)].map((match) => (match[1] === "Free" ? "0" : match[1])),
     );
@@ -131,16 +137,16 @@ function replaced(source: string, pattern: RegExp, value: string, name: string):
 }
 
 /** Fetch a URL's text once, refusing a failed response. */
-function text(url: string): Promise<string> {
-    const page = pages.get(url) ?? fetched(url).then((response) => response.text());
+function text(url: string, network: Network): Promise<string> {
+    const page = pages.get(url) ?? fetched(url, network).then((response) => response.text());
     pages.set(url, page);
 
     return page;
 }
 
 /** Fetch a URL, refusing a failed response. */
-async function fetched(url: string): Promise<Response> {
-    const response = await fetch(url);
+async function fetched(url: string, network: Network): Promise<Response> {
+    const response = await network.fetch(new Request(url));
     if (!response.ok) {
         throw new Error(`${new URL(url).host}${new URL(url).pathname} answered ${response.status}`);
     }
