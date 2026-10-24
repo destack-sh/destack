@@ -1,3 +1,4 @@
+import type { Environment } from "@destack/environment";
 import { type Digest, schema } from "@destack/schema";
 import { ResourceId, type ResourceDeclaration } from "../declare/declaration.ts";
 import type { KindState, ResourceKind } from "../declare/kind.ts";
@@ -56,8 +57,12 @@ export interface Connector<
 > {
     /** The provider code the connector connects to, such as sqlite. */
     readonly code: string;
-    /** Open a client for a bound resource with the declaration's desired state. */
-    connect(binding: ResourceBinding, declaration: Declaration): Promise<Client & AsyncDisposable>;
+    /** Open a client for a bound resource with its declaration, in the workload's environment. */
+    connect(
+        binding: ResourceBinding,
+        declaration: Declaration,
+        environment: Environment,
+    ): Promise<Client & AsyncDisposable>;
 }
 
 /** Where a provider placed a resource. */

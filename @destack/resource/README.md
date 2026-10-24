@@ -35,7 +35,7 @@ const stripe = stripeApi.declare({ connection: stripeConnection });
 `connectors` maps a provider code to the `Connector` that opens a declaration's client in a workload.
 
 ```ts
-const connection = await main.connectors["sqlite"]?.connect(binding, main);
+const connection = await main.connectors["sqlite"]?.connect(binding, main, environment);
 ```
 
 ## Plans
