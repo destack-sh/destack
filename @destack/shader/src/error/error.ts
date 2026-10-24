@@ -1,4 +1,4 @@
-import { defineErrorFamily, type FamilyError, type ReasonOf } from "@destack/error";
+import { defineErrorFamily, type FamilyFailure, type ReasonOf } from "@destack/error";
 import type {} from "@destack/package/import-meta";
 
 /** The shader package's failures, each reason with the call error code it answers. */
@@ -21,4 +21,4 @@ export const ShaderError = defineErrorFamily(import.meta.destack.package, {
 /** A stable cause of shader failures. */
 export type ShaderReason = ReasonOf<typeof ShaderError>;
 /** A shader failing to draw, with its reason and message. */
-export type ShaderFailure = FamilyError<ShaderReason>;
+export type ShaderFailure = FamilyFailure<ShaderReason>;
