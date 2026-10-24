@@ -1,3 +1,5 @@
+import { TelemetryScope } from "../scope/index.ts";
+import { Simulation } from "@destack/environment/simulation";
 import { expect, expectTypeOf, test } from "@destack/test";
 import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
@@ -5,6 +7,8 @@ import { startTelemetry } from "../bun/index.ts";
 import { OtlpExporter } from "../otlp/index.ts";
 import { markCaptured } from "./scope.ts";
 
+/** The start of every test's world: 2026-10-24 at midnight UTC. */
+const START = Date.UTC(2026, 9, 24);
 /** The instrumented package. */
 const source = {
     id: PackageId.parse("package-01996ab0-0000-7000-8000-000000000001"),
@@ -42,6 +46,8 @@ const Exported = schema.looseObject({
 
 test("declare metrics whose attributes take only their declared values, and export them with their unit", async () => {
     // collect the metrics each export carries
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const environment = simulation.environment("test");
     const metrics: unknown[] = [];
     const exporter = new OtlpExporter(
         async (signal, body) => {
@@ -67,11 +73,11 @@ test("declare metrics whose attributes take only their declared values, and expo
             throw error;
         },
     );
-    const telemetry = await startTelemetry(exporter.options(source));
+    const telemetry = await startTelemetry(exporter.options(source), environment);
 
     // count saves by notebook, refusing undeclared values and attributes at compile time
     try {
-        const saves = telemetry.scope(source).metric.counter("note.saves", {
+        const saves = TelemetryScope.of(source, telemetry).metric.counter("note.saves", {
             unit: "{save}",
             attributes: { notebook: ["personal", "shared"] },
         });
@@ -124,6 +130,8 @@ const ExportedLogs = schema.looseObject({
 
 test("capture handled failures and messages as exceptions with their error type, level, tags and fingerprint, each failure once", async () => {
     // collect the records each export carries, without stack traces
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const environment = simulation.environment("test");
     const records: unknown[] = [];
     const exporter = new OtlpExporter(
         async (signal, body) => {
@@ -153,11 +161,11 @@ test("capture handled failures and messages as exceptions with their error type,
             throw error;
         },
     );
-    const telemetry = await startTelemetry(exporter.options(source));
+    const telemetry = await startTelemetry(exporter.options(source), environment);
 
     // capture a handled failure with a tag, a refusal of its caller, and a warning message with its own fingerprint
     try {
-        const scope = telemetry.scope(source);
+        const scope = TelemetryScope.of(source, telemetry);
         const failure = new RangeError("page 9 of 3");
         scope.captureException(failure, { tags: { feature: "export" } });
 
@@ -214,6 +222,8 @@ test("capture handled failures and messages as exceptions with their error type,
 
 test("record visits and actions as the platform's destack.visit and destack.action records, refusing a log record under its names", async () => {
     // collect each export's records with their string attributes
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const environment = simulation.environment("test");
     const records: unknown[] = [];
     const exporter = new OtlpExporter(
         async (signal, body) => {
@@ -238,12 +248,12 @@ test("record visits and actions as the platform's destack.visit and destack.acti
             throw error;
         },
     );
-    const telemetry = await startTelemetry(exporter.options(source));
+    const telemetry = await startTelemetry(exporter.options(source), environment);
 
     // record a visit and an action, then try a log record under the platform's names
     let refused: unknown;
     try {
-        const scope = telemetry.scope(source);
+        const scope = TelemetryScope.of(source, telemetry);
         scope.visit("/notes/:id", { path: "/notes/1", title: "Groceries" });
         scope.track("note.shared", { audience: "space" });
         try {

@@ -1,14 +1,8 @@
 export {
-    context,
     createContextKey,
-    createTraceState,
-    diag,
-    DiagLogLevel,
     isSpanContextValid,
     isValidSpanId,
     isValidTraceId,
-    metrics,
-    propagation,
     ROOT_CONTEXT,
     SpanKind,
     SpanStatusCode,
@@ -17,7 +11,6 @@ export {
 } from "@opentelemetry/api";
 export type {
     Attributes,
-    AttributeValue,
     Baggage,
     BaggageEntry,
     BatchObservableCallback,
@@ -54,12 +47,11 @@ export type {
     TraceState,
     UpDownCounter,
 } from "@opentelemetry/api";
-export { logs, SeverityNumber } from "@opentelemetry/api-logs";
+export { SeverityNumber } from "@opentelemetry/api";
 export type {
     AnyValue,
-    AnyValueMap,
     Logger,
     LoggerOptions,
     LoggerProvider,
     LogRecord,
-} from "@opentelemetry/api-logs";
+} from "@opentelemetry/api";

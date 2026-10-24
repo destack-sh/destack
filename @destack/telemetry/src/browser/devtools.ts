@@ -1,4 +1,4 @@
-import { SeverityNumber } from "@opentelemetry/api-logs";
+import { SeverityNumber } from "@opentelemetry/api";
 import { type ExportResult, ExportResultCode } from "@opentelemetry/core";
 import {
     type LogRecordExporter,
@@ -59,8 +59,10 @@ export class DevtoolsExporter {
         return {
             name: owner.name,
             version: owner.version,
-            traces: { spanProcessors: [new SimpleSpanProcessor({ exporter: this.traces })] },
-            logs: { processors: [new SimpleLogRecordProcessor({ exporter: this.logs })] },
+            signals: () => ({
+                traces: { spanProcessors: [new SimpleSpanProcessor({ exporter: this.traces })] },
+                logs: { processors: [new SimpleLogRecordProcessor({ exporter: this.logs })] },
+            }),
             metrics: {},
             report: reportToDevtools,
         };

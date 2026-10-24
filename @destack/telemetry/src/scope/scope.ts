@@ -3,15 +3,17 @@ import {
     type Counter,
     type Gauge,
     type Histogram,
+    type Logger,
+    type Meter,
+    SeverityNumber,
     type Span,
     SpanStatusCode,
     trace,
     type Tracer,
 } from "@opentelemetry/api";
-import { type Logger, SeverityNumber } from "@opentelemetry/api-logs";
+import type { Environment } from "@destack/environment";
 import type { Package } from "@destack/package";
 import { DomainError } from "@destack/error";
-import { type PackageMeter, ProxyLogger, ProxyMeter, ProxyTracer } from "./proxy.ts";
 import {
     ACTION_EVENT,
     ANALYTICS_ATTRIBUTES,
@@ -27,6 +29,9 @@ const LEVELS: Readonly<Record<CaptureLevel, readonly [SeverityNumber, string]>> 
     warning: [SeverityNumber.WARN, "WARN"],
     info: [SeverityNumber.INFO, "INFO"],
 };
+
+/** The instruments a package creates on its meter: the synchronous ones. */
+export type PackageMeter = Pick<Meter, "createCounter" | "createHistogram" | "createGauge">;
 
 /** The property a failure carries once captured: here, or by the service that answered with it. */
 const CAPTURED = Symbol.for("destack.telemetry.captured");
@@ -54,6 +59,19 @@ export interface TelemetryScope {
     /** Record a view a person opened at a route. */
     readonly visit: (route: string, detail?: VisitDetail) => void;
 }
+
+/** Telemetry scopes. */
+export const TelemetryScope = {
+    /** Attribute instrumentation to a package on an environment's telemetry. */
+    of(source: Package, telemetry: Environment["telemetry"]): TelemetryScope {
+        return instrument(
+            telemetry.tracers.getTracer(source.name, source.version),
+            telemetry.meters.getMeter(source.name, source.version),
+            telemetry.loggers.getLogger(source.name, source.version),
+            telemetry,
+        );
+    },
+};
 
 /** How bad a captured failure is. */
 export type CaptureLevel = "fatal" | "error" | "warning" | "info";
@@ -141,10 +159,13 @@ export interface SpanRunner {
 export class Log {
     /** The package's logger. */
     readonly #logger: Logger;
+    /** The context the records belong to, and the clock they are stamped on. */
+    readonly #telemetry: Pick<Environment["telemetry"], "context" | "clock">;
 
-    /** Emit through a package's logger. */
-    constructor(logger: Logger) {
+    /** Emit through a package's logger in a telemetry's active context, on its clock. */
+    constructor(logger: Logger, telemetry: Pick<Environment["telemetry"], "context" | "clock">) {
         this.#logger = logger;
+        this.#telemetry = telemetry;
     }
 
     /** Emit a debug record. */
@@ -180,50 +201,65 @@ export class Log {
                 `log record names under ${RESERVED_EVENT_PREFIX} are reserved: ${eventName}`,
             );
         }
-        this.#logger.emit({ eventName, severityNumber, severityText, attributes });
+        const { context, clock } = this.#telemetry;
+        this.#logger.emit({
+            eventName,
+            severityNumber,
+            severityText,
+            attributes,
+            context: context.active(),
+            timestamp: clock.now(),
+            observedTimestamp: clock.now(),
+        });
     }
 }
 
-/** Obtain package instruments from the providers registered by the host. */
-export function scope(source: Package): TelemetryScope {
-    return instrument(
-        new ProxyTracer(source.name, source.version),
-        new ProxyMeter(source.name, source.version),
-        new ProxyLogger(source.name, source.version),
-    );
-}
+/** Bundle a package's tracer, meter and logger with its log records and spans in a context. */
+function instrument(
+    tracer: Tracer,
+    meter: PackageMeter,
+    logger: Logger,
+    telemetry: Pick<Environment["telemetry"], "context" | "clock">,
+): TelemetryScope {
+    const { context, clock } = telemetry;
 
-/** Bundle a package's tracer, meter and logger with its log records and spans. */
-export function instrument(tracer: Tracer, meter: PackageMeter, logger: Logger): TelemetryScope {
     return {
         tracer,
         meter,
         logger,
-        log: new Log(logger),
-        span: runner(tracer),
+        log: new Log(logger, telemetry),
+        span: runner(tracer, telemetry),
         metric: new MetricFactory(meter),
-        captureException: (error, context) => {
+        captureException: (error, capture) => {
             // skip a failure captured where it happened
             if (isCaptured(error)) {
                 return;
             }
             markCaptured(error);
-            emitException(logger, exceptionAttributes(error, context?.isEscaped === true), context);
+            const attributes = exceptionAttributes(error, capture?.isEscaped === true);
+            emitException(logger, attributes, telemetry, capture);
         },
-        captureMessage: (message, context) =>
+        captureMessage: (message, capture) =>
             emitException(
                 logger,
                 { "exception.message": message, "exception.escaped": false },
-                context,
+                telemetry,
+                capture,
             ),
         track: (name, attributes = {}) =>
             logger.emit({
                 eventName: ACTION_EVENT,
                 attributes: { ...attributes, [ANALYTICS_ATTRIBUTES.action]: name },
+                context: context.active(),
+                timestamp: clock.now(),
+                observedTimestamp: clock.now(),
             }),
         visit: (route, detail = {}) =>
             logger.emit({
                 eventName: VISIT_EVENT,
+                context: context.active(),
+                timestamp: clock.now(),
+                observedTimestamp: clock.now(),
                 attributes: {
                     [ANALYTICS_ATTRIBUTES.route]: route,
                     ...Object.fromEntries(
@@ -256,47 +292,56 @@ function isCaptured(error: unknown): boolean {
 export function emitException(
     logger: Logger,
     attributes: Attributes,
-    context: CaptureContext = {},
+    telemetry: Pick<Environment["telemetry"], "context" | "clock">,
+    capture: CaptureContext = {},
 ): void {
-    const [severityNumber, severityText] = LEVELS[context.level ?? "error"];
+    const [severityNumber, severityText] = LEVELS[capture.level ?? "error"];
     logger.emit({
         eventName: "exception",
         severityNumber,
         severityText,
+        context: telemetry.context.active(),
+        timestamp: telemetry.clock.now(),
+        observedTimestamp: telemetry.clock.now(),
         attributes: {
-            ...context.attributes,
+            ...capture.attributes,
             ...attributes,
             ...Object.fromEntries(
-                Object.entries(context.tags ?? {}).map(([key, value]) => [`tag.${key}`, value]),
+                Object.entries(capture.tags ?? {}).map(([key, value]) => [`tag.${key}`, value]),
             ),
-            ...(context.fingerprint === undefined
+            ...(capture.fingerprint === undefined
                 ? {}
-                : { "exception.fingerprint": [...context.fingerprint] }),
+                : { "exception.fingerprint": [...capture.fingerprint] }),
         },
     });
 }
 
-/** Run work in child spans of a tracer. */
-function runner(tracer: Tracer): SpanRunner {
-    // run the work, recording a failure on the span before ending it
-    const run = <Result>(
+/** Run work in child spans of a tracer, each active in a context manager's flow. */
+function runner(
+    tracer: Tracer,
+    telemetry: Pick<Environment["telemetry"], "context" | "clock">,
+): SpanRunner {
+    // run the work in a child span on the clock
+    const { context, clock } = telemetry;
+    const run = async <Result>(
         name: string,
         attributes: Attributes,
         work: (span: Span) => Result | Promise<Result>,
-    ): Promise<Result> =>
-        tracer.startActiveSpan(name, { attributes }, async (span) => {
-            try {
-                return await work(span);
-            } catch (error) {
-                span.recordException(error instanceof Error ? error : String(error));
-                span.setStatus({ code: SpanStatusCode.ERROR });
-                throw error;
-            } finally {
-                span.end();
-            }
-        });
+    ): Promise<Result> => {
+        const parent = context.active();
+        const span = tracer.startSpan(name, { attributes, startTime: clock.now() }, parent);
+        try {
+            return await context.with(trace.setSpan(parent, span), () => work(span));
+        } catch (error) {
+            span.recordException(error instanceof Error ? error : String(error));
+            span.setStatus({ code: SpanStatusCode.ERROR });
+            throw error;
+        } finally {
+            span.end(clock.now());
+        }
+    };
 
-    return Object.assign(run, { current: () => trace.getActiveSpan() });
+    return Object.assign(run, { current: () => trace.getSpan(context.active()) });
 }
 
 /** Read the instrument options of a metric definition. */

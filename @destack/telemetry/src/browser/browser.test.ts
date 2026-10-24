@@ -1,8 +1,16 @@
+import { TelemetryScope } from "../scope/index.ts";
+import { Simulation } from "@destack/environment/simulation";
 import { expect, test } from "@destack/test";
 import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
 import { OTLP_ORIGIN_PATH, OtlpExporter } from "../otlp/index.ts";
 import { startTelemetry } from "./browser.ts";
+
+/** The origin of the page, whose server receives its exports. */
+const ORIGIN = "https://notes.test";
+
+/** The start of every test's world: 2026-10-24 at midnight UTC. */
+const START = Date.UTC(2026, 9, 24);
 
 /** The instrumented package. */
 const source = {
@@ -82,16 +90,17 @@ class PageWindow extends EventTarget {
 test("export a page's uncaught errors and unhandled rejections to its origin at once, its records as it hides, and its crashed session as it leaves", async () => {
     // deliver every export to the page's origin, waiting for each, and collect the sessions records name
     const sessions = new Set<string>();
-    const delivered: { url: string; keepalive: boolean | undefined; body: unknown }[] = [];
+    const delivered: { url: string; body: unknown }[] = [];
     let arrived = Promise.withResolvers<void>();
     const metrics: unknown[] = [];
-    const send = async (url: string, options: RequestInit) => {
+    const send = async (request: Request) => {
         // keep the metrics apart, and wake the reader for each logs export
-        const body: unknown = JSON.parse(await new Response(options.body).text());
+        const body: unknown = await request.json();
+        const { url } = request;
         if (url.endsWith("/v1/metrics")) {
             metrics.push(body);
         } else {
-            delivered.push({ url, keepalive: options.keepalive, body });
+            delivered.push({ url, body });
             arrived.resolve();
         }
 
@@ -107,7 +116,6 @@ test("export a page's uncaught errors and unhandled rejections to its origin at 
 
         return {
             url: request?.url,
-            keepalive: request?.keepalive,
             resources: resourceLogs.map((group) => group.resource.attributes),
             records: resourceLogs.flatMap((group) =>
                 group.scopeLogs.flatMap((scope) =>
@@ -136,15 +144,17 @@ test("export a page's uncaught errors and unhandled rejections to its origin at 
         };
     };
 
-    // start the page's telemetry on its window
+    // start the page's telemetry on its window, in a world
+    await using simulation = new Simulation({ seed: 1, start: START });
     const page = new PageWindow();
     const exporter = OtlpExporter.http(
-        { endpoint: OTLP_ORIGIN_PATH, isKeepalive: true, fetch: send },
+        { endpoint: `${ORIGIN}${OTLP_ORIGIN_PATH}`, isKeepalive: true, fetch: send },
         (error) => {
             throw error;
         },
     );
-    const telemetry = await startTelemetry(exporter.options(source), page);
+    const environment = simulation.environment("page");
+    const telemetry = await startTelemetry(exporter.options(source), environment, page);
     try {
         // fail with an uncaught error and with an unhandled rejection
         page.dispatchEvent(new ErrorEvent("error", { error: new TypeError("note is missing") }));
@@ -157,7 +167,7 @@ test("export a page's uncaught errors and unhandled rejections to its origin at 
         const rejected = await exported();
 
         // log a note, exported once the page hides
-        telemetry.scope(source).log.info("note.saved", { length: "short" });
+        TelemetryScope.of(source, telemetry).log.info("note.saved", { length: "short" });
         page.document.visibilityState = "hidden";
         page.dispatchEvent(new Event("visibilitychange"));
         const hidden = await exported();
@@ -172,8 +182,7 @@ test("export a page's uncaught errors and unhandled rejections to its origin at 
         ];
         expect([thrown, rejected, hidden, left]).toEqual([
             {
-                url: "/.destack/telemetry/v1/logs",
-                keepalive: true,
+                url: `${ORIGIN}/.destack/telemetry/v1/logs`,
                 resources: [resource],
                 records: [
                     ["session.start", "INFO", { "session.id": "session" }],
@@ -191,8 +200,7 @@ test("export a page's uncaught errors and unhandled rejections to its origin at 
                 ],
             },
             {
-                url: "/.destack/telemetry/v1/logs",
-                keepalive: true,
+                url: `${ORIGIN}/.destack/telemetry/v1/logs`,
                 resources: [resource],
                 records: [
                     [
@@ -209,14 +217,12 @@ test("export a page's uncaught errors and unhandled rejections to its origin at 
                 ],
             },
             {
-                url: "/.destack/telemetry/v1/logs",
-                keepalive: true,
+                url: `${ORIGIN}/.destack/telemetry/v1/logs`,
                 resources: [resource],
                 records: [["note.saved", "INFO", { length: "short", "session.id": "session" }]],
             },
             {
-                url: "/.destack/telemetry/v1/logs",
-                keepalive: true,
+                url: `${ORIGIN}/.destack/telemetry/v1/logs`,
                 resources: [resource],
                 records: [
                     [

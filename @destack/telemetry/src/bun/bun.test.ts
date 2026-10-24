@@ -1,16 +1,22 @@
-import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
+import { Simulation } from "@destack/environment/simulation";
 import { present, schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
+import { testHost } from "@destack/test/host";
 import { OtlpExporter } from "../otlp/index.ts";
 import { Telemetry } from "../sdk/index.ts";
 import { observeProcess } from "./bun.ts";
+
+/** The start of every test's world: 2026-10-24 at midnight UTC. */
+const START = Date.UTC(2026, 9, 24);
 
 /** The package directory, whose preload a child process runs with. */
 const root = fileURLToPath(new URL("../..", import.meta.url));
 
 /** A process that writes each logs export to its output and fails as its environment asks. */
 const failing = `
+import { BunEnvironment } from ${JSON.stringify(fileURLToPath(import.meta.resolve("@destack/environment/bun")))};
 import { startTelemetry } from ${JSON.stringify(fileURLToPath(new URL("index.ts", import.meta.url)))};
 import { OtlpExporter } from ${JSON.stringify(fileURLToPath(new URL("../otlp/index.ts", import.meta.url)))};
 
@@ -19,7 +25,7 @@ const exporter = new OtlpExporter(async (signal, body) => {
         process.stdout.write(new TextDecoder().decode(body) + "\\n");
     }
 }, () => {});
-await startTelemetry(exporter.options({ name: "@example/notes", version: "2026.9.0" }));
+await startTelemetry(exporter.options({ name: "@example/notes", version: "2026.9.0" }), BunEnvironment.system);
 if (process.env.FAILURE === "rejection") {
     void Promise.reject(new TypeError("note sync rejected"));
 } else {
@@ -31,74 +37,227 @@ if (process.env.FAILURE === "rejection") {
 
 /** Run the failing process to its end. */
 async function fail(failure: "exception" | "rejection") {
-    const child = spawn(process.execPath, ["-e", failing], {
-        cwd: root,
-        env: { ...process.env, FAILURE: failure },
+    // run the process from a world, its output and errors piped
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const { process } = simulation.environment("test");
+    const child = process.spawn([process.executable, "-e", failing], {
+        workingDirectory: root,
+        variables: { ...process.variables, FAILURE: failure },
+        stdout: "pipe",
+        stderr: "pipe",
     });
-    let output = "";
-    let errors = "";
-    child.stdout.on("data", (chunk: Buffer) => (output += chunk.toString()));
-    child.stderr.on("data", (chunk: Buffer) => (errors += chunk.toString()));
-    const code = await new Promise<number | null>((resolve) => {
-        child.on("close", resolve);
-    });
+    const [output, errors, code] = await Promise.all([
+        new Response(child.stdout).text(),
+        new Response(child.stderr).text(),
+        child.exited,
+    ]);
+
+    // set aside the host's times, ids and stacks
+    const reported =
+        failure === "exception"
+            ? "RangeError: note index out of range"
+            : "TypeError: note sync rejected";
 
     return {
         code,
         exports: output
             .split("\n")
             .filter((line) => line !== "")
-            .map((line): unknown => JSON.parse(line)),
-        isReported: errors.includes(failure === "exception" ? "note index" : "note sync"),
+            .map((line) => hostless(JSON.parse(line))),
+        isReported: errors.split("\n").some((line) => line.trim() === reported),
     };
 }
 
-/** The resource of the release. */
-const resource: unknown = expect.objectContaining({
-    attributes: [
-        { key: "service.name", value: { stringValue: "@example/notes" } },
-        { key: "service.version", value: { stringValue: "2026.9.0" } },
-    ],
-});
+/** The keys of the host's times and generated ids, which change on every run. */
+const HOST_KEYS = new Set(["timeUnixNano", "observedTimeUnixNano", "traceId", "spanId"]);
 
-/** The logs export of one captured failure of the release. */
-function captured(type: string, message: string) {
-    const attributes: unknown = expect.arrayContaining([
-        { key: "exception.type", value: { stringValue: type } },
-        { key: "exception.message", value: { stringValue: message } },
-    ]);
+/** The attributes whose values the host generates: stack traces and session ids. */
+const HOST_ATTRIBUTES = new Set(["exception.stacktrace", "session.id"]);
 
-    return {
-        resourceLogs: [
-            {
-                resource,
-                scopeLogs: [
-                    {
-                        scope: { name: "@example/notes", version: "2026.9.0" },
-                        logRecords: [
-                            expect.objectContaining({
-                                severityNumber: 17,
-                                severityText: "ERROR",
-                                eventName: "exception",
-                                attributes,
-                            }),
-                        ],
-                    },
-                ],
-            },
-        ],
-    };
+/** Set aside the parts of an export the host generates, keeping every other field as written. */
+function hostless(value: unknown): unknown {
+    // keep scalars, and walk arrays
+    if (typeof value !== "object" || value === null) {
+        return value;
+    } else if (Array.isArray(value)) {
+        return value.map(hostless);
+    }
+    // mark a generated attribute's value
+    else if ("key" in value && HOST_ATTRIBUTES.has(String(value.key))) {
+        return { ...value, value: "<host>" };
+    }
+    // mark the generated times and ids of an object, walking the rest
+    else {
+        return Object.fromEntries(
+            Object.entries(value).map(([key, field]) => [
+                key,
+                HOST_KEYS.has(key) ? "<host>" : hostless(field),
+            ]),
+        );
+    }
 }
 
 test("export a process's uncaught exception and unhandled rejection with its release, then end it as it would have ended", async () => {
-    expect([await fail("exception"), await fail("rejection")]).toEqual([
+    expect([await fail("exception"), await fail("rejection")]).toMatchInlineSnapshot(`
+      [
         {
-            code: 1,
-            exports: [captured("RangeError", "note index out of range")],
-            isReported: true,
+          "code": 1,
+          "exports": [
+            {
+              "resourceLogs": [
+                {
+                  "resource": {
+                    "attributes": [
+                      {
+                        "key": "service.name",
+                        "value": {
+                          "stringValue": "@example/notes",
+                        },
+                      },
+                      {
+                        "key": "service.version",
+                        "value": {
+                          "stringValue": "2026.9.0",
+                        },
+                      },
+                    ],
+                    "droppedAttributesCount": 0,
+                  },
+                  "scopeLogs": [
+                    {
+                      "logRecords": [
+                        {
+                          "attributes": [
+                            {
+                              "key": "error.type",
+                              "value": {
+                                "stringValue": "RangeError",
+                              },
+                            },
+                            {
+                              "key": "exception.type",
+                              "value": {
+                                "stringValue": "RangeError",
+                              },
+                            },
+                            {
+                              "key": "exception.message",
+                              "value": {
+                                "stringValue": "note index out of range",
+                              },
+                            },
+                            {
+                              "key": "exception.stacktrace",
+                              "value": "<host>",
+                            },
+                            {
+                              "key": "exception.escaped",
+                              "value": {
+                                "boolValue": true,
+                              },
+                            },
+                          ],
+                          "body": {},
+                          "droppedAttributesCount": 0,
+                          "eventName": "exception",
+                          "observedTimeUnixNano": "<host>",
+                          "severityNumber": 17,
+                          "severityText": "ERROR",
+                          "timeUnixNano": "<host>",
+                        },
+                      ],
+                      "scope": {
+                        "name": "@example/notes",
+                        "version": "2026.9.0",
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+          "isReported": true,
         },
-        { code: 1, exports: [captured("TypeError", "note sync rejected")], isReported: true },
-    ]);
+        {
+          "code": 1,
+          "exports": [
+            {
+              "resourceLogs": [
+                {
+                  "resource": {
+                    "attributes": [
+                      {
+                        "key": "service.name",
+                        "value": {
+                          "stringValue": "@example/notes",
+                        },
+                      },
+                      {
+                        "key": "service.version",
+                        "value": {
+                          "stringValue": "2026.9.0",
+                        },
+                      },
+                    ],
+                    "droppedAttributesCount": 0,
+                  },
+                  "scopeLogs": [
+                    {
+                      "logRecords": [
+                        {
+                          "attributes": [
+                            {
+                              "key": "error.type",
+                              "value": {
+                                "stringValue": "TypeError",
+                              },
+                            },
+                            {
+                              "key": "exception.type",
+                              "value": {
+                                "stringValue": "TypeError",
+                              },
+                            },
+                            {
+                              "key": "exception.message",
+                              "value": {
+                                "stringValue": "note sync rejected",
+                              },
+                            },
+                            {
+                              "key": "exception.stacktrace",
+                              "value": "<host>",
+                            },
+                            {
+                              "key": "exception.escaped",
+                              "value": {
+                                "boolValue": true,
+                              },
+                            },
+                          ],
+                          "body": {},
+                          "droppedAttributesCount": 0,
+                          "eventName": "exception",
+                          "observedTimeUnixNano": "<host>",
+                          "severityNumber": 17,
+                          "severityText": "ERROR",
+                          "timeUnixNano": "<host>",
+                        },
+                      ],
+                      "scope": {
+                        "name": "@example/notes",
+                        "version": "2026.9.0",
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+          "isReported": true,
+        },
+      ]
+    `);
 }, 20_000);
 
 /** The metrics of an OTLP/JSON metrics export, as far as a process's CPU time reads them. */
@@ -147,8 +306,13 @@ test("export the process's user and system CPU seconds as a delta process.cpu.ti
         },
         () => {},
     );
-    const telemetry = new Telemetry(exporter.options(source));
-    observeProcess(telemetry, source);
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const telemetry = new Telemetry(
+        exporter.options(source),
+        new AsyncLocalStorageContextManager(),
+        simulation.environment("test"),
+    );
+    observeProcess(telemetry, source, testHost());
     await telemetry.flush();
     await telemetry.shutdown();
 

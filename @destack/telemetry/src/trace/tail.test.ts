@@ -1,3 +1,6 @@
+import type { Clock } from "@destack/environment";
+import { Simulation } from "@destack/environment/simulation";
+import { TelemetryScope } from "../scope/index.ts";
 import { expect, test } from "@destack/test";
 import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
@@ -5,10 +8,12 @@ import { ROOT_CONTEXT } from "@opentelemetry/api";
 import { BatchLogRecordProcessor } from "@opentelemetry/sdk-logs";
 import { BatchSpanProcessor, SamplingDecision } from "@opentelemetry/sdk-trace";
 import { startTelemetry } from "../bun/index.ts";
-import type { TelemetryScope } from "../scope/index.ts";
 import { OtlpExporter } from "../otlp/index.ts";
 import { RatioSampler } from "./sampler.ts";
 import { TailSampler } from "./tail.ts";
+
+/** The start of every test's world: 2026-10-24 at midnight UTC. */
+const START = Date.UTC(2026, 9, 24);
 
 /** The instrumented package. */
 const source = {
@@ -45,9 +50,11 @@ const Named = schema.looseObject({
 
 /** Run work under a tail sampler behind a sampler that keeps no trace by ratio. */
 async function exportThroughTail(
-    work: (scope: TelemetryScope) => Promise<void>,
+    work: (scope: TelemetryScope, clock: Clock) => Promise<void>,
 ): Promise<string[]> {
-    // export through a tail sampler behind a sampler keeping no trace by ratio
+    // export through a tail sampler behind a sampler keeping no trace by ratio, in a world
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const environment = simulation.environment("test");
     const exported: string[] = [];
     const exporter = new OtlpExporter(
         async (_, body) => {
@@ -71,26 +78,35 @@ async function exportThroughTail(
             throw error;
         },
     );
-    const tail = new TailSampler(
-        new BatchSpanProcessor({ exporter: exporter.traces }),
-        new BatchLogRecordProcessor({ exporter: exporter.logs }),
-        20,
-    );
-    const telemetry = await startTelemetry({
-        name: source.name,
-        version: source.version,
-        traces: { sampler: new RatioSampler(0), spanProcessors: [tail.spans] },
-        logs: { processors: [tail.logs] },
-        metrics: {},
-        report: (error) => {
-            throw error;
+    const telemetry = await startTelemetry(
+        {
+            name: source.name,
+            version: source.version,
+            signals: (meters) => {
+                const tail = new TailSampler(
+                    new BatchSpanProcessor({ exporter: exporter.traces }),
+                    new BatchLogRecordProcessor({ exporter: exporter.logs }),
+                    meters,
+                    20,
+                );
+
+                return {
+                    traces: { sampler: new RatioSampler(0), spanProcessors: [tail.spans] },
+                    logs: { processors: [tail.logs] },
+                };
+            },
+            metrics: {},
+            report: (error) => {
+                throw error;
+            },
         },
-    });
+        environment,
+    );
 
     // run the work and export what the sampler keeps
     try {
-        await work(telemetry.scope(source));
-        await telemetry.flush();
+        await simulation.drive(work(TelemetryScope.of(source, telemetry), environment.clock));
+        await simulation.drive(telemetry.flush());
     } finally {
         await telemetry.shutdown();
     }
@@ -100,7 +116,7 @@ async function exportThroughTail(
 
 test("keep failed and slow unsampled traces with their records, warnings alone, and records outside traces", async () => {
     // run a quiet trace, a failed one, a slow one and a quiet one with a warning, and log outside any trace
-    const exported = await exportThroughTail(async ({ log, span }) => {
+    const exported = await exportThroughTail(async ({ log, span }, clock) => {
         await span("quiet", {}, () => log.info("quiet.saved"));
         await span("failed", {}, () => {
             log.info("failed.started");
@@ -108,9 +124,7 @@ test("keep failed and slow unsampled traces with their records, warnings alone, 
         }).catch(() => {});
         await span("slow", {}, async () => {
             log.debug("slow.waiting");
-            await new Promise((resolve) => {
-                setTimeout(resolve, 30);
-            });
+            await clock.sleep(30);
         });
         await span("warned", {}, () => log.warn("warned.conflict"));
         log.info("outside.started");
@@ -171,11 +185,9 @@ test("sample a ratio of root traces by their random identifier bits and let chil
 
 test("keep a trace once it outlives the slow threshold, passing every later span past the bound", async () => {
     // run a root that turns slow, then ends more children than a pending trace buffers
-    const exported = await exportThroughTail(async ({ span }) => {
+    const exported = await exportThroughTail(async ({ span }, clock) => {
         await span("stream", {}, async () => {
-            await new Promise((resolve) => {
-                setTimeout(resolve, 30);
-            });
+            await clock.sleep(30);
             for (let index = 0; index < 1500; index += 1) {
                 await span("page", {}, () => undefined);
             }

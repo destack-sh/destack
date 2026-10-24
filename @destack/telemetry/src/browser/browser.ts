@@ -1,4 +1,5 @@
-import { StackContextManager } from "@opentelemetry/sdk-trace-web";
+import { StackContextManager } from "@opentelemetry/sdk-trace";
+import type { Environment } from "@destack/environment";
 import { Telemetry, type TelemetryOptions } from "../sdk/index.ts";
 
 /** The window whose uncaught failures a page captures, and whose hiding exports them. */
@@ -10,9 +11,10 @@ export type CaptureWindow = Pick<Window, "addEventListener"> & {
 /** Start browser telemetry that captures a window's uncaught failures. */
 export function startTelemetry(
     options: TelemetryOptions,
-    target: CaptureWindow = window,
+    environment: Pick<Environment, "clock" | "random">,
+    target: CaptureWindow,
 ): Promise<Telemetry> {
-    return Telemetry.start(options, new StackContextManager(), (telemetry) =>
+    return Telemetry.start(options, new StackContextManager(), environment, (telemetry) =>
         captureWindow(telemetry, target),
     );
 }
@@ -22,9 +24,9 @@ export function captureWindow(telemetry: Telemetry, target: CaptureWindow): () =
     // run the page's session from now until it hides
     telemetry.startSession();
 
-    // export what is buffered, the exporter reporting a failed delivery
+    // export what is buffered, reporting a failed export
     const flush = () => {
-        void telemetry.flush().catch(() => {});
+        void telemetry.flush().catch(telemetry.report);
     };
 
     // record each failure and export it, leaving the browser's own reporting as it is

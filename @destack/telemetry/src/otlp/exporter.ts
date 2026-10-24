@@ -93,8 +93,8 @@ export interface OtlpTarget {
     readonly headers?: () => Record<string, string>;
     /** Whether a request outlives its page, as a page's exports must when it hides. */
     readonly isKeepalive?: boolean;
-    /** Send a request, `fetch` by default, or a local client such as a machine's. */
-    readonly fetch?: (url: string, options: RequestInit) => Promise<Response>;
+    /** Send a request: an environment's network fetch, or a local client such as a machine's. */
+    readonly fetch: (request: Request) => Promise<Response>;
 }
 
 /** Deliver one OTLP/JSON export request of a signal, rejecting a refused delivery. */
@@ -170,21 +170,26 @@ export class OtlpExporter {
         owner: { readonly name: string; readonly version: string },
         options: { readonly ratio?: number } = {},
     ): TelemetryOptions {
-        // keep a ratio of traces, and every failed or slow one
-        const tail = new TailSampler(
-            new BatchSpanProcessor({ exporter: this.traces }),
-            new BatchLogRecordProcessor({ exporter: this.logs }),
-        );
-
         return {
             name: owner.name,
             version: owner.version,
             report: this.#report,
-            traces: {
-                sampler: new RatioSampler(options.ratio ?? 1),
-                spanProcessors: [tail.spans],
+            signals: (meters) => {
+                // keep a ratio of traces and every failed or slow one
+                const tail = new TailSampler(
+                    new BatchSpanProcessor({ exporter: this.traces }),
+                    new BatchLogRecordProcessor({ exporter: this.logs }),
+                    meters,
+                );
+
+                return {
+                    traces: {
+                        sampler: new RatioSampler(options.ratio ?? 1),
+                        spanProcessors: [tail.spans],
+                    },
+                    logs: { processors: [tail.logs] },
+                };
             },
-            logs: { processors: [tail.logs] },
             metrics: {
                 readers: [
                     new PeriodicExportingMetricReader({
@@ -263,13 +268,13 @@ async function post(target: OtlpTarget, signal: OtlpSignal, body: Uint8Array): P
     const bytes = new Uint8Array(buffer, body.byteOffset, body.byteLength);
 
     // post the request to the signal's path
-    const send = target.fetch ?? fetch;
-    const response = await send(`${target.endpoint}/v1/${signal}`, {
+    const request = new Request(`${target.endpoint}/v1/${signal}`, {
         method: "POST",
         headers: { "content-type": "application/json", ...target.headers?.() },
         body: bytes,
         ...(target.isKeepalive === true ? { keepalive: true } : {}),
     });
+    const response = await target.fetch(request);
 
     // refuse a delivery the endpoint refused
     const text = await response.text();

@@ -1,36 +1,19 @@
+import { TelemetryScope } from "../scope/index.ts";
+import { Simulation } from "@destack/environment/simulation";
 import { expect, test } from "@destack/test";
 import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
 import { startTelemetry } from "../bun/index.ts";
 import { OtlpExporter, type OtlpSignal } from "./exporter.ts";
 
+/** The start of every test's world: 2026-10-24 at midnight UTC. */
+const START = Date.UTC(2026, 9, 24);
 /** The instrumented package. */
 const source = {
     id: PackageId.parse("package-01996ab0-0000-7000-8000-000000000001"),
     name: "@example/notes",
     version: "2026.9.0",
 };
-
-/** A traces request with one span, read for its trace and span identifiers. */
-const TracesRequest = schema.looseObject({
-    signal: schema.literal("traces"),
-    body: schema.looseObject({
-        resourceSpans: schema.tuple([
-            schema.looseObject({
-                scopeSpans: schema.tuple([
-                    schema.looseObject({
-                        spans: schema.tuple([
-                            schema.looseObject({
-                                traceId: schema.string(),
-                                spanId: schema.string(),
-                            }),
-                        ]),
-                    }),
-                ]),
-            }),
-        ]),
-    }),
-});
 
 /** A logs request with one record, read for its attributes. */
 const LogsRequest = schema.looseObject({
@@ -54,16 +37,10 @@ const LogsRequest = schema.looseObject({
     ]),
 });
 
-/** The resource every signal of the package carries. */
-const resource: unknown = expect.objectContaining({
-    attributes: [
-        { key: "service.name", value: { stringValue: "@example/notes" } },
-        { key: "service.version", value: { stringValue: "2026.9.0" } },
-    ],
-});
-
 test("export a log record inside its span as OTLP/JSON, correlated by trace", async () => {
     // deliver every request as parsed JSON
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const environment = simulation.environment("test");
     const delivered: { signal: OtlpSignal; body: unknown }[] = [];
     const exporter = new OtlpExporter(
         async (signal, body) => {
@@ -73,85 +50,154 @@ test("export a log record inside its span as OTLP/JSON, correlated by trace", as
             throw error;
         },
     );
-    const telemetry = await startTelemetry(exporter.options(source));
+    const telemetry = await startTelemetry(exporter.options(source), environment);
 
     // log inside a span and export both
     try {
-        const { log, span } = telemetry.scope(source);
+        const { log, span } = TelemetryScope.of(source, telemetry);
         await span("note.render", { blocks: 12 }, () => log.info("note.saved", { length: 5 }));
         await telemetry.flush();
     } finally {
         await telemetry.shutdown();
     }
 
-    // name the span's trace and span on the log record
-    const [traces, logs] = delivered;
-    const [{ scopeSpans }] = TracesRequest.parse(traces).body.resourceSpans;
-    const { traceId, spanId } = scopeSpans[0].spans[0];
-    const scope = { name: "@example/notes", version: "2026.9.0" };
-    expect([traces, logs]).toEqual([
+    // export the span and the record correlated by trace, each whole
+    expect(delivered).toMatchInlineSnapshot(`
+      [
         {
-            signal: "traces",
-            body: {
-                resourceSpans: [
+          "body": {
+            "resourceSpans": [
+              {
+                "resource": {
+                  "attributes": [
                     {
-                        resource,
-                        scopeSpans: [
-                            {
-                                scope,
-                                spans: [
-                                    expect.objectContaining({
-                                        traceId,
-                                        spanId,
-                                        name: "note.render",
-                                        attributes: [{ key: "blocks", value: { intValue: 12 } }],
-                                    }),
-                                ],
-                            },
-                        ],
+                      "key": "service.name",
+                      "value": {
+                        "stringValue": "@example/notes",
+                      },
                     },
+                    {
+                      "key": "service.version",
+                      "value": {
+                        "stringValue": "2026.9.0",
+                      },
+                    },
+                  ],
+                  "droppedAttributesCount": 0,
+                },
+                "scopeSpans": [
+                  {
+                    "scope": {
+                      "name": "@example/notes",
+                      "version": "2026.9.0",
+                    },
+                    "spans": [
+                      {
+                        "attributes": [
+                          {
+                            "key": "blocks",
+                            "value": {
+                              "intValue": 12,
+                            },
+                          },
+                        ],
+                        "droppedAttributesCount": 0,
+                        "droppedEventsCount": 0,
+                        "droppedLinksCount": 0,
+                        "endTimeUnixNano": "1792800000000000000",
+                        "events": [],
+                        "flags": 257,
+                        "kind": 1,
+                        "links": [],
+                        "name": "note.render",
+                        "spanId": "e3440b233e0a77dc",
+                        "startTimeUnixNano": "1792800000000000000",
+                        "status": {
+                          "code": 0,
+                        },
+                        "traceId": "01a16b35080086a37896d7dfdfd3257b",
+                      },
+                    ],
+                  },
                 ],
-            },
+              },
+            ],
+          },
+          "signal": "traces",
         },
         {
-            signal: "logs",
-            body: {
-                resourceLogs: [
+          "body": {
+            "resourceLogs": [
+              {
+                "resource": {
+                  "attributes": [
                     {
-                        resource,
-                        scopeLogs: [
-                            {
-                                scope,
-                                logRecords: [
-                                    expect.objectContaining({
-                                        severityNumber: 9,
-                                        severityText: "INFO",
-                                        eventName: "note.saved",
-                                        attributes: [{ key: "length", value: { intValue: 5 } }],
-                                        traceId,
-                                        spanId,
-                                    }),
-                                ],
-                            },
-                        ],
+                      "key": "service.name",
+                      "value": {
+                        "stringValue": "@example/notes",
+                      },
                     },
+                    {
+                      "key": "service.version",
+                      "value": {
+                        "stringValue": "2026.9.0",
+                      },
+                    },
+                  ],
+                  "droppedAttributesCount": 0,
+                },
+                "scopeLogs": [
+                  {
+                    "logRecords": [
+                      {
+                        "attributes": [
+                          {
+                            "key": "length",
+                            "value": {
+                              "intValue": 5,
+                            },
+                          },
+                        ],
+                        "body": {},
+                        "droppedAttributesCount": 0,
+                        "eventName": "note.saved",
+                        "flags": 1,
+                        "observedTimeUnixNano": "1792800000000000000",
+                        "severityNumber": 9,
+                        "severityText": "INFO",
+                        "spanId": "e3440b233e0a77dc",
+                        "timeUnixNano": "1792800000000000000",
+                        "traceId": "01a16b35080086a37896d7dfdfd3257b",
+                      },
+                    ],
+                    "scope": {
+                      "name": "@example/notes",
+                      "version": "2026.9.0",
+                    },
+                  },
                 ],
-            },
+              },
+            ],
+          },
+          "signal": "logs",
         },
-    ]);
+      ]
+    `);
 });
 
 test("post each signal below a target's endpoint through the target's fetch", async () => {
     // record each request the target's fetch posts
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const environment = simulation.environment("test");
     const posted: { url: string; method: string | undefined; type: string | null }[] = [];
     const exporter = OtlpExporter.http(
         {
             endpoint: "http://machine.test/observability",
-            fetch: async (url, options) => {
+            fetch: async (request) => {
                 posted.push({
-                    url,
-                    method: options.method,
-                    type: new Headers(options.headers).get("content-type"),
+                    url: request.url,
+                    method: request.method,
+                    type: request.headers.get("content-type"),
                 });
 
                 return new Response(null, { status: 200 });
@@ -161,11 +207,11 @@ test("post each signal below a target's endpoint through the target's fetch", as
             throw error;
         },
     );
-    const telemetry = await startTelemetry(exporter.options(source));
+    const telemetry = await startTelemetry(exporter.options(source), environment);
 
     // log once and export it
     try {
-        telemetry.scope(source).log.info("note.saved", { length: 5 });
+        TelemetryScope.of(source, telemetry).log.info("note.saved", { length: 5 });
         await telemetry.flush();
     } finally {
         await telemetry.shutdown();
@@ -183,6 +229,8 @@ test("post each signal below a target's endpoint through the target's fetch", as
 
 test("export a captured exception with the frames its build's symbolicator resolves", async () => {
     // resolve each frame to its source, as a build's source maps do
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const environment = simulation.environment("test");
     const delivered: unknown[] = [];
     const exporter = new OtlpExporter(
         async (signal, body) => {
@@ -198,14 +246,14 @@ test("export a captured exception with the frames its build's symbolicator resol
                 frames.map((frame) => ({ ...frame, path: "src/note.ts", line: 7, column: 3 })),
         },
     );
-    const telemetry = await startTelemetry(exporter.options(source));
+    const telemetry = await startTelemetry(exporter.options(source), environment);
 
     // capture an exception thrown in the package
     const error = new RangeError("page 9 of 3");
     error.stack =
         "RangeError: page 9 of 3\n    at Note.render (file:///srv/output/workload.js:12:34)";
     try {
-        telemetry.scope(source).captureException(error);
+        TelemetryScope.of(source, telemetry).captureException(error);
         await telemetry.flush();
     } finally {
         await telemetry.shutdown();

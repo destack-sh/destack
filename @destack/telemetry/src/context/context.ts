@@ -1,12 +1,10 @@
 import {
     type Context,
-    context,
-    propagation,
     ROOT_CONTEXT,
     type TextMapGetter,
-    type TextMapPropagator,
     type TextMapSetter,
 } from "@opentelemetry/api";
+import type { Environment } from "@destack/environment";
 
 /** The setter writing trace fields into HTTP headers. */
 const HEADERS_SETTER: TextMapSetter<Headers> = {
@@ -19,19 +17,19 @@ const HEADERS_GETTER: TextMapGetter<Headers> = {
     get: (carrier, name) => carrier.get(name) ?? undefined,
 };
 
-/** Inject the active trace into an outgoing HTTP request. */
+/** Inject a trace, the telemetry's active one by default, into an outgoing HTTP request. */
 export function injectContext(
     headers: Headers,
-    parent: Context = context.active(),
-    propagator: Pick<TextMapPropagator, "inject"> = propagation,
+    telemetry: Pick<Environment["telemetry"], "propagator" | "context">,
+    parent: Context = telemetry.context.active(),
 ): void {
-    propagator.inject(parent, headers, HEADERS_SETTER);
+    telemetry.propagator.inject(parent, headers, HEADERS_SETTER);
 }
 
 /** Extract a remote trace without inheriting another request's active context. */
 export function extractContext(
     headers: Headers,
-    propagator: Pick<TextMapPropagator, "extract"> = propagation,
+    telemetry: Pick<Environment["telemetry"], "propagator">,
 ): Context {
-    return propagator.extract(ROOT_CONTEXT, headers, HEADERS_GETTER);
+    return telemetry.propagator.extract(ROOT_CONTEXT, headers, HEADERS_GETTER);
 }

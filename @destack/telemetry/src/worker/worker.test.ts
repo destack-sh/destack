@@ -1,9 +1,12 @@
+import { Simulation } from "@destack/environment/simulation";
 import { expect, test } from "@destack/test";
 import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
 import { OtlpExporter, type OtlpSignal } from "../otlp/index.ts";
 import { withTelemetry } from "./worker.ts";
 
+/** The start of every test's world: 2026-10-24 at midnight UTC. */
+const START = Date.UTC(2026, 9, 24);
 /** The instrumented package. */
 const source = {
     id: PackageId.parse("package-01996ab0-0000-7000-8000-000000000001"),
@@ -38,7 +41,8 @@ const LogsExport = schema.looseObject({
 });
 
 test("record a handler's thrown error before throwing it on, exporting it before the invocation ends", async () => {
-    // deliver every export, and keep the invocation's background work
+    // deliver every export in a world, and keep the invocation's background work
+    await using simulation = new Simulation({ seed: 1, start: START });
     const delivered: { signal: OtlpSignal; body: unknown }[] = [];
     const exporter = new OtlpExporter(
         async (signal, body) => {
@@ -57,6 +61,7 @@ test("record a handler's thrown error before throwing it on, exporting it before
             throw new TypeError("note is missing");
         },
         { waitUntil: (operation) => background.push(operation) },
+        simulation.environment("worker"),
     );
     await expect(handled).rejects.toThrow(new TypeError("note is missing"));
     await Promise.all(background);

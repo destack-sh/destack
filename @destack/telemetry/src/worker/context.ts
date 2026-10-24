@@ -6,7 +6,7 @@ export class WorkerContextManager implements ContextManager {
     /** The context of each asynchronous flow. */
     readonly #storage = new AsyncLocalStorage<Context>();
     /** Whether the manager keeps contexts, between its enabling and its disabling. */
-    #isEnabled = true;
+    #isEnabled = false;
 
     /** Read the active context, the root outside every flow and once disabled. */
     active(): Context {

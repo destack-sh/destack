@@ -1,6 +1,8 @@
+import { Uuid } from "@destack/schema";
 import type { Context } from "@opentelemetry/api";
 import type { LogRecordProcessor, ReadWriteLogRecord } from "@opentelemetry/sdk-logs";
 import type { Span, SpanProcessor } from "@opentelemetry/sdk-trace";
+import { Random } from "@destack/environment";
 
 /** The attribute of the session a signal belongs to, from OpenTelemetry semantic conventions. */
 export const SESSION_ATTRIBUTE = "session.id";
@@ -29,8 +31,15 @@ export interface Session {
 
 /** Stamps signals with the running session and marks it by the exceptions it records. */
 export class SessionProcessor {
+    /** The randomness the sessions' identifiers come from. */
+    readonly #random: Random;
     /** The running session as of its last exception, absent between sessions. */
     #session: Session | undefined;
+
+    /** Stamp sessions identified from a randomness. */
+    constructor(random: Random) {
+        this.#random = random;
+    }
 
     /** The span processor stamping spans with the running session. */
     readonly spans: SpanProcessor = {
@@ -58,7 +67,7 @@ export class SessionProcessor {
 
     /** Start a session, replacing the running one. */
     start(now: number): Session {
-        this.#session = { id: crypto.randomUUID(), startedAt: now, status: "ok" };
+        this.#session = { id: Uuid.v4(this.#random), startedAt: now, status: "ok" };
 
         return this.#session;
     }

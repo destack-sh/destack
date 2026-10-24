@@ -1,9 +1,15 @@
-import { type Context, SpanStatusCode, trace, TraceFlags } from "@opentelemetry/api";
-import { SeverityNumber } from "@opentelemetry/api-logs";
+import {
+    type Context,
+    type MeterProvider,
+    SeverityNumber,
+    SpanStatusCode,
+    trace,
+    TraceFlags,
+} from "@opentelemetry/api";
 import type { LogRecordProcessor, ReadWriteLogRecord } from "@opentelemetry/sdk-logs";
 import type { ReadableSpan, Span, SpanProcessor } from "@opentelemetry/sdk-trace";
 import { hrTimeToMilliseconds } from "@opentelemetry/core";
-import * as telemetry from "../scope/scope.ts";
+import { MetricFactory } from "../scope/scope.ts";
 import type {} from "@destack/package/import-meta";
 
 /** How long a local root runs before its trace counts as slow and is kept: a second. */
@@ -15,23 +21,22 @@ const PENDING_TRACES = 1000;
 /** The most spans or log records one unsampled trace buffers. */
 const PENDING_SIGNALS = 1000;
 
-/** The traces dropped because too many local roots ran at once. */
-const evicted = telemetry
-    .scope(import.meta.destack.package)
-    .metric.counter("telemetry.tail.evicted", {
-        unit: "{trace}",
-        description: "Traces dropped because too many local roots ran at once.",
-        attributes: {},
-    });
-
-/** The spans and log records of undecided traces dropped because their trace buffered too many. */
-const dropped = telemetry
-    .scope(import.meta.destack.package)
-    .metric.counter("telemetry.tail.dropped", {
-        unit: "{signal}",
-        description: "Spans and log records of undecided traces dropped beyond each trace's bound.",
-        attributes: { signal: ["span", "log"] },
-    });
+/** Declare the tail sampler's counters on a meter. */
+function counters(metric: MetricFactory) {
+    return {
+        evicted: metric.counter("telemetry.tail.evicted", {
+            unit: "{trace}",
+            description: "Traces dropped because too many local roots ran at once.",
+            attributes: {},
+        }),
+        dropped: metric.counter("telemetry.tail.dropped", {
+            unit: "{signal}",
+            description:
+                "Spans and log records of undecided traces dropped beyond each trace's bound.",
+            attributes: { signal: ["span", "log"] },
+        }),
+    };
+}
 
 /** The unsampled spans and log records of one local trace, buffered until the trace is decided. */
 interface PendingTrace {
@@ -53,6 +58,8 @@ export class TailSampler {
     readonly #slowMilliseconds: number;
     /** The local traces whose root runs, oldest first: pending until decided, then kept. */
     readonly #traces = new Map<string, PendingTrace | "kept">();
+    /** The counters of dropped traces and signals, on the telemetry package's meter. */
+    readonly #counters: ReturnType<typeof counters>;
 
     /** The span processor: sampled spans pass, unsampled ones wait for their trace's decision. */
     readonly spans: SpanProcessor = {
@@ -73,11 +80,17 @@ export class TailSampler {
     constructor(
         spans: SpanProcessor,
         logs: LogRecordProcessor,
+        meters: MeterProvider,
         slowMilliseconds = SLOW_MILLISECONDS,
     ) {
+        // keep the processors and the threshold
         this.#spans = spans;
         this.#logs = logs;
         this.#slowMilliseconds = slowMilliseconds;
+
+        // count on the telemetry package's own meter
+        const { name, version } = import.meta.destack.package;
+        this.#counters = counters(new MetricFactory(meters.getMeter(name, version)));
     }
 
     /** Start buffering an unsampled local root's trace, and pass sampled spans on. */
@@ -165,7 +178,7 @@ export class TailSampler {
         if (buffered.length < PENDING_SIGNALS) {
             buffered.push(signal);
         } else {
-            dropped.add(1, { signal: kind });
+            this.#counters.dropped.add(1, { signal: kind });
         }
     }
 
@@ -192,7 +205,7 @@ export class TailSampler {
                 break;
             }
             this.#traces.delete(traceId);
-            evicted.add(1);
+            this.#counters.evicted.add(1);
         }
     }
 }

@@ -1,10 +1,8 @@
+import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
+import type { ReadableLogRecord } from "@opentelemetry/sdk-logs";
+import type { Environment } from "@destack/environment";
 import { schema } from "@destack/schema";
-import { logs } from "@opentelemetry/api-logs";
-import {
-    InMemoryLogRecordExporter,
-    LoggerProvider,
-    SimpleLogRecordProcessor,
-} from "@opentelemetry/sdk-logs";
+import { Telemetry, type TelemetryOptions } from "../sdk/index.ts";
 
 /** An exception a package captured, as a test reads it back. */
 export interface CapturedException {
@@ -16,43 +14,40 @@ export interface CapturedException {
     readonly message: string;
 }
 
-/** A message a package captured, such as a warning, as a test reads it back. */
-export interface CapturedMessage {
-    /** The capturing package's name, its records' instrumentation scope. */
+/** A log record a package emitted, as a test reads it back. */
+export interface CapturedRecord {
+    /** The emitting package's name, its records' instrumentation scope. */
     readonly scope: string;
+    /** The record's event name, such as tunnel.open or exception. */
+    readonly event: string | undefined;
     /** The record's severity text, such as WARN. */
-    readonly severity: string;
-    /** The message. */
-    readonly message: string;
+    readonly severity: string | undefined;
+    /** The record's attributes. */
+    readonly attributes: Readonly<Record<string, unknown>>;
 }
 
-/** The telemetry a test reads back: the log records packages emit, kept in memory. */
+/** The log records a world's telemetry keeps, as a world's SimulatedTelemetry has them. */
+export interface RecordedLogs {
+    /** The log records emitted so far, oldest first. */
+    readonly logs: readonly ReadableLogRecord[];
+}
+
+/** The records a test reads back from a world's telemetry, refusing exceptions no test took. */
 export class TestTelemetry implements Disposable {
-    /** The records emitted since registering. */
-    readonly #records = new InMemoryLogRecordExporter();
-    /** The provider registered for the test. */
-    readonly #provider: LoggerProvider;
+    /** The world's telemetry. */
+    readonly #recorded: RecordedLogs;
+    /** The records a test took already, which later reads skip. */
+    #taken = 0;
 
-    /** Keep the records packages emit, until disposed. */
-    private constructor() {
-        const processor = new SimpleLogRecordProcessor({ exporter: this.#records });
-        this.#provider = new LoggerProvider({ processors: [processor] });
-    }
-
-    /** Register a logger provider keeping every record packages emit in memory. */
-    static register(): TestTelemetry {
-        // NOTE #Architecture: packages emit through the one global logger provider OpenTelemetry keeps, so tests register theirs there
-        const telemetry = new TestTelemetry();
-        logs.disable();
-        logs.setGlobalLoggerProvider(telemetry.#provider);
-
-        return telemetry;
+    /** Read back the records a world's telemetry keeps, from now on. */
+    constructor(recorded: RecordedLogs) {
+        this.#recorded = recorded;
+        this.#taken = recorded.logs.length;
     }
 
     /** List the exceptions packages captured, oldest first. */
     exceptions(): CapturedException[] {
-        return this.#records
-            .getFinishedLogRecords()
+        return this.#unread()
             .filter(
                 (record) =>
                     record.eventName === "exception" && "exception.type" in record.attributes,
@@ -64,45 +59,44 @@ export class TestTelemetry implements Disposable {
             }));
     }
 
-    /** List the messages packages captured without an error, oldest first. */
-    messages(): CapturedMessage[] {
-        return this.#records
-            .getFinishedLogRecords()
-            .filter(
-                (record) =>
-                    record.eventName === "exception" && !("exception.type" in record.attributes),
-            )
-            .map((record) => ({
-                scope: record.instrumentationScope.name,
-                severity: schema.string().parse(record.severityText),
-                message: schema.string().parse(record.attributes["exception.message"]),
-            }));
+    /** List the records packages emitted, oldest first. */
+    records(): CapturedRecord[] {
+        return this.#unread().map((record) => ({
+            scope: record.instrumentationScope.name,
+            event: record.eventName,
+            severity: record.severityText,
+            attributes: { ...record.attributes },
+        }));
     }
 
-    /** List the event names of the records packages emitted, oldest first. */
-    events(): (string | undefined)[] {
-        return this.#records.getFinishedLogRecords().map((record) => record.eventName);
-    }
-
-    /** Read the exceptions packages captured and stop keeping the records. */
+    /** Read the exceptions packages captured and skip the records read so far. */
     take(): CapturedException[] {
         const captured = this.exceptions();
-        this.#records.reset();
+        this.#taken = this.#recorded.logs.length;
 
         return captured;
     }
 
-    /** Unregister the provider if still current, and refuse exceptions no test took. */
+    /** Refuse the exceptions no test took. */
     [Symbol.dispose](): void {
-        // leave a later registration's provider in place
-        if (logs.getLoggerProvider() === this.#provider) {
-            logs.disable();
-        }
-
-        // refuse the exceptions no test consumed
         const untaken = this.take();
         if (untaken.length > 0) {
             throw new TypeError(`the test took no captured exceptions: ${JSON.stringify(untaken)}`);
         }
     }
+
+    /** List the records emitted since the last take. */
+    #unread(): readonly ReadableLogRecord[] {
+        return this.#recorded.logs.slice(this.#taken);
+    }
+}
+
+/** Start an application's telemetry exporting nothing, on an environment's clock and randomness. */
+export function startSilentTelemetry(
+    options: TelemetryOptions,
+    environment: Pick<Environment, "clock" | "random">,
+): Promise<Telemetry> {
+    const silent = { ...options, metrics: {}, signals: () => ({ traces: {}, logs: {} }) };
+
+    return Telemetry.start(silent, new AsyncLocalStorageContextManager(), environment);
 }

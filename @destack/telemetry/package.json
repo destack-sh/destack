@@ -21,18 +21,17 @@
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "dependencies": {
+        "@destack/environment": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
-        "@opentelemetry/api": "1.9.1",
-        "@opentelemetry/api-logs": "0.222.0",
-        "@opentelemetry/sdk-trace": "2.11.0",
-        "@opentelemetry/sdk-trace-web": "2.11.0",
-        "@opentelemetry/sdk-metrics": "2.11.0",
-        "@opentelemetry/sdk-logs": "0.222.0",
-        "@opentelemetry/resources": "2.11.0",
-        "@opentelemetry/context-async-hooks": "2.11.0",
-        "@opentelemetry/core": "2.11.0",
-        "@opentelemetry/otlp-transformer": "0.222.0",
+        "@opentelemetry/api": "1.10.0",
+        "@opentelemetry/sdk-trace": "3.0.0",
+        "@opentelemetry/sdk-metrics": "3.0.0",
+        "@opentelemetry/sdk-logs": "3.0.0",
+        "@opentelemetry/resources": "3.0.0",
+        "@opentelemetry/context-async-hooks": "3.0.0",
+        "@opentelemetry/core": "3.0.0",
+        "@opentelemetry/otlp-transformer": "0.300.0",
         "@destack/error": "workspace:*"
     },
     "devDependencies": {
