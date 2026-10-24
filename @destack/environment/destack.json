@@ -4,7 +4,16 @@
     "language": "typescript",
     "runtimes": ["browser", "bun", "workerd"],
     "exports": {
+        "./bun": {
+            "runtimes": ["bun"]
+        },
         "./simulation": {
+            "runtimes": ["bun"]
+        },
+        "./browser": {
+            "runtimes": ["browser"]
+        },
+        "./browser/simulation": {
             "runtimes": ["bun"]
         }
     }

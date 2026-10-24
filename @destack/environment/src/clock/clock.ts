@@ -6,6 +6,10 @@ export interface Clock {
     readonly sleep: (milliseconds: number, signal?: AbortSignal) => Promise<void>;
     /** Make a signal aborting with a timeout once some milliseconds of this clock pass. */
     readonly timeout: (milliseconds: number) => AbortSignal;
+    /** Count simulated work in flight until it settles, and return it. */
+    readonly track: <Value>(work: Promise<Value>) => Promise<Value>;
+    /** Count host input and output in flight until it settles, such as a database round trip. */
+    readonly trackHost: <Value>(work: Promise<Value>) => Promise<Value>;
 }
 
 /** The longest timer delay, the largest signed 32 bit integer, in milliseconds. */
@@ -48,5 +52,7 @@ export const Clock: { readonly system: Clock } = {
                 next();
             }),
         timeout: (milliseconds) => AbortSignal.timeout(milliseconds),
+        track: (work) => work,
+        trackHost: (work) => work,
     },
 };

@@ -1,5 +1,6 @@
 import type { ServerWebSocket } from "bun";
-import type { Listener, ServeOptions, ServerSocket } from "../network/network.ts";
+import type { Listener, ServeOptions, Server, ServerSocket } from "./server.ts";
+import { listenTcp } from "../network/tcp/bun.ts";
 
 /** What Bun stores beside a socket: the key of its attachment in the listener. */
 interface BunSocketKey {
@@ -8,12 +9,7 @@ interface BunSocketKey {
 }
 
 /** Listen through Bun's server, refusing a runtime without one. */
-export function serveBun<Attachment>(options: ServeOptions<Attachment>): Listener<Attachment> {
-    // refuse runtimes that cannot listen
-    if (typeof Bun === "undefined") {
-        throw new TypeError("listening requires the Bun runtime");
-    }
-
+function serveHttp<Attachment>(options: ServeOptions<Attachment>): Listener<Attachment> {
     // keep each accepted socket's attachment, and wrap each Bun socket once
     const attachments = new Map<number, { readonly attachment: Attachment }>();
     const sockets = new WeakMap<ServerWebSocket<BunSocketKey>, ServerSocket<Attachment>>();
@@ -91,3 +87,6 @@ export function serveBun<Attachment>(options: ServeOptions<Attachment>): Listene
 
     return listener;
 }
+
+/** Accept requests, sockets and TCP connections through Bun's servers. */
+export const BunServer: Server = { http: serveHttp, tcp: listenTcp };

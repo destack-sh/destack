@@ -1,4 +1,4 @@
-import type { ClientSocket } from "../network/network.ts";
+import type { ClientSocket } from "./network.ts";
 
 /** The close code of a connection lost without a close frame (RFC 6455). */
 export const ABNORMAL_CLOSURE = 1006;

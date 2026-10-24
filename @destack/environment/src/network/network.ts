@@ -1,5 +1,5 @@
-import { fetchBun } from "../bun/fetch.ts";
-import { serveBun } from "../bun/listener.ts";
+import { NetworkError } from "./error.ts";
+import type { ConnectOptions, SocketAddress, TcpSocket } from "./tcp/tcp.ts";
 
 /** A TLS client certificate a request presents (RFC 8705). */
 export interface ClientCertificate {
@@ -13,6 +13,8 @@ export interface ClientCertificate {
 export interface FetchOptions {
     /** The client certificate to present, for an mTLS origin. */
     readonly certificate?: ClientCertificate;
+    /** The Unix socket to send through in place of the URL's host, as a local listener's. */
+    readonly unix?: string;
 }
 
 /** A WebSocket a client opened, its binary messages arriving as ArrayBuffers. */
@@ -47,66 +49,14 @@ export interface ClientSocket {
     };
 }
 
-/** A WebSocket a listener accepted, with its attachment. */
-export interface ServerSocket<Attachment> {
-    /** The value the listener stored beside the socket as it accepted it. */
-    readonly attachment: Attachment;
-    /** Send a message to the client. */
-    readonly send: (message: string | Uint8Array<ArrayBuffer>) => void;
-    /** Close the socket. */
-    readonly close: (code?: number, reason?: string) => void;
-}
-
-/** What a listener does with its accepted sockets' events. */
-export interface ServerSocketHandler<Attachment> {
-    /** The most bytes in one message. */
-    readonly maxPayloadLength?: number;
-    /** Take a socket as it opens. */
-    readonly open?: (socket: ServerSocket<Attachment>) => void;
-    /** Take one message a socket received. */
-    readonly message: (socket: ServerSocket<Attachment>, message: string | Uint8Array) => void;
-    /** Take a socket's close. */
-    readonly close?: (socket: ServerSocket<Attachment>, code: number, reason: string) => void;
-}
-
-/** An open listener, answering requests at its URL. */
-export interface Listener<Attachment> {
-    /** The URL it listens at. */
-    readonly url: URL;
-    /** Accept a request's WebSocket upgrade with an attachment, answering whether it took it. */
-    readonly upgrade: (
-        request: Request,
-        options: { readonly attachment: Attachment; readonly headers?: Record<string, string> },
-    ) => boolean;
-    /** Stop listening, closing open connections when asked. */
-    readonly stop: (isClosingActive?: boolean) => Promise<void>;
-}
-
-/** What a listener answers. */
-export interface ServeOptions<Attachment> {
-    /** The host name it listens at. */
-    readonly hostname?: string;
-    /** The port it listens at, a free one for zero. */
-    readonly port?: number;
-    /** The Unix socket it listens at instead of a port. */
-    readonly unix?: string;
-    /** Answer a request, or nothing once its upgrade is accepted. */
-    readonly fetch: (
-        request: Request,
-        listener: Listener<Attachment>,
-    ) => Response | undefined | Promise<Response | undefined>;
-    /** Take the accepted sockets' events. */
-    readonly websocket?: ServerSocketHandler<Attachment>;
-}
-
-/** The network an environment reaches other origins through and listens on. */
+/** The network an environment reaches other origins through. */
 export interface Network {
     /** Send a request and answer its response. */
     readonly fetch: (request: Request, options?: FetchOptions) => Promise<Response>;
+    /** Open a TCP connection to an address, such as an SMTP server's. */
+    readonly connect: (address: SocketAddress, options?: ConnectOptions) => TcpSocket;
     /** Open a WebSocket to a URL, offering subprotocols. */
-    readonly connect: (url: string, protocols?: string | readonly string[]) => ClientSocket;
-    /** Listen for requests and WebSockets. */
-    readonly serve: <Attachment>(options: ServeOptions<Attachment>) => Listener<Attachment>;
+    readonly websocket: (url: string, protocols?: string | readonly string[]) => ClientSocket;
 }
 
 /** The platform's WebSocket as a client socket. */
@@ -184,20 +134,29 @@ class SystemSocket implements ClientSocket {
 }
 
 /** Networks. */
-export const Network = {
-    /** The system's network. */
+export const Network: { readonly system: Network } = {
+    /** The web's network on every target: fetch and WebSockets, refusing what only hosts have. */
     system: {
-        fetch: (request, options) =>
-            options?.certificate === undefined
-                ? fetch(request)
-                : fetchBun(request, options.certificate),
-        connect: (url, protocols) =>
+        fetch: (request, options) => {
+            // refuse a client certificate or a Unix socket, which only a host network sends with
+            if (options?.certificate !== undefined || options?.unix !== undefined) {
+                throw NetworkError.of(
+                    "UNSUPPORTED",
+                    "a client certificate or a Unix socket needs a host network",
+                );
+            }
+
+            return fetch(request);
+        },
+        connect: () => {
+            throw NetworkError.of("UNSUPPORTED", "a TCP connection needs a host network");
+        },
+        websocket: (url, protocols) =>
             new SystemSocket(
                 new WebSocket(
                     url,
                     typeof protocols === "string" ? protocols : [...(protocols ?? [])],
                 ),
             ),
-        serve: serveBun,
-    } satisfies Network,
+    },
 };

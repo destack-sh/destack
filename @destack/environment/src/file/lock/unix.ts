@@ -1,0 +1,90 @@
+import { open, type FileHandle } from "node:fs/promises";
+import { dlopen, read, type Pointer } from "bun:ffi";
+import { FileSystemError } from "../error.ts";
+import type { FileLockMode } from "../file.ts";
+import { BunFileSystem } from "../bun.ts";
+
+/** The nonblocking flock operation of each mode: LOCK_SH or LOCK_EX, plus LOCK_NB. */
+const NONBLOCKING_OPERATIONS: Readonly<Record<FileLockMode, number>> = {
+    shared: 1 | 4,
+    exclusive: 2 | 4,
+};
+/** EWOULDBLOCK identifies an existing flock owner. */
+const WOULD_BLOCK = process.platform === "darwin" ? 35 : 11;
+/** Bind libc once for all locks in this process. */
+const SYSTEM =
+    process.platform === "darwin"
+        ? dlopen("/usr/lib/libSystem.B.dylib", {
+              flock: { args: ["i32", "i32"], returns: "i32" },
+              __error: { args: [], returns: "ptr" },
+          })
+        : dlopen("libc.so.6", {
+              flock: { args: ["i32", "i32"], returns: "i32" },
+              __errno_location: { args: [], returns: "ptr" },
+          });
+/** Retain this runtime thread's errno address before issuing lock calls. */
+const ERRNO = errnoAddress();
+
+/** A Unix file description retained for flock ownership. */
+export class NativeLock {
+    /** The lock file's absolute path. */
+    readonly path: string;
+    /** The open description that retains ownership. */
+    private readonly file: FileHandle;
+
+    /** Share closure across repeated callers. */
+    private closing?: Promise<void>;
+
+    /** Retain the file description. */
+    private constructor(path: string, file: FileHandle) {
+        this.path = path;
+        this.file = file;
+    }
+
+    /** Open the persistent lock file without truncating it. */
+    static async open(path: string): Promise<NativeLock> {
+        try {
+            const file = await open(path, "a+", 0o600);
+
+            return new NativeLock(path, file);
+        } catch (error) {
+            throw BunFileSystem.refusal(error, `open ${path}`);
+        }
+    }
+
+    /** Lock in a mode, converting a held lock by releasing it first, false on a conflict. */
+    tryAcquire(mode: FileLockMode): boolean {
+        // lock or convert the open file description's ownership, as flock converts in place
+        if (SYSTEM.symbols.flock(this.file.fd, NONBLOCKING_OPERATIONS[mode]) === 0) {
+            return true;
+        }
+
+        // distinguish contention from failed filesystem operations
+        const code = read.i32(ERRNO);
+        if (code === WOULD_BLOCK) {
+            return false;
+        }
+        throw FileSystemError.of("FILE_SYSTEM_FAILED", `cannot lock ${this.path}: ${code}`);
+    }
+
+    /** Close the file description and release its lock. */
+    close(): Promise<void> {
+        // close once across repeated calls, reporting a failure as the file system's
+        this.closing ??= this.file.close().catch((error: unknown) => {
+            throw BunFileSystem.refusal(error, `close ${this.path}`);
+        });
+
+        return this.closing;
+    }
+}
+
+/** Read the address of this runtime thread's errno from libc. */
+function errnoAddress(): Pointer | bigint {
+    const address =
+        "__error" in SYSTEM.symbols ? SYSTEM.symbols.__error() : SYSTEM.symbols.__errno_location();
+    if (address === null) {
+        throw new TypeError("libc returned no errno address");
+    }
+
+    return address;
+}

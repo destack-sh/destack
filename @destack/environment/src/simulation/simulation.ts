@@ -1,21 +1,63 @@
-import { Duration } from "@destack/schema";
-import type { Environment } from "../environment/environment.ts";
-import { VirtualClock } from "./clock.ts";
-import { SimulatedNetwork } from "./network.ts";
-import { SeededRandom } from "./random.ts";
-import { AsyncLocalStorage } from "node:async_hooks";
-import type { ClientSocket } from "../network/network.ts";
-import { Random } from "../random/random.ts";
-import { SYSTEM } from "./global.ts";
+import { BunCrypto } from "../crypto/bun.ts";
+import { mkdirSync, realpathSync } from "node:fs";
+import { rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { Crypto } from "../crypto/crypto.ts";
+import type { Environment, HostCapability } from "../environment/environment.ts";
+import type { Host } from "../host/host.ts";
+import { BunProcess } from "../process/bun.ts";
+import { Workers } from "../worker/worker.ts";
+import { SimulatedCompression } from "../compression/simulated.ts";
+import { SimulatedFileSystem } from "../file/simulated.ts";
+import { SimulatedTelemetry } from "../telemetry/simulated.ts";
+import { type ProcessOptions, SimulatedProcess } from "../process/simulated.ts";
+import { SimulatedClock } from "../clock/simulated.ts";
+import { SimulatedNetwork } from "../network/simulated.ts";
+import { SimulatedRandom } from "../random/simulated.ts";
+import { Clock } from "../clock/clock.ts";
 
-/** The node that work outside every simulated node sends as. */
-export const OUTSIDE = "outside";
+/** The rounds of answered waits a run allows without moving time, far past any real chain. */
+const LIVELOCK_ROUNDS = 10_000;
+
+/** The turns a settle allows without moving time: at about 1 µs a turn, 200 ms of busy work. */
+const LIVELOCK_TURNS = 200_000;
+
+/** The real time host work may stall in flight before a run fails, ten seconds. */
+const STALL_TIMEOUT = 10_000;
+
+/** The real time tracked work may wait beside a pending timer without progress: 100 ms. */
+const DEADLOCK_MILLISECONDS = 100;
+
+/** The turns a livelock's report records the call sites of. */
+const RECORDED_TURNS = 100;
+
+/** The call sites a livelock's report names, most frequent first. */
+const RECORDED_SITES = 5;
+
+/** The machine every node runs on unless the simulation gives another, its home aside. */
+const HOST: Omit<Host, "home"> = {
+    os: "linux",
+    architecture: "x64",
+    version: "6.8.0",
+    hostname: "simulation",
+};
+
+/** The locale every node of a simulation formats in unless it gives another. */
+const LOCALE = "en-US";
+
+/** The time zone every node of a simulation formats in unless it gives another. */
+const TIME_ZONE = "UTC";
+
+/** The runtime every node runs on unless the simulation gives another process: a fixed build. */
+const RUNTIME = { revision: "0".repeat(40), isStandalone: false } as const;
 
 /** Something that happened in a simulation, in the order it happened. */
 export interface SimulationEvent {
     /** What happened. */
     readonly kind:
         | "timer"
+        | "jump"
         | "request"
         | "loss"
         | "refusal"
@@ -32,7 +74,7 @@ export interface SimulationEvent {
 
 /** Start a node's work in its environment, stopping it once the signal aborts. */
 export type NodeStart<Running> = (
-    environment: Environment,
+    environment: Environment<HostCapability>,
     signal: AbortSignal,
 ) => Promise<Running>;
 
@@ -41,21 +83,29 @@ export class SimulatedNode<Running = unknown> {
     /** The node's name, which partitions and the trace use. */
     readonly name: string;
     /** The node's environment: the simulation's clock, and its network as the node. */
-    readonly environment: Environment;
+    readonly environment: Environment<HostCapability>;
     /** Start the node's work. */
     readonly #start: NodeStart<Running>;
     /** The simulation the node runs in. */
     readonly #simulation: Simulation;
+    /** Release what the world gives the node once it crashes. */
+    readonly #release: () => void;
     /** The running work and the signal stopping it, absent while crashed. */
     #running: { readonly value: Running; readonly stop: AbortController } | undefined;
 
-    /** Prepare a node of a simulation. */
-    constructor(name: string, simulation: Simulation, start: NodeStart<Running>) {
+    /** Prepare a node of a simulation, released by it on each crash. */
+    constructor(
+        name: string,
+        simulation: Simulation,
+        start: NodeStart<Running>,
+        release: () => void,
+    ) {
         // take the node's environment from its simulation
         this.name = name;
         this.environment = simulation.environment(name);
         this.#start = start;
         this.#simulation = simulation;
+        this.#release = release;
     }
 
     /** The node's running work, refusing a crashed node. */
@@ -73,7 +123,7 @@ export class SimulatedNode<Running = unknown> {
             throw new Error(`node ${this.name} is already running`);
         }
         const stop = new AbortController();
-        this.#simulation.trace.push({
+        this.#simulation.record({
             kind: "start",
             at: this.environment.clock.now(),
             detail: this.name,
@@ -86,246 +136,503 @@ export class SimulatedNode<Running = unknown> {
     /** Stop the node at once, as a lost process, leaving only what it stored. */
     crash(): void {
         // stop the node's work, listeners and connections
-        this.#simulation.trace.push({
+        this.#simulation.record({
             kind: "crash",
             at: this.environment.clock.now(),
             detail: this.name,
         });
         this.#running?.stop.abort(new Error(`node ${this.name} crashed`));
         this.#running = undefined;
-        this.#simulation.network.release(this.name);
+        this.#release();
     }
 }
 
-/** The installed simulation's clock and socket opening, absent while none is installed. */
-let installed:
-    | {
-          readonly clock: VirtualClock;
-          readonly connect: (url: string, protocols?: string | string[]) => ClientSocket;
-      }
-    | undefined;
-
-/** A date that reads the installed simulation's time. */
-class VirtualDate extends SYSTEM.Date {
-    /** Create a date at a time, or at the simulation's time without one. */
-    constructor(...values: [] | [string | number | Date]) {
-        const [value] = values;
-        super(value ?? installed?.clock.now() ?? SYSTEM.Date.now());
-    }
-
-    /** Read the simulation's time. */
-    static override now(): number {
-        return installed?.clock.now() ?? SYSTEM.Date.now();
-    }
+/** A run or driven work waiting on a simulation's loop: its condition, its time, or both. */
+interface SimulationWait {
+    /** The condition the wait ends at, absent for a wait to a time alone. */
+    readonly until: (() => boolean | Promise<boolean>) | undefined;
+    /** The time the wait ends at or refuses its condition at, absent for no deadline. */
+    readonly deadline: number | undefined;
+    /** Answer the wait. */
+    readonly resolve: () => void;
+    /** Fail the wait. */
+    readonly reject: (error: unknown) => void;
 }
 
-/** A WebSocket that connects through the installed simulation's network as the current node. */
-class VirtualWebSocket {
-    /** The state before the connection opens. */
-    static readonly CONNECTING = 0;
-    /** The state while the connection is open. */
-    static readonly OPEN = 1;
-    /** The state while the connection closes. */
-    static readonly CLOSING = 2;
-    /** The state once the connection closed. */
-    static readonly CLOSED = 3;
-
-    /** Connect through the installed simulation, refusing without one. */
-    constructor(url: string | URL, protocols?: string | string[]) {
-        if (installed === undefined) {
-            throw new TypeError("no simulation is installed");
-        }
-
-        return installed.connect(String(url), protocols);
-    }
+/** How a simulation's nodes run, beside its seed and start. */
+export interface SimulationOptions {
+    /** The process each node runs as, the host's by default. */
+    readonly process?: ProcessOptions;
+    /** The machine each node runs on. */
+    readonly host?: Host;
+    /** The locale each node formats in. */
+    readonly locale?: string;
+    /** The time zone each node formats in. */
+    readonly timeZone?: string;
+    /** The real milliseconds host work may stall in flight before a run fails. */
+    readonly stallTimeout?: number;
+    /** The turns a settle allows without moving time before it fails as busy. */
+    readonly livelockTurns?: number;
+    /** Whether the trace records what happens, off by default as it grows with every event. */
+    readonly isTracing?: boolean;
 }
 
-/** A simulated world of virtual time, seeded randomness, a faulty network and nodes. */
+/** A simulated world of simulated time, seeded randomness, a faulty network and nodes. */
 export class Simulation {
     /** The seed, which reproduces the simulation. */
     readonly seed: number;
-    /** The virtual time. */
-    readonly clock: VirtualClock;
+    /** The simulated time. */
+    readonly clock: SimulatedClock;
     /** The seeded randomness. */
-    readonly random: SeededRandom;
+    readonly random: SimulatedRandom;
     /** The network between the nodes. */
     readonly network: SimulatedNetwork;
-    /** What happened, in order. */
+    /** What happened, in order, empty unless the simulation traces. */
     readonly trace: SimulationEvent[] = [];
-    /** The node the current work runs as. */
-    readonly #node = new AsyncLocalStorage<string>();
+    /** The host directory of the nodes' files, removed on dispose. */
+    readonly root: string;
+    /** The telemetry every node emits, recorded in memory. */
+    readonly telemetry: SimulatedTelemetry;
+    /** The process each node runs as. */
+    readonly #process: ProcessOptions;
+    /** The machine each node runs on. */
+    readonly #host: Host;
+    /** The real milliseconds host work may stall in flight before a run fails. */
+    readonly #stallTimeout: number;
+    /** The turns a settle allows without moving time before it fails as busy. */
+    readonly #livelockTurns: number;
+    /** The locale each node formats in. */
+    readonly #locale: string;
+    /** The time zone each node formats in. */
+    readonly #timeZone: string;
+    /** The environments of the nodes, by name. */
+    readonly #environments = new Map<string, Environment<HostCapability>>();
+    /** Each node's current process, fresh after every crash. */
+    readonly #processes = new Map<string, SimulatedProcess>();
+    /** The listeners of node crashes. */
+    readonly #crashListeners = new Set<(node: string) => void>();
+    /** The runs and driven work waiting on the loop, each answered once met. */
+    readonly #waits: SimulationWait[] = [];
+    /** Whether the loop moves time now, which every later run and drive joins. */
+    #isMoving = false;
+    /** Whether the trace records events. */
+    readonly #isTracing: boolean;
+    /** The events that happened, traced or not, which the loop reads as progress. */
+    #events = 0;
 
     /** Start a simulation at a time from a seed. */
-    constructor(options: { readonly seed: number; readonly start: number }) {
+    constructor(options: SimulationOptions & { readonly seed: number; readonly start: number }) {
         // create the clock, randomness and network
         this.seed = options.seed;
-        this.clock = new VirtualClock(options.start);
-        this.random = new SeededRandom(options.seed);
-        this.network = new SimulatedNetwork(this.clock, this.random, (event) =>
-            this.trace.push(event),
-        );
+        this.clock = new SimulatedClock(options.start);
+        this.random = new SimulatedRandom(options.seed);
+        this.telemetry = new SimulatedTelemetry({ clock: this.clock, random: this.random });
+        this.#isTracing = options.isTracing ?? false;
+        this.network = new SimulatedNetwork(this.clock, this.random, (event) => this.record(event));
+
+        // give the nodes their process, machine and a root for their files
+        this.root = join(realpathSync(tmpdir()), `destack-simulation-${crypto.randomUUID()}`);
+        const home = join(this.root, "home");
+        mkdirSync(home, { recursive: true });
+        this.#process = options.process ?? Simulation.#hostProcess(this.root, home);
+        this.#host = options.host ?? { ...HOST, home };
+        this.#stallTimeout = options.stallTimeout ?? STALL_TIMEOUT;
+        this.#livelockTurns = options.livelockTurns ?? LIVELOCK_TURNS;
+        this.#locale = options.locale ?? LOCALE;
+        this.#timeZone = options.timeZone ?? TIME_ZONE;
     }
 
-    /** Replace the realm's time, timers, randomness, requests and sockets with the simulation's. */
-    install(): this {
-        // refuse a second installation
-        if (installed !== undefined) {
-            throw new Error("a simulation is already installed");
+    /** Fork a recorded world by a label into a world of the split seed at the recorded time. */
+    static fork(
+        recorded: { readonly seed: number; readonly start: number },
+        label: string,
+        options: SimulationOptions = {},
+    ): Simulation {
+        return new Simulation({
+            ...options,
+            seed: SimulatedRandom.split(recorded.seed, label),
+            start: recorded.start,
+        });
+    }
+
+    /** Fork this world by a label into a world of the split seed at this world's time. */
+    fork(label: string): Simulation {
+        return Simulation.fork({ seed: this.seed, start: this.clock.now() }, label, {
+            process: this.#process,
+            host: this.#host,
+            locale: this.#locale,
+            timeZone: this.#timeZone,
+            stallTimeout: this.#stallTimeout,
+            livelockTurns: this.#livelockTurns,
+            isTracing: this.#isTracing,
+        });
+    }
+
+    /** Remove the nodes' files, and stop the telemetry's context. */
+    async [Symbol.asyncDispose](): Promise<void> {
+        this.telemetry.context.disable();
+        await rm(this.root, { recursive: true, force: true });
+    }
+
+    /** Count an event as progress, and trace it when the simulation traces. */
+    record(event: SimulationEvent): void {
+        this.#events += 1;
+        if (this.#isTracing) {
+            this.trace.push(event);
+        }
+    }
+
+    /** Read a node's environment: the world's clock and randomness, and its own effects. */
+    environment(node: string): Environment<HostCapability> {
+        // reuse the node's environment
+        const known = this.#environments.get(node);
+        if (known !== undefined) {
+            return known;
         }
 
-        // replace time and timers
+        // give the node its effects, each tracked on the world's clock, and its process per start
         const { clock, random } = this;
-        installed = { clock, connect: (url, protocols) => this.#network().connect(url, protocols) };
-        Object.assign(globalThis, {
-            Date: VirtualDate,
-            setTimeout: clock.setTimeout.bind(clock),
-            setInterval: clock.setInterval.bind(clock),
-            clearTimeout: clock.clearTimeout.bind(clock),
-            clearInterval: clock.clearInterval.bind(clock),
-        });
-        Object.assign(performance, { now: () => clock.now() });
+        const processes = this.#processes;
+        const start = () => {
+            const process = new SimulatedProcess(this.#process, clock);
+            processes.set(node, process);
 
-        // replace randomness
-        Object.assign(crypto, {
-            getRandomValues: (values: ArrayBufferView | null) => Simulation.#fill(random, values),
-            randomUUID: () => Random.uuid(random),
-        });
-        Object.assign(Math, { random: () => Random.fraction(random) });
+            return process;
+        };
+        const environment = {
+            clock,
+            random,
+            crypto: Crypto.track(BunCrypto, clock),
+            network: this.network.of(node),
+            compression: SimulatedCompression,
+            telemetry: this.telemetry,
+            locale: this.#locale,
+            timeZone: this.#timeZone,
+            workers: Workers.system,
+            server: this.network.server(node),
+            files: new SimulatedFileSystem(this.root, clock, random),
+            get process() {
+                return processes.get(node) ?? start();
+            },
+            host: this.#host,
+        };
+        this.#environments.set(node, environment);
 
-        // send requests and open sockets as the current node
-        Object.assign(globalThis, {
-            WebSocket: VirtualWebSocket,
-            fetch: (input: string | URL | Request, initialization?: RequestInit) =>
-                this.#network().fetch(
-                    typeof input === "string" || input instanceof URL
-                        ? new Request(String(input), initialization)
-                        : new Request(input, initialization),
-                ),
-        });
-
-        return this;
+        return environment;
     }
 
-    /** Put the realm's own time, timers, randomness, requests and sockets back. */
-    uninstall(): void {
-        // restore time, timers, requests and sockets
-        installed = undefined;
-        Object.assign(globalThis, {
-            WebSocket: SYSTEM.WebSocket,
-            Date: SYSTEM.Date,
-            setTimeout: SYSTEM.setTimeout,
-            clearTimeout: SYSTEM.clearTimeout,
-            setInterval: SYSTEM.setInterval,
-            clearInterval: SYSTEM.clearInterval,
-            fetch: SYSTEM.fetch,
-        });
-        Object.assign(performance, { now: SYSTEM.performanceNow });
-
-        // restore randomness
-        Object.assign(crypto, {
-            getRandomValues: SYSTEM.getRandomValues,
-            randomUUID: SYSTEM.randomUUID,
-        });
-        Object.assign(Math, { random: SYSTEM.random });
+    /** Release a crashed node's sockets, listeners and process, and tell the crash listeners. */
+    #crash(node: string): void {
+        this.network.release(node);
+        this.#processes.delete(node);
+        for (const listener of this.#crashListeners) {
+            listener(node);
+        }
     }
 
-    /** Read a node's environment: the simulation's clock, and its network as the node. */
-    environment(node: string): Environment {
-        return { clock: this.clock, network: this.network.of(node) };
+    /** Call a listener on each node crash until the subscription disposes. */
+    onCrash(listener: (node: string) => void): Disposable {
+        this.#crashListeners.add(listener);
+
+        return { [Symbol.dispose]: () => this.#crashListeners.delete(listener) };
     }
 
     /** Add a node, started at once. */
-    async node<Running>(name: string, start: NodeStart<Running>): Promise<SimulatedNode<Running>> {
-        const node = new SimulatedNode(name, this, (environment, signal) =>
-            this.#node.run(name, () => start(environment, signal)),
-        );
+    async add<Running>(name: string, start: NodeStart<Running>): Promise<SimulatedNode<Running>> {
+        const node = new SimulatedNode(name, this, start, () => this.#crash(name));
         await node.start();
 
         return node;
     }
 
-    /** Run until a condition holds, moving time to each next timer once the work settles. */
-    async run(
+    /** Run until a condition is true or to a time, moving to each next timer once idle. */
+    run(
         options:
-            | { readonly until: () => boolean | Promise<boolean>; readonly for?: Duration }
-            | { readonly for: Duration },
+            | { readonly until: () => boolean | Promise<boolean>; readonly to?: number }
+            | { readonly to: number },
     ): Promise<void> {
-        // read the condition and the deadline
-        const until = "until" in options ? options.until : undefined;
-        const deadline =
-            options.for === undefined
-                ? undefined
-                : this.clock.now() + Duration.milliseconds(options.for);
-        for (;;) {
-            // read whether the condition holds and the next timer, once the work settles
-            await this.#settle();
-            const isMet = until !== undefined && (await until());
-            const next = this.clock.next;
-            const isPastDeadline =
-                deadline !== undefined && (next === undefined || next > deadline);
+        return this.#wait("until" in options ? options.until : undefined, options.to);
+    }
 
-            // end once the condition holds
-            if (isMet) {
-                return;
-            }
-            // end a timed run at its deadline
-            else if (until === undefined && deadline !== undefined && isPastDeadline) {
-                this.clock.set(Math.max(this.clock.now(), deadline));
+    /** Jump to a later time at once, waking each due wait a single time. */
+    async jump(to: number): Promise<void> {
+        // refuse a jump while the loop moves time timer by timer
+        if (this.#isMoving) {
+            throw new Error("a simulation cannot jump while it runs");
+        }
+
+        // settle the work at the current time, then move straight to the later one
+        await this.run({ to: this.clock.now() });
+        this.record({ kind: "jump", at: to, detail: "" });
+        this.clock.set(to);
+
+        // settle the work the jump woke
+        await this.run({ to });
+    }
+
+    /** Run until some work settles, failing loudly once the simulation goes idle before it does. */
+    async drive<Value>(work: Promise<Value>): Promise<Value> {
+        // move time until the work settles
+        let isSettled = false;
+        const until = () => isSettled;
+        const settled = work.finally(() => {
+            isSettled = true;
+            this.#withdraw(until);
+        });
+        await Promise.race([settled.then(noop, noop), this.#wait(until, undefined)]);
+
+        return await settled;
+    }
+
+    /** Wait on the loop for a condition or a time, starting the loop if it stands still. */
+    #wait(
+        until: (() => boolean | Promise<boolean>) | undefined,
+        deadline: number | undefined,
+    ): Promise<void> {
+        // add the wait, answered by the loop
+        const { promise, resolve, reject } = Promise.withResolvers<void>();
+        this.#waits.push({ until, deadline, resolve, reject });
+
+        // start the loop unless it moves time already
+        if (!this.#isMoving) {
+            this.#isMoving = true;
+            void this.#move();
+        }
+
+        return promise;
+    }
+
+    /** Answer a wait the loop has not checked yet, as its work settled on its own. */
+    #withdraw(until: () => boolean | Promise<boolean>): void {
+        const index = this.#waits.findIndex((wait) => wait.until === until);
+        if (index !== -1) {
+            this.#waits.splice(index, 1)[0]?.resolve();
+        }
+    }
+
+    /** Move time to each next timer once idle, answering each wait once met, until none waits. */
+    async #move(): Promise<void> {
+        let answered = 0;
+        try {
+            for (;;) {
+                // settle the work and answer the met waits
                 await this.#settle();
+                const next = this.clock.next;
+                if (await this.#answer(next)) {
+                    // refuse a loop that answers waits without moving time
+                    answered += 1;
+                    if (answered >= LIVELOCK_ROUNDS) {
+                        const sites = this.clock.flights().join("\n");
+                        throw new Error(
+                            `the simulation kept answering waits without moving time:\n${sites}`,
+                        );
+                    }
+                    continue;
+                }
+                answered = 0;
 
-                return;
+                // read the earliest deadline among the waits
+                const deadlines = this.#waits.flatMap((wait) =>
+                    wait.deadline === undefined ? [] : [wait.deadline],
+                );
+                const deadline = deadlines.length === 0 ? undefined : Math.min(...deadlines);
+
+                // end once none waits
+                if (this.#waits.length === 0) {
+                    this.#isMoving = false;
+
+                    return;
+                }
+                // move to the earliest deadline before the next timer
+                else if (deadline !== undefined && (next === undefined || next > deadline)) {
+                    this.clock.set(Math.max(this.clock.now(), deadline));
+                }
+                // refuse the waits idle work never meets
+                else if (next === undefined) {
+                    throw new Error("the simulation went idle before its condition held");
+                }
+                // move time to the next timer
+                else {
+                    this.record({ kind: "timer", at: next, detail: "" });
+                    this.clock.set(next);
+                }
             }
-            // refuse a condition that idle work or the deadline never meets
-            else if (next === undefined || isPastDeadline) {
-                throw new Error(
-                    next === undefined
-                        ? "the simulation went idle before its condition held"
-                        : "the simulation reached its deadline before its condition held",
+        } catch (error) {
+            // fail every wait with the loop
+            this.#isMoving = false;
+            for (const wait of this.#waits.splice(0)) {
+                wait.reject(error);
+            }
+        }
+    }
+
+    /** Answer the waits met once the work settled, reporting whether any was. */
+    async #answer(next: number | undefined): Promise<boolean> {
+        // check each wait, keeping the ones still unmet
+        const waits = this.#waits.splice(0);
+        const now = this.clock.now();
+        let isAnswered = false;
+        for (const wait of waits) {
+            // read whether the wait's time passed with no timer left before it
+            const isAtDeadline =
+                wait.deadline !== undefined &&
+                now >= wait.deadline &&
+                (next === undefined || next > wait.deadline);
+
+            // read the condition, keeping what it throws for this wait alone
+            const { until } = wait;
+            const condition =
+                until === undefined
+                    ? { isMet: false }
+                    : await Promise.resolve()
+                          .then(until)
+                          .then(
+                              (isMet) => ({ isMet }),
+                              (error: unknown) => ({ isMet: false, error }),
+                          );
+
+            // fail the wait whose condition threw
+            if ("error" in condition) {
+                wait.reject(condition.error);
+                isAnswered = true;
+            }
+            // answer a met condition
+            else if (condition.isMet) {
+                wait.resolve();
+                isAnswered = true;
+            }
+            // refuse a condition its deadline passed
+            else if (wait.until !== undefined && isAtDeadline) {
+                wait.reject(
+                    new Error("the simulation reached its deadline before its condition held"),
                 );
             }
-            // move time to the next timer
+            // answer a time once it passed
+            else if (wait.until === undefined && isAtDeadline) {
+                wait.resolve();
+                isAnswered = true;
+            }
+            // wait for the condition or the deadline
             else {
-                this.trace.push({ kind: "timer", at: next, detail: "" });
-                this.clock.set(next);
+                this.#waits.push(wait);
             }
         }
+
+        return isAnswered;
     }
 
-    /** Read the network of the node the current work runs as. */
-    #network() {
-        return this.network.of(this.#node.getStore() ?? OUTSIDE);
-    }
-
-    /** Fill a typed array from the seed. */
-    static #fill<Values extends ArrayBufferView | null>(random: Random, values: Values): Values {
-        if (values !== null) {
-            const bytes = new Uint8Array(values.buffer, values.byteOffset, values.byteLength);
-            bytes.set(random.bytes(bytes.length));
+    /** Read the process a node runs as without another, with the host's paths and executable. */
+    static #hostProcess(root: string, home: string): ProcessOptions {
+        // take the host's search path, refusing a host without one
+        const host = new BunProcess();
+        const { PATH } = host.variables;
+        if (PATH === undefined) {
+            throw new TypeError("the host process has no PATH");
         }
 
-        return values;
+        // put the home and the working directory in the world's root
+        return {
+            arguments: [],
+            variables: { PATH, HOME: home },
+            workingDirectory: root,
+            id: 1,
+            userId: host.userId,
+            executable: host.executable,
+            runtime: RUNTIME,
+        };
     }
 
-    /** Let pending work run until a whole macrotask turn passes without progress. */
+    /** Let pending work run until a macrotask turn passes without progress or tracked work. */
     async #settle(): Promise<void> {
+        // start from the current progress, nothing counted as busy
         let progress = this.#progress();
+        let busy = 0;
+        let isMoving = true;
+        let movedAt = Clock.system.now();
         for (;;) {
-            // yield one macrotask turn
-            await new Promise<void>((resolve) => {
-                SYSTEM.setTimeout(resolve, 0);
-            });
+            // yield one turn while work moves, else wait for host work to settle or a host macrotask
+            const { clock } = this;
+            if (isMoving || clock.hostInFlight === 0) {
+                await new Promise<void>((resolve) => {
+                    setImmediate(resolve);
+                });
+            } else {
+                await Promise.race([clock.nextSettle(), Simulation.#macrotask()]);
+            }
 
-            // stop once the turn made no progress
+            // stop once the turn made no progress and no tracked work is in flight
             const next = this.#progress();
-            if (next === progress) {
+            if (next === progress && clock.inFlight === 0) {
                 return;
             }
+            isMoving = next !== progress;
             progress = next;
+            movedAt = isMoving ? Clock.system.now() : movedAt;
+
+            // refuse host work stalled past its limit, listing the work in flight
+            const stalled = Clock.system.now() - movedAt;
+            if (clock.hostInFlight > 0 && stalled >= this.#stallTimeout) {
+                throw new Error(
+                    `host work stayed in flight for ${stalled} ms without settling:\n${clock.flights().join("\n")}`,
+                );
+            }
+
+            // refuse tracked work waiting on a pending timer, which cannot fire while the work is in flight
+            const isWaitingOnTime =
+                clock.inFlight > 0 && clock.hostInFlight === 0 && clock.next !== undefined;
+            if (isWaitingOnTime && stalled >= DEADLOCK_MILLISECONDS) {
+                throw new Error(
+                    `tracked work waits on simulated time, which cannot move while it is in flight:\n${clock.flights().join("\n")}`,
+                );
+            }
+
+            // refuse busy work that neither moves time nor awaits the host, listing its call sites
+            busy += clock.hostInFlight === 0 ? 1 : 0;
+            if (busy >= this.#livelockTurns) {
+                const sites = [...(await this.#busy()), ...clock.flights()];
+                throw new Error(
+                    `the simulation kept busy for ${busy} turns without moving time:\n${sites.join("\n")}`,
+                );
+            }
         }
     }
 
-    /** Read the simulation's progress: waits begun, events traced and deliveries in flight. */
-    #progress(): string {
-        return `${this.clock.begun} ${this.trace.length} ${this.network.inFlight}`;
+    /** Wait for one macrotask of the host, after its input and output poll. */
+    static #macrotask(): Promise<void> {
+        return new Promise<void>((resolve) => {
+            setTimeout(resolve, 0);
+        });
+    }
+
+    /** Record what the next turns begin, by call site, most frequent first. */
+    async #busy(): Promise<string[]> {
+        // record a few turns
+        const stop = this.clock.record();
+        for (let turn = 0; turn < RECORDED_TURNS; turn += 1) {
+            await new Promise<void>((resolve) => {
+                setImmediate(resolve);
+            });
+        }
+
+        // count each call site
+        const counts = new Map<string, number>();
+        for (const site of stop()) {
+            counts.set(site, (counts.get(site) ?? 0) + 1);
+        }
+
+        return [...counts]
+            .toSorted(([, left], [, right]) => right - left)
+            .slice(0, RECORDED_SITES)
+            .map(([site, count]) => `${count}x ${site}`);
+    }
+
+    /** Read the simulation's progress: waits, settles, events and deliveries, each only growing. */
+    #progress(): number {
+        const { clock, network } = this;
+
+        return clock.begun + clock.settled + this.#events + network.sent + network.delivered;
     }
 }
+
+/** Do nothing, as a settled promise's handler. */
+function noop(): void {}

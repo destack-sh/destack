@@ -7,7 +7,10 @@
     "description": "Take every effect through one environment: time, randomness and the network, real or simulated.",
     "exports": {
         ".": "./src/index.ts",
+        "./bun": "./src/bun.ts",
+        "./browser": "./src/browser/index.ts",
         "./simulation": "./src/simulation/index.ts",
+        "./browser/simulation": "./src/browser/simulation.ts",
         "./destack.json": "./destack.json"
     },
     "scripts": {
@@ -19,6 +22,13 @@
         "@types/bun": "1.4.2"
     },
     "dependencies": {
-        "@destack/schema": "workspace:*"
+        "@destack/error": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@opentelemetry/api": "1.10.0",
+        "@opentelemetry/context-async-hooks": "3.0.0",
+        "@opentelemetry/core": "3.0.0",
+        "@opentelemetry/sdk-logs": "3.0.0",
+        "@opentelemetry/sdk-metrics": "3.0.0",
+        "@opentelemetry/sdk-trace": "3.0.0"
     }
 }

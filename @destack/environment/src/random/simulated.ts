@@ -1,12 +1,18 @@
-import type { Random } from "../random/random.ts";
+import { Uuid, type UuidSequence } from "@destack/schema";
+import type { Random } from "./random.ts";
 
 /** The golden ratio's fractional bits, splitmix32's increment. */
 const GOLDEN = 0x9e3779b9;
 
+/** The FNV-1a 32-bit offset basis and prime, hashing a split's label. */
+const FNV = { basis: 0x811c9dc5, prime: 0x01000193 } as const;
+
 /** A deterministic source of randomness from a seed: sfc32, seeded through splitmix32. */
-export class SeededRandom implements Random {
+export class SimulatedRandom implements Random {
     /** The generator's four 32-bit words of state. */
     readonly #state: Uint32Array;
+    /** The last UUIDv7 the generator drew. */
+    readonly sequence: UuidSequence = Uuid.sequence();
 
     /** Seed the generator. */
     constructor(seed: number) {
@@ -15,17 +21,38 @@ export class SeededRandom implements Random {
         const word = () => {
             // advance splitmix32
             mixed = (mixed + GOLDEN) >>> 0;
-            let value = mixed;
-            value = Math.imul(value ^ (value >>> 16), 0x85ebca6b);
-            value = Math.imul(value ^ (value >>> 13), 0xc2b2ae35);
 
-            return (value ^ (value >>> 16)) >>> 0;
+            return SimulatedRandom.#mix(mixed);
         };
         this.#state = Uint32Array.of(word(), word(), word(), word());
     }
 
+    /** Split a seed by a label into a child seed, the same for each label and well mixed. */
+    static split(seed: number, label: string): number {
+        // hash the label's UTF-8 bytes with FNV-1a
+        let hash = FNV.basis;
+        for (const byte of new TextEncoder().encode(label)) {
+            hash = Math.imul(hash ^ byte, FNV.prime) >>> 0;
+        }
+
+        // mix the seed, then the label's hash into it
+        const parent = SimulatedRandom.#mix((seed + GOLDEN) >>> 0);
+
+        return SimulatedRandom.#mix((parent ^ hash) + GOLDEN);
+    }
+
+    /** Finish a 32-bit word with splitmix32's mixer. */
+    static #mix(word: number): number {
+        // shift and multiply twice, then shift once more
+        let value = word >>> 0;
+        value = Math.imul(value ^ (value >>> 16), 0x85ebca6b);
+        value = Math.imul(value ^ (value >>> 13), 0xc2b2ae35);
+
+        return (value ^ (value >>> 16)) >>> 0;
+    }
+
     /** Fill some bytes with the next values of the generator. */
-    bytes(length: number): Uint8Array {
+    bytes(length: number): Uint8Array<ArrayBuffer> {
         const bytes = new Uint8Array(length);
         for (let index = 0; index < length; index += 4) {
             const value = this.#next();
