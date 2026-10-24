@@ -27,6 +27,7 @@
         "@destack/style": "workspace:*"
     },
     "devDependencies": {
+        "@destack/environment": "workspace:*",
         "@destack/test": "workspace:*"
     }
 }

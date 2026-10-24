@@ -1,12 +1,17 @@
-import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+import type { FileSystem } from "@destack/environment";
+import { Simulation } from "@destack/environment/simulation";
 import { expect, test } from "@destack/test";
 import { Source } from "../token/source.ts";
 import { TextStyleName, WeightName } from "../theme/theme.ts";
 import { TOKENS, TokenTree } from "../token/token.ts";
 
-/** Read a package file. */
-function read(path: string): Promise<string> {
-    return readFile(new URL(`../../${path}`, import.meta.url), "utf8");
+/** The start of every test's world: 2026-10-24 at midnight UTC. */
+const START = Date.UTC(2026, 9, 24);
+
+/** Read a package file through a world's files. */
+function read(files: FileSystem, path: string): Promise<string> {
+    return files.readTextFile(fileURLToPath(new URL(`../../${path}`, import.meta.url)));
 }
 
 /** List the constant keys of a token family. */
@@ -17,8 +22,12 @@ function keys(family: string): string[] {
 }
 
 test("generate the token constants and text styles tokens.json describes", async () => {
-    expect(await read("src/token/tokens.stylex.ts")).toBe(Source.constants(TOKENS));
-    expect(await read("src/text/text.ts")).toBe(Source.text(TOKENS));
+    // read the generated modules in a world
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const { files } = simulation.environment("test");
+
+    expect(await read(files, "src/token/tokens.stylex.ts")).toBe(Source.constants(TOKENS));
+    expect(await read(files, "src/text/text.ts")).toBe(Source.text(TOKENS));
 });
 
 test("declare the token families with their text styles and motion tokens", () => {
