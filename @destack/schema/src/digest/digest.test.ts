@@ -13,6 +13,9 @@ test("hash text, bytes and JSON values, whatever their key order", async () => {
         await Digest.of(new TextEncoder().encode("destack"), crypto),
     );
 
+    // hash a stream of chunks as its whole bytes
+    expect(await Digest.of(chunks(), crypto)).toBe(await Digest.of("destack", crypto));
+
     // hash JSON values by their canonical form
     expect(await Digest.json({ first: 1, second: 2 }, crypto)).toBe(
         await Digest.json({ second: 2, first: 1 }, crypto),
@@ -28,3 +31,9 @@ test("hash text, bytes and JSON values, whatever their key order", async () => {
         ),
     ).toEqual([true, false, false]);
 });
+
+/** Stream "destack" in two chunks. */
+async function* chunks(): AsyncGenerator<Uint8Array> {
+    yield new TextEncoder().encode("dest");
+    yield new TextEncoder().encode("ack");
+}
