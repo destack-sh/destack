@@ -6,7 +6,7 @@ import { schema } from "@destack/schema";
 export const UniverseDefinition = schema.object({
     /** The residencies people choose from. */
     residencies: schema.array(schema.object({ code: ResidencyCode, name: schema.string().min(1) })),
-    /** The platform's organisation, its accounts and the cloud machines serving residencies. */
+    /** The platform's organization, its accounts and the cloud machines serving residencies. */
     platform: PlatformDefinition,
     /** The stack each kind of space is born with. */
     stacks: schema.record(SpaceKind, StackSource),

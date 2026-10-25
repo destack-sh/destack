@@ -27,7 +27,7 @@ import {
     type EntitlementResource,
     type ResidencyCode,
     machine,
-    organisation,
+    organization,
     RESIDENCY_RELAY,
     Residency,
     space,
@@ -387,23 +387,23 @@ export class TestUniverse implements AsyncDisposable {
         return person;
     }
 
-    /** Sign the operator in as an owner of the platform organisation, accepting its invitation. */
+    /** Sign the operator in as an owner of the platform organization, accepting its invitation. */
     async operator(): Promise<TestPerson> {
         // sign the operator in, and find the invitation the platform stores for them
         const operator = await this.signIn(OPERATOR_EMAIL);
-        const organisationId = present(
+        const organizationId = present(
             await UniverseRole.operating(Snapshot.live(this.storage.database)),
-            "the platform organisation",
+            "the platform organization",
         );
         const user = schema.identifier("user").parse(operator.subject.id);
         const { items } = await operator.client(accountPackage).user.invited({ id: user });
 
-        // accept it once, joining the organisation as its owner
+        // accept it once, joining the organization as its owner
         const [invited] = items;
         if (invited !== undefined) {
             await operator.client(objectPackage).invitation.accept({
                 scope: Scope.universe.id,
-                object: organisation.reference(Scope.universe.id, organisationId),
+                object: organization.reference(Scope.universe.id, organizationId),
                 invitationId: invited.id,
                 requestId: RequestId.create(this.environment),
             });
@@ -762,7 +762,7 @@ export class TestUniverse implements AsyncDisposable {
     async relay(residency: ResidencyCode = TEST_RESIDENCY): Promise<Subject> {
         // derive the installation the home's stack declares under the relay's name
         const snapshot = Snapshot.live(this.storage.database);
-        const home = await Scope.object(snapshot, await Residency.home(snapshot, residency));
+        const home = await Scope.object(snapshot, await Residency.space(snapshot, residency));
         const id = await InstallationId.declared(home, RESIDENCY_RELAY, this.environment.crypto);
 
         return principal.installation.reference(home.id, id);
