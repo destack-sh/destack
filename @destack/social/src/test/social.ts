@@ -3,7 +3,7 @@ import { principal } from "@destack/access";
 import * as account from "@destack/account/object";
 import type { Simulation, SimulatedClock } from "@destack/environment/simulation";
 import { notification } from "@destack/notification";
-import { NotificationFixture } from "@destack/notification/test";
+import { TestNotification } from "@destack/notification/test";
 import {
     ObjectType,
     PACKAGE_DECLARATION,
@@ -31,7 +31,7 @@ export const START = Date.UTC(2026, 9, 16);
 
 /** The packages the space installs, in dependency order. */
 export const PACKAGES: readonly TestPackage[] = [
-    ...(await NotificationFixture.packages(testHost().crypto)),
+    ...(await TestNotification.packages(testHost().crypto)),
     {
         handle: articlesPackage,
         build: await packageBuild(articlesPackage, []),
