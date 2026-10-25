@@ -618,12 +618,12 @@ export class Log {
 
     /** Place a consumer's slot at a sequence and end its claim, retaining changes until a time. */
     async advance(slot: string, sequence: number, expiresAt: number): Promise<void> {
-        await this.#set(slot, sequence, expiresAt);
-    }
-
-    /** Place a slot at a sequence and end its claim, retaining later changes until it drops. */
-    async retain(slot: string, sequence: number): Promise<void> {
-        await this.#set(slot, sequence, null);
+        const table = sql.relation(LOG_SLOT);
+        await this.database.run(sql`
+            INSERT INTO ${table} (name, sequence, expires_at)
+            VALUES (${slot}, ${sequence}, ${expiresAt})
+            ON CONFLICT (name) DO UPDATE SET sequence = excluded.sequence, expires_at = excluded.expires_at, claim = NULL, claimed_at = NULL
+        `);
     }
 
     /** Place a consumer's slot at the log's start unless placed, retaining changes until a time. */
@@ -727,16 +727,6 @@ export class Log {
         await this.database.run(sql`DELETE FROM ${sql.relation(LOG_SLOT)} WHERE name = ${slot}`);
     }
 
-    /** Place a slot at a sequence until a time, or until it drops, and end its claim. */
-    async #set(slot: string, sequence: number, expiresAt: number | null): Promise<void> {
-        const table = sql.relation(LOG_SLOT);
-        await this.database.run(sql`
-            INSERT INTO ${table} (name, sequence, expires_at)
-            VALUES (${slot}, ${sequence}, ${expiresAt})
-            ON CONFLICT (name) DO UPDATE SET sequence = excluded.sequence, expires_at = excluded.expires_at, claim = NULL, claimed_at = NULL
-        `);
-    }
-
     /** Delete old windowed changes no slot retains, and advance the horizon. */
     async compact(before: number, now: number): Promise<void> {
         await this.database.transaction(async (transaction) => {
@@ -757,7 +747,7 @@ export class Log {
             // retain the changes after the earliest live slot
             const [retainedRow] = await transaction.all(sql`
                 SELECT
-                    (SELECT min(sequence) FROM ${sql.relation(LOG_SLOT)} WHERE expires_at IS NULL OR expires_at > ${now}) AS sequence,
+                    (SELECT min(sequence) FROM ${sql.relation(LOG_SLOT)} WHERE expires_at > ${now}) AS sequence,
                     (SELECT sequence FROM ${sql.relation(LOG_HORIZON)} WHERE slot = 1) AS horizon
             `);
             const retained = {

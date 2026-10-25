@@ -527,41 +527,6 @@ test("refuse a logged script outside a transaction, and log one inside a transac
     });
 });
 
-test("retain the changes after a slot without expiry past any time until it drops", async () => {
-    // write and rename a note at a fixed time, retaining the log after the write
-    const now = Date.UTC(2026, 0, 1);
-    const environment = new Simulation({ seed: 1, start: now }).environment("store");
-    const storage = await TestDatabase.create(changeTables, { environment });
-    onTestFinished(() => storage.close());
-    const { database } = storage;
-    await database.migrate(changeTables);
-    await database.transaction((transaction) => transaction.insert(note).values(first).execute());
-    const kept = (await database.log.position()).sequence;
-    await database.transaction((transaction) =>
-        transaction.update(note).set({ title: "Renamed" }).where(eq(note.id, "a")).execute(),
-    );
-
-    // retain the changes after the slot however late compaction runs
-    await database.log.retain("trigger", kept);
-    await database.log.compact(now + 1, now + 365 * 24 * 60 * 60_000);
-    const retained = (await database.log.read({ tables: [note], after: kept })).changes;
-
-    // compact them once the slot drops
-    await database.log.drop("trigger");
-    await database.log.compact(now + 1, now);
-    expect([
-        retained.map((change) => change.operation),
-        await refusal(database.log.read({ tables: [note], after: kept })),
-    ]).toEqual([
-        ["update"],
-        [
-            "GONE",
-            "CHANGES_COMPACTED",
-            `changes after ${kept} were compacted: list the tables again`,
-        ],
-    ]);
-});
-
 test("place a consumer's slot at the log's start once, and list the slots of a prefix", async () => {
     const { database, clock } = await open();
     const expiresAt = clock.now() + 60_000;

@@ -122,7 +122,7 @@ export function createEpoch(namespace?: string): readonly string[] {
         `CREATE TABLE IF NOT EXISTS ${name(LOG_SLOT)} (
             name TEXT PRIMARY KEY,
             sequence BIGINT NOT NULL,
-            expires_at BIGINT,
+            expires_at BIGINT NOT NULL,
             claim BIGINT,
             claimed_at BIGINT,
             CHECK ((claim IS NULL) = (claimed_at IS NULL))

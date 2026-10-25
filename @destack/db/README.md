@@ -174,7 +174,7 @@ await database.log
     .read(note)
     .findMany({ where: { scope: spaceId } });
 await database.log.readTransaction({ tables: [note] }); // the open transaction's own changes
-await database.log.retain("trigger", position.sequence); // a slot without expiry, until dropped
+await database.log.advance("trigger", position.sequence, expiresAt); // a slot retaining later changes until it expires
 ```
 
 ## Leases and rate limits
