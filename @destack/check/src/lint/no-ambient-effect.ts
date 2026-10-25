@@ -88,7 +88,7 @@ const MEMBERS = new Map([
     ["process.arch", "environment.host.architecture"],
     ["Bun.spawn", "environment.process.spawn"],
     ["Bun.serve", "environment.server.http"],
-    ["Bun.listen", "environment.server.tcp"],
+    ["Bun.listen", "environment.server.socket"],
     ["Bun.connect", "environment.network.connect"],
     ["Bun.file", "environment.files"],
     ["Bun.write", "environment.files"],
@@ -140,11 +140,18 @@ const CONSTRUCTORS = new Map([
 /** The formatting methods that read the host's locale without one. */
 const FORMATTING = new Set(["toLocaleString", "toLocaleDateString", "toLocaleTimeString"]);
 
-/** The host functions, timers and fetch, and the environment member taking their place. */
+/** The host functions: timers, fetch, frames, idle periods and media, and their replacements. */
 const FUNCTIONS = new Map([
     ["setTimeout", "environment.clock.setTimeout"],
     ["setInterval", "environment.clock.setInterval"],
+    ["clearTimeout", "environment.clock.clearTimeout"],
+    ["clearInterval", "environment.clock.clearInterval"],
     ["fetch", "environment.network.fetch"],
+    ["requestAnimationFrame", "environment.display.frame"],
+    ["cancelAnimationFrame", "environment.display.frame with a signal"],
+    ["requestIdleCallback", "environment.display.idle"],
+    ["cancelIdleCallback", "environment.display.idle with a signal"],
+    ["matchMedia", "environment.display.media"],
 ]);
 
 /** Reject reaching the host's effects outside the environment's host modules. */

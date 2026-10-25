@@ -344,7 +344,7 @@ tester.run("no-ambient-effect", rules["no-ambient-effect"], {
             filename: SOURCE,
         },
         {
-            code: 'await navigator.clipboard.writeText(text);\nnavigator.vibrate(200);\nconst dark = matchMedia("(prefers-color-scheme: dark)");\nrequestAnimationFrame(draw);\nconst online = navigator.onLine;',
+            code: "await navigator.clipboard.writeText(text);\nnavigator.vibrate(200);\nconst online = navigator.onLine;",
             filename: SOURCE,
         },
         {
@@ -585,7 +585,7 @@ tester.run("no-ambient-effect", rules["no-ambient-effect"], {
             ],
         },
         {
-            code: 'setTimeout(retry, 10);\nconst bytes = await crypto.subtle.digest("SHA-256", data);',
+            code: 'setTimeout(retry, 10);\nconst bytes = await crypto.subtle.digest("SHA-256", data);\nrequestAnimationFrame(draw);\nrequestIdleCallback(save);\nconst dark = window.matchMedia("(prefers-color-scheme: dark)");\nclearTimeout(retrying);\ncancelAnimationFrame(drawing);\nclearInterval(polling);\ncancelIdleCallback(saving);',
             filename: SOURCE,
             errors: [
                 {
@@ -595,6 +595,43 @@ tester.run("no-ambient-effect", rules["no-ambient-effect"], {
                 {
                     messageId: "effect",
                     data: { name: "crypto.subtle", replacement: "environment.crypto" },
+                },
+                {
+                    messageId: "effect",
+                    data: {
+                        name: "requestAnimationFrame",
+                        replacement: "environment.display.frame",
+                    },
+                },
+                {
+                    messageId: "effect",
+                    data: { name: "requestIdleCallback", replacement: "environment.display.idle" },
+                },
+                {
+                    messageId: "effect",
+                    data: { name: "window.matchMedia", replacement: "environment.display.media" },
+                },
+                {
+                    messageId: "effect",
+                    data: { name: "clearTimeout", replacement: "environment.clock.clearTimeout" },
+                },
+                {
+                    messageId: "effect",
+                    data: {
+                        name: "cancelAnimationFrame",
+                        replacement: "environment.display.frame with a signal",
+                    },
+                },
+                {
+                    messageId: "effect",
+                    data: { name: "clearInterval", replacement: "environment.clock.clearInterval" },
+                },
+                {
+                    messageId: "effect",
+                    data: {
+                        name: "cancelIdleCallback",
+                        replacement: "environment.display.idle with a signal",
+                    },
                 },
             ],
         },

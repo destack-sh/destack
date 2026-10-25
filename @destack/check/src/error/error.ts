@@ -14,6 +14,7 @@ export const CheckError = defineErrorFamily(
         LANGUAGE_SERVICE_FAILED: { code: "INTERNAL_SERVER_ERROR" },
         TOOL_FAILED: { code: "INTERNAL_SERVER_ERROR" },
     },
+    { audience: "host" },
 );
 
 /** A stable cause of check failures. */
