@@ -36,6 +36,7 @@ test("set, recommend and require declared values in the space and refuse undecla
         const document = { settings };
         const plan = await new Stack({
             database: served.database,
+            isHome: false,
             objects,
             store: served.store,
             as: served.store.principal,
@@ -149,6 +150,7 @@ test("stamp a declared value with the release of the build declaring its setting
     const reader = release([editor]);
     await new Stack({
         database: served.database,
+        isHome: false,
         objects: served.store.objects.filter((type) => type.same(setting)),
         store: served.store,
         as: served.store.principal,
