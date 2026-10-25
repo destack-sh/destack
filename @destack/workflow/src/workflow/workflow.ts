@@ -21,7 +21,7 @@ import {
     TRIGGER_KINDS,
     triggerOf,
 } from "../trigger/trigger.ts";
-import { TriggerHost } from "../trigger/host.ts";
+import { TriggerServer } from "../trigger/server.ts";
 
 /** The type-only key branding a run type with its workflow's name. */
 declare const WORKFLOW: unique symbol;
@@ -149,18 +149,6 @@ export interface WorkflowDefinition<
 /** The output of a workflow returning nothing, which its runs record as null. */
 export const NO_OUTPUT = schema.union([schema.void(), schema.null()]);
 
-/** The run an invoke step started: its type and key, which ends with the invoking run. */
-export const ChildRun = schema.object({
-    /** The child run's object type. */
-    type: ObjectTypeReference,
-    /** The child run. */
-    id: schema.string(),
-    /** Whether the child run is cancelled with its parent, or abandoned to run on. */
-    onParentClose: schema.enum(["cancel", "abandon"]),
-});
-/** The run an invoke step started. */
-export type ChildRun = schema.Infer<typeof ChildRun>;
-
 /** Declare a workflow: its input and output, waits, retries, timeout, limits and runs' expiry. */
 export function defineWorkflow<
     Input,
@@ -226,7 +214,7 @@ export function defineWorkflow<
             code: (step: Step<WaitOf<Waits>>, input: Input, context: RunContext) => Promise<Output>,
             options: WorkflowServing = {},
         ) => {
-            const host = new TriggerHost(workflow, options.server);
+            const triggers = new TriggerServer(workflow, options.server);
             const objects = [
                 run.implement({
                     methods: {
@@ -275,10 +263,10 @@ export function defineWorkflow<
                     },
                 }),
                 step,
-                host.implement(),
+                triggers.implement(),
             ];
 
-            return { objects, controllers: host.controllers(), webhooks: host.webhooks() };
+            return { objects, controllers: triggers.controllers(), webhooks: triggers.webhooks() };
         },
     });
 
@@ -470,8 +458,10 @@ function declareStep(
                 changeRequestId: field.string().optional(),
                 /** When the step completed, absent while it waits. */
                 completedAt: field.time().optional(),
-                /** The run an invoke step started, which ends with this run unless abandoned. */
-                child: field.json(ChildRun).optional(),
+                /** The run an invoke step started. */
+                child: field.object().optional(),
+                /** Whether an invoke step's run is cancelled with this run or runs on. */
+                onParentClose: field.enum(["cancel", "abandon"]).optional(),
             },
             permissions: { read: through("parent", "read"), advance: none() },
             constraints: { name: { kind: "unique", on: ["parentId", "name"] } },

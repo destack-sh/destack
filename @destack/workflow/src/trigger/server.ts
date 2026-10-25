@@ -67,7 +67,7 @@ const ACCEPTED = 202;
 type TriggerRecord = Select<TriggerType["table"]>;
 
 /** A workflow's triggers as its server fires them: schedules, changes and webhooks. */
-export class TriggerHost<Input> {
+export class TriggerServer<Input> {
     /** The workflow the triggers start runs of. */
     readonly #workflow: StartedWorkflow<Input>;
     /** The declared triggers, by name. */
@@ -130,7 +130,7 @@ export class TriggerHost<Input> {
                 },
                 update: (call, next) => {
                     // refuse changing a declared trigger, and check the changed schedule and input
-                    TriggerHost.#refuseDeclared(call.target);
+                    TriggerServer.#refuseDeclared(call.target);
                     const { target, input } = call;
                     const schedule = this.#checked(
                         input.schedule ?? target.schedule,
@@ -141,7 +141,7 @@ export class TriggerHost<Input> {
                 },
                 delete: (call, next) => {
                     // refuse deleting a declared trigger
-                    TriggerHost.#refuseDeclared(call.target);
+                    TriggerServer.#refuseDeclared(call.target);
 
                     return next();
                 },
@@ -439,18 +439,22 @@ class DeclarationController<Input> implements ReconcileController {
     readonly watches: readonly Table[];
     /** The store the rows live in. */
     readonly #store: ObjectStore;
-    /** The host of the triggers. */
-    readonly #host: TriggerHost<Input>;
+    /** The server of the triggers. */
+    readonly #server: TriggerServer<Input>;
     /** The declared triggers. */
     readonly #triggers: readonly Trigger<Input>[];
 
     /** Record a workflow's declared triggers in a store's space. */
-    constructor(store: ObjectStore, host: TriggerHost<Input>, triggers: readonly Trigger<Input>[]) {
+    constructor(
+        store: ObjectStore,
+        server: TriggerServer<Input>,
+        triggers: readonly Trigger<Input>[],
+    ) {
         // name the controller after the trigger type
-        this.name = `${host.workflow.trigger.name}:declared`;
+        this.name = `${server.workflow.trigger.name}:declared`;
         this.watches = [];
         this.#store = store;
-        this.#host = host;
+        this.#server = server;
         this.#triggers = triggers;
     }
 
@@ -461,13 +465,13 @@ class DeclarationController<Input> implements ReconcileController {
 
     /** List the workflow's space as the one key. */
     async list(): Promise<readonly string[]> {
-        return [this.#host.scope(this.#store)];
+        return [this.#server.scope(this.#store)];
     }
 
     /** Create missing declared rows, update changed schedules and retire undeclared rows. */
     async reconcile(scope: string): Promise<undefined> {
         // read the declared rows the space has
-        const { trigger } = this.#host.workflow;
+        const { trigger } = this.#server.workflow;
         const column = (name: string) => trigger.table[TABLE].column(name);
         const rows = await this.#store.database
             .select()
@@ -523,7 +527,7 @@ class DeclarationController<Input> implements ReconcileController {
                 { scope, transaction },
             );
             for (const row of retired) {
-                transaction.record((committing) => this.#host.dropSlots(committing, row.name));
+                transaction.record((committing) => this.#server.dropSlots(committing, row.name));
             }
         });
 
@@ -539,19 +543,19 @@ class ChangeController<Input> implements ReconcileController {
     readonly watches: readonly Table[];
     /** The store the runs start in. */
     readonly #store: ObjectStore;
-    /** The host of the trigger. */
-    readonly #host: TriggerHost<Input>;
+    /** The server of the trigger. */
+    readonly #server: TriggerServer<Input>;
     /** The followed trigger. */
     readonly #trigger: ChangeTrigger<Input>;
 
     /** Follow one change trigger over a store's database. */
-    constructor(store: ObjectStore, host: TriggerHost<Input>, trigger: ChangeTrigger<Input>) {
+    constructor(store: ObjectStore, server: TriggerServer<Input>, trigger: ChangeTrigger<Input>) {
         // name the controller after the trigger type and the trigger
-        const { workflow } = host;
+        const { workflow } = server;
         this.name = `${workflow.trigger.name}:${trigger.name}`;
         this.watches = [ChangeController.#table(trigger), workflow.trigger.table];
         this.#store = store;
-        this.#host = host;
+        this.#server = server;
         this.#trigger = trigger;
     }
 
@@ -559,7 +563,7 @@ class ChangeController<Input> implements ReconcileController {
     keys(change: Change): readonly string[] {
         const isFollowed = change.table === ChangeController.#table(this.#trigger);
         const isOwn =
-            Change.of(change, this.#host.workflow.trigger.table) &&
+            Change.of(change, this.#server.workflow.trigger.table) &&
             Change.image(change)["name"] === this.#trigger.name;
 
         return isFollowed || isOwn ? [this.#trigger.name] : [];
@@ -575,8 +579,8 @@ class ChangeController<Input> implements ReconcileController {
         // wait for the trigger's row to resume or reset it while it is not active
         const change = this.#trigger.change;
         const database = this.#store.database;
-        const scope = this.#host.scope(this.#store);
-        const row = await this.#host.row(database, scope, this.#trigger.name);
+        const scope = this.#server.scope(this.#store);
+        const row = await this.#server.row(database, scope, this.#trigger.name);
         if (row?.state !== "active") {
             return undefined;
         }
@@ -584,7 +588,7 @@ class ChangeController<Input> implements ReconcileController {
         // continue after the trigger's slot, or start it
         const table = ChangeController.#table(this.#trigger);
         const log = new Log(database);
-        const slot = this.#host.slot(this.#trigger.name);
+        const slot = this.#server.slot(this.#trigger.name);
         const position = await log.position();
         const timeline = { log: position.log, epoch: position.epoch };
         const match =
@@ -642,7 +646,7 @@ class ChangeController<Input> implements ReconcileController {
     async #stop(row: TriggerRecord, cause: unknown): Promise<void> {
         // record why the trigger stopped
         const { name } = this.#trigger;
-        const { trigger } = this.#host.workflow;
+        const { trigger } = this.#server.workflow;
         const failure = Failure.of(
             WorkflowError.of("CHANGES_COMPACTED", `trigger ${name} lost changes to compaction`, {
                 cause,
@@ -659,7 +663,7 @@ class ChangeController<Input> implements ReconcileController {
                 },
                 { scope: row.scope, transaction },
             );
-            transaction.record((committing) => this.#host.dropSlots(committing, name));
+            transaction.record((committing) => this.#server.dropSlots(committing, name));
         });
     }
 
@@ -668,7 +672,7 @@ class ChangeController<Input> implements ReconcileController {
         // start the slot at the head, or resume the snapshot begun at an earlier head
         const change = this.#trigger.change;
         const log = new Log(this.#store.database);
-        const snapshotSlot = this.#host.snapshotSlot(this.#trigger.name);
+        const snapshotSlot = this.#server.snapshotSlot(this.#trigger.name);
         const begun = change.from === "snapshot" ? await log.slot(snapshotSlot) : undefined;
         const sequence = begun ?? position.sequence;
         const timeline = { log: position.log, epoch: position.epoch };
@@ -720,7 +724,7 @@ class ChangeController<Input> implements ReconcileController {
     async #start(change: ObjectChange, at: number): Promise<void> {
         const { name } = this.#trigger;
         const event = { key: ChangeTrigger.key(change), at };
-        await this.#host.start(this.#store, name, this.#trigger.input(change), event, {});
+        await this.#server.start(this.#store, name, this.#trigger.input(change), event, {});
     }
 
     /** Read the table of a trigger's object type, refusing another kind of declaration. */

@@ -212,13 +212,13 @@ export class Run<Input = unknown, Output = unknown, Waits extends ObjectType = O
             where: { parentId: this.row.id },
         });
         const children = steps.flatMap((step) =>
-            step.child?.onParentClose === "cancel" ? [step.child] : [],
+            step.onParentClose === "cancel" ? [ObjectReference.at("child", step)] : [],
         );
 
         // cancel each child while it is live
         const calls: Call[] = [];
         for (const child of children) {
-            const key = ObjectTypeReference.key(child.type);
+            const key = ObjectTypeReference.key(child);
             const type = present(
                 context.objects.find((each) => ObjectTypeReference.key(each.typeReference) === key),
                 `the child run type ${key}`,

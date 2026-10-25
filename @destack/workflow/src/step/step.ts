@@ -16,7 +16,7 @@ import {
 } from "../approval/approval.ts";
 import { changeRequest } from "../approval/request.ts";
 import type { Run } from "../run/run.ts";
-import { type ChildRun, recorded, type StepType, type Workflow } from "../workflow/workflow.ts";
+import { recorded, type StepType, type Workflow } from "../workflow/workflow.ts";
 import type {} from "@destack/package/import-meta";
 import { WorkflowError } from "../error/index.ts";
 
@@ -451,8 +451,11 @@ export class Step<Waits extends ObjectType = ObjectType> {
                     { scope: this.#run.row.scope, transaction },
                 );
                 const child = {
-                    type: workflow.run.typeReference,
-                    id: schema.looseObject({ id: schema.string() }).parse(started).id,
+                    run: {
+                        ...workflow.run.typeReference,
+                        scope: this.#run.row.scope,
+                        id: schema.looseObject({ id: schema.string() }).parse(started).id,
+                    },
                     onParentClose: options.onParentClose ?? "cancel",
                 };
                 await this.#wait(name, undefined, recordedStep, transaction, child);
@@ -461,7 +464,7 @@ export class Step<Waits extends ObjectType = ObjectType> {
         }
 
         // answer the child run the step recorded once it ends
-        const child = present(recordedStep.child, `the child run of step ${name}`);
+        const child = ObjectReference.at("child", recordedStep);
         const table = workflow.run.table;
         const [invoked] = await this.#store.database
             .select()
@@ -630,7 +633,7 @@ export class Step<Waits extends ObjectType = ObjectType> {
         at: number | undefined,
         existing: StepRecord | undefined,
         transaction?: Transaction,
-        child?: ChildRun,
+        child?: { readonly run: ObjectReference; readonly onParentClose: "cancel" | "abandon" },
     ): Promise<void> {
         // record a new wait once
         if (existing !== undefined) {
@@ -643,7 +646,12 @@ export class Step<Waits extends ObjectType = ObjectType> {
                 name,
                 position: this.#position(name),
                 ...(at === undefined ? {} : { wakeAt: at }),
-                ...(child === undefined ? {} : { child }),
+                ...(child === undefined
+                    ? {}
+                    : {
+                          ...ObjectReference.columns("child", child.run),
+                          onParentClose: child.onParentClose,
+                      }),
             }),
             transaction,
         );
