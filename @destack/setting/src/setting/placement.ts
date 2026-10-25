@@ -3,7 +3,7 @@ import { schema } from "@destack/schema";
 
 /** Where a value is placed: its scope and the overrides narrowing where it applies. */
 const Placement = schema.object({
-    /** The user, space, account or organisation that has the value. */
+    /** The user, space, account or organization that has the value. */
     scope: schema.string().min(1),
     /** The consuming package the value applies to. */
     package: PackageId.exactOptional(),
