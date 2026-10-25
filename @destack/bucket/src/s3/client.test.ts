@@ -1,3 +1,4 @@
+import { testSimulation } from "@destack/test/world";
 import { createHash } from "node:crypto";
 import type { Environment, HostCapability } from "@destack/environment";
 import { join } from "node:path";
@@ -7,10 +8,6 @@ import { BucketError } from "../error/index.ts";
 import { LocalBucket } from "../bun/index.ts";
 import { S3Client } from "./client.ts";
 import { S3Server } from "./server.ts";
-import { Simulation } from "@destack/environment/simulation";
-
-/** The start of every test's world: 2026-10-24 at midnight UTC. */
-const START = Date.UTC(2026, 9, 24);
 
 /** The access key the host authorized the client's requests for. */
 const ACCESS_KEY_ID = "space-test";
@@ -142,7 +139,7 @@ test.for(CLIENTS)(
     "roundtrip every bucket operation through S3 as a %s client, answering as the bucket answers directly",
     async (kind) => {
         // serve a local bucket over S3 to the client
-        await using simulation = new Simulation({ seed: 1, start: START });
+        await using simulation = testSimulation();
         const world = simulation.environment("host");
         const served = await serveBucket(world);
         await using bucket = served.bucket;
@@ -272,7 +269,7 @@ test.for(CLIENTS)(
 
 test("refuse a client signing with another secret, keeping the bucket unchanged", async () => {
     // serve a local bucket over S3 at a port, and sign a write under a forged secret
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const world = simulation.environment("host");
     const served = await serveBucket(world);
     await using bucket = served.bucket;
@@ -296,7 +293,7 @@ test("refuse a client signing with another secret, keeping the bucket unchanged"
 
 test("read a file stored with a content encoding as its stored bytes, never decoded on the way", async () => {
     // store gzip bytes under a gzip content encoding in a local bucket served over S3
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const world = simulation.environment("host");
     const served = await serveBucket(world);
     await using bucket = served.bucket;

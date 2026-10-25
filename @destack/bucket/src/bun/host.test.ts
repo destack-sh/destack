@@ -1,3 +1,4 @@
+import { testSimulation } from "@destack/test/world";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { setImmediate } from "node:timers/promises";
@@ -7,10 +8,6 @@ import { SweepController } from "../provider/index.ts";
 import { BucketError } from "../error/index.ts";
 import { S3Location, S3Server, S3Signature } from "../s3/index.ts";
 import { LocalBucketHost } from "./host.ts";
-import { Simulation } from "@destack/environment/simulation";
-
-/** The start of every test's world: 2026-10-24 at midnight UTC. */
-const START = Date.UTC(2026, 9, 24);
 
 /** The bucket the scenarios keep. */
 const BUCKET_ID = "bucket-01996ab0-0000-7000-8000-000000000002";
@@ -19,7 +16,7 @@ const BUCKET_ID = "bucket-01996ab0-0000-7000-8000-000000000002";
 const SPACE_ID = "space-01996ab0-0000-7000-8000-000000000001";
 
 test("serve a host's buckets over S3 by name, presigned with the credentials of each bucket's space", async () => {
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const world = simulation.environment("host");
     const directory = await world.files.makeTemporaryDirectory("buckets-");
 
@@ -81,7 +78,7 @@ test("serve a host's buckets over S3 by name, presigned with the credentials of 
 });
 
 test("sweep a host's open buckets daily, again a minute later while a copy holds the blobs it fetched", async () => {
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const world = simulation.environment("host");
     const directory = await world.files.makeTemporaryDirectory("buckets-");
 
@@ -120,7 +117,7 @@ test("sweep a host's open buckets daily, again a minute later while a copy holds
 });
 
 test("open a bucket again after a failed open", async () => {
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const world = simulation.environment("host");
     const directory = await world.files.makeTemporaryDirectory("buckets-");
     await using buckets = new LocalBucketHost({
@@ -143,7 +140,7 @@ test("open a bucket again after a failed open", async () => {
 });
 
 test("fence a bucket during a transfer: finish the write in flight, refuse every later write across a restart, read on, and lift", async () => {
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const world = simulation.environment("host");
     const directory = await world.files.makeTemporaryDirectory("buckets-");
     const credentials = { accessKeyId: "HOST", secretAccessKey: "host-secret" };

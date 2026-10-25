@@ -1,9 +1,6 @@
+import { testSimulation } from "@destack/test/world";
 import { expect, test } from "@destack/test";
 import { LocalBlobStore } from "./store.ts";
-import { Simulation } from "@destack/environment/simulation";
-
-/** The start of every test's world: 2026-10-24 at midnight UTC. */
-const START = Date.UTC(2026, 9, 24);
 
 /** Yield text as one chunk of bytes. */
 async function* bytesOf(content: string): AsyncIterable<Uint8Array> {
@@ -12,7 +9,7 @@ async function* bytesOf(content: string): AsyncIterable<Uint8Array> {
 
 test("keep a body once under its digest, list the kept blobs and delete one", async () => {
     // keep two blobs, write one's bytes again and delete the other
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const world = simulation.environment("host");
     const directory = await world.files.makeTemporaryDirectory("blobs-");
     const store = await LocalBlobStore.open(directory, world);
@@ -31,7 +28,7 @@ test("keep a body once under its digest, list the kept blobs and delete one", as
 
 test("read a range of a blob at an unaligned offset across read-sized chunks, and nothing of an empty range", async () => {
     // keep a blob of two and a half read sizes
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const world = simulation.environment("host");
     const store = await LocalBlobStore.open(
         await world.files.makeTemporaryDirectory("slice-"),

@@ -1,3 +1,4 @@
+import { testSimulation } from "@destack/test/world";
 import { createHash } from "node:crypto";
 import { ResourceId } from "@destack/resource";
 import { nth, schema, present } from "@destack/schema";
@@ -6,10 +7,6 @@ import { LocalBucketHost, LocalBlobStore } from "../bun/index.ts";
 import { segment } from "../catalogue/stack/index.ts";
 import { bucketProvider } from "./provider.ts";
 import { SweepController } from "./sweep.ts";
-import { Simulation } from "@destack/environment/simulation";
-
-/** The start of every test's world: 2026-10-24 at midnight UTC. */
-const START = Date.UTC(2026, 9, 24);
 
 /** The bucket resource both hosts keep. */
 const record = {
@@ -23,7 +20,7 @@ const record = {
 const CREDENTIALS = { accessKeyId: "TRANSFER", secretAccessKey: "transfer-secret" };
 
 test("provision a bucket once and destroy it with its files", async () => {
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const world = simulation.environment("host");
     const directory = await world.files.makeTemporaryDirectory("bucket-provider-");
     await using buckets = new LocalBucketHost({
@@ -50,7 +47,7 @@ test("provision a bucket once and destroy it with its files", async () => {
 });
 
 test("refer to a bucket by its identifier, and open its files below the directory it moved to", async () => {
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const world = simulation.environment("host");
     const host = (directory: string) =>
         new LocalBucketHost({
@@ -80,7 +77,7 @@ test("refer to a bucket by its identifier, and open its files below the director
 });
 
 test("fence a bucket through its provider, reporting the one concurrent call that set the fence, and declare the sweep its host runs", async () => {
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const world = simulation.environment("host");
     const directory = await world.files.makeTemporaryDirectory("bucket-provider-");
     await using buckets = new LocalBucketHost({
@@ -120,7 +117,7 @@ test("fence a bucket through its provider, reporting the one concurrent call tha
 });
 
 test("open a bucket's catalogue under its space's scope, with the blobs its rows reference", async () => {
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const world = simulation.environment("host");
     const directory = await world.files.makeTemporaryDirectory("bucket-provider-");
     await using buckets = new LocalBucketHost({
@@ -152,7 +149,7 @@ test("open a bucket's catalogue under its space's scope, with the blobs its rows
 });
 
 test("snapshot a bucket's catalogue and files into a content-addressed store and restore them into a bucket on another host", async () => {
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const world = simulation.environment("host");
     // keep a file in a bucket on the source host
     const options = {

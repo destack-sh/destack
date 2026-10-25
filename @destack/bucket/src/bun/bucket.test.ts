@@ -1,3 +1,4 @@
+import { testSimulation } from "@destack/test/world";
 import { present, Uuid } from "@destack/schema";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
@@ -5,16 +6,12 @@ import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { join } from "node:path";
 import { type UploadedPart, StorageClass } from "../bucket/index.ts";
 import { LocalBucket } from "./index.ts";
-import { Simulation } from "@destack/environment/simulation";
-
-/** The start of every test's world: 2026-10-24 at midnight UTC. */
-const START = Date.UTC(2026, 9, 24);
 
 /** The files the stress test puts, 1.6 ms each on macOS for the fsync of blob and directory. */
 const STRESS_FILES = 25;
 
 test("put, read and delete many files, keeping the blobs of the files left alone", async () => {
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const world = simulation.environment("host");
     const directory = await world.files.makeTemporaryDirectory("bucket-stress-");
     await using bucket = await LocalBucket.open(directory, "space-test", world);
@@ -47,7 +44,7 @@ test("put, read and delete many files, keeping the blobs of the files left alone
 });
 
 test("retain local files across reopen and failed streamed uploads", async () => {
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const world = simulation.environment("host");
     const directory = await world.files.makeTemporaryDirectory("bucket-reopen-");
     // refuse creating a bucket without the scope it belongs to
@@ -85,7 +82,7 @@ test("retain local files across reopen and failed streamed uploads", async () =>
 
 test("recover the catalogue after terminating its host, and sweep its interrupted upload away", async () => {
     // start a child that commits a file, then stalls inside a second upload
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const world = simulation.environment("host");
     const directory = await world.files.makeTemporaryDirectory("bucket-crash-");
     const module = new URL("./index.ts", import.meta.url).href;
@@ -142,7 +139,7 @@ test("recover the catalogue after terminating its host, and sweep its interrupte
 
 test("close storage immediately after consuming or cancelling a body", async () => {
     // write a two-chunk file, and read it whole in one open and cancel its body in the next
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const world = simulation.environment("host");
     const directory = await world.files.makeTemporaryDirectory("bucket-close-");
     const written = new Uint8Array(128 * 1024).map((_, index) => index % 251);
@@ -164,7 +161,7 @@ test("close storage immediately after consuming or cancelling a body", async () 
 });
 
 test("sweep multiple batches of abandoned files without deleting files or upload parts, leaving them at open", async () => {
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const world = simulation.environment("host");
     const directory = await world.files.makeTemporaryDirectory("bucket-recovery-");
     let uploadId: string;
@@ -204,7 +201,7 @@ test("sweep multiple batches of abandoned files without deleting files or upload
 });
 
 test("report reclamation failures separately from committed file replacements", async () => {
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const world = simulation.environment("host");
     const directory = await world.files.makeTemporaryDirectory("bucket-collect-");
     await using bucket = await LocalBucket.open(directory, "space-test", world);
@@ -240,7 +237,7 @@ test("report reclamation failures separately from committed file replacements", 
 });
 
 test("copy files by sharing their contents until the last reference goes", async () => {
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const world = simulation.environment("host");
     const directory = await world.files.makeTemporaryDirectory("bucket-copy-");
     await using bucket = await LocalBucket.open(directory, "space-test", world);
@@ -300,7 +297,7 @@ test("copy files by sharing their contents until the last reference goes", async
 });
 
 test("record storage classes and refuse storage classes R2 does not offer", async () => {
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const world = simulation.environment("host");
     const directory = await world.files.makeTemporaryDirectory("bucket-class-");
     await using bucket = await LocalBucket.open(directory, "space-test", world);
@@ -324,7 +321,7 @@ test("record storage classes and refuse storage classes R2 does not offer", asyn
 });
 
 test("encrypt files under customer keys, reading ranges with the key and refusing any other", async () => {
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const world = simulation.environment("host");
     const directory = await world.files.makeTemporaryDirectory("bucket-customer-");
     await using bucket = await LocalBucket.open(directory, "space-test", world);
@@ -395,7 +392,7 @@ function digestOf(text: string): string {
 }
 
 test("count the bytes a bucket's published files keep, a replaced file once and a deleted one not at all", async () => {
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const world = simulation.environment("host");
     const directory = await world.files.makeTemporaryDirectory("bucket-bytes-");
     // publish two files, replace one and delete the other
@@ -416,7 +413,7 @@ test("count the bytes a bucket's published files keep, a replaced file once and 
 });
 
 test("refuse replacing or deleting a locked file until its retain-until date, then allow both", async () => {
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const world = simulation.environment("host");
     const directory = await world.files.makeTemporaryDirectory("bucket-lock-");
     // lock a file for a moment beside an unlocked one
@@ -445,7 +442,7 @@ test("refuse replacing or deleting a locked file until its retain-until date, th
 });
 
 test("share a bucket between two processes, deleting blobs only once the other closes", async () => {
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const world = simulation.environment("host");
     const directory = await world.files.makeTemporaryDirectory("bucket-shared-");
     // write a file, then open the bucket in a second process writing its own and reading this one
@@ -498,7 +495,7 @@ test("share a bucket between two processes, deleting blobs only once the other c
 });
 
 test("clone a plain file's bytes to a path, refusing a missing, encrypted or multipart file", async () => {
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const world = simulation.environment("host");
     const directory = await world.files.makeTemporaryDirectory("bucket-clone-");
     await using bucket = await LocalBucket.open(join(directory, "bucket"), "space-test", world);

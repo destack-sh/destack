@@ -1,3 +1,4 @@
+import { testSimulation } from "@destack/test/world";
 import { nth, present } from "@destack/schema";
 import { createHash } from "node:crypto";
 import { expect, refusal, test } from "@destack/test";
@@ -10,11 +11,8 @@ import { LocalBucket } from "./index.ts";
 import { Simulation } from "@destack/environment/simulation";
 import { UPLOAD_RETENTION } from "../catalogue/multipart.ts";
 
-/** The start of every test's world: 2026-10-24 at midnight UTC. */
-const START = Date.UTC(2026, 9, 24);
-
 test("resume multipart uploads after restart and retain files when completion fails", async () => {
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const world = simulation.environment("host");
     const directory = await world.files.makeTemporaryDirectory("multipart-restart-");
     let uploadId: string;
@@ -72,7 +70,7 @@ test("resume multipart uploads after restart and retain files when completion fa
 });
 
 test("reject undersized completion and an upload part that finishes after abort", async () => {
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const world = simulation.environment("host");
     const directory = await world.files.makeTemporaryDirectory("multipart-abort-");
     {
@@ -123,7 +121,7 @@ test("reject undersized completion and an upload part that finishes after abort"
 });
 
 test("reclaim expired multipart contents once a reopened bucket sweeps", async () => {
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const world = simulation.environment("host");
     const directory = await world.files.makeTemporaryDirectory("multipart-expire-");
     {
@@ -154,7 +152,7 @@ test("reclaim expired multipart contents once a reopened bucket sweeps", async (
 });
 
 test("read a completed multipart file across part boundaries and collect its parts once deleted", async () => {
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const world = simulation.environment("host");
     const directory = await world.files.makeTemporaryDirectory("multipart-segments-");
     await using bucket = await LocalBucket.open(directory, "space-test", world);
@@ -197,7 +195,7 @@ test("read a completed multipart file across part boundaries and collect its par
 });
 
 test("list uploads and parts, and copy parts from files", async () => {
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const world = simulation.environment("host");
     const directory = await world.files.makeTemporaryDirectory("multipart-list-");
     await using bucket = await LocalBucket.open(directory, "space-test", world);

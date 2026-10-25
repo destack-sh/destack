@@ -1,3 +1,4 @@
+import { testSimulation } from "@destack/test/world";
 import { createHash } from "node:crypto";
 import { Environment } from "@destack/environment";
 import { join } from "node:path";
@@ -12,10 +13,6 @@ import { bucketProvider } from "../provider/index.ts";
 import { S3Location, S3Server, S3Signature } from "../s3/index.ts";
 import type { CatalogueStore } from "../catalogue/index.ts";
 import { R2BucketHost } from "./host.ts";
-import { Simulation } from "@destack/environment/simulation";
-
-/** The start of every test's world: 2026-10-24 at midnight UTC. */
-const START = Date.UTC(2026, 9, 24);
 
 /** The bucket resource the hosts keep. */
 const record = {
@@ -87,7 +84,7 @@ class TestCatalogueStore implements CatalogueStore, AsyncDisposable {
 
 test("provision a bucket as a prefix of the residency's bucket beside its catalogue, serve presigned writes and reads, and destroy both", async () => {
     // keep the residency's bucket locally, as R2 keeps it, and the catalogues in test databases
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const world = simulation.environment("host");
     await using files = await LocalBucket.open(
         join(await world.files.makeTemporaryDirectory("r2-host-"), "files"),
@@ -165,7 +162,7 @@ test("provision a bucket as a prefix of the residency's bucket beside its catalo
 
 test("move a bucket from a device host to a cell: snapshot its catalogue and files into a content store once fenced, and restore them into the cell's bucket", async () => {
     // keep a bucket with two files on the device host, and provision it on the cell
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const world = simulation.environment("host");
     await using device = new LocalBucketHost({
         environment: world,
@@ -218,7 +215,7 @@ test("move a bucket from a device host to a cell: snapshot its catalogue and fil
 
 test("fence a cell bucket through its provider: refuse presigned and direct writes across a restart, read on, and lift", async () => {
     // keep a bucket with one file on the cell, served over S3
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const world = simulation.environment("host");
     await using files = await LocalBucket.open(
         join(await world.files.makeTemporaryDirectory("r2-host-"), "files"),
@@ -290,7 +287,7 @@ test("fence a cell bucket through its provider: refuse presigned and direct writ
 
 test("list a cell bucket's files and groups in key byte order", async () => {
     // keep keys whose byte order differs from a language's collation
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const world = simulation.environment("host");
     await using files = await LocalBucket.open(
         join(await world.files.makeTemporaryDirectory("r2-host-"), "files"),
