@@ -1,4 +1,4 @@
-import type { Connector } from "@destack/resource";
+import { type Connector, ResourceBinding } from "@destack/resource";
 import { Failure } from "@destack/error";
 import { copyRequest, type Crypto, type Environment } from "@destack/environment";
 import {
@@ -70,10 +70,7 @@ export class S3Client implements Bucket {
         code: S3_PROVIDER,
         connect: async (binding, _declaration, environment) => {
             // require the credential the egress identifies the instance by
-            const credential = binding.credential;
-            if (credential === undefined) {
-                throw new TypeError(`bucket ${binding.resource} has no credential`);
-            }
+            const { credential } = ResourceBinding.lent(binding);
 
             // send every request with the credential
             const send = (request: Request) => {
