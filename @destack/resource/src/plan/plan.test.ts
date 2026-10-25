@@ -1,10 +1,7 @@
-import { Simulation } from "@destack/environment/simulation";
+import { testSimulation } from "@destack/test/world";
 import { expect, test } from "@destack/test";
 import { schema, toJsonSchema } from "@destack/schema";
 import { Plan, type Compatibility, type Step } from "./plan.ts";
-
-/** The start of every test's world: 2026-10-24 at midnight UTC. */
-const START = Date.UTC(2026, 9, 24);
 
 /** Plan a change between two schemas, reading a refusal as its message. */
 function plan(
@@ -106,7 +103,7 @@ test("classify a plan by its most consequential step and digest its reviewed ste
     ]);
 
     // digest the same steps equally and different steps differently, in a world
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const { crypto } = simulation.environment("test");
     const first = await Plan.digest({ steps: [add, drop] }, crypto);
     expect(await Plan.digest({ steps: [add, drop] }, crypto)).toBe(first);
