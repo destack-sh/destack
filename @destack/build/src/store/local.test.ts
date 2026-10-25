@@ -1,3 +1,4 @@
+import { TEST_START } from "@destack/test/world";
 import type { Crypto } from "@destack/environment";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,9 +12,6 @@ import { testHost } from "@destack/test/host";
 import { Identities } from "../cache/index.ts";
 import { testSimulation } from "../test/world.ts";
 import { LocalPackageStore } from "./local.ts";
-
-/** The start of every test's world: 2026-10-24 at midnight UTC. */
-const START = Date.UTC(2026, 9, 24);
 
 /** A day, in milliseconds. */
 const DAY_MILLISECONDS = 24 * 60 * 60_000;
@@ -211,7 +209,7 @@ test("refuse an empty cache directory the environment sets for a checkout's stor
     const host = testHost();
     await using simulation = new Simulation({
         seed: 1,
-        start: START,
+        start: TEST_START,
         host: host.host,
         process: {
             arguments: [],
