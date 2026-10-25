@@ -125,7 +125,7 @@ export class TestRelay implements AsyncDisposable {
             `the machine ${host.id}`,
         );
         const residencyId = present(hosted.residencyId, "a residency");
-        const home = await Residency.home(directory, residencyId);
+        const home = await Residency.space(directory, residencyId);
         const installation = options.installation ?? (await universe.relay(residencyId));
         const relayOrigin = `http://${hostname}`;
         const egress = `http://host.${hostname}${Egress.path}`;
