@@ -790,12 +790,12 @@ test("fold the distributions of a kind's events into quantiles per group, hot an
         ],
         [
             "BAD_REQUEST",
-            "INVALID_SERIES",
+            "SERIES_INVALID",
             `a p50 series reads distributions, but ${reading.key} records none`,
         ],
         [
             "BAD_REQUEST",
-            "INVALID_SERIES",
+            "SERIES_INVALID",
             "a p50 series reads distributions and cannot measure a key",
         ],
     ]);

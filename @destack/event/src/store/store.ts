@@ -230,7 +230,7 @@ export class EventStore {
         const isQuantile = Fold.isQuantile(fold);
         if (isQuantile && kind.distribution === undefined) {
             throw EventError.of(
-                "INVALID_SERIES",
+                "SERIES_INVALID",
                 `a ${fold} series reads distributions, but ${kind.key} records none`,
             );
         }
