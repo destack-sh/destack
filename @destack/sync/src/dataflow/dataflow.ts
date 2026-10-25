@@ -154,7 +154,7 @@ export class Dataflow implements Arrangement {
         for (const watch of this.watches()) {
             if (watch.table[TABLE].retention === "none") {
                 throw DatabaseError.of(
-                    "INVALID_QUERY",
+                    "QUERY_INVALID",
                     `watched table is not logged: ${watch.table[TABLE].name}`,
                 );
             }
@@ -168,7 +168,7 @@ export class Dataflow implements Arrangement {
             const read = node.reads().filter((name) => concealable.includes(name));
             if (read.length > 0) {
                 throw DatabaseError.of(
-                    "INVALID_QUERY",
+                    "QUERY_INVALID",
                     `query ${node.name} reads concealable columns of ${node.table[TABLE].name}: ${read.join(", ")}`,
                 );
             }

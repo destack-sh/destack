@@ -489,7 +489,7 @@ export class View {
         const where = audience.where(table, permission);
         if (where === "memory") {
             throw DatabaseError.of(
-                "INVALID_QUERY",
+                "QUERY_INVALID",
                 `relations cannot read rows of ${table[TABLE].name}: the audience decides them in memory`,
             );
         }

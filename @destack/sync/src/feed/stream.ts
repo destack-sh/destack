@@ -126,7 +126,7 @@ export class Stream {
                     if (
                         !(
                             DatabaseError.is(error) &&
-                            (error.reason === "CHANGES_COMPACTED" || error.reason === "STALE_EPOCH")
+                            (error.reason === "CHANGES_COMPACTED" || error.reason === "EPOCH_STALE")
                         )
                     ) {
                         throw error;

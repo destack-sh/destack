@@ -13,11 +13,11 @@ export const SyncError = defineErrorFamily(import.meta.destack.package, {
     EXPIRED: { code: "PRECONDITION_FAILED" },
 
     // unprocessable content
-    INVALID_SCOPE: { code: "UNPROCESSABLE_CONTENT" },
+    SCOPE_INVALID: { code: "UNPROCESSABLE_CONTENT" },
     OVER_CAPACITY: { code: "UNPROCESSABLE_CONTENT" },
 
     // bad gateway
-    INVALID_STREAM: { code: "BAD_GATEWAY" },
+    STREAM_INVALID: { code: "BAD_GATEWAY" },
     CREDENTIAL_LAPSED: { code: "UNAUTHORIZED" },
 
     // service unavailable

@@ -142,7 +142,7 @@ export class Filter {
                 // read another measure of a column
                 if (column === undefined) {
                     throw DatabaseError.of(
-                        "INVALID_QUERY",
+                        "QUERY_INVALID",
                         `rollup ${measure} over ${via} has no column`,
                     );
                 }

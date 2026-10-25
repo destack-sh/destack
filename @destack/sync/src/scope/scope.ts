@@ -120,7 +120,7 @@ export const Scope = {
         ) {
             const id = current.scope;
             if (links.some((link) => link.object.id === id)) {
-                throw SyncError.of("INVALID_SCOPE", `cyclic scope: ${id}`);
+                throw SyncError.of("SCOPE_INVALID", `cyclic scope: ${id}`);
             }
             links.push(Scope.link(current));
             current = current.parent === UNIVERSE_ID ? undefined : rows.get(current.parent);

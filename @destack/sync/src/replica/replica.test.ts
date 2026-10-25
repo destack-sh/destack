@@ -756,7 +756,7 @@ test("arrive at a position only through a replica that has it", async () => {
     ]);
     expect(await refusal(confirm())).toEqual([
         "GONE",
-        "STALE_EPOCH",
+        "EPOCH_STALE",
         "inbox started a new epoch after the position",
     ]);
 });
@@ -1071,7 +1071,7 @@ test("fail following once the source fails or ends a stream without a page", asy
     );
     expect(await refusal(empty)).toEqual([
         "BAD_GATEWAY",
-        "INVALID_STREAM",
+        "STREAM_INVALID",
         "the source of inbox ended a stream without a page",
     ]);
 });

@@ -315,7 +315,7 @@ export class Feed implements Cache {
         // refuse a query the capture cannot read whole
         if (query.with !== undefined) {
             throw SyncError.of(
-                "INVALID_SCOPE",
+                "SCOPE_INVALID",
                 `capture cannot read tables across scopes: ${query.table[TABLE].name}`,
             );
         }

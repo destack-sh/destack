@@ -339,7 +339,7 @@ export class Replica {
         // refuse tables replicated across scopes
         if (this.within.size > 0) {
             throw SyncError.of(
-                "INVALID_SCOPE",
+                "SCOPE_INVALID",
                 `replica ${this.name} replicates tables across scopes, but no capture can read them`,
             );
         }
@@ -679,7 +679,7 @@ export class Replica {
         // refuse a position of an outdated history
         else if (origin.position.epoch > position.epoch) {
             throw DatabaseError.of(
-                "STALE_EPOCH",
+                "EPOCH_STALE",
                 `${scope} started a new epoch after the position`,
             );
         }
@@ -1320,7 +1320,7 @@ export class Replica {
             // reject a stream that ends without a page, other than one whose credential lapsed
             if (!isReceived && !isLapsed && !signal.aborted) {
                 throw SyncError.of(
-                    "INVALID_STREAM",
+                    "STREAM_INVALID",
                     `the source of ${this.scope} ended a stream without a page`,
                 );
             }
@@ -1377,7 +1377,7 @@ export class Replica {
             recorded?.log === page.position.log && recorded.epoch === page.position.epoch;
         if (!run.isSnapshot && recorded !== undefined && !isContinued) {
             throw DatabaseError.of(
-                "STALE_EPOCH",
+                "EPOCH_STALE",
                 `page of ${page.position.log}/${page.position.epoch} does not continue the replica of ${recorded.log}/${recorded.epoch}`,
             );
         }
@@ -1606,7 +1606,7 @@ export class Replica {
             // refuse a table outside the replica
             if (table === undefined) {
                 throw SyncError.of(
-                    "INVALID_STREAM",
+                    "STREAM_INVALID",
                     `page has a table outside replica ${this.name}: ${change.table}`,
                 );
             }
@@ -1630,7 +1630,7 @@ export class Replica {
                       ),
                   );
         if (origin === undefined) {
-            throw DatabaseError.of("STALE_EPOCH", `source stopped replicating ${this.scope}`);
+            throw DatabaseError.of("EPOCH_STALE", `source stopped replicating ${this.scope}`);
         }
 
         return origin;
@@ -1674,7 +1674,7 @@ export class Replica {
             // refuse a retained group without a row count
             else if (result.rows === undefined) {
                 throw SyncError.of(
-                    "INVALID_STREAM",
+                    "STREAM_INVALID",
                     `page has a group of ${result.query} without its rows`,
                 );
             }
@@ -2220,7 +2220,7 @@ export class Replica {
         const row = Table.decode(node.table, change.row);
         if (change.operation === "update" && change.before === undefined) {
             throw SyncError.of(
-                "INVALID_STREAM",
+                "STREAM_INVALID",
                 `predicted update of ${table.sqlName} has no before row`,
             );
         }

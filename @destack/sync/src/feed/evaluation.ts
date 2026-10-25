@@ -64,7 +64,7 @@ export class Evaluation {
         for (const node of this.#dataflow.nodes) {
             if (!feed.tables.includes(node.table)) {
                 throw DatabaseError.of(
-                    "INVALID_QUERY",
+                    "QUERY_INVALID",
                     `feed does not read ${node.table[TABLE].name}`,
                 );
             }
