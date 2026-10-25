@@ -1,9 +1,9 @@
+import { SECRET_DECLARATION } from "@destack/stack/declare";
 import { DeclarationName, ModuleMetadata, type Package } from "@destack/package";
 import { type Connector, ResourceDeclaration } from "@destack/resource";
 import { schema } from "@destack/schema";
 import { secretConnector } from "../secret/connector.ts";
 import { type Secret, SecretGeneration } from "../secret/secret.ts";
-import { SECRET_DECLARATION } from "@destack/stack/declare";
 
 /** A secret a package declares. */
 export const SecretDescription = Object.assign(

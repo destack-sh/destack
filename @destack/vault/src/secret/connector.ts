@@ -1,4 +1,5 @@
-import { type Connector, type ResourceBinding } from "@destack/resource";
+import type { Environment } from "@destack/environment";
+import { type Connector, ResourceBinding } from "@destack/resource";
 import { schema } from "@destack/schema";
 import { VAULT_PROVIDER } from "../declare/kind.ts";
 import { type Secret, type Vault, SecretReading } from "./secret.ts";
@@ -8,26 +9,24 @@ import { vault } from "../object/vault.ts";
 
 /** A secret's or vault's binding to the vault package, as its connectors read it. */
 const VaultBinding = {
-    /** Connect to the vault at a binding's address with the binding's credential. */
-    connect(binding: ResourceBinding): {
+    /** Connect to the vault at a binding's address with its credential, in an environment. */
+    connect(
+        binding: ResourceBinding,
+        environment: Environment,
+    ): {
         readonly client: ClientOf<typeof vaultPackage>;
         readonly scope: string;
     } {
-        // refuse a binding without its credential
-        const { credential, scope } = binding;
-        if (credential === undefined) {
-            throw new TypeError(`${binding.resource} is bound without its credential`);
-        }
-        // refuse a binding without its scope
-        else if (scope === undefined) {
-            throw new TypeError(`${binding.resource} is bound without its scope`);
-        }
-
-        // call the vault with the credential
-        const client = createClient(vaultPackage, {
-            url: binding.reference,
-            headers: () => ({ authorization: `Bearer ${credential}` }),
-        });
+        // call the vault with the credential the host lends
+        const { credential, scope } = ResourceBinding.lent(binding);
+        const client = createClient(
+            vaultPackage,
+            {
+                url: binding.reference,
+                headers: () => ({ authorization: `Bearer ${credential}` }),
+            },
+            environment,
+        );
 
         return { client, scope };
     },
@@ -35,7 +34,7 @@ const VaultBinding = {
     /** Require the version a secret's binding captured. */
     requireVersion(binding: ResourceBinding): number {
         if (binding.version === undefined) {
-            throw new TypeError(`secret ${binding.resource} is bound without its version`);
+            throw new TypeError(`secret binding ${binding.resource} has no version`);
         }
 
         return binding.version;
@@ -45,32 +44,32 @@ const VaultBinding = {
 /** Connect a bound secret through the vault package at the bound address. */
 export const secretConnector: Connector<Secret> = {
     code: VAULT_PROVIDER,
-    connect: async (binding) => {
+    connect: async (binding, _declaration, environment) => {
         // read the captured version of the bound secret
-        const { client, scope } = VaultBinding.connect(binding);
+        const { client, scope } = VaultBinding.connect(binding, environment);
         const id = schema.identifier("secret").parse(binding.resource);
         const version = VaultBinding.requireVersion(binding);
-        const captured: Secret = {
-            read: async () => SecretReading.parse(await client.secret.read({ scope, id, version })),
-        };
 
-        return Object.assign(captured, { [Symbol.asyncDispose]: () => Promise.resolve() });
+        return {
+            read: async () => SecretReading.parse(await client.secret.read({ scope, id, version })),
+            [Symbol.asyncDispose]: async () => {},
+        };
     },
 };
 
 /** Connect a bound vault through the vault package at the bound address. */
 export const vaultConnector: Connector<Vault> = {
     code: VAULT_PROVIDER,
-    connect: async (binding) => {
+    connect: async (binding, _declaration, environment) => {
         // read a version of the bound vault's secret of a name, the current one by default
-        const { client, scope } = VaultBinding.connect(binding);
+        const { client, scope } = VaultBinding.connect(binding, environment);
         const id = schema.identifier("vault").parse(binding.resource);
-        const bound: Vault = {
+
+        return {
             reference: vault.reference(scope, id),
             read: async (name, selection = {}) =>
                 SecretReading.parse(await client.vault.read({ scope, id, name, ...selection })),
+            [Symbol.asyncDispose]: async () => {},
         };
-
-        return Object.assign(bound, { [Symbol.asyncDispose]: () => Promise.resolve() });
     },
 };

@@ -8,6 +8,7 @@
     "exports": {
         ".": "./src/index.ts",
         "./declare": "./src/declare/index.ts",
+        "./error": "./src/error/index.ts",
         "./inspect": "./src/inspect/index.ts",
         "./object": "./src/object/index.ts",
         "./provider": "./src/provider/index.ts",
@@ -20,6 +21,7 @@
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
         "@destack/db": "workspace:*",
+        "@destack/error": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/resource": "workspace:*",
@@ -27,13 +29,29 @@
         "@destack/stack": "workspace:*",
         "@destack/sync": "workspace:*"
     },
+    "peerDependencies": {
+        "@destack/environment": "workspace:*",
+        "@destack/test": "workspace:*",
+        "@destack/universe": "workspace:*"
+    },
+    "peerDependenciesMeta": {
+        "@destack/environment": {
+            "optional": true
+        },
+        "@destack/test": {
+            "optional": true
+        },
+        "@destack/universe": {
+            "optional": true
+        }
+    },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "devDependencies": {
         "@destack/environment": "workspace:*",
-        "@destack/event": "workspace:*",
-        "@destack/test": "workspace:*"
+        "@destack/test": "workspace:*",
+        "@destack/universe": "workspace:*"
     }
 }

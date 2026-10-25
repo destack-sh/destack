@@ -1,13 +1,9 @@
 import { none, permission, principal, relation, through, union } from "@destack/access";
-import { account, organisation, space } from "@destack/account/object";
+import { account, organization, space } from "@destack/account/object";
 import { sudo } from "@destack/account/authentication";
-import { type RowImage, type Select, type Snapshot } from "@destack/db";
-import { type MethodContext, defineObject, field, type ObjectType } from "@destack/object";
-import { type Duration, type Identifier, schema } from "@destack/schema";
-import { CallError } from "@destack/object";
-import { Binding } from "@destack/stack/object";
+import { defineObject, field, type ObjectType } from "@destack/object";
+import { type Duration, schema } from "@destack/schema";
 import {
-    MAX_VALUE_BYTES,
     SecretDisclosure,
     SecretGeneration,
     SecretReading,
@@ -16,29 +12,21 @@ import {
 } from "../secret/secret.ts";
 import { vault } from "./vault.ts";
 
-/** The stage a new version takes, as AWS Secrets Manager stages versions. */
-export const VERSION_STAGES = ["current", "pending"] as const;
-
-/** The value of a new version and the stage it takes. */
+/** The value of a new version and when its reads end. */
 export const SecretVersionInput = schema.object({
     /** The value to encrypt. */
     value: schema.sensitive(SecretValue),
-    /** The stage the version takes, current when absent. */
-    stage: schema.enum(VERSION_STAGES).exactOptional(),
+    /** The time after which reads are refused, in UTC epoch milliseconds, never when absent. */
+    expiresAt: schema.number().int().exactOptional(),
 });
-/** The value of a new version and the stage it takes. */
+/** The value of a new version and when its reads end. */
 export type SecretVersionInput = schema.Infer<typeof SecretVersionInput>;
-
-/** The version a promotion selects as its secret's current one. */
-export const SecretPromotion = schema.object({
-    /** The version's number within its secret. */
-    version: schema.number().int().positive(),
-});
-/** The version a promotion selects as its secret's current one. */
-export type SecretPromotion = schema.Infer<typeof SecretPromotion>;
 
 /** How long deleted secrets stay restorable. */
 export const SECRET_RECOVERY: Duration = { days: 30 };
+
+/** The states of a secret version, as Secret Manager's `SecretVersion.State` has them. */
+export const VERSION_STATES = ["enabled", "disabled", "destroyed"] as const;
 
 /** A version's stored value with its secret and version, so a copied value reads as foreign. */
 export const BoundValue = schema.object({
@@ -57,15 +45,14 @@ export const secret = defineObject(
     {
         name: "secret",
         plural: "secrets",
-        scope: [space, account, organisation],
-        declarable: { from: "create", references: { parentId: vault } },
-        nested: { in: vault, delete: "restrict", receive: "write" },
+        scope: [space, account, organization],
+        nested: { in: vault, delete: "trash", receive: "write" },
         recoverable: { within: SECRET_RECOVERY, by: "delete", purge: "purge", retain: "record" },
         audited: { reads: true },
         fields: {
             /** The vault-local name. */
             name: field.string(),
-            /** The version reads without a number select, absent before the first version. */
+            /** The version a read without a number answers, its `current` alias. */
             currentVersion: field.integer().optional(),
         },
         // bind the packages reading a secret on their behalf as its consumers
@@ -79,7 +66,6 @@ export const secret = defineObject(
             get: relation("custodian"),
             list: none(),
             update: relation("custodian"),
-            promote: permission("update"),
             // let people reveal a value, software bound to the secret or its vault consume it, and both read it
             reveal: none(),
             consume: union(relation("consumer"), through("parent", "consume")),
@@ -92,7 +78,7 @@ export const secret = defineObject(
         // let an account's owners reveal a value only after a fresh step-up, every reveal audited
         elevated: { reveal: sudo },
         reserved: ["consume", "read"],
-        administration: ["create", "get", "list", "update", "promote", "delete", "purge"],
+        administration: ["create", "get", "list", "update", "delete", "purge"],
         constraints: {
             vaultName: {
                 kind: "index",
@@ -134,9 +120,8 @@ export const secret = defineObject(
             isInternal: true,
             input: SecretGeneration.pick({ algorithm: true }),
         }),
-        /** Select a readable version as current, as a version's creation does for its writer. */
-        promote: method.mutation({ permission: "promote", input: SecretPromotion }),
-        update: method.update("update", { fields: ["name"] }),
+        /** Rename a secret, or point its `current` alias at a readable version. */
+        update: method.update("update", { fields: ["name", "currentVersion"] }),
     }),
 );
 
@@ -146,17 +131,15 @@ export const secretVersion = defineObject(
         name: "version",
         identity: "secret-version",
         plural: "versions",
-        scope: [space, account, organisation],
-        nested: { in: secret, delete: "restrict", receive: "update" },
+        scope: [space, account, organization],
+        nested: { in: secret, delete: "cascade", receive: "update" },
         versioned: true,
         audited: { reads: true },
         fields: {
             /** The time after which reads are refused, absent for no expiry. */
             expiresAt: field.time().optional(),
-            /** The time reads were disabled, absent while enabled. */
-            disabledAt: field.time().optional(),
-            /** The time the value was destroyed, absent while intact. */
-            destroyedAt: field.time().optional(),
+            /** The version's state: readable when enabled, empty once destroyed. */
+            state: field.enum(VERSION_STATES).default("enabled"),
             /** The value bound to its secret and version, sealed at rest, absent once destroyed. */
             content: field.json(BoundValue).sensitive().optional(),
         },
@@ -172,7 +155,6 @@ export const secretVersion = defineObject(
             destroy: through("parent", "update"),
             erase: through("parent", "purge"),
             bind: through("parent", "update"),
-            delete: none(),
         },
         // let only consumers read a version, so a person reveals values through the secret's step-up
         reserved: ["read"],
@@ -183,8 +165,8 @@ export const secretVersion = defineObject(
                 kind: "check",
                 condition: {
                     OR: [
-                        { destroyedAt: { isNull: true }, content: { isNotNull: true } },
-                        { destroyedAt: { isNotNull: true }, content: { isNull: true } },
+                        { state: { in: ["enabled", "disabled"] }, content: { isNotNull: true } },
+                        { state: { in: ["destroyed"] }, content: { isNull: true } },
                     ],
                 },
             },
@@ -197,7 +179,7 @@ export const secretVersion = defineObject(
         },
     },
     (method) => ({
-        create: method.create("write", { fields: ["expiresAt"], input: SecretVersionInput }),
+        create: method.create("write", { fields: [], input: SecretVersionInput }),
         get: method.get("get"),
         list: method.list("list"),
         disable: method.mutation({ permission: "disable" }),
@@ -205,150 +187,5 @@ export const secretVersion = defineObject(
         destroy: method.mutation({ permission: "destroy" }),
         /** Destroy a version's value as its secret's purge does. */
         erase: method.mutation({ permission: "erase", isInternal: true }),
-        delete: method.delete("delete", { isInternal: true }),
     }),
 );
-
-/** A persisted secret version. */
-export type SecretVersion = Select<typeof secretVersion.table>;
-
-/** Find, check and read secret versions. */
-export const SecretVersion = {
-    /** Read the secret owning a version, refusing an unknown one. */
-    async owner(
-        context: MethodContext,
-        id: Identifier<"secret">,
-    ): Promise<RowImage<typeof secret.table>> {
-        const row = await context.read(secret).findFirst({ where: { id } });
-        if (row === undefined) {
-            throw new CallError("NOT_FOUND", { message: "secret not found" });
-        }
-
-        return row;
-    },
-
-    /** Read a secret's selected version, its current one by default, as a caller may. */
-    async read(
-        target: RowImage<typeof secret.table>,
-        version: number | undefined,
-        context: MethodContext,
-    ): Promise<SecretReading> {
-        // refuse a secret without a selected version
-        const number = version ?? target.currentVersion;
-        if (number === null) {
-            throw new CallError("NOT_FOUND", { message: "secret has no current version" });
-        }
-
-        // let software bound to the secret, its vault or the selected version read it
-        const selected = await SecretVersion.find(context, target.id, number);
-        const consumes = await context.check(
-            secret.permission("consume"),
-            secret.reference(context.scope, target.id),
-        );
-        const isConsumer =
-            consumes.isAllowed ||
-            (selected !== undefined &&
-                (
-                    await context.check(
-                        secretVersion.permission("read"),
-                        secretVersion.reference(context.scope, selected.id),
-                    )
-                ).isAllowed);
-
-        // require anyone else to reveal through the secret, challenging for a step-up
-        if (!isConsumer) {
-            await context.require(
-                secret.permission("reveal"),
-                secret.reference(context.scope, target.id),
-            );
-        }
-        // answer a missing version only to those revealing the secret
-        if (selected === undefined) {
-            throw new CallError("NOT_FOUND", { message: "secret version not found" });
-        }
-
-        return {
-            version: selected.number,
-            value: SecretVersion.requireReadable(selected, context.now),
-        };
-    },
-
-    /** Refuse destroying a version already destroyed or one a live deployment runs with. */
-    async requireReleased(reader: Pick<Snapshot, "read">, version: SecretVersion): Promise<void> {
-        SecretVersion.requireIntact(version);
-        await Binding.requireReleased(reader, {
-            type: secret.name,
-            scope: version.scope,
-            id: version.parentId,
-            version: version.number,
-        });
-    },
-
-    /** Write the fields of a version whose value is destroyed. */
-    erasure(now: number) {
-        return { destroyedAt: now, content: null };
-    },
-
-    /** Find one numbered version of a secret, absent when it has none. */
-    async find(
-        context: Pick<MethodContext, "reveal">,
-        secretId: Select<typeof secret.table>["id"],
-        version: number,
-    ): Promise<SecretVersion | undefined> {
-        const [row] = await context.reveal(secretVersion).findMany({
-            where: {
-                parentId: secretId,
-                number: version,
-            },
-        });
-
-        return row;
-    },
-
-    /** Refuse changing a version with a destroyed value. */
-    requireIntact(version: SecretVersion): void {
-        if (version.destroyedAt !== null) {
-            throw new CallError("CONFLICT", { message: "secret version is destroyed" });
-        }
-    },
-
-    /** Refuse reading a destroyed, disabled, expired or foreign version, answering its value. */
-    requireReadable(version: SecretVersion, now: number): SecretValue {
-        const { content } = version;
-        // refuse a value copied from another version or secret
-        if (
-            content !== null &&
-            (content.version !== version.id || content.secret !== version.parentId)
-        ) {
-            throw new CallError("FORBIDDEN", {
-                message: `secret version ${version.id} holds the value of another version`,
-            });
-        }
-        // refuse a destroyed, disabled or expired version
-        else if (
-            content === null ||
-            version.disabledAt !== null ||
-            (version.expiresAt !== null && version.expiresAt <= now)
-        ) {
-            throw new CallError("FORBIDDEN", { message: "secret version is unavailable" });
-        }
-
-        return content.value;
-    },
-
-    /** Refuse a value beyond the decoded byte limit. */
-    requireSize(value: SecretValue): void {
-        // measure the decoded bytes, wiping them once counted
-        const bytes =
-            value.encoding === "text"
-                ? new TextEncoder().encode(value.value)
-                : Uint8Array.fromBase64(value.value);
-        const size = bytes.byteLength;
-        bytes.fill(0);
-        if (size > MAX_VALUE_BYTES) {
-            throw new CallError("PAYLOAD_TOO_LARGE", {
-                message: `secret value exceeds ${MAX_VALUE_BYTES} bytes`,
-            });
-        }
-    },
-};

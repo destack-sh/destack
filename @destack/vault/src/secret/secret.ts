@@ -1,6 +1,8 @@
+import type { Crypto } from "@destack/environment";
 import { DeclarationName } from "@destack/package";
 import { schema } from "@destack/schema";
 import type { ObjectReference } from "@destack/sync";
+import { VaultError } from "../error/error.ts";
 
 /** The largest decoded secret value: 64 KiB, the limit of common managed secret stores. */
 export const MAX_VALUE_BYTES = 64 * 1024;
@@ -27,9 +29,9 @@ export const SecretGeneration = Object.assign(
     }),
     {
         /** Generate a secret's first value with an algorithm: a private JSON Web Key. */
-        async generate(algorithm: SecretAlgorithm): Promise<SecretValue> {
-            const keys = await crypto.subtle.generateKey(ES256, true, ["sign", "verify"]);
-            const jwk = await crypto.subtle.exportKey("jwk", keys.privateKey);
+        async generate(algorithm: SecretAlgorithm, crypto: Crypto): Promise<SecretValue> {
+            const keys = await crypto.generateKey(ES256, true, ["sign", "verify"]);
+            const jwk = await crypto.exportKey("jwk", keys.privateKey);
 
             return { encoding: "text", value: JSON.stringify({ ...jwk, alg: algorithm }) };
         },
@@ -53,14 +55,29 @@ export const SecretValue = schema.discriminatedUnion("encoding", [
 export type SecretValue = schema.Infer<typeof SecretValue>;
 
 /** A value read from a secret, with the number of its version. */
-export const SecretReading = schema.object({
+const secretReading = schema.object({
     /** The version's number within its secret. */
     version: schema.number().int().positive(),
     /** The decrypted value. */
     value: SecretValue,
 });
+
 /** A value read from a secret, with the number of its version. */
-export type SecretReading = schema.Infer<typeof SecretReading>;
+export const SecretReading = Object.assign(secretReading, {
+    /** Read a reading's value as text, refusing a binary one. */
+    text(reading: SecretReading): string {
+        if (reading.value.encoding !== "text") {
+            throw VaultError.of(
+                "TEXT_REQUIRED",
+                `the secret is ${reading.value.encoding}, not text`,
+            );
+        }
+
+        return reading.value.value;
+    },
+});
+/** A value read from a secret, with the number of its version. */
+export type SecretReading = schema.Infer<typeof secretReading>;
 
 /** The version a read selects: an exact number, or the secret's current version when absent. */
 export const SecretSelection = schema.object({
@@ -96,12 +113,7 @@ export const Secret = {
 
     /** Read a secret's value as text, refusing a binary one. */
     async text(secret: Secret): Promise<string> {
-        const { value } = await secret.read();
-        if (value.encoding !== "text") {
-            throw new TypeError(`the secret is ${value.encoding}, not text`);
-        }
-
-        return value.value;
+        return SecretReading.text(await secret.read());
     },
 };
 

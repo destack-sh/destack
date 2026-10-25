@@ -1,623 +1,651 @@
-import type { Call } from "@destack/sync";
-import { AccessContext, Caller, principal, Relationship } from "@destack/access";
-import { TEST_DIALECTS } from "@destack/db/test";
-import { asc, eq, isNotNull } from "@destack/db";
-import { CallError } from "@destack/object";
-import { RequestId, type ObjectReference, Scope } from "@destack/sync";
-import { expect, refusal, single, test } from "@destack/test";
-import { Duration, Identifier } from "@destack/schema";
+import { and, eq, Snapshot } from "@destack/db";
 import { CallEvent, call } from "@destack/object";
-import { SecretReading } from "../secret/secret.ts";
-import { binding, installation } from "@destack/stack/object";
-import { SECRET_RECOVERY, secret, secretVersion, vault } from "../object/index.ts";
-import { MACHINE, OTHER_MACHINE, VAULT, VaultFixture } from "../test/index.ts";
+import { Duration, type Identifier, schema } from "@destack/schema";
+import { binding, Rollout, rollout } from "@destack/stack/object";
+import { ids, TestSpace } from "@destack/stack/test";
+import { ObjectReference, RequestId, Scope } from "@destack/sync";
+import { principal } from "@destack/access";
+import { expect, refusal, single, test } from "@destack/test";
+import { defineSecret, defineVault } from "../declare/index.ts";
+import { SECRET_RECOVERY, secret, secretVersion } from "../object/index.ts";
+import { SecretVersion } from "./version.ts";
+import vaultPackage from "../package.ts";
+import {
+    APPLICATION,
+    CONSUMER,
+    CREDENTIAL,
+    CREDENTIALS,
+    TestVault,
+    VAULT_PERMISSIONS,
+} from "../test/index.ts";
+import { secretBindable } from "./secret.ts";
 
-/** The recovery window the fixture's machine gives deleted secrets, in milliseconds. */
+/** The recovery window a machine gives deleted secrets, in milliseconds. */
 const RECOVERY_MILLISECONDS = Duration.milliseconds(SECRET_RECOVERY);
 
-/** How long the purge controller may take to purge an expired secret. */
-const PURGE_WAIT_MILLISECONDS = 5000;
+/** The space, which purges secrets when their window ends and applies its stack. */
+const SPACE = principal.space.reference(Scope.universe.id, ids.space);
 
-test.each(TEST_DIALECTS)(
-    "roundtrip bounded text and binary values without committing rejected writes on %s",
-    async (dialect) => {
-        await using fixture = await VaultFixture.open(dialect);
-        fixture.stepUp();
-        const { client, spaceId, vaultId } = fixture;
-        const created = await client.secret.create({
-            scope: spaceId,
-            parentId: vaultId,
-            name: "binary",
-            requestId: RequestId.create(Date.now()),
-        });
-        const key = { scope: spaceId, id: created.id };
-        const value = {
-            encoding: "base64" as const,
-            value: Uint8Array.from({ length: 65536 }, (_, index) => index % 256).toBase64(),
-        };
-        const written = await client.version.create({
-            scope: spaceId,
+/** The kit's first version as a read answers it. */
+const FIRST = { version: 1, value: CREDENTIAL };
+
+/** Every vault permission but the reveal of secrets. */
+const CONCEALING = VAULT_PERMISSIONS.filter(
+    (permission) => permission.type !== secret.name || permission.name !== "reveal",
+);
+
+/** A vault the space's stack declares, deleted at once on removal. */
+const SHARED = defineVault({ name: "shared", spec: {} });
+
+/** The application's key, which the space generates in its credentials vault. */
+const KEY = defineSecret(
+    { name: "key", generated: { vault: CREDENTIALS, algorithm: "ES256" } },
+    { package: APPLICATION },
+);
+
+test("roundtrip bounded text and binary values without committing rejected writes", async () => {
+    const kit = await TestVault.open();
+    const caller = await kit.elevated();
+    const client = caller.client(vaultPackage);
+    const created = await client.secret.create({
+        scope: ids.space,
+        parentId: await kit.vault(),
+        name: "binary",
+        requestId: RequestId.create(kit.environment),
+    });
+    const key = { scope: ids.space, id: created.id };
+    const write = (value: { readonly encoding: "text" | "base64"; readonly value: string }) =>
+        client.version.create({
+            scope: ids.space,
             parentId: created.id,
-            requestId: RequestId.create(Date.now()),
+            requestId: RequestId.create(kit.environment),
             value,
         });
-        expect(await client.secret.read(key)).toEqual({ version: 1, value });
 
-        // enforce the decoded byte limit for both transport encodings
-        for (const rejected of [
-            { encoding: "base64" as const, value: new Uint8Array(65537).toBase64() },
-            { encoding: "text" as const, value: "é".repeat(32769) },
-        ]) {
-            await expect(
-                client.version.create({
-                    scope: spaceId,
-                    parentId: created.id,
-                    requestId: RequestId.create(Date.now()),
-                    value: rejected,
-                }),
-            ).rejects.toEqual(
-                new CallError("PAYLOAD_TOO_LARGE", {
-                    message: "secret value exceeds 65536 bytes",
-                }),
-            );
-        }
-        expect(
-            await refusal(
-                client.version.create({
-                    scope: spaceId,
-                    parentId: created.id,
-                    requestId: RequestId.create(Date.now()),
-                    value: { encoding: "base64", value: "!" },
-                }),
-            ),
-        ).toEqual(["BAD_REQUEST", "invalid input: value.value: invalid base64-encoded string"]);
-        const versions = await client.version.list({ scope: spaceId });
-        expect(versions.items).toEqual([written]);
+    // write the largest binary value, and refuse one byte more in either encoding
+    const binary = {
+        encoding: "base64" as const,
+        value: Uint8Array.from({ length: 65536 }, (_, index) => index % 256).toBase64(),
+    };
+    const written = await write(binary);
+    const refused = [
+        await refusal(write({ encoding: "base64", value: new Uint8Array(65537).toBase64() })),
+        await refusal(write({ encoding: "text", value: "é".repeat(32769) })),
+    ];
+    const listed = await client.version.list({ scope: ids.space });
 
-        // accept the exact UTF-8 limit and keep the earlier binary version readable
-        const text = { encoding: "text" as const, value: "é".repeat(32768) };
-        await client.version.create({
-            scope: spaceId,
-            parentId: created.id,
-            requestId: RequestId.create(Date.now()),
-            value: text,
-        });
-        expect(await client.secret.read(key)).toEqual({ version: 2, value: text });
-        expect(await client.secret.read({ ...key, version: 1 })).toEqual({ version: 1, value });
-    },
-);
+    // write the largest UTF-8 text as current, keeping the binary version readable
+    const text = { encoding: "text" as const, value: "é".repeat(32768) };
+    const textual = await write(text);
+    await kit.point(caller, key, textual.number);
+    expect({
+        refused,
+        listed: listed.items,
+        current: await client.secret.read(key),
+        first: await client.secret.read({ ...key, version: 1 }),
+    }).toEqual({
+        refused: [
+            ["PAYLOAD_TOO_LARGE", "VALUE_TOO_LARGE", "secret value exceeds 65536 bytes"],
+            ["PAYLOAD_TOO_LARGE", "VALUE_TOO_LARGE", "secret value exceeds 65536 bytes"],
+        ],
+        listed: [written],
+        current: { version: 2, value: text },
+        first: { version: 1, value: binary },
+    });
+});
 
-test.each(TEST_DIALECTS)(
-    "manage secret versions and recover deleted secrets on %s",
-    async (dialect) => {
-        await using fixture = await VaultFixture.open(dialect);
-        fixture.stepUp();
-        const { client, database, spaceId, vaultId } = fixture;
-        const created = await client.secret.create({
-            scope: spaceId,
-            parentId: vaultId,
-            requestId: RequestId.create(Date.now()),
-            name: "github",
-        });
-        const key = { scope: spaceId, id: created.id };
-        expect(await client.secret.get(key)).toEqual(created);
+test("add a version, point the current alias at it, destroy and restore, recording each read's version alone", async () => {
+    const kit = await TestVault.open();
+    const caller = await kit.elevated();
+    const client = caller.client(vaultPackage);
+    kit.clock.pause();
+    const time = kit.clock.now();
+    const { sequence } = await kit.served.database.log.position();
+    const { secret: created, key, version: written } = await kit.createSecret(caller);
 
-        // keep one version across retries of the same request
-        const request = {
-            scope: spaceId,
-            parentId: created.id,
-            requestId: RequestId.create(Date.now()),
-            value: { encoding: "text" as const, value: "oauth-refresh-token" },
-            stage: "current" as const,
-        };
-        const written = await client.version.create(request);
-        expect(await client.version.create(request)).toEqual(written);
+    // add a second version, then point the current alias at it
+    const added = await client.version.create({
+        scope: ids.space,
+        parentId: key.id,
+        requestId: RequestId.create(kit.environment),
+        value: { encoding: "base64", value: "AAECAw==" },
+    });
+    const before = await client.secret.read(key);
+    const pointed = await kit.point(caller, key, added.number);
+    const after = await client.secret.read(key);
 
-        // refuse a retry changing the secret value or what the journal fingerprints plainly
-        await expect(
-            client.version.create({ ...request, value: { encoding: "text", value: "different" } }),
-        ).rejects.toEqual(
-            new CallError("CONFLICT", {
-                defined: true,
-                message: "request identifier has already been used",
-            }),
-        );
-        await expect(client.version.create({ ...request, stage: "pending" })).rejects.toEqual(
-            new CallError("CONFLICT", {
-                defined: true,
-                message: "request identifier has already been used",
-            }),
-        );
-        expect(await client.secret.read(key)).toEqual({ version: 1, value: request.value });
+    // delete the secret, and read it again once restored
+    await client.secret.delete({
+        ...key,
+        requestId: RequestId.create(kit.environment),
+        revision: pointed.revision,
+    });
+    await client.secret.restore({ ...key, requestId: RequestId.create(kit.environment) });
+    const restored = await client.secret.read(key);
 
-        // stage a second version before selecting it as current
-        const staged = await client.version.create({
-            scope: spaceId,
-            parentId: created.id,
-            requestId: RequestId.create(Date.now()),
-            value: { encoding: "base64", value: "AAECAw==" },
-            stage: "pending" as const,
-        });
-        expect(await client.secret.read(key)).toEqual({ version: 1, value: request.value });
-        const promoted = await client.secret.promote({
-            ...key,
-            requestId: RequestId.create(Date.now()),
-            version: staged.number,
-        });
-        expect(promoted).toEqual({ ...(await client.secret.get(key)), currentVersion: 2 });
-        expect(await client.secret.read(key)).toEqual({
-            version: 2,
-            value: { encoding: "base64", value: "AAECAw==" },
-        });
-
-        // refuse reading a deleted secret, and read it again once restored
-        const current = await client.secret.get(key);
-        await client.secret.delete({
-            ...key,
-            requestId: RequestId.create(Date.now()),
-            revision: current.revision,
-        });
-        await expect(client.secret.read(key)).rejects.toEqual(
-            new CallError("CONFLICT", { defined: true, message: "secret is in the trash" }),
-        );
-        await client.secret.restore({ ...key, requestId: RequestId.create(Date.now()) });
-        expect(await client.secret.read(key)).toEqual({
-            version: 2,
-            value: { encoding: "base64", value: "AAECAw==" },
-        });
-
-        // keep a destroyed version's record and refuse its value
-        fixture.clock.pause();
-        const time = fixture.clock.now();
-        const destroyed = await client.version.destroy({
-            scope: spaceId,
+    // destroy the first version, refusing its value and any change to it
+    const destroyed = await client.version.destroy({
+        scope: ids.space,
+        id: written.id,
+        requestId: RequestId.create(kit.environment),
+    });
+    const unavailable = await refusal(client.secret.read({ ...key, version: 1 }));
+    const disabled = await refusal(
+        client.version.disable({
+            scope: ids.space,
             id: written.id,
-            requestId: RequestId.create(Date.now()),
-        });
-        expect(destroyed).toEqual({
-            ...written,
-            destroyedAt: time,
-            revision: 2,
-            updatedAt: time,
-        });
-        await expect(client.secret.read({ ...key, version: 1 })).rejects.toEqual(
-            new CallError("FORBIDDEN", {
-                defined: true,
-                message: "secret version is unavailable",
-            }),
-        );
-        await expect(
-            client.version.disable({
-                scope: spaceId,
-                id: written.id,
-                requestId: RequestId.create(Date.now()),
-            }),
-        ).rejects.toEqual(
-            new CallError("CONFLICT", { defined: true, message: "secret version is destroyed" }),
-        );
-        const kept = await database
-            .select({ version: secretVersion.table.number })
-            .from(secretVersion.table)
-            .where(isNotNull(secretVersion.table.content));
-        expect(kept.map((row) => row.version)).toEqual([2]);
+            requestId: RequestId.create(kit.environment),
+        }),
+    );
 
-        // record every change, disclosure and refusal without plaintext as call events
-        const events = call.eventKind().table;
-        const rows = await database
-            .select({ data: events.data })
-            .from(events)
-            .orderBy(asc(events.time), asc(events.id));
-        const calls = rows.map((row) => CallEvent.parse(row.data));
-        const actions = calls.filter(
-            (ended) =>
-                ended.execution.context.package.id === VAULT.id &&
-                ended.execution.category !== "denial",
-        );
-        expect(actions.map((ended) => ended.method)).toEqual([
-            "secret.create",
-            "secret.get",
-            "secret.promote",
-            "version.create",
-            "secret.read",
-            "version.create",
-            "secret.read",
-            "secret.promote",
-            "secret.get",
-            "secret.read",
-            "secret.get",
-            "secret.delete",
-            "secret.read",
-            "secret.restore",
-            "secret.read",
-            "version.destroy",
-            "version.disable",
-        ]);
-
-        // record the version each read disclosed
-        const reads = actions.filter((ended) => ended.method === "secret.read");
-        expect(reads.map((ended) => ended.execution.details)).toEqual([
-            { version: 1 },
-            { version: 1 },
-            { version: 2 },
-            {},
-            { version: 2 },
-        ]);
-
-        // record each refused read once
-        const denials = calls.filter((ended) => ended.execution.category === "denial");
-        expect(denials.map((ended) => [ended.execution.target, ended.execution.outcome])).toEqual([
-            [
-                { type: "procedure", id: "secret.read" },
-                {
-                    kind: "denied",
-                    error: {
-                        code: "FORBIDDEN",
-                        message: "secret version is unavailable",
-                    },
-                },
-            ],
-        ]);
-
-        // leave the plaintext out of every call the journal keeps
-        const disclosures = JSON.stringify(calls).split("oauth-refresh-token").length - 1;
-        expect(disclosures).toBe(0);
-    },
-);
-
-test.each(TEST_DIALECTS)(
-    "refuse writing a version with a past expiry and reading an expired version on %s",
-    async (dialect) => {
-        await using fixture = await VaultFixture.open(dialect);
-        fixture.stepUp();
-        const { client, database } = fixture;
-        const { key, request } = await fixture.createSecret();
-
-        // refuse a version that expires before it is written
-        await expect(
-            client.version.create({
-                ...request,
-                requestId: RequestId.create(Date.now()),
-                expiresAt: fixture.clock.now() - 1000,
-            }),
-        ).rejects.toEqual(
-            new CallError("BAD_REQUEST", {
-                message: "secret expiry must be in the future",
-            }),
-        );
-
-        // read a version before its expiry
-        const expiring = await client.version.create({
-            ...request,
-            requestId: RequestId.create(Date.now()),
-            expiresAt: fixture.clock.now() + 60_000,
-        });
-        expect(await client.secret.read(key)).toEqual({ version: 2, value: request.value });
-
-        // refuse reading the version once its expiry passed
-        await database
-            .update(secretVersion.table)
-            .set({ createdAt: fixture.clock.now() - 2000, expiresAt: fixture.clock.now() - 1000 })
-            .where(eq(secretVersion.table.id, expiring.id));
-        await expect(client.secret.read(key)).rejects.toEqual(
-            new CallError("FORBIDDEN", {
-                defined: true,
-                message: "secret version is unavailable",
-            }),
-        );
-    },
-);
-
-test.each(TEST_DIALECTS)(
-    "purge a deleted secret at once or when its window ends, destroying its values and keeping its records on %s",
-    async (dialect) => {
-        await using fixture = await VaultFixture.open(dialect);
-        fixture.stepUp();
-        const { client, database, spaceId, vaultId } = fixture;
-        const { first, key, written } = await fixture.createSecret();
-
-        // refuse purging before deletion
-        await expect(
-            client.secret.purge({ ...key, requestId: RequestId.create(Date.now()) }),
-        ).rejects.toEqual(
-            new CallError("CONFLICT", { defined: true, message: "secret is not deleted" }),
-        );
-        const row = await client.secret.get(key);
-        await client.secret.delete({
+    // refuse pointing the current alias at a missing or destroyed version, or unsetting it
+    const unset = () =>
+        client.secret.update({
             ...key,
-            revision: row.revision,
-            requestId: RequestId.create(Date.now()),
+            requestId: RequestId.create(kit.environment),
+            currentVersion: null,
         });
+    const pointing = [
+        await refusal(kit.point(caller, key, 9)),
+        await refusal(kit.point(caller, key, 1)),
+        await refusal(unset()),
+    ];
+    expect({
+        before,
+        pointed,
+        after,
+        restored,
+        destroyed,
+        unavailable,
+        disabled,
+        pointing,
+    }).toEqual({
+        before: FIRST,
+        pointed: { ...created, currentVersion: 2, revision: 3, updatedAt: time },
+        after: { version: 2, value: { encoding: "base64", value: "AAECAw==" } },
+        restored: { version: 2, value: { encoding: "base64", value: "AAECAw==" } },
+        destroyed: { ...written, state: "destroyed", revision: 2, updatedAt: time },
+        unavailable: ["CONFLICT", "VERSION_UNAVAILABLE", "secret version is unavailable"],
+        disabled: ["CONFLICT", "VERSION_DESTROYED", "secret version is destroyed"],
+        pointing: [
+            ["NOT_FOUND", "VERSION_NOT_FOUND", "secret version not found"],
+            ["CONFLICT", "VERSION_UNAVAILABLE", "secret version is unavailable"],
+            [
+                "BAD_REQUEST",
+                "CURRENT_VERSION_REQUIRED",
+                "a secret's current version cannot be unset",
+            ],
+        ],
+    });
 
-        // purge another deleted secret within its window
-        const other = await client.secret.create({
-            scope: spaceId,
-            parentId: vaultId,
-            name: "other",
-            requestId: RequestId.create(Date.now()),
-        });
-        const otherKey = { scope: spaceId, id: other.id };
-        await client.secret.delete({
-            ...otherKey,
-            revision: other.revision,
-            requestId: RequestId.create(Date.now()),
-        });
-        fixture.clock.pause();
-        const purgeTime = fixture.clock.now();
-        expect(
-            await client.secret.purge({ ...otherKey, requestId: RequestId.create(Date.now()) }),
-        ).toEqual({});
-        expect((await client.secret.get(otherKey)).purgedAt).toBe(purgeTime);
+    // record the version each read disclosed, and no value, in commit order
+    const { events } = await kit.served.store.events.changes(
+        call.eventKind(),
+        { scopes: [ids.space] },
+        sequence,
+    );
+    const reads = events
+        .map((event) => CallEvent.parse(event.data))
+        .filter((ended) => ended.method === "secret.read")
+        .map((ended) => [ended.execution.category, ended.execution.details]);
+    expect(reads).toEqual([
+        ["access", { version: 1 }],
+        ["access", { version: 2 }],
+        ["access", { version: 2 }],
+        ["access", {}],
+    ]);
+});
 
-        // destroy every value after the window ends and keep the secret and its versions as records
+test("refuse writing a version with a past expiry and reading an expired version", async () => {
+    const kit = await TestVault.open();
+    const caller = await kit.elevated();
+    const client = caller.client(vaultPackage);
+    const { key, request } = await kit.createSecret(caller);
+
+    // refuse a version that expires before it is written, and read one before its expiry
+    const past = await refusal(
+        client.version.create({
+            ...request,
+            requestId: RequestId.create(kit.environment),
+            expiresAt: kit.clock.now() - 1000,
+        }),
+    );
+    const expiresAt = kit.clock.now() + 60_000;
+    const expiring = await client.version.create({
+        ...request,
+        requestId: RequestId.create(kit.environment),
+        expiresAt,
+    });
+    await kit.point(caller, key, expiring.number);
+    const live = await client.secret.read(key);
+
+    // refuse reading the version once its expiry passed
+    kit.clock.pause();
+    await kit.space.advance(kit.served, expiresAt);
+    expect([past, live, await refusal(client.secret.read(key))]).toEqual([
+        ["BAD_REQUEST", "EXPIRY_IN_PAST", "secret expiry must be in the future"],
+        { version: 2, value: CREDENTIAL },
+        ["CONFLICT", "VERSION_UNAVAILABLE", "secret version is unavailable"],
+    ]);
+});
+
+test("purge a deleted secret at once or when its window ends, destroying its values and keeping its records", async () => {
+    const kit = await TestVault.open();
+    const client = kit.owner.client(vaultPackage);
+    const { database } = kit.served;
+    const { key, version: written } = await kit.createSecret(kit.owner);
+
+    // delete it at a paused time
+    kit.clock.pause();
+    const deletedAt = kit.clock.now();
+    await client.secret.delete({
+        ...key,
+        revision: (await client.secret.get(key)).revision,
+        requestId: RequestId.create(kit.environment),
+    });
+    const deleted = await client.secret.get(key);
+
+    // purge another deleted secret within its window
+    const other = await client.secret.create({
+        scope: ids.space,
+        parentId: await kit.vault(),
+        name: "other",
+        requestId: RequestId.create(kit.environment),
+    });
+    const otherKey = { scope: ids.space, id: other.id };
+    await client.secret.delete({
+        ...otherKey,
+        revision: other.revision,
+        requestId: RequestId.create(kit.environment),
+    });
+    const otherDeleted = await client.secret.get(otherKey);
+    await client.secret.purge({ ...otherKey, requestId: RequestId.create(kit.environment) });
+    const otherPurged = await client.secret.get(otherKey);
+
+    // destroy every value once the window ends, keeping the secret and its versions as records
+    const version = single(
         await database
-            .update(secret.table)
-            .set({ deletedAt: purgeTime - RECOVERY_MILLISECONDS })
-            .where(eq(secret.table.id, first.id));
-        const isPurged = await database.log.until(async () => {
-            const { purgedAt } = single(
-                await database
-                    .select({ purgedAt: secret.table.purgedAt })
-                    .from(secret.table)
-                    .where(eq(secret.table.id, first.id)),
-            );
+            .select()
+            .from(secretVersion.table)
+            .where(eq(secretVersion.table.id, written.id)),
+    );
+    const windowEnd = deletedAt + RECOVERY_MILLISECONDS;
+    await kit.space.jump(kit.served, windowEnd);
 
-            return purgedAt !== null;
-        }, AbortSignal.timeout(PURGE_WAIT_MILLISECONDS));
-        expect(isPurged).toBe(true);
-        const version = single(
+    // sign the owner in again, as their sign-in lapsed within the window
+    const owner = await kit.space.universe.signIn(kit.space.owner.email);
+    const later = kit.space.person(kit.served, owner).client(vaultPackage);
+    const kept = {
+        secret: await later.secret.get(key),
+        version: single(
             await database
                 .select()
                 .from(secretVersion.table)
                 .where(eq(secretVersion.table.id, written.id)),
-        );
-        expect([version.destroyedAt, version.content]).toEqual([purgeTime, null]);
-        const purged = single(
-            await database.select().from(secret.table).where(eq(secret.table.id, first.id)),
-        );
-        expect(purged.purgedAt).toBe(purgeTime);
-
-        // refuse purging, restoring and reading a purged secret
-        await expect(
-            client.secret.purge({ ...key, requestId: RequestId.create(Date.now()) }),
-        ).rejects.toEqual(
-            new CallError("CONFLICT", { defined: true, message: "secret is purged" }),
-        );
-        await expect(
-            client.secret.restore({ ...key, requestId: RequestId.create(Date.now()) }),
-        ).rejects.toEqual(
-            new CallError("CONFLICT", { defined: true, message: "secret is purged" }),
-        );
-        await expect(client.secret.read(key)).rejects.toEqual(
-            new CallError("CONFLICT", { defined: true, message: "secret is in the trash" }),
-        );
-    },
-);
-
-test.each(TEST_DIALECTS)(
-    "refuse deleting a secret while a binding targets it, as a bound resource waits on %s",
-    async (dialect) => {
-        // bind a secret to an installation's declaration
-        await using fixture = await VaultFixture.open(dialect);
-        fixture.stepUp();
-        const { client, database, spaceId, vaultId } = fixture;
-        const created = await client.secret.create({
-            scope: spaceId,
-            parentId: vaultId,
-            name: "mail",
-            requestId: RequestId.create(Date.now()),
-        });
-        const now = fixture.clock.now();
-        const installationId = Identifier.create("installation");
-        await database.insert(installation.table).values({
-            id: installationId,
-            scope: spaceId,
-            packageId: VAULT.id,
-            role: "application",
-            name: "notes",
-            selection: { kind: "release", version: "2026.9.0" },
-            createdAt: now,
-            updatedAt: now,
-        });
-        const bindingId = Identifier.create("binding");
-        await database.insert(binding.table).values({
-            id: bindingId,
-            scope: spaceId,
-            installationId,
-            packageId: VAULT.id,
-            name: "token",
-            target: created.id,
-            version: null,
-            state: {},
-            createdAt: now,
-            updatedAt: now,
-        });
-        const remove = () =>
-            client.secret.delete({
-                scope: spaceId,
-                id: created.id,
-                revision: created.revision,
-                requestId: RequestId.create(Date.now()),
-            });
-
-        // refuse the deletion while bound
-        await expect(remove()).rejects.toEqual(
-            new CallError("CONFLICT", {
-                defined: true,
-                message: `${created.id} is in use: bound by ${installationId}`,
-            }),
-        );
-        await database.delete(binding.table).where(eq(binding.table.id, bindingId));
-        expect(await remove()).toEqual({});
-    },
-);
-
-test("put a consumer's secret as one live version through its vault, read it as the consumer, conceal it from another machine, and remove it", async () => {
-    // put and remove the secret through the vault, bound to a machine
-    await using fixture = await VaultFixture.open("sqlite");
-    const objects = fixture.objects();
-    const machine = principal.machine.reference(Scope.universe.id, MACHINE);
-    const stranger = principal.machine.reference(Scope.universe.id, OTHER_MACHINE);
-    const target = vault.target({ scope: fixture.spaceId, id: fixture.vaultId });
-    const id = secret.generateId();
-    const write = (mutation: Call) =>
-        objects.mutate(objects.serving(vault), {
-            id: RequestId.create(Date.now()),
-            calls: [mutation],
-        });
-    const put = (value: string) =>
-        write(
-            vault.call("put", {
-                ...target,
-                secret: id,
-                name: "token",
-                value: { encoding: "text", value },
-                consumer: machine,
-            }),
-        );
-    const read = async (reader: typeof machine) => {
-        const query = secret.call("read", secret.target({ scope: fixture.spaceId, id }));
-
-        return SecretReading.parse(
-            await objects.query(AccessContext.of(Caller.of(reader), Date.now()), query),
-        ).value;
+        ),
     };
 
-    // put twice and read the live value as the machine, refusing another machine
-    await put("first");
-    await put("second");
-    const live = await read(machine);
-    const versions = await fixture.database.select().from(secretVersion.table);
-    const concealed = await refusal(read(stranger));
-
-    // remove it with its values
-    await write(vault.call("remove", { ...target, secret: id, consumer: machine }));
-    const [removed] = await fixture.database
-        .select()
-        .from(secret.table)
-        .where(eq(secret.table.id, id));
-
-    expect({
-        live,
-        versions: versions.map((row) => [row.number, row.destroyedAt === null]),
-        concealed,
-        name: removed?.name,
-        purged: removed?.purgedAt !== null,
-    }).toEqual({
-        live: { encoding: "text", value: "second" },
-        versions: [
-            [1, false],
-            [2, true],
-        ],
-        concealed: ["NOT_FOUND", `no secret ${id}`],
-        name: "token",
-        purged: true,
-    });
-});
-
-test("let software bound to a vault put and rotate its own secrets there, refusing another consumer their replacement and software bound to one secret the vault", async () => {
-    // bind two installations to the vault, and a third to one declared secret alone
-    await using fixture = await VaultFixture.open("sqlite");
-    const objects = fixture.objects();
-    const forge = principal.installation.reference(fixture.spaceId, "installation-forge");
-    const other = principal.installation.reference(fixture.spaceId, "installation-other");
-    const reader = principal.installation.reference(fixture.spaceId, "installation-reader");
-    const target = vault.target({ scope: fixture.spaceId, id: fixture.vaultId });
-    const declared = await fixture.createSecret();
-    const bind = (object: ObjectReference, subject: typeof forge) =>
-        Relationship.insert(
-            fixture.database,
-            {
-                id: Identifier.create("relationship"),
-                object,
-                relation: "consumer",
-                subject,
-                createdAt: 1,
-                expiresAt: null,
+    // read the code serving secrets, which destroys them
+    const serving = kit.served.store.as(secret).subject;
+    expect({ otherPurged, kept }).toEqual({
+        otherPurged: { ...otherDeleted, purgedAt: deletedAt, revision: otherDeleted.revision + 1 },
+        kept: {
+            secret: {
+                ...deleted,
+                purgedAt: windowEnd,
+                revision: deleted.revision + 1,
+                updatedAt: windowEnd,
+                ...ObjectReference.columns("updatedBy", serving),
             },
-            fixture.spaceId,
-        );
-    await bind(vault.reference(fixture.spaceId, fixture.vaultId), forge);
-    await bind(vault.reference(fixture.spaceId, fixture.vaultId), other);
-    await bind(secret.reference(fixture.spaceId, declared.first.id), reader);
-
-    // put a secret as each installation through the vault, bound to itself
-    const id = secret.generateId();
-    const as = (caller: typeof forge, mutation: Call) =>
-        objects.mutate(AccessContext.of(Caller.of(caller), Date.now()), {
-            id: RequestId.create(Date.now()),
-            calls: [mutation],
-        });
-    const put = (caller: typeof forge, value: string, secretId = id) =>
-        as(
-            caller,
-            vault.call("put", {
-                ...target,
-                secret: secretId,
-                name: "token",
-                value: { encoding: "text", value },
-                consumer: caller,
-            }),
-        );
-    const read = async () =>
-        SecretReading.parse(
-            await objects.query(
-                AccessContext.of(Caller.of(forge), Date.now()),
-                secret.call("read", secret.target({ scope: fixture.spaceId, id })),
-            ),
-        ).value;
-
-    // put and rotate forge's own secret, and refuse the other consumer replacing or removing it, and the reader writing the vault
-    await put(forge, "first");
-    await put(forge, "second");
-    const rotated = await read();
-    const replaced = await refusal(put(other, "stolen"));
-    const removed = await refusal(
-        as(other, vault.call("remove", { ...target, secret: id, consumer: other })),
-    );
-    const written = await refusal(put(reader, "planted", secret.generateId()));
-    expect({ rotated, replaced, removed, written, after: await read() }).toEqual({
-        rotated: { encoding: "text", value: "second" },
-        replaced: ["FORBIDDEN", "permission denied: update"],
-        removed: ["NOT_FOUND", `no secret ${id}`],
-        written: ["NOT_FOUND", `no vault ${fixture.vaultId}`],
-        after: { encoding: "text", value: "second" },
+            version: {
+                ...version,
+                state: "destroyed",
+                content: null,
+                revision: version.revision + 1,
+                updatedAt: windowEnd,
+                ...ObjectReference.columns("updatedBy", serving),
+            },
+        },
     });
 });
 
-test.for(TEST_DIALECTS)(
-    "refuse reading a version whose stored value was copied from another version on %s",
-    async (dialect) => {
-        // write two versions of a secret, the second current
-        await using fixture = await VaultFixture.open(dialect);
-        fixture.stepUp();
-        const { client, database, spaceId } = fixture;
-        const { first, key, written } = await fixture.createSecret();
-        const second = await client.version.create({
-            scope: spaceId,
-            parentId: first.id,
-            requestId: RequestId.create(Date.now()),
-            value: { encoding: "text", value: "rotated" },
-        });
+test("refuse deleting a secret while its installation binds it", async () => {
+    // install the application with a key generated in its vault, bound to the installation
+    const kit = await TestVault.open({ secrets: [KEY] });
+    const client = kit.owner.client(vaultPackage);
+    const bound = single(await kit.served.database.select().from(secret.table));
+    const current = await client.secret.get({ scope: ids.space, id: bound.id });
 
-        // copy the first version's stored value into the second, as a write to the database could
-        const stored = single(
-            await database
-                .select({ content: secretVersion.table.content })
-                .from(secretVersion.table)
-                .where(eq(secretVersion.table.id, written.id)),
-        );
+    // refuse the deletion while bound
+    const refused = await refusal(
+        client.secret.delete({
+            scope: ids.space,
+            id: bound.id,
+            revision: current.revision,
+            requestId: RequestId.create(kit.environment),
+        }),
+    );
+    expect(refused).toEqual([
+        "CONFLICT",
+        "BOUND",
+        `${bound.id} is in use: bound by ${kit.installation}`,
+    ]);
+});
+
+test("refuse reading a version whose stored value was copied from another version", async () => {
+    // write two versions of a secret, the second current
+    const kit = await TestVault.open();
+    const caller = await kit.elevated();
+    const client = caller.client(vaultPackage);
+    const { database } = kit.served;
+    const { key, version: written } = await kit.createSecret(caller);
+    const second = await client.version.create({
+        scope: ids.space,
+        parentId: key.id,
+        requestId: RequestId.create(kit.environment),
+        value: { encoding: "text", value: "rotated" },
+    });
+    await kit.point(caller, key, second.number);
+
+    // copy the first version's stored value into the second, as a write to the database could
+    const stored = single(
         await database
-            .update(secretVersion.table)
-            .set({ content: stored.content })
-            .where(eq(secretVersion.table.id, second.id));
+            .select({ content: secretVersion.table.content })
+            .from(secretVersion.table)
+            .where(eq(secretVersion.table.id, written.id)),
+    );
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .update(secretVersion.table)
+                .set({ content: stored.content })
+                .where(eq(secretVersion.table.id, second.id)),
+    );
 
-        // refuse the copied value, and keep reading the first version's own
-        expect([
-            await refusal(client.secret.read(key)),
-            await client.secret.read({ ...key, version: 1 }),
-        ]).toEqual([
-            ["FORBIDDEN", `secret version ${second.id} holds the value of another version`],
-            { version: 1, value: { encoding: "text", value: "credential" } },
-        ]);
-    },
-);
+    // refuse the copied value as a hidden server fault, and keep reading the first version's own
+    const copied = single(
+        await database
+            .select()
+            .from(secretVersion.table)
+            .where(eq(secretVersion.table.id, second.id)),
+    );
+    expect([
+        await refusal(
+            Promise.resolve().then(() => SecretVersion.requireReadable(copied, kit.clock.now())),
+        ),
+        await refusal(client.secret.read(key)),
+        await client.secret.read({ ...key, version: 1 }),
+    ]).toEqual([
+        [
+            "INTERNAL_SERVER_ERROR",
+            "VERSION_MISMATCH",
+            `secret version ${second.id} contains the value of another version`,
+        ],
+        ["INTERNAL_SERVER_ERROR", "INTERNAL_SERVER_ERROR", "internal server error"],
+        FIRST,
+    ]);
+});
+
+test("deny plaintext while the space is suspended, keeping its metadata readable", async () => {
+    const kit = await TestVault.open();
+    const caller = await kit.elevated();
+    const client = caller.client(vaultPackage);
+    const { key } = await kit.createSecret(caller);
+    const metadata = await client.secret.get(key);
+
+    // suspend the space at its primary, then resume it
+    await kit.space.change(kit.served, "suspend");
+    const suspended = [await refusal(client.secret.read(key)), await client.secret.get(key)];
+    await kit.space.change(kit.served, "resume");
+    expect([suspended, await client.secret.read(key)]).toEqual([
+        [["FORBIDDEN", "PERMISSION_DENIED", "permission denied: read"], metadata],
+        FIRST,
+    ]);
+});
+
+test("deny plaintext to a member who may not reveal, keeping metadata readable", async () => {
+    const kit = await TestVault.open();
+    const { key } = await kit.createSecret(kit.owner);
+    const member = await kit.elevated(await kit.member(CONCEALING));
+    const client = member.client(vaultPackage);
+
+    // read the metadata, and refuse the value
+    expect([await client.secret.get(key), await refusal(client.secret.read(key))]).toEqual([
+        await kit.owner.client(vaultPackage).secret.get(key),
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: read"],
+    ]);
+});
+
+test("reveal a missing version only to readers of the secret", async () => {
+    const kit = await TestVault.open();
+    const { key } = await kit.createSecret(kit.owner);
+    const missing = { ...key, version: 2 };
+    const person = await kit.member(CONCEALING);
+    const member = await kit.elevated(person);
+
+    // refuse a caller reading neither the secret nor the version, and tell a reader the version is missing
+    const concealed = await refusal(member.client(vaultPackage).secret.read(missing));
+    await kit.allow(person, VAULT_PERMISSIONS);
+    const told = await refusal(member.client(vaultPackage).secret.read(missing));
+    expect([concealed, told]).toEqual([
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: read"],
+        ["NOT_FOUND", "VERSION_NOT_FOUND", "secret version not found"],
+    ]);
+});
+
+test("challenge a person's reveal for a step-up, and reveal once they authenticated again", async () => {
+    const kit = await TestVault.open();
+    const { key } = await kit.createSecret(kit.owner);
+
+    // refuse revealing on a sign-in without a fresh second factor, and reveal once stepped up
+    const refused = await refusal(kit.owner.client(vaultPackage).secret.read(key));
+    const revealed = await (await kit.elevated()).client(vaultPackage).secret.read(key);
+    expect([refused, revealed]).toEqual([
+        [
+            "UNAUTHORIZED",
+            "AUTHENTICATION_INSUFFICIENT",
+            "authentication assurance is too low: authenticate again",
+        ],
+        FIRST,
+    ]);
+});
+
+test("generate a declared key in the vault its installation binds, and read what a capture of each version uses", async () => {
+    // install the application declaring its credentials vault and a key generated in it
+    const kit = await TestVault.open({ secrets: [KEY] });
+    const { database } = kit.served;
+
+    // read the generated key, its binding and what a capture of each version uses
+    const row = single(await database.select().from(secret.table));
+    const version = single(await database.select().from(secretVersion.table));
+    const value = SecretVersion.requireReadable(version, kit.clock.now());
+    const jwk = schema
+        .looseObject({ kty: schema.string(), crv: schema.string(), alg: schema.string() })
+        .parse(JSON.parse(value.value));
+    const bound = await database
+        .select({ installationId: binding.table.installationId, name: binding.table.name })
+        .from(binding.table)
+        .where(eq(binding.table.target, row.id));
+    const snapshot = Snapshot.live(database);
+    const uses = (captured: number | null) =>
+        secretBindable.uses({ scope: ids.space, target: row.id, version: captured }, snapshot);
+    expect({
+        secret: [row.parentId, row.name, row.currentVersion],
+        key: [jwk.kty, jwk.crv, jwk.alg],
+        bound,
+        versions: [secretBindable.version(row, null), secretBindable.version(row, 3)],
+        uses: [await uses(null), await uses(1)],
+    }).toEqual({
+        secret: [await kit.vault(), "key", 1],
+        key: ["EC", "P-256", "ES256"],
+        bound: [{ installationId: kit.installation, name: "key" }],
+        versions: [1, 3],
+        uses: [
+            [secret.reference(ids.space, row.id)],
+            [secret.reference(ids.space, row.id), secretVersion.reference(ids.space, version.id)],
+        ],
+    });
+});
+
+test("read a bound secret in process as its installation, and refuse another installation's secret", async () => {
+    // install the application with a generated key, and another application with its own
+    const kit = await TestVault.open({ secrets: [KEY] });
+    const other = CONSUMER;
+    const otherKey = defineSecret(
+        { name: "key", generated: { vault: CREDENTIALS, algorithm: "ES256" } },
+        { package: other },
+    );
+    const built = await TestVault.build(
+        other,
+        [defineVault({ name: CREDENTIALS, spec: {} }, { package: other })],
+        [otherKey],
+        kit.environment.crypto,
+    );
+    const otherInstallation = await kit.space.install(kit.served, built);
+
+    // connect the application to its own key and to the other application's, as its server in process
+    const { database } = kit.served;
+    const store = Promise.resolve(kit.served.store);
+    const snapshot = Snapshot.live(database);
+    const rows = await snapshot.read(rollout.table).findMany({ where: { id: kit.installation } });
+    const row = single(await Rollout.read(snapshot, rows));
+    const keyOf = async (installationId: Identifier<"installation">) =>
+        single(
+            await database
+                .select()
+                .from(binding.table)
+                .where(
+                    and(
+                        eq(binding.table.installationId, installationId),
+                        eq(binding.table.name, "key"),
+                    ),
+                ),
+        );
+    const strayBinding = await keyOf(otherInstallation);
+    const strayId = strayBinding.target;
+    const ownBinding = await keyOf(kit.installation);
+    const own = await secretBindable.connect(store, row, ownBinding);
+    const stray = await secretBindable.connect(store, row, strayBinding);
+
+    // read its own key's stored value, and find no secret of the other's, which it may not see
+    const read = await own.read();
+    const stored = single(
+        await database
+            .select()
+            .from(secretVersion.table)
+            .where(eq(secretVersion.table.parentId, secret.identifier(ownBinding.target))),
+    );
+    expect({ read, refused: await refusal(stray.read()) }).toEqual({
+        read: { version: 1, value: SecretVersion.requireReadable(stored, kit.clock.now()) },
+        refused: ["NOT_FOUND", "NOT_FOUND", `secret ${strayId} not found`],
+    });
+});
+
+test("fail installing a key generated in a vault the installation binds nowhere", async () => {
+    // install the application declaring a key generated in a vault it lacks, and read the installation's failures
+    const lost = defineSecret(
+        { name: "key", generated: { vault: "mail", algorithm: "ES256" } },
+        { package: APPLICATION },
+    );
+    const refused = await TestSpace.refusals(TestVault.open({ secrets: [lost] }));
+    expect(refused).toEqual([
+        [
+            "BAD_REQUEST",
+            "VAULT_UNBOUND",
+            "secret key is in vault mail, which the installation does not bind",
+        ],
+    ]);
+});
+
+test("bind a secret the stack declares at a fixed version, and trash it once the stack drops it", async () => {
+    // declare a vault and a secret in it through the space's stack, with two versions
+    const kit = await TestVault.open({ vaults: [] });
+    await kit.space.apply(kit.served, [vaultPackage], {
+        vaults: { shared: SHARED.declare({ retention: "delete" }) },
+        secrets: { github: { parent: "shared", name: "github" } },
+    });
+    const declared = single(await kit.served.database.select().from(secret.table));
+    const client = kit.owner.client(vaultPackage);
+    for (const value of ["first", "second"]) {
+        await client.version.create({
+            scope: ids.space,
+            parentId: declared.id,
+            requestId: RequestId.create(kit.environment),
+            value: { encoding: "text", value },
+        });
+    }
+
+    // install the consumer bound to the first version of the stack's secret
+    const consumer = await kit.space.install(
+        kit.served,
+        await TestVault.build(
+            CONSUMER,
+            [],
+            [defineSecret({ name: "token" }, { package: CONSUMER })],
+            kit.environment.crypto,
+        ),
+        {
+            bindings: {
+                [CONSUMER.id]: {
+                    token: { target: { type: "secret", name: "github" }, version: 1, state: {} },
+                },
+            },
+        },
+    );
+    const bound = await kit.served.database
+        .select({
+            installationId: binding.table.installationId,
+            target: binding.table.target,
+            version: binding.table.version,
+        })
+        .from(binding.table)
+        .where(eq(binding.table.name, "token"));
+
+    // drop the consumer and the secret from the stack at a paused time, trashing the secret
+    const before = await client.secret.get({ scope: ids.space, id: declared.id });
+    kit.clock.pause();
+    const droppedAt = kit.clock.now();
+    await kit.space.apply(kit.served, [vaultPackage], { installations: {}, secrets: {} });
+    expect({
+        bound,
+        trashed: await client.secret.get({ scope: ids.space, id: declared.id }),
+    }).toEqual({
+        bound: [{ installationId: consumer, target: declared.id, version: 1 }],
+        trashed: {
+            ...before,
+            deletedAt: droppedAt,
+            ...ObjectReference.columns("deletedBy", SPACE),
+            revision: before.revision + 1,
+            updatedAt: droppedAt,
+        },
+    });
+});
+
+test("point a secret the stack declares at a version as the space's owner, keeping it across the stack's next apply", async () => {
+    // declare a vault and a secret in it through the space's stack, and write a version
+    const kit = await TestVault.open({ vaults: [] });
+    const stack = {
+        vaults: { shared: SHARED.declare({ retention: "delete" }) },
+        secrets: { github: { parent: "shared", name: "github" } },
+    };
+    await kit.space.apply(kit.served, [vaultPackage], stack);
+    const declared = single(await kit.served.database.select().from(secret.table));
+    const caller = await kit.elevated();
+    const client = caller.client(vaultPackage);
+    const version = await client.version.create({
+        scope: ids.space,
+        parentId: declared.id,
+        requestId: RequestId.create(kit.environment),
+        value: { encoding: "text", value: "first" },
+    });
+
+    // point the current alias at it, and apply the stack again
+    const key = { scope: ids.space, id: declared.id };
+    await kit.point(caller, key, version.number);
+    await kit.space.apply(kit.served, [vaultPackage], stack);
+    const kept = await client.secret.get(key);
+    expect({ current: kept.currentVersion, name: kept.name }).toEqual({
+        current: version.number,
+        name: "github",
+    });
+});

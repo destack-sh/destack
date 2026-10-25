@@ -1,36 +1,19 @@
-import { Caller, Manager, principal } from "@destack/access";
-import { present, schema } from "@destack/schema";
-import { CallError } from "@destack/object";
-import { Binding, installation } from "@destack/stack/object";
+import { SECRET_DECLARATION } from "@destack/stack/declare";
+import { AccessContext, Caller, principal } from "@destack/access";
+import { schema } from "@destack/schema";
+import { Binding } from "@destack/stack/object";
 import type { ServedBindable } from "@destack/stack/server";
 import { VAULT_PROVIDER } from "../declare/kind.ts";
-import { SECRET_DECLARATION } from "@destack/stack/declare";
 import { SecretDescription } from "../declare/secret.ts";
-import { secret, SecretVersion, secretVersion, vault } from "../object/index.ts";
-import { SecretGeneration } from "../secret/secret.ts";
-import vaultPackage from "../package.ts";
-
-/** The secrets a stack declares, deleted to the trash once no longer declared. */
-const declaredSecret = secret.implement({
-    declaration: {
-        resolve: async (_name, input, stack) => {
-            // wait for the vault to be provisioned before writing into it
-            const [provisioned] = await stack.transaction.read(vault.table).findMany({
-                where: { id: input.parentId, reference: { isNotNull: true } },
-            });
-            if (!provisioned) {
-                stack.wait(`vault ${input.parentId} is not provisioned`);
-            }
-
-            return input;
-        },
-        values: (_name, resolved) => resolved,
-    },
-});
+import { secret, secretVersion } from "../object/index.ts";
+import { SecretVersion } from "./version.ts";
+import { type Secret, SecretGeneration, SecretReading } from "../secret/secret.ts";
+import { VAULT_REFERENCE } from "../provider/provider.ts";
+import { VaultError } from "../error/error.ts";
 
 /** Implement secrets, restorable from the trash within their declared recovery window. */
 export function implementSecret(): typeof secret {
-    return declaredSecret.implement({
+    return secret.implement({
         methods: {
             create: {
                 // relate the installation writing the secret as its custodian, acting itself or as a delegate
@@ -54,24 +37,34 @@ export function implementSecret(): typeof secret {
                     return target;
                 }
 
-                // store the generated value as its first version, current
-                const value = await SecretGeneration.generate(call.input.algorithm);
-                await call.mutate(call.caller, [
+                // store the generated value as its first version, and point the current alias at it
+                const value = await SecretGeneration.generate(
+                    call.input.algorithm,
+                    call.environment.crypto,
+                );
+                const [created] = await call.mutate(call.caller, [
                     secretVersion.call("create", { parentId: target.id, value }),
                 ]);
 
-                return SecretVersion.owner(call, target.id);
+                return call.update({ currentVersion: created.number });
             },
-            promote: async (call) => {
-                // require a readable version
-                const { version } = call.input;
-                const selected = await SecretVersion.find(call, call.target.id, version);
-                if (selected === undefined) {
-                    throw new CallError("NOT_FOUND", { message: "secret version not found" });
+            update: async (call, next) => {
+                // refuse unsetting the current alias, and require the version it moves to to be readable
+                const { currentVersion } = call.input;
+                if (currentVersion === null) {
+                    throw VaultError.of(
+                        "CURRENT_VERSION_REQUIRED",
+                        "a secret's current version cannot be unset",
+                    );
+                } else if (currentVersion !== undefined) {
+                    const selected = await SecretVersion.find(call, call.target.id, currentVersion);
+                    if (selected === undefined) {
+                        throw VaultError.of("VERSION_NOT_FOUND", "secret version not found");
+                    }
+                    SecretVersion.requireReadable(selected, call.now);
                 }
-                SecretVersion.requireReadable(selected, call.now);
 
-                return call.update({ currentVersion: version });
+                return next();
             },
             delete: async (call, next) => {
                 // delete a secret no binding targets
@@ -79,36 +72,18 @@ export function implementSecret(): typeof secret {
 
                 return next();
             },
-            discard: async (call, next) => {
-                // discard the versions first, in one request
-                const target = await call.update({ currentVersion: null });
-                const versions = await call
-                    .read(secretVersion)
-                    .findMany({ where: { parentId: call.target.id } });
-                if (versions.length > 0) {
-                    await call.mutate(
-                        call.caller,
-                        versions.map(({ id }) => secretVersion.call("delete", { id })),
-                    );
-                }
-
-                return next(call.with({ target }));
-            },
             purge: async (call, next) => {
-                // purge only an unbound secret
+                // refuse purging a secret a binding targets or a live deployment runs with
                 const { target } = call;
                 await Binding.requireUnbound(call, target);
 
-                // erase the value of every intact version no live deployment runs with, in one request
-                const intact = await call.reveal(secretVersion).findMany({
+                // erase every intact value in one request, reading only which versions they are
+                const intact = await call.read(secretVersion).findMany({
                     where: {
                         parentId: target.id,
-                        destroyedAt: { isNull: true },
+                        state: { in: ["enabled", "disabled"] },
                     },
                 });
-                for (const version of intact) {
-                    await SecretVersion.requireReleased(call, version);
-                }
                 if (intact.length > 0) {
                     await call.mutate(
                         call.caller,
@@ -116,23 +91,6 @@ export function implementSecret(): typeof secret {
                             secretVersion.call("erase", secretVersion.target(version)),
                         ),
                     );
-                }
-
-                return next();
-            },
-            apply: async (call, next) => {
-                // require the managing installation in the secret's space
-                const manager = Manager.schema.parse(call.input["manager"]);
-                const [managing] = await call.read(installation).findMany({
-                    where: {
-                        scope: schema.identifier("space").parse(call.scope),
-                        id: manager.installationId,
-                    },
-                });
-                if (managing === undefined) {
-                    throw new CallError("NOT_FOUND", {
-                        message: `no installation ${manager.installationId} manages secrets in ${call.scope}`,
-                    });
                 }
 
                 return next();
@@ -146,67 +104,49 @@ export function implementSecretVersion(): typeof secretVersion {
     return secretVersion.implement({
         methods: {
             create: async (call, next) => {
-                // require a secret outside the trash and an expiry in the future
-                const { value, stage, expiresAt, parentId } = call.input;
-                const owner = await SecretVersion.owner(call, parentId);
-                // refuse a secret in the trash
-                if (owner.deletedAt !== null) {
-                    throw new CallError("CONFLICT", { message: "secret is in the trash" });
-                }
                 // refuse an expiry in the past
-                else if (expiresAt !== undefined && expiresAt !== null && expiresAt <= call.now) {
-                    throw new CallError("BAD_REQUEST", {
-                        message: "secret expiry must be in the future",
-                    });
+                const { value, expiresAt, parentId } = call.input;
+                if (expiresAt !== undefined && expiresAt <= call.now) {
+                    throw VaultError.of("EXPIRY_IN_PAST", "secret expiry must be in the future");
                 }
 
                 // create the version with its value bound to it, within the size limit
                 SecretVersion.requireSize(value);
                 const id = call.id ?? (await call.generateId(secretVersion));
-                const bound = { secret: owner.id, version: id, value };
-                const created = await next(
-                    call.with({ id, input: { ...call.input, content: bound } }),
-                );
+                const bound = { secret: parentId, version: id, value };
 
-                // promote it to current unless it stays pending
-                if (stage !== "pending") {
-                    await call.mutate(call.caller, [
-                        secret.call("promote", { id: owner.id, version: created.number }),
-                    ]);
-                }
-
-                return created;
+                return next(call.with({ id, input: { ...call.input, content: bound } }));
             },
             disable: async (call) => {
                 SecretVersion.requireIntact(call.target);
 
-                return call.update({ disabledAt: call.now });
+                return call.update({ state: "disabled" });
             },
             enable: async (call) => {
                 SecretVersion.requireIntact(call.target);
 
-                return call.update({ disabledAt: null });
+                return call.update({ state: "enabled" });
             },
             destroy: async (call) => {
                 // require an intact version no live deployment runs with
                 await SecretVersion.requireReleased(call, call.target);
 
                 // erase its value and mark the version destroyed
-                return call.update(SecretVersion.erasure(call.now));
+                return call.update(SecretVersion.erasure);
             },
-            erase: (call) => call.update(SecretVersion.erasure(call.now)),
+            erase: (call) => call.update(SecretVersion.erasure),
         },
     });
 }
 
 /** Secrets that deployments capture at their current version or at a binding's fixed one. */
-export const secretBindable: ServedBindable<typeof declaredSecret> = {
-    object: declaredSecret,
-    used: [declaredSecret, secretVersion],
+export const secretBindable: ServedBindable<typeof secret, Secret> = {
+    object: secret,
+    used: [secret, secretVersion],
     declaration: SECRET_DECLARATION,
     provider: VAULT_PROVIDER,
-    reference: vaultPackage.name,
-    provision: async (call, _target, need, bindings) => {
+    reference: VAULT_REFERENCE,
+    provision: async (call, declarer, _target, need, bindings) => {
         // leave a secret without generation to the stack binding it
         const generated = SecretDescription.generation(need);
         if (generated === undefined) {
@@ -218,14 +158,15 @@ export const secretBindable: ServedBindable<typeof declaredSecret> = {
             (entry) => entry.packageId === need.package.id && entry.name === generated.vault,
         );
         if (holding === undefined) {
-            throw new CallError("PRECONDITION_FAILED", {
-                message: `secret ${need.name} lives in vault ${generated.vault}, which the installation binds nowhere`,
-            });
+            throw VaultError.of(
+                "VAULT_UNBOUND",
+                `secret ${need.name} is in vault ${generated.vault}, which the installation does not bind`,
+            );
         }
 
-        // create the secret under the identifier its binding takes, stable across retries
+        // create the secret under the identifier its binding takes, stable across retries, as the declarer
         const id = await call.generateId(secret);
-        await call.mutate(call.self, [
+        await call.mutate(declarer, [
             secret.call("provision", { id, parentId: holding.target, name: need.name }),
         ]);
 
@@ -237,30 +178,41 @@ export const secretBindable: ServedBindable<typeof declaredSecret> = {
         const target = await call.read(secret.table).findFirst({ where: { id } });
         const generated = SecretDescription.generation(need);
 
-        // refuse a binding whose secret is gone
+        // require the bound secret, which deletion refuses while bound
         if (target === undefined) {
-            throw new CallError("NOT_FOUND", {
-                message: `secret ${id} of binding ${bound.name} is gone`,
-            });
+            throw new TypeError(`secret ${id} of binding ${bound.name} is gone while bound`);
         }
+
         // pass a secret with a version, and one a stack binds
-        else if (target.currentVersion !== null || generated === undefined) {
-            return true;
-        }
-
-        // wait for the vault to be provisioned
-        const owner = await call.read(vault.table).findFirst({ where: { id: target.parentId } });
-        if (present(owner, `vault ${target.parentId}`).reference === null) {
-            return false;
-        }
-
-        // have the vault generate the first version, and wait for it
-        await call.mutate(call.self, [
-            secret.call("generate", { id, algorithm: generated.algorithm }),
-        ]);
-
-        return false;
+        return target.currentVersion !== null || generated === undefined;
     },
+    prepare: async (call, declarer, bound, need) => {
+        // have the provisioned vault generate a generated secret's first version, as the declarer
+        const id = schema.identifier("secret").parse(bound.target);
+        const generated = SecretDescription.generation(need);
+        if (generated !== undefined) {
+            await call.mutate(declarer, [
+                secret.call("generate", { id, algorithm: generated.algorithm }),
+            ]);
+        }
+    },
+    connect: async (serving, row, bound) => ({
+        read: async () => {
+            // read the version the binding captured as the installation, once the store serves
+            const store = await serving;
+            const id = secret.identifier(bound.target);
+            const reader = principal.installation.reference(row.scope, row.id);
+            const read = await store.query(
+                AccessContext.of(Caller.of(reader), store.clock.now()),
+                secret.call("read", {
+                    ...secret.target({ scope: row.scope, id }),
+                    ...(bound.version === null ? {} : { version: bound.version }),
+                }),
+            );
+
+            return SecretReading.parse(read);
+        },
+    }),
     version: (target, pin) => pin ?? target.currentVersion,
     uses: async (captured, snapshot) => {
         // use only the secret before its first version
@@ -277,9 +229,9 @@ export const secretBindable: ServedBindable<typeof declaredSecret> = {
             },
         });
         if (version === undefined) {
-            throw new CallError("INTERNAL_SERVER_ERROR", {
-                message: `secret ${secretId} has no version ${captured.version} its capture keeps`,
-            });
+            throw new TypeError(
+                `secret ${secretId} has no version ${captured.version}, which its capture references`,
+            );
         }
 
         return [
