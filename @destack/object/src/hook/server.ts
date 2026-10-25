@@ -2,7 +2,7 @@ import { AccessContext, Caller, Decision, principal } from "@destack/access";
 import { BranchEntry } from "../branch/entry.ts";
 import { Condition, Key, OrderBy, RelationalQueryBuilder, TABLE, Table } from "@destack/db";
 import { JsonValue, present, schema } from "@destack/schema";
-import type { HookHandler, ServerContext } from "../workload/workload.ts";
+import type { HookHandler, InstalledServerContext } from "../workload/workload.ts";
 import { Subject } from "@destack/sync";
 import { MethodContext } from "../method/context.ts";
 import type { Session } from "../method/reader.ts";
@@ -26,7 +26,7 @@ export class HookServer implements HookHandler {
     /** Send a hook's request to the store in its mutation's session. */
     readonly #session: (request: SessionRequest) => Promise<HandlerAnswer>;
     /** The server context of the installation the sandbox runs as. */
-    readonly #server: ServerContext;
+    readonly #server: InstalledServerContext;
 
     /** Run the hooks of the types packages route, calling the store through a session. */
     constructor(options: {
@@ -35,7 +35,7 @@ export class HookServer implements HookHandler {
         /** Send a hook's request to the store in its mutation's session. */
         readonly session: (request: SessionRequest) => Promise<HandlerAnswer>;
         /** The server context of the installation the sandbox runs as. */
-        readonly server: ServerContext;
+        readonly server: InstalledServerContext;
     }) {
         // run the hooks of the routed types, answering calls to them, their attachments and what they refer to
         const routed = options.packages
@@ -251,7 +251,7 @@ export class HookServer implements HookHandler {
             caller.subject !== undefined &&
             principal.installation.is(caller.subject) &&
             caller.subject.id === server.installation &&
-            caller.subject.scope === server.space
+            caller.subject.scope === server.scope
         ) {
             return "installation";
         }

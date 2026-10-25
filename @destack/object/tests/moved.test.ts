@@ -1,3 +1,4 @@
+import { testSimulation } from "../src/test/index.ts";
 import { users } from "./fixture/user.ts";
 import { Transaction } from "@destack/db";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
@@ -9,14 +10,14 @@ import { Identifier, schema } from "@destack/schema";
 import { testCallKey } from "@destack/object/test";
 import { ObjectClient } from "../src/client/index.ts";
 import { defineObject, field } from "../src/index.ts";
-import { ObjectStore } from "../src/server/index.ts";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { serveNotes, spaceId } from "./fixture/device.ts";
 import { note, notebook } from "./fixture/note.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
-import { Clock } from "@destack/environment";
+import { Simulation } from "@destack/environment/simulation";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
+import { TestObjectStore } from "../src/test/index.ts";
 
 /** A labelled marker of a space, whose label stays editable while the space moves. */
 const marker = defineObject(
@@ -35,22 +36,28 @@ const marker = defineObject(
 );
 
 test("send a client's writes on to the machine serving a moved scope", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // serve the space on its source and on the machine it moves to, and fence the source
-    const source = await serveNotes();
-    const target = await serveNotes();
-    const moved = Identifier.create("machine");
+    const simulation = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 1) });
+    const source = await serveNotes({ simulation, node: "source" });
+    const target = await serveNotes({ simulation, node: "target" });
+    const { clock, environment } = source;
+    const moved = Identifier.create("machine", world);
     await Transaction.run(source.database, (transaction) =>
-        Scope.fence(transaction, spaceId, moved, Date.now()),
+        Scope.fence(transaction, spaceId, moved, clock.now()),
     );
 
     // push through the source, reconnecting to the machine its refusal refers to
     const storage = await TestDatabase.create(ObjectClient.tables({ notebook, note }), {
+        environment,
         dialect: "sqlite",
     });
     onTestFinished(() => storage.close());
     const machines: string[] = [];
     const client = await ObjectClient.open({
-        clock: Clock.system,
+        environment,
         database: storage.database,
         objects: { notebook, note },
         scope: spaceId,
@@ -81,6 +88,9 @@ test("send a client's writes on to the machine serving a moved scope", async () 
 });
 
 test("allow the calls of moving permissions in a fenced scope and refuse every other call", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // store a marker in a space, then fence the space toward another machine
     const storage = await TestDatabase.create(
         tablesOf({
@@ -88,33 +98,31 @@ test("allow the calls of moving permissions in a fenced scope and refuse every o
             follows: [],
             tables: [],
         }).tables,
-        {
-            isMigrated: true,
-        },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
     const { database } = storage;
-    await openSpace(database, spaceId);
-    const store = new ObjectStore({
+    await openSpace(database, world, spaceId);
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([marker]),
         database,
         callKey: testCallKey,
-        events: await testEvents(database),
+        events: await testEvents(database, world),
         origin: { package: marker.package },
     });
     const mutate = (call: ReturnType<typeof marker.call>) =>
-        store.mutate(AccessContext.of(Caller.of(spacePrincipal(spaceId)), Date.now()), {
-            id: RequestId.create(Date.now()),
+        store.mutate(AccessContext.of(Caller.of(spacePrincipal(spaceId)), world.clock.now()), {
+            id: RequestId.create(world),
             calls: [call],
         });
     const [created] = await mutate(marker.call("create", { spaceId, label: "draft" }));
     const { id } = schema.looseObject({ id: schema.string() }).parse(created);
-    const moved = Identifier.create("machine");
+    const moved = Identifier.create("machine", world);
     await Transaction.run(database, (transaction) =>
-        Scope.fence(transaction, spaceId, moved, Date.now()),
+        Scope.fence(transaction, spaceId, moved, world.clock.now()),
     );
 
     // relabel the marker through its moving permission and refuse a new marker with the new machine

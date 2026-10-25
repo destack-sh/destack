@@ -1,12 +1,12 @@
 import { users } from "./fixture/user.ts";
 import { expect, test } from "@destack/test";
-import { Device, serveNotes, spaceId } from "./fixture/device.ts";
+import { serveNotes, spaceId } from "./fixture/device.ts";
 import { note, notebook } from "./fixture/note.ts";
 
 test("predict recorded calls as one mutation, which the server executes together", async () => {
-    const { connect, endpoint } = await serveNotes();
+    const { connect, openDevice } = await serveNotes();
     const alice = connect(users.alice);
-    const device = await Device.open(users.alice, endpoint(users.alice));
+    const device = await openDevice(users.alice);
     device.online();
     const book = device.client.mutate(notebook).create({ name: "Travel" });
     const { id: parentId } = await book.predicted;

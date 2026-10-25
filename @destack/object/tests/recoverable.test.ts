@@ -1,20 +1,21 @@
+import { TestObjectStore } from "../src/test/index.ts";
+import { testSimulation } from "../src/test/index.ts";
 import { type Change, eq, defineDatabase } from "@destack/db";
-import { ObjectReference } from "@destack/sync";
+import { ObjectReference, RequestId, Scope } from "@destack/sync";
 import { testCallKey } from "@destack/object/test";
 import { reconciliation, TestDatabase } from "@destack/db/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { expect, refusal, onTestFinished, test } from "@destack/test";
-import { principal, relation } from "@destack/access";
+import { principal, relation, through } from "@destack/access";
 
 import { schema, present } from "@destack/schema";
 
 import { defineObject, field, type CallableName, type ObjectType } from "../src/index.ts";
-import { ObjectStore, RecoverableController } from "../src/server/index.ts";
+import { RecoverableController } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { auditedActions } from "./fixture/audit.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
-import { VirtualClock } from "@destack/environment/simulation";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 
@@ -55,12 +56,18 @@ const credentialDatabase = defineDatabase({
 });
 
 test("purge a retained record through its handler under its permission or as the system, and restore it within its window", async () => {
+    // run in a world of its own
+    const simulation = testSimulation();
+    const { clock } = simulation;
+    const world = simulation.environment("test");
+
     const storage = await TestDatabase.create(credentialDatabase, {
+        environment: world,
         isMigrated: true,
     });
     onTestFinished(() => storage.close());
     const database = storage.database;
-    await openSpace(database, spaceId);
+    await openSpace(database, world, spaceId);
 
     // serve credentials with a purge handler that destroys the value
     const handled = credential.implement({
@@ -72,10 +79,9 @@ test("purge a retained record through its handler under its permission or as the
             },
         },
     });
-    const clock = new VirtualClock(Date.now());
-    const events = await testEvents(database);
+    const events = await testEvents(database, world);
     const serve = (object: ObjectType) =>
-        new ObjectStore({
+        TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
             chain: async () => undefined,
             principal: spacePrincipal(spaceId),
             servers: serversOf([object]),
@@ -85,14 +91,14 @@ test("purge a retained record through its handler under its permission or as the
             origin: {
                 package: credential.package,
             },
-            clock,
+            environment: world,
         });
-    let context = userContext(users.frank, spaceId);
+    let context = userContext(users.frank, spaceId, { environment: world });
     const execute = <Object extends typeof credential, Name extends CallableName<Object>>(
         object: Object,
         name: Name,
         input: NoInfer<RequestInput<Object, Name>>,
-    ) => request(serve(object), object, name, spaceId, input, context);
+    ) => serve(object).then((store) => request(store, object, name, spaceId, input, context));
     // restore within the declared window
     const created = await execute(handled, "create", {
         custodianId: users.grace,
@@ -105,10 +111,13 @@ test("purge a retained record through its handler under its permission or as the
     // refuse restoring past the declared window
     const lapsed = await execute(handled, "create", { custodianId: users.grace, value: "old" });
     await execute(handled, "delete", { id: lapsed.id, revision: lapsed.revision });
-    await database
-        .update(credential.table)
-        .set({ deletedAt: clock.now() - 120_000 })
-        .where(eq(credential.table.id, lapsed.id));
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .update(credential.table)
+                .set({ deletedAt: clock.now() - 120_000 })
+                .where(eq(credential.table.id, lapsed.id)),
+    );
     expect(await refusal(execute(handled, "restore", { id: lapsed.id }))).toEqual([
         "CONFLICT",
         "RECOVERY_EXPIRED",
@@ -124,7 +133,7 @@ test("purge a retained record through its handler under its permission or as the
     ]);
 
     // refuse a record-retaining purge without a handler destroying the content
-    context = userContext(users.grace, spaceId);
+    context = userContext(users.grace, spaceId, { environment: world });
     await expect(execute(credential, "purge", { id: created.id })).rejects.toThrow(
         new TypeError(
             "object credential keeps purged records, so its purge must destroy their content",
@@ -155,7 +164,7 @@ test("purge a retained record through its handler under its permission or as the
         "PURGED",
         "credential is purged",
     ]);
-    context = userContext(users.frank, spaceId);
+    context = userContext(users.frank, spaceId, { environment: world });
     expect(await refusal(execute(handled, "restore", { id: created.id }))).toEqual([
         "CONFLICT",
         "PURGED",
@@ -163,7 +172,7 @@ test("purge a retained record through its handler under its permission or as the
     ]);
 
     // purge the lapsed record as the system, through its handler, once
-    const store = serve(handled);
+    const store = await serve(handled);
     const later = clock.now() + 120_000;
     clock.set(later);
     expect([
@@ -186,7 +195,7 @@ test("purge a retained record through its handler under its permission or as the
     await execute(handled, "delete", { id: pending.id, revision: pending.revision });
     const window = 60_000;
     const delay = present(
-        await controller.reconcile("trash", reconciliation(AbortSignal.timeout(5000))),
+        await controller.reconcile("trash", reconciliation(world.clock.timeout(5000))),
         "the wait until the next window ends",
     );
     const updated = (
@@ -215,15 +224,121 @@ test("purge a retained record through its handler under its permission or as the
         await controller.list(),
         delay > 0 && delay <= window,
     ]).toEqual([[handled.table], ["trash"], [], ["trash"], true]);
-    await database
-        .update(credential.table)
-        .set({ deletedAt: clock.now() - window - 1 })
-        .where(eq(credential.table.id, pending.id));
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .update(credential.table)
+                .set({ deletedAt: clock.now() - window - 1 })
+                .where(eq(credential.table.id, pending.id)),
+    );
     expect(
-        await controller.reconcile("trash", reconciliation(AbortSignal.timeout(5000))),
+        await controller.reconcile("trash", reconciliation(world.clock.timeout(5000))),
     ).toBeUndefined();
     expect(await auditedActions(database, "component")).toEqual([
         "credential.purge",
         "credential.purge",
     ]);
+});
+
+/** Drawers holding letters, trashed with their letters on delete. */
+const drawer = defineObject(
+    {
+        name: "drawer",
+        plural: "drawers",
+        scope: space,
+        controlled: true,
+        fields: { owner: field.reference(principal.user).caller() },
+        permissions: { read: relation("owner"), write: relation("owner") },
+    },
+    (method) => ({
+        create: method.create("write", { fields: [] }),
+        delete: method.delete("write"),
+    }),
+);
+
+/** Letters in a drawer that keep their record after a purge, trashed with their drawer. */
+const letter = defineObject(
+    {
+        name: "letter",
+        plural: "letters",
+        scope: space,
+        nested: { in: drawer, delete: "trash", receive: "write" },
+        fields: { text: field.string().optional() },
+        recoverable: { within: { minutes: 1 }, by: "write", retain: "record" },
+        permissions: { read: through("parent", "read"), write: through("parent", "write") },
+    },
+    (method) => ({
+        create: method.create("write", { fields: ["text"] }),
+    }),
+);
+
+test("discard a trashed letter once purged, refusing it before", async () => {
+    // run in a world of its own
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
+
+    // serve drawers and letters as frank in a space, a letter's purge destroying its text
+    const purging = letter.implement({
+        methods: {
+            purge: async (call, next) => {
+                await call.update({ text: null });
+
+                return next();
+            },
+        },
+    });
+    const storage = await TestDatabase.create(
+        defineDatabase({
+            name: "main",
+            ...tablesOf({
+                packages: [objectPackage, { objects: { drawer, letter }, tables: [] }],
+                follows: [],
+                tables: [],
+            }),
+        }),
+        { environment: world, isMigrated: true },
+    );
+    onTestFinished(() => storage.close());
+    const database = storage.database;
+    await openSpace(database, world, spaceId);
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
+        chain: async () => undefined,
+        principal: spacePrincipal(spaceId),
+        servers: serversOf([drawer, purging]),
+        database,
+        callKey: testCallKey,
+        events: await testEvents(database, world),
+        origin: { package: drawer.package },
+        environment: world,
+    });
+    const context = userContext(users.frank, spaceId, { environment: world });
+    const made = await request(store, drawer, "create", spaceId, {}, context);
+    const written = await request(
+        store,
+        letter,
+        "create",
+        spaceId,
+        { parentId: made.id, text: "secret" },
+        context,
+    );
+    await request(
+        store,
+        letter,
+        "delete",
+        spaceId,
+        { id: written.id, revision: written.revision },
+        context,
+    );
+
+    // discard the trashed letter as its installation, refused until purged, then removed
+    const discard = () =>
+        store.mutate(store.as(letter), {
+            id: RequestId.create(world),
+            calls: [letter.call("discard", letter.target({ scope: spaceId, id: written.id }))],
+        });
+    const kept = await refusal(discard());
+    await request(store, letter, "purge", spaceId, { id: written.id }, context);
+    await discard();
+    const remaining = await database.select({ id: letter.table.id }).from(letter.table);
+    expect([kept, remaining]).toEqual([["CONFLICT", "PURGE_REQUIRED", "letter is not purged"], []]);
 });

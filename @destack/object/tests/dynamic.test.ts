@@ -1,33 +1,31 @@
+import { testSimulation } from "../src/test/index.ts";
 import { defineObject, field, ObjectDescription, ObjectTypePool } from "../src/index.ts";
 import { users } from "./fixture/user.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { TABLE } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { schema } from "@destack/schema";
+import { schema, Uuid } from "@destack/schema";
 import { DynamicObjectClient } from "../src/client/index.ts";
-import { implementPackage, ObjectStore } from "../src/server/index.ts";
+import { implementPackage } from "../src/server/index.ts";
 import { testEvents } from "../src/test/index.ts";
 import { defineDatabase } from "@destack/db";
 import { through } from "@destack/access";
 import { Package } from "@destack/package";
 import { definePackage } from "@destack/object";
 import { testCallKey } from "@destack/object/test";
-import { v7 } from "uuid";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { serveNotes, spaceId } from "./fixture/device.ts";
 import { note, notebook, notesPackage } from "./fixture/note.ts";
 import objectPackage from "../src/package.ts";
-import { Clock } from "@destack/environment";
 import { tablesOf } from "../src/index.ts";
 import { TestObjectStore } from "../src/test/index.ts";
+import { Scope } from "@destack/sync";
 
 /** A row's identifier. */
 const Identified = schema.looseObject({ id: schema.string() });
 
 /** Call the served notes as a user by the types their descriptions declare. */
-async function connectNotes(
-    endpoint: ReturnType<Awaited<ReturnType<typeof serveNotes>>["endpoint"]>,
-) {
+async function connectNotes(served: Awaited<ReturnType<typeof serveNotes>>) {
     // declare the types from their descriptions, as a manifest lists them
     const objects = ObjectTypePool.of([space]).declare([
         ObjectDescription.of(notebook),
@@ -35,10 +33,10 @@ async function connectNotes(
     ]);
 
     return new DynamicObjectClient({
-        clock: Clock.system,
+        environment: served.environment,
         objects,
         scope: spaceId,
-        endpoint,
+        endpoint: served.endpoint(users.alice),
     });
 }
 
@@ -54,8 +52,7 @@ test("list the types descriptions refer to that neither the pool nor they declar
 });
 
 test("call and list objects by their descriptions, refusing input their methods' schemas reject", async () => {
-    const { endpoint } = await serveNotes();
-    const client = await connectNotes(endpoint(users.alice));
+    const client = await connectNotes(await serveNotes());
 
     // create a notebook and a note by name, the note pushed as a mutation of one call
     const book = Identified.parse(await client.call("notebook", "create", { name: "Travel" }));
@@ -78,29 +75,32 @@ test("call and list objects by their descriptions, refusing input their methods'
     // refuse input the method's schema rejects, an unknown method and an unknown type
     expect(await refusal(client.call("note", "create", { title: 5 }))).toEqual([
         "BAD_REQUEST",
-        "INVALID_INPUT",
+        "INPUT_INVALID",
         "invalid input: title: invalid input: expected string, received number",
     ]);
     expect(await refusal(client.call("note", "archive", {}))).toEqual([
         "BAD_REQUEST",
-        "UNKNOWN_METHOD",
+        "METHOD_UNKNOWN",
         "note has no method archive",
     ]);
     expect(await refusal(client.list("page"))).toEqual([
         "NOT_FOUND",
-        "UNKNOWN_TYPE",
+        "TYPE_UNKNOWN",
         "unknown object type page",
     ]);
 });
 
 test("watch the rows a query selects through a replica of their table, after every change", async () => {
-    const { endpoint } = await serveNotes();
-    const client = await connectNotes(endpoint(users.alice));
+    // run in a world of its own
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
+
+    const client = await connectNotes(await serveNotes({ simulation }));
     const book = Identified.parse(await client.call("notebook", "create", { name: "Travel" }));
     await client.call("note", "create", { parentId: book.id, title: "Tickets" });
 
     // store the watched rows in a local database
-    const local = await TestDatabase.create([], { dialect: "sqlite" });
+    const local = await TestDatabase.create([], { environment: world, dialect: "sqlite" });
     onTestFinished(() => local.close());
 
     // follow the starred and unstarred notes by title, reading the first rows the replica has
@@ -133,8 +133,7 @@ test("watch the rows a query selects through a replica of their table, after eve
 });
 
 test("describe the served types with the types they refer to, declare them from those descriptions alone, and refuse a type the store does not know", async () => {
-    const { endpoint } = await serveNotes();
-    const client = await connectNotes(endpoint(users.alice));
+    const client = await connectNotes(await serveNotes());
 
     // describe every served type through the store, then declare each from the descriptions
     const declared = ObjectTypePool.of([]).declare(await client.describe());
@@ -147,7 +146,7 @@ test("describe the served types with the types they refer to, declare them from 
     ]);
     expect(await refusal(client.describe([unknown]))).toEqual([
         "NOT_FOUND",
-        "UNKNOWN_TYPE",
+        "TYPE_UNKNOWN",
         `unknown object type page of ${note.package.id}`,
     ]);
 });
@@ -192,6 +191,9 @@ const bookmark = defineObject({
 });
 
 test("read objects of a scope inside the space a client is bound to, refusing a scope outside it, and describe every type they refer to", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // serve shelves and their bookmarks over HTTP, bound to the space
     const storage = await TestDatabase.create(
         defineDatabase({
@@ -206,28 +208,28 @@ test("read objects of a scope inside the space a client is bound to, refusing a 
                 tables: [],
             }),
         }),
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
-    await openSpace(storage.database, spaceId);
+    await openSpace(storage.database, world, spaceId);
     const shelves = definePackage({ objects: { shelf, bookmark } });
     const served = TestObjectStore.serve(
-        new ObjectStore({
+        await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
             servers: [implementPackage(shelves, {})],
             chain: async () => undefined,
             origin: { package: Package.of(shelves) },
             principal: spacePrincipal(spaceId),
             callKey: testCallKey,
-            events: await testEvents(storage.database),
+            events: await testEvents(storage.database, world),
             database: storage.database,
-            clock: Clock.system,
+            environment: world,
         }),
     );
     onTestFinished(() => served[Symbol.asyncDispose]());
 
     // create a shelf, store a bookmark on it, and read the bookmark through a client of the space
     const client = new DynamicObjectClient({
-        clock: Clock.system,
+        environment: world,
         objects: [shelf, bookmark],
         scope: spaceId,
         endpoint: served.as(users.alice).endpoint(shelves),
@@ -243,7 +245,7 @@ test("read objects of a scope inside the space a client is bound to, refusing a 
     const read = await client.call("bookmark", "get", { shelfId: created.id, id: marked.id });
 
     // refuse a shelf of another space
-    const elsewhere = `shelf-${v7()}`;
+    const elsewhere = `shelf-${Uuid.v7(world)}`;
     const refused = await client.call("bookmark", "list", { shelfId: elsewhere }).then(
         () => "read",
         (error: { code?: string }) => error.code,

@@ -1,3 +1,36 @@
+test("index exactly the code values object's root exports, at the same paths", () => {
+    // index the roots' namespaces as a reference, then compare every value either index records
+    const reference = new ExportIndex({
+        "@destack/object": objectRoot,
+        "@destack/access": accessRoot,
+    });
+    const loaded = ExportIndex.loaded();
+    const values = Object.values(objectRoot).flatMap((value): unknown[] => {
+        const members: unknown[] =
+            typeof value === "object" && value !== null ? Object.values(value) : [];
+
+        return [value, ...members];
+    });
+    const differing = values
+        .filter(
+            (value) =>
+                JSON.stringify(reference.locate(value)) !== JSON.stringify(loaded.locate(value)),
+        )
+        .map((value) => [reference.locate(value), loaded.locate(value)]);
+
+    // compare the paths of the declarations and tables both find, in any order
+    const paths = (found: readonly unknown[]) =>
+        found.map((value) => JSON.stringify(reference.locate(value))).toSorted();
+    expect({
+        differing,
+        declarations: paths(loaded.declarations()),
+        tables: paths(loaded.tables()),
+    }).toEqual({
+        differing: [],
+        declarations: paths(reference.declarations()),
+        tables: paths(reference.tables()),
+    });
+});
 import {
     claimMethods,
     claimTable,
@@ -102,7 +135,10 @@ const sample = defineObject(
         create: method.create("write", {
             fields: ["title", "kind"],
             variants: { kind: { draft: ["rank"], final: [] } },
-            input: schema.object({ note: schema.string().exactOptional() }),
+            input: schema.object({
+                note: schema.string().exactOptional(),
+                copies: schema.int().positive().default(1),
+            }),
             creator: "owner",
         }),
         update: method.update("write", { fields: ["title"], isPredicted: false }),
@@ -176,6 +212,9 @@ test("describe every field and method as its builder calls, and declare the same
     const described = ObjectDescription.of(sample);
     const declared = nth(ObjectTypePool.of(TYPES).declare([described]), 0);
     expect(ObjectDescription.of(declared)).toEqual(described);
+
+    // fill a declared input's default as the written type does
+    expect(declared.method("create").input?.parse({})).toEqual({ copies: 1 });
 
     // read the routes, schemas and tables a manifest and a migration read
     expect([
@@ -475,35 +514,3 @@ function readProcedures(type: ObjectType) {
         return [name, route, inputSchema === undefined ? null : toJsonSchema(inputSchema)];
     });
 }
-
-test("index exactly the code values object's root exports, at the same paths", () => {
-    // index the roots' namespaces as a reference, then compare every value either index records
-    const reference = new ExportIndex({
-        "@destack/object": objectRoot,
-        "@destack/access": accessRoot,
-    });
-    const loaded = ExportIndex.loaded();
-    const values = Object.values(objectRoot).flatMap((value): unknown[] => {
-        const members: unknown[] =
-            typeof value === "object" && value !== null ? Object.values(value) : [];
-
-        return [value, ...members];
-    });
-    const differing = values
-        .filter(
-            (value) =>
-                JSON.stringify(reference.locate(value)) !== JSON.stringify(loaded.locate(value)),
-        )
-        .map((value) => [reference.locate(value), loaded.locate(value)]);
-
-    // compare the declarations and tables both find
-    expect({
-        differing,
-        declarations: loaded.declarations(),
-        tables: loaded.tables(),
-    }).toEqual({
-        differing: [],
-        declarations: reference.declarations(),
-        tables: reference.tables(),
-    });
-});

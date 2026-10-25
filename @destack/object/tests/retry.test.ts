@@ -2,15 +2,16 @@ import { users } from "./fixture/user.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal } from "@destack/access";
 import { TestDatabase } from "@destack/db/test";
+import { Simulation } from "@destack/environment/simulation";
 import { nth } from "@destack/schema";
 import { ObjectClient } from "../src/client/index.ts";
 import { serveNotes, spaceId } from "./fixture/device.ts";
 import { note, notebook } from "./fixture/note.ts";
 import { unmoved } from "./fixture/space.ts";
-import { Clock } from "@destack/environment";
 
 test("push again after transient failures, waiting twice as long after each", async () => {
-    const { endpoint } = await serveNotes();
+    const simulation = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 1) });
+    const { endpoint, clock, environment } = await serveNotes({ simulation });
     const alice = endpoint(users.alice);
 
     // fail the first two pushes as a broken network does, recording each start
@@ -18,7 +19,7 @@ test("push again after transient failures, waiting twice as long after each", as
     const fetch = async (request: Request) => {
         const isPush = new URL(request.url).pathname.endsWith("/store/push");
         if (isPush) {
-            attempts.push(performance.now());
+            attempts.push(clock.now());
         }
         if (isPush && attempts.length <= 2) {
             throw new TypeError("fetch failed");
@@ -29,11 +30,12 @@ test("push again after transient failures, waiting twice as long after each", as
 
     // push with retries after 20 ms and 40 ms
     const storage = await TestDatabase.create(ObjectClient.tables({ notebook, note }), {
+        environment,
         dialect: "sqlite",
     });
     onTestFinished(() => storage.close());
     const client = await ObjectClient.open({
-        clock: Clock.system,
+        environment,
         database: storage.database,
         objects: { notebook, note },
         scope: spaceId,
@@ -51,9 +53,9 @@ test("push again after transient failures, waiting twice as long after each", as
         await running;
     });
 
-    // confirm the note after two reported failures with doubling retry waits
+    // confirm the note after two reported failures with doubling retry waits, moving time for them
     const created = client.mutate(note).create({ title: "Ideas" });
-    await created.confirmed;
+    await simulation.drive(created.confirmed);
     const waits = attempts.slice(1).map((at, position) => at - nth(attempts, position));
     expect([
         reported.map((error) => (error instanceof Error ? error.message : error)),

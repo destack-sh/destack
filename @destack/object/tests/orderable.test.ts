@@ -1,18 +1,19 @@
+import type { Environment } from "@destack/environment";
+import { testSimulation } from "../src/test/index.ts";
 import { principal, relation } from "@destack/access";
 import { defineDatabase } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { present, schema } from "@destack/schema";
-import { RequestId } from "@destack/sync";
+import { RequestId, Scope } from "@destack/sync";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { defineObject, field, FractionalIndex } from "../src/index.ts";
-import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
-import { Clock } from "@destack/environment";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
+import { TestObjectStore } from "../src/test/index.ts";
 
 /** The space with the items and cards. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000d1");
@@ -58,7 +59,7 @@ const card = defineObject(
 );
 
 /** Serve items and cards over a fresh database of each dialect. */
-async function serve() {
+async function serve(world: Environment) {
     const storage = await TestDatabase.create(
         defineDatabase({
             name: "order",
@@ -68,30 +69,33 @@ async function serve() {
                 tables: [],
             }),
         }),
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
-    await openSpace(storage.database, spaceId);
+    await openSpace(storage.database, world, spaceId);
 
-    return new ObjectStore({
+    return await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([item, card]),
         database: storage.database,
         callKey: testCallKey,
-        events: await testEvents(storage.database),
+        events: await testEvents(storage.database, world),
         origin: { package: item.package },
     });
 }
 
 test("append objects after their last sibling under each parent, list them in order and move one between two others", async () => {
-    const store = await serve();
-    const context = userContext(users.frank, spaceId);
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const store = await serve(world);
+    const context = userContext(users.frank, spaceId, { environment: world });
     const create = (name: string, parentId?: string) =>
         store
             .mutate(context.access(), {
-                id: RequestId.create(Date.now()),
+                id: RequestId.create(store.environment),
                 calls: [
                     item.call("create", {
                         spaceId,
@@ -115,12 +119,16 @@ test("append objects after their last sibling under each parent, list them in or
     const [alpha, beta, gamma] = children;
     await store
         .mutate(context.access(), {
-            id: RequestId.create(Date.now()),
+            id: RequestId.create(store.environment),
             calls: [
                 item.call("update", {
                     spaceId,
                     id: present(gamma, "the third child").id,
-                    position: FractionalIndex.place(alpha?.position, beta?.position),
+                    position: FractionalIndex.place(
+                        alpha?.position,
+                        beta?.position,
+                        store.environment.random,
+                    ),
                 }),
             ],
         })
@@ -138,12 +146,15 @@ test("append objects after their last sibling under each parent, list them in or
 });
 
 test("append objects after the last one with the same value of their ordering field", async () => {
-    const store = await serve();
-    const context = userContext(users.frank, spaceId);
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const store = await serve(world);
+    const context = userContext(users.frank, spaceId, { environment: world });
     const create = (name: string, status: "todo" | "done") =>
         store
             .mutate(context.access(), {
-                id: RequestId.create(Date.now()),
+                id: RequestId.create(store.environment),
                 calls: [card.call("create", { spaceId, name, status })],
             })
             .then(([written]) => written);

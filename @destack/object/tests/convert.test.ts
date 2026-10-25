@@ -1,20 +1,20 @@
+import { testSimulation } from "../src/test/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
 import { defineDatabase } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
 
-import { RequestId } from "@destack/sync";
+import { RequestId, Scope } from "@destack/sync";
 import { defineObject, field } from "../src/index.ts";
-import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { spaceId } from "./fixture/device.ts";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { userContext, users } from "./fixture/user.ts";
-import { Clock } from "@destack/environment";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
+import { TestObjectStore } from "../src/test/index.ts";
 
 /** Cards whose `title` became `name`. */
 const card = defineObject(
@@ -36,6 +36,9 @@ const card = defineObject(
 );
 
 test("execute calls made against an earlier release with the fields they renamed, and refuse calls of a later release", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     const storage = await TestDatabase.create(
         defineDatabase({
             name: "main",
@@ -45,27 +48,27 @@ test("execute calls made against an earlier release with the fields they renamed
                 tables: [],
             }),
         }),
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
-    await openSpace(storage.database, spaceId);
-    const store = new ObjectStore({
+    await openSpace(storage.database, world, spaceId);
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([card]),
         database: storage.database,
         callKey: testCallKey,
-        events: await testEvents(storage.database),
+        events: await testEvents(storage.database, world),
         origin: {
             package: card.package,
         },
     });
-    const context = userContext(users.alice, spaceId);
+    const context = userContext(users.alice, spaceId, { environment: world });
 
     // create and rename a card through calls of the release before the rename
     const [result] = await store.mutate(context.access(), {
-        id: RequestId.create(Date.now()),
+        id: RequestId.create(world),
         calls: [
             {
                 type: card.typeReference,
@@ -77,7 +80,7 @@ test("execute calls made against an earlier release with the fields they renamed
     });
     const created = schema.looseObject({ id: schema.string() }).parse(result);
     await store.mutate(context.access(), {
-        id: RequestId.create(Date.now()),
+        id: RequestId.create(world),
         calls: [
             {
                 type: card.typeReference,
@@ -90,7 +93,7 @@ test("execute calls made against an earlier release with the fields they renamed
 
     // refuse a call made against a release the server does not serve yet
     const later = store.mutate(context.access(), {
-        id: RequestId.create(Date.now()),
+        id: RequestId.create(world),
         calls: [
             {
                 type: card.typeReference,

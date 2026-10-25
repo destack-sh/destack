@@ -1,13 +1,13 @@
+import { testSimulation } from "../src/test/index.ts";
 import { AccessError, principal, through } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { defineDatabase } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { Clock } from "@destack/environment";
 import { MemoryBuild } from "@destack/package/test";
 import { ResourceContext } from "@destack/resource/context";
 import { definePackage } from "@destack/object";
 import { testCallKey, testKeys } from "@destack/object/test";
-import type { ServerContext } from "@destack/object/workload";
+import type { InstalledServerContext } from "@destack/object/workload";
 import { schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
@@ -20,7 +20,9 @@ import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 
 /** The installation serving the probes in the space. */
-const INSTALLATION = "installation-01996ab0-0000-7000-8000-000000000051";
+const INSTALLATION = schema
+    .identifier("installation")
+    .parse("installation-01996ab0-0000-7000-8000-000000000051");
 
 /** Probes answering whom their code acts as when it acts for its space. */
 const probe = defineObject(
@@ -46,8 +48,8 @@ const probe = defineObject(
 ).implement({
     methods: {
         acting: async (context) => {
-            // act for the space, and answer the caller's subject, actors and grant, and two capabilities
-            const acting = await context.space();
+            // act with the space's delegation, and answer the caller's subject, actors and grant, and two capabilities
+            const acting = await context.delegated();
             const capabilities = [context.enabled("push"), context.enabled("sms")];
 
             return {
@@ -63,7 +65,10 @@ const probe = defineObject(
 /** The package of the probes. */
 const probes = definePackage({ objects: { probe } });
 
-test("act for the space as its installation within the space's grant, refusing without one, and read its capabilities", async () => {
+test("act with the space's delegation to its installation, refusing without one, and read its capabilities", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // serve the probes in a public space as its installation
     const storage = await TestDatabase.create(
         defineDatabase({
@@ -74,16 +79,18 @@ test("act for the space as its installation within the space's grant, refusing w
                 tables: [],
             }),
         }),
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
     const { database } = storage;
-    await openSpace(database, spaceId);
-    const server: ServerContext = {
+    await openSpace(database, world, spaceId);
+    const server: InstalledServerContext = {
+        origin: "installed",
         installation: INSTALLATION,
         name: "probes",
-        space: spaceId,
-        build: await MemoryBuild.write(new Map(), { package: probe.package }),
+        scope: spaceId,
+        build: await MemoryBuild.write(new Map(), { package: probe.package }, world.crypto),
+        environment: world,
         resources: new ResourceContext(),
         fetch: (sent) => Promise.reject(new Error(`the probes reach no ${sent.url}`)),
         url: "https://probes--home.test",
@@ -97,7 +104,7 @@ test("act for the space as its installation within the space's grant, refusing w
         },
         settings: {},
         capabilities: ["push"],
-        keys: await testKeys(),
+        keys: await testKeys(world),
         publisherAt: () => {
             throw new TypeError("the fixture reaches no installation");
         },
@@ -107,25 +114,25 @@ test("act for the space as its installation within the space's grant, refusing w
     };
     const store = new ObjectStore({
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         server,
         servers: [implementPackage(probes, { objects: [probe] })],
         database,
         callKey: testCallKey,
-        events: await testEvents(database),
+        events: await testEvents(database, world),
         origin: { package: probe.package },
     });
 
     // ask whom the code acts as, before and after the space grants its installation reading
     const ask = () =>
         store
-            .query(store.serving(probe), probe.call("acting", { spaceId }))
+            .query(store.as(probe), probe.call("acting", { spaceId }))
             .catch((error: unknown) =>
                 AccessError.is(error) ? `${error.reason}: ${error.message}` : Promise.reject(error),
             );
     const before = await ask();
     const installation = principal.installation.reference(spaceId, INSTALLATION);
-    const grant = await new AccessFixture(database).replicateGrant(
+    const grant = await new AccessFixture(database, world).replicateGrant(
         principal.space.reference(Scope.universe.id, spaceId),
         installation,
         [probe.permission("read")],

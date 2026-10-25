@@ -24,7 +24,14 @@ import {
     combine,
     textEnum,
 } from "@destack/db";
-import { canonicalize, Identifier, Instant, present, schema } from "@destack/schema";
+import {
+    canonicalize,
+    Identifier,
+    type UuidEnvironment,
+    Instant,
+    present,
+    schema,
+} from "@destack/schema";
 import { Scope } from "@destack/sync";
 
 import { ObjectKey, ObjectType, type ObjectIndex } from "../object/object.ts";
@@ -177,6 +184,7 @@ export const Claim = Object.assign(claim, {
         claimant: Claimant,
         requestId: string,
         now: number,
+        environment: UuidEnvironment,
     ): Promise<Claim[]> {
         // insert the free names pending for a minute
         Claimant.require(claimant);
@@ -184,20 +192,23 @@ export const Claim = Object.assign(claim, {
         const inserted =
             claimant.claims.length === 0
                 ? []
-                : await database
-                      .insert(claimTable)
-                      .values(
-                          claimant.claims.map((entry) => ({
-                              ...entry,
-                              id: Identifier.create("claim"),
-                              scope: Scope.universe.id,
-                              state: "pending" as const,
-                              requestId,
-                              expiresAt,
-                          })),
-                      )
-                      .onConflictDoNothing()
-                      .returning({ index: claimTable.index, key: claimTable.key });
+                : await database.transaction(
+                      async (transaction) =>
+                          await transaction
+                              .insert(claimTable)
+                              .values(
+                                  claimant.claims.map((entry) => ({
+                                      ...entry,
+                                      id: Identifier.create("claim", environment),
+                                      scope: Scope.universe.id,
+                                      state: "pending" as const,
+                                      requestId,
+                                      expiresAt,
+                                  })),
+                              )
+                              .onConflictDoNothing()
+                              .returning({ index: claimTable.index, key: claimTable.key }),
+                  );
         const existing = ClaimKey.missing(claimant.claims, inserted);
 
         // refuse the existing names other objects claim
@@ -225,20 +236,27 @@ export const Claim = Object.assign(claim, {
         object: Pick<Claimant, "objectId" | "owner">,
         requestId: string,
     ): Promise<void> {
-        await database
-            .delete(claimTable)
-            .where(
-                and(
-                    eq(claimTable.requestId, requestId),
-                    eq(claimTable.objectId, object.objectId),
-                    eq(claimTable.owner, object.owner),
-                    eq(claimTable.state, "pending"),
-                ),
-            );
+        await database.transaction(
+            async (transaction) =>
+                await transaction
+                    .delete(claimTable)
+                    .where(
+                        and(
+                            eq(claimTable.requestId, requestId),
+                            eq(claimTable.objectId, object.objectId),
+                            eq(claimTable.owner, object.owner),
+                            eq(claimTable.state, "pending"),
+                        ),
+                    ),
+        );
     },
 
     /** Replace an object's names after an unreserved write, returning the names others claim. */
-    async replace(database: DatabaseConnection, claimant: Claimant): Promise<Claim[]> {
+    async replace(
+        database: DatabaseConnection,
+        claimant: Claimant,
+        environment: UuidEnvironment,
+    ): Promise<Claim[]> {
         // refuse the names other objects claim before writing any
         Claimant.require(claimant);
         const found = await Claim.owners(database, claimant.claims);
@@ -252,20 +270,23 @@ export const Claim = Object.assign(claim, {
         const inserted =
             fresh.length === 0
                 ? []
-                : await database
-                      .insert(claimTable)
-                      .values(
-                          fresh.map((entry) => ({
-                              ...entry,
-                              id: Identifier.create("claim"),
-                              scope: Scope.universe.id,
-                              state: claimant.state,
-                              requestId: null,
-                              expiresAt: null,
-                          })),
-                      )
-                      .onConflictDoNothing()
-                      .returning({ index: claimTable.index, key: claimTable.key });
+                : await database.transaction(
+                      async (transaction) =>
+                          await transaction
+                              .insert(claimTable)
+                              .values(
+                                  fresh.map((entry) => ({
+                                      ...entry,
+                                      id: Identifier.create("claim", environment),
+                                      scope: Scope.universe.id,
+                                      state: claimant.state,
+                                      requestId: null,
+                                      expiresAt: null,
+                                  })),
+                              )
+                              .onConflictDoNothing()
+                              .returning({ index: claimTable.index, key: claimTable.key }),
+                  );
         const lost = ClaimKey.missing(fresh, inserted);
         if (lost.length > 0) {
             return ClaimKey.refused(lost, await Claim.owners(database, lost));
@@ -369,17 +390,20 @@ export const Claim = Object.assign(claim, {
         object: Claimant,
         settling: SQL | undefined,
     ): Promise<void> {
-        await database
-            .update(claimTable)
-            .set({ state: object.state, requestId: null, expiresAt: null })
-            .where(
-                and(
-                    inArray(claimTable.index, [...object.indexes]),
-                    eq(claimTable.objectId, object.objectId),
-                    settling,
-                    eq(claimTable.owner, object.owner),
-                ),
-            );
+        await database.transaction(
+            async (transaction) =>
+                await transaction
+                    .update(claimTable)
+                    .set({ state: object.state, requestId: null, expiresAt: null })
+                    .where(
+                        and(
+                            inArray(claimTable.index, [...object.indexes]),
+                            eq(claimTable.objectId, object.objectId),
+                            settling,
+                            eq(claimTable.owner, object.owner),
+                        ),
+                    ),
+        );
     },
 
     /** Release the names an object no longer claims. */
@@ -390,18 +414,24 @@ export const Claim = Object.assign(claim, {
         }
 
         // delete the object's names other than those it claims
-        await database
-            .delete(claimTable)
-            .where(
-                and(
-                    inArray(claimTable.index, [...object.indexes]),
-                    eq(claimTable.objectId, object.objectId),
-                    eq(claimTable.owner, object.owner),
-                    ...object.claims.map((entry) =>
-                        or(ne(claimTable.index, entry.index), ne(claimTable.key, entry.key)),
+        await database.transaction(
+            async (transaction) =>
+                await transaction
+                    .delete(claimTable)
+                    .where(
+                        and(
+                            inArray(claimTable.index, [...object.indexes]),
+                            eq(claimTable.objectId, object.objectId),
+                            eq(claimTable.owner, object.owner),
+                            ...object.claims.map((entry) =>
+                                or(
+                                    ne(claimTable.index, entry.index),
+                                    ne(claimTable.key, entry.key),
+                                ),
+                            ),
+                        ),
                     ),
-                ),
-            );
+        );
     },
 
     /** Find the scope an index is unique across, from the scope an object lives in. */
@@ -426,7 +456,10 @@ export const Claim = Object.assign(claim, {
             (link) => link.object.packageId === packageId && link.object.type === name,
         );
         if (enclosing === undefined) {
-            throw ObjectError.of("NO_ENCLOSING_SCOPE", `scope ${scope} has no enclosing ${name}`);
+            throw ObjectError.of(
+                "ENCLOSING_SCOPE_MISSING",
+                `scope ${scope} has no enclosing ${name}`,
+            );
         }
 
         return enclosing.object.id;
@@ -512,7 +545,7 @@ export const Claimant = Object.assign(claimant, {
         );
         if (stranger !== undefined) {
             throw ObjectError.of(
-                "FOREIGN_CLAIM",
+                "CLAIM_FOREIGN",
                 `claim ${stranger.index} is not a name of ${claimed.objectId} in ${claimed.owner}`,
             );
         }

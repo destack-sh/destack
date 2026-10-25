@@ -1,21 +1,20 @@
+import { testSimulation } from "../src/test/index.ts";
 import { through } from "@destack/access";
 import { defineDatabase } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { Package } from "@destack/package";
 import { CallError } from "@destack/object";
-import { RequestId } from "@destack/sync";
+import { RequestId, Scope } from "@destack/sync";
 import { testCallKey } from "@destack/object/test";
-import { schema } from "@destack/schema";
+import { schema, Uuid } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
-import { v7 } from "uuid";
 import { defineObject, field } from "../src/index.ts";
-import { ObjectStore } from "../src/server/index.ts";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
-import { Clock } from "@destack/environment";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
+import { TestObjectStore } from "../src/test/index.ts";
 
 /** The package of the types reading the holders from outside their package. */
 const OUTSIDE = Package.parse({
@@ -88,6 +87,9 @@ const peeker = defineObject(
 );
 
 test("reveal a type's sensitive field to its package's handler, and withhold it from another package's read", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // serve the holders and the outside peekers in one space
     const storage = await TestDatabase.create(
         defineDatabase({
@@ -98,26 +100,26 @@ test("reveal a type's sensitive field to its package's handler, and withhold it 
                 tables: [space.table],
             }),
         }),
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
-    const spaceId = `space-${v7()}`;
-    const store = new ObjectStore({
+    const spaceId = `space-${Uuid.v7(world)}`;
+    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([holder, peeker]),
         database: storage.database,
         callKey: testCallKey,
-        events: await testEvents(storage.database),
+        events: await testEvents(storage.database, world),
         origin: { package: holder.package },
     });
-    await openSpace(storage.database, spaceId);
-    const caller = userContext(users.alice, spaceId).access();
+    await openSpace(storage.database, world, spaceId);
+    const caller = userContext(users.alice, spaceId, { environment: world }).access();
 
     // create a holder with a token
     const [created] = await store.mutate(caller, {
-        id: RequestId.create(Date.now()),
+        id: RequestId.create(world),
         calls: [holder.call("create", { spaceId, label: "deploy", token: "token-0123" })],
     });
     const id = schema.looseObject({ id: schema.string() }).parse(created).id;

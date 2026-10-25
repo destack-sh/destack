@@ -6,3 +6,4 @@ export * from "./caller.ts";
 export * from "./context.ts";
 export * from "./installation.ts";
 export * from "./store.ts";
+export * from "./world.ts";

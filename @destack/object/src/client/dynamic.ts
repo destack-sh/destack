@@ -16,7 +16,7 @@ import {
     QUERIES_PUBLICATION,
     type StoreProcedures,
 } from "../replica/replica.ts";
-import { Clock } from "@destack/environment";
+import type { Environment } from "@destack/environment";
 
 import type {} from "@destack/package/import-meta";
 
@@ -47,8 +47,8 @@ export interface DynamicObjectClientOptions {
     readonly endpoint: ClientOptions;
     /** Where and how to call the home of another scope a change acts in, such as a space's. */
     readonly homes?: (scope: string) => ClientOptions;
-    /** The clock the local log compacts at. */
-    readonly clock: Clock;
+    /** The environment the client runs in, whose clock the local log compacts at. */
+    readonly environment: Environment;
 }
 
 /** An installation's objects called by name, with types from its manifest's descriptions. */
@@ -65,8 +65,13 @@ export class DynamicObjectClient {
     /** Connect to an installation's objects through the package serving them. */
     constructor(options: DynamicObjectClientOptions) {
         this.options = options;
-        this.#store = ObjectClient.store(options.endpoint);
-        this.#home = ObjectClient.homes(options.scope, () => this.#store, options.homes);
+        this.#store = ObjectClient.store(options.endpoint, options.environment);
+        this.#home = ObjectClient.homes(
+            options.scope,
+            () => this.#store,
+            options.homes,
+            options.environment,
+        );
     }
 
     /** Report whether an installation serves a type: one of its databases declares its table. */
@@ -78,7 +83,7 @@ export class DynamicObjectClient {
     object(type: string): ObjectType {
         const found = this.options.objects.find((entry) => entry.name === type);
         if (found === undefined) {
-            throw ObjectError.of("UNKNOWN_TYPE", `unknown object type ${type}`);
+            throw ObjectError.of("TYPE_UNKNOWN", `unknown object type ${type}`);
         }
 
         return found;
@@ -91,7 +96,7 @@ export class DynamicObjectClient {
         const declared = object.methods[method];
         const procedure = object.procedures[method]?.["~orpc"];
         if (declared === undefined || declared.isInternal === true || procedure === undefined) {
-            throw ObjectError.of("UNKNOWN_METHOD", `${type} has no method ${method}`);
+            throw ObjectError.of("METHOD_UNKNOWN", `${type} has no method ${method}`);
         }
 
         // set the scope and a change's request, and validate the input
@@ -99,7 +104,7 @@ export class DynamicObjectClient {
         const scoped = {
             ...(field === undefined ? {} : { [field]: this.options.scope }),
             ...(declared.mutates
-                ? { [REQUEST_FIELD]: RequestId.create(this.options.clock.now()) }
+                ? { [REQUEST_FIELD]: RequestId.create(this.options.environment) }
                 : {}),
             ...input,
         };
@@ -134,7 +139,7 @@ export class DynamicObjectClient {
         const [pushed] = outcomes;
         if (pushed === undefined) {
             throw ObjectError.of(
-                "MISSING_OUTCOME",
+                "OUTCOME_MISSING",
                 `the push of ${type}.${method} returned no outcome`,
             );
         } else if (!("value" in pushed.outcome)) {
@@ -170,7 +175,7 @@ export class DynamicObjectClient {
             ([, declared]) => declared.kind === "list" && declared.isInternal !== true,
         )?.[0];
         if (method === undefined) {
-            throw ObjectError.of("NO_LIST_METHOD", `${type} has no list method`);
+            throw ObjectError.of("LIST_METHOD_MISSING", `${type} has no list method`);
         }
 
         // call it with the query
@@ -193,7 +198,10 @@ export class DynamicObjectClient {
         const { scope } = this.options;
         await this.#migrate(database);
         const followed = ObjectQuery.parse({ object: object.name, ...query });
-        const name = (await Digest.json(followed)).slice(0, QUERY_NAME_LENGTH);
+        const name = (await Digest.json(followed, database.state.environment.crypto)).slice(
+            0,
+            QUERY_NAME_LENGTH,
+        );
         const replica = new sync.Replica({ name, scope, tables: [table] });
         const subscription: sync.Subscription = {
             name,
@@ -214,7 +222,6 @@ export class DynamicObjectClient {
         );
         const feed = new sync.Feed(database, [table, sync.replicaResult], {
             upstream: replica.upstream(database, undefined),
-            clock: this.options.clock,
         });
         try {
             // read the rows once the replica has them, and again after every change
@@ -252,7 +259,7 @@ export class DynamicObjectClient {
         subscription: sync.Subscription,
         signal: AbortSignal,
     ): Promise<void> {
-        await replica.register(database, { clock: this.options.clock });
+        await replica.register(database);
         try {
             while (!signal.aborted) {
                 // stream from where the replica is, and compact the log after each completed run
@@ -261,10 +268,9 @@ export class DynamicObjectClient {
                 for await (const page of replica.apply(database, pages, {
                     subscription,
                     audience: "caller",
-                    clock: this.options.clock,
                 })) {
                     if (page.complete) {
-                        const now = this.options.clock.now();
+                        const now = this.options.environment.clock.now();
                         await database.log.compact(now - LOCAL_LOG_MILLISECONDS, now);
                     }
                 }

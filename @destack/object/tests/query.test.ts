@@ -2,18 +2,18 @@ import { users } from "./fixture/user.ts";
 import { expect, test, onTestFinished } from "@destack/test";
 import { Expression } from "@destack/db";
 import { RequestId } from "@destack/sync";
-import { Device, serveNotes, spaceId } from "./fixture/device.ts";
+import { serveNotes, spaceId } from "./fixture/device.ts";
 import { note, notebook } from "./fixture/note.ts";
 import { QueriesParameters } from "../src/replica/replica.ts";
 import { present, schema } from "@destack/schema";
-import { VirtualClock } from "@destack/environment/simulation";
+import { Simulation } from "@destack/environment/simulation";
 
 /** The rows an include adds, read for their titles. */
 const TITLED_ROWS = schema.array(schema.looseObject({ title: schema.string() }));
 
 test("read a query's rows, includes and aggregates with predictions before the server confirms them", async () => {
-    const { endpoint } = await serveNotes();
-    const device = await Device.open(users.alice, endpoint(users.alice), []);
+    const { openDevice } = await serveNotes();
+    const device = await openDevice(users.alice, []);
 
     // read notebooks with their first two notes and note counts
     const books = device.client.query.notebook
@@ -74,8 +74,8 @@ test("read a query's rows, includes and aggregates with predictions before the s
 });
 
 test("watch a query's rows, includes and counts change with each local commit", async () => {
-    const { endpoint } = await serveNotes();
-    const device = await Device.open(users.alice, endpoint(users.alice), []);
+    const { openDevice } = await serveNotes();
+    const device = await openDevice(users.alice, []);
     const books = device.client.query.notebook
         .findMany({
             orderBy: { name: "asc" },
@@ -110,20 +110,20 @@ test("watch a query's rows, includes and counts change with each local commit", 
 });
 
 test("list a query's rows page by page with what they include beside them, and its groups", async () => {
-    const { connect } = await serveNotes();
+    const { connect, environment } = await serveNotes();
     const alice = connect(users.alice);
 
     // file two notebooks with notes
     const book = async (name: string, titles: readonly string[]) => {
         const created = await alice.notebook.create({
             spaceId,
-            requestId: RequestId.create(Date.now()),
+            requestId: RequestId.create(environment),
             name,
         });
         for (const title of titles) {
             await alice.note.create({
                 spaceId,
-                requestId: RequestId.create(Date.now()),
+                requestId: RequestId.create(environment),
                 parentId: created.id,
                 title,
             });
@@ -175,20 +175,20 @@ test("list a query's rows page by page with what they include beside them, and i
 });
 
 test("list and read a query filtered, sorted and paged by computed values, with the values beside each row", async () => {
-    const { connect, endpoint } = await serveNotes();
+    const { connect, openDevice, environment } = await serveNotes();
     const alice = connect(users.alice);
 
     // file notebooks with three, one and no notes
     const book = async (name: string, notes: number) => {
         const created = await alice.notebook.create({
             spaceId,
-            requestId: RequestId.create(Date.now()),
+            requestId: RequestId.create(environment),
             name,
         });
         for (let index = 0; index < notes; index += 1) {
             await alice.note.create({
                 spaceId,
-                requestId: RequestId.create(Date.now()),
+                requestId: RequestId.create(environment),
                 parentId: created.id,
             });
         }
@@ -231,7 +231,7 @@ test("list and read a query filtered, sorted and paged by computed values, with 
     ]);
 
     // read the same query from a local replica, the computed values inline
-    const device = await Device.open(users.alice, endpoint(users.alice), []);
+    const device = await openDevice(users.alice, []);
     device.online();
     const local = device.client.query.notebook
         .findMany({
@@ -248,19 +248,19 @@ test("list and read a query filtered, sorted and paged by computed values, with 
 });
 
 test("list and read the notebooks with a starred note outside the trash", async () => {
-    const { connect, endpoint } = await serveNotes();
+    const { connect, openDevice, environment } = await serveNotes();
     const alice = connect(users.alice);
 
     // file notebooks with a starred, a trashed starred, and no starred note
     const book = async (name: string, starred: boolean) => {
         const created = await alice.notebook.create({
             spaceId,
-            requestId: RequestId.create(Date.now()),
+            requestId: RequestId.create(environment),
             name,
         });
         const filed = await alice.note.create({
             spaceId,
-            requestId: RequestId.create(Date.now()),
+            requestId: RequestId.create(environment),
             parentId: created.id,
             starred,
         });
@@ -273,7 +273,7 @@ test("list and read the notebooks with a starred note outside the trash", async 
     await alice.note.delete({
         spaceId,
         id: trashed.note,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(environment),
     });
 
     // list them on the server, and read them from a device's replica
@@ -282,7 +282,7 @@ test("list and read the notebooks with a starred note outside the trash", async 
         orderBy: { name: "asc" } as const,
     };
     const listed = await alice.notebook.list({ spaceId, ...query });
-    const device = await Device.open(users.alice, endpoint(users.alice), []);
+    const device = await openDevice(users.alice, []);
     device.online();
     const local = device.client.query.notebook.findMany(query).subscribe();
     await local.ready;
@@ -293,9 +293,10 @@ test("list and read the notebooks with a starred note outside the trash", async 
 });
 
 test("follow the newest notebooks and notes as one feed", async () => {
-    const clock = new VirtualClock(Date.now());
-    const { endpoint } = await serveNotes(clock);
-    const device = await Device.open(users.alice, endpoint(users.alice), [], { clock });
+    const simulation = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 1) });
+    const { clock } = simulation;
+    const { openDevice } = await serveNotes({ simulation });
+    const device = await openDevice(users.alice, []);
 
     // follow notebooks and notes together, newest first, three at most
     const { query } = device.client.of({ notebook, note });
@@ -339,20 +340,20 @@ test("follow the newest notebooks and notes as one feed", async () => {
 });
 
 test("list and read notes sorted by their notebook's name", async () => {
-    const { connect, endpoint } = await serveNotes();
+    const { connect, openDevice, environment } = await serveNotes();
     const alice = connect(users.alice);
 
     // file notes in two notebooks, the later notebook first by name
     const book = async (name: string, titles: readonly string[]) => {
         const created = await alice.notebook.create({
             spaceId,
-            requestId: RequestId.create(Date.now()),
+            requestId: RequestId.create(environment),
             name,
         });
         for (const title of titles) {
             await alice.note.create({
                 spaceId,
-                requestId: RequestId.create(Date.now()),
+                requestId: RequestId.create(environment),
                 parentId: created.id,
                 title,
             });
@@ -367,7 +368,7 @@ test("list and read notes sorted by their notebook's name", async () => {
         orderBy: { notebook: "asc", title: "asc" } as const,
     };
     const listed = await alice.note.list({ spaceId, ...query });
-    const device = await Device.open(users.alice, endpoint(users.alice), []);
+    const device = await openDevice(users.alice, []);
     device.online();
     const local = device.client.query.note.findMany(query).subscribe();
     await local.ready;
@@ -389,21 +390,21 @@ test("list and read notes sorted by their notebook's name", async () => {
 });
 
 test("list and read notebooks by how many starred notes outside the trash they have", async () => {
-    const { connect, endpoint } = await serveNotes();
+    const { connect, openDevice, environment } = await serveNotes();
     const alice = connect(users.alice);
 
     // file notebooks with two, one and no starred notes, one of Work's in the trash
     const book = async (name: string, starred: number) => {
         const created = await alice.notebook.create({
             spaceId,
-            requestId: RequestId.create(Date.now()),
+            requestId: RequestId.create(environment),
             name,
         });
         const notes: string[] = [];
         for (let index = 0; index < starred; index += 1) {
             const filed = await alice.note.create({
                 spaceId,
-                requestId: RequestId.create(Date.now()),
+                requestId: RequestId.create(environment),
                 parentId: created.id,
                 starred: true,
             });
@@ -418,7 +419,7 @@ test("list and read notebooks by how many starred notes outside the trash they h
     await alice.note.delete({
         spaceId,
         id: present(work[0], "the first work note"),
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(environment),
     });
 
     // order them by their starred notes and by name, on the server and in a device's replica
@@ -429,7 +430,7 @@ test("list and read notebooks by how many starred notes outside the trash they h
         orderBy: { starred: "desc", name: "asc" } as const,
     };
     const listed = await alice.notebook.list({ spaceId, ...query });
-    const device = await Device.open(users.alice, endpoint(users.alice), []);
+    const device = await openDevice(users.alice, []);
     device.online();
     const local = device.client.query.notebook.findMany(query).subscribe();
     await local.ready;
@@ -451,9 +452,9 @@ test("list and read notebooks by how many starred notes outside the trash they h
 });
 
 test("go on following a closed query for a while, receiving the server's changes with no query open", async () => {
-    const { connect, endpoint } = await serveNotes();
+    const { connect, openDevice, environment } = await serveNotes();
     const alice = connect(users.alice);
-    const device = await Device.open(users.alice, endpoint(users.alice), []);
+    const device = await openDevice(users.alice, []);
     device.online();
 
     // close the query, following it for a minute
@@ -464,25 +465,29 @@ test("go on following a closed query for a while, receiving the server's changes
     // receive a notebook the server creates after the close into the local replica
     await alice.notebook.create({
         spaceId,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(environment),
         name: "Later",
     });
     const database = device.client.database;
     const isReceived = await database.log.until(
         async () =>
             (await database.select().from(notebook.table)).some((row) => row.name === "Later"),
-        AbortSignal.timeout(4000),
+        environment.clock.timeout(4000),
     );
     expect(isReceived).toBe(true);
 });
 
 test("let go of followed queries beyond the storage budget, following forever-followed ones until released", async () => {
-    const { connect, endpoint } = await serveNotes();
+    const { connect, openDevice, environment } = await serveNotes();
     const alice = connect(users.alice);
     for (const name of ["Home", "Work", "Travel"]) {
-        await alice.notebook.create({ spaceId, requestId: RequestId.create(Date.now()), name });
+        await alice.notebook.create({
+            spaceId,
+            requestId: RequestId.create(environment),
+            name,
+        });
     }
-    const device = await Device.open(users.alice, endpoint(users.alice), [], {
+    const device = await openDevice(users.alice, [], {
         storage: { rows: 2 },
     });
     device.online();
@@ -514,14 +519,14 @@ test("let go of followed queries beyond the storage budget, following forever-fo
 });
 
 test("describe what a client's replica has, the queries it follows and what waits for the server", async () => {
-    const { connect, endpoint } = await serveNotes();
+    const { connect, openDevice, environment } = await serveNotes();
     const alice = connect(users.alice);
     await alice.notebook.create({
         spaceId,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(environment),
         name: "Home",
     });
-    const device = await Device.open(users.alice, endpoint(users.alice), [], {
+    const device = await openDevice(users.alice, [], {
         storage: { rows: 10 },
     });
     device.online();
@@ -555,8 +560,8 @@ test("describe what a client's replica has, the queries it follows and what wait
 });
 
 test("watch a query reusing each unchanged row as the same object after another row changes", async () => {
-    const { endpoint } = await serveNotes();
-    const device = await Device.open(users.alice, endpoint(users.alice), []);
+    const { openDevice } = await serveNotes();
+    const device = await openDevice(users.alice, []);
 
     // predict a notebook with three notes, and watch them by title
     const created = device.client.mutation(async (mutation) => {

@@ -1,4 +1,3 @@
-import type { Channel } from "@destack/db";
 import type { Duration } from "@destack/schema";
 import type { Subject } from "@destack/sync";
 import { broadcastChannel, connectShared } from "@destack/db/browser";
@@ -6,21 +5,14 @@ import type { ClientOptions } from "../client/package.ts";
 import { RequestId } from "@destack/sync";
 import type { ObjectType } from "../object/object.ts";
 import { ObjectClient } from "../client/client.ts";
-import type { Clock } from "@destack/environment";
+import type { Environment } from "@destack/environment";
+import type {} from "@destack/environment/browser";
 
-/** The browser capabilities tabs share. */
-export interface BrowserHost {
-    /** The channel every tab and the database worker share. */
-    readonly channel: Channel<unknown>;
-    /** Take a named lock while a callback runs. */
-    readonly request: (
-        name: string,
-        callback: () => Promise<void>,
-        signal?: AbortSignal,
-    ) => Promise<void>;
-    /** Start the worker with the database, returning how to stop it. */
-    readonly start: () => Promise<() => Promise<void>>;
-}
+/** The browser effects a tab takes: the origin's locks, broadcast channels and storage. */
+export type BrowserTabEnvironment = Environment<"locks" | "broadcast" | "storage">;
+
+/** Start the database worker, returning how to stop it. */
+export type BrowserTabWorker = () => Promise<() => Promise<void>>;
 
 /** One tab's objects over the database of the leading tab's worker. */
 export class BrowserTab<
@@ -33,7 +25,9 @@ export class BrowserTab<
     /** The connection to the leading tab's worker. */
     readonly #database: ReturnType<typeof connectShared>;
     /** The browser the tab runs in. */
-    readonly #host: BrowserHost;
+    readonly #environment: BrowserTabEnvironment;
+    /** Start the database worker once the tab leads. */
+    readonly #worker: BrowserTabWorker;
     /** The database's name, shared by every tab of the origin. */
     readonly #name: string;
     /** Aborts the tab's loops and waits on close. */
@@ -48,7 +42,8 @@ export class BrowserTab<
         client: ObjectClient<Objects>,
         database: ReturnType<typeof connectShared>,
         ready: Promise<void>,
-        host: BrowserHost,
+        environment: BrowserTabEnvironment,
+        worker: BrowserTabWorker,
         name: string,
         stopping: AbortController,
         leading: {
@@ -60,7 +55,8 @@ export class BrowserTab<
         this.client = client;
         this.ready = ready;
         this.#database = database;
-        this.#host = host;
+        this.#environment = environment;
+        this.#worker = worker;
         this.#name = name;
         this.#stopping = stopping;
         let leave!: () => void;
@@ -68,19 +64,21 @@ export class BrowserTab<
             leave = resolve;
         });
         this.#leave = leave;
-        void host.request(this.#presence(client.origin), () => left);
+        void this.#request(this.#presence(client.origin), () => left);
 
         // wait to lead the database
         const signal = this.#stopping.signal;
         const owner = `destack:${name}:owner`;
-        this.#owning = host
-            .request(owner, () => this.#lead(leading.objects, leading.report), signal)
-            .catch((error: unknown) => {
-                // rethrow unless closing
-                if (!signal.aborted) {
-                    throw error;
-                }
-            });
+        this.#owning = this.#request(
+            owner,
+            () => this.#lead(leading.objects, leading.report),
+            signal,
+        ).catch((error: unknown) => {
+            // rethrow unless closing
+            if (!signal.aborted) {
+                throw error;
+            }
+        });
     }
 
     /** Open a tab's objects over the database of the leading tab's worker. */
@@ -105,18 +103,22 @@ export class BrowserTab<
         readonly storage?: { readonly rows: number };
         /** How long the shared local log retains changes, a minute by default. */
         readonly log?: { readonly retention: Duration };
-        /** The browser capabilities, the page's by default. */
-        readonly host?: BrowserHost;
+        /** Start the database worker once the tab leads, such as BrowserTab.worker. */
+        readonly worker: BrowserTabWorker;
         /** Report the leading tab's loop failures. */
         readonly report: (error: unknown) => void;
-        /** The clock the tab's client reads time at. */
-        readonly clock: Clock;
+        /** The environment the tab runs in, with the browser's locks, channels and storage. */
+        readonly environment: Environment & BrowserTabEnvironment;
     }): Promise<BrowserTab<Objects>> {
         // connect to the shared database
-        const host = options.host ?? BrowserTab.host(options.name);
-        const origin = RequestId.create(options.clock.now());
-        const { objects } = options;
-        const database = connectShared(host.channel, origin, ObjectClient.tables(objects));
+        const { environment, objects } = options;
+        const origin = RequestId.create(environment);
+        const database = connectShared(
+            broadcastChannel(`destack:${options.name}`, environment),
+            origin,
+            ObjectClient.tables(objects),
+            options.environment,
+        );
         const client = await ObjectClient.open({ ...options, database, origin, isMigrated: true });
 
         // settle once the tables exist
@@ -128,29 +130,35 @@ export class BrowserTab<
             );
         })();
 
-        return new BrowserTab(client, database, ready, host, options.name, stopping, {
-            objects,
-            report: options.report,
-        });
+        return new BrowserTab(
+            client,
+            database,
+            ready,
+            environment,
+            options.worker,
+            options.name,
+            stopping,
+            {
+                objects,
+                report: options.report,
+            },
+        );
     }
 
-    /** Bind the page's Web Locks, broadcast channel and database worker. */
-    static host(name: string): BrowserHost {
-        return {
-            channel: broadcastChannel(`destack:${name}`),
-            request: (lock, callback, signal) =>
-                navigator.locks.request(lock, signal === undefined ? {} : { signal }, callback),
-            start: async () => {
-                // ask to persist the storage, and start the database worker
-                await navigator.storage.persist();
-                const worker = new Worker(new URL("./database.worker.ts", import.meta.url), {
-                    type: "module",
+    /** Start the page's database worker, asking first to persist the storage. */
+    static worker(name: string, environment: Environment<"storage" | "workers">): BrowserTabWorker {
+        return async () => {
+            // ask to persist the storage, and start the database worker
+            await environment.storage.persist();
+            const worker = environment.workers.start(
+                new URL("./database.worker.ts", import.meta.url),
+                {
                     name: `destack:${name}`,
-                });
-                worker.postMessage({ name });
+                },
+            );
+            worker.postMessage({ name });
 
-                return async () => worker.terminate();
-            },
+            return async () => worker.terminate();
         };
     }
 
@@ -176,7 +184,7 @@ export class BrowserTab<
         }
 
         // start the worker and run the loops
-        const stop = await this.#host.start();
+        const stop = await this.#worker();
         try {
             await ObjectClient.migrate(this.client.database, objects);
             await Promise.all([
@@ -200,7 +208,7 @@ export class BrowserTab<
             for (const origin of await unwatched()) {
                 watched.add(origin);
                 const forget = () => this.client.forget(origin);
-                void this.#host.request(this.#presence(origin), forget, signal).then(
+                void this.#request(this.#presence(origin), forget, signal).then(
                     () => watched.delete(origin),
                     (error: unknown) => {
                         // report unless closing
@@ -217,6 +225,15 @@ export class BrowserTab<
                 signal,
             );
         }
+    }
+
+    /** Take a named lock of the origin while a callback runs. */
+    #request(name: string, callback: () => Promise<void>, signal?: AbortSignal): Promise<void> {
+        return this.#environment.locks.request(
+            name,
+            signal === undefined ? {} : { signal },
+            callback,
+        );
     }
 
     /** Build the name of the lock a party's tab takes while it is open. */

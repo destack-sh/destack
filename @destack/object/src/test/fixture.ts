@@ -1,3 +1,4 @@
+import type { Clock } from "@destack/environment";
 import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/access/token";
 import { type Authentication, Caller, principal } from "@destack/access";
 import type { Subject } from "@destack/sync";
@@ -21,21 +22,24 @@ export const hosting = {
     package: fixturePackage,
     scope: "test-space",
     resources: new ResourceContext(),
-    authenticate: async (request: Request) => {
+    authorizeMachine: async () => {},
+};
+
+/** Authenticate the fixture's callers by their authorization header's name, at a clock's time. */
+export function authenticateByName(clock: Clock): (request: Request) => Promise<Authentication> {
+    return async (request) => {
         const name = request.headers.get("authorization");
         if (name !== "alice" && name !== "bob") {
             throw CallError.http("UNAUTHORIZED", { message: "invalid caller name" });
         }
 
-        return authenticateUser(name);
-    },
-    authorizeMachine: async () => {},
-};
+        return authenticateUser(name, clock.now());
+    };
+}
 
-/** Authenticate a fixture user with a session for a minute. */
-export function authenticateUser(name: string): Authentication {
+/** Authenticate a fixture user with a session for a minute from a time. */
+export function authenticateUser(name: string, now: number): Authentication {
     const subject: Subject = principal.user.reference("universe", name);
-    const now = Date.now();
 
     return {
         caller: Caller.of(subject),

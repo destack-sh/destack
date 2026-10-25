@@ -1,3 +1,6 @@
+import { TestObjectStore } from "../src/test/index.ts";
+import { Environment } from "@destack/environment";
+import { testSimulation } from "../src/test/index.ts";
 import type { CallableName } from "../src/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { none, principal, relation } from "@destack/access";
@@ -6,9 +9,8 @@ import { defineDatabase } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
 
-import { RequestId } from "@destack/sync";
+import { RequestId, Scope } from "@destack/sync";
 import { defineObject, field } from "../src/index.ts";
-import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { auditedActions } from "./fixture/audit.ts";
 import { userContext, users, userName } from "./fixture/user.ts";
@@ -17,7 +19,6 @@ import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
 import { createRouterClient } from "@destack/object/server";
-import { Clock } from "@destack/environment";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 
@@ -154,31 +155,40 @@ const shelfDatabase = defineDatabase({
 });
 
 /** Read a call's refusal as the server reports it to its caller. */
-function reported(pending: Promise<unknown>): Promise<"done" | readonly [string, string, string]> {
+function reported(
+    pending: Promise<unknown>,
+    world: Pick<Environment, "telemetry">,
+): Promise<"done" | readonly [string, string, string]> {
     return refusal(
         pending.catch((error: unknown) => {
-            throw reportError(error);
+            throw reportError(error, world.telemetry);
         }),
     );
 }
 
 test("invoke another object's method in a call, as its caller, audited and refused alike", async () => {
-    const storage = await TestDatabase.create(shelfDatabase, { isMigrated: true });
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create(shelfDatabase, {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
-    await openSpace(storage.database, spaceId);
-    const store = new ObjectStore({
+    await openSpace(storage.database, world, spaceId);
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([book, shelf, slip]),
         database: storage.database,
         callKey: testCallKey,
-        events: await testEvents(storage.database),
+        events: await testEvents(storage.database, world),
         origin: {
             package: book.package,
         },
     });
-    let context = userContext(users.frank, spaceId);
+    let context = userContext(users.frank, spaceId, { environment: world });
     const call = <Object extends typeof book | typeof shelf, Name extends CallableName<Object>>(
         object: Object,
         name: Name,
@@ -189,7 +199,7 @@ test("invoke another object's method in a call, as its caller, audited and refus
             object,
             name,
             spaceId,
-            { requestId: RequestId.create(Date.now()), ...input },
+            { requestId: RequestId.create(world), ...input },
             context,
         );
 
@@ -197,11 +207,11 @@ test("invoke another object's method in a call, as its caller, audited and refus
     const home = await call(shelf, "create", { name: "home" });
     await call(book, "create", { shelf: "home" });
     await call(book, "create", { shelf: "home" });
-    context = userContext(users.grace, spaceId);
+    context = userContext(users.grace, spaceId, { environment: world });
     const foreign = await call(book, "create", { shelf: "home" });
 
     // tidy user-1's writable books on the shelf, auditing both calls
-    context = userContext(users.frank, spaceId);
+    context = userContext(users.frank, spaceId, { environment: world });
     const before = (await auditedActions(storage.database, "caller")).length;
     const tidied = await call(shelf, "tidy", { id: home.id });
     const auditedTidy = (await auditedActions(storage.database, "caller")).slice(before);
@@ -224,12 +234,18 @@ test("invoke another object's method in a call, as its caller, audited and refus
 });
 
 test("invoke methods as the space in a caller's call, writing objects the caller may not", async () => {
-    const storage = await TestDatabase.create(shelfDatabase, { isMigrated: true });
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create(shelfDatabase, {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
-    await openSpace(storage.database, spaceId);
-    const store = new ObjectStore({
+    await openSpace(storage.database, world, spaceId);
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([
             book,
@@ -248,12 +264,12 @@ test("invoke methods as the space in a caller's call, writing objects the caller
         ]),
         database: storage.database,
         callKey: testCallKey,
-        events: await testEvents(storage.database),
+        events: await testEvents(storage.database, world),
         origin: {
             package: book.package,
         },
     });
-    const context = userContext(users.frank, spaceId);
+    const context = userContext(users.frank, spaceId, { environment: world });
     const run = <Object extends typeof shelf | typeof slip, Name extends CallableName<Object>>(
         object: Object,
         name: Name,
@@ -264,7 +280,7 @@ test("invoke methods as the space in a caller's call, writing objects the caller
             object,
             name,
             spaceId,
-            { requestId: RequestId.create(Date.now()), ...input },
+            { requestId: RequestId.create(world), ...input },
             context,
         );
 
@@ -282,7 +298,7 @@ test("invoke methods as the space in a caller's call, writing objects the caller
         .from(slip.table);
 
     // refuse a client pushing a method left out of its routes
-    const mutationId = RequestId.create(Date.now());
+    const mutationId = RequestId.create(world);
     const pushed = createRouterClient(store.router(), { context: context }).store.push({
         scope: spaceId,
         mutations: [
@@ -310,7 +326,7 @@ test("invoke methods as the space in a caller's call, writing objects the caller
                 outcome: {
                     error: {
                         code: "BAD_REQUEST",
-                        reason: "UNKNOWN_METHOD",
+                        reason: "METHOD_UNKNOWN",
                         domain: "@destack/object",
                         message: "unknown mutating method slip.issue",
                     },
@@ -321,47 +337,57 @@ test("invoke methods as the space in a caller's call, writing objects the caller
 });
 
 test("refuse input a method's schema rejects, read directly or invoked in a call, as its procedure refuses it", async () => {
-    const storage = await TestDatabase.create(shelfDatabase, { isMigrated: true });
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create(shelfDatabase, {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
-    await openSpace(storage.database, spaceId);
-    const store = new ObjectStore({
+    await openSpace(storage.database, world, spaceId);
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([book, shelf, slip]),
         database: storage.database,
         callKey: testCallKey,
-        events: await testEvents(storage.database),
+        events: await testEvents(storage.database, world),
         origin: { package: book.package },
     });
-    const context = userContext(users.frank, spaceId);
+    const context = userContext(users.frank, spaceId, { environment: world });
     const home = await store
         .mutate(context.access(), {
-            id: RequestId.create(Date.now()),
+            id: RequestId.create(world),
             calls: [shelf.call("create", { spaceId, name: "home" })],
         })
         .then(([written]) => written);
 
     // refuse a page of no books, and an invoked creation on an unnamed shelf, as callers see it
     expect([
-        await reported(store.query(context.access(), book.call("list", { spaceId, limit: 0 }))),
+        await reported(
+            store.query(context.access(), book.call("list", { spaceId, limit: 0 })),
+            world,
+        ),
         await reported(
             store
                 .mutate(context.access(), {
-                    id: RequestId.create(Date.now()),
+                    id: RequestId.create(world),
                     calls: [shelf.call("misfile", { spaceId, id: home.id })],
                 })
                 .then(([written]) => written),
+            world,
         ),
     ]).toEqual([
         [
             "BAD_REQUEST",
-            "INVALID_INPUT",
+            "INPUT_INVALID",
             "invalid input: limit: too small: expected number to be >=1",
         ],
         [
             "BAD_REQUEST",
-            "INVALID_INPUT",
+            "INPUT_INVALID",
             "invalid input: shelf: too small: expected string to have >=1 characters",
         ],
     ]);

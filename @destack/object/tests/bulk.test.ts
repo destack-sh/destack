@@ -1,3 +1,4 @@
+import { testSimulation } from "../src/test/index.ts";
 import { Package } from "@destack/package";
 import type { CallableName } from "../src/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
@@ -7,16 +8,16 @@ import { asc, defineDatabase, type DatabaseConnection } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { definePackage } from "@destack/object";
 import { schema, nth, type Identifier } from "@destack/schema";
-import { RequestId, ObjectReference } from "@destack/sync";
+import { RequestId, ObjectReference, Scope } from "@destack/sync";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { ObjectClient } from "../src/client/index.ts";
 import { defineObject, field } from "../src/index.ts";
-import { ObjectStore, implementPackage } from "../src/server/index.ts";
+import { implementPackage } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal, unmoved } from "./fixture/space.ts";
 import { userContext, users, userName } from "./fixture/user.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
-import { Clock } from "@destack/environment";
+import { Environment } from "@destack/environment";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
@@ -58,19 +59,22 @@ const labelDatabase = defineDatabase({
 });
 
 /** Serve the labels of the space to the user of each call. */
-async function serveLabels() {
+async function serveLabels(world: Environment) {
     // open the space and its store
-    const storage = await TestDatabase.create(labelDatabase, { isMigrated: true });
+    const storage = await TestDatabase.create(labelDatabase, {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
-    await openSpace(storage.database, spaceId);
-    const store = new ObjectStore({
+    await openSpace(storage.database, world, spaceId);
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([label]),
         database: storage.database,
         callKey: testCallKey,
-        events: await testEvents(storage.database),
+        events: await testEvents(storage.database, world),
         origin: { package: label.package },
     });
 
@@ -85,8 +89,8 @@ async function serveLabels() {
             label,
             name,
             spaceId,
-            { requestId: RequestId.create(Date.now()), ...input },
-            userContext(user, spaceId),
+            { requestId: RequestId.create(world), ...input },
+            userContext(user, spaceId, { environment: world }),
         );
     const read = async () =>
         (await rows(storage.database)).map(
@@ -103,10 +107,13 @@ function rows(database: DatabaseConnection) {
 }
 
 test("create one object per item in one call, returning their identifiers in item order", async () => {
-    const { storage, call } = await serveLabels();
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const { storage, call } = await serveLabels(world);
 
     // create three labels, one under a chosen identifier
-    const chosen = label.generateId();
+    const chosen = label.generateId(world);
     const created = await call(users.frank, "createMany", {
         items: [
             { name: "urgent", color: "red" },
@@ -136,7 +143,10 @@ test("create one object per item in one call, returning their identifiers in ite
 });
 
 test("refuse the whole batch for a taken unique name or an invalid item, reporting the item", async () => {
-    const { call, read } = await serveLabels();
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const { call, read } = await serveLabels(world);
     await call(users.frank, "create", { name: "urgent", color: "red" });
 
     // refuse a name another label has, one the batch takes twice, and an empty name
@@ -175,7 +185,7 @@ test("refuse the whole batch for a taken unique name or an invalid item, reporti
             ["CONFLICT", "DUPLICATE", "items.2: another label has the same scope and name"],
             [
                 "BAD_REQUEST",
-                "INVALID_INPUT",
+                "INPUT_INVALID",
                 "invalid input: items.1.name: too small: expected string to have >=1 characters",
             ],
         ],
@@ -184,7 +194,10 @@ test("refuse the whole batch for a taken unique name or an invalid item, reporti
 });
 
 test("delete the matching objects the caller may delete into the trash, passing trashed ones", async () => {
-    const { call, read } = await serveLabels();
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const { call, read } = await serveLabels(world);
 
     // create two red and one blue label of frank, and a red one of grace
     await call(users.frank, "createMany", {
@@ -213,18 +226,21 @@ test("delete the matching objects the caller may delete into the trash, passing 
 });
 
 test("undo a bulk creation by deleting each created object on the device and the server", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // serve the labels of a space
-    const { storage } = await serveLabels();
+    const { storage } = await serveLabels(world);
     const labels = definePackage({ objects: { label } });
     const served = TestObjectStore.serve(
-        new ObjectStore({
+        await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
             servers: [implementPackage(labels, {})],
             chain: async () => undefined,
-            clock: Clock.system,
+            environment: world,
             origin: { package: Package.of(labels) },
             principal: spacePrincipal(spaceId),
             callKey: testCallKey,
-            events: await testEvents(storage.database),
+            events: await testEvents(storage.database, world),
             database: storage.database,
         }),
     );
@@ -232,12 +248,13 @@ test("undo a bulk creation by deleting each created object on the device and the
 
     // store the space's labels on a device that pushes and follows
     const local = await TestDatabase.create(ObjectClient.tables({ label }), {
+        environment: world,
         dialect: "sqlite",
         storage: "file",
     });
     onTestFinished(() => local.close());
     const client = await ObjectClient.open({
-        clock: Clock.system,
+        environment: world,
         database: local.database,
         objects: { label },
         scope: spaceId,
@@ -297,10 +314,13 @@ test("undo a bulk creation by deleting each created object on the device and the
 });
 
 test("run a sent createMany once though it arrives twice, replaying its request", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // deliver the same sent mutation twice as frank
-    const { store, read } = await serveLabels();
+    const { store, read } = await serveLabels(world);
     const sent = {
-        id: RequestId.create(Date.now()),
+        id: RequestId.create(store.environment),
         calls: [
             label.call("createMany", {
                 spaceId,
@@ -327,7 +347,10 @@ function items(size: number) {
 }
 
 test("create and trash a thousand objects in as many statements as one object", async () => {
-    const { storage, call } = await serveLabels();
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const { storage, call } = await serveLabels(world);
     const state = storage.database.driver.state;
 
     // create two labels first, warming the shared access reads
@@ -360,7 +383,10 @@ test("create and trash a thousand objects in as many statements as one object", 
 });
 
 test("update listed objects at their revisions in one call, and refuse the whole batch for one stale revision or one the caller may not change", async () => {
-    const { storage, call, read } = await serveLabels();
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const { storage, call, read } = await serveLabels(world);
     const { ids } = await call(users.frank, "createMany", {
         items: [
             { name: "urgent", color: "red" },
@@ -404,7 +430,7 @@ test("update listed objects at their revisions in one call, and refuse the whole
     expect({ updated, refusals, labels: await read(), revisions }).toEqual({
         updated: { count: 2 },
         refusals: [
-            ["CONFLICT", "STALE_REVISION", "label revision has changed"],
+            ["CONFLICT", "REVISION_STALE", "label revision has changed"],
             ["NOT_FOUND", "NOT_FOUND", "label not found"],
         ],
         labels: ["grace alarm red live", "frank later green live", "frank urgent green live"],

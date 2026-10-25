@@ -1,3 +1,6 @@
+import { TestObjectStore } from "../src/test/index.ts";
+import type { Environment } from "@destack/environment";
+import { testSimulation } from "../src/test/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { testCallKey } from "@destack/object/test";
 import { reconciliation, TestDatabase } from "@destack/db/test";
@@ -24,10 +27,9 @@ import {
     desiredState,
     type ResourceRow,
 } from "../src/index.ts";
-import { DRAINING, ObjectStore } from "../src/server/index.ts";
+import { DRAINING } from "../src/server/index.ts";
 import { claim, serveClaims } from "./fixture/claim.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
-import { Clock } from "@destack/environment";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 
@@ -163,20 +165,29 @@ class Boxes {
 }
 
 /** Digest each desired state of a box. */
-function digests(states: readonly { size: number }[]): Promise<string[]> {
-    return Promise.all(states.map((state) => Digest.json(state)));
+function digests(
+    states: readonly { size: number }[],
+    crypto: Environment["crypto"],
+): Promise<Digest[]> {
+    return Promise.all(states.map((state) => Digest.json(state, crypto)));
 }
 
 /** Serve the boxes and links of an open space with their providers. */
-async function serve(boxes: Boxes) {
+async function serve(world: Environment, boxes: Boxes) {
     // open the database with the space
-    const storage = await TestDatabase.create(boxDatabase, { isMigrated: true });
+    const storage = await TestDatabase.create(boxDatabase, {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     const database = storage.database;
-    await openSpace(database, spaceId);
-    await database
-        .insert(space.table)
-        .values({ id: spaceId, scope: "universe", createdAt: 1, updatedAt: 1 });
+    await openSpace(database, world, spaceId);
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .insert(space.table)
+                .values({ id: spaceId, scope: "universe", createdAt: 1, updatedAt: 1 }),
+    );
 
     // store the claims of the resource names in the universe
     const universe = await TestDatabase.create(
@@ -189,9 +200,7 @@ async function serve(boxes: Boxes) {
                 }).tables,
             ),
         ],
-        {
-            isMigrated: true,
-        },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => universe.close());
 
@@ -200,16 +209,16 @@ async function serve(boxes: Boxes) {
         typeof LinkKind,
         typeof link
     >;
-    const store = new ObjectStore({
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([box, link], { providers: [boxes.provider(), links] }),
         machine: machineId,
         database,
-        claims: await serveClaims(universe.database, Clock.system),
+        claims: await serveClaims(universe.database, world),
         callKey: testCallKey,
-        events: await testEvents(database),
+        events: await testEvents(database, world),
         origin: { package: box.package },
     });
 
@@ -222,7 +231,7 @@ async function serve(boxes: Boxes) {
 
         return controller.reconcile(
             canonicalize({ id }),
-            reconciliation(AbortSignal.timeout(5000)),
+            reconciliation(world.clock.timeout(5000)),
         );
     };
     const read = async (id: typeof ids.first) =>
@@ -238,14 +247,14 @@ async function serve(boxes: Boxes) {
         await Transaction.run(database, async (transaction) => {
             await DesiredState.upsert(transaction, spaceId, [...states, ...drainingStates]);
             await store.mutate(
-                AccessContext.of(Caller.of(spacePrincipal(spaceId)), Date.now()),
+                AccessContext.of(Caller.of(spacePrincipal(spaceId)), world.clock.now()),
                 {
-                    id: RequestId.create(Date.now()),
+                    id: RequestId.create(world),
                     calls: [
                         box.call("specify", {
                             ...box.target(row),
-                            states: await digests(states),
-                            drainingStates: await digests(drainingStates),
+                            states: await digests(states, world.crypto),
+                            drainingStates: await digests(drainingStates, world.crypto),
                             approval: declared.approval,
                         }),
                     ],
@@ -259,17 +268,23 @@ async function serve(boxes: Boxes) {
 }
 
 test("provision a box, apply its consumers' growth, and apply a destructive shrink only once its plan is approved", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     const boxes = new Boxes();
-    const { store, database, reconcile, read, want } = await serve(boxes);
-    const now = Date.now();
-    await database.insert(box.table).values({
-        ...declared,
-        approval: null,
-        id: ids.first,
-        name: "first",
-        createdAt: now,
-        updatedAt: now,
-    });
+    const { store, database, reconcile, read, want } = await serve(world, boxes);
+    const now = world.clock.now();
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(box.table).values({
+                ...declared,
+                approval: null,
+                id: ids.first,
+                name: "first",
+                createdAt: now,
+                updatedAt: now,
+            }),
+    );
 
     // leave the box alone until its space sets its approval threshold, and while a transfer fences its space
     await reconcile("box", ids.first);
@@ -295,22 +310,25 @@ test("provision a box, apply its consumers' growth, and apply a destructive shri
 
     // apply the approved plan and forget the approval
     const plan = present(waiting.plan, "the waiting plan");
-    await database
-        .update(box.table)
-        .set({ approvedPlan: await Plan.digest(plan) })
-        .where(eq(box.table.id, ids.first));
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .update(box.table)
+                .set({ approvedPlan: await Plan.digest(plan, world.crypto) })
+                .where(eq(box.table.id, ids.first)),
+    );
     await reconcile("box", ids.first);
     const shrunk = present(await read(ids.first), "the shrunk box");
 
     // store the one state the box needs, and refuse a digest of a state the space lacks
     const stored = await database.select({ state: desiredState.state }).from(desiredState);
     const unknown = await refusal(
-        store.mutate(AccessContext.of(Caller.of(spacePrincipal(spaceId)), Date.now()), {
-            id: RequestId.create(Date.now()),
+        store.mutate(AccessContext.of(Caller.of(spacePrincipal(spaceId)), world.clock.now()), {
+            id: RequestId.create(store.environment),
             calls: [
                 box.call("specify", {
                     ...box.target(shrunk),
-                    states: await digests([{ size: 4 }]),
+                    states: await digests([{ size: 4 }], world.crypto),
                     drainingStates: [],
                     approval: declared.approval,
                 }),
@@ -326,11 +344,11 @@ test("provision a box, apply its consumers' growth, and apply a destructive shri
             grown.provider,
             grown.reference,
             grown.machineId,
-            grown.conditions["ready"]?.reason,
+            grown.conditions["Ready"]?.reason,
         ],
-        waiting: [waiting.conditions["ready"]?.reason, plan.steps],
+        waiting: [waiting.conditions["Ready"]?.reason, plan.steps],
         unchanged,
-        shrunk: [shrunk.conditions["ready"]?.reason, shrunk.approvedPlan, shrunk.plan],
+        shrunk: [shrunk.conditions["Ready"]?.reason, shrunk.approvedPlan, shrunk.plan],
         sizes: [...boxes.sizes],
         stored,
         unknown,
@@ -355,23 +373,29 @@ test("provision a box, apply its consumers' growth, and apply a destructive shri
         stored: [{ state: { size: 1 } }],
         unknown: [
             "BAD_REQUEST",
-            "MISSING_DESIRED_STATE",
-            `${spaceId} has no desired states ${await Digest.json({ size: 4 })}`,
+            "DESIRED_STATE_MISSING",
+            `${spaceId} has no desired states ${await Digest.json({ size: 4 }, world.crypto)}`,
         ],
     });
 });
 
 test("recreate a box without the states only draining consumers need once approved, draining until they stop", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     const boxes = new Boxes();
-    const { database, reconcile, read, want } = await serve(boxes);
-    const now = Date.now();
-    await database.insert(box.table).values({
-        ...declared,
-        id: ids.first,
-        name: "first",
-        createdAt: now,
-        updatedAt: now,
-    });
+    const { database, reconcile, read, want } = await serve(world, boxes);
+    const now = world.clock.now();
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(box.table).values({
+                ...declared,
+                id: ids.first,
+                name: "first",
+                createdAt: now,
+                updatedAt: now,
+            }),
+    );
     await want(ids.first, [{ size: 2 }]);
     await reconcile("box", ids.first);
 
@@ -382,10 +406,13 @@ test("recreate a box without the states only draining consumers need once approv
     const plan = present(waiting.plan, "the recreation plan");
 
     // report draining once approved, leaving the size until the draining consumers stop
-    await database
-        .update(box.table)
-        .set({ approvedPlan: await Plan.digest(plan) })
-        .where(eq(box.table.id, ids.first));
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .update(box.table)
+                .set({ approvedPlan: await Plan.digest(plan, world.crypto) })
+                .where(eq(box.table.id, ids.first)),
+    );
     await reconcile("box", ids.first);
     const draining = present(await read(ids.first), "the draining box");
     const sizeWhileDraining = boxes.sizes.get(ids.first);
@@ -412,29 +439,44 @@ test("recreate a box without the states only draining consumers need once approv
 });
 
 test("retain a deleted box for its window, retain it while an installation consumes it, then destroy it", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     const boxes = new Boxes();
-    const { database, reconcile, read } = await serve(boxes);
-    const now = Date.now();
-    await database.insert(box.table).values({
-        ...declared,
-        id: ids.first,
-        name: "first",
-        retention: { within: { days: 1 } },
-        createdAt: now,
-        updatedAt: now,
-    });
+    const { database, reconcile, read } = await serve(world, boxes);
+    const now = world.clock.now();
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(box.table).values({
+                ...declared,
+                id: ids.first,
+                name: "first",
+                retention: { within: { days: 1 } },
+                createdAt: now,
+                updatedAt: now,
+            }),
+    );
     await reconcile("box", ids.first);
 
     // retain the box and its content within its day
-    await database.update(box.table).set({ deletedAt: now }).where(eq(box.table.id, ids.first));
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .update(box.table)
+                .set({ deletedAt: now })
+                .where(eq(box.table.id, ids.first)),
+    );
     const wait = present(await reconcile("box", ids.first), "the wait until the window ends");
-    const retained = present(await read(ids.first), "the retained box").conditions["ready"];
+    const retained = present(await read(ids.first), "the retained box").conditions["Ready"];
 
     // retain it past its day while an installation consumes it
-    await database
-        .update(box.table)
-        .set({ deletedAt: now - 2 * 86_400_000 })
-        .where(eq(box.table.id, ids.first));
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .update(box.table)
+                .set({ deletedAt: now - 2 * 86_400_000 })
+                .where(eq(box.table.id, ids.first)),
+    );
     const consumer = Relationship.encode({
         id: schema
             .identifier("relationship")
@@ -445,12 +487,19 @@ test("retain a deleted box for its window, retain it while an installation consu
         createdAt: now,
         expiresAt: null,
     });
-    await database.insert(accessRelationship).values(consumer);
+    await database.transaction(
+        async (transaction) => await transaction.insert(accessRelationship).values(consumer),
+    );
     await reconcile("box", ids.first);
-    const used = present(await read(ids.first), "the used box").conditions["ready"];
+    const used = present(await read(ids.first), "the used box").conditions["Ready"];
 
     // destroy its content and finish its deletion once unused
-    await database.delete(accessRelationship).where(eq(accessRelationship.id, consumer.id));
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .delete(accessRelationship)
+                .where(eq(accessRelationship.id, consumer.id)),
+    );
     await reconcile("box", ids.first);
     expect({
         retained: [retained?.reason, wait > 86_000_000 && wait <= 86_400_000],
@@ -464,16 +513,22 @@ test("retain a deleted box for its window, retain it while an installation consu
 });
 
 test("record a failed provisioning, and provision on the next attempt", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     const boxes = new Boxes();
-    const { database, reconcile, read } = await serve(boxes);
-    const now = Date.now();
-    await database.insert(box.table).values({
-        ...declared,
-        id: ids.first,
-        name: "first",
-        createdAt: now,
-        updatedAt: now,
-    });
+    const { database, reconcile, read } = await serve(world, boxes);
+    const now = world.clock.now();
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(box.table).values({
+                ...declared,
+                id: ids.first,
+                name: "first",
+                createdAt: now,
+                updatedAt: now,
+            }),
+    );
 
     // record and throw the failure and provision on the next attempt
     boxes.failures = 1;
@@ -481,9 +536,9 @@ test("record a failed provisioning, and provision on the next attempt", async ()
         () => "reconciled",
         (error: unknown) => (error instanceof Error ? error.message : error),
     );
-    const failure = present(await read(ids.first), "the failed box").conditions["ready"];
+    const failure = present(await read(ids.first), "the failed box").conditions["Ready"];
     await reconcile("box", ids.first);
-    const provisioned = present(await read(ids.first), "the provisioned box").conditions["ready"];
+    const provisioned = present(await read(ids.first), "the provisioned box").conditions["Ready"];
     expect({
         failed: [failed, failure?.reason, failure?.message],
         provisioned: provisioned?.reason,
@@ -496,26 +551,38 @@ test("record a failed provisioning, and provision on the next attempt", async ()
 });
 
 test("refuse provisioning through a provider that provisions nothing, and finish a deletion without destroying", async () => {
-    const { database, reconcile } = await serve(new Boxes());
-    const now = Date.now();
-    await database.insert(link.table).values({
-        ...declared,
-        id: ids.link,
-        name: "link",
-        definitionName: "link",
-        retention: "delete",
-        createdAt: now,
-        updatedAt: now,
-    });
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const { database, reconcile } = await serve(world, new Boxes());
+    const now = world.clock.now();
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(link.table).values({
+                ...declared,
+                id: ids.link,
+                name: "link",
+                definitionName: "link",
+                retention: "delete",
+                createdAt: now,
+                updatedAt: now,
+            }),
+    );
     const readLink = async () =>
         (await database.select().from(link.table).where(eq(link.table.id, ids.link)))[0];
 
     // observe that the provider provisions nothing
     await reconcile("link", ids.link);
-    const refused = present(await readLink(), "the link").conditions["ready"];
+    const refused = present(await readLink(), "the link").conditions["Ready"];
 
     // finish its deletion without destroying anything
-    await database.update(link.table).set({ deletedAt: now }).where(eq(link.table.id, ids.link));
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .update(link.table)
+                .set({ deletedAt: now })
+                .where(eq(link.table.id, ids.link)),
+    );
     await reconcile("link", ids.link);
     expect([refused?.reason, refused?.message, await readLink()]).toEqual([
         "NoProvisioning",
@@ -525,11 +592,14 @@ test("refuse provisioning through a provider that provisions nothing, and finish
 });
 
 test("set a resource's name after another kind's resource in its space, refusing a second of its kind", async () => {
-    const { store } = await serve(new Boxes());
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const { store } = await serve(world, new Boxes());
     const { scope, approval: _approval, ...written } = declared;
     const create = (kind: typeof box | typeof link) =>
-        store.mutate(AccessContext.of(Caller.of(spacePrincipal(spaceId)), Date.now()), {
-            id: RequestId.create(Date.now()),
+        store.mutate(AccessContext.of(Caller.of(spacePrincipal(spaceId)), world.clock.now()), {
+            id: RequestId.create(store.environment),
             calls: [kind.call("create", { ...kind.in(scope), ...written, name: "main" })],
         });
 
@@ -546,5 +616,5 @@ test("set a resource's name after another kind's resource in its space, refusing
 
 /** Read a box's ready reason and draining status. */
 function conditions(row: { readonly conditions: ResourceRow["conditions"] }) {
-    return [row.conditions["ready"]?.reason, row.conditions[DRAINING]?.status] as const;
+    return [row.conditions["Ready"]?.reason, row.conditions[DRAINING]?.status] as const;
 }

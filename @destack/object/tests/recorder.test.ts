@@ -41,7 +41,7 @@ test("commit and roll back application changes with their recorded calls", async
     let storage = await AuditStorage.open();
     try {
         // roll back application state and recorded calls together
-        const failure = ObjectError.of("INVALID_CALL", "cancel change");
+        const failure = ObjectError.of("CALL_INVALID", "cancel change");
         await expect(
             storage.database.transaction(async (transaction) => {
                 await transaction.insert(document).values({ name: "rolled back" });
@@ -175,10 +175,14 @@ test("replay derived requests of one key at different times as one request, and 
     const storage = await AuditStorage.open();
     try {
         // record a call under a request derived for a key
-        const now = Date.now();
-        const first = await RequestId.derive(now - 60_000, "trigger-1 event-1");
-        const later = await RequestId.derive(now, "trigger-1 event-1");
-        const other = await RequestId.derive(now, "trigger-1 event-2");
+        const now = storage.simulation.clock.now();
+        const first = await RequestId.derive(
+            now - 60_000,
+            "trigger-1 event-1",
+            storage.environment.crypto,
+        );
+        const later = await RequestId.derive(now, "trigger-1 event-1", storage.environment.crypto);
+        const other = await RequestId.derive(now, "trigger-1 event-2", storage.environment.crypto);
         const request = { caller: "machine-1", position: 0, digest: "digest-1" };
         await storage.recorder.record(
             undefined,

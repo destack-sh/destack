@@ -43,7 +43,7 @@ test("trash a folder's pages with it, restore only the ones trashed with it, ref
     });
     const client = objects.as(users.alice).client(pagesPackage);
     const spaceId = objects.scope;
-    const request = () => ({ spaceId, requestId: RequestId.create(Date.now()) });
+    const request = () => ({ spaceId, requestId: RequestId.create(objects.environment) });
     const kept = await client.folder.create({ ...request(), name: "Plans" });
     await client.page.create({ ...request(), parentId: kept.id, title: "First" });
     const second = await client.page.create({ ...request(), parentId: kept.id, title: "Second" });
@@ -77,7 +77,7 @@ test("trash a folder's pages with it, restore only the ones trashed with it, ref
             ["First", folderDeleted],
             ["Second", secondDeleted],
         ],
-        refused: ["CONFLICT", "IN_TRASH", `folder ${kept.id} is in the trash`],
+        refused: ["CONFLICT", "OBJECT_TRASHED", `folder ${kept.id} is in the trash`],
         restored: [
             ["First", "live"],
             ["Second", secondDeleted],

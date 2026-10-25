@@ -1,3 +1,4 @@
+import { testSimulation } from "../src/test/index.ts";
 import { users } from "./fixture/user.ts";
 import {
     AccessContext,
@@ -28,14 +29,15 @@ import { ResourceContext } from "@destack/resource/context";
 import { Identifier, schema } from "@destack/schema";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { defineObject, defineShape, field, Follow, QUERIES_PUBLICATION } from "../src/index.ts";
-import { implementPackage, ObjectStore } from "../src/server/index.ts";
+import { implementPackage } from "../src/server/index.ts";
 import { definePackage } from "@destack/object";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { spaceId } from "./fixture/device.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
-import { Clock } from "@destack/environment";
+import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/access/token";
 import { tablesOf } from "../src/stack/db.ts";
 import objectPackage from "../src/package.ts";
+import { TestObjectStore } from "../src/test/index.ts";
 
 /** A mention of a person in a space, readable by that person wherever a replica has it. */
 const mention = defineObject(
@@ -79,7 +81,63 @@ const mentionShape = defineShape({
     queries: () => [mention.query({})],
 });
 
+test("refuse a follow whose caller's credential lapsed before its first page, for the follower to resume anew", async () => {
+    // serve a space's mentions on a simulated clock
+    const simulation = testSimulation(Date.UTC(2026, 9, 1));
+    const { clock } = simulation;
+    const world = simulation.environment("test");
+    const storage = await TestDatabase.create(
+        tablesOf({
+            packages: [objectPackage, { objects: { mention }, tables: [] }],
+            follows: [],
+            tables: [...replicaTables],
+        }).tables,
+        { environment: world, isMigrated: true },
+    );
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    await openSpace(database, world, spaceId);
+    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
+        chain: async () => undefined,
+        environment: world,
+        principal: spacePrincipal(spaceId),
+        servers: serversOf([mention]),
+        database,
+        callKey: testCallKey,
+        events: await testEvents(database, world),
+        origin: { package: mention.package },
+    });
+
+    // sign alice in, let her credential lapse, then follow the space's mentions as her
+    const alice = principal.user.reference("universe", users.alice);
+    const following = new AbortController();
+    onTestFinished(() => following.abort());
+    const context = subjectContext(alice, spaceId, {
+        signal: following.signal,
+        environment: world,
+    });
+    clock.advance(TOKEN_LIFETIME_MILLISECONDS);
+    await Promise.resolve();
+    const pages = store.source.relayed(
+        store.source.queriesPublication.subscription({
+            name: "objects",
+            scope: spaceId,
+            target: spaceId,
+            parameters: { queries: { mentions: { object: "mention" } } },
+        }),
+        context,
+    );
+    expect(await refusal(pages.next())).toEqual([
+        "UNAUTHORIZED",
+        "CREDENTIAL_LAPSED",
+        "the caller's credential lapsed",
+    ]);
+});
+
 test("list and follow the mentions a home has as replicas of another space, from the moment the replica appears", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // store a mention of alice in another space beside her home, both readable by anyone
     const storage = await TestDatabase.create(
         tablesOf({
@@ -87,28 +145,28 @@ test("list and follow the mentions a home has as replicas of another space, from
             follows: [],
             tables: [...replicaTables],
         }).tables,
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
     const { database } = storage;
-    const other = Identifier.create("space");
-    await openSpace(database, spaceId);
-    await openSpace(database, other);
-    const store = new ObjectStore({
+    const other = Identifier.create("space", world);
+    await openSpace(database, world, spaceId);
+    await openSpace(database, world, other);
+    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([mention]),
         database,
         callKey: testCallKey,
-        events: await testEvents(database),
+        events: await testEvents(database, world),
         origin: { package: mention.package },
     });
     const alice = principal.user.reference("universe", users.alice);
     const [created] = await store.mutate(
-        AccessContext.of(Caller.of(spacePrincipal(other)), Date.now()),
+        AccessContext.of(Caller.of(spacePrincipal(other)), world.clock.now()),
         {
-            id: RequestId.create(Date.now()),
+            id: RequestId.create(world),
             calls: [
                 mention.call("create", {
                     spaceId: other,
@@ -126,7 +184,7 @@ test("list and follow the mentions a home has as replicas of another space, from
             .looseObject({ items: schema.array(schema.looseObject({ id: schema.string() })) })
             .parse(
                 await store.query(
-                    AccessContext.of(Caller.of(alice), Date.now()),
+                    AccessContext.of(Caller.of(alice), world.clock.now()),
                     mention.call("list", { spaceId }),
                 ),
             );
@@ -142,7 +200,7 @@ test("list and follow the mentions a home has as replicas of another space, from
             target: spaceId,
             parameters: { queries: { mentions: { object: "mention" } } },
         }),
-        subjectContext(alice, spaceId, { signal: following.signal }),
+        subjectContext(alice, spaceId, { environment: world, signal: following.signal }),
     );
     const first = await pages.next();
     const before = await listed();
@@ -199,6 +257,9 @@ test("list and follow the mentions a home has as replicas of another space, from
 });
 
 test("follow a person's mentions on their behalf as the home they relate, and refuse another space", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // store mentions of alice and bob in a space, and relate alice's home as her home
     const storage = await TestDatabase.create(
         tablesOf({
@@ -206,28 +267,28 @@ test("follow a person's mentions on their behalf as the home they relate, and re
             follows: [],
             tables: [...replicaTables],
         }).tables,
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
     const { database } = storage;
-    const home = Identifier.create("space");
-    const stranger = Identifier.create("space");
-    await openSpace(database, spaceId);
-    const store = new ObjectStore({
+    const home = Identifier.create("space", world);
+    const stranger = Identifier.create("space", world);
+    await openSpace(database, world, spaceId);
+    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([mention, person]),
         database,
         callKey: testCallKey,
-        events: await testEvents(database),
+        events: await testEvents(database, world),
         origin: { package: mention.package },
     });
-    const aliceId = Identifier.create("user");
+    const aliceId = Identifier.create("user", world);
     const alice = principal.user.reference("universe", aliceId);
-    const bob = principal.user.reference("universe", Identifier.create("user"));
-    await store.mutate(AccessContext.of(Caller.of(spacePrincipal(spaceId)), Date.now()), {
-        id: RequestId.create(Date.now()),
+    const bob = principal.user.reference("universe", Identifier.create("user", world));
+    await store.mutate(AccessContext.of(Caller.of(spacePrincipal(spaceId)), world.clock.now()), {
+        id: RequestId.create(world),
         calls: [alice, bob].map((recipient) =>
             mention.call("create", {
                 spaceId,
@@ -236,10 +297,13 @@ test("follow a person's mentions on their behalf as the home they relate, and re
             }),
         ),
     });
-    await database
-        .insert(person.table)
-        .values({ id: aliceId, scope: "universe", createdAt: 0, updatedAt: 0 });
-    await new AccessFixture(database).replicateRelationship(
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .insert(person.table)
+                .values({ id: aliceId, scope: "universe", createdAt: 0, updatedAt: 0 }),
+    );
+    await new AccessFixture(database, world).replicateRelationship(
         person.reference("universe", aliceId),
         "home",
         spacePrincipal(home),
@@ -259,7 +323,10 @@ test("follow a person's mentions on their behalf as the home they relate, and re
     const following = new AbortController();
     onTestFinished(() => following.abort());
     const as = (principalOf: string) =>
-        subjectContext(spacePrincipal(principalOf), spaceId, { signal: following.signal });
+        subjectContext(spacePrincipal(principalOf), spaceId, {
+            environment: world,
+            signal: following.signal,
+        });
 
     // decide the home's page for alice alone, and refuse a space alice does not relate
     expect(await first(as(home))).toEqual([["insert", alice.id]]);
@@ -269,6 +336,9 @@ test("follow a person's mentions on their behalf as the home they relate, and re
 });
 
 test("allow a home's follow on its person's behalf with a token bound to the followed space, and refuse a token without the person's home set", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // store a mention of alice in a space, and her user row without any relationship
     const storage = await TestDatabase.create(
         tablesOf({
@@ -276,25 +346,25 @@ test("allow a home's follow on its person's behalf with a token bound to the fol
             follows: [],
             tables: [...replicaTables],
         }).tables,
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
     const { database } = storage;
-    await openSpace(database, spaceId);
-    const store = new ObjectStore({
+    await openSpace(database, world, spaceId);
+    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([mention, person]),
         database,
         callKey: testCallKey,
-        events: await testEvents(database),
+        events: await testEvents(database, world),
         origin: { package: mention.package },
     });
-    const aliceId = Identifier.create("user");
+    const aliceId = Identifier.create("user", world);
     const alice = principal.user.reference("universe", aliceId);
-    await store.mutate(AccessContext.of(Caller.of(spacePrincipal(spaceId)), Date.now()), {
-        id: RequestId.create(Date.now()),
+    await store.mutate(AccessContext.of(Caller.of(spacePrincipal(spaceId)), world.clock.now()), {
+        id: RequestId.create(world),
         calls: [
             mention.call("create", {
                 spaceId,
@@ -303,17 +373,20 @@ test("allow a home's follow on its person's behalf with a token bound to the fol
             }),
         ],
     });
-    await database
-        .insert(person.table)
-        .values({ id: aliceId, scope: "universe", createdAt: 0, updatedAt: 0 });
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .insert(person.table)
+                .values({ id: aliceId, scope: "universe", createdAt: 0, updatedAt: 0 }),
+    );
 
     // follow alice's mentions as her home with a token bound to the followed space, stating its sets
-    const home = spacePrincipal(Identifier.create("space"));
+    const home = spacePrincipal(Identifier.create("space", world));
     const subscription = mentionShape.subscription({ scope: spaceId }, home.id, alice);
     const following = new AbortController();
     onTestFinished(() => following.abort());
     const bound = (sets: readonly Subject[]) => {
-        const now = Date.now();
+        const now = world.clock.now();
         const request = new Request("https://test.local", { signal: following.signal });
 
         return new RequestContext(request, {
@@ -331,7 +404,7 @@ test("allow a home's follow on its person's behalf with a token bound to the fol
                 },
             },
             resources: new ResourceContext(),
-            clock: Clock.system,
+            environment: world,
         });
     };
     const first = async (context: RequestContext) => {
@@ -355,6 +428,9 @@ test("allow a home's follow on its person's behalf with a token bound to the fol
 });
 
 test("refuse an anonymous follower of a subject's shape as unauthenticated, and another subject as forbidden", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // serve a space's mentions and the people a home follows them for
     const storage = await TestDatabase.create(
         tablesOf({
@@ -362,42 +438,47 @@ test("refuse an anonymous follower of a subject's shape as unauthenticated, and 
             follows: [],
             tables: [...replicaTables],
         }).tables,
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
     const { database } = storage;
-    await openSpace(database, spaceId);
-    const store = new ObjectStore({
+    await openSpace(database, world, spaceId);
+    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([mention, person]),
         database,
         callKey: testCallKey,
-        events: await testEvents(database),
+        events: await testEvents(database, world),
         origin: { package: mention.package },
     });
 
     // follow alice's mentions without a credential, then as a space she does not relate
-    const alice = principal.user.reference("universe", Identifier.create("user"));
+    const alice = principal.user.reference("universe", Identifier.create("user", world));
     const subscription = mentionShape.subscription({ scope: spaceId }, spaceId, alice);
     const first = (context: RequestContext) => store.source.relayed(subscription, context).next();
     const anonymous = new RequestContext(new Request("https://test.local"), {
         audience: mention.package.id,
         scope: spaceId,
         resources: new ResourceContext(),
-        clock: Clock.system,
+        environment: world,
     });
-    const stranger = subjectContext(spacePrincipal(Identifier.create("space")), spaceId);
+    const stranger = subjectContext(spacePrincipal(Identifier.create("space", world)), spaceId, {
+        environment: world,
+    });
 
     // ask the anonymous follower to authenticate, and deny the authenticated stranger
     expect([await refusal(first(anonymous)), await refusal(first(stranger))]).toEqual([
-        ["UNAUTHORIZED", "MISSING_CREDENTIAL", "missing caller credential"],
+        ["UNAUTHORIZED", "CREDENTIAL_MISSING", "missing caller credential"],
         ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: follow"],
     ]);
 });
 
 test("refuse a follow with malformed chain parameters as a bad request", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // serve a space's mentions
     const storage = await TestDatabase.create(
         tablesOf({
@@ -405,19 +486,19 @@ test("refuse a follow with malformed chain parameters as a bad request", async (
             follows: [],
             tables: [...replicaTables],
         }).tables,
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
     const { database } = storage;
-    await openSpace(database, spaceId);
-    const store = new ObjectStore({
+    await openSpace(database, world, spaceId);
+    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([mention]),
         database,
         callKey: testCallKey,
-        events: await testEvents(database),
+        events: await testEvents(database, world),
         origin: { package: mention.package },
     });
 
@@ -432,18 +513,24 @@ test("refuse a follow with malformed chain parameters as a bad request", async (
             target: spaceId,
             parameters: { local: [] },
         },
-        subjectContext(spacePrincipal(spaceId), spaceId, { signal: following.signal }),
+        subjectContext(spacePrincipal(spaceId), spaceId, {
+            environment: world,
+            signal: following.signal,
+        }),
     );
 
     // refuse the parameters as the follower's bad input, listing the missing fields
     expect(await refusal(pages.next())).toEqual([
         "BAD_REQUEST",
-        "INVALID_INPUT",
+        "INPUT_INVALID",
         "invalid input: scopes: invalid input: expected array, received undefined; types: invalid input: expected array, received undefined; via: invalid input: expected array, received undefined; between: invalid input: expected array, received undefined",
     ]);
 });
 
 test("answer a replicated type's query over its replica rows, and refuse its mutations", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // store a realm's row as a replica of its home, enclosing the notes the store serves
     const realm = defineObject(
         {
@@ -486,42 +573,45 @@ test("answer a replicated type's query over its replica rows, and refuse its mut
                 tables: [],
             }),
         }),
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
     const { database } = storage;
-    const realmId = Identifier.create("realm");
+    const realmId = Identifier.create("realm", world);
     const owner = principal.user.reference(Scope.universe.id, users.owner);
-    const access = new AccessFixture(database);
+    const access = new AccessFixture(database, world);
     await access.replicateScope(realm.reference(Scope.universe.id, realmId), realm.policy);
-    await access.bindOwner(realm.reference(Scope.universe.id, realmId), owner);
-    await database.insert(realm.table).values({
-        id: realmId,
-        scope: Scope.universe.id,
-        title: "Atlas",
-        createdAt: 1,
-        updatedAt: 1,
-    });
+    await access.replicateOwner(realm.reference(Scope.universe.id, realmId), owner);
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(realm.table).values({
+                id: realmId,
+                scope: Scope.universe.id,
+                title: "Atlas",
+                createdAt: 1,
+                updatedAt: 1,
+            }),
+    );
 
     // serve the notes, which make the enclosing realm known
-    const store = new ObjectStore({
+    const store = await TestObjectStore.at(space.reference(Scope.universe.id, realmId), {
         servers: [implementPackage(definePackage({ objects: { note } }), {})],
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(realmId),
         database,
         callKey: testCallKey,
-        events: await testEvents(database),
+        events: await testEvents(database, world),
         origin: { package: note.package },
     });
 
     // answer the realm's query as its owner, and refuse renaming it, which its home does
-    const caller = subjectContext(owner, realmId).access();
+    const caller = subjectContext(owner, realmId, { environment: world }).access();
     expect({
         described: await store.query(caller, realm.call("describe", { id: realmId })),
         renamed: await refusal(
             store.mutate(caller, {
-                id: RequestId.create(Date.now()),
+                id: RequestId.create(world),
                 calls: [realm.call("rename", { id: realmId, title: "Globe" })],
             }),
         ),
@@ -536,6 +626,9 @@ test("answer a replicated type's query over its replica rows, and refuse its mut
 });
 
 test("replicate only the rows a query's permission allows, drop a row once the follower loses it, and refuse an undeclared permission", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // store two loans alice reads, the first one hers to use
     const loan = defineObject(
         {
@@ -578,29 +671,27 @@ test("replicate only the rows a query's permission allows, drop a row once the f
             follows: [],
             tables: [],
         }).tables,
-        {
-            isMigrated: true,
-        },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
     const { database } = storage;
-    await openSpace(database, spaceId);
-    const store = new ObjectStore({
+    await openSpace(database, world, spaceId);
+    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([loan]),
         database,
         callKey: testCallKey,
-        events: await testEvents(database),
+        events: await testEvents(database, world),
         origin: { package: loan.package },
     });
     const alice = principal.user.reference("universe", users.alice);
     const bob = principal.user.reference("universe", users.bob);
-    const self = AccessContext.of(Caller.of(spacePrincipal(spaceId)), Date.now());
+    const self = AccessContext.of(Caller.of(spacePrincipal(spaceId)), world.clock.now());
     const create = async (title: string, consumer: Subject) => {
         const [created] = await store.mutate(self, {
-            id: RequestId.create(Date.now()),
+            id: RequestId.create(world),
             calls: [
                 loan.call("create", {
                     spaceId,
@@ -628,7 +719,7 @@ test("replicate only the rows a query's permission allows, drop a row once the f
             target: spaceId,
             parameters: { queries: { loans: loan.query({ permission: "use" }) } },
         }),
-        subjectContext(alice, spaceId, { signal: following.signal }),
+        subjectContext(alice, spaceId, { environment: world, signal: following.signal }),
     );
     const table = loan.table[TABLE].sqlName;
     const titles = async () => {
@@ -646,7 +737,7 @@ test("replicate only the rows a query's permission allows, drop a row once the f
 
     // let bob use the first loan instead, which alice still reads
     await store.mutate(self, {
-        id: RequestId.create(Date.now()),
+        id: RequestId.create(world),
         calls: [
             loan.call("update", {
                 spaceId,
@@ -668,18 +759,21 @@ test("replicate only the rows a query's permission allows, drop a row once the f
                     target: spaceId,
                     parameters: { queries: { loans: { object: "loan", permission: "lend" } } },
                 }),
-                subjectContext(alice, spaceId, { signal: following.signal }),
+                subjectContext(alice, spaceId, { environment: world, signal: following.signal }),
             )
             .next(),
     );
     expect([first, second, undeclared]).toEqual([
         [["insert", lent.id]],
         [["delete", lent.id]],
-        ["BAD_REQUEST", "UNKNOWN_PERMISSION", "object loan has no permission lend"],
+        ["BAD_REQUEST", "PERMISSION_UNKNOWN", "object loan has no permission lend"],
     ]);
 });
 
 test("answer a follow of a type the scope does not install with a complete page of no rows", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // serve mentions alone in the space
     const storage = await TestDatabase.create(
         tablesOf({
@@ -687,21 +781,19 @@ test("answer a follow of a type the scope does not install with a complete page 
             follows: [],
             tables: [],
         }).tables,
-        {
-            isMigrated: true,
-        },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
     const { database } = storage;
-    await openSpace(database, spaceId);
-    const store = new ObjectStore({
+    await openSpace(database, world, spaceId);
+    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([mention]),
         database,
         callKey: testCallKey,
-        events: await testEvents(database),
+        events: await testEvents(database, world),
         origin: { package: mention.package },
     });
 
@@ -716,7 +808,7 @@ test("answer a follow of a type the scope does not install with a complete page 
             target: spaceId,
             parameters: { queries: { activity: { object: "activity" } } },
         }),
-        subjectContext(alice, spaceId, { signal: following.signal }),
+        subjectContext(alice, spaceId, { environment: world, signal: following.signal }),
     );
     const first = await pages.next();
 
@@ -727,6 +819,9 @@ test("answer a follow of a type the scope does not install with a complete page 
 });
 
 test("answer a query follow of a type the store does not serve with a complete page of no rows", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // open a space serving mentions alone
     const storage = await TestDatabase.create(
         tablesOf({
@@ -734,21 +829,19 @@ test("answer a query follow of a type the store does not serve with a complete p
             follows: [],
             tables: [],
         }).tables,
-        {
-            isMigrated: true,
-        },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
     const { database } = storage;
-    await openSpace(database, spaceId);
-    const store = new ObjectStore({
+    await openSpace(database, world, spaceId);
+    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([mention]),
         database,
         callKey: testCallKey,
-        events: await testEvents(database),
+        events: await testEvents(database, world),
         origin: { package: mention.package },
     });
 
@@ -762,7 +855,10 @@ test("answer a query follow of a type the store does not serve with a complete p
             target: spaceId,
             parameters: { queries: { grants: { object: "grant", scopes: "every" } } },
         }),
-        subjectContext(spacePrincipal(spaceId), spaceId, { signal: following.signal }),
+        subjectContext(spacePrincipal(spaceId), spaceId, {
+            environment: world,
+            signal: following.signal,
+        }),
     );
     const first = await pages.next();
 

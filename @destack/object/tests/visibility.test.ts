@@ -1,3 +1,4 @@
+import { testSimulation } from "../src/test/index.ts";
 import { Scope, RequestId } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import {
@@ -10,18 +11,16 @@ import {
 } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { TestDatabase } from "@destack/db/test";
-import { Identifier, schema } from "@destack/schema";
+import { Identifier, schema, Uuid } from "@destack/schema";
 
-import { v7 } from "uuid";
 import { defineObject, field } from "../src/index.ts";
-import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
-import { Clock } from "@destack/environment";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
+import { TestObjectStore } from "../src/test/index.ts";
 
 /** A private space nobody reads. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
@@ -63,55 +62,62 @@ const document = defineObject(
 );
 
 test("show a private space to readers of one object in it, forbid their writes, and hide it from strangers", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     const storage = await TestDatabase.create(
         tablesOf({
             packages: [objectPackage, { objects: { document }, tables: [] }],
             follows: [],
             tables: [],
         }).tables,
-        {
-            isMigrated: true,
-        },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
     const database = storage.database;
-    await openSpace(database, spaceId, "private");
+    await openSpace(database, world, spaceId, "private");
 
     // share one of two documents with alice
-    const now = Date.now();
-    const shared = Identifier.create("document");
-    const other = Identifier.create("document");
-    await database.insert(document.table).values(
-        [
-            { id: shared, title: "Plan" },
-            { id: other, title: "Budget" },
-        ].map((row) => ({ ...row, scope: spaceId, createdAt: now, updatedAt: now })),
+    const now = world.clock.now();
+    const shared = Identifier.create("document", world);
+    const other = Identifier.create("document", world);
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(document.table).values(
+                [
+                    { id: shared, title: "Plan" },
+                    { id: other, title: "Budget" },
+                ].map((row) => ({ ...row, scope: spaceId, createdAt: now, updatedAt: now })),
+            ),
     );
-    await database.insert(accessRelationship).values(
-        Relationship.encode({
-            id: schema.identifier("relationship").parse(`relationship-${v7()}`),
-            object: document.reference(spaceId, shared),
-            relation: "reader",
-            subject: principal.user.reference("universe", users.alice),
-            createdAt: now,
-            expiresAt: null,
-        }),
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(accessRelationship).values(
+                Relationship.encode({
+                    id: schema.identifier("relationship").parse(`relationship-${Uuid.v7(world)}`),
+                    object: document.reference(spaceId, shared),
+                    relation: "reader",
+                    subject: principal.user.reference("universe", users.alice),
+                    createdAt: now,
+                    expiresAt: null,
+                }),
+            ),
     );
 
     // serve the documents to the user each call refers to, through the delegates it lists
-    const store = new ObjectStore({
+    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([document]),
         database,
         callKey: testCallKey,
-        events: await testEvents(database),
+        events: await testEvents(database, world),
         origin: {
             package: document.package,
         },
     });
-    let context = userContext(users.alice, spaceId);
+    let context = userContext(users.alice, spaceId, { environment: world });
     const attempts = () =>
         Promise.all([
             outcome(
@@ -128,7 +134,7 @@ test("show a private space to readers of one object in it, forbid their writes, 
             outcome(
                 store
                     .mutate(context.access(), {
-                        id: RequestId.create(Date.now()),
+                        id: RequestId.create(world),
                         calls: [document.call("update", { spaceId, id: shared, title: "Draft" })],
                     })
                     .then(([written]) => written),
@@ -140,11 +146,11 @@ test("show a private space to readers of one object in it, forbid their writes, 
     expect(read).toEqual([{ id: shared, title: "Plan" }, ["Plan"], "NOT_FOUND", "FORBIDDEN"]);
 
     // find nothing at all for a stranger: no document, and no scope to list or write in
-    context = userContext(users.bob, spaceId);
+    context = userContext(users.bob, spaceId, { environment: world });
     expect(await attempts()).toEqual(["NOT_FOUND", "NOT_FOUND", "NOT_FOUND", "NOT_FOUND"]);
 
     // answer a stranger's listing of the space exactly as a listing of a space nobody created
-    const missing = `space-${v7()}`;
+    const missing = `space-${Uuid.v7(world)}`;
     const list = (id: string) =>
         refusal(store.query(context.access(), document.call("list", { spaceId: id })));
     expect([await list(spaceId), await list(missing)]).toEqual([
@@ -153,13 +159,14 @@ test("show a private space to readers of one object in it, forbid their writes, 
     ]);
 
     // show a delegate granted no reading what alice sees, asking her for the grant it lacks
-    const delegate = principal.installation.reference(spaceId, `installation-${v7()}`);
-    const grantId = await new AccessFixture(storage.database).replicateGrant(
+    const delegate = principal.installation.reference(spaceId, `installation-${Uuid.v7(world)}`);
+    const grantId = await new AccessFixture(storage.database, world).replicateGrant(
         principal.user.reference("universe", users.alice),
         delegate,
         [{ ...document.permission("write"), scope: spaceId }],
     );
     context = userContext(users.alice, spaceId, {
+        environment: world,
         actors: [delegate],
         grants: [{ id: grantId, scope: users.alice }],
     });
@@ -167,48 +174,52 @@ test("show a private space to readers of one object in it, forbid their writes, 
 });
 
 test("find nothing when a call asks for a scope its objects do not live in, though the caller sees it", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     const storage = await TestDatabase.create(
         tablesOf({
             packages: [objectPackage, { objects: { document, desk }, tables: [] }],
             follows: [],
             tables: [],
         }).tables,
-        {
-            isMigrated: true,
-        },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
     const database = storage.database;
 
     // insert a room anyone reads
-    const roomId = schema.identifier("room").parse(`room-${v7()}`);
+    const roomId = schema.identifier("room").parse(`room-${Uuid.v7(world)}`);
     const object = room.reference(Scope.universe.id, roomId);
-    await new AccessFixture(database).replicateScope(object, room.policy);
-    await database.insert(accessRelationship).values(
-        Relationship.encode({
-            id: schema.identifier("relationship").parse(`relationship-${v7()}`),
-            object,
-            relation: "reader",
-            subject: anyone.reference("*", "*"),
-            createdAt: 0,
-            expiresAt: null,
-        }),
+    await new AccessFixture(database, world).replicateScope(object, room.policy);
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(accessRelationship).values(
+                Relationship.encode({
+                    id: schema.identifier("relationship").parse(`relationship-${Uuid.v7(world)}`),
+                    object,
+                    relation: "reader",
+                    subject: anyone.reference("*", "*"),
+                    createdAt: 0,
+                    expiresAt: null,
+                }),
+            ),
     );
 
     // serve documents and desks to alice, unpinned to any scope
-    const store = new ObjectStore({
+    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([document, desk]),
         database,
         callKey: testCallKey,
-        events: await testEvents(database),
+        events: await testEvents(database, world),
         origin: {
             package: document.package,
         },
     });
-    const context = userContext(users.alice, undefined);
+    const context = userContext(users.alice, undefined, { environment: world });
 
     // list the room's desks and find no documents there
     const desks = await store.query(context.access(), desk.call("list", { roomId }));

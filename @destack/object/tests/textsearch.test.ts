@@ -1,18 +1,19 @@
+import type { Environment } from "@destack/environment";
+import { testSimulation } from "../src/test/index.ts";
 import { principal, relation } from "@destack/access";
 import { defineDatabase } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
-import { RequestId } from "@destack/sync";
+import { RequestId, Scope } from "@destack/sync";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { chunk, CHUNK_CHARACTERS, defineObject, field, Sequence } from "../src/index.ts";
-import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
-import { Clock } from "@destack/environment";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
+import { TestObjectStore } from "../src/test/index.ts";
 
 /** The space with the documents. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000d3");
@@ -39,11 +40,14 @@ const document = defineObject(
 );
 
 /** Build a new request identifier. */
-function request(): string {
-    return RequestId.create(Date.now());
+function request(world: Environment): string {
+    return RequestId.create(world);
 }
 
 test("list the objects with every word of a search in their searchable fields and text, across chunks", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     const storage = await TestDatabase.create(
         defineDatabase({
             name: "documents",
@@ -53,25 +57,25 @@ test("list the objects with every word of a search in their searchable fields an
                 tables: [],
             }),
         }),
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
-    await openSpace(storage.database, spaceId);
-    const store = new ObjectStore({
+    await openSpace(storage.database, world, spaceId);
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([document]),
         database: storage.database,
         callKey: testCallKey,
-        events: await testEvents(storage.database),
+        events: await testEvents(storage.database, world),
         origin: { package: document.package },
     });
-    const context = userContext(users.frank, spaceId);
+    const context = userContext(users.frank, spaceId, { environment: world });
 
     // write a long body whose first and last words land in different chunks, and a short one
     const [physics, notes] = await store.mutate(context.access(), {
-        id: request(),
+        id: request(world),
         calls: [
             document.call("create", { spaceId, title: "Physics" }),
             document.call("create", { spaceId, title: "Quantum notes" }),
@@ -80,7 +84,7 @@ test("list the objects with every word of a search in their searchable fields an
     const filler = "wave ".repeat(CHUNK_CHARACTERS / 5);
     const long = `quantum ${filler}entanglement`;
     await store.mutate(context.access(), {
-        id: request(),
+        id: request(world),
         calls: [
             document.call("edit", {
                 spaceId,

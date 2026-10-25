@@ -2,7 +2,7 @@ import { Failure } from "@destack/error";
 import { ObjectError } from "../error/error.ts";
 import { AccessContext, Caller } from "@destack/access";
 import { type DatabaseConnection, Snapshot } from "@destack/db";
-import { present, schema } from "@destack/schema";
+import { type UuidEnvironment, present, schema } from "@destack/schema";
 
 import { RequestId } from "@destack/sync";
 import type * as sync from "@destack/sync";
@@ -90,12 +90,12 @@ export interface Reservation {
     readonly release: () => Promise<void>;
 }
 
-/** A write's claim request: its identifier and its time. */
+/** A write's claim request: its identifier and the environment its claims draw from. */
 interface ClaimRequest {
     /** The write's request, which has its reservations. */
     readonly id: string;
-    /** The write's time, in UTC epoch milliseconds. */
-    readonly now: number;
+    /** The environment of the write's store. */
+    readonly environment: UuidEnvironment;
 }
 
 /** The reservations of writes claiming names. */
@@ -109,7 +109,7 @@ export const Reservation = {
     ): Promise<Reservation> {
         // claim in the committing transaction of the store serving the claim type, else at its home now
         return claims.home === undefined
-            ? Reservation.local(claimants, types)
+            ? Reservation.local(claimants, types, request.environment)
             : Reservation.remote(claims.object, claims.home, claimants, types, request);
     },
 
@@ -119,17 +119,17 @@ export const Reservation = {
         database: DatabaseConnection,
         claimants: readonly Claimant[],
         types: readonly ObjectType[],
-        request: { readonly now: number },
+        environment: UuidEnvironment,
     ): Promise<void> {
         // replace in the store's database, else at the claim type's home
         const refused: Claim[] = [];
         if (claims.home === undefined) {
             for (const claimant of claimants) {
-                refused.push(...(await Claim.replace(database, claimant)));
+                refused.push(...(await Claim.replace(database, claimant, environment)));
             }
         } else if (claimants.length > 0) {
             const calls = claimants.map((claimant) => claims.object.call("replace", claimant));
-            const mutation = { id: RequestId.create(request.now), calls };
+            const mutation = { id: RequestId.create(environment), calls };
             const results = await claims.home.mutate(mutation);
             refused.push(...results.flatMap((result) => ClaimRefusal.parse(result).refused));
         }
@@ -169,13 +169,17 @@ export const Reservation = {
     },
 
     /** Claim the names in the committing transaction of the store serving the claim type. */
-    local(claimants: readonly Claimant[], types: readonly ObjectType[]): Reservation {
+    local(
+        claimants: readonly Claimant[],
+        types: readonly ObjectType[],
+        environment: UuidEnvironment,
+    ): Reservation {
         return {
             commit: async (committing) => {
                 // replace each object's names at once, refusing names other objects claim
                 const refused: Claim[] = [];
                 for (const claimant of claimants) {
-                    refused.push(...(await Claim.replace(committing, claimant)));
+                    refused.push(...(await Claim.replace(committing, claimant, environment)));
                 }
                 Reservation.refuse(types, refused);
             },
@@ -193,13 +197,13 @@ export const Reservation = {
         request: ClaimRequest,
     ): Promise<Reservation> {
         // reserve the claiming objects' names in one request
-        const { id, now } = request;
+        const { id, environment } = request;
         const claiming = claimants.filter((claimant) => claimant.claims.length > 0);
         const results =
             claiming.length === 0
                 ? []
                 : await home.mutate({
-                      id: RequestId.create(now),
+                      id: RequestId.create(environment),
                       calls: claiming.map((claimant) =>
                           claim.call("reserve", { ...claimant, request: id }),
                       ),
@@ -212,7 +216,7 @@ export const Reservation = {
             confirm: async () => {
                 if (claimants.length > 0) {
                     await home.mutate({
-                        id: RequestId.create(now),
+                        id: RequestId.create(environment),
                         calls: claimants.map((claimant) =>
                             claim.call("confirm", { ...claimant, request: id }),
                         ),
@@ -222,7 +226,7 @@ export const Reservation = {
             release: async () => {
                 if (claiming.length > 0) {
                     await home.mutate({
-                        id: RequestId.create(now),
+                        id: RequestId.create(environment),
                         calls: claiming.map(({ objectId, owner }) =>
                             claim.call("release", { objectId, owner, request: id }),
                         ),

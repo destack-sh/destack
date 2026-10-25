@@ -4,39 +4,68 @@ import { TestDatabase } from "@destack/db/test";
 import { ObjectClient } from "../../src/client/index.ts";
 import { schema, type Identifier } from "@destack/schema";
 import { type ClientOptions } from "@destack/object/client";
-import { v7 } from "uuid";
 import { note, notebook, notesPackage } from "./note.ts";
 import { principal } from "@destack/access";
 import { Scope, type Subject } from "@destack/sync";
 import { space, unmoved } from "./space.ts";
 import { TestObjectStore } from "../../src/test/index.ts";
-import { Clock } from "@destack/environment";
+import type { Environment } from "@destack/environment";
+import { Simulation } from "@destack/environment/simulation";
 
 /** The space with the notes. */
-export const spaceId = schema.identifier("space").parse(`space-${v7()}`);
+export const spaceId = schema
+    .identifier("space")
+    .parse(`space-01996ab0-0000-7000-8000-00000000a00f`);
 
 /** The object types a device replicates, by key. */
 const DEVICE_OBJECTS = { notebook, note };
 
-/** Serve the space's notes to bearer-identified users, in the vouched groups. */
+/** How a device stores, pushes and runs: its storage and push budgets and its world. */
+interface DeviceOptions {
+    /** The most rows its storage keeps. */
+    readonly storage?: { readonly rows: number };
+    /** The most mutations one push sends. */
+    readonly push?: { readonly mutations: number };
+    /** The world it runs in. */
+    readonly environment: Environment;
+}
+
+/** Serve the space's notes to bearer-identified users, in the vouched groups and a world. */
 export async function serveNotes(
-    clock: Clock = Clock.system,
-    groups: ReadonlyMap<string, readonly Subject[]> = new Map(),
+    options: {
+        /** The simulated world the store runs in, its own by default. */
+        readonly simulation?: Simulation;
+        /** The node the store runs as in its world. */
+        readonly node?: string;
+        /** The groups each user's credential vouches for, by user. */
+        readonly groups?: ReadonlyMap<string, readonly Subject[]>;
+    } = {},
 ) {
     // store and serve the space's notes, public to anyone
     const objects = await TestObjectStore.open({
         packages: [notesPackage],
         scope: space.reference(Scope.universe.id, spaceId),
-        clock,
-        groups,
+        ...options,
     });
     onTestFinished(() => objects[Symbol.asyncDispose]());
 
+    // open devices in the store's world, reaching it as their users
+    const endpoint = (user: Identifier<"user">) => objects.as(user).endpoint(notesPackage);
+    const openDevice = (
+        user: Identifier<"user">,
+        queried?: readonly (typeof notebook | typeof note)[],
+        device: Omit<DeviceOptions, "environment"> = {},
+    ) =>
+        Device.open(user, endpoint(user), queried, { ...device, environment: objects.environment });
+
     return {
         connect: (user: Identifier<"user">) => objects.as(user).client(notesPackage),
-        endpoint: (user: Identifier<"user">) => objects.as(user).endpoint(notesPackage),
+        endpoint,
+        openDevice,
         server: objects.server(notesPackage),
         database: objects.database,
+        environment: objects.environment,
+        clock: objects.clock,
     };
 }
 
@@ -64,15 +93,16 @@ export class Device {
         user: Identifier<"user">,
         endpoint: ClientOptions,
         queried: readonly (typeof notebook | typeof note)[] = [notebook, note],
-        options: {
-            readonly storage?: { readonly rows: number };
-            readonly push?: { readonly mutations: number };
-            readonly clock?: Clock;
-        } = {},
+        options: DeviceOptions,
     ) {
-        // create the local database and replicate the space's notebooks and notes in it
+        // create the local database in the device's world and replicate the space's notebooks and notes in it
+        const { environment, ...rest } = options;
         const tables = ObjectClient.tables({ notebook, note });
-        const storage = await TestDatabase.create(tables, { dialect: "sqlite", storage: "file" });
+        const storage = await TestDatabase.create(tables, {
+            environment: environment,
+            dialect: "sqlite",
+            storage: "file",
+        });
         const client = await ObjectClient.open({
             database: storage.database,
             objects: DEVICE_OBJECTS,
@@ -80,8 +110,8 @@ export class Device {
             caller: principal.user.reference("universe", user),
             endpoint,
             reconnect: unmoved,
-            ...options,
-            clock: options.clock ?? Clock.system,
+            ...rest,
+            environment,
         });
         for (const object of queried) {
             client.queryType(object).findMany().subscribe();

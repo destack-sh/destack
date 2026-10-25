@@ -136,7 +136,7 @@ export class UndoStack {
     /** Invert the party's latest done or undone entry as one new mutation. */
     toggle(from: "done" | "undone", to: "done" | "undone"): Submission<boolean> {
         // chain after the previous toggle
-        const mutationId = RequestId.create(this.client.clock.now());
+        const mutationId = RequestId.create(this.client.environment);
         const predicted = this.#toggling.then(() => this.#invert(from, to, mutationId));
         // go on toggling after a failed one, and answer its failure in the returned prediction
         this.#toggling = predicted.catch(() => {});

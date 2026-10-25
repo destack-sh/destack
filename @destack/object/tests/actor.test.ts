@@ -9,16 +9,16 @@ import { ObjectReference } from "@destack/sync";
 import { AuditRecorder } from "../src/server/index.ts";
 import { AuditStorage, documentRename, rename } from "./fixture/journal.ts";
 import { AccessContext, ANONYMOUS, Caller, type Credential, principal } from "@destack/access";
-import { Clock } from "@destack/environment";
 
 test("persist verified caller identities with their delegates and grant, record an unauthenticated caller as anyone, and tell apart identities of different scopes", async () => {
     const storage = await AuditStorage.open();
+    const world = storage.environment;
     try {
         // use the same identifier in two scopes
         const origin = { package: documentRename.package, scope: "universe" };
-        const now = Date.now();
+        const now = world.clock.now();
         const represented = principal.user.reference("universe", users.person);
-        const grantId = Identifier.create("grant");
+        const grantId = Identifier.create("grant", storage.environment);
         const actor = principal.installation.reference("space-example", "agent");
         const deploymentId = schema
             .identifier("deployment")
@@ -47,7 +47,7 @@ test("persist verified caller identities with their delegates and grant, record 
         const credential = { kind: "token", id: "token-1", secret: "must never be recorded" };
         for (const { deployments, ...claims } of requests) {
             const request = new RequestContext(new Request("https://example.test"), {
-                clock: Clock.system,
+                environment: world,
                 audience: origin.package.id,
                 scope: "universe",
                 authentication: {
@@ -77,7 +77,7 @@ test("persist verified caller identities with their delegates and grant, record 
 
         // attribute an attempt without authentication to no caller
         const rejected = new RequestContext(new Request("https://example.test"), {
-            clock: Clock.system,
+            environment: world,
             audience: origin.package.id,
             scope: "universe",
             resources: new ResourceContext(),
@@ -86,7 +86,7 @@ test("persist verified caller identities with their delegates and grant, record 
             }),
         });
         const recorder = AuditRecorder.from(
-            AccessContext.of(Caller.anonymous(), Date.now()),
+            AccessContext.of(Caller.anonymous(), world.clock.now()),
             storage.journal,
             origin,
             rejected.requestId,

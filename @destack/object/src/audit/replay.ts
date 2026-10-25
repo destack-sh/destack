@@ -27,7 +27,7 @@ export const Replay = {
                 (outcome.kind !== "cancelled" &&
                     FINAL_STATUSES.has(Failure.status(outcome.error)) &&
                     !(
-                        outcome.error.reason === "INSUFFICIENT_GRANT" &&
+                        outcome.error.reason === "GRANT_INSUFFICIENT" &&
                         outcome.error.domain === import.meta.destack.package.name
                     )))
         );

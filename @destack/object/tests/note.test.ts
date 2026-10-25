@@ -1,40 +1,41 @@
+import { testSimulation } from "../src/test/index.ts";
 import { users, userName } from "./fixture/user.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { journal } from "../src/index.ts";
-import { eq, channelHub } from "@destack/db";
-import { BrowserTab, type BrowserHost } from "../src/browser/index.ts";
+import { eq } from "@destack/db";
+import { BrowserTab, type BrowserTabWorker } from "../src/browser/index.ts";
+import { BrowserSimulation } from "@destack/environment/browser/simulation";
 import { ObjectClient } from "../src/client/index.ts";
-import { serveDatabase, WasmClient, type Message } from "@destack/db/browser";
+import { broadcastChannel, serveDatabase, WasmClient } from "@destack/db/browser";
 import { schema, present } from "@destack/schema";
 import { RequestId, ObjectReference, type Page } from "@destack/sync";
 import { getEventMeta } from "@destack/object";
 import { note, notebook } from "./fixture/note.ts";
 import { principal } from "@destack/access";
 
-import { Device, serveNotes, spaceId } from "./fixture/device.ts";
+import { serveNotes, spaceId } from "./fixture/device.ts";
 import { unmoved } from "./fixture/space.ts";
-import { Clock } from "@destack/environment";
 
 test("store notes private until shared, move them between notebooks and sync them", async () => {
-    const { connect, endpoint } = await serveNotes();
+    const { connect, openDevice, environment } = await serveNotes();
     const alice = connect(users.alice);
     const bob = connect(users.bob);
 
     // store a notebook's notes and a loose note private to their owner
     const research = await alice.notebook.create({
         spaceId,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(environment),
         name: "Research",
     });
     const filed = await alice.note.create({
         spaceId,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(environment),
         parentId: research.id,
         title: "Sources",
     });
     const loose = await alice.note.create({
         spaceId,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(environment),
         title: "Ideas",
     });
     expect((await bob.note.list({ spaceId })).items).toEqual([]);
@@ -45,19 +46,19 @@ test("store notes private until shared, move them between notebooks and sync the
             alice.notebook.grant({
                 spaceId,
                 id: research.id,
-                requestId: RequestId.create(Date.now()),
+                requestId: RequestId.create(environment),
                 relation: "editor",
                 role: "reader",
                 subject: principal.user.reference("universe", users.bob),
             }),
         ),
-    ).toEqual(["BAD_REQUEST", "INVALID_CALL", "a grant must have exactly one relation or role"]);
+    ).toEqual(["BAD_REQUEST", "CALL_INVALID", "a grant must have exactly one relation or role"]);
 
     // share the notebook: its notes follow, loose notes stay private
     await alice.notebook.grant({
         spaceId,
         id: research.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(environment),
         relation: "editor",
         subject: principal.user.reference("universe", users.bob),
     });
@@ -67,7 +68,7 @@ test("store notes private until shared, move them between notebooks and sync the
     const edited = await bob.note.update({
         spaceId,
         id: filed.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(environment),
         revision: filed.revision,
         text: "Three papers",
     });
@@ -77,7 +78,7 @@ test("store notes private until shared, move them between notebooks and sync the
             bob.note.delete({
                 spaceId,
                 id: filed.id,
-                requestId: RequestId.create(Date.now()),
+                requestId: RequestId.create(environment),
                 revision: 2,
             }),
         ),
@@ -87,7 +88,7 @@ test("store notes private until shared, move them between notebooks and sync the
     await alice.note.move({
         spaceId,
         id: loose.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(environment),
         revision: loose.revision,
         parentId: research.id,
     });
@@ -97,7 +98,7 @@ test("store notes private until shared, move them between notebooks and sync the
             bob.note.move({
                 spaceId,
                 id: loose.id,
-                requestId: RequestId.create(Date.now()),
+                requestId: RequestId.create(environment),
                 revision: 2,
                 parentId: null,
             }),
@@ -108,7 +109,7 @@ test("store notes private until shared, move them between notebooks and sync the
     await alice.note.delete({
         spaceId,
         id: loose.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(environment),
         revision: 2,
     });
     expect(await titles()).toEqual(["Sources"]);
@@ -120,22 +121,22 @@ test("store notes private until shared, move them between notebooks and sync the
             alice.note.update({
                 spaceId,
                 id: loose.id,
-                requestId: RequestId.create(Date.now()),
+                requestId: RequestId.create(environment),
                 text: "Late",
             }),
         ),
-    ).toEqual(["CONFLICT", "IN_TRASH", "note is in the trash"]);
+    ).toEqual(["CONFLICT", "OBJECT_TRASHED", "note is in the trash"]);
     expect(
         await refusal(
             alice.note.grant({
                 spaceId,
                 id: loose.id,
-                requestId: RequestId.create(Date.now()),
+                requestId: RequestId.create(environment),
                 relation: "viewer",
                 subject: principal.user.reference("universe", users.bob),
             }),
         ),
-    ).toEqual(["CONFLICT", "IN_TRASH", "note is in the trash"]);
+    ).toEqual(["CONFLICT", "OBJECT_TRASHED", "note is in the trash"]);
 
     // list and withdraw the trashed note's relationships and invitations
     expect([
@@ -148,12 +149,12 @@ test("store notes private until shared, move them between notebooks and sync the
     await alice.note.restore({
         spaceId,
         id: loose.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(environment),
     });
     expect(await titles()).toEqual(["Ideas", "Sources"]);
 
     // follow the notes on bob's device and write into the shared notebook, predicted at once
-    const device = await Device.open(users.bob, endpoint(users.bob));
+    const device = await openDevice(users.bob);
     device.online();
     await expect.poll(() => device.titles()).toEqual(["Ideas", "Sources"]);
     const questions = device.client
@@ -171,11 +172,11 @@ test("store notes private until shared, move them between notebooks and sync the
 });
 
 test("queue notes offline, write batches atomically, drop rejected predictions and rebase", async () => {
-    const { connect, endpoint, database } = await serveNotes();
+    const { connect, endpoint, database, openDevice, environment } = await serveNotes();
     const alice = connect(users.alice);
 
     // queue a notebook and its first note in one offline mutation
-    const device = await Device.open(users.alice, endpoint(users.alice));
+    const device = await openDevice(users.alice);
     const travel = device.client.mutation(async (mutation) => {
         const book = await mutation.call(notebook).create({ name: "Travel" });
         const first = await mutation.call(note).create({ parentId: book.id, title: "Packing" });
@@ -191,7 +192,7 @@ test("queue notes offline, write batches atomically, drop rejected predictions a
     await device.offline();
     const reconnected = await device.storage.connect(ObjectClient.tables({ notebook, note }));
     const restarted = await ObjectClient.open({
-        clock: Clock.system,
+        environment,
         database: reconnected,
         objects: { notebook, note },
         scope: spaceId,
@@ -238,7 +239,7 @@ test("queue notes offline, write batches atomically, drop rejected predictions a
     await alice.note.update({
         spaceId,
         id: packing.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(environment),
         text: "passport, charger",
     });
     device.follow();
@@ -258,11 +259,11 @@ test("queue notes offline, write batches atomically, drop rejected predictions a
     expect([stored.title, stored.text]).toEqual(["Luggage", "passport, charger"]);
 
     // refuse a batch the server forbids as a whole, and revert both of its predictions
-    const bob = await Device.open(users.bob, endpoint(users.bob));
+    const bob = await openDevice(users.bob);
     await alice.notebook.grant({
         spaceId,
         id: book.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(environment),
         relation: "viewer",
         subject: principal.user.reference("universe", users.bob),
     });
@@ -297,8 +298,11 @@ test("queue notes offline, write batches atomically, drop rejected predictions a
     await expect
         .poll(async () => await device.client.prediction.pending(device.client.database))
         .toEqual([]);
-    await database.delete(note.table).where(eq(note.table.id, lostId));
-    await database.delete(journal);
+    await database.transaction(
+        async (transaction) =>
+            await transaction.delete(note.table).where(eq(note.table.id, lostId)),
+    );
+    await database.transaction(async (transaction) => await transaction.delete(journal));
     await database.log.renew();
     device.follow();
     await lost.confirmed;
@@ -308,16 +312,16 @@ test("queue notes offline, write batches atomically, drop rejected predictions a
 });
 
 test("replicate only the queries a device subscribes to, with their includes, as rows move between them", async () => {
-    const { connect, endpoint } = await serveNotes();
+    const { connect, openDevice, environment } = await serveNotes();
     const alice = connect(users.alice);
 
     // file notes into two notebooks
     const notebookNamed = (name: string) =>
-        alice.notebook.create({ spaceId, requestId: RequestId.create(Date.now()), name });
+        alice.notebook.create({ spaceId, requestId: RequestId.create(environment), name });
     const noteIn = (parentId: string, title: string) =>
         alice.note.create({
             spaceId,
-            requestId: RequestId.create(Date.now()),
+            requestId: RequestId.create(environment),
             parentId: schema.identifier("notebook").parse(parentId),
             title,
         });
@@ -327,7 +331,7 @@ test("replicate only the queries a device subscribes to, with their includes, as
     const plan = await noteIn(work.id, "Plan");
 
     // replicate the travel notes and the notebook they belong to, nothing of work
-    const device = await Device.open(users.alice, endpoint(users.alice), []);
+    const device = await openDevice(users.alice, []);
     const travelNotes = device.client.query.note
         .findMany({ where: { parentId: travel.id }, with: { parent: true } })
         .subscribe();
@@ -343,14 +347,14 @@ test("replicate only the queries a device subscribes to, with their includes, as
     await alice.note.move({
         spaceId,
         id: plan.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(environment),
         parentId: travel.id,
     });
     await expect.poll(() => device.titles()).toEqual(["Packing", "Plan"]);
     await alice.note.move({
         spaceId,
         id: plan.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(environment),
         parentId: work.id,
     });
     await expect.poll(() => device.titles()).toEqual(["Packing"]);
@@ -376,17 +380,17 @@ test("replicate only the queries a device subscribes to, with their includes, as
 });
 
 test("count a notebook's notes outside the trash, predicted on a device before the server confirms", async () => {
-    const { connect, endpoint } = await serveNotes();
+    const { connect, openDevice, environment } = await serveNotes();
     const alice = connect(users.alice);
     const travel = await alice.notebook.create({
         spaceId,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(environment),
         name: "Travel",
     });
     expect(travel.noteCount).toBe(0);
 
     // predict the count of a note created offline, before the server has it
-    const device = await Device.open(users.alice, endpoint(users.alice));
+    const device = await openDevice(users.alice);
     device.follow();
     await expect
         .poll(async () =>
@@ -414,59 +418,29 @@ test("count a notebook's notes outside the trash, predicted on a device before t
         await count(),
         (await alice.notebook.get({ spaceId, id: travel.id })).noteCount,
     ]).toEqual([1, 1]);
-    await alice.note.delete({ spaceId, id, requestId: RequestId.create(Date.now()) });
+    await alice.note.delete({ spaceId, id, requestId: RequestId.create(environment) });
     expect((await alice.notebook.get({ spaceId, id: travel.id })).noteCount).toBe(0);
     await expect.poll(count).toBe(0);
     expect(device.errors).toEqual([]);
 });
 
 test("share one browser database between tabs, handing it over when the leading tab closes", async () => {
-    const { connect, endpoint } = await serveNotes();
+    const simulation = testSimulation();
+    const { connect, endpoint } = await serveNotes({ simulation, node: "browser" });
     const alice = connect(users.alice);
 
-    // share one channel, worker and lock queue between tabs
-    const join = channelHub<Message>();
-    const database = await WasmClient.memory();
-    const locks = new Map<string, Promise<void>>();
-    const host = (): BrowserHost => ({
-        channel: join(),
-        request: (name, callback, signal) =>
-            new Promise<void>((resolve, reject) => {
-                // reject an aborted wait
-                let isGranted = false;
-                signal?.addEventListener(
-                    "abort",
-                    () => {
-                        if (!isGranted) {
-                            reject(signal.reason);
-                        }
-                    },
-                    { once: true },
-                );
+    // share one browser's locks, channel and database worker between tabs
+    const environment = new BrowserSimulation(simulation).environment("browser");
+    const database = await WasmClient.memory(environment.clock);
+    const worker: BrowserTabWorker = async () => {
+        const channel = broadcastChannel("destack:notes", environment);
+        const stop = serveDatabase(database, channel, environment);
 
-                // queue behind the lock's holder and take it unless the wait aborted
-                const previous = locks.get(name) ?? Promise.resolve();
-                const next = previous.then(async () => {
-                    if (signal?.aborted !== true) {
-                        isGranted = true;
-                        await callback();
-                    }
-                });
-                locks.set(
-                    name,
-                    next.catch(() => undefined),
-                );
-                next.then(resolve, reject);
-            }),
-        start: async () => {
-            const stop = serveDatabase(database, join());
-
-            return async () => stop();
-        },
-    });
+        return async () => stop();
+    };
     const open = () =>
         BrowserTab.open({
-            clock: Clock.system,
+            environment,
             name: "notes",
             objects: { notebook, note },
             scope: spaceId,
@@ -474,7 +448,7 @@ test("share one browser database between tabs, handing it over when the leading 
             device: principal.device.reference("universe", "device-browser"),
             endpoint: endpoint(users.alice),
             reconnect: unmoved,
-            host: host(),
+            worker,
             report: (error) => {
                 throw error;
             },
@@ -503,7 +477,7 @@ test("share one browser database between tabs, handing it over when the leading 
     await third.close();
     await first.client.database.log.until(
         async () => !(await isPresent()),
-        AbortSignal.timeout(5000),
+        environment.clock.timeout(5000),
     );
     expect([before, await isPresent()]).toEqual([true, false]);
 
@@ -518,16 +492,16 @@ test("share one browser database between tabs, handing it over when the leading 
 });
 
 test("decide checks on a device from its replica of the caller's access rows, and follow a grant and its revocation into them", async () => {
-    const { connect, endpoint } = await serveNotes();
+    const { connect, openDevice, environment } = await serveNotes();
     const alice = connect(users.alice);
 
     // create a notebook of alice, which bob's device cannot read yet
     const research = await alice.notebook.create({
         spaceId,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(environment),
         name: "Research",
     });
-    const device = await Device.open(users.bob, endpoint(users.bob));
+    const device = await openDevice(users.bob);
     device.online();
     const checks = async () => [
         await device.client.check(notebook, research.id, "read"),
@@ -540,7 +514,7 @@ test("decide checks on a device from its replica of the caller's access rows, an
     const granted = await alice.notebook.grant({
         spaceId,
         id: research.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(environment),
         relation: "editor",
         subject: principal.user.reference("universe", users.bob),
     });
@@ -550,7 +524,7 @@ test("decide checks on a device from its replica of the caller's access rows, an
     await alice.notebook.revoke({
         spaceId,
         id: research.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(environment),
         relationshipId: granted.id,
     });
     await expect.poll(checks).toEqual([false, false, false]);
@@ -559,26 +533,28 @@ test("decide checks on a device from its replica of the caller's access rows, an
 
 test("decide checks on a device as the server decides them, for a group its authenticator vouches for", async () => {
     const team = { ...principal.group.reference("universe", "team"), relation: "member" };
-    const { connect, endpoint } = await serveNotes(Clock.system, new Map([[users.bob, [team]]]));
+    const { connect, openDevice, environment } = await serveNotes({
+        groups: new Map([[users.bob, [team]]]),
+    });
     const alice = connect(users.alice);
     const bob = connect(users.bob);
 
     // share alice's notebook with the team bob is vouched into
     const research = await alice.notebook.create({
         spaceId,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(environment),
         name: "Research",
     });
     await alice.notebook.grant({
         spaceId,
         id: research.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(environment),
         relation: "editor",
         subject: team,
     });
 
     // allow on the device exactly what the server allows bob
-    const device = await Device.open(users.bob, endpoint(users.bob));
+    const device = await openDevice(users.bob);
     device.online();
     const checks = async () => [
         await device.client.check(notebook, research.id, "read"),
@@ -591,14 +567,18 @@ test("decide checks on a device as the server decides them, for a group its auth
 });
 
 test("resume a store stream from the last event it sent, at that page's position", async () => {
-    const { connect, endpoint } = await serveNotes();
+    // run in a world of its own
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
+
+    const { connect, endpoint, environment } = await serveNotes({ simulation });
     const alice = connect(users.alice);
     await alice.notebook.create({
         spaceId,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(environment),
         name: "Research",
     });
-    const store = ObjectClient.store(endpoint(users.alice));
+    const store = ObjectClient.store(endpoint(users.alice), world);
     const subscription = {
         name: "access",
         publication: "access",
@@ -633,11 +613,15 @@ test("resume a store stream from the last event it sent, at that page's position
 });
 
 test("restart a caller's access stream only on access changes concerning the caller", async () => {
-    const { connect, endpoint } = await serveNotes();
+    // run in a world of its own
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
+
+    const { connect, endpoint, environment } = await serveNotes({ simulation });
     const alice = connect(users.alice);
     const research = await alice.notebook.create({
         spaceId,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(environment),
         name: "Research",
     });
 
@@ -645,7 +629,7 @@ test("restart a caller's access stream only on access changes concerning the cal
     const controller = new AbortController();
     onTestFinished(() => controller.abort());
     const pages: Page[] = [];
-    const store = ObjectClient.store(endpoint(users.bob));
+    const store = ObjectClient.store(endpoint(users.bob), world);
     const subscription = {
         name: "access",
         publication: "access",
@@ -671,14 +655,14 @@ test("restart a caller's access stream only on access changes concerning the cal
         await alice.notebook.grant({
             spaceId,
             id: research.id,
-            requestId: RequestId.create(Date.now()),
+            requestId: RequestId.create(environment),
             relation: "viewer",
             subject: principal.user.reference("universe", user),
         });
     await share(users.carol);
 
     // have bob's stream confirm the position past carol's share, so a restart for it would show first
-    const watermark = await ObjectClient.store(endpoint(users.alice)).watermark({
+    const watermark = await ObjectClient.store(endpoint(users.alice), world).watermark({
         scope: spaceId,
         homes: [],
     });
@@ -707,7 +691,7 @@ test("restart a caller's access stream only on access changes concerning the cal
 });
 
 test("show a notebook's relationships to everyone who reads it, and to no one else", async () => {
-    const { connect } = await serveNotes();
+    const { connect, environment } = await serveNotes();
     const alice = connect(users.alice);
     const bob = connect(users.bob);
     const carol = connect(users.carol);
@@ -716,7 +700,7 @@ test("show a notebook's relationships to everyone who reads it, and to no one el
     // share alice's notebook with bob as editor and carol as viewer
     const research = await alice.notebook.create({
         spaceId,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(environment),
         name: "Research",
     });
     for (const [user, relation] of [
@@ -726,7 +710,7 @@ test("show a notebook's relationships to everyone who reads it, and to no one el
         await alice.notebook.grant({
             spaceId,
             id: research.id,
-            requestId: RequestId.create(Date.now()),
+            requestId: RequestId.create(environment),
             relation,
             subject: principal.user.reference("universe", user),
         });

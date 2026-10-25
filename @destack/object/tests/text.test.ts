@@ -1,3 +1,4 @@
+import { testSimulation } from "../src/test/index.ts";
 import { users, userContext } from "./fixture/user.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { principal, relation, union } from "@destack/access";
@@ -6,16 +7,16 @@ import { TestDatabase } from "@destack/db/test";
 import { Package } from "@destack/package";
 import { type ClientOptions } from "@destack/object/client";
 import { definePackage } from "@destack/object";
-import { RequestId } from "@destack/sync";
+import { RequestId, Scope } from "@destack/sync";
 import { LiveText, ObjectClient } from "../src/client/index.ts";
 import { chunk, CHUNK_CHARACTERS, Chunk, defineObject, field, Sequence } from "../src/index.ts";
-import { ObjectStore, implementPackage } from "../src/server/index.ts";
+import { implementPackage } from "../src/server/index.ts";
 import { user } from "./schema.ts";
 import { openSpace, space, unmoved, spacePrincipal } from "./fixture/space.ts";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { nth, type Identifier } from "@destack/schema";
-import { Clock } from "@destack/environment";
+import { Environment } from "@destack/environment";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
@@ -61,23 +62,26 @@ const documentsDatabase = defineDatabase({
 });
 
 /** Serve a space's documents to bearer-identified users. */
-async function serveDocuments() {
+async function serveDocuments(world: Environment) {
     // store the space's documents
-    const storage = await TestDatabase.create(documentsDatabase, { isMigrated: true });
+    const storage = await TestDatabase.create(documentsDatabase, {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     const database = storage.database;
-    await openSpace(database, spaceId);
+    await openSpace(database, world, spaceId);
 
     // authenticate each request as the user its bearer credential identifies
     const served = TestObjectStore.serve(
-        new ObjectStore({
+        await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
             servers: [implementPackage(documentsPackage, {})],
             chain: async () => undefined,
-            clock: Clock.system,
+            environment: world,
             origin: { package: Package.of(documentsPackage) },
             principal: spacePrincipal(spaceId),
             callKey: testCallKey,
-            events: await testEvents(database),
+            events: await testEvents(database, world),
             database,
         }),
     );
@@ -89,13 +93,17 @@ async function serveDocuments() {
 }
 
 /** Open a user's client of the space on a new local database, following every document. */
-async function openClient(name: Identifier<"user">, endpoint: ClientOptions) {
+async function openClient(world: Environment, name: Identifier<"user">, endpoint: ClientOptions) {
     // create the local database and follow the documents
     const tables = ObjectClient.tables({ document });
-    const storage = await TestDatabase.create(tables, { dialect: "sqlite", storage: "file" });
+    const storage = await TestDatabase.create(tables, {
+        environment: world,
+        dialect: "sqlite",
+        storage: "file",
+    });
     onTestFinished(() => storage.close());
     const client = await ObjectClient.open({
-        clock: Clock.system,
+        environment: world,
         database: storage.database,
         objects: { document },
         scope: spaceId,
@@ -139,12 +147,15 @@ function digits(length: number, offset = 0): string {
 }
 
 test("edit a text through chunk splits, read it assembled, undo exactly and guard it", async () => {
-    const { connect: connectAs, database } = await serveDocuments();
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const { connect: connectAs, database } = await serveDocuments(world);
     const alice = connectAs(users.alice);
     const bob = connectAs(users.bob);
     const created = await alice.document.create({
         spaceId,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(world),
         title: "Plan",
     });
     expect(created.body).toBe("");
@@ -162,7 +173,7 @@ test("edit a text through chunk splits, read it assembled, undo exactly and guar
         return alice.document.edit({
             spaceId,
             id: created.id,
-            requestId: RequestId.create(Date.now()),
+            requestId: RequestId.create(world),
             field: "body",
             edits,
         });
@@ -202,7 +213,7 @@ test("edit a text through chunk splits, read it assembled, undo exactly and guar
     const undone = await alice.document.edit({
         spaceId,
         id: created.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(world),
         field: "body",
         edits: deleted.inverse,
     });
@@ -214,7 +225,7 @@ test("edit a text through chunk splits, read it assembled, undo exactly and guar
     await alice.document.edit({
         spaceId,
         id: created.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(world),
         field: "body",
         edits: undone.inverse,
     });
@@ -224,13 +235,13 @@ test("edit a text through chunk splits, read it assembled, undo exactly and guar
     const replaced = {
         spaceId,
         id: created.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(world),
         body: "replaced",
     };
     const plain = await refusal(alice.document.update(replaced));
     expect(plain).toEqual([
         "BAD_REQUEST",
-        "INVALID_INPUT",
+        "INPUT_INVALID",
         'invalid input: unrecognized key: "body"',
     ]);
     expect(
@@ -238,7 +249,7 @@ test("edit a text through chunk splits, read it assembled, undo exactly and guar
             alice.document.edit({
                 spaceId,
                 id: created.id,
-                requestId: RequestId.create(Date.now()),
+                requestId: RequestId.create(world),
                 field: "body",
                 edits: [{ insert: "x", run: "alice.99", after: { run: "nobody.1", offset: 0 } }],
             }),
@@ -251,12 +262,12 @@ test("edit a text through chunk splits, read it assembled, undo exactly and guar
             alice.document.edit({
                 spaceId,
                 id: created.id,
-                requestId: RequestId.create(Date.now()),
+                requestId: RequestId.create(world),
                 field: "body",
                 edits: [{ insert: "x", run: "alice.1" }],
             }),
         ),
-    ).toEqual(["BAD_REQUEST", "DUPLICATE_RUN", "body already has run alice.1"]);
+    ).toEqual(["BAD_REQUEST", "RUN_DUPLICATE", "body already has run alice.1"]);
 
     // report which elements the text contains, deleted ones included
     const owner = document.reference(spaceId, created.id);
@@ -281,7 +292,7 @@ test("edit a text through chunk splits, read it assembled, undo exactly and guar
     await alice.document.grant({
         spaceId,
         id: created.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(world),
         relation: "editor",
         subject: principal.user.reference("universe", users.bob),
     });
@@ -289,57 +300,72 @@ test("edit a text through chunk splits, read it assembled, undo exactly and guar
 });
 
 test("predict edits on two clients, converge after push, undo one exactly and hide chunks from others", async () => {
-    const { endpoint } = await serveDocuments();
-    const alice = await openClient(users.alice, endpoint(users.alice));
-    const bob = await openClient(users.bob, endpoint(users.bob));
-    const carol = await openClient(users.carol, endpoint(users.carol));
+    // run in a world of its own, moving its time while the work waits
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
+    await simulation.drive(
+        (async () => {
+            const { endpoint } = await serveDocuments(world);
+            const alice = await openClient(world, users.alice, endpoint(users.alice));
+            const bob = await openClient(world, users.bob, endpoint(users.bob));
+            const carol = await openClient(world, users.carol, endpoint(users.carol));
 
-    // create a shared document with a first line
-    const created = alice.client.mutate(document).create({ title: "Plan" });
-    const { id } = await created.predicted;
-    await created.confirmed;
-    const base = new Sequence().change({ from: 0, to: 0, insert: "hello world" }, "alice.1");
-    await alice.client.mutate(document).edit({ id, field: "body", edits: base }).confirmed;
-    await alice.client.mutate(document).grant({
-        id,
-        relation: "editor",
-        subject: principal.user.reference("universe", users.bob),
-    }).confirmed;
-    await expect.poll(() => body(bob.live)).toEqual(["hello world"]);
+            // create a shared document with a first line
+            const created = alice.client.mutate(document).create({ title: "Plan" });
+            const { id } = await created.predicted;
+            await created.confirmed;
+            const base = new Sequence().change(
+                { from: 0, to: 0, insert: "hello world" },
+                "alice.1",
+            );
+            await alice.client.mutate(document).edit({ id, field: "body", edits: base }).confirmed;
+            await alice.client.mutate(document).grant({
+                id,
+                relation: "editor",
+                subject: principal.user.reference("universe", users.bob),
+            }).confirmed;
+            await expect.poll(() => body(bob.live)).toEqual(["hello world"]);
 
-    // predict one edit on each client at once and see each locally first
-    const replica = base.reduce((sequence, each) => sequence.apply(each), new Sequence());
-    const shout = replica.change({ from: 0, to: 5, insert: "HELLO" }, "alice.2");
-    const exclaim = replica.change({ from: 11, to: 11, insert: "!" }, "bob.1");
-    const shouted = alice.client.mutate(document).edit({ id, field: "body", edits: shout });
-    const exclaimed = bob.client.mutate(document).edit({ id, field: "body", edits: exclaim });
-    await Promise.all([shouted.predicted, exclaimed.predicted]);
-    expect([await body(alice.live), await body(bob.live)]).toEqual([
-        ["HELLO world"],
-        ["hello world!"],
-    ]);
+            // predict one edit on each client at once and see each locally first
+            const replica = base.reduce((sequence, each) => sequence.apply(each), new Sequence());
+            const shout = replica.change({ from: 0, to: 5, insert: "HELLO" }, "alice.2");
+            const exclaim = replica.change({ from: 11, to: 11, insert: "!" }, "bob.1");
+            const shouted = alice.client.mutate(document).edit({ id, field: "body", edits: shout });
+            const exclaimed = bob.client
+                .mutate(document)
+                .edit({ id, field: "body", edits: exclaim });
+            await Promise.all([shouted.predicted, exclaimed.predicted]);
+            expect([await body(alice.live), await body(bob.live)]).toEqual([
+                ["HELLO world"],
+                ["hello world!"],
+            ]);
 
-    // converge both replicas once both edits arrive at the server
-    await Promise.all([shouted.confirmed, exclaimed.confirmed]);
-    await expect.poll(() => body(alice.live)).toEqual(["HELLO world!"]);
-    await expect.poll(() => body(bob.live)).toEqual(["HELLO world!"]);
+            // converge both replicas once both edits arrive at the server
+            await Promise.all([shouted.confirmed, exclaimed.confirmed]);
+            await expect.poll(() => body(alice.live)).toEqual(["HELLO world!"]);
+            await expect.poll(() => body(bob.live)).toEqual(["HELLO world!"]);
 
-    // undo alice's edit exactly, leaving bob's
-    await alice.client.undo().confirmed;
-    await expect.poll(() => body(bob.live)).toEqual(["hello world!"]);
-    expect(await body(alice.live)).toEqual(["hello world!"]);
+            // undo alice's edit exactly, leaving bob's
+            await alice.client.undo().confirmed;
+            await expect.poll(() => body(bob.live)).toEqual(["hello world!"]);
+            expect(await body(alice.live)).toEqual(["hello world!"]);
 
-    // store no chunks for a caller without read
-    await carol.live.ready;
-    const stored = await carol.client.database.select().from(chunk);
-    expect([await body(carol.live), stored]).toEqual([[], []]);
-    expect([alice.errors, bob.errors, carol.errors]).toEqual([[], [], []]);
+            // store no chunks for a caller without read
+            await carol.live.ready;
+            const stored = await carol.client.database.select().from(chunk);
+            expect([await body(carol.live), stored]).toEqual([[], []]);
+            expect([alice.errors, bob.errors, carol.errors]).toEqual([[], [], []]);
+        })(),
+    );
 });
 
 test("type into a live text by offsets, one change after another, and converge on the server", async () => {
-    const { endpoint } = await serveDocuments();
-    const alice = await openClient(users.alice, endpoint(users.alice));
-    const bob = await openClient(users.bob, endpoint(users.bob));
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const { endpoint } = await serveDocuments(world);
+    const alice = await openClient(world, users.alice, endpoint(users.alice));
+    const bob = await openClient(world, users.bob, endpoint(users.bob));
 
     // create a document shared with bob and follow its body as a sequence
     const created = alice.client.mutate(document).create({ title: "Plan" });
@@ -372,27 +398,33 @@ async function body(live: Awaited<ReturnType<typeof openClient>>["live"]): Promi
 }
 
 test("tell whether a document's body has the elements a reader asks about", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // write a body of five characters in one run
-    const storage = await TestDatabase.create(documentsDatabase, { isMigrated: true });
+    const storage = await TestDatabase.create(documentsDatabase, {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
-    await openSpace(storage.database, spaceId);
-    const store = new ObjectStore({
+    await openSpace(storage.database, world, spaceId);
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([document]),
         database: storage.database,
         callKey: testCallKey,
-        events: await testEvents(storage.database),
+        events: await testEvents(storage.database, world),
         origin: { package: document.package },
     });
-    const caller = userContext(users.frank, spaceId).access();
+    const caller = userContext(users.frank, spaceId, { environment: world }).access();
     const [created] = await store.mutate(caller, {
-        id: RequestId.create(Date.now()),
+        id: RequestId.create(world),
         calls: [document.call("create", { spaceId })],
     });
     await store.mutate(caller, {
-        id: RequestId.create(Date.now()),
+        id: RequestId.create(world),
         calls: [
             document.call("edit", {
                 spaceId,

@@ -1,3 +1,4 @@
+import { testSimulation } from "../src/test/index.ts";
 import { defineObject, field, ObjectDescription } from "../src/index.ts";
 import type { CallableName } from "../src/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
@@ -6,16 +7,15 @@ import { defineDatabase } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
 
-import { RequestId } from "@destack/sync";
-import { ObjectStore } from "../src/server/index.ts";
+import { RequestId, Scope } from "@destack/sync";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { userContext, users, userName } from "./fixture/user.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
-import { Clock } from "@destack/environment";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
+import { TestObjectStore } from "../src/test/index.ts";
 
 /** The space containing the chores. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000003");
@@ -52,22 +52,28 @@ const choreDatabase = defineDatabase({
 });
 
 test("change the matched objects the caller has the permission on at once, advancing their revisions", async () => {
-    const storage = await TestDatabase.create(choreDatabase, { isMigrated: true });
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create(choreDatabase, {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
-    await openSpace(storage.database, spaceId);
-    const store = new ObjectStore({
+    await openSpace(storage.database, world, spaceId);
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([chore]),
         database: storage.database,
         callKey: testCallKey,
-        events: await testEvents(storage.database),
+        events: await testEvents(storage.database, world),
         origin: {
             package: chore.package,
         },
     });
-    let context = userContext(users.frank, spaceId);
+    let context = userContext(users.frank, spaceId, { environment: world });
     const call = <Name extends CallableName<typeof chore>>(
         name: Name,
         input: NoInfer<RequestInput<typeof chore, Name>>,
@@ -77,7 +83,7 @@ test("change the matched objects the caller has the permission on at once, advan
             chore,
             name,
             spaceId,
-            { requestId: RequestId.create(Date.now()), ...input },
+            { requestId: RequestId.create(world), ...input },
             context,
         );
 
@@ -85,11 +91,11 @@ test("change the matched objects the caller has the permission on at once, advan
     await call("create", { list: "home", done: false });
     await call("create", { list: "home", done: false });
     await call("create", { list: "work", done: false });
-    context = userContext(users.grace, spaceId);
+    context = userContext(users.grace, spaceId, { environment: world });
     await call("create", { list: "home", done: false });
 
     // finish frank's home list and leave the work chore and grace's chore
-    context = userContext(users.frank, spaceId);
+    context = userContext(users.frank, spaceId, { environment: world });
     const finished = await call("finish", { where: { list: "home" }, done: true });
     const rows = await storage.database
         .select({

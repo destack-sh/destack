@@ -1,43 +1,53 @@
-import { defineObject, device, field, ObjectDescription } from "../src/index.ts";
+import type { Clock } from "@destack/environment";
+import { testSimulation } from "../src/test/index.ts";
+import { defineObject, device, field, Installation, ObjectDescription } from "../src/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { AccessContext, accessTables, Caller, CONTAINED, principal } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
 import { RequestId, Scope, type Subject } from "@destack/sync";
-import { channelHub } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { serveDatabase, WasmClient, type Message } from "@destack/db/browser";
+import { broadcastChannel, serveDatabase, WasmClient } from "@destack/db/browser";
+import {
+    BrowserSimulation,
+    type SimulatedBrowserEnvironment,
+} from "@destack/environment/browser/simulation";
 import { Identifier, nth } from "@destack/schema";
 import { definePackage } from "@destack/object";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
-import { BrowserTab, type BrowserHost } from "../src/browser/index.ts";
+import { BrowserTab, type BrowserTabWorker } from "../src/browser/index.ts";
 import { ObjectClient, type ObjectAccess } from "../src/client/index.ts";
 import { ObjectStore, implementPackage } from "../src/server/index.ts";
 import { serveNotes, spaceId } from "./fixture/device.ts";
-import { spacePrincipal, unmoved } from "./fixture/space.ts";
+import { spacePrincipal, unmoved, space } from "./fixture/space.ts";
 import { draft, panel, sticky, user } from "./fixture/local.ts";
 import { note, notebook } from "./fixture/note.ts";
-import { Clock } from "@destack/environment";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
+import { TestObjectStore } from "../src/test/index.ts";
 
 test("read a local object one tab writes in another tab over the shared database, out of the outbox", async () => {
-    const { endpoint } = await serveNotes();
-    const alice = Identifier.create("user");
+    // run in a world of its own
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
 
-    // open two tabs sharing one database worker
-    const host = browserHost(await WasmClient.memory());
+    const { endpoint } = await serveNotes({ simulation, node: "browser" });
+    const alice = Identifier.create("user", world);
+
+    // open two tabs of one browser sharing one database worker
+    const environment = new BrowserSimulation(simulation).environment("browser");
+    const worker = databaseWorker(await WasmClient.memory(environment.clock), environment);
     const open = () =>
         BrowserTab.open({
-            clock: Clock.system,
+            environment,
             name: "notes",
             objects: { notebook, note, draft },
             scope: spaceId,
             caller: principal.user.reference("universe", alice),
-            device: principal.device.reference("universe", Identifier.create("device")),
+            device: principal.device.reference("universe", Identifier.create("device", world)),
             endpoint: endpoint(alice),
             reconnect: unmoved,
-            host: host(),
+            worker,
             report: (error) => {
                 throw error;
             },
@@ -68,17 +78,24 @@ test("read a local object one tab writes in another tab over the shared database
 });
 
 test("hide a user's local objects from another user on the same device, and the device's from another device", async () => {
-    const { endpoint } = await serveNotes();
-    const [alice, bob] = [Identifier.create("user"), Identifier.create("user")];
-    const [laptop, phone] = [Identifier.create("device"), Identifier.create("device")];
+    // run in a world of its own
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
+
+    const { endpoint, environment } = await serveNotes({ simulation });
+    const [alice, bob] = [Identifier.create("user", world), Identifier.create("user", world)];
+    const [laptop, phone] = [
+        Identifier.create("device", world),
+        Identifier.create("device", world),
+    ];
 
     // open the users' object clients over one local database, as the laptop and as the phone
     const objects = { notebook, note, draft, panel };
-    const storage = await TestDatabase.create([], { dialect: "sqlite" });
+    const storage = await TestDatabase.create([], { environment, dialect: "sqlite" });
     await ObjectClient.migrate(storage.database, objects);
     const openClient = (person: Identifier<"user">, on: string) =>
         ObjectClient.open({
-            clock: Clock.system,
+            environment,
             database: storage.database,
             objects,
             scope: spaceId,
@@ -112,18 +129,28 @@ test("hide a user's local objects from another user on the same device, and the 
 });
 
 test("refuse to serve local objects at another principal's store, and refuse local definitions beyond the device", async () => {
-    const { database } = await serveNotes();
+    // run in a world of its own
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
+
+    const { database, environment } = await serveNotes({ simulation });
     const local = { scope: device, storage: "local", fields: {}, permissions: [] } as const;
-    const events = await testEvents(database);
+    const events = await testEvents(database, world);
 
     // refuse a server for a local type, and local types in the universe, in several scopes or with durable traits
+    const draftPackage = definePackage({ objects: { draft } });
+    const drafts = await Installation.base(
+        space.reference(Scope.universe.id, spaceId),
+        draftPackage,
+        world.crypto,
+    );
     expect([
         failure(() =>
             nth(
                 new ObjectStore({
-                    servers: [implementPackage(definePackage({ objects: { draft } }), {})],
+                    servers: [implementPackage(draftPackage, {}).at(drafts)],
                     chain: async () => undefined,
-                    clock: Clock.system,
+                    environment: environment,
                     origin: { package: draft.package },
                     principal: spacePrincipal(spaceId),
                     callKey: testCallKey,
@@ -189,50 +216,54 @@ test("refuse to serve local objects at another principal's store, and refuse loc
 });
 
 /** Call as a signed-in user who lives inside the given subjects. */
-function newCaller(id: string, inside: readonly Subject[]): AccessContext {
+function newCaller(id: string, inside: readonly Subject[], clock: Clock): AccessContext {
     const person = Caller.of(principal.user.reference(Scope.universe.id, id));
 
-    return AccessContext.of({ ...person, groups: [...person.groups, ...inside] }, Date.now());
+    return AccessContext.of({ ...person, groups: [...person.groups, ...inside] }, clock.now());
 }
 
 test("serve a device's local objects at its store to the people signed in on it alone", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // store a laptop's stickies
-    const [ada, bob] = [Identifier.create("user"), Identifier.create("user")];
-    const laptop = device.reference(Scope.universe.id, Identifier.create("device"));
+    const [ada, bob] = [Identifier.create("user", world), Identifier.create("user", world)];
+    const laptop = device.reference(Scope.universe.id, Identifier.create("device", world));
     const storage = await TestDatabase.create(
         tablesOf({
             packages: [objectPackage],
             follows: [],
             tables: [...accessTables, sticky.table],
         }).tables,
-        {
-            isMigrated: true,
-        },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
-    await new AccessFixture(storage.database).replicateScope(laptop, device.policy);
+    await new AccessFixture(storage.database, world).replicateScope(laptop, device.policy);
 
     // serve them at the laptop's store
-    const store = new ObjectStore({
-        chain: async () => undefined,
-        clock: Clock.system,
-        principal: principal.device.reference(Scope.universe.id, laptop.id),
-        servers: serversOf([sticky]),
-        database: storage.database,
-        callKey: testCallKey,
-        events: await testEvents(storage.database),
-        origin: { package: sticky.package },
-    });
+    const store = await TestObjectStore.at(
+        principal.device.reference(Scope.universe.id, laptop.id),
+        {
+            chain: async () => undefined,
+            environment: world,
+            principal: principal.device.reference(Scope.universe.id, laptop.id),
+            servers: serversOf([sticky]),
+            database: storage.database,
+            callKey: testCallKey,
+            events: await testEvents(storage.database, world),
+            origin: { package: sticky.package },
+        },
+    );
 
     // call as ada signed in on the laptop, who lives inside it, and as bob signed in elsewhere
     const callers = {
-        ada: newCaller(ada, [{ ...laptop, relation: CONTAINED }]),
-        bob: newCaller(bob, []),
+        ada: newCaller(ada, [{ ...laptop, relation: CONTAINED }], world.clock),
+        bob: newCaller(bob, [], world.clock),
     };
     const write = (caller: AccessContext, text: string) =>
         refusal(
             store.mutate(caller, {
-                id: RequestId.create(Date.now()),
+                id: RequestId.create(world),
                 calls: [sticky.call("create", { deviceId: laptop.id, text })],
             }),
         );
@@ -253,6 +284,69 @@ test("serve a device's local objects at its store to the people signed in on it 
         bobWrites: ["NOT_FOUND", "NOT_FOUND", "sticky not found"],
         adaLists: ["Water the plants"],
         bobLists: ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${laptop.id} not found`],
+    });
+});
+
+test("let a device see and use the local objects of its scope as itself, and hide them from another device", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    // store a laptop's stickies
+    const laptop = device.reference(Scope.universe.id, Identifier.create("device", world));
+    const desk = principal.device.reference(Scope.universe.id, Identifier.create("device", world));
+    const storage = await TestDatabase.create(
+        tablesOf({
+            packages: [objectPackage],
+            follows: [],
+            tables: [...accessTables, sticky.table],
+        }).tables,
+        { environment: world, isMigrated: true },
+    );
+    onTestFinished(() => storage.close());
+    await new AccessFixture(storage.database, world).replicateScope(laptop, device.policy);
+
+    // serve them at the laptop's store, as the laptop
+    const itself = principal.device.reference(Scope.universe.id, laptop.id);
+    const store = await TestObjectStore.at(itself, {
+        chain: async () => undefined,
+        environment: world,
+        principal: itself,
+        servers: serversOf([sticky]),
+        database: storage.database,
+        callKey: testCallKey,
+        events: await testEvents(storage.database, world),
+        origin: { package: sticky.package },
+    });
+
+    // write and list a sticky as the laptop itself and as the desk
+    const write = (caller: AccessContext, text: string) =>
+        refusal(
+            store.mutate(caller, {
+                id: RequestId.create(world),
+                calls: [sticky.call("create", { deviceId: laptop.id, text })],
+            }),
+        );
+    const list = async (caller: AccessContext) => {
+        const listed = store.query(caller, sticky.call("list", { deviceId: laptop.id }));
+
+        return listed.then((page) => page.items.map((row) => row.text), readRefusal);
+    };
+    const callers = {
+        laptop: AccessContext.of(Caller.of(itself), world.clock.now()),
+        desk: AccessContext.of(Caller.of(desk), world.clock.now()),
+    };
+
+    // let the laptop write and list its own sticky, the desk seeing no laptop at all
+    expect({
+        laptopWrites: await write(callers.laptop, "Update the drivers"),
+        deskWrites: await write(callers.desk, "Back up"),
+        laptopLists: await list(callers.laptop),
+        deskLists: await list(callers.desk),
+    }).toEqual({
+        laptopWrites: "done",
+        deskWrites: ["NOT_FOUND", "NOT_FOUND", "sticky not found"],
+        laptopLists: ["Update the drivers"],
+        deskLists: ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${laptop.id} not found`],
     });
 });
 
@@ -287,45 +381,18 @@ function failure(build: () => unknown): string {
     throw new Error("the build did not fail");
 }
 
-/** Share one channel hub, database worker and lock queue between the tabs of one browser. */
-function browserHost(database: WasmClient): () => BrowserHost {
-    const join = channelHub<Message>();
-    const locks = new Map<string, Promise<void>>();
+/** Serve one database to a browser's tabs on their broadcast channel, as its worker does. */
+function databaseWorker(
+    database: WasmClient,
+    environment: SimulatedBrowserEnvironment,
+): BrowserTabWorker {
+    return async () => {
+        const stop = serveDatabase(
+            database,
+            broadcastChannel("destack:notes", environment),
+            environment,
+        );
 
-    return () => ({
-        channel: join(),
-        request: (name, callback, signal) =>
-            new Promise<void>((resolve, reject) => {
-                // reject an aborted wait
-                let isGranted = false;
-                signal?.addEventListener(
-                    "abort",
-                    () => {
-                        if (!isGranted) {
-                            reject(signal.reason);
-                        }
-                    },
-                    { once: true },
-                );
-
-                // queue behind the lock's holder and take it unless the wait aborted
-                const previous = locks.get(name) ?? Promise.resolve();
-                const next = previous.then(async () => {
-                    if (signal?.aborted !== true) {
-                        isGranted = true;
-                        await callback();
-                    }
-                });
-                locks.set(
-                    name,
-                    next.catch(() => undefined),
-                );
-                next.then(resolve, reject);
-            }),
-        start: async () => {
-            const stop = serveDatabase(database, join());
-
-            return async () => stop();
-        },
-    });
+        return async () => stop();
+    };
 }

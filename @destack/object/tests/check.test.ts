@@ -1,3 +1,5 @@
+import type { Environment } from "@destack/environment";
+import { testSimulation } from "../src/test/index.ts";
 import { users } from "./fixture/user.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { principal } from "@destack/access";
@@ -9,11 +11,10 @@ import { subjectContext, testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { RequestId, Scope, type Subject } from "@destack/sync";
 import { relationship } from "../src/index.ts";
-import { ObjectStore } from "../src/server/index.ts";
 import { space, spacePrincipal } from "./fixture/space.ts";
-import { Clock } from "@destack/environment";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
+import { TestObjectStore } from "../src/test/index.ts";
 
 /** The space whose access the checks decide. */
 const SPACE_ID = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000041");
@@ -26,11 +27,14 @@ const bob = principal.user.reference(Scope.universe.id, users.bob);
 const carol = principal.user.reference(Scope.universe.id, users.carol);
 
 test("check the caller's access under its grant, and another subject's for grantors alone", async () => {
-    const { storage, store, object } = await serveSpace();
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const { storage, store, object } = await serveSpace(world);
 
     // check as alice, as bob, and as a token acting for alice under a grant to read the space
     const token = principal.client.reference(Scope.universe.id, "client-alice");
-    const grantId = await new AccessFixture(storage.database).replicateGrant(alice, token, [
+    const grantId = await new AccessFixture(storage.database, world).replicateGrant(alice, token, [
         { ...space.permission("read"), scope: SPACE_ID },
     ]);
     const delegated = { actors: [token], grants: [{ id: grantId, scope: users.alice }] };
@@ -42,7 +46,10 @@ test("check the caller's access under its grant, and another subject's for grant
     ) => {
         // answer the decision, or the refusal
         const pending = store.query(
-            subjectContext(caller, SPACE_ID, isDelegated ? delegated : {}).access(),
+            subjectContext(caller, SPACE_ID, {
+                environment: world,
+                ...(isDelegated ? delegated : {}),
+            }).access(),
             relationship.call("check", { scope: SPACE_ID, subject, permission, object }),
         );
         const refused = await refusal(pending);
@@ -78,16 +85,19 @@ test("check the caller's access under its grant, and another subject's for grant
         tokenRead: { isAllowed: true },
         tokenShare: { isAllowed: false },
         tokenAsksBob: needsShare,
-        unknown: ["BAD_REQUEST", "UNKNOWN_PERMISSION", "space has no permission edit"],
+        unknown: ["BAD_REQUEST", "PERMISSION_UNKNOWN", "space has no permission edit"],
     });
 });
 
 test("list an object's relationships to whoever may read them, and revoke one only as a grantor of its relation", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // serve the universe, where the space's row and its relationships live
-    const { store } = await serveSpace(Scope.universe.id);
+    const { store } = await serveSpace(world, Scope.universe.id);
     const list = (caller: Subject) =>
         store.query(
-            subjectContext(caller, SPACE_ID).access(),
+            subjectContext(caller, SPACE_ID, { environment: world }).access(),
             relationship.call("list", { scope: Scope.universe.id, where: { objectId: SPACE_ID } }),
         );
     const listed = async (caller: Subject) =>
@@ -106,8 +116,8 @@ test("list an object's relationships to whoever may read them, and revoke one on
     const reading = (await list(alice)).items.find((row) => row.relation === "reader");
     const revoke = (caller: Subject) =>
         refusal(
-            store.mutate(subjectContext(caller, SPACE_ID).access(), {
-                id: RequestId.create(Date.now()),
+            store.mutate(subjectContext(caller, SPACE_ID, { environment: world }).access(), {
+                id: RequestId.create(store.environment),
                 calls: [
                     relationship.call("delete", {
                         scope: Scope.universe.id,
@@ -140,7 +150,7 @@ test("list an object's relationships to whoever may read them, and revoke one on
 });
 
 /** Serve a private space of alice, read by bob, with its relationships, as one partition. */
-async function serveSpace(partition?: string) {
+async function serveSpace(world: Environment, partition?: string) {
     const storage = await TestDatabase.create(
         defineDatabase({
             name: "main",
@@ -150,29 +160,32 @@ async function serveSpace(partition?: string) {
                 tables: [space.table],
             }),
         }),
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
 
     // create a private space of alice, read by bob
     const object = space.reference(Scope.universe.id, SPACE_ID);
-    const fixture = new AccessFixture(storage.database);
+    const fixture = new AccessFixture(storage.database, world);
     await fixture.replicateScope(object, space.policy);
-    await fixture.bindOwner(object, alice);
+    await fixture.replicateOwner(object, alice);
     await fixture.replicateRelationship(object, "reader", bob);
-    await storage.database
-        .insert(space.table)
-        .values({ id: SPACE_ID, scope: Scope.universe.id, createdAt: 1, updatedAt: 1 });
-    const store = new ObjectStore({
+    await storage.database.transaction(
+        async (transaction) =>
+            await transaction
+                .insert(space.table)
+                .values({ id: SPACE_ID, scope: Scope.universe.id, createdAt: 1, updatedAt: 1 }),
+    );
+    const store = await TestObjectStore.at(space.reference(Scope.universe.id, SPACE_ID), {
         chain: async () => undefined,
-        clock: Clock.system,
-        ...(partition === undefined ? {} : { partition }),
+        environment: world,
+        ...(partition === undefined ? {} : { partitions: [partition] }),
         principal: spacePrincipal(SPACE_ID),
         servers: serversOf([relationship]),
         policies: [space],
         database: storage.database,
         callKey: testCallKey,
-        events: await testEvents(storage.database),
+        events: await testEvents(storage.database, world),
         origin: { package: relationship.package },
     });
 

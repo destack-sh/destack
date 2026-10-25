@@ -1,3 +1,4 @@
+import { testSimulation } from "../src/test/index.ts";
 import { Snapshot } from "@destack/db";
 import { AccessContext, Caller } from "@destack/access";
 import { TestDatabase } from "@destack/db/test";
@@ -6,16 +7,15 @@ import { RequestId, Scope, type Publisher } from "@destack/sync";
 import { testCallKey } from "@destack/object/test";
 import { present, schema } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
-import { v7 } from "uuid";
 import { defineShape, Follow } from "../src/index.ts";
-import { implementPackage, ObjectStore } from "../src/server/index.ts";
+import { implementPackage } from "../src/server/index.ts";
 import { testEvents } from "../src/test/index.ts";
 import { page, pageDatabase, pagesPackage } from "./fixture/page.ts";
-import { openSpace, spacePrincipal } from "./fixture/space.ts";
-import { Clock } from "@destack/environment";
+import { openSpace, spacePrincipal, space } from "./fixture/space.ts";
+import { TestObjectStore } from "../src/test/index.ts";
 
 /** The space with the pages. */
-const spaceId = schema.identifier("space").parse(`space-${v7()}`);
+const spaceId = schema.identifier("space").parse(`space-01996ab0-0000-7000-8000-00000000a005`);
 
 /** The pages of a title, wherever their scope has them. */
 const titled = defineShape({
@@ -43,19 +43,26 @@ const icons = page.follow(iconed, {
 });
 
 test("subscribe to a fixed key and to one key per row the follower has, each toward its scope's publisher, and relist once a row changes the keys", async () => {
+    // run in a world of its own
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
+
     // compose the pages with the follows over the space's database, with each scope's publisher
-    const storage = await TestDatabase.create(pageDatabase, { isMigrated: true });
+    const storage = await TestDatabase.create(pageDatabase, {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
-    await openSpace(storage.database, spaceId);
+    await openSpace(storage.database, world, spaceId);
     const publishers = new Map<string, Publisher>();
-    const store = new ObjectStore({
+    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
         servers: [implementPackage(pagesPackage, { follows: [plans, icons] })],
         chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
-        clock: Clock.system,
+        environment: world,
         origin: { package: Package.of(pagesPackage) },
         principal: spacePrincipal(spaceId),
         callKey: testCallKey,
-        events: await testEvents(storage.database),
+        events: await testEvents(storage.database, world),
         database: storage.database,
         publisher: (scope) => {
             // use one publisher per scope
@@ -72,8 +79,8 @@ test("subscribe to a fixed key and to one key per row the follower has, each tow
 
     // create a page with an icon, list the subscriptions, then add a page of another icon
     const create = (title: string, icon: string | null) =>
-        store.mutate(AccessContext.of(Caller.of(spacePrincipal(spaceId)), Date.now()), {
-            id: RequestId.create(Date.now()),
+        store.mutate(AccessContext.of(Caller.of(spacePrincipal(spaceId)), world.clock.now()), {
+            id: RequestId.create(world),
             calls: [page.call("create", { spaceId, title, ...(icon === null ? {} : { icon }) })],
         });
     await create("Plan", "📌");
@@ -90,6 +97,7 @@ test("subscribe to a fixed key and to one key per row the follower has, each tow
             }),
         );
     const first = await listed();
+    simulation.clock.advance(1);
     await create("Ideas", "💡");
     const second = await listed();
 
@@ -118,7 +126,7 @@ test("subscribe to a fixed key and to one key per row the follower has, each tow
         target: spaceId,
         parameters: {
             scopes: [spaceId, Scope.universe.id],
-            local: scope === spaceId ? [page.typeReference] : [],
+            local: [page.typeReference],
             types: [],
             via: [],
             between: [],

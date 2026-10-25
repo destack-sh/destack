@@ -1,17 +1,17 @@
+import { testSimulation } from "../src/test/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import type { Call } from "@destack/sync";
 import { defineDatabase } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
-import { RequestId } from "@destack/sync";
+import { RequestId, Scope } from "@destack/sync";
 import { subjectContext, testCallKey } from "@destack/object/test";
 import { defineObject, field } from "../src/index.ts";
-import { ObjectStore } from "../src/server/index.ts";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
-import { Clock } from "@destack/environment";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
+import { TestObjectStore } from "../src/test/index.ts";
 
 /** The space the articles live in. */
 const SPACE_ID = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000051");
@@ -39,6 +39,9 @@ test("change state fields only through their transitions, with modifiers enforci
 });
 
 test("record a transition's declared fields with its state, refusing a call without them", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // serve articles whose rejection records its reason, with the space's owner as owner
     const article = defineObject(
         {
@@ -73,25 +76,27 @@ test("record a transition's declared fields with its state, refusing a call with
                 tables: [space.table],
             }),
         }),
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
     const { database } = storage;
-    const store = new ObjectStore({
+    const store = await TestObjectStore.at(space.reference(Scope.universe.id, SPACE_ID), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(SPACE_ID),
         servers: serversOf([article]),
         policies: [space],
         database,
         callKey: testCallKey,
-        events: await testEvents(database),
+        events: await testEvents(database, world),
         origin: { package: article.package },
     });
-    await openSpace(database, SPACE_ID);
-    const caller = subjectContext(spacePrincipal(SPACE_ID), SPACE_ID).access();
+    await openSpace(database, world, SPACE_ID);
+    const caller = subjectContext(spacePrincipal(SPACE_ID), SPACE_ID, {
+        environment: world,
+    }).access();
     const mutate = (call: Call) =>
-        store.mutate(caller, { id: RequestId.create(Date.now()), calls: [call] });
+        store.mutate(caller, { id: RequestId.create(world), calls: [call] });
 
     // reject an article with its reason, and refuse a rejection without one
     const [created] = await mutate(article.call("create", { spaceId: SPACE_ID, title: "Draft" }));
@@ -104,7 +109,7 @@ test("record a transition's declared fields with its state, refusing a call with
     expect({ refused, stored: [row?.review, row?.reason] }).toEqual({
         refused: [
             "BAD_REQUEST",
-            "INVALID_INPUT",
+            "INPUT_INVALID",
             "invalid input: reason: invalid input: expected string, received undefined",
         ],
         stored: ["rejected", "off topic"],

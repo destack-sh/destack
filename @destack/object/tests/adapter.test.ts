@@ -1,3 +1,5 @@
+import type { Environment } from "@destack/environment";
+import { testSimulation } from "../src/test/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { TestDatabase } from "@destack/db/test";
 import { Package } from "@destack/package";
@@ -5,23 +7,17 @@ import { schema } from "@destack/schema";
 import { defineAdapter, definePackage } from "@destack/object";
 import { testCallKey } from "@destack/object/test";
 import { testEvents } from "../src/test/index.ts";
-import { v7 } from "uuid";
-import {
-    type AdapterFetch,
-    implementPackage,
-    ObjectStore,
-    type ObjectPackage,
-} from "../src/server/index.ts";
+import { type AdapterFetch, implementPackage, type ObjectPackage } from "../src/server/index.ts";
 import { page, pageDatabase } from "./fixture/page.ts";
-import { openSpace, spacePrincipal } from "./fixture/space.ts";
+import { openSpace, spacePrincipal, space } from "./fixture/space.ts";
 import { users } from "./fixture/user.ts";
-import { Clock } from "@destack/environment";
 import { TestBearer, TestObjectStore } from "../src/test/index.ts";
 import { principal } from "@destack/access";
 import type { Subject } from "@destack/sync";
+import { Scope } from "@destack/sync";
 
 /** The space with the pages. */
-const spaceId = schema.identifier("space").parse(`space-${v7()}`);
+const spaceId = schema.identifier("space").parse(`space-01996ab0-0000-7000-8000-00000000a003`);
 
 /** The pages with a feed adapter answering below /feed. */
 const pages = definePackage({
@@ -47,19 +43,23 @@ const served: ObjectPackage = pages;
 
 /** Serve the pages over a space's database, answering the given adapters. */
 async function servePages(
+    world: Environment,
     adapters: Readonly<Record<string, AdapterFetch>>,
     handle: ObjectPackage = served,
 ) {
-    const storage = await TestDatabase.create(pageDatabase, { isMigrated: true });
+    const storage = await TestDatabase.create(pageDatabase, {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
-    await openSpace(storage.database, spaceId);
-    const events = await testEvents(storage.database);
+    await openSpace(storage.database, world, spaceId);
+    const events = await testEvents(storage.database, world);
 
-    return () =>
-        new ObjectStore({
+    return async () =>
+        await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
             servers: [implementPackage(handle, { adapters })],
             chain: async () => undefined,
-            clock: Clock.system,
+            environment: world,
             origin: { package: Package.of(handle) },
             principal: spacePrincipal(spaceId),
             callKey: testCallKey,
@@ -69,11 +69,14 @@ async function servePages(
 }
 
 test("answer each request at or below an adapter's path by its fetch, below the adapter's path", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // serve the pages with their feed
-    const composed = await servePages({ feed });
-    const serving = TestObjectStore.serve(composed());
-    onTestFinished(() => serving[Symbol.asyncDispose]());
-    const server = serving.server(pages);
+    const composed = await servePages(world, { feed });
+    const store = TestObjectStore.serve(await composed());
+    onTestFinished(() => store[Symbol.asyncDispose]());
+    const server = store.server(pages);
 
     // send requests below the feed, at it, and beside it
     const answer = async (path: string) => {
@@ -92,22 +95,30 @@ test("answer each request at or below an adapter's path by its fetch, below the 
 });
 
 test("refuse a package's unanswered adapter and an answer of no declared adapter", async () => {
-    // serve the pages with each wrong answer
-    const unanswered = await servePages({});
-    const stray = await servePages({ feed, atom: feed });
+    // run in a world of its own
+    const world = testSimulation().environment("test");
 
-    expect(unanswered).toThrow(
+    // serve the pages with each wrong answer
+    const unanswered = await servePages(world, {});
+    const stray = await servePages(world, { feed, atom: feed });
+
+    await expect(unanswered()).rejects.toThrow(
         new TypeError(`package ${pages.name} does not implement adapter feed`),
     );
-    expect(stray).toThrow(new TypeError(`package ${pages.name} does not declare adapter atom`));
+    await expect(stray()).rejects.toThrow(
+        new TypeError(`package ${pages.name} does not declare adapter atom`),
+    );
 });
 
 test("answer an adapter declaring its installation's calls as that principal alone", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // serve the feed to the space itself, its bearer the space's identifier
-    const composed = await servePages({ feed }, customPages);
-    const serving = TestObjectStore.serve(composed());
-    onTestFinished(() => serving[Symbol.asyncDispose]());
-    const server = serving.server(customPages);
+    const composed = await servePages(world, { feed }, customPages);
+    const store = TestObjectStore.serve(await composed());
+    onTestFinished(() => store[Symbol.asyncDispose]());
+    const server = store.server(customPages);
 
     // call the feed as the space, as a user, and as no one
     const status = async (caller: Subject | undefined) => {

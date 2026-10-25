@@ -1,3 +1,4 @@
+import { testSimulation } from "../src/test/index.ts";
 import { Failure } from "@destack/error";
 import {
     CallSite,
@@ -19,11 +20,11 @@ import { principal, relation } from "@destack/access";
 import { defineDatabase, TABLE } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { ResourceDeclaration } from "@destack/resource";
-import { schema, present, type JsonValue } from "@destack/schema";
+import { type Identifier, schema, present, type JsonValue } from "@destack/schema";
 import { graph, Package } from "@destack/package";
 import { definePackage, PACKAGE_DECLARATION, PackageHandle } from "@destack/object";
 import { describePackage } from "@destack/object/inspect";
-import { RequestId } from "@destack/sync";
+import { RequestId, Scope } from "@destack/sync";
 import { testCallKey, testServerContext } from "@destack/object/test";
 import { testEvents } from "../src/test/index.ts";
 import { implementPackage, ObjectStore } from "../src/server/index.ts";
@@ -33,9 +34,10 @@ type Declared = Pick<graph.Declaration, "symbol" | "kind" | "description">;
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { spaceId } from "./fixture/device.ts";
 import { userContext, users } from "./fixture/user.ts";
-import { Clock } from "@destack/environment";
+import { Environment } from "@destack/environment";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
+import { TestObjectStore } from "../src/test/index.ts";
 
 /** Cards their owner remarks on. */
 const card = defineObject(
@@ -102,7 +104,7 @@ function travel(value: unknown): unknown {
 }
 
 /** Serve cards whose hooks run in a sandbox of the package's installation. */
-async function serveCards(cards: PackageHandle, owner: Package = card.package) {
+async function serveCards(world: Environment, cards: PackageHandle, owner: Package = card.package) {
     // store the space's cards in memory
     const storage = await TestDatabase.create(
         defineDatabase({
@@ -113,13 +115,16 @@ async function serveCards(cards: PackageHandle, owner: Package = card.package) {
                 tables: [],
             }),
         }),
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
-    await storage.database
-        .insert(space.table)
-        .values({ id: spaceId, scope: "universe", createdAt: 1, updatedAt: 1 });
-    await openSpace(storage.database, spaceId);
+    await storage.database.transaction(
+        async (transaction) =>
+            await transaction
+                .insert(space.table)
+                .values({ id: spaceId, scope: "universe", createdAt: 1, updatedAt: 1 }),
+    );
+    await openSpace(storage.database, world, spaceId);
 
     // label each session by its order, and record the exchange through JSON
     const exchange: Message[] = [];
@@ -133,7 +138,7 @@ async function serveCards(cards: PackageHandle, owner: Package = card.package) {
     };
 
     // run the hooks in a sandbox called through the store's sandbox hooks
-    const context = await testServerContext(owner, spaceId);
+    const context = await testServerContext(owner, spaceId, world);
     const hooks: { sandbox?: HookSandbox } = {};
     const server = new HookServer({
         packages: [cards],
@@ -170,14 +175,14 @@ async function serveCards(cards: PackageHandle, owner: Package = card.package) {
     hooks.sandbox = sandbox;
 
     // serve the cards as the build describes them, their routed hooks run in the sandbox
-    const store = new ObjectStore({
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
         servers: [],
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         database: storage.database,
         callKey: testCallKey,
-        events: await testEvents(storage.database),
+        events: await testEvents(storage.database, world),
         origin: { package: card.package },
         policies: [space],
         sandboxes: [sandbox],
@@ -271,10 +276,13 @@ function describe(answer: HandlerAnswer): JsonValue {
 
 /** Run a call of a card method as a user, alice by default, answering the card. */
 async function run(store: ObjectStore, call: Call, user = users.alice) {
-    const [result] = await store.mutate(userContext(user, spaceId).access(), {
-        id: RequestId.create(Date.now()),
-        calls: [call],
-    });
+    const [result] = await store.mutate(
+        userContext(user, spaceId, { environment: store.environment }).access(),
+        {
+            id: RequestId.create(store.environment),
+            calls: [call],
+        },
+    );
 
     return schema
         .looseObject({ id: schema.identifier("card"), name: schema.string() })
@@ -282,8 +290,12 @@ async function run(store: ObjectStore, call: Call, user = users.alice) {
 }
 
 test("run a card's hooks in its sandbox, their reads, nested calls and wrapped behaviour responded with in the mutation's session", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // create a card whose sandboxed create hook capitalizes its name, then remark on it
     const { store, exchange } = await serveCards(
+        world,
         definePackage({
             objects: {
                 card: card.implement({
@@ -320,7 +332,7 @@ test("run a card's hooks in its sandbox, their reads, nested calls and wrapped b
         card.call("remark", { spaceId, id: created.id, text: "ship it" }),
     );
     const stored = await store.query(
-        userContext(users.alice, spaceId).access(),
+        userContext(users.alice, spaceId, { environment: world }).access(),
         card.call("get", { spaceId, id: created.id }),
     );
 
@@ -377,71 +389,83 @@ test("run a card's hooks in its sandbox, their reads, nested calls and wrapped b
 });
 
 test("run a sandboxed hook again in a fresh session once a concurrent commit changed what it read", async () => {
-    // rename the card concurrently while the first attempt's hook runs
-    const attempts: string[] = [];
-    const served: { store?: ObjectStore } = {};
-    const { store, exchange } = await serveCards(
-        definePackage({
-            objects: {
-                card: card.implement({
-                    methods: {
-                        remark: async (call) => {
-                            // read the card, renaming it concurrently on the first attempt
-                            const read = await call
-                                .read(card)
-                                .findFirst({ where: { id: call.target.id } });
-                            attempts.push(present(read, "the card").name);
-                            if (attempts.length === 1) {
-                                await run(
-                                    present(served.store, "the store"),
-                                    card.call("update", {
-                                        spaceId,
-                                        id: call.target.id,
-                                        name: "Roadmap",
-                                    }),
-                                );
-                            }
+    // run in a world of its own, moving its time while the work waits
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
+    await simulation.drive(
+        (async () => {
+            // rename the card concurrently while the first attempt's hook runs
+            const attempts: string[] = [];
+            const served: { store?: ObjectStore } = {};
+            const { store, exchange } = await serveCards(
+                world,
+                definePackage({
+                    objects: {
+                        card: card.implement({
+                            methods: {
+                                remark: async (call) => {
+                                    // read the card, renaming it concurrently on the first attempt
+                                    const read = await call
+                                        .read(card)
+                                        .findFirst({ where: { id: call.target.id } });
+                                    attempts.push(present(read, "the card").name);
+                                    if (attempts.length === 1) {
+                                        await run(
+                                            present(served.store, "the store"),
+                                            card.call("update", {
+                                                spaceId,
+                                                id: call.target.id,
+                                                name: "Roadmap",
+                                            }),
+                                        );
+                                    }
 
-                            // rename it with the remark
-                            await call.mutate(call.caller, [
-                                card.call("update", {
-                                    spaceId,
-                                    id: call.target.id,
-                                    name: `${present(read, "the card").name}: ${call.input.text}`,
-                                }),
-                            ]);
+                                    // rename it with the remark
+                                    await call.mutate(call.caller, [
+                                        card.call("update", {
+                                            spaceId,
+                                            id: call.target.id,
+                                            name: `${present(read, "the card").name}: ${call.input.text}`,
+                                        }),
+                                    ]);
 
-                            return call.target;
-                        },
+                                    return call.target;
+                                },
+                            },
+                        }),
                     },
                 }),
-            },
-        }),
-    );
-    served.store = store;
-    const created = await run(store, card.call("create", { spaceId, name: "Plan" }));
-    await run(store, card.call("remark", { spaceId, id: created.id, text: "ship it" }));
-    const stored = await store.query(
-        userContext(users.alice, spaceId).access(),
-        card.call("get", { spaceId, id: created.id }),
-    );
+            );
+            served.store = store;
+            const created = await run(store, card.call("create", { spaceId, name: "Plan" }));
+            await run(store, card.call("remark", { spaceId, id: created.id, text: "ship it" }));
+            const stored = await store.query(
+                userContext(users.alice, spaceId, { environment: world }).access(),
+                card.call("get", { spaceId, id: created.id }),
+            );
 
-    // read the concurrent name in the second attempt's session, seeing only its change
-    expect({
-        attempts,
-        stored: stored.name,
-        sessions: exchange.filter(([, kind]) => kind === "handle").map(([name]) => name),
-    }).toEqual({
-        attempts: ["Plan", "Roadmap"],
-        stored: "Roadmap: ship it",
-        sessions: ["session 1", "session 2"],
-    });
+            // read the concurrent name in the second attempt's session, seeing only its change
+            expect({
+                attempts,
+                stored: stored.name,
+                sessions: exchange.filter(([, kind]) => kind === "handle").map(([name]) => name),
+            }).toEqual({
+                attempts: ["Plan", "Roadmap"],
+                stored: "Roadmap: ship it",
+                sessions: ["session 1", "session 2"],
+            });
+        })(),
+    );
 });
 
 test("read every card of the package in a hook, and read as the caller through a query", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // title a remark after the cards the hook lists and reads, and the caller's query
     const other: { id?: string } = {};
     const { store } = await serveCards(
+        world,
         definePackage({
             objects: {
                 card: card.implement({
@@ -492,7 +516,7 @@ test("read every card of the package in a hook, and read as the caller through a
     const created = await run(store, card.call("create", { spaceId, name: "Plan" }));
     await run(store, card.call("remark", { spaceId, id: created.id, text: "ship it" }));
     const stored = await store.query(
-        userContext(users.alice, spaceId).access(),
+        userContext(users.alice, spaceId, { environment: world }).access(),
         card.call("get", { spaceId, id: created.id }),
     );
 
@@ -522,15 +546,18 @@ const stamping = definePackage({
 });
 
 test("call an internal method of the hook's package in its session", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // remark by stamping the card through its internal method
-    const { store } = await serveCards(stamping);
+    const { store } = await serveCards(world, stamping);
     const created = await run(store, card.call("create", { spaceId, name: "Plan" }));
     const remarked = await run(
         store,
         card.call("remark", { spaceId, id: created.id, text: "ship it" }),
     );
     const stored = await store.query(
-        userContext(users.alice, spaceId).access(),
+        userContext(users.alice, spaceId, { environment: world }).access(),
         card.call("get", { spaceId, id: created.id }),
     );
 
@@ -541,9 +568,13 @@ test("call an internal method of the hook's package in its session", async () =>
 });
 
 test("decide permissions, take positions, read the start position and act as the installation through a hook's session", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // remark by deciding the caller's permissions and drawing from the mutation as the sandbox sees it
     const seen: JsonValue[] = [];
     const { store, exchange } = await serveCards(
+        world,
         definePackage({
             objects: {
                 card: card.implement({
@@ -569,7 +600,7 @@ test("decide permissions, take positions, read the start position and act as the
     );
     const created = await run(store, card.call("create", { spaceId, name: "Plan" }));
     await run(store, card.call("remark", { spaceId, id: created.id, text: "ship it" }));
-    const context = await testServerContext(card.package, spaceId);
+    const context = await testServerContext(card.package, spaceId, world);
 
     // answer the check, the requirement and the position in the hook's session
     const reference = { packageId: card.package.id, type: "card", scope: spaceId, id: created.id };
@@ -598,12 +629,17 @@ test("decide permissions, take positions, read the start position and act as the
 });
 
 test("serve the installation's package from its sandbox, never a bundled dependency's", async () => {
-    const { store } = await serveCards(definePackage({ objects: { card } }));
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const { store } = await serveCards(world, definePackage({ objects: { card } }));
 
     expect(store.packages.map((served) => served.package.id)).toEqual([card.package.id]);
 });
 
 test("call internal methods from the store's code and its package's sandboxes alone", () => {
+    // run in a world of its own
+
     // ask each code for the internal stamp and the public get
     const codes: readonly CallSite[] = [
         CallSite.store,
@@ -624,8 +660,12 @@ test("call internal methods from the store's code and its package's sandboxes al
 });
 
 test("read the rows of a type the installation serves without hooks", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // remark by titling the card after the caller's notes
     const { store } = await serveCards(
+        world,
         definePackage({
             objects: {
                 card: card.implement({
@@ -650,9 +690,9 @@ test("read the rows of a type the installation serves without hooks", async () =
     );
 
     // write a note and a card as alice, then remark on the card
-    const caller = userContext(users.alice, spaceId).access();
+    const caller = userContext(users.alice, spaceId, { environment: world }).access();
     await store.mutate(caller, {
-        id: RequestId.create(Date.now()),
+        id: RequestId.create(store.environment),
         calls: [note.call("create", { spaceId, text: "ship it" })],
     });
     const created = await run(store, card.call("create", { spaceId, name: "Plan" }));
@@ -663,6 +703,9 @@ test("read the rows of a type the installation serves without hooks", async () =
 });
 
 test("refuse serving the cards of two installations of one package from one store", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // install the cards twice in the space, each in a separate sandbox
     const storage = await TestDatabase.create(
         defineDatabase({
@@ -673,29 +716,31 @@ test("refuse serving the cards of two installations of one package from one stor
                 tables: [],
             }),
         }),
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
     const cards = definePackage({ objects: { card } });
-    const installed = await testServerContext(card.package, spaceId);
-    const sandbox = (id: string) =>
+    const installed = await testServerContext(card.package, spaceId, world);
+    const sandbox = (id: Identifier<"installation">) =>
         new HookSandbox({
             server: { ...installed, installation: id },
             declarations: declared(cards),
             send: () => Promise.reject(new TypeError("the cards have no hooks")),
         });
-    const [first, second] = [
-        "installation-01996ab0-0000-7000-8000-0000000000d1",
-        "installation-01996ab0-0000-7000-8000-0000000000d2",
-    ];
+    const first = schema
+        .identifier("installation")
+        .parse("installation-01996ab0-0000-7000-8000-0000000000d1");
+    const second = schema
+        .identifier("installation")
+        .parse("installation-01996ab0-0000-7000-8000-0000000000d2");
 
     // serve both from one store
-    const events = await testEvents(storage.database);
+    const events = await testEvents(storage.database, world);
     const serve = () =>
         new ObjectStore({
             servers: [],
             chain: async () => undefined,
-            clock: Clock.system,
+            environment: world,
             principal: spacePrincipal(spaceId),
             database: storage.database,
             callKey: testCallKey,
@@ -713,6 +758,9 @@ test("refuse serving the cards of two installations of one package from one stor
 });
 
 test("serve the cards of the platform and of an installed package from one store, each under its package", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // declare an installed package's card type beside the platform's
     const storage = await TestDatabase.create(
         defineDatabase({
@@ -723,26 +771,26 @@ test("serve the cards of the platform and of an installed package from one store
                 tables: [],
             }),
         }),
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
     const cards = definePackage({ objects: { card } });
     const installed = { ...card.package, id: OTHER_PACKAGE, name: "@app/cards" };
     const sandbox = new HookSandbox({
-        server: await testServerContext(installed, spaceId),
+        server: await testServerContext(installed, spaceId, world),
         declarations: declared(cards).map((entry) => moved(entry, installed)),
         send: () => Promise.reject(new TypeError("the cards have no hooks")),
     });
 
     // serve the platform's cards and the installation's from one store
-    const store = new ObjectStore({
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
         servers: [implementPackage(cards, {})],
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         database: storage.database,
         callKey: testCallKey,
-        events: await testEvents(storage.database),
+        events: await testEvents(storage.database, world),
         origin: { package: card.package },
         policies: [space],
         sandboxes: [sandbox],
@@ -760,6 +808,9 @@ test("serve the cards of the platform and of an installed package from one store
 });
 
 test("describe the platform's and an installed package's types from one store, declaring each from the descriptions alone", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // serve the platform's photos and an installed package's cards from one store
     const storage = await TestDatabase.create(
         defineDatabase({
@@ -770,25 +821,25 @@ test("describe the platform's and an installed package's types from one store, d
                 tables: [],
             }),
         }),
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
     const photos = definePackage({ objects: { photo } });
     const cards = definePackage({ objects: { card } });
     const installed = { ...card.package, id: OTHER_PACKAGE, name: "@app/cards" };
     const sandbox = new HookSandbox({
-        server: await testServerContext(installed, spaceId),
+        server: await testServerContext(installed, spaceId, world),
         declarations: declared(cards).map((entry) => moved(entry, installed)),
         send: () => Promise.reject(new TypeError("the cards have no hooks")),
     });
-    const store = new ObjectStore({
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
         servers: [implementPackage(photos, {})],
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         database: storage.database,
         callKey: testCallKey,
-        events: await testEvents(storage.database),
+        events: await testEvents(storage.database, world),
         origin: { package: card.package },
         policies: [space],
         sandboxes: [sandbox],

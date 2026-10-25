@@ -1,11 +1,13 @@
+import { TestObjectStore } from "../src/test/index.ts";
+import type { Environment } from "@destack/environment";
+import { testSimulation } from "../src/test/index.ts";
 import { expect, onTestFinished, refusal, single, test } from "@destack/test";
 import { TestDatabase } from "@destack/db/test";
-import { type DatabaseConnection, eq } from "@destack/db";
+import { type DatabaseConnection, defineDatabase, eq } from "@destack/db";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
-import { schema, type JsonObject } from "@destack/schema";
-import { v7 } from "uuid";
-import { defineObject, field, ObjectPolicy, type ObjectType } from "../src/index.ts";
+import { present, schema, type JsonObject } from "@destack/schema";
+import { defineObject, field, installation, ObjectPolicy, type ObjectType } from "../src/index.ts";
 import {
     accessRole,
     contained,
@@ -23,12 +25,11 @@ import { ObjectDescription } from "../src/object/description.ts";
 import { label, note, objectDatabase, task } from "./schema.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
-import { Clock } from "@destack/environment";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 
 /** The space the declared objects live in. */
-const spaceId = schema.identifier("space").parse(`space-${v7()}`);
+const spaceId = schema.identifier("space").parse(`space-01996ab0-0000-7000-8000-00000000a00d`);
 
 /** Cards stacks declare by name, which their owners also write directly. */
 const card = defineObject(
@@ -43,16 +44,16 @@ const card = defineObject(
 );
 
 /** Serve the declared objects over a database, applying their records. */
-async function serve(database: DatabaseConnection): Promise<ObjectStore> {
-    return new ObjectStore({
+async function serve(world: Environment, database: DatabaseConnection): Promise<ObjectStore> {
+    return await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([label, note, task]),
         policies: [space],
         database,
         callKey: testCallKey,
-        events: await testEvents(database),
+        events: await testEvents(database, world),
         origin: { package: note.package },
     });
 }
@@ -64,13 +65,22 @@ const manager = Manager.schema.omit({ name: true }).parse({
 });
 
 test("read a declaration's release through its step's database while applying", async () => {
-    const storage = await TestDatabase.create(objectDatabase, { isMigrated: true });
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create(objectDatabase, {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     const database = storage.database;
-    await openSpace(database, spaceId);
-    await database
-        .insert(space.table)
-        .values({ id: spaceId, scope: Scope.universe.id, createdAt: 0, updatedAt: 0 });
+    await openSpace(database, world, spaceId);
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .insert(space.table)
+                .values({ id: spaceId, scope: Scope.universe.id, createdAt: 0, updatedAt: 0 }),
+    );
 
     // resolve each note through a release that reads the notes, then refuses
     const objects = [
@@ -86,25 +96,32 @@ test("read a declaration's release through its step's database while applying", 
     ];
     const applied = new Stack({
         database,
+        isHome: false,
         objects,
         manager,
         as: spacePrincipal(spaceId),
         scope: spaceId,
         document: { notes: { one: { title: "first" } } },
         applied: {},
-        store: await serve(database),
+        store: await serve(world, database),
         release: async (step) => {
             await step.read(note.table).findMany();
             throw new TypeError("no release in this test");
         },
-    }).apply(Date.now());
+    }).apply(world.clock.now());
 
     // refuse with the release's failure instead of waiting behind the step's transaction
     await expect(applied).rejects.toThrow(new TypeError("no release in this test"));
 });
 
 test("apply declared objects in dependency order, wait, leave detached and retire in reverse", async () => {
-    const storage = await TestDatabase.create(objectDatabase, { isMigrated: true });
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create(objectDatabase, {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     const database = storage.database;
     const objects = [
@@ -123,16 +140,20 @@ test("apply declared objects in dependency order, wait, leave detached and retir
         }),
         note,
     ];
-    await openSpace(database, spaceId);
-    await database
-        .insert(space.table)
-        .values({ id: spaceId, scope: Scope.universe.id, createdAt: 0, updatedAt: 0 });
-    const store = await serve(database);
+    await openSpace(database, world, spaceId);
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .insert(space.table)
+                .values({ id: spaceId, scope: Scope.universe.id, createdAt: 0, updatedAt: 0 }),
+    );
+    const store = await serve(world, database);
     let applied: JsonObject = {};
     const apply = async (document: JsonObject) => {
         // apply the document against the one applied last
         const plan = await new Stack({
             database,
+            isHome: false,
             objects,
             manager,
             as: spacePrincipal(spaceId),
@@ -140,7 +161,7 @@ test("apply declared objects in dependency order, wait, leave detached and retir
             document,
             applied,
             store,
-        }).apply(Date.now());
+        }).apply(world.clock.now());
         applied = document;
 
         return plan;
@@ -168,12 +189,12 @@ test("apply declared objects in dependency order, wait, leave detached and retir
     // reject collections no object reads and references to undeclared objects
     expect(await refusal(apply({ tags: {} }))).toEqual([
         "INTERNAL_SERVER_ERROR",
-        "UNSUPPORTED_DECLARATION",
+        "DECLARATION_UNSUPPORTED",
         "this server cannot apply tags",
     ]);
     expect(
         await refusal(apply({ notes: {}, labels: { stray: { note: "missing", text: "stray" } } })),
-    ).toEqual(["INTERNAL_SERVER_ERROR", "INVALID_DECLARATION", "unknown note: missing"]);
+    ).toEqual(["INTERNAL_SERVER_ERROR", "DECLARATION_INVALID", "unknown note: missing"]);
 
     // stop at a waiting declaration and retain the earlier writes
     expect(
@@ -205,14 +226,23 @@ test("apply declared objects in dependency order, wait, leave detached and retir
 });
 
 test("plan nothing when a document is applied again unchanged, tags and references included", async () => {
-    const storage = await TestDatabase.create(objectDatabase, { isMigrated: true });
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create(objectDatabase, {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     const database = storage.database;
-    await openSpace(database, spaceId);
-    await database
-        .insert(space.table)
-        .values({ id: spaceId, scope: Scope.universe.id, createdAt: 0, updatedAt: 0 });
-    const store = await serve(database);
+    await openSpace(database, world, spaceId);
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .insert(space.table)
+                .values({ id: spaceId, scope: Scope.universe.id, createdAt: 0, updatedAt: 0 }),
+    );
+    const store = await serve(world, database);
     const document = {
         notes: { one: { title: "first", tags: { team: "design" } } },
         labels: { urgent: { note: "one", text: "urgent" } },
@@ -220,6 +250,7 @@ test("plan nothing when a document is applied again unchanged, tags and referenc
     const apply = (applied: JsonObject) =>
         new Stack({
             database,
+            isHome: false,
             objects: [label, note],
             manager,
             as: spacePrincipal(spaceId),
@@ -227,7 +258,7 @@ test("plan nothing when a document is applied again unchanged, tags and referenc
             document,
             applied,
             store,
-        }).apply(Date.now());
+        }).apply(world.clock.now());
 
     // create once, then plan nothing for the same document
     await apply({});
@@ -244,33 +275,48 @@ const vault = defineObject({
 });
 
 test("leave a collection no served type collects to the installed type of its plural, refusing it without one", async () => {
-    const storage = await TestDatabase.create(objectDatabase, { isMigrated: true });
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create(objectDatabase, {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     const database = storage.database;
-    await openSpace(database, spaceId);
-    await database
-        .insert(space.table)
-        .values({ id: spaceId, scope: Scope.universe.id, createdAt: 0, updatedAt: 0 });
+    await openSpace(database, world, spaceId);
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .insert(space.table)
+                .values({ id: spaceId, scope: Scope.universe.id, createdAt: 0, updatedAt: 0 }),
+    );
 
     // declare a note the store serves and a vault only an installed package does
-    const apply = async (installing?: () => Promise<readonly ObjectType[]>) =>
+    const apply = async (
+        installing?: () => Promise<{
+            readonly types: readonly ObjectType[];
+            readonly isPending: boolean;
+        }>,
+    ) =>
         new Stack({
             database,
+            isHome: false,
             objects: [note],
             manager,
             as: spacePrincipal(spaceId),
             scope: spaceId,
             document: { notes: { draft: { title: "Draft" } }, vaults: { secrets: {} } },
             applied: {},
-            store: await serve(database),
+            store: await serve(world, database),
             ...(installing === undefined ? {} : { installing }),
-        }).apply(Date.now());
+        }).apply(world.clock.now());
 
     // refuse the vaults without installed types, then plan them under the installed vault type
     const refused = await refusal(apply());
-    const planned = await apply(async () => [vault]);
+    const planned = await apply(async () => ({ types: [vault], isPending: false }));
     expect([refused, planned]).toEqual([
-        ["INTERNAL_SERVER_ERROR", "UNSUPPORTED_DECLARATION", "this server cannot apply vaults"],
+        ["INTERNAL_SERVER_ERROR", "DECLARATION_UNSUPPORTED", "this server cannot apply vaults"],
         {
             steps: [
                 { action: "create", target: "note/draft", risk: "safe", detail: "declare" },
@@ -323,6 +369,9 @@ test("refuse a containment grant on a type living in the universe alone, and all
 });
 
 test("refuse declarations that depend on themselves, also next to one depending on every other", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // declare notes and labels depending on each other, with a third type depending on every other
     const objects = [
         label,
@@ -332,16 +381,17 @@ test("refuse declarations that depend on themselves, also next to one depending 
 
     // report the cycle instead of overflowing the stack
     const storage = await TestDatabase.create(
-        tablesOf({ packages: [], follows: [], tables: [] }).tables,
-        { isMigrated: true },
+        tablesOf({ packages: [objectPackage], follows: [], tables: [] }).tables,
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
-    const store = await serve(storage.database);
+    const store = await serve(world, storage.database);
     expect(
         await refusal(
             () =>
                 new Stack({
                     database: storage.database,
+                    isHome: false,
                     objects,
                     manager,
                     as: spacePrincipal(spaceId),
@@ -356,40 +406,43 @@ test("refuse declarations that depend on themselves, also next to one depending 
         ),
     ).toEqual([
         "INTERNAL_SERVER_ERROR",
-        "CYCLIC_DECLARATION",
+        "DECLARATION_CYCLIC",
         "declarations of labels depend on themselves",
     ]);
 });
 
 test("adopt a direct record into a declaration once, rewriting it, release it once, and refuse records another declaration manages, undeclared adoptions and declared releases", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     const storage = await TestDatabase.create(
         tablesOf({
             packages: [objectPackage, { objects: { card }, tables: [] }],
             follows: [],
             tables: [],
         }).tables,
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
     const { database } = storage;
-    await openSpace(database, spaceId);
-    const store = new ObjectStore({
+    await openSpace(database, world, spaceId);
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([card]),
         database,
         callKey: testCallKey,
-        events: await testEvents(database),
+        events: await testEvents(database, world),
         origin: { package: card.package },
     });
 
     // write two cards directly as alice
-    const context = userContext(users.alice, spaceId);
+    const context = userContext(users.alice, spaceId, { environment: world });
     const create = (title: string) =>
         store
             .mutate(context.access(), {
-                id: RequestId.create(Date.now()),
+                id: RequestId.create(world),
                 calls: [card.call("create", { spaceId, title })],
             })
             .then(([written]) => written);
@@ -399,6 +452,7 @@ test("adopt a direct record into a declaration once, rewriting it, release it on
         // apply the document against the one applied last
         const plan = await new Stack({
             database,
+            isHome: false,
             objects: [card],
             manager: declaring,
             as: spacePrincipal(spaceId),
@@ -406,7 +460,7 @@ test("adopt a direct record into a declaration once, rewriting it, release it on
             document,
             applied: last,
             store,
-        }).apply(Date.now());
+        }).apply(world.clock.now());
         last = document;
 
         return plan;
@@ -477,22 +531,22 @@ test("adopt a direct record into a declaration once, rewriting it, release it on
         refusals: [
             [
                 "INTERNAL_SERVER_ERROR",
-                "INVALID_DECLARATION",
+                "DECLARATION_INVALID",
                 "card welcome already declares another record",
             ],
             [
                 "INTERNAL_SERVER_ERROR",
-                "INVALID_DECLARATION",
+                "DECLARATION_INVALID",
                 `card ${first.id} is managed by another declaration`,
             ],
             [
                 "INTERNAL_SERVER_ERROR",
-                "INVALID_DECLARATION",
+                "DECLARATION_INVALID",
                 `card other adopts ${second.id} but does not declare other`,
             ],
             [
                 "INTERNAL_SERVER_ERROR",
-                "INVALID_DECLARATION",
+                "DECLARATION_INVALID",
                 "card welcome is both declared and released",
             ],
         ],
@@ -534,6 +588,9 @@ const badge = defineObject(
 );
 
 test("restore a trashed declared record, replace one whose changed field its type cannot update, and activate an archived one declared again", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     const boards = board.implement({ declaration: {} });
     const badges = badge.implement({ declaration: { retire: "archived" } });
     const storage = await TestDatabase.create(
@@ -542,19 +599,19 @@ test("restore a trashed declared record, replace one whose changed field its typ
             follows: [],
             tables: [],
         }).tables,
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
     const { database } = storage;
-    await openSpace(database, spaceId);
-    const store = new ObjectStore({
+    await openSpace(database, world, spaceId);
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([boards, badges]),
         database,
         callKey: testCallKey,
-        events: await testEvents(database),
+        events: await testEvents(database, world),
         origin: { package: board.package },
     });
     let last: JsonObject = {};
@@ -562,6 +619,7 @@ test("restore a trashed declared record, replace one whose changed field its typ
         // apply the document against the one applied last, listing each step's action and fields
         const plan = await new Stack({
             database,
+            isHome: false,
             objects: [boards, badges],
             manager,
             as: spacePrincipal(spaceId),
@@ -569,7 +627,7 @@ test("restore a trashed declared record, replace one whose changed field its typ
             document,
             applied: last,
             store,
-        }).apply(Date.now());
+        }).apply(world.clock.now());
         last = document;
 
         return plan.steps.map((step) => [
@@ -580,11 +638,14 @@ test("restore a trashed declared record, replace one whose changed field its typ
         ]);
     };
     const rows = async () => ({
-        boards: (await database.select().from(board.table)).map((row) => [
+        boards: (await database.select().from(board.table).orderBy(board.table.id)).map((row) => [
             row.size,
             row.deletedAt === null,
         ]),
-        badges: (await database.select().from(badge.table)).map((row) => [row.title, row.active]),
+        badges: (await database.select().from(badge.table).orderBy(badge.table.id)).map((row) => [
+            row.title,
+            row.active,
+        ]),
     });
 
     // declare a board and a badge, then retire the board to the trash
@@ -692,6 +753,30 @@ test("manage every durable type with a create verb, and no type without one", ()
     ]);
 });
 
+test("relate a reference to an installation in the row's scope when its scope type stands for the installation's scope", () => {
+    // place emissions in a space type standing for the space principal, a scope installations live in
+    const placed = defineObject({
+        name: "space",
+        plural: "spaces",
+        scope: "universe",
+        isScope: true,
+        represents: principal.space,
+        fields: {},
+        permissions: {},
+    });
+    const emission = defineObject({
+        name: "emission",
+        plural: "emissions",
+        scope: placed,
+        fields: { installation: field.reference(installation).optional() },
+        permissions: { read: through("installation", "observe") },
+    });
+
+    expect(ObjectPolicy.mapping(emission).relations["installation"]).toEqual({
+        column: "installationId",
+    });
+});
+
 test("let roles grant every permission of a type but its reserved ones", () => {
     const vaulted = defineObject({
         name: "vaulted",
@@ -705,5 +790,107 @@ test("let roles grant every permission of a type but its reserved ones", () => {
     expect([vaulted.permissions, vaulted.grantable]).toEqual([
         ["read", "write", "consume"],
         ["read", "write"],
+    ]);
+});
+
+/** Walls a controller tears down, which stacks declare after the notes they show. */
+const wall = defineObject(
+    {
+        name: "wall",
+        plural: "walls",
+        scope: space,
+        controlled: true,
+        fields: { title: field.string() },
+        permissions: ["write", "control"],
+    },
+    (method) => ({
+        create: method.create("write"),
+        update: method.update("write", { fields: ["title"] }),
+        delete: method.delete("write"),
+    }),
+);
+
+test("retire a controlled wall before the notes it follows, planning the notes until its controller finished deleting it", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    // declare a note and a wall after it
+    const storage = await TestDatabase.create(
+        defineDatabase({
+            name: "main",
+            ...tablesOf({
+                packages: [objectPackage, { objects: { wall }, tables: [] }],
+                follows: [],
+                tables: [space.table, note.table],
+            }),
+        }),
+        { environment: world, isMigrated: true },
+    );
+    onTestFinished(() => storage.close());
+    const database = storage.database;
+    await openSpace(database, world, spaceId);
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .insert(space.table)
+                .values({ id: spaceId, scope: Scope.universe.id, createdAt: 0, updatedAt: 0 }),
+    );
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
+        chain: async () => undefined,
+        environment: world,
+        principal: spacePrincipal(spaceId),
+        servers: serversOf([note, wall]),
+        policies: [space],
+        database,
+        callKey: testCallKey,
+        events: await testEvents(database, world),
+        origin: { package: note.package },
+    });
+    const objects = [note, wall.implement({ declaration: { after: [note] } })];
+    let applied: JsonObject = {};
+    const apply = async (document: JsonObject) => {
+        const plan = await new Stack({
+            database,
+            isHome: false,
+            objects,
+            manager,
+            as: spacePrincipal(spaceId),
+            scope: spaceId,
+            document,
+            applied,
+            store,
+        }).apply(world.clock.now());
+        applied = document;
+
+        return plan;
+    };
+    await apply({ notes: { one: { title: "first" } }, walls: { main: { title: "Main" } } });
+
+    // drop both: delete the wall, and plan the note's deletion until the wall's controller finishes
+    const dropped = await apply({});
+    const notes = await database.select({ name: note.table.managerName }).from(note.table);
+
+    // finish the wall's deletion as its controller does, then drop again, deleting the note
+    const [row] = await database.select().from(wall.table);
+    const torn: ObjectType = wall;
+    await store.mutate(store.as(wall), {
+        id: RequestId.create(world),
+        calls: [torn.call("finalize", wall.target(present(row, "the wall")))],
+    });
+    const finished = await apply({});
+    expect([dropped, notes, finished]).toEqual([
+        {
+            steps: [
+                { action: "delete", target: "wall/main", risk: "destructive", detail: "retire" },
+                { action: "delete", target: "note/one", risk: "destructive", detail: "retire" },
+            ],
+            deferred: "walls main finish deleting first",
+        },
+        [{ name: "one" }],
+        {
+            steps: [
+                { action: "delete", target: "note/one", risk: "destructive", detail: "retire" },
+            ],
+        },
     ]);
 });

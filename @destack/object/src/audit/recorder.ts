@@ -15,7 +15,7 @@ import { Failure } from "@destack/error";
 import { findDenial, CallError } from "../error/call.ts";
 import { AccessContext, Credential } from "@destack/access";
 import { type ProcedureAudit, type ProcedureContext } from "../server/procedure.ts";
-import { context, trace, isSpanContextValid } from "@destack/telemetry";
+import { trace, isSpanContextValid } from "@destack/telemetry";
 import { type AuditAction, defineAuditAction } from "./action.ts";
 import type { Package } from "@destack/package";
 import { ObjectError } from "../error/index.ts";
@@ -105,7 +105,7 @@ export class AuditRecorder {
             credential === undefined ? undefined : Credential.deployment(credential, acting);
         const session = schema.identifier("session").safeParse(credential?.id);
         const presented = schema.identifier("token").safeParse(credential?.id);
-        const span = trace.getSpanContext(context.active());
+        const span = trace.getSpanContext(journal.environment.telemetry.context.active());
 
         // read the caller's session, token, trace and the grant its sender acts under
         const grant = grants.at(-1);
@@ -254,7 +254,7 @@ export class AuditRecorder {
             canonicalize(execution.context) !== canonicalize(this.#context)
         ) {
             throw ObjectError.of(
-                "INVALID_CALL",
+                "CALL_INVALID",
                 "finishing a call requires a running call from this context",
             );
         }
@@ -277,7 +277,7 @@ export class AuditRecorder {
     async append(call: JournalEntry): Promise<void> {
         // require this recorder's context
         if (canonicalize(call.execution.context) !== canonicalize(this.#context)) {
-            throw ObjectError.of("INVALID_CALL", "call belongs to another context");
+            throw ObjectError.of("CALL_INVALID", "call belongs to another context");
         }
 
         await this.#journal.record(call, { isAudited: true });
@@ -458,7 +458,7 @@ export class AuditRecorder {
             input: request?.input ?? {},
             release: request?.release ?? action.package.version,
             execution: {
-                id: Identifier.create("call"),
+                id: Identifier.create("call", this.#journal.environment),
                 ...(requestId === undefined ? {} : { requestId }),
                 category,
                 context: this.#context,
@@ -512,7 +512,7 @@ export class AuditRecorder {
     static #mergeDetails(recorded: JsonValue, details: JsonObject): JsonObject {
         if (!JsonValue.isObject(recorded)) {
             throw ObjectError.of(
-                "INVALID_CALL",
+                "CALL_INVALID",
                 "result details can only merge into object details",
             );
         }

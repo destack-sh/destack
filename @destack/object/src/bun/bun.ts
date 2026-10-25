@@ -1,7 +1,6 @@
-import { type Listener, Network } from "@destack/environment";
+import type { Environment, Listener, Server } from "@destack/environment";
 import { ObjectError } from "../error/error.ts";
 import { type HibernationHost, SOCKET_HEADER } from "../workload/socket.ts";
-import { readBuild } from "@destack/package/bun";
 
 import { observeProcess, startTelemetry } from "@destack/telemetry/bun";
 import type { Telemetry, TelemetryOptions } from "@destack/telemetry/sdk";
@@ -14,6 +13,7 @@ import {
 } from "../workload/index.ts";
 
 import type {} from "@destack/package/import-meta";
+import { BuildReader } from "@destack/package/manifest";
 
 /** A request handler served on a network interface's port or on a Unix socket. */
 export type BunEndpoint = (
@@ -38,8 +38,8 @@ export type BunEndpoint = (
 export interface BunProcessOptions {
     /** The endpoints to listen on. */
     readonly endpoints: readonly BunEndpoint[];
-    /** The network to listen on. */
-    readonly network: Network;
+    /** The process's environment: the server it listens with and the signals it stops on. */
+    readonly environment: Environment<"files" | "process" | "server">;
     /** The signal aborted on shutdown. */
     readonly signal: AbortSignal;
     /** Request shutdown. */
@@ -58,12 +58,14 @@ export async function serveProcess(options: BunProcessOptions): Promise<void> {
     const stop = () => stopped.resolve();
     const shutdown = () => options.shutdown();
     options.signal.addEventListener("abort", stop, { once: true });
-    process.on("SIGINT", shutdown);
-    process.on("SIGTERM", shutdown);
+    const { process: host, server } = options.environment;
+    using signals = new DisposableStack();
+    signals.use(host.on("SIGINT", shutdown));
+    signals.use(host.on("SIGTERM", shutdown));
     try {
         // open every listener, on its socket or its interface's port
         for (const endpoint of options.endpoints) {
-            listeners.push(listen(options.network, endpoint));
+            listeners.push(listen(server, endpoint));
         }
         await options.ready?.(listeners.map((listener) => listener.url));
         if (!options.signal.aborted) {
@@ -78,15 +80,13 @@ export async function serveProcess(options: BunProcessOptions): Promise<void> {
                 await Promise.all(listeners.map((listener) => listener.stop(true)));
             } finally {
                 options.signal.removeEventListener("abort", stop);
-                process.off("SIGINT", shutdown);
-                process.off("SIGTERM", shutdown);
             }
         }
     }
 }
 
 /** Listen on an endpoint's socket or port, hibernating the WebSockets its answers accept. */
-function listen(network: Network, endpoint: BunEndpoint): Pick<Listener<unknown>, "url" | "stop"> {
+function listen(server: Server, endpoint: BunEndpoint): Pick<Listener<unknown>, "url" | "stop"> {
     // answer each request plainly on an endpoint without sockets
     const { hibernation } = endpoint;
     const address =
@@ -94,11 +94,11 @@ function listen(network: Network, endpoint: BunEndpoint): Pick<Listener<unknown>
             ? { unix: endpoint.unix }
             : { hostname: endpoint.hostname, port: endpoint.port };
     if (hibernation === undefined) {
-        return network.serve({ ...address, fetch: (request) => endpoint.fetch(request) });
+        return server.http({ ...address, fetch: (request) => endpoint.fetch(request) });
     }
 
     // hibernate the WebSockets the instances accept
-    return network.serve({
+    return server.http({
         ...address,
         fetch: async (request, listener) => {
             // answer the request, and pass on anything but an accepted upgrade
@@ -120,7 +120,7 @@ function listen(network: Network, endpoint: BunEndpoint): Pick<Listener<unknown>
 
 /** Run a workload as a host's first input line starts it, until shutdown. */
 export async function runWorkload(
-    runner: RunnerOptions,
+    runner: RunnerOptions & { readonly environment: Environment<"files" | "process" | "server"> },
     lines: AsyncIterator<string>,
     ready: (ready: WorkloadReady) => Promise<void>,
     socket: string,
@@ -128,24 +128,29 @@ export async function runWorkload(
     // read the host's start
     const first = await lines.next();
     if (first.done === true) {
-        throw ObjectError.of("MISSING_START", "the host sent no start message");
+        throw ObjectError.of("START_MISSING", "the host sent no start message");
     }
     const start = WorkloadStart.parse(JSON.parse(first.value));
 
     // start the workload of the build its host wrote into the working directory
-    const build = await readBuild(process.cwd());
+    const { process: host } = runner.environment;
+    const build = await BuildReader.openDirectory(
+        host.workingDirectory,
+        runner.environment.files,
+        runner.environment.crypto,
+    );
     await using workload = await WorkloadRunner.start(
         runner,
         start,
         build,
-        startRunnerTelemetry,
-        (error) => process.stderr.write(`workload failed: ${String(error)}\n`),
+        (options) => startRunnerTelemetry(options, runner.environment),
+        (error) => host.stderr.writeSync(`workload failed: ${String(error)}\n`),
     );
 
     // serve the workload on the socket only its host can open
     await serveProcess({
         endpoints: [{ unix: socket, fetch: (request) => workload.fetch(request) }],
-        network: Network.system,
+        environment: runner.environment,
         signal: workload.signal,
         shutdown: () => workload.shutdown(),
         close: () => workload.close(),
@@ -154,10 +159,13 @@ export async function runWorkload(
 }
 
 /** Start a runner's telemetry, reporting the runner process's CPU time to its host. */
-async function startRunnerTelemetry(options: TelemetryOptions): Promise<Telemetry> {
+async function startRunnerTelemetry(
+    options: TelemetryOptions,
+    environment: Environment<"process">,
+): Promise<Telemetry> {
     // start the telemetry and observe the process's CPU time
-    const telemetry = await startTelemetry(options);
-    observeProcess(telemetry, options);
+    const telemetry = await startTelemetry(options, environment);
+    observeProcess(telemetry, options, environment);
 
     return telemetry;
 }

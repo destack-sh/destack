@@ -1,19 +1,19 @@
+import { testSimulation } from "../src/test/index.ts";
 import { AccessContext, Caller, none, principal, relation, through } from "@destack/access";
 import { defineDatabase } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { EventTime } from "@destack/event";
 import { schema, type Identifier } from "@destack/schema";
-import { RequestId } from "@destack/sync";
+import { RequestId, Scope } from "@destack/sync";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { defineObject, EventView, field } from "../src/index.ts";
-import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
-import { Clock } from "@destack/environment";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
+import { TestObjectStore } from "../src/test/index.ts";
 
 /** The space the visits happen in. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000e1");
@@ -91,6 +91,9 @@ const page = defineObject(
 });
 
 test("list, get and fold the events a visitor may read, refusing a fold without a visitor filter", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     const storage = await TestDatabase.create(
         defineDatabase({
             name: "visits",
@@ -100,14 +103,14 @@ test("list, get and fold the events a visitor may read, refusing a fold without 
                 tables: [],
             }),
         }),
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
-    await openSpace(storage.database, spaceId);
-    const events = await testEvents(storage.database, [visit.eventKind()]);
-    const store = new ObjectStore({
+    await openSpace(storage.database, world, spaceId);
+    const events = await testEvents(storage.database, world, [visit.eventKind()]);
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([visit]),
         database: storage.database,
@@ -126,9 +129,9 @@ test("list, get and fold the events a visitor may read, refusing a fold without 
         data: { referrer: null },
     });
     const recorded = await store.mutate(
-        AccessContext.of(Caller.of(spacePrincipal(spaceId)), Date.now()),
+        AccessContext.of(Caller.of(spacePrincipal(spaceId)), world.clock.now()),
         {
-            id: RequestId.create(Date.now()),
+            id: RequestId.create(world),
             calls: [
                 visit.call("record", {
                     spaceId,
@@ -143,7 +146,7 @@ test("list, get and fold the events a visitor may read, refusing a fold without 
     );
 
     // list, get and fold as alice
-    const alice = userContext(users.alice, spaceId).access();
+    const alice = userContext(users.alice, spaceId, { environment: world }).access();
     const get = async (id: string) =>
         (await store.query(alice, visit.call("get", { spaceId, id }))).page;
     const fold = (where: object) =>
@@ -193,6 +196,9 @@ test("list, get and fold the events a visitor may read, refusing a fold without 
 });
 
 test("append a visitor's visit publicly, refusing another's, and read visits from a durable method", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // store the visits beside the space's pages
     const storage = await TestDatabase.create(
         defineDatabase({
@@ -203,24 +209,24 @@ test("append a visitor's visit publicly, refusing another's, and read visits fro
                 tables: [],
             }),
         }),
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
-    await openSpace(storage.database, spaceId);
-    const store = new ObjectStore({
+    await openSpace(storage.database, world, spaceId);
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([visit, page]),
         database: storage.database,
         callKey: testCallKey,
-        events: await testEvents(storage.database, [visit.eventKind()]),
+        events: await testEvents(storage.database, world, [visit.eventKind()]),
         origin: { package: visit.package },
     });
 
     // append alice's visit as alice, and refuse bob appending one in her name
-    const alice = userContext(users.alice, spaceId).access();
-    const bob = userContext(users.bob, spaceId).access();
+    const alice = userContext(users.alice, spaceId, { environment: world }).access();
+    const bob = userContext(users.bob, spaceId, { environment: world }).access();
     const visited = (visitor: Identifier<"user">, id: string) =>
         visit.call("visit", {
             spaceId,
@@ -232,12 +238,12 @@ test("append a visitor's visit publicly, refusing another's, and read visits fro
             data: { referrer: null },
         });
     await store.mutate(alice, {
-        id: RequestId.create(Date.now()),
+        id: RequestId.create(world),
         calls: [visited(users.alice, "visit-1")],
     });
     const refused = await refusal(
         store.mutate(bob, {
-            id: RequestId.create(Date.now()),
+            id: RequestId.create(world),
             calls: [visited(users.alice, "visit-2")],
         }),
     );
@@ -252,6 +258,9 @@ test("append a visitor's visit publicly, refusing another's, and read visits fro
 });
 
 test("read the events a space appended after a log sequence, in commit order", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // record a visit, then two more after the log's position
     const storage = await TestDatabase.create(
         defineDatabase({
@@ -262,14 +271,14 @@ test("read the events a space appended after a log sequence, in commit order", a
                 tables: [],
             }),
         }),
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
-    await openSpace(storage.database, spaceId);
-    const events = await testEvents(storage.database, [visit.eventKind()]);
-    const store = new ObjectStore({
+    await openSpace(storage.database, world, spaceId);
+    const events = await testEvents(storage.database, world, [visit.eventKind()]);
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([visit]),
         database: storage.database,
@@ -278,8 +287,8 @@ test("read the events a space appended after a log sequence, in commit order", a
         origin: { package: visit.package },
     });
     const record = (ids: readonly string[]) =>
-        store.mutate(AccessContext.of(Caller.of(spacePrincipal(spaceId)), Date.now()), {
-            id: RequestId.create(Date.now()),
+        store.mutate(AccessContext.of(Caller.of(spacePrincipal(spaceId)), world.clock.now()), {
+            id: RequestId.create(world),
             calls: [
                 visit.call("record", {
                     spaceId,

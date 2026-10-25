@@ -89,7 +89,7 @@ export class BranchType {
         // refuse ephemeral objects and branch bookkeeping
         if (resolved.object.storage === "ephemeral" || this.has(resolved.object)) {
             throw ObjectError.of(
-                "UNBRANCHABLE_CALL",
+                "CALL_UNBRANCHABLE",
                 `branches cannot store calls of ${resolved.object.name}`,
             );
         }

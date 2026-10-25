@@ -1,13 +1,13 @@
-import type { FamilyError } from "@destack/error";
+import type { FamilyFailure } from "@destack/error";
 import { PackageManifest } from "@destack/package/manifest";
 import { ObjectError } from "../error/error.ts";
 import { AccessContext, Caller, Decision, principal } from "@destack/access";
 import { BranchEntry } from "../branch/entry.ts";
 import { DatabaseError, type DatabaseReason, type Row, TABLE } from "@destack/db";
 import type { EventKeyFields } from "@destack/event";
-import { schema, type JsonValue } from "@destack/schema";
+import { type JsonValue, schema, Uuid } from "@destack/schema";
 
-import type { ServerContext } from "../workload/workload.ts";
+import type { InstalledServerContext } from "../workload/workload.ts";
 import { type ObjectReference, Subject } from "@destack/sync";
 import type { graph } from "@destack/package";
 import type { MethodContext, MethodHooks } from "../method/context.ts";
@@ -33,7 +33,7 @@ interface Session {
     /** Run the behaviour the hook wraps, absent outside a handle phase. */
     readonly next?: (context?: MethodContext) => Promise<unknown>;
     /** The race a request of the session lost, returned with the hook's failure. */
-    lost?: FamilyError<DatabaseReason>;
+    lost?: FamilyFailure<DatabaseReason>;
 }
 
 /** The phases a sandbox runs: every phase but settle, which runs where the settlement is stored. */
@@ -42,7 +42,7 @@ const SANDBOXED: readonly Phase[] = PHASES.filter((phase) => phase !== "settle")
 /** An installation's object hooks, run in its sandbox and answered in their sessions. */
 export class HookSandbox {
     /** The server context of the installation the sandbox runs as. */
-    readonly server: ServerContext;
+    readonly server: InstalledServerContext;
     /** The declarations of the installation's followed build, its object types among them. */
     readonly declarations: readonly Pick<graph.Declaration, "symbol" | "kind" | "description">[];
     /** Send a request to run a hook to the sandbox. */
@@ -55,7 +55,7 @@ export class HookSandbox {
     /** Run an installation's hooks in its sandbox. */
     constructor(options: {
         /** The server context of the installation the sandbox runs as. */
-        readonly server: ServerContext;
+        readonly server: InstalledServerContext;
         /** The declarations of the installation's followed build. */
         readonly declarations: readonly Pick<
             graph.Declaration,
@@ -71,9 +71,9 @@ export class HookSandbox {
 
     /** The installation's principal, the subject of calls run as the installation. */
     get subject(): Subject {
-        const { space, installation } = this.server;
+        const { scope, installation } = this.server;
 
-        return principal.installation.reference(space, installation);
+        return principal.installation.reference(scope, installation);
     }
 
     /** Serve a type as the installation, its methods' listed phases run in the sandbox. */
@@ -99,7 +99,7 @@ export class HookSandbox {
             // require the hook's open session
             const session = this.#sessions.get(request.mutation);
             if (session === undefined) {
-                throw ObjectError.of("NO_HOOK_SESSION", "no hook runs in this session");
+                throw ObjectError.of("HOOK_SESSION_MISSING", "no hook runs in this session");
             }
 
             // pass a lost race, which the mutation runs again once the hook fails with it
@@ -297,7 +297,7 @@ export class HookSandbox {
     /** Run one hook of a call in the sandbox, its requests answered in a session while it runs. */
     async #run(session: Session, hook: HandlerRequest["hook"]): Promise<JsonValue> {
         // open the session while the hook runs
-        const mutation = crypto.randomUUID();
+        const mutation = Uuid.v4(this.server.environment.random);
         this.#sessions.set(mutation, session);
         try {
             const call = CallRecord.of(session.context);

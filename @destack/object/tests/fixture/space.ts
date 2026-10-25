@@ -1,3 +1,4 @@
+import type { Environment } from "@destack/environment";
 import {
     accessRelationship,
     anyone,
@@ -9,8 +10,7 @@ import {
 import { Scope, type Subject } from "@destack/sync";
 import { AccessFixture } from "@destack/access/test";
 import type { DatabaseConnection } from "@destack/db";
-import { schema } from "@destack/schema";
-import { v7 } from "uuid";
+import { Identifier } from "@destack/schema";
 import { defineObject } from "../../src/index.ts";
 
 /** The spaces the example objects live in. */
@@ -34,26 +34,30 @@ export function spacePrincipal(id: string): Subject {
 /** Record a space with itself as owner, public unless private. */
 export async function openSpace(
     database: DatabaseConnection,
+    environment: Pick<Environment, "clock" | "crypto" | "random">,
     id: string,
     visibility: "public" | "private" = "public",
 ): Promise<void> {
     // record the space's scope, with the space as owner as its creation binds it
     const object = space.reference(Scope.universe.id, id);
-    const fixture = new AccessFixture(database);
+    const fixture = new AccessFixture(database, environment);
     await fixture.replicateScope(object, space.policy);
-    await fixture.bindOwner(object, spacePrincipal(id), 0);
+    await fixture.replicateOwner(object, spacePrincipal(id), 0);
 
     // relate anyone to a public space as its reader
     if (visibility === "public") {
-        await database.insert(accessRelationship).values(
-            Relationship.encode({
-                id: schema.identifier("relationship").parse(`relationship-${v7()}`),
-                object,
-                relation: "reader",
-                subject: anyone.reference("*", "*"),
-                createdAt: 0,
-                expiresAt: null,
-            }),
+        await database.transaction(
+            async (transaction) =>
+                await transaction.insert(accessRelationship).values(
+                    Relationship.encode({
+                        id: Identifier.create("relationship", environment),
+                        object,
+                        relation: "reader",
+                        subject: anyone.reference("*", "*"),
+                        createdAt: 0,
+                        expiresAt: null,
+                    }),
+                ),
         );
     }
 }

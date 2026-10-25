@@ -1,3 +1,4 @@
+import { testSimulation } from "../test/index.ts";
 import { expect, test } from "@destack/test";
 import { DurableObjectWorkload } from "./durable.ts";
 
@@ -14,6 +15,7 @@ test("start the workload on the object's alarm before any event, serve requests 
     };
     const started = Promise.withResolvers<void>();
     const deadlines: number[] = [];
+    const { clock } = testSimulation().environment("test");
 
     // start a workload that sets the alarm and serves once the start settles
     const object = new DurableObjectWorkload(
@@ -39,6 +41,7 @@ test("start the workload on the object's alarm before any event, serve requests 
                 },
             };
         },
+        clock,
     );
 
     // delay the first request until the start settles before serving it and an alarm
@@ -46,20 +49,18 @@ test("start the workload on the object's alarm before any event, serve requests 
     events.push("requested");
     started.resolve();
     const answer = await answering;
-    const before = Date.now();
     await object.alarm();
-    const after = Date.now();
+    const at = clock.now();
 
     // bound the alarm ten minutes after it rang
     const [deadline] = deadlines;
     expect({
         text: await answer.text(),
         events,
-        isBounded:
-            deadline !== undefined && deadline - before >= 600_000 && deadline - after <= 600_000,
+        deadline,
     }).toEqual({
         text: "/served",
         events: ["blocked", "alarm at 1000", "requested", "unblocked", "alarm"],
-        isBounded: true,
+        deadline: at + 600_000,
     });
 });

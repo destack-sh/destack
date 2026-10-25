@@ -9,7 +9,7 @@ import {
 } from "@destack/db/cloudflare";
 import { BuildReader, PackageManifest } from "@destack/package/manifest";
 import { present, schema } from "@destack/schema";
-import { telemetry } from "@destack/telemetry";
+import { TelemetryScope } from "@destack/telemetry";
 import { startTelemetry } from "@destack/telemetry/worker";
 import type {} from "@destack/package/import-meta";
 import type { Alarm } from "@destack/db";
@@ -21,9 +21,6 @@ import {
     WorkloadRunner,
     WorkloadStart,
 } from "../workload/index.ts";
-
-/** The instruments capturing the failures of the workloads instances run. */
-const instruments = telemetry.scope(import.meta.destack.package);
 
 /** The export of a workerd output's workload entry with the class of its instances' objects. */
 export const WORKLOAD_EXPORT = "Workload";
@@ -113,7 +110,7 @@ export class DurableObjectRunner {
         this.#storage = state.storage;
         this.#partition = bindings.PARTITION;
         this.#runner = runner;
-        this.#databases = new DurableObjectDatabaseHost(state.storage);
+        this.#databases = new DurableObjectDatabaseHost(state.storage, runner.environment);
         this.#running = state.blockConcurrencyWhile(() => this.#resume());
     }
 
@@ -146,7 +143,7 @@ export class DurableObjectRunner {
             // run the due controllers until the ring's deadline
             else if (pathname === ALARM_PATH) {
                 const { at } = DurableObjectAlarm.parse(await request.json());
-                await (await this.#running)?.alarm(at ?? Date.now());
+                await (await this.#running)?.alarm(at ?? this.#runner.environment.clock.now());
 
                 return Response.json({});
             }
@@ -154,12 +151,12 @@ export class DurableObjectRunner {
             // serve the workload
             const running = await this.#running;
             if (running === undefined) {
-                throw ObjectError.of("NO_WORKLOAD", "no workload runs here");
+                throw ObjectError.of("WORKLOAD_MISSING", "no workload runs here");
             }
 
             return await running.fetch(request);
         } catch (error) {
-            return refusal(error);
+            return refusal(error, this.#runner.environment.telemetry);
         }
     }
 
@@ -174,21 +171,25 @@ export class DurableObjectRunner {
     #start(started: DurableObjectStart): Promise<WorkloadRunner> {
         // read the build's files through the partition's object and set the wake-up on its alarm
         const partition = this.#partition;
-        const build = new BuildReader(started.manifest, async (path) => {
-            const response = await partition.fetch(
-                new Request(`https://partition${BUILD_PATH}/${path}`, {
-                    headers: { authorization: `Bearer ${started.start.secret}` },
-                }),
-            );
-            if (!response.ok) {
-                throw ObjectError.of(
-                    "BUILD_FILE_UNAVAILABLE",
-                    `the partition has no build file ${path}: ${response.status}`,
+        const build = new BuildReader(
+            started.manifest,
+            async (path) => {
+                const response = await partition.fetch(
+                    new Request(`https://partition${BUILD_PATH}/${path}`, {
+                        headers: { authorization: `Bearer ${started.start.secret}` },
+                    }),
                 );
-            }
+                if (!response.ok) {
+                    throw ObjectError.of(
+                        "BUILD_FILE_UNAVAILABLE",
+                        `the partition has no build file ${path}: ${response.status}`,
+                    );
+                }
 
-            return present(response.body, `the partition's body of build file ${path}`);
-        });
+                return present(response.body, `the partition's body of build file ${path}`);
+            },
+            this.#runner.environment.crypto,
+        );
         const alarm: Alarm = {
             setAlarm: (at) => this.#move(at),
             deleteAlarm: () => this.#move(null),
@@ -218,7 +219,11 @@ export class DurableObjectRunner {
             started.start,
             build,
             startTelemetry,
-            (error) => instruments.captureException(error, { isEscaped: true }),
+            (error) =>
+                TelemetryScope.of(
+                    import.meta.destack.package,
+                    this.#runner.environment.telemetry,
+                ).captureException(error, { isEscaped: true }),
         );
     }
 

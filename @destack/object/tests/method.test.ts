@@ -1,16 +1,19 @@
+import { TestObjectStore } from "../src/test/index.ts";
+import type { Simulation } from "@destack/environment/simulation";
+import type { Environment } from "@destack/environment";
+import { testSimulation } from "../src/test/index.ts";
 import type { CallableName } from "../src/index.ts";
-import { ObjectReference, Subject, RequestId } from "@destack/sync";
+import { ObjectReference, RequestId, Scope, Subject } from "@destack/sync";
 import { testCallKey } from "@destack/object/test";
 import { reconciliation, TestDatabase } from "@destack/db/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { CallError } from "@destack/object";
 import { eq } from "@destack/db";
-import { nth, present, schema, toJsonSchema, type Identifier } from "@destack/schema";
+import { Identifier, nth, present, schema, toJsonSchema, Uuid } from "@destack/schema";
 import { AuditTarget, defineObject, field, method, settlement, suspendable } from "../src/index.ts";
 
-import { v7 } from "uuid";
-import { ObjectStore, RecoverableController, Settlement } from "../src/server/index.ts";
+import { RecoverableController, Settlement } from "../src/server/index.ts";
 import { describeAuditAction } from "../src/inspect/index.ts";
 import { comment, folder, objectDatabase, task, taskCopy, taskVersion } from "./schema.ts";
 import {
@@ -24,12 +27,10 @@ import {
     principal,
 } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
-import { openSpace, spacePrincipal } from "./fixture/space.ts";
+import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { auditedActions } from "./fixture/audit.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
-import { Clock } from "@destack/environment";
-import { VirtualClock } from "@destack/environment/simulation";
 
 /** The space containing the tasks. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
@@ -136,7 +137,10 @@ test("route a creation other than create below its collection by name", () => {
 });
 
 test("route every served object, create once per request identifier and take chosen identifiers", async () => {
-    const { store, database, execute, events, observed } = await serveTasks();
+    // run in a world of its own
+    const simulation = testSimulation();
+
+    const { store, database, execute, events, observed } = await serveTasks(simulation);
 
     // route the replica procedures and each served object
     expect(Object.keys(store.router())).toEqual([
@@ -148,29 +152,37 @@ test("route every served object, create once per request identifier and take cho
     ]);
 
     // create once per request identifier, replaying the original result
-    const creation = { requestId: RequestId.create(Date.now()), title: "Write the plan" };
+    const creation = { requestId: RequestId.create(store.environment), title: "Write the plan" };
     const created = await execute("create", creation);
-    expect(observed().watermarks.at(-1)).toEqual(await store.watermark());
+    expect(observed().watermarks.at(-1)).toEqual(await store.watermark(spaceId));
     expect(await execute("create", creation)).toEqual(created);
 
     // take a chosen identifier and refuse a taken one
-    const chosen = schema.identifier("task").parse(`task-${v7()}`);
-    const drafted = { requestId: RequestId.create(Date.now()), id: chosen, title: "Draft" };
+    const chosen = Identifier.create("task", store.environment);
+    const drafted = { requestId: RequestId.create(store.environment), id: chosen, title: "Draft" };
     expect((await execute("create", drafted)).id).toBe(chosen);
     expect(
         await refusal(
             execute("create", {
-                requestId: RequestId.create(Date.now()),
+                requestId: RequestId.create(store.environment),
                 id: chosen,
                 title: "Again",
             }),
         ),
     ).toEqual(["CONFLICT", "ID_TAKEN", "task identifier is taken"]);
-    const ahead = schema.identifier("task").parse(`task-${v7({ msecs: Date.now() + 3_600_000 })}`);
-    const later = { requestId: RequestId.create(Date.now()), id: ahead, title: "Later" };
+    const ahead = Identifier.create(
+        "task",
+        testSimulation(simulation.clock.now() + 3_600_000).environment("ahead"),
+    );
+    const later = { requestId: RequestId.create(store.environment), id: ahead, title: "Later" };
     expect((await execute("create", later)).id).toBe(ahead);
-    await database.delete(task.table).where(eq(task.table.id, chosen));
-    await database.delete(task.table).where(eq(task.table.id, ahead));
+    await database.transaction(
+        async (transaction) =>
+            await transaction.delete(task.table).where(eq(task.table.id, chosen)),
+    );
+    await database.transaction(
+        async (transaction) => await transaction.delete(task.table).where(eq(task.table.id, ahead)),
+    );
     expect((await execute("list", {})).items.map((item) => item.title)).toEqual(["Write the plan"]);
 
     // audit each creation once
@@ -183,9 +195,12 @@ test("route every served object, create once per request identifier and take cho
 });
 
 test("hide an object from strangers, update it at the observed revision, with sensitive fields out of rows", async () => {
-    const { database, execute, events, act } = await serveTasks();
+    // run in a world of its own
+    const simulation = testSimulation();
+
+    const { database, execute, events, act, environment } = await serveTasks(simulation);
     const created = await execute("create", {
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(environment),
         title: "Write the plan",
     });
 
@@ -201,7 +216,7 @@ test("hide an object from strangers, update it at the observed revision, with se
         await refusal(
             execute("update", {
                 id: created.id,
-                requestId: RequestId.create(Date.now()),
+                requestId: RequestId.create(environment),
                 revision: created.revision,
                 title: "Taken",
             }),
@@ -212,7 +227,7 @@ test("hide an object from strangers, update it at the observed revision, with se
     // update at the observed revision and reject a stale one
     const updated = await execute("update", {
         id: created.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(environment),
         revision: created.revision,
         title: "Ship the plan",
         estimate: 3,
@@ -223,15 +238,21 @@ test("hide an object from strangers, update it at the observed revision, with se
         await refusal(
             execute("update", {
                 id: created.id,
-                requestId: RequestId.create(Date.now()),
+                requestId: RequestId.create(environment),
                 revision: created.revision,
                 title: "Stale",
             }),
         ),
-    ).toEqual(["CONFLICT", "STALE_REVISION", "task revision has changed"]);
+    ).toEqual(["CONFLICT", "REVISION_STALE", "task revision has changed"]);
 
     // store a sensitive field in the database, out of every row a caller reads and its schema
-    await database.update(task.table).set({ token: "secret" }).where(eq(task.table.id, created.id));
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .update(task.table)
+                .set({ token: "secret" })
+                .where(eq(task.table.id, created.id)),
+    );
     const read = await execute("get", { id: created.id });
     expect(["token" in read, Object.hasOwn(task.schema.row.shape, "token")]).toEqual([
         false,
@@ -243,9 +264,12 @@ test("hide an object from strangers, update it at the observed revision, with se
 });
 
 test("share an object, accept invitations and narrow agents to their grants", async () => {
-    const { clock, execute, events, act, delegate } = await serveTasks();
+    // run in a world of its own
+    const simulation = testSimulation();
+
+    const { clock, execute, events, act, delegate, environment } = await serveTasks(simulation);
     const created = await execute("create", {
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(environment),
         title: "Ship the plan",
     });
 
@@ -253,7 +277,7 @@ test("share an object, accept invitations and narrow agents to their grants", as
     const viewer = principal.user.reference("universe", users.grace);
     const shared = await execute("grant", {
         id: created.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(environment),
         relation: "viewer",
         subject: viewer,
     });
@@ -281,7 +305,7 @@ test("share an object, accept invitations and narrow agents to their grants", as
         await refusal(
             execute("grant", {
                 id: created.id,
-                requestId: RequestId.create(Date.now()),
+                requestId: RequestId.create(environment),
                 relation: "viewer",
                 subject: { ...viewer, id: users.ivan },
             }),
@@ -290,7 +314,7 @@ test("share an object, accept invitations and narrow agents to their grants", as
     act(users.frank);
     await execute("revoke", {
         id: created.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(environment),
         relationshipId: shared.id,
     });
     act(users.grace);
@@ -305,7 +329,7 @@ test("share an object, accept invitations and narrow agents to their grants", as
     act(users.heidi);
     const asked = await execute("invite", {
         id: created.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(environment),
         relationship: { relation: "viewer", subject: { ...viewer, id: users.heidi } },
         purpose: "follow the plan",
     });
@@ -318,7 +342,7 @@ test("share an object, accept invitations and narrow agents to their grants", as
         await refusal(
             execute("accept", {
                 id: created.id,
-                requestId: RequestId.create(Date.now()),
+                requestId: RequestId.create(environment),
                 invitationId: asked.id,
             }),
         ),
@@ -350,7 +374,7 @@ test("share an object, accept invitations and narrow agents to their grants", as
     });
     await execute("accept", {
         id: created.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(environment),
         invitationId: asked.id,
     });
     act(users.heidi);
@@ -371,14 +395,14 @@ test("share an object, accept invitations and narrow agents to their grants", as
         await refusal(
             execute("update", {
                 id: created.id,
-                requestId: RequestId.create(Date.now()),
+                requestId: RequestId.create(environment),
                 revision: 1,
                 title: "Taken",
             }),
         ),
     ).toEqual([
         "FORBIDDEN",
-        "INSUFFICIENT_GRANT",
+        "GRANT_INSUFFICIENT",
         `grant ${grantId} does not give write on task ${created.id}`,
     ]);
     await delegate(undefined, []);
@@ -394,14 +418,17 @@ test("share an object, accept invitations and narrow agents to their grants", as
 });
 
 test("hide guarded fields from readers without their permission, and run each transition once", async () => {
-    const { execute, events, act } = await serveTasks();
+    // run in a world of its own
+    const simulation = testSimulation();
+
+    const { execute, events, act, environment } = await serveTasks(simulation);
     const created = await execute("create", {
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(environment),
         title: "Write the plan",
     });
     await execute("update", {
         id: created.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(environment),
         revision: created.revision,
         title: "Ship the plan",
         estimate: 3,
@@ -409,7 +436,7 @@ test("hide guarded fields from readers without their permission, and run each tr
     const viewer = principal.user.reference("universe", users.heidi);
     await execute("grant", {
         id: created.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(environment),
         relation: "viewer",
         subject: viewer,
     });
@@ -422,14 +449,14 @@ test("hide guarded fields from readers without their permission, and run each tr
     act(users.frank);
     await execute("grant", {
         id: created.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(environment),
         relation: "editor",
         subject: { ...viewer, id: users.judy },
     });
     act(users.judy);
     const edited = await execute("update", {
         id: created.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(environment),
         revision: 2,
         title: "Ship the plan",
     });
@@ -438,7 +465,7 @@ test("hide guarded fields from readers without their permission, and run each tr
         await refusal(
             execute("update", {
                 id: created.id,
-                requestId: RequestId.create(Date.now()),
+                requestId: RequestId.create(environment),
                 revision: 3,
                 title: "Ship the plan",
                 estimate: 8,
@@ -450,15 +477,15 @@ test("hide guarded fields from readers without their permission, and run each tr
     // complete the task once and refuse a second and a guarded completion
     const completed = await execute("complete", {
         id: created.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(environment),
     });
     expect(completed.status).toBe("done");
     expect(
         await refusal(
-            execute("complete", { id: created.id, requestId: RequestId.create(Date.now()) }),
+            execute("complete", { id: created.id, requestId: RequestId.create(environment) }),
         ),
-    ).toEqual(["CONFLICT", "INVALID_TRANSITION", "task cannot complete while status is done"]);
-    await execute("reopen", { id: created.id, requestId: RequestId.create(Date.now()) });
+    ).toEqual(["CONFLICT", "TRANSITION_INVALID", "task cannot complete while status is done"]);
+    await execute("reopen", { id: created.id, requestId: RequestId.create(environment) });
 
     // audit each change once
     expect(await events()).toEqual([
@@ -473,36 +500,92 @@ test("hide guarded fields from readers without their permission, and run each tr
     ]);
 });
 
-test("refuse changing objects a stack manages, then trash, restore and purge them, the expired ones as the system", async () => {
-    const { store, database, execute, events, purges } = await serveTasks();
+test("change a managed task's fields its declaration leaves unset under each field's permission, and refuse its declared title", async () => {
+    // create a task, then manage it as a stack's declaration would
+    const simulation = testSimulation();
+    const { store, database, execute } = await serveTasks(simulation);
     const created = await execute("create", {
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(store.environment),
+        title: "Ship the plan",
+    });
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .update(task.table)
+                .set({
+                    managerInstallationId: schema
+                        .identifier("installation")
+                        .parse("installation-01996ab0-0000-7000-8000-000000000002"),
+                    managerPackageId: schema
+                        .identifier("package")
+                        .parse("package-01996ab0-0000-7000-8000-000000000003"),
+                    managerName: "plan",
+                })
+                .where(eq(task.table.id, created.id)),
+    );
+
+    // estimate it, which no declaration sets, then refuse renaming it
+    const estimated = await execute("update", {
+        id: created.id,
+        requestId: RequestId.create(store.environment),
+        revision: created.revision,
+        estimate: 8,
+    });
+    const renamed = await refusal(
+        execute("update", {
+            id: created.id,
+            requestId: RequestId.create(store.environment),
+            revision: estimated.revision,
+            title: "Ship it",
+        }),
+    );
+    expect({ estimate: estimated.estimate, title: estimated.title, renamed }).toEqual({
+        estimate: 8,
+        title: "Ship the plan",
+        renamed: [
+            "CONFLICT",
+            "MANAGED",
+            "task is managed by its declaration: detach it before changing it",
+        ],
+    });
+});
+
+test("refuse changing objects a stack manages, then trash, restore and purge them, the expired ones as the system", async () => {
+    // run in a world of its own
+    const simulation = testSimulation();
+
+    const { store, database, execute, events, purges } = await serveTasks(simulation);
+    const created = await execute("create", {
+        requestId: RequestId.create(store.environment),
         title: "Ship the plan",
     });
 
     // refuse standard changes to a managed task
     const archived = await execute("archive", {
         id: created.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(store.environment),
     });
     expect(archived.archived).toBe(true);
-    await database
-        .update(task.table)
-        .set({
-            managerInstallationId: schema
-                .identifier("installation")
-                .parse("installation-01996ab0-0000-7000-8000-000000000002"),
-            managerPackageId: schema
-                .identifier("package")
-                .parse("package-01996ab0-0000-7000-8000-000000000003"),
-            managerName: "plan",
-        })
-        .where(eq(task.table.id, created.id));
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .update(task.table)
+                .set({
+                    managerInstallationId: schema
+                        .identifier("installation")
+                        .parse("installation-01996ab0-0000-7000-8000-000000000002"),
+                    managerPackageId: schema
+                        .identifier("package")
+                        .parse("package-01996ab0-0000-7000-8000-000000000003"),
+                    managerName: "plan",
+                })
+                .where(eq(task.table.id, created.id)),
+    );
     expect(
         await refusal(
             execute("delete", {
                 id: created.id,
-                requestId: RequestId.create(Date.now()),
+                requestId: RequestId.create(store.environment),
                 revision: archived.revision,
             }),
         ),
@@ -513,29 +596,32 @@ test("refuse changing objects a stack manages, then trash, restore and purge the
     ]);
 
     // delete once detached: hidden from lists, listed in the trash, restorable and purged at last
-    await database
-        .update(task.table)
-        .set({ detachedAt: Date.now() })
-        .where(eq(task.table.id, created.id));
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .update(task.table)
+                .set({ detachedAt: simulation.clock.now() })
+                .where(eq(task.table.id, created.id)),
+    );
     await execute("delete", {
         id: created.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(store.environment),
         revision: archived.revision,
     });
     const titles = async (deleted: "exclude" | "only") =>
         (await execute("list", { deleted })).items.map((item) => item.title);
     expect([await titles("exclude"), await titles("only")]).toEqual([[], ["Ship the plan"]]);
-    await execute("restore", { id: created.id, requestId: RequestId.create(Date.now()) });
+    await execute("restore", { id: created.id, requestId: RequestId.create(store.environment) });
     expect(await titles("exclude")).toEqual(["Ship the plan"]);
     const restored = await execute("get", {
         id: created.id,
     });
     await execute("delete", {
         id: created.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(store.environment),
         revision: restored.revision,
     });
-    await execute("purge", { id: created.id, requestId: RequestId.create(Date.now()) });
+    await execute("purge", { id: created.id, requestId: RequestId.create(store.environment) });
     expect(await refusal(execute("get", { id: created.id }))).toEqual([
         "NOT_FOUND",
         "NOT_FOUND",
@@ -544,24 +630,26 @@ test("refuse changing objects a stack manages, then trash, restore and purge the
 
     // purge the trash once the recovery window passes
     const stale = await execute("create", {
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(store.environment),
         title: "Old",
     });
     await execute("delete", {
         id: stale.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(store.environment),
         revision: stale.revision,
     });
-    expect(await RecoverableController.purge(store, Date.now() + 60_000)).toBe(1);
+    expect(await RecoverableController.purge(store, simulation.clock.now() + 60_000)).toBe(1);
 
     // purge more trash than one batch takes, across several transactions
     const trashed = Array.from({ length: 100 }, () => ({
         ...stale,
-        id: schema.identifier("task").parse(`task-${v7()}`),
-        deletedAt: Date.now(),
+        id: Identifier.create("task", store.environment),
+        deletedAt: simulation.clock.now(),
     }));
-    await database.insert(task.table).values(trashed);
-    expect(await RecoverableController.purge(store, Date.now() + 60_000)).toBe(100);
+    await database.transaction(
+        async (transaction) => await transaction.insert(task.table).values(trashed),
+    );
+    expect(await RecoverableController.purge(store, simulation.clock.now() + 60_000)).toBe(100);
 
     // audit each purge as the system's, and each caller's change once
     expect(await purges()).toEqual(Array.from({ length: 101 }, () => "task.purge"));
@@ -579,30 +667,36 @@ test("refuse changing objects a stack manages, then trash, restore and purge the
 });
 
 test("page an object's invitations a full hundred at a time", async () => {
+    // run in a world of its own
+    const simulation = testSimulation();
+
     // create 101 pending invitations to view a task, in creation order
-    const { database, execute } = await serveTasks();
+    const { database, execute, environment } = await serveTasks(simulation);
     const created = await execute("create", {
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(environment),
         title: "Ship the plan",
     });
     const object = task.reference(spaceId, created.id);
     const invited = Array.from({ length: 101 }, (_, index) => `user-${100 + index}`);
-    await database.insert(accessInvitation).values(
-        invited.map((id, index) =>
-            Invitation.encode({
-                id: `invitation-${v7({ msecs: 1 + index })}`,
-                relationship: {
-                    object,
-                    relation: "viewer",
-                    subject: principal.user.reference("universe", id),
-                    expiresAt: null,
-                },
-                inviter: principal.user.reference("universe", users.frank),
-                status: "pending",
-                createdAt: 1,
-                expiresAt: Date.now() + 60_000,
-            }),
-        ),
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(accessInvitation).values(
+                invited.map((id) =>
+                    Invitation.encode({
+                        id: Identifier.create("invitation", environment),
+                        relationship: {
+                            object,
+                            relation: "viewer",
+                            subject: principal.user.reference("universe", id),
+                            expiresAt: null,
+                        },
+                        inviter: principal.user.reference("universe", users.frank),
+                        status: "pending",
+                        createdAt: 1,
+                        expiresAt: simulation.clock.now() + 60_000,
+                    }),
+                ),
+            ),
     );
 
     // read a page of 100 with a cursor, then the last one
@@ -637,11 +731,17 @@ test("page an object's invitations a full hundred at a time", async () => {
 });
 
 test("prepare external work after the access check, settle it after commit, compensate on failure and skip it on replay", async () => {
+    // run in a world of its own
+    const simulation = testSimulation();
+    const { clock } = simulation;
+    const world = simulation.environment("test");
+
     const storage = await TestDatabase.create(objectDatabase, {
+        environment: world,
         isMigrated: true,
     });
     onTestFinished(() => storage.close());
-    await openSpace(storage.database, spaceId);
+    await openSpace(storage.database, world, spaceId);
 
     // archive through an external system by exporting
     const external: string[] = [];
@@ -677,51 +777,48 @@ test("prepare external work after the access check, settle it after commit, comp
             },
         },
     });
-    const clock = new VirtualClock(Date.now());
-    const store = new ObjectStore({
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([handled, comment, taskVersion, folder]),
         database: storage.database,
         callKey: testCallKey,
-        events: await testEvents(storage.database),
+        events: await testEvents(storage.database, world),
         origin: {
             package: task.package,
         },
     });
-    let context = userContext(users.frank, spaceId);
+    let context = userContext(users.frank, spaceId, { environment: world });
     const execute = <Name extends CallableName<typeof handled>>(
         name: Name,
         input: NoInfer<RequestInput<typeof handled, Name>>,
     ) => request(store, handled, name, spaceId, input, context);
     const created = await execute("create", {
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(world),
         title: "Plan",
     });
     const reservation = `reservation-${created.id}`;
 
     // refuse a caller without the permission before any external work
-    context = userContext(users.grace, spaceId);
+    context = userContext(users.grace, spaceId, { environment: world });
     expect(
-        await refusal(
-            execute("export", { requestId: RequestId.create(Date.now()), id: created.id }),
-        ),
+        await refusal(execute("export", { requestId: RequestId.create(world), id: created.id })),
     ).toEqual(["NOT_FOUND", "NOT_FOUND", `task ${created.id} not found`]);
     expect(external).toEqual([]);
 
     // release the prepared work and leave the task unchanged when the transaction fails
-    context = userContext(users.frank, spaceId);
+    context = userContext(users.frank, spaceId, { environment: world });
     isFailing = true;
     await expect(
-        execute("export", { requestId: RequestId.create(Date.now()), id: created.id }),
+        execute("export", { requestId: RequestId.create(world), id: created.id }),
     ).rejects.toThrow(new Error("archive failed"));
     expect(external).toEqual(["reserve Plan", `release ${reservation}`]);
 
     // confirm after commit and replay without repeating the work
     isFailing = false;
     external.length = 0;
-    const exported = { requestId: RequestId.create(Date.now()), id: created.id };
+    const exported = { requestId: RequestId.create(world), id: created.id };
     const archived = await execute("export", exported);
     const author = principal.user.reference("universe", users.frank);
     expect(archived).toEqual({
@@ -752,17 +849,17 @@ test("prepare external work after the access check, settle it after commit, comp
 
     // release the earlier calls' prepared work and the failed preparation's work once one fails
     const other = await execute("create", {
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(world),
         title: "Other",
     });
     const broken = await execute("create", {
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(world),
         title: "Broken",
     });
     external.length = 0;
     await expect(
         store.mutate(context.access(), {
-            id: RequestId.create(Date.now()),
+            id: RequestId.create(world),
             calls: [
                 handled.call("export", { spaceId, id: other.id }),
                 handled.call("export", { spaceId, id: broken.id }),
@@ -777,25 +874,31 @@ test("prepare external work after the access check, settle it after commit, comp
 
     // refuse a mutation acting in two scopes
     external.length = 0;
-    const elsewhere = schema.identifier("space").parse(`space-${v7()}`);
+    const elsewhere = schema.identifier("space").parse(`space-${Uuid.v7(world)}`);
     expect(
         await refusal(
-            store.mutate(userContext(users.frank, undefined).access(), {
-                id: RequestId.create(Date.now()),
+            store.mutate(userContext(users.frank, undefined, { environment: world }).access(), {
+                id: RequestId.create(world),
                 calls: [
                     handled.call("export", { spaceId, id: other.id }),
                     handled.call("export", { spaceId: elsewhere, id: other.id }),
                 ],
             }),
         ),
-    ).toEqual(["BAD_REQUEST", "MIXED_SCOPES", "a mutation's calls must act in one scope"]);
+    ).toEqual(["BAD_REQUEST", "SCOPES_MIXED", "a mutation's calls must act in one scope"]);
     expect(external).toEqual([]);
 });
 
 test("run a prepare and a settle phase's calls as the store in separate requests, committed apart from the mutation", async () => {
-    const storage = await TestDatabase.create(objectDatabase, { isMigrated: true });
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create(objectDatabase, {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
-    await openSpace(storage.database, spaceId);
+    await openSpace(storage.database, world, spaceId);
 
     // rename a log task as the store while preparing and settling an export, then fail the export
     const log: { id?: string } = {};
@@ -822,34 +925,34 @@ test("run a prepare and a settle phase's calls as the store in separate requests
             },
         },
     });
-    const store = new ObjectStore({
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([handled, comment, taskVersion, folder]),
         database: storage.database,
         callKey: testCallKey,
-        events: await testEvents(storage.database),
+        events: await testEvents(storage.database, world),
         origin: { package: task.package },
     });
-    const context = userContext(users.frank, spaceId);
+    const context = userContext(users.frank, spaceId, { environment: world });
     const execute = <Name extends CallableName<typeof handled>>(
         name: Name,
         input: NoInfer<RequestInput<typeof handled, Name>>,
     ) => request(store, handled, name, spaceId, input, context);
     const plan = await execute("create", {
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(world),
         title: "Plan",
     });
     const created = await execute("create", {
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(world),
         title: "Log",
     });
     log.id = created.id;
 
     // see the prepared rename inside the failing mutation, and the settled one after it
     await expect(
-        execute("export", { requestId: RequestId.create(Date.now()), id: plan.id }),
+        execute("export", { requestId: RequestId.create(world), id: plan.id }),
     ).rejects.toThrow("export failed");
     const after = await execute("get", { id: created.id });
 
@@ -857,11 +960,15 @@ test("run a prepare and a settle phase's calls as the store in separate requests
 });
 
 test("authorize a creation before its external work, and settle committed work through the settlement controller once settling fails", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     const storage = await TestDatabase.create(objectDatabase, {
+        environment: world,
         isMigrated: true,
     });
     onTestFinished(() => storage.close());
-    await openSpace(storage.database, spaceId);
+    await openSpace(storage.database, world, spaceId);
 
     // record each version's external copy, failing the first confirmation after commit
     const external: string[] = [];
@@ -890,35 +997,35 @@ test("authorize a creation before its external work, and settle committed work t
         },
     });
     const reported: unknown[] = [];
-    const store = new ObjectStore({
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([task, comment, taskVersion, copies, folder]),
         database: storage.database,
         callKey: testCallKey,
-        events: await testEvents(storage.database),
+        events: await testEvents(storage.database, world),
         origin: {
             package: task.package,
         },
         report: (error) => reported.push(error),
     });
-    let context = userContext(users.frank, spaceId);
+    let context = userContext(users.frank, spaceId, { environment: world });
     const created = await store
         .mutate(context.access(), {
-            id: RequestId.create(Date.now()),
+            id: RequestId.create(world),
             calls: [task.call("create", { spaceId, title: "Plan" })],
         })
         .then(([written]) => written);
 
     // refuse a caller who may not write the task before any external work
-    context = userContext(users.grace, spaceId);
+    context = userContext(users.grace, spaceId, { environment: world });
     const version = { spaceId, parentId: created.id, title: "Draft" };
     expect(
         await refusal(
             store
                 .mutate(context.access(), {
-                    id: RequestId.create(Date.now()),
+                    id: RequestId.create(world),
                     calls: [copies.call("create", { ...version })],
                 })
                 .then(([written]) => written),
@@ -927,10 +1034,10 @@ test("authorize a creation before its external work, and settle committed work t
     expect(external).toEqual([]);
 
     // commit and retain the settlement despite a failed confirmation
-    context = userContext(users.frank, spaceId);
+    context = userContext(users.frank, spaceId, { environment: world });
     const drafted = await store
         .mutate(context.access(), {
-            id: RequestId.create(Date.now()),
+            id: RequestId.create(world),
             calls: [copies.call("create", { ...version })],
         })
         .then(([written]) => written);
@@ -944,7 +1051,7 @@ test("authorize a creation before its external work, and settle committed work t
     // confirm it through the controller
     const controller = Settlement.controller(store, { grace: { milliseconds: 0 } });
     expect(
-        await controller.reconcile(nth(settled, 0).id, reconciliation(AbortSignal.timeout(5000))),
+        await controller.reconcile(nth(settled, 0).id, reconciliation(world.clock.timeout(5000))),
     ).toBeUndefined();
     expect([external, await storage.database.select().from(settlement)]).toEqual([
         ["copy Draft", `confirm copy-${drafted.id}`],
@@ -953,9 +1060,15 @@ test("authorize a creation before its external work, and settle committed work t
 });
 
 test("key a system creation's prepared work by the fresh identifier it creates the record under", async () => {
-    const storage = await TestDatabase.create(objectDatabase, { isMigrated: true });
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create(objectDatabase, {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
-    await openSpace(storage.database, spaceId);
+    await openSpace(storage.database, world, spaceId);
 
     // key the external copy by the identifier the system creation takes
     const external: string[] = [];
@@ -971,26 +1084,26 @@ test("key a system creation's prepared work by the fresh identifier it creates t
             },
         },
     });
-    const store = new ObjectStore({
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([task, comment, taskVersion, copies, folder]),
         database: storage.database,
         callKey: testCallKey,
-        events: await testEvents(storage.database),
+        events: await testEvents(storage.database, world),
         origin: { package: task.package },
     });
     const created = await store
-        .mutate(userContext(users.frank, spaceId).access(), {
-            id: RequestId.create(Date.now()),
+        .mutate(userContext(users.frank, spaceId, { environment: world }).access(), {
+            id: RequestId.create(world),
             calls: [task.call("create", { spaceId, title: "Plan" })],
         })
         .then(([written]) => written);
     const [drafted] = await store.mutate(
-        AccessContext.of(Caller.of(spacePrincipal(spaceId)), Date.now()),
+        AccessContext.of(Caller.of(spacePrincipal(spaceId)), world.clock.now()),
         {
-            id: RequestId.create(Date.now()),
+            id: RequestId.create(world),
             calls: [
                 copies.call("create", {
                     ...copies.in(spaceId),
@@ -1005,11 +1118,15 @@ test("key a system creation's prepared work by the fresh identifier it creates t
 });
 
 test("cancel a call that outlasts its settlement grace by its key, and refuse to commit it", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     const storage = await TestDatabase.create(objectDatabase, {
+        environment: world,
         isMigrated: true,
     });
     onTestFinished(() => storage.close());
-    await openSpace(storage.database, spaceId);
+    await openSpace(storage.database, world, spaceId);
 
     // store external copies by call key, pausing mid-copy
     const external: string[] = [];
@@ -1035,22 +1152,22 @@ test("cancel a call that outlasts its settlement grace by its key, and refuse to
             },
         },
     });
-    const store = new ObjectStore({
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([task, comment, taskVersion, copies, folder]),
         database: storage.database,
         callKey: testCallKey,
-        events: await testEvents(storage.database),
+        events: await testEvents(storage.database, world),
         origin: {
             package: task.package,
         },
     });
-    const context = userContext(users.frank, spaceId);
+    const context = userContext(users.frank, spaceId, { environment: world });
     const created = await store
         .mutate(context.access(), {
-            id: RequestId.create(Date.now()),
+            id: RequestId.create(world),
             calls: [task.call("create", { spaceId, title: "Plan" })],
         })
         .then(([written]) => written);
@@ -1061,7 +1178,7 @@ test("cancel a call that outlasts its settlement grace by its key, and refuse to
         const [reserved] = await storage.database.select().from(settlement);
         await controller.reconcile(
             present(reserved, "the reserved settlement").id,
-            reconciliation(AbortSignal.timeout(5000)),
+            reconciliation(world.clock.timeout(5000)),
         );
     };
     const version = {
@@ -1073,7 +1190,7 @@ test("cancel a call that outlasts its settlement grace by its key, and refuse to
         await refusal(
             store
                 .mutate(context.access(), {
-                    id: RequestId.create(Date.now()),
+                    id: RequestId.create(world),
                     calls: [copies.call("create", version)],
                 })
                 .then(([written]) => written),
@@ -1093,27 +1210,30 @@ test("cancel a call that outlasts its settlement grace by its key, and refuse to
 });
 
 test("run a scoped mutation over its scope as a holder of the scope's permission, and refuse a caller without it", async () => {
+    // run in a world of its own
+    const simulation = testSimulation();
+
     // create two tasks as their owner and archive one
-    const { store, execute } = await serveTasks();
+    const { store, execute } = await serveTasks(simulation);
     const first = await execute("create", {
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(store.environment),
         title: "First",
     });
-    await execute("create", { requestId: RequestId.create(Date.now()), title: "Second" });
-    await execute("archive", { requestId: RequestId.create(Date.now()), id: first.id });
+    await execute("create", { requestId: RequestId.create(store.environment), title: "Second" });
+    await execute("archive", { requestId: RequestId.create(store.environment), id: first.id });
 
     // refuse the owner of the tasks, who is no owner of the space
     const refused = await refusal(
         execute("archiveAll", {
-            requestId: RequestId.create(Date.now()),
+            requestId: RequestId.create(store.environment),
         }),
     );
 
     // archive the rest as the space, the owner of it
     const [archived] = await store.mutate(
-        AccessContext.of(Caller.of(spacePrincipal(spaceId)), Date.now()),
+        AccessContext.of(Caller.of(spacePrincipal(spaceId)), simulation.clock.now()),
         {
-            id: RequestId.create(Date.now()),
+            id: RequestId.create(store.environment),
             calls: [task.call("archiveAll", task.in(spaceId))],
         },
     );
@@ -1126,13 +1246,17 @@ test("run a scoped mutation over its scope as a holder of the scope's permission
 });
 
 test("create the same identifiers and draw the same numbers from the same request on every server, apart for each draw", async () => {
+    // run in a world of its own
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
+
     // create two tasks under one request and draw under another, on each of two servers
-    const [creation, drawing] = [RequestId.create(Date.now()), RequestId.create(Date.now())];
+    const [creation, drawing] = [RequestId.create(world), RequestId.create(world)];
     const run = async () => {
-        const { store } = await serveTasks();
+        const { store } = await serveTasks(simulation);
         const caller = AccessContext.of(
             Caller.of(principal.user.reference("universe", users.frank)),
-            Date.now(),
+            world.clock.now(),
         );
         const created = await store.mutate(caller, {
             id: creation,
@@ -1142,7 +1266,7 @@ test("create the same identifiers and draw the same numbers from the same reques
             ],
         });
         const [drawn] = await store.mutate(
-            AccessContext.of(Caller.of(spacePrincipal(spaceId)), Date.now()),
+            AccessContext.of(Caller.of(spacePrincipal(spaceId)), world.clock.now()),
             {
                 id: drawing,
                 calls: [folder.call("draw", folder.in(spaceId))],
@@ -1209,9 +1333,13 @@ test("add suspending and resuming on a scope type through its trait", () => {
 });
 
 /** Serve tasks, comments, versions and folders in a space to a scenario's caller. */
-async function serveTasks() {
+async function serveTasks(simulation: Simulation) {
+    // run in the test's world
+    const { clock } = simulation;
+    const world = simulation.environment("test");
+
     // store the space's objects in a migrated database
-    const database = await openTaskDatabase();
+    const database = await openTaskDatabase(world);
 
     // handle archiving
     const handled = handleArchive();
@@ -1221,7 +1349,8 @@ async function serveTasks() {
     let agent: Subject | undefined;
     const sign = () =>
         userContext(current, spaceId, {
-            assurance: { level: 1, authenticatedAt: Date.now() },
+            environment: world,
+            assurance: { level: 1, authenticatedAt: world.clock.now() },
             ...(agent === undefined
                 ? {}
                 : {
@@ -1232,15 +1361,14 @@ async function serveTasks() {
     let context = sign();
 
     // serve the objects at a fixed time, recording each audited change in the outbox
-    const clock = new VirtualClock(Date.now());
-    const store = new ObjectStore({
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([handled, comment, taskVersion, handleDraw()]),
         database,
         callKey: testCallKey,
-        events: await testEvents(database),
+        events: await testEvents(database, world),
         origin: {
             package: task.package,
         },
@@ -1250,6 +1378,7 @@ async function serveTasks() {
         store,
         database,
         clock,
+        environment: world,
         /** Read the callers' audited actions. */
         events: () => auditedActions(database, "caller"),
         /** Read the system's audited actions. */
@@ -1272,11 +1401,11 @@ async function serveTasks() {
             agent = delegate;
             if (delegate !== undefined) {
                 const delegator = principal.user.reference("universe", current);
-                await new AccessFixture(database).replicateGrant(
+                await new AccessFixture(database, world).replicateGrant(
                     delegator,
                     delegate,
                     permissions,
-                    Date.now(),
+                    world.clock.now(),
                     grantId,
                 );
             }
@@ -1286,11 +1415,15 @@ async function serveTasks() {
 }
 
 test("send a key of the call's place in its request, the same for every retry of the request", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     const storage = await TestDatabase.create(objectDatabase, {
+        environment: world,
         isMigrated: true,
     });
     onTestFinished(() => storage.close());
-    await openSpace(storage.database, spaceId);
+    await openSpace(storage.database, world, spaceId);
 
     // copy each version under its call's key, failing the first attempt after the copy
     const keys: string[] = [];
@@ -1312,22 +1445,22 @@ test("send a key of the call's place in its request, the same for every retry of
             },
         },
     });
-    const store = new ObjectStore({
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([task, comment, taskVersion, copies, folder]),
         database: storage.database,
         callKey: testCallKey,
-        events: await testEvents(storage.database),
+        events: await testEvents(storage.database, world),
         origin: {
             package: task.package,
         },
     });
-    const context = userContext(users.frank, spaceId);
+    const context = userContext(users.frank, spaceId, { environment: world });
     const created = await store
         .mutate(context.access(), {
-            id: RequestId.create(Date.now()),
+            id: RequestId.create(world),
             calls: [task.call("create", { spaceId, title: "Plan" })],
         })
         .then(([written]) => written);
@@ -1338,7 +1471,7 @@ test("send a key of the call's place in its request, the same for every retry of
         parentId: created.id,
         title: "Draft",
     };
-    const requestId = RequestId.create(Date.now());
+    const requestId = RequestId.create(world);
     expect(
         await refusal(
             store
@@ -1359,11 +1492,15 @@ test("send a key of the call's place in its request, the same for every retry of
 });
 
 test("settle each call's prepared work once under a separate key in its request", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     const storage = await TestDatabase.create(objectDatabase, {
+        environment: world,
         isMigrated: true,
     });
     onTestFinished(() => storage.close());
-    await openSpace(storage.database, spaceId);
+    await openSpace(storage.database, world, spaceId);
 
     // copy under each call's key, confirming each copy
     const confirmed: unknown[] = [];
@@ -1377,29 +1514,29 @@ test("settle each call's prepared work once under a separate key in its request"
             },
         },
     });
-    const store = new ObjectStore({
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([task, comment, taskVersion, copies, folder]),
         database: storage.database,
         callKey: testCallKey,
-        events: await testEvents(storage.database),
+        events: await testEvents(storage.database, world),
         origin: {
             package: task.package,
         },
     });
-    const context = userContext(users.frank, spaceId);
+    const context = userContext(users.frank, spaceId, { environment: world });
     const created = await store
         .mutate(context.access(), {
-            id: RequestId.create(Date.now()),
+            id: RequestId.create(world),
             calls: [task.call("create", { spaceId, title: "Plan" })],
         })
         .then(([written]) => written);
 
     // create two copies of one title in one mutation, each confirmed under a new key, no settlement
     const copy = { spaceId, parentId: created.id, title: "Draft" };
-    const requestId = RequestId.create(Date.now());
+    const requestId = RequestId.create(world);
     await store.mutate(context.access(), {
         id: requestId,
         calls: [copies.call("create", copy), copies.call("create", copy)],
@@ -1414,10 +1551,13 @@ test("settle each call's prepared work once under a separate key in its request"
 async function idle(): Promise<void> {}
 
 /** Open a migrated database with the scenario's space until the test finishes. */
-async function openTaskDatabase() {
-    const storage = await TestDatabase.create(objectDatabase, { isMigrated: true });
+async function openTaskDatabase(world: Environment) {
+    const storage = await TestDatabase.create(objectDatabase, {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
-    await openSpace(storage.database, spaceId);
+    await openSpace(storage.database, world, spaceId);
 
     return storage.database;
 }

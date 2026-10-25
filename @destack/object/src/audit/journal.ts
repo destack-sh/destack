@@ -27,7 +27,7 @@ import { AuditCaller } from "./actor.ts";
 import { CallEvent, type JournalEntry, MAX_EXECUTION_BYTES } from "./execution.ts";
 import { Replay } from "./replay.ts";
 import { journal } from "../stack/db.ts";
-import { Clock } from "@destack/environment";
+import type { Clock, Environment } from "@destack/environment";
 import type {} from "@destack/package/import-meta";
 
 /** The most calls one prune removes: about a millisecond of deletes. */
@@ -41,8 +41,8 @@ export interface JournalOptions {
     readonly events: EventStore;
     /** How long calls stay for retries: a request identifier's retry lifetime. */
     readonly lifetime?: Duration;
-    /** The clock of the journal's server. */
-    readonly clock: Clock;
+    /** The environment of the journal's server: its clock and randomness. */
+    readonly environment: Environment;
 }
 
 /** How the journal records a call: audited or not, its caller and its place in its request. */
@@ -77,8 +77,8 @@ export class Journal {
     readonly events: EventStore;
     /** How long calls stay, in milliseconds. */
     readonly lifetime: number;
-    /** The clock retry periods and lifetimes run on. */
-    readonly clock: Clock;
+    /** The environment retry periods and lifetimes run on, and call identifiers draw from. */
+    readonly environment: Environment;
 
     /** Journal a database's calls, fingerprinting sensitive inputs under the deployment's key. */
     constructor(database: DatabaseConnection, key: CallKey, options: JournalOptions) {
@@ -87,7 +87,12 @@ export class Journal {
         this.#key = key;
         this.events = options.events;
         this.lifetime = Duration.milliseconds(options.lifetime ?? LIFETIME);
-        this.clock = options.clock;
+        this.environment = options.environment;
+    }
+
+    /** The clock retry periods and lifetimes run on, its environment's. */
+    get clock(): Clock {
+        return this.environment.clock;
     }
 
     /** Fingerprint a redacted input and the sensitive values it left out, those under the key. */
@@ -97,14 +102,17 @@ export class Journal {
             sensitive.length === 0
                 ? undefined
                 : new Uint8Array(
-                      await crypto.subtle.sign(
+                      await this.environment.crypto.sign(
                           "HMAC",
-                          await this.#key(),
+                          await this.#key(this.environment.crypto),
                           new TextEncoder().encode(canonicalize(sensitive)),
                       ),
                   ).toHex();
 
-        return Digest.json(keyed === undefined ? redacted : { redacted, keyed });
+        return Digest.json(
+            keyed === undefined ? redacted : { redacted, keyed },
+            this.environment.crypto,
+        );
     }
 
     /** Record a call, or its outcome once it ends, an ended audited one as a call event. */
@@ -118,7 +126,7 @@ export class Journal {
             new TextEncoder().encode(canonicalize(Journal.recorded(entry))).byteLength >
             MAX_EXECUTION_BYTES
         ) {
-            throw ObjectError.of("INVALID_CALL", `call exceeds ${MAX_EXECUTION_BYTES} bytes`);
+            throw ObjectError.of("CALL_INVALID", `call exceeds ${MAX_EXECUTION_BYTES} bytes`);
         }
 
         // record in the caller's transaction, or in a separate one of the journal
@@ -338,11 +346,14 @@ export class Journal {
             .orderBy(asc(journal.expiresAt))
             .limit(MAX_PRUNE_CALLS);
         if (rows.length > 0) {
-            await this.database.delete(journal).where(
-                inArray(
-                    journal.id,
-                    rows.map((row) => row.id),
-                ),
+            await this.database.transaction(
+                async (transaction) =>
+                    await transaction.delete(journal).where(
+                        inArray(
+                            journal.id,
+                            rows.map((row) => row.id),
+                        ),
+                    ),
             );
         }
 

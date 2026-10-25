@@ -3,7 +3,6 @@ import { expect, refusal, test } from "@destack/test";
 import { ControlLoop } from "@destack/db";
 import { journal } from "../src/index.ts";
 import { AuditStorage, documentRename, rename } from "./fixture/journal.ts";
-import { Clock } from "@destack/environment";
 
 test("append an ended audited call as one call event, a repeat after a restart appending none", async () => {
     let storage = await AuditStorage.open();
@@ -80,16 +79,14 @@ test("remove calls past their lifetime through the journal's controller, ended o
         await storage.recorder.append(pending);
 
         // let the journal's control loop remove both once their lifetime ends
+        const { simulation } = storage;
         const loop = new ControlLoop(storage.database, [storage.journal.controller()], {
-            clock: Clock.system,
+            clock: simulation.clock,
             report,
         }).run(stopping.signal);
         const remaining = async () =>
             (await storage.database.select({ id: journal.id }).from(journal)).map((row) => row.id);
-        await storage.database.log.until(
-            async () => (await remaining()).length === 0,
-            AbortSignal.timeout(2000),
-        );
+        await simulation.run({ until: async () => (await remaining()).length === 0 });
         stopping.abort();
         await loop;
 

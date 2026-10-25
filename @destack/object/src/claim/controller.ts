@@ -12,7 +12,7 @@ import type { ReconcileController } from "@destack/db";
 import { ObjectKey, ObjectType } from "../object/object.ts";
 import { type ClaimHome, Reservation } from "./reservation.ts";
 import { Claimant, Claim } from "./claim.ts";
-import { Clock } from "@destack/environment";
+import type { Environment } from "@destack/environment";
 
 /** The one key the controller reconciles: every expired reservation. */
 const RESERVATIONS = "reservations";
@@ -29,19 +29,19 @@ export class ClaimController implements ReconcileController {
     readonly #database: DatabaseConnection;
     /** The indexed object types. */
     readonly #objects: readonly ObjectType[];
-    /** The store's clock, which reservations expire by. */
-    readonly #clock: Clock;
+    /** The store's environment, whose clock reservations expire by. */
+    readonly #environment: Environment;
     /** Finish the reservations of some object types' indexes. */
     constructor(
         claims: ClaimHome,
         database: DatabaseConnection,
         objects: readonly ObjectType[],
-        clock: Clock,
+        environment: Environment,
     ) {
         // store the indexed types and watch their tables
         this.#claims = claims;
         this.#database = database;
-        this.#clock = clock;
+        this.#environment = environment;
         this.#objects = objects.filter((object) => Object.keys(object.indexes).length > 0);
         this.watches = this.#objects.map((object) => object.table);
     }
@@ -59,7 +59,7 @@ export class ClaimController implements ReconcileController {
     /** Finish expired reservations, returning the delay until the next. */
     async reconcile(): Promise<number | undefined> {
         // list a chain's worth of expired reservations
-        const now = this.#clock.now();
+        const now = this.#environment.clock.now();
         const byIndex = new Map(
             this.#objects.flatMap((object) =>
                 Object.keys(object.indexes).map(
@@ -98,9 +98,13 @@ export class ClaimController implements ReconcileController {
             }
 
             // replace their names, refusing names other objects claim
-            await Reservation.replace(this.#claims, this.#database, claimants, this.#objects, {
-                now,
-            });
+            await Reservation.replace(
+                this.#claims,
+                this.#database,
+                claimants,
+                this.#objects,
+                this.#environment,
+            );
         }
 
         // run again at once while a chain's worth expired, else at the next deadline

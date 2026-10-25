@@ -1,22 +1,21 @@
+import { testSimulation } from "../src/test/index.ts";
 import { defineObject, field, ObjectDescription } from "../src/index.ts";
 import { users } from "./fixture/user.ts";
 import { Package } from "@destack/package";
 import { defineDatabase, type DatabaseConnection } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { none, principal, through } from "@destack/access";
-import { schema, type Identifier } from "@destack/schema";
-import { RequestId } from "@destack/sync";
+import { schema, type Identifier, Uuid } from "@destack/schema";
+import { RequestId, Scope } from "@destack/sync";
 import { subjectContext, testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
-import { v7 } from "uuid";
-import { ObjectStore, implementPackage } from "../src/server/index.ts";
+import { implementPackage } from "../src/server/index.ts";
 import { ObjectClient } from "../src/client/index.ts";
 import { definePackage } from "@destack/object";
 import { notebook, notesPackage } from "./fixture/note.ts";
 import objectPackage from "../src/package.ts";
 import { openSpace, space, unmoved, spacePrincipal } from "./fixture/space.ts";
-import { Clock } from "@destack/environment";
 import { tablesOf } from "../src/index.ts";
 import { TestObjectStore } from "../src/test/index.ts";
 
@@ -24,16 +23,20 @@ import { TestObjectStore } from "../src/test/index.ts";
 const Term = schema.string().regex(/^term:[A-Za-z]+$/u);
 
 /** An entry of a notebook's index, identified by its term and stored in files. */
-const entry = defineObject({
-    name: "entry",
-    plural: "entries",
-    scope: space,
-    storage: "external",
-    key: Term,
-    nested: { in: notebook, receive: "read" },
-    fields: { term: field.string() },
-    permissions: { read: through("parent", "read") },
-});
+const entry = defineObject(
+    {
+        name: "entry",
+        plural: "entries",
+        scope: space,
+        storage: "external",
+        key: Term,
+        nested: { in: notebook, receive: "read" },
+        fields: { term: field.string() },
+        permissions: { read: through("parent", "read") },
+    },
+    undefined,
+    { package: notebook.package },
+);
 
 /** A lookup of an entry's term, which a mutation reads from the entries' files. */
 const lookup = defineObject(
@@ -57,6 +60,7 @@ const lookup = defineObject(
             output: schema.object({ term: schema.string() }),
         }),
     }),
+    { package: notebook.package },
 ).implement({
     methods: {
         look: async (call) => {
@@ -72,6 +76,9 @@ const lookup = defineObject(
 });
 
 test("read external objects named by their key from the database their files open per scope, allowing callers by the durable database", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // store a public space's notebook in the durable database
     const durable = await TestDatabase.create(
         defineDatabase({
@@ -82,24 +89,24 @@ test("read external objects named by their key from the database their files ope
                 tables: [],
             }),
         }),
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => durable.close());
-    const spaceId = schema.identifier("space").parse(`space-${v7()}`);
-    await openSpace(durable.database, spaceId);
+    const spaceId = schema.identifier("space").parse(`space-${Uuid.v7(world)}`);
+    await openSpace(durable.database, world, spaceId);
     const context = (user: Identifier<"user">) =>
-        subjectContext(principal.user.reference("universe", user), spaceId);
+        subjectContext(principal.user.reference("universe", user), spaceId, { environment: world });
 
     // open each scope's entries from files, here one database built per scope
     const files = await TestDatabase.create(
         defineDatabase({ name: "files", tables: entry.tables }),
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => files.close());
     const opened: string[] = [];
-    const store = new ObjectStore({
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([notebook, entry, lookup], {
             external: {
@@ -113,24 +120,27 @@ test("read external objects named by their key from the database their files ope
         }),
         database: durable.database,
         callKey: testCallKey,
-        events: await testEvents(durable.database),
+        events: await testEvents(durable.database, world),
         origin: { package: entry.package },
     });
     const travel = await store
         .mutate(context(users.alice).access(), {
-            id: RequestId.create(Date.now()),
+            id: RequestId.create(world),
             calls: [notebook.call("create", { spaceId, name: "Travel" })],
         })
         .then(([written]) => written);
     const id = "term:Vienna";
-    await files.database.insert(entry.table).values({
-        id,
-        scope: spaceId,
-        parentId: travel.id,
-        term: "Vienna",
-        createdAt: 1,
-        updatedAt: 1,
-    });
+    await files.database.transaction(
+        async (transaction) =>
+            await transaction.insert(entry.table).values({
+                id,
+                scope: spaceId,
+                parentId: travel.id,
+                term: "Vienna",
+                createdAt: 1,
+                updatedAt: 1,
+            }),
+    );
 
     // read the entry through its notebook's read permission
     const read = await store.query(
@@ -143,7 +153,7 @@ test("read external objects named by their key from the database their files ope
     );
     // read it from inside a mutation, outside its transaction as its rows never change
     const [looked] = await store.mutate(context(users.alice).access(), {
-        id: RequestId.create(Date.now()),
+        id: RequestId.create(world),
         calls: [lookup.call("look", { spaceId, term: id })],
     });
     expect([read.term, listed.items.map((row) => row.term), looked, opened]).toEqual([
@@ -154,30 +164,34 @@ test("read external objects named by their key from the database their files ope
     ]);
 
     // follow the entries in a client's live query, through the external replica
-    const notebooks = definePackage({ objects: { notebook, entry } });
+    const notebooks = definePackage(
+        { objects: { notebook, entry } },
+        { package: notebook.package },
+    );
     const served = TestObjectStore.serve(
-        new ObjectStore({
+        await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
             servers: [
                 implementPackage(notebooks, {
                     external: { objects: [entry], open: async () => files.database },
                 }),
             ],
             chain: async () => undefined,
-            clock: Clock.system,
+            environment: world,
             origin: { package: Package.of(notebooks) },
             principal: spacePrincipal(spaceId),
             database: durable.database,
             callKey: testCallKey,
-            events: await testEvents(durable.database),
+            events: await testEvents(durable.database, world),
         }),
     );
     onTestFinished(() => served[Symbol.asyncDispose]());
     const local = await TestDatabase.create(ObjectClient.tables({ notebook, entry }), {
+        environment: world,
         dialect: "sqlite",
     });
     onTestFinished(() => local.close());
     const client = await ObjectClient.open({
-        clock: Clock.system,
+        environment: world,
         database: local.database,
         objects: { notebook, entry },
         scope: spaceId,
@@ -201,7 +215,10 @@ test("read external objects named by their key from the database their files ope
     expect(failures).toEqual([]);
 
     // refuse an identifier outside the key
-    expect([entry.identifies(id), entry.identifies(`entry-${v7()}`)]).toEqual([true, false]);
+    expect([entry.identifies(id), entry.identifies(`entry-${Uuid.v7(world)}`)]).toEqual([
+        true,
+        false,
+    ]);
 });
 
 /** Declare an external type whose one write is internal or public. */

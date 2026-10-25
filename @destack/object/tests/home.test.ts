@@ -1,3 +1,4 @@
+import { testSimulation } from "../src/test/index.ts";
 import { testCallKey } from "@destack/object/test";
 import { reconciliation, TestDatabase } from "@destack/db/test";
 import { FeedPublisher, testEvents, serversOf } from "../src/test/index.ts";
@@ -7,15 +8,16 @@ import { AccessFixture } from "@destack/access/test";
 import { defineDatabase, eq, Snapshot } from "@destack/db";
 import { present, schema } from "@destack/schema";
 import { definePackage } from "@destack/object";
-import type { ClientOptions } from "@destack/object/client";
+import { type ClientOptions, createClient } from "@destack/object/client";
 import { RequestId, Feed, Replica, Scope } from "@destack/sync";
 import { defineObject, defineShape, field, Follow } from "../src/index.ts";
 import { ObjectClient } from "../src/client/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
+import { Bookmark } from "../src/procedure/bookmark.ts";
 import { TestBearer, TestObjectStore } from "../src/test/index.ts";
-import { spacePrincipal, unmoved } from "./fixture/space.ts";
+import { spacePrincipal, unmoved, space } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
-import { Clock } from "@destack/environment";
+import { Environment } from "@destack/environment";
 import { tablesOf } from "../src/stack/db.ts";
 import objectPackage from "../src/package.ts";
 
@@ -83,7 +85,7 @@ const refuseChanges = () => Promise.reject(new Error("the replica receives no ch
 const refuseQueries = () => Promise.reject(new Error("the replica answers no queries"));
 
 /** Serve alice's preferences at their home and a replica at her room's machine. */
-async function serveHomes() {
+async function serveHomes(world: Environment, options: { readonly isFollowing?: boolean } = {}) {
     // store alice's person and room at home, with her as owner
     const homeStorage = await TestDatabase.create(
         defineDatabase({
@@ -94,40 +96,46 @@ async function serveHomes() {
                 tables: [],
             }),
         }),
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     const replicateStorage = await TestDatabase.create(
         defineDatabase({
             name: "main",
             ...tablesOf({ packages: [objectPackage], follows: [HOME_FOLLOW], tables: [] }),
         }),
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(async () => {
         await Promise.all([homeStorage.close(), replicateStorage.close()]);
     });
     const alice = principal.user.reference(Scope.universe.id, users.alice);
-    const fixture = new AccessFixture(homeStorage.database);
+    const fixture = new AccessFixture(homeStorage.database, world);
     await fixture.replicateScope(person.reference(Scope.universe.id, personId), person.policy);
     await fixture.replicateScope(room.reference(personId, roomId), room.policy);
-    await fixture.bindOwner(person.reference(Scope.universe.id, personId), alice);
-    await homeStorage.database
-        .insert(person.table)
-        .values({ id: personId, scope: Scope.universe.id, createdAt: 1, updatedAt: 1 });
-    await homeStorage.database
-        .insert(room.table)
-        .values({ id: roomId, scope: personId, createdAt: 1, updatedAt: 1 });
+    await fixture.replicateOwner(person.reference(Scope.universe.id, personId), alice);
+    await homeStorage.database.transaction(
+        async (transaction) =>
+            await transaction
+                .insert(person.table)
+                .values({ id: personId, scope: Scope.universe.id, createdAt: 1, updatedAt: 1 }),
+    );
+    await homeStorage.database.transaction(
+        async (transaction) =>
+            await transaction
+                .insert(room.table)
+                .values({ id: roomId, scope: personId, createdAt: 1, updatedAt: 1 }),
+    );
 
     // serve the preferences at home
-    const home = new ObjectStore({
+    const home = await TestObjectStore.receive(space.reference(Scope.universe.id, personId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(personId),
         servers: serversOf([preference]),
         policies: [person, room],
         database: homeStorage.database,
         callKey: testCallKey,
-        events: await testEvents(homeStorage.database),
+        events: await testEvents(homeStorage.database, world),
         origin: { package: preference.package },
     });
 
@@ -135,32 +143,36 @@ async function serveHomes() {
     const feed = new Feed(
         homeStorage.database,
         [...accessTables, person.table, room.table, preference.table],
+        {},
+    );
+    const replica: ObjectStore = await TestObjectStore.at(
+        space.reference(Scope.universe.id, roomId),
         {
-            clock: Clock.system,
+            chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
+            environment: world,
+            principal: spacePrincipal(roomId),
+            servers: serversOf([preference], {
+                follows: [HOME_FOLLOW],
+            }),
+            policies: [person, room],
+            database: replicateStorage.database,
+            uplink: {
+                ...FeedPublisher.of(
+                    feed,
+                    (subscription) => replica.source.buildReplica(subscription).queries,
+                ),
+                receive: refuseChanges,
+                call: refuseQueries,
+            },
+            callKey: testCallKey,
+            events: await testEvents(replicateStorage.database, world),
+            origin: { package: preference.package },
         },
     );
-    const replica: ObjectStore = new ObjectStore({
-        chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
-        clock: Clock.system,
-        principal: spacePrincipal(roomId),
-        servers: serversOf([preference], {
-            follows: [HOME_FOLLOW],
-        }),
-        policies: [person, room],
-        database: replicateStorage.database,
-        uplink: {
-            ...FeedPublisher.of(
-                feed,
-                (subscription) => replica.source.buildReplica(subscription).queries,
-            ),
-            receive: refuseChanges,
-            call: refuseQueries,
-        },
-        callKey: testCallKey,
-        events: await testEvents(replicateStorage.database),
-        origin: { package: preference.package },
-    });
-    await followChain(replica, replicateStorage.database, homeStorage.database);
+    const follow = () => followChain(replica, replicateStorage.database, homeStorage.database);
+    if (options.isFollowing !== false) {
+        await follow();
+    }
 
     // call each server as alice, recording the requests each receives
     const writes: string[] = [];
@@ -187,9 +199,11 @@ async function serveHomes() {
     });
 
     return {
+        environment: world,
         home,
         replica,
         homeDatabase: homeStorage.database,
+        follow,
         writes,
         homeEndpoint: recorded("home", homeServed.server(preferences)),
         replicateEndpoint: recorded("replica", replicaServed.server(preferences)),
@@ -225,17 +239,20 @@ async function followChain(
             followed.add(key);
             following.push(follower.reconcile(key, reconciliation(controller.signal)));
         }
-        for (const scope of new Set(keys.map((key) => present(key.split(" ")[1], "a scope")))) {
-            await Replica.wait(database, scope, head, controller.signal);
+        for (const key of keys) {
+            const [name, scope] = key.split(" ");
+            const listed = { name: present(name, "a name"), scope: present(scope, "a scope") };
+            await Replica.wait(database, listed.scope, head, controller.signal, [listed]);
         }
         isGrowing = keys.length > 0;
     }
 }
 
 /** Open alice's client of her room, calling her person's home for its rows. */
-async function openRoom(served: Awaited<ReturnType<typeof serveHomes>>) {
+async function openRoom(world: Environment, served: Awaited<ReturnType<typeof serveHomes>>) {
     // replicate the room's preferences on the device
     const storage = await TestDatabase.create(ObjectClient.tables({ preference }), {
+        environment: world,
         dialect: "sqlite",
         isMigrated: true,
     });
@@ -247,7 +264,7 @@ async function openRoom(served: Awaited<ReturnType<typeof serveHomes>>) {
         endpoint: served.replicateEndpoint,
         reconnect: unmoved,
         homes: () => served.homeEndpoint,
-        clock: Clock.system,
+        environment: world,
     });
     const live = client.query.preference.findMany().subscribe();
 
@@ -268,10 +285,13 @@ async function openRoom(served: Awaited<ReturnType<typeof serveHomes>>) {
 
 /** Write alice's theme at her person's home, answering its identifier. */
 async function setTheme(home: ObjectStore, value: string): Promise<string> {
-    const [created] = await home.mutate(userContext(users.alice, personId).access(), {
-        id: RequestId.create(Date.now()),
-        calls: [preference.call("create", { scope: personId, name: "theme", value })],
-    });
+    const [created] = await home.mutate(
+        userContext(users.alice, personId, { environment: home.environment }).access(),
+        {
+            id: RequestId.create(home.environment),
+            calls: [preference.call("create", { scope: personId, name: "theme", value })],
+        },
+    );
 
     return present(created, "the created theme").id;
 }
@@ -280,7 +300,7 @@ async function setTheme(home: ObjectStore, value: string): Promise<string> {
 async function waitFor(client: ObjectClient, condition: () => Promise<boolean>): Promise<void> {
     const isMet = await client.database.log.until(
         condition,
-        AbortSignal.timeout(REPLICA_MILLISECONDS),
+        client.environment.clock.timeout(REPLICA_MILLISECONDS),
     );
     if (!isMet) {
         throw new Error("the client's replica never met the condition");
@@ -333,10 +353,13 @@ const HOME = defineShape({
 const HOME_FOLLOW = Follow.of(HOME, { keys: [{ key: { scope: Scope.universe.id } }] });
 
 test("send a write of an enclosing scope's row to its home, predicted on the room's replica and rebased once the home's commit streams back through it", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // wait for alice's theme in her room's replica
-    const served = await serveHomes();
+    const served = await serveHomes(world);
     const id = await setTheme(served.home, "light");
-    const { client, failures } = await openRoom(served);
+    const { client, failures } = await openRoom(world, served);
     await replicatedTo(client, id);
 
     // switch it to dark through the room's client
@@ -363,18 +386,65 @@ test("send a write of an enclosing scope's row to its home, predicted on the roo
     });
 });
 
+test("push a row the room's replica writes after a client subscribed to the client's stream", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    // subscribe alice's client of her room, then write her theme at her person's home
+    const served = await serveHomes(world);
+    const { client, failures } = await openRoom(world, served);
+    const id = await setTheme(served.home, "light");
+
+    // receive the theme through the room's replica into the client's replica
+    await replicatedTo(client, id);
+    expect({
+        value: Valued.parse(await client.row(client.database, preference, id)).value,
+        failures,
+    }).toEqual({ value: "light", failures: [] });
+});
+
+test("push a row of the room's ancestor to a client that subscribed before the room knew its chain", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    // subscribe alice's client of her room before the room follows its chain
+    const served = await serveHomes(world, { isFollowing: false });
+    const opening = openRoom(world, served);
+    await served.follow();
+    const { client, failures } = await opening;
+
+    // write her theme at her person's home, an ancestor of the room
+    const id = await setTheme(served.home, "light");
+
+    // receive the theme through the room's stream once the room learned its chain
+    await replicatedTo(client, id);
+    expect({
+        value: Valued.parse(await client.row(client.database, preference, id)).value,
+        failures,
+    }).toEqual({ value: "light", failures: [] });
+});
+
 test("wait through a replica for a home commit outside its rows, the home confirming the position at once", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // commit a person outside the room's chain at home
-    const served = await serveHomes();
-    await served.homeDatabase
-        .insert(person.table)
-        .values({ id: otherPersonId, scope: Scope.universe.id, createdAt: 1, updatedAt: 1 });
+    const served = await serveHomes(world);
+    await served.homeDatabase.transaction(
+        async (transaction) =>
+            await transaction.insert(person.table).values({
+                id: otherPersonId,
+                scope: Scope.universe.id,
+                createdAt: 1,
+                updatedAt: 1,
+            }),
+    );
     const head = await served.homeDatabase.log.position();
 
     // wait through the room's store for the home's head, far within the feed's heartbeat
     const isCaughtUp = await served.replica.wait(
         { scope: personId, ...head },
-        AbortSignal.timeout(CONFIRM_MILLISECONDS),
+        world.clock.timeout(CONFIRM_MILLISECONDS),
     );
 
     // arrive at the position by the home's confirmation
@@ -382,22 +452,99 @@ test("wait through a replica for a home commit outside its rows, the home confir
 });
 
 test("wait on a store's log for a watermark it wrote, in a scope another database homes", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // take the head of the room's store, whose room row a replica of the home stores
-    const served = await serveHomes();
+    const served = await serveHomes(world);
     const head = await served.replica.database.log.position();
 
     // arrive at it on the store's log, far within the feed's heartbeat
     expect(
         await served.replica.wait(
             { scope: roomId, ...head },
-            AbortSignal.timeout(CONFIRM_MILLISECONDS),
+            world.clock.timeout(CONFIRM_MILLISECONDS),
         ),
     ).toBe(true);
 });
 
+test("enter a scope after its replica reaches a commit its chain's scope wrote at a store homing another", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    // serve the person's preferences through a store of the universe over the home's database
+    const served = await serveHomes(world);
+    const universal = await TestObjectStore.at(Scope.universe, {
+        chain: async () => undefined,
+        environment: served.home.environment,
+        principal: Scope.universe,
+        partitions: [personId],
+        servers: serversOf([preference]),
+        policies: [person, room],
+        database: served.homeDatabase,
+        callKey: testCallKey,
+        events: await testEvents(served.homeDatabase, world),
+        origin: { package: preference.package },
+    });
+    await using universalServed = TestObjectStore.serve(universal);
+
+    // write alice's theme in her person's scope, keeping the watermark the write answers
+    const bookmark = new Bookmark();
+    const client = createClient(
+        preferences,
+        {
+            ...universalServed
+                .as(principal.user.reference("universe", users.alice))
+                .endpoint(preferences),
+            bookmark,
+        },
+        world,
+    );
+    const { id } = await client.preference.create({
+        scope: personId,
+        requestId: RequestId.create(served.home.environment),
+        name: "theme",
+        value: "dark",
+    });
+
+    // enter the room with the write's watermark, finding the theme in its replica as soon as the entry returns
+    await served.replica.enter(
+        userContext(users.alice, roomId, { environment: world, bookmark }),
+        roomId,
+    );
+    const replicated = await served.replica.database
+        .select({ id: preference.table.id })
+        .from(preference.table)
+        .where(eq(preference.table.id, id));
+    expect({ scopes: bookmark.watermarks.map((each) => each.scope), replicated }).toEqual({
+        scopes: [personId],
+        replicated: [{ id }],
+    });
+});
+
+test("enter a scope at once past a watermark of a scope outside its chain", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    // observe a position far ahead in a person's scope the room's chain lacks
+    const served = await serveHomes(world);
+    const head = await served.homeDatabase.log.position();
+    const bookmark = new Bookmark();
+    bookmark.observe({ scope: otherPersonId, ...head, sequence: head.sequence + 1000 });
+
+    // enter the room without waiting for the other person's scope
+    const entered = await served.replica
+        .enter(userContext(users.alice, roomId, { environment: world, bookmark }), roomId)
+        .then(() => "entered");
+    expect(entered).toBe("entered");
+});
+
 test("refuse to confirm a position of a scope with no home or replica in the store", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // ask the home to confirm a position of a scope it never saw
-    const served = await serveHomes();
+    const served = await serveHomes(world);
     const head = await served.homeDatabase.log.position();
     const subscription = {
         name: "nowhere",
@@ -413,16 +560,19 @@ test("refuse to confirm a position of a scope with no home or replica in the sto
     // refuse the unknown scope
     expect(refused).toEqual([
         "NOT_FOUND",
-        "NO_HOME_OR_REPLICA",
+        "HOME_OR_REPLICA_MISSING",
         "space-nowhere has no home or replica here",
     ]);
 });
 
 test("refuse a mutation changing rows of two homes", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // change alice's theme at her person's home and create a preference in her room at once
-    const served = await serveHomes();
+    const served = await serveHomes(world);
     const id = await setTheme(served.home, "light");
-    const { client } = await openRoom(served);
+    const { client } = await openRoom(world, served);
     await replicatedTo(client, id);
     const submitted = client.mutation(async (mutation) => {
         await mutation.call(preference).update({ id, value: "dark" });
@@ -431,16 +581,19 @@ test("refuse a mutation changing rows of two homes", async () => {
 
     expect(await refusal(submitted.predicted)).toEqual([
         "BAD_REQUEST",
-        "MIXED_HOMES",
+        "HOMES_MIXED",
         `a mutation must change rows of one home, but its calls change rows of ${personId} and ${roomId}`,
     ]);
 });
 
 test("send the undo of a write of an enclosing scope's row to its home", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // switch alice's theme to dark through her room's client, then undo it
-    const served = await serveHomes();
+    const served = await serveHomes(world);
     const id = await setTheme(served.home, "light");
-    const { client, failures } = await openRoom(served);
+    const { client, failures } = await openRoom(world, served);
     await replicatedTo(client, id);
     await client.mutate(preference).update({ id, value: "dark" }).confirmed;
     await client.undo().confirmed;

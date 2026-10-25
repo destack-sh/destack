@@ -1,22 +1,21 @@
+import { testSimulation } from "../src/test/index.ts";
 import { AccessContext, Caller, none, through } from "@destack/access";
 import { call, journal, defineObject, field } from "../src/index.ts";
 import { defineDatabase, TABLE, ControlLoop } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { schema } from "@destack/schema";
-import { RequestId } from "@destack/sync";
+import { schema, Uuid } from "@destack/schema";
+import { RequestId, Scope } from "@destack/sync";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { startTelemetry } from "@destack/telemetry/bun";
 import { OtlpExporter } from "@destack/telemetry/otlp";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { v7 } from "uuid";
-import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { auditedCalls } from "./fixture/audit.ts";
-import { Clock } from "@destack/environment";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
+import { TestObjectStore } from "../src/test/index.ts";
 
 /** An API key a caller hands a method, which nothing derived from the call stores. */
 const ApiKey = schema.sensitive(schema.string().regex(/^sk-/u));
@@ -45,6 +44,10 @@ const holder = defineObject(
 );
 
 test("leave a sensitive input out of the rows, the journal, the audit events, the telemetry and the error of a refused call, and a sensitive column in its row alone", async () => {
+    // run in a world of its own
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
+
     // serve the holders, recording audit events and exporting telemetry to a list
     const storage = await TestDatabase.create(
         defineDatabase({
@@ -55,7 +58,7 @@ test("leave a sensitive input out of the rows, the journal, the audit events, th
                 tables: [space.table],
             }),
         }),
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
     const exported: string[] = [];
@@ -66,20 +69,22 @@ test("leave a sensitive input out of the rows, the journal, the audit events, th
             },
             () => {},
         ).options(holder.package),
+        world,
     );
     onTestFinished(() => telemetry.shutdown());
-    const spaceId = `space-${v7()}`;
-    const store = new ObjectStore({
+    const traced = { ...world, telemetry };
+    const spaceId = `space-${Uuid.v7(world)}`;
+    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: traced,
         principal: spacePrincipal(spaceId),
         servers: serversOf([holder]),
         database: storage.database,
         callKey: testCallKey,
-        events: await testEvents(storage.database),
+        events: await testEvents(storage.database, world),
         origin: { package: holder.package },
     });
-    await openSpace(storage.database, spaceId);
+    await openSpace(storage.database, world, spaceId);
 
     // create a holder with a valid key, and refuse one with a key of another shape
     const valid = "sk-valid-0123456789";
@@ -87,8 +92,8 @@ test("leave a sensitive input out of the rows, the journal, the audit events, th
     const invalid = "pk-refused-0123456789";
     const create = (key: string) =>
         store
-            .mutate(userContext(users.alice, spaceId).access(), {
-                id: RequestId.create(Date.now()),
+            .mutate(userContext(users.alice, spaceId, { environment: world }).access(), {
+                id: RequestId.create(world),
                 calls: [holder.call("create", { spaceId, label: "deploy", key, token })],
             })
             .then(([written]) => written);
@@ -98,8 +103,8 @@ test("leave a sensitive input out of the rows, the journal, the audit events, th
         (error: unknown) => error,
     );
     const refusedSystem = await store
-        .mutate(AccessContext.of(Caller.of(spacePrincipal(spaceId)), Date.now()), {
-            id: RequestId.create(Date.now()),
+        .mutate(AccessContext.of(Caller.of(spacePrincipal(spaceId)), world.clock.now()), {
+            id: RequestId.create(world),
             calls: [
                 holder.call("provision", {
                     ...holder.in(spaceId),
@@ -117,11 +122,11 @@ test("leave a sensitive input out of the rows, the journal, the audit events, th
     const failures: unknown[] = [];
     const stopping = new AbortController();
     const loop = new ControlLoop(store.database, store.controllers(), {
-        clock: Clock.system,
+        clock: world.clock,
         report: (_controller, _key, error) => failures.push(error),
     });
     const running = loop.run(stopping.signal);
-    await loop.idle();
+    await simulation.drive(loop.idle());
     stopping.abort();
     await running;
     await telemetry.flush();
@@ -173,12 +178,12 @@ test("leave a sensitive input out of the rows, the journal, the audit events, th
         leaking: [],
         refusal: [
             "BAD_REQUEST",
-            "INVALID_INPUT",
+            "INPUT_INVALID",
             "invalid input: key: invalid string: must match pattern /^sk-/u",
         ],
         systemRefusal: [
             "BAD_REQUEST",
-            "INVALID_INPUT",
+            "INPUT_INVALID",
             "invalid input: key: invalid string: must match pattern /^sk-/u",
         ],
         audited: [

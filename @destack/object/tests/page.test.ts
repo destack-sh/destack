@@ -1,45 +1,48 @@
+import { testSimulation } from "../src/test/index.ts";
 import { users } from "./fixture/user.ts";
-import { implementPackage, ObjectStore } from "../src/server/index.ts";
+import { implementPackage } from "../src/server/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { isNull } from "@destack/db";
+import { and, eq, isNull } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { ObjectClient } from "../src/client/index.ts";
 import { Package } from "@destack/package";
 import { present, schema, type Identifier } from "@destack/schema";
 import { createClient, type ClientOptions } from "@destack/object/client";
-import { RequestId, ObjectReference } from "@destack/sync";
-import { v7 } from "uuid";
-import { anyone, LinkSecret, principal, Role } from "@destack/access";
+import { RequestId, ObjectReference, Scope } from "@destack/sync";
+import { accessRole, anyone, LinkSecret, principal, Role } from "@destack/access";
 import { page, pageDatabase, pagesPackage } from "./fixture/page.ts";
-import { openSpace, unmoved, spacePrincipal } from "./fixture/space.ts";
+import { openSpace, space, unmoved, spacePrincipal } from "./fixture/space.ts";
 import { testCallKey } from "@destack/object/test";
 import { testEvents } from "../src/test/index.ts";
-import { Clock } from "@destack/environment";
+import { Environment } from "@destack/environment";
 import { TestObjectStore } from "../src/test/index.ts";
 
 /** The space with the pages. */
-const spaceId = schema.identifier("space").parse(`space-${v7()}`);
+const spaceId = schema.identifier("space").parse(`space-01996ab0-0000-7000-8000-00000000a00b`);
 
 /** The rows an include adds, read for their titles. */
 const TITLED_ROWS = schema.array(schema.looseObject({ title: schema.string() }));
 
 /** Serve a space's pages to bearer-identified users and anonymous readers. */
-async function servePages() {
-    const storage = await TestDatabase.create(pageDatabase, { isMigrated: true });
+async function servePages(world: Environment) {
+    const storage = await TestDatabase.create(pageDatabase, {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     const database = storage.database;
-    await openSpace(database, spaceId);
+    await openSpace(database, world, spaceId);
 
     // serve the space's pages
     const served = TestObjectStore.serve(
-        new ObjectStore({
+        await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
             servers: [implementPackage(pagesPackage, {})],
             chain: async () => undefined,
-            clock: Clock.system,
+            environment: world,
             origin: { package: Package.of(pagesPackage) },
             principal: spacePrincipal(spaceId),
             callKey: testCallKey,
-            events: await testEvents(database),
+            events: await testEvents(database, world),
             database,
         }),
     );
@@ -53,20 +56,21 @@ async function servePages() {
         fetch: (request: Request) => server.fetch(request),
     });
     const connect = (headers: Record<string, string>) =>
-        createClient(pagesPackage, endpoint(headers));
+        createClient(pagesPackage, endpoint(headers), world);
 
-    return { as: (user: Identifier<"user">) => served.as(user), connect, endpoint };
+    return { as: (user: Identifier<"user">) => served.as(user), connect, endpoint, database };
 }
 
 /** Replicate a user's pages on a device. */
-async function openDevice(user: Identifier<"user">, endpoint: ClientOptions) {
+async function openDevice(world: Environment, user: Identifier<"user">, endpoint: ClientOptions) {
     // create the local database and replicate the space's pages in it
     const storage = await TestDatabase.create(ObjectClient.tables({ page }), {
+        environment: world,
         dialect: "sqlite",
         storage: "file",
     });
     const client = await ObjectClient.open({
-        clock: Clock.system,
+        environment: world,
         database: storage.database,
         objects: { page },
         scope: spaceId,
@@ -106,7 +110,10 @@ async function openDevice(user: Identifier<"user">, endpoint: ClientOptions) {
 }
 
 test("share page trees with members and links, and move pages within them", async () => {
-    const { as, connect } = await servePages();
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const { as, connect, database } = await servePages(world);
     const alice = as(users.alice).client(pagesPackage);
     const bob = as(users.bob).client(pagesPackage);
     const carol = as(users.carol).client(pagesPackage);
@@ -115,7 +122,7 @@ test("share page trees with members and links, and move pages within them", asyn
     const create = (title: string, parentId?: string) =>
         alice.page.create({
             spaceId,
-            requestId: RequestId.create(Date.now()),
+            requestId: RequestId.create(world),
             title,
             ...(parentId === undefined
                 ? {}
@@ -133,7 +140,7 @@ test("share page trees with members and links, and move pages within them", asyn
         await refusal(
             bob.page.create({
                 spaceId,
-                requestId: RequestId.create(Date.now()),
+                requestId: RequestId.create(world),
                 parentId: week.id,
                 title: "Spam",
             }),
@@ -144,14 +151,14 @@ test("share page trees with members and links, and move pages within them", asyn
     await alice.page.grant({
         spaceId,
         id: handbook.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(world),
         relation: "editor",
         subject: principal.user.reference("universe", users.bob),
     });
     expect((await bob.page.get({ spaceId, id: week.id })).title).toBe("First week");
     const tools = await bob.page.create({
         spaceId,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(world),
         parentId: onboarding.id,
         title: "Tools",
     });
@@ -163,7 +170,7 @@ test("share page trees with members and links, and move pages within them", asyn
             bob.page.move({
                 spaceId,
                 id: week.id,
-                requestId: RequestId.create(Date.now()),
+                requestId: RequestId.create(world),
                 revision: week.revision,
                 parentId: null,
             }),
@@ -174,7 +181,7 @@ test("share page trees with members and links, and move pages within them", asyn
     await alice.page.move({
         spaceId,
         id: week.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(world),
         revision: week.revision,
         parentId: null,
     });
@@ -188,7 +195,7 @@ test("share page trees with members and links, and move pages within them", asyn
             alice.page.move({
                 spaceId,
                 id: handbook.id,
-                requestId: RequestId.create(Date.now()),
+                requestId: RequestId.create(world),
                 revision: handbook.revision,
                 parentId: onboarding.id,
             }),
@@ -196,11 +203,11 @@ test("share page trees with members and links, and move pages within them", asyn
     ).toEqual(["CONFLICT", "MOVE_INTO_SUBTREE", "page cannot move into its subtree"]);
 
     // publish the tree through a link anyone presenting its secret may read, signed in or not
-    const link = await LinkSecret.create();
+    const link = await LinkSecret.create(world);
     await alice.page.grant({
         spaceId,
         id: handbook.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(world),
         relation: "public",
         subject: anyone.reference("*", "*"),
         linkSecret: link.digest,
@@ -220,14 +227,21 @@ test("share page trees with members and links, and move pages within them", asyn
             visitor.page.update({
                 spaceId,
                 id: tools.id,
-                requestId: RequestId.create(Date.now()),
+                requestId: RequestId.create(world),
                 revision: tools.revision,
                 title: "Defaced",
             }),
         ),
-    ).toEqual(["UNAUTHORIZED", "MISSING_CREDENTIAL", "missing caller credential"]);
+    ).toEqual(["UNAUTHORIZED", "CREDENTIAL_MISSING", "missing caller credential"]);
 
-    // explain to the owner why a reader may not write
+    // explain to the owner why a reader may not write, beside the role of the pages' base installation
+    const [base] = await database
+        .select({ id: accessRole.id })
+        .from(accessRole)
+        .where(
+            and(eq(accessRole.scope, spaceId), eq(accessRole.name, `base:${pagesPackage.name}`)),
+        );
+    const baseRole = present(base, "the pages' base role").id;
     const why = await alice.page.explain({
         spaceId,
         id: onboarding.id,
@@ -246,6 +260,10 @@ test("share page trees with members and links, and move pages within them", asyn
                 "subject",
             ],
             [
+                `page write / page write-direct / role ${baseRole} bound on space ${spaceId}`,
+                "subject",
+            ],
+            [
                 `page write / through parent to page ${handbook.id} / page write-direct / field ownerId holding relation owner`,
                 "subject",
             ],
@@ -257,7 +275,12 @@ test("share page trees with members and links, and move pages within them", asyn
                 `page write / through parent to page ${handbook.id} / page write-direct / role ${Role.OWNER} bound on space ${spaceId}`,
                 "subject",
             ],
+            [
+                `page write / through parent to page ${handbook.id} / page write-direct / role ${baseRole} bound on space ${spaceId}`,
+                "subject",
+            ],
             [`page write / role ${Role.OWNER} bound on space ${spaceId}`, "subject"],
+            [`page write / role ${baseRole} bound on space ${spaceId}`, "subject"],
         ],
     ]);
 
@@ -265,7 +288,7 @@ test("share page trees with members and links, and move pages within them", asyn
     const request = await carol.page.invite({
         spaceId,
         id: handbook.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(world),
         relationship: {
             relation: "editor",
             subject: principal.user.reference("universe", users.carol),
@@ -274,13 +297,13 @@ test("share page trees with members and links, and move pages within them", asyn
     await alice.page.accept({
         spaceId,
         id: handbook.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(world),
         invitationId: request.id,
     });
     const renamed = await carol.page.update({
         spaceId,
         id: onboarding.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(world),
         revision: onboarding.revision,
         title: "Welcome",
     });
@@ -298,9 +321,12 @@ test("share page trees with members and links, and move pages within them", asyn
 });
 
 test("build page trees offline in one mutation, and move and trash pages predictively", async () => {
-    const { as } = await servePages();
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const { as } = await servePages(world);
     const alice = as(users.alice).client(pagesPackage);
-    const device = await openDevice(users.alice, as(users.alice).endpoint(pagesPackage));
+    const device = await openDevice(world, users.alice, as(users.alice).endpoint(pagesPackage));
 
     // create a tree of three pages in one mutation, shown before the server executes it
     const tree = device.client.mutation(async (mutation) => {
@@ -355,14 +381,17 @@ test("build page trees offline in one mutation, and move and trash pages predict
 });
 
 test("follow a shared tree on a device, dropping pages moved out of it and taking them back", async () => {
-    const { as } = await servePages();
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const { as } = await servePages(world);
     const alice = as(users.alice).client(pagesPackage);
 
     // share a tree of four pages with bob as a viewer
     const create = (title: string, parentId?: string) =>
         alice.page.create({
             spaceId,
-            requestId: RequestId.create(Date.now()),
+            requestId: RequestId.create(world),
             title,
             ...(parentId === undefined
                 ? {}
@@ -375,13 +404,13 @@ test("follow a shared tree on a device, dropping pages moved out of it and takin
     await alice.page.grant({
         spaceId,
         id: handbook.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(world),
         relation: "viewer",
         subject: principal.user.reference("universe", users.bob),
     });
 
     // replicate the shared tree on bob's device
-    const device = await openDevice(users.bob, as(users.bob).endpoint(pagesPackage));
+    const device = await openDevice(world, users.bob, as(users.bob).endpoint(pagesPackage));
     const titles = async () => {
         const rows = await device.client.database
             .select({ title: page.table.title })
@@ -395,14 +424,14 @@ test("follow a shared tree on a device, dropping pages moved out of it and takin
     await alice.page.move({
         spaceId,
         id: week.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(world),
         parentId: null,
     });
     await expect.poll(titles).toEqual(["Handbook", "Onboarding"]);
     await alice.page.move({
         spaceId,
         id: week.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(world),
         parentId: onboarding.id,
     });
     await expect.poll(titles).toEqual(["Day one", "First week", "Handbook", "Onboarding"]);
@@ -410,14 +439,17 @@ test("follow a shared tree on a device, dropping pages moved out of it and takin
 });
 
 test("list the pages below and above each page", async () => {
-    const { as } = await servePages();
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const { as } = await servePages(world);
     const alice = as(users.alice).client(pagesPackage);
 
     // nest a guide under a handbook, and a chapter under the guide
     const create = async (title: string, parentId?: string) =>
         alice.page.create({
             spaceId,
-            requestId: RequestId.create(Date.now()),
+            requestId: RequestId.create(world),
             title,
             ...(parentId === undefined
                 ? {}
@@ -446,15 +478,19 @@ test("list the pages below and above each page", async () => {
 });
 
 test("follow the pages below a page on a device as the tree grows", async () => {
-    const { as } = await servePages();
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const { as } = await servePages(world);
     const alice = as(users.alice).client(pagesPackage);
     const { client: device } = await openDevice(
+        world,
         users.alice,
         as(users.alice).endpoint(pagesPackage),
     );
     const handbook = await alice.page.create({
         spaceId,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(world),
         title: "Handbook",
     });
 

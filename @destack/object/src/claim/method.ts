@@ -35,9 +35,13 @@ export const claimMethods = {
         async (call, execution) => {
             // reserve the free names in the store's transaction
             const { request, ...claimant } = call.input;
-            const { database } = Execution.store(execution, call).transaction;
+            const { store, transaction } = Execution.store(execution, call);
+            const { database } = transaction;
+            const { environment } = store;
 
-            return { refused: await Claim.reserve(database, claimant, request, call.now) };
+            return {
+                refused: await Claim.reserve(database, claimant, request, call.now, environment),
+            };
         },
     ),
 
@@ -87,9 +91,11 @@ export const claimMethods = {
         }),
         async (call, execution) => {
             // replace the names, refusing those others claim
-            const { database } = Execution.store(execution, call).transaction;
+            const { store, transaction } = Execution.store(execution, call);
 
-            return { refused: await Claim.replace(database, call.input) };
+            return {
+                refused: await Claim.replace(transaction.database, call.input, store.environment),
+            };
         },
     ),
 

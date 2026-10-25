@@ -1,15 +1,30 @@
-import { asc, type DatabaseConnection } from "@destack/db";
-import { CallEvent, call } from "../../src/index.ts";
+import type { DatabaseConnection } from "@destack/db";
+import { CallEvent, call, journal } from "../../src/index.ts";
 
-/** Read the audited calls a database records as call events, in start order. */
+/** Read the audited calls a database records as call events, in journal order. */
 export async function auditedCalls(database: DatabaseConnection): Promise<CallEvent[]> {
+    // read the call events
     const table = call.eventKind().table;
-    const rows = await database
-        .select({ data: table.data })
-        .from(table)
-        .orderBy(asc(table.time), asc(table.id));
+    const rows = await database.select({ data: table.data }).from(table);
 
-    return rows.map((row) => CallEvent.parse(row.data));
+    // read the journal's whole log, noting where each entry was first written
+    const positions = new Map<unknown, number>();
+    for (let after = 0, isDone = false; !isDone;) {
+        const page = await database.log.read({ tables: [journal], after });
+        for (const change of page.changes) {
+            if (!positions.has(change.key.id)) {
+                positions.set(change.key.id, positions.size);
+            }
+        }
+        isDone = page.changes.length === 0 || page.sequence === after;
+        after = page.sequence;
+    }
+
+    // order each call by its entry's place in the log
+    const calls = rows.map((row) => CallEvent.parse(row.data));
+    const position = (ended: CallEvent) => positions.get(ended.execution.id) ?? Infinity;
+
+    return calls.toSorted((left, right) => position(left) - position(right));
 }
 
 /** Read the methods a database's audited calls ran, a failed one with its error code. */

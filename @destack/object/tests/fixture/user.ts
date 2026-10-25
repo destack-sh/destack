@@ -35,7 +35,7 @@ export function userName(id: string): string {
 export function userContext(
     user: Identifier<"user">,
     scope: string | undefined,
-    options: SubjectContextOptions = {},
+    options: SubjectContextOptions,
 ): RequestContext {
     return subjectContext(principal.user.reference("universe", user), scope, options);
 }

@@ -1,7 +1,8 @@
 import { Scope } from "@destack/sync";
 import { expect, test } from "@destack/test";
+import { PackageHandle } from "../src/index.ts";
 import { type TestCaller, TestObjectStore } from "../src/test/index.ts";
-import { notebook, notesPackage } from "./fixture/note.ts";
+import { note, notebook, notesPackage } from "./fixture/note.ts";
 import { space } from "./fixture/space.ts";
 import { users } from "./fixture/user.ts";
 
@@ -36,4 +37,45 @@ test("serve a package's objects in a new space, make an example's calls as a use
             objects: { space: [{ object: { name: "ledger" }, method: "create", input: {} }] },
         }),
     ).rejects.toThrow(new TypeError("the test store serves no object type ledger"));
+});
+
+test("run a driven caller's signing and serving through its driver, answering what the caller would", async () => {
+    // serve the notes, and count the work a driver runs
+    await using objects = await TestObjectStore.open({
+        packages: [notesPackage],
+        scope: space.reference(Scope.universe.id, "space-01996ab0-0000-7000-8000-000000000201"),
+    });
+    let driven = 0;
+    const caller = objects.as(users.alice).driven(async (work) => {
+        driven += 1;
+
+        return await work;
+    });
+
+    // create and list a notebook through the driven caller
+    const client = caller.client(notesPackage);
+    await caller.given({
+        objects: { space: [{ object: notebook, method: "create", input: { name: "Drafts" } }] },
+    });
+    const listed = await client.notebook.list({ spaceId: objects.scope });
+
+    // sign and serve both calls under the driver
+    expect({ names: listed.items.map((item) => item.name), driven }).toEqual({
+        names: ["Drafts"],
+        driven: 4,
+    });
+});
+
+test("refuse a package served twice in one store", async () => {
+    // serve the notes package's notebooks and notes through two servers
+    const opening = TestObjectStore.open({
+        packages: [
+            PackageHandle.of(notebook.package, { objects: { notebook } }),
+            PackageHandle.of(notebook.package, { objects: { note } }),
+        ],
+        scope: space.reference(Scope.universe.id, "space-01996ab0-0000-7000-8000-000000000202"),
+    });
+    await expect(opening).rejects.toThrow(
+        new TypeError(`package ${notesPackage.name} is served twice`),
+    );
 });

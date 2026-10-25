@@ -1,4 +1,4 @@
-import { v7 } from "uuid";
+import { Uuid } from "@destack/schema";
 import type { ObjectOf, ObjectType } from "../object/index.ts";
 import { Sequence, type Run, type TextChange } from "../sequence/index.ts";
 import { Undo } from "../text/chunk.ts";
@@ -41,7 +41,10 @@ export const LiveText = {
         const change = (replaced: TextChange) => {
             const next = previous.then(async () => {
                 // translate the offsets against the current text, edit, and wait for the prediction
-                const edits = LiveText.sequence(await query.read()).change(replaced, v7());
+                const edits = LiveText.sequence(await query.read()).change(
+                    replaced,
+                    Uuid.v7(client.environment),
+                );
                 const editing = client.call(object, "edit", { id, field, edits });
                 const predicted = editing.predicted.then((value) => Undo.parse(value));
                 await predicted;

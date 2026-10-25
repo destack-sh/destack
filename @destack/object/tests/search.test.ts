@@ -1,18 +1,18 @@
+import { testSimulation } from "../src/test/index.ts";
 import { principal, relation } from "@destack/access";
 import { defineDatabase } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
-import { RequestId } from "@destack/sync";
+import { RequestId, Scope } from "@destack/sync";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { defineObject, field } from "../src/index.ts";
-import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
-import { Clock } from "@destack/environment";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
+import { TestObjectStore } from "../src/test/index.ts";
 
 /** The space with the notes. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000d2");
@@ -39,6 +39,9 @@ const note = defineObject(
 );
 
 test("list the objects whose searchable fields have every word of a search, beside other conditions", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     const storage = await TestDatabase.create(
         defineDatabase({
             name: "notes",
@@ -48,25 +51,25 @@ test("list the objects whose searchable fields have every word of a search, besi
                 tables: [],
             }),
         }),
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
-    await openSpace(storage.database, spaceId);
-    const store = new ObjectStore({
+    await openSpace(storage.database, world, spaceId);
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([note]),
         database: storage.database,
         callKey: testCallKey,
-        events: await testEvents(storage.database),
+        events: await testEvents(storage.database, world),
         origin: { package: note.package },
     });
-    const context = userContext(users.frank, spaceId);
+    const context = userContext(users.frank, spaceId, { environment: world });
 
     // write three notes, then rename one
     const written = await store.mutate(context.access(), {
-        id: RequestId.create(Date.now()),
+        id: RequestId.create(world),
         calls: [
             note.call("create", { spaceId, title: "Ada Lovelace", status: "draft" }),
             note.call("create", { spaceId, title: "Analytical Engine", status: "published" }),
@@ -74,7 +77,7 @@ test("list the objects whose searchable fields have every word of a search, besi
         ],
     });
     await store.mutate(context.access(), {
-        id: RequestId.create(Date.now()),
+        id: RequestId.create(world),
         calls: [note.call("update", { spaceId, id: written[1].id, title: "Engine of Ada" })],
     });
 

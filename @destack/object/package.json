@@ -41,9 +41,7 @@
         "@orpc/openapi-client": "1.15.1",
         "@orpc/server": "1.15.1",
         "@orpc/shared": "1.15.1",
-        "fractional-indexing": "3.2.0",
-        "jose": "6.2.12",
-        "uuid": "14.0.2"
+        "fractional-indexing": "3.2.0"
     },
     "devDependencies": {
         "@destack/test": "workspace:*",

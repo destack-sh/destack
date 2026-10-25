@@ -1,3 +1,4 @@
+import { testSimulation } from "../src/test/index.ts";
 import { defineObject, field, ObjectDescription } from "../src/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { testCallKey } from "@destack/object/test";
@@ -7,13 +8,12 @@ import { defineDatabase, TABLE } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { ResourceDeclaration } from "@destack/resource";
 import { schema } from "@destack/schema";
-import { RequestId } from "@destack/sync";
-import { ObjectStore } from "../src/server/index.ts";
+import { RequestId, Scope } from "@destack/sync";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
-import { Clock } from "@destack/environment";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
+import { TestObjectStore } from "../src/test/index.ts";
 
 /** The space containing the boards. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000c1");
@@ -50,6 +50,9 @@ const board = defineObject(
 );
 
 test("present an object by its name, subtitle, chosen icon, accent and cover, described for pickers with its query roles and an index per filtered or sorted field", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // create a board with an icon, an accent and a cover
     const storage = await TestDatabase.create(
         defineDatabase({
@@ -60,23 +63,23 @@ test("present an object by its name, subtitle, chosen icon, accent and cover, de
                 tables: [],
             }),
         }),
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
-    await openSpace(storage.database, spaceId);
-    const store = new ObjectStore({
+    await openSpace(storage.database, world, spaceId);
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([board]),
         database: storage.database,
         callKey: testCallKey,
-        events: await testEvents(storage.database),
+        events: await testEvents(storage.database, world),
         origin: { package: board.package },
     });
     const created = await store
-        .mutate(userContext(users.frank, spaceId).access(), {
-            id: RequestId.create(Date.now()),
+        .mutate(userContext(users.frank, spaceId, { environment: world }).access(), {
+            id: RequestId.create(world),
             calls: [
                 board.call("create", {
                     spaceId,

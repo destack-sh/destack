@@ -1,3 +1,4 @@
+import { testSimulation } from "../src/test/index.ts";
 import {
     type CallableName,
     Claim,
@@ -15,13 +16,12 @@ import { schema } from "@destack/schema";
 import { RequestId, Scope } from "@destack/sync";
 import { subjectContext, testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
-import { ObjectStore } from "../src/server/index.ts";
 import { claim } from "./fixture/claim.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
-import { Clock } from "@destack/environment";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
+import { TestObjectStore } from "../src/test/index.ts";
 
 /** The space with the assets. */
 const homeId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000021");
@@ -82,7 +82,13 @@ const assetDatabase = defineDatabase({
 });
 
 test("map the relation of an object with an owner in the universe and record its names under its owner", async () => {
-    const storage = await TestDatabase.create(assetDatabase, { isMigrated: true });
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create(assetDatabase, {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
 
     // claim the asset's name under its owner, keyed within the universe
@@ -158,23 +164,32 @@ test("refuse an owner that no reference relates", () => {
 });
 
 test("let the roles of an owner create objects of that owner and run scoped methods for that owner alone", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // store assets in a public home with a private holder as owner, beside a rival space
-    const storage = await TestDatabase.create(assetDatabase, { isMigrated: true });
+    const storage = await TestDatabase.create(assetDatabase, {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     for (const id of [homeId, holderId, rivalId]) {
-        await openSpace(storage.database, id, id === holderId ? "private" : "public");
-        await storage.database
-            .insert(space.table)
-            .values({ id, scope: Scope.universe.id, createdAt: 0, updatedAt: 0 });
+        await openSpace(storage.database, world, id, id === holderId ? "private" : "public");
+        await storage.database.transaction(
+            async (transaction) =>
+                await transaction
+                    .insert(space.table)
+                    .values({ id, scope: Scope.universe.id, createdAt: 0, updatedAt: 0 }),
+        );
     }
-    const store = new ObjectStore({
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, homeId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(homeId),
         servers: serversOf([asset]),
         database: storage.database,
         callKey: testCallKey,
-        events: await testEvents(storage.database),
+        events: await testEvents(storage.database, world),
         origin: { package: asset.package },
         claims: { object: claim },
     });
@@ -189,8 +204,8 @@ test("let the roles of an owner create objects of that owner and run scoped meth
                 asset,
                 name,
                 homeId,
-                { requestId: RequestId.create(Date.now()), ...input },
-                subjectContext(spacePrincipal(by), homeId),
+                { requestId: RequestId.create(world), ...input },
+                subjectContext(spacePrincipal(by), homeId, { environment: world }),
             ),
         );
 
@@ -234,23 +249,32 @@ const stickerDatabase = defineDatabase({
 });
 
 test("allow an owner its objects in a private home it cannot see, and refuse the home's other objects", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // store assets and stickers in a private home, with the holder as owner, beside a rival space
-    const storage = await TestDatabase.create(stickerDatabase, { isMigrated: true });
+    const storage = await TestDatabase.create(stickerDatabase, {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     for (const id of [homeId, holderId, rivalId]) {
-        await openSpace(storage.database, id, "private");
-        await storage.database
-            .insert(space.table)
-            .values({ id, scope: Scope.universe.id, createdAt: 0, updatedAt: 0 });
+        await openSpace(storage.database, world, id, "private");
+        await storage.database.transaction(
+            async (transaction) =>
+                await transaction
+                    .insert(space.table)
+                    .values({ id, scope: Scope.universe.id, createdAt: 0, updatedAt: 0 }),
+        );
     }
-    const store = new ObjectStore({
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, homeId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(homeId),
         servers: serversOf([asset, sticker]),
         database: storage.database,
         callKey: testCallKey,
-        events: await testEvents(storage.database),
+        events: await testEvents(storage.database, world),
         origin: { package: asset.package },
         claims: { object: claim },
     });
@@ -266,8 +290,8 @@ test("allow an owner its objects in a private home it cannot see, and refuse the
                 type,
                 name,
                 homeId,
-                { requestId: RequestId.create(Date.now()), ...input },
-                subjectContext(spacePrincipal(by), homeId),
+                { requestId: RequestId.create(world), ...input },
+                subjectContext(spacePrincipal(by), homeId, { environment: world }),
             ),
         );
 

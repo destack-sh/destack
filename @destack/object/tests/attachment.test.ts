@@ -1,31 +1,69 @@
+import { testSimulation } from "../src/test/index.ts";
 import { present, schema, type Identifier } from "@destack/schema";
 import { expect, refusal, onTestFinished, test } from "@destack/test";
-import { intersection, principal, relation, through, union } from "@destack/access";
-import { asc, eq, defineDatabase } from "@destack/db";
+import { InstallationId, intersection, principal, relation, through, union } from "@destack/access";
+import { asc, eq, defineDatabase, Table } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { v7 } from "uuid";
+import { Package, PackageId } from "@destack/package";
 
-import { RequestId } from "@destack/sync";
+import { ObjectReference, RequestId, Scope } from "@destack/sync";
 import {
     defineObject,
     field,
+    installation,
     ParentReference,
     type CallableName,
     type ObjectType,
 } from "../src/index.ts";
-import { ObjectStore } from "../src/server/index.ts";
 import { user } from "./schema.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
-import { Clock } from "@destack/environment";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
+import { TestObjectStore } from "../src/test/index.ts";
 
 /** The space containing the objects. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000003");
+
+/** A package other than the one declaring the remarks. */
+const OTHER_PACKAGE = PackageId.parse("package-019f5530-8000-7000-8000-0000000000b7");
+
+/** The package of tags, which posters let its installations attach. */
+const TAGS = Package.parse({
+    id: "package-019f5530-8000-7000-8000-0000000000b8",
+    name: "@example/tags",
+    version: "2026.10.0",
+});
+
+/** Tags on any object that takes them, readable by whoever reads it. */
+const tag = defineObject(
+    {
+        name: "tag",
+        plural: "tags",
+        scope: space,
+        nested: { in: "any", receive: "tag" },
+        fields: { text: field.string(schema.string().min(1)) },
+        permissions: { read: through("parent", "read"), write: through("parent", "tag") },
+    },
+    (method) => ({ create: method.create("write") }),
+    { package: TAGS },
+);
+
+/** Posters their owner reads, taking tags from readers and the tags package's installations. */
+const poster = defineObject(
+    {
+        name: "poster",
+        plural: "posters",
+        scope: space,
+        fields: { owner: field.reference(principal.user).caller() },
+        permissions: { read: relation("owner") },
+        attachments: [tag.attach({ by: "read" })],
+    },
+    (method) => ({ create: method.create("read") }),
+);
 
 /** Remarks on any object that takes them, readable by whoever reads it. */
 const remark = defineObject(
@@ -152,6 +190,9 @@ const board = defineObject(
 );
 
 test("map the types attached to served objects, which the database has beside them", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // serve photos alone over a database with their remarks and markers
     const storage = await TestDatabase.create(
         defineDatabase({
@@ -162,17 +203,17 @@ test("map the types attached to served objects, which the database has beside th
                 tables: [],
             }),
         }),
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
-    const store = new ObjectStore({
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([photo]),
         database: storage.database,
         callKey: testCallKey,
-        events: await testEvents(storage.database),
+        events: await testEvents(storage.database, world),
         origin: { package: photo.package },
     });
 
@@ -207,7 +248,7 @@ test("attach remarks to articles and photos, counting them and deleting them wit
     expect(await counts()).toEqual([2, 1]);
 
     // refuse invalid, missing and unreadable hosts
-    const missing = `article-${v7()}`;
+    const missing = `article-01996ab0-0000-7000-8000-00000000a007`;
     expect(
         await refusal(call(remark, "create", { ...host(task, task1.id), text: "Nope" })),
     ).toEqual(["BAD_REQUEST", "PARENT_TYPE_REFUSED", "task cannot have remarks"]);
@@ -273,6 +314,41 @@ test("attach remarks to articles and photos, counting them and deleting them wit
             .where(eq(photo.table.id, schema.identifier("photo").parse(snapshot.id))),
         await storage.database.select().from(remark.table),
     ]).toEqual([[], []]);
+});
+
+test("let the attaching package's installation attach tags to a poster it cannot read, and refuse another package's", async () => {
+    const { storage, environment, store, call, host } = await serveObjects({ poster, tag });
+
+    // write alice's poster, and an installation of another package beside the tags' own
+    const drawn = await call(poster, "create", {});
+    const scope = space.reference(Scope.universe.id, spaceId);
+    const own = await InstallationId.base(scope, TAGS.id, environment.crypto);
+    const other = await InstallationId.base(scope, OTHER_PACKAGE, environment.crypto);
+    const at = environment.clock.now();
+    const row = Table.complete(installation.table, {
+        id: other,
+        scope: spaceId,
+        origin: "base",
+        packageId: OTHER_PACKAGE,
+        createdAt: at,
+        updatedAt: at,
+        ...ObjectReference.columns("createdBy", spacePrincipal(spaceId)),
+        ...ObjectReference.columns("updatedBy", spacePrincipal(spaceId)),
+    });
+    await storage.database.transaction(
+        async (transaction) => await transaction.insert(installation.table).values(row),
+    );
+
+    // tag as each installation, which reads no poster
+    const tagging = (id: Identifier<"installation">) =>
+        TestObjectStore.serve(store)
+            .as(principal.installation.reference(spaceId, id))
+            .call(tag.call("create", { spaceId, ...host(poster, drawn.id), text: "Featured" }));
+    const tagged = await tagging(own);
+    expect([tagged.text, await refusal(tagging(other))]).toEqual([
+        "Featured",
+        ["NOT_FOUND", "NOT_FOUND", `poster ${drawn.id} not found`],
+    ]);
 });
 
 test("store each reader's favourite of a shared board private and single", async () => {
@@ -342,6 +418,9 @@ test("authorize a scoped method of attachments on the parent its input refers to
 
 /** Serve object types over a new database to one user at a time. */
 async function serveObjects(objects: Readonly<Record<string, ObjectType>>) {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // store the objects and their requests in one database
     const storage = await TestDatabase.create(
         defineDatabase({
@@ -352,20 +431,20 @@ async function serveObjects(objects: Readonly<Record<string, ObjectType>>) {
                 tables: [],
             }),
         }),
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
-    await openSpace(storage.database, spaceId);
+    await openSpace(storage.database, world, spaceId);
 
     // decide every call as the current user
-    const store = new ObjectStore({
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf(Object.values(objects)),
         database: storage.database,
         callKey: testCallKey,
-        events: await testEvents(storage.database),
+        events: await testEvents(storage.database, world),
         origin: {
             package: present(Object.values(objects)[0], "a served object type").package,
         },
@@ -373,10 +452,11 @@ async function serveObjects(objects: Readonly<Record<string, ObjectType>>) {
     const controller = new AbortController();
     onTestFinished(() => controller.abort());
     const sign = (caller: Identifier<"user">) =>
-        userContext(caller, spaceId, { signal: controller.signal });
+        userContext(caller, spaceId, { environment: world, signal: controller.signal });
     let context = sign(users.alice);
 
     return {
+        environment: world,
         storage,
         store,
         /** Read the current caller's request context. */
@@ -391,7 +471,7 @@ async function serveObjects(objects: Readonly<Record<string, ObjectType>>) {
                 object,
                 name,
                 spaceId,
-                { requestId: RequestId.create(Date.now()), ...input },
+                { requestId: RequestId.create(world), ...input },
                 context,
             ),
         host: (object: ObjectType, id: string) => ({

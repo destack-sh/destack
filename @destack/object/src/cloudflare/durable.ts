@@ -1,3 +1,4 @@
+import type { Clock } from "@destack/environment";
 import type { Alarm } from "@destack/db";
 
 /** How long an alarm runs the controllers at most: 10 minutes. */
@@ -23,13 +24,17 @@ export interface DurableObjectWorkloadInstance {
 export class DurableObjectWorkload {
     /** The started workload. */
     readonly #started: Promise<DurableObjectWorkloadInstance>;
+    /** The clock alarms run on. */
+    readonly #clock: Clock;
 
-    /** Start a workload before the object takes any event. */
+    /** Start a workload before the object takes any event, its alarms timed on a clock. */
     constructor(
         state: DurableObjectState,
         start: (alarm: Alarm) => Promise<DurableObjectWorkloadInstance>,
+        clock: Clock,
     ) {
         this.#started = state.blockConcurrencyWhile(() => start(state.storage));
+        this.#clock = clock;
     }
 
     /** Serve a request through the started workload. */
@@ -43,6 +48,6 @@ export class DurableObjectWorkload {
     async alarm(): Promise<void> {
         // run for a bounded time
         const workload = await this.#started;
-        await workload.alarm(Date.now() + ALARM_MILLISECONDS);
+        await workload.alarm(this.#clock.now() + ALARM_MILLISECONDS);
     }
 }

@@ -1,3 +1,5 @@
+import type { Environment } from "@destack/environment";
+import { testSimulation } from "../../src/test/index.ts";
 import { TestTelemetry } from "@destack/telemetry/test";
 import { defineTable, text } from "@destack/db";
 import { type Duration, schema } from "@destack/schema";
@@ -16,7 +18,7 @@ import { LocalKeyring } from "@destack/identity";
 import { Scope } from "@destack/sync";
 import { PackageId } from "@destack/package";
 import { principal } from "@destack/access";
-import { Clock } from "@destack/environment";
+import type { Simulation } from "@destack/environment/simulation";
 
 /** The documents the scenarios change. */
 export const document = defineTable("document", { name: text("name").primaryKey().notNull() });
@@ -78,8 +80,15 @@ export class AuditStorage {
     recorder: AuditRecorder;
     /** The telemetry with the exceptions the storage captures, refused at close unless taken. */
     readonly telemetry: TestTelemetry;
+    /** The test's world, whose clock the database, the events and the journal read. */
+    readonly simulation: Simulation;
     /** The bucket and keyring every connection's event log shares. */
     readonly #files: CallFiles;
+
+    /** The world the storage's journal runs in. */
+    get environment(): Environment {
+        return this.simulation.environment("store");
+    }
 
     /** Bind the storage to a connection, journaling calls for a lifetime. */
     constructor(
@@ -87,17 +96,19 @@ export class AuditStorage {
         database: AuditStorage["database"],
         files: CallFiles,
         telemetry: TestTelemetry,
+        simulation: Simulation,
         lifetime?: Duration,
     ) {
-        // open the connection's event log and its journal
+        // open the connection's event log and its journal in the test's world
         this.test = test;
         this.telemetry = telemetry;
+        this.simulation = simulation;
         this.database = database;
         this.#files = files;
-        this.events = AuditStorage.#events(database, files);
+        this.events = AuditStorage.#events(database, files, simulation);
         this.journal = new Journal(database, testCallKey, {
             events: this.events,
-            clock: Clock.system,
+            environment: simulation.environment("store"),
             ...(lifetime === undefined ? {} : { lifetime }),
         });
 
@@ -114,25 +125,43 @@ export class AuditStorage {
 
     /** Create migrated storage, journaling calls for a lifetime. */
     static async open(lifetime?: Duration): Promise<AuditStorage> {
-        const test = await TestDatabase.create(TABLES, { isMigrated: true });
+        const simulation = testSimulation();
+        const { clock } = simulation;
+        const world = simulation.environment("store");
+        const test = await TestDatabase.create(TABLES, { environment: world, isMigrated: true });
         const files = {
-            bucket: new MemoryBucket(Clock.system),
-            keyring: await LocalKeyring.read(LocalKeyring.generate()),
+            bucket: new MemoryBucket(clock),
+            keyring: await LocalKeyring.read(LocalKeyring.generate(world), world),
         };
 
-        return new AuditStorage(test, test.database, files, TestTelemetry.register(), lifetime);
+        return new AuditStorage(
+            test,
+            test.database,
+            files,
+            new TestTelemetry(simulation.telemetry),
+            simulation,
+            lifetime,
+        );
     }
 
     /** Open the call events over a connection. */
-    static #events(database: DatabaseConnection, files: CallFiles): EventStore {
+    static #events(
+        database: DatabaseConnection,
+        files: CallFiles,
+        simulation: Simulation,
+    ): EventStore {
         const kind = call.eventKind();
 
         return new EventStore({
             database,
             kinds: [kind],
             files: () => files.bucket,
-            personal: new DatabasePersonalKeyring(database, files.keyring),
-            clock: Clock.system,
+            personal: new DatabasePersonalKeyring(
+                database,
+                files.keyring,
+                simulation.environment("store"),
+            ),
+            clock: simulation.clock,
         });
     }
 
@@ -142,7 +171,7 @@ export class AuditStorage {
 
         const database = await this.test.connect(TABLES);
 
-        return new AuditStorage(this.test, database, this.#files, this.telemetry);
+        return new AuditStorage(this.test, database, this.#files, this.telemetry, this.simulation);
     }
 
     /** Open another connection. */

@@ -1,3 +1,4 @@
+import { testSimulation } from "../src/test/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { AccessContext, Caller, none, principal, relation } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
@@ -8,14 +9,13 @@ import { Identifier, schema } from "@destack/schema";
 
 import { RequestId, ObjectReference, Scope } from "@destack/sync";
 import { type MethodInput, defineObject, field } from "../src/index.ts";
-import { ObjectStore } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { userContext, users } from "./fixture/user.ts";
-import { Clock } from "@destack/environment";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
+import { TestObjectStore } from "../src/test/index.ts";
 
 /** The public space containing the handles. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
@@ -46,30 +46,31 @@ const handle = defineObject(
 );
 
 test("report a create's conflicts only to callers the create permission allows, inside spaces they read", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     const storage = await TestDatabase.create(
         tablesOf({
             packages: [objectPackage, { objects: { handle }, tables: [] }],
             follows: [],
             tables: [],
         }).tables,
-        {
-            isMigrated: true,
-        },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
-    await openSpace(storage.database, spaceId);
-    await openSpace(storage.database, privateId, "private");
+    await openSpace(storage.database, world, spaceId);
+    await openSpace(storage.database, world, privateId, "private");
 
     // serve the handles to the user each call refers to
     let level = 2;
-    const store = new ObjectStore({
+    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([handle]),
         database: storage.database,
         callKey: testCallKey,
-        events: await testEvents(storage.database),
+        events: await testEvents(storage.database, world),
         origin: {
             package: handle.package,
         },
@@ -80,12 +81,13 @@ test("report a create's conflicts only to callers the create permission allows, 
         scope = spaceId,
     ) => {
         const context = userContext(user, scope, {
-            assurance: { level, authenticatedAt: Date.now() },
+            environment: world,
+            assurance: { level, authenticatedAt: world.clock.now() },
         });
 
         return store
             .mutate(context.access(), {
-                id: RequestId.create(Date.now()),
+                id: RequestId.create(world),
                 calls: [handle.call("create", { spaceId: scope, ...input })],
             })
             .then(([written]) => written);
@@ -161,36 +163,37 @@ const team = defineObject(
 );
 
 test("create an object the caller has the permission on only as the creator its creation relates", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     const storage = await TestDatabase.create(
         tablesOf({
             packages: [objectPackage, { objects: { team }, tables: [] }],
             follows: [],
             tables: [],
         }).tables,
-        {
-            isMigrated: true,
-        },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
-    await openSpace(storage.database, spaceId);
-    const store = new ObjectStore({
+    await openSpace(storage.database, world, spaceId);
+    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([team]),
         database: storage.database,
         callKey: testCallKey,
-        events: await testEvents(storage.database),
+        events: await testEvents(storage.database, world),
         origin: {
             package: team.package,
         },
     });
-    const context = userContext(users.alice, spaceId);
+    const context = userContext(users.alice, spaceId, { environment: world });
 
     // create a team as its owner and read it as that owner
     const created = await store
         .mutate(context.access(), {
-            id: RequestId.create(Date.now()),
+            id: RequestId.create(world),
             calls: [team.call("create", { spaceId, name: "Core" })],
         })
         .then(([written]) => written);
@@ -199,32 +202,33 @@ test("create an object the caller has the permission on only as the creator its 
 });
 
 test("run only the one method a one-method grant includes, refusing every other method of the type", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     const storage = await TestDatabase.create(
         tablesOf({
             packages: [objectPackage, { objects: { team }, tables: [] }],
             follows: [],
             tables: [],
         }).tables,
-        {
-            isMigrated: true,
-        },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
-    await openSpace(storage.database, spaceId);
-    const store = new ObjectStore({
+    await openSpace(storage.database, world, spaceId);
+    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([team]),
         database: storage.database,
         callKey: testCallKey,
-        events: await testEvents(storage.database),
+        events: await testEvents(storage.database, world),
         origin: { package: team.package },
     });
 
     // create through a token granted only the create method, then read
     const token = principal.client.reference(Scope.universe.id, "client-alice");
-    const grantId = await new AccessFixture(storage.database).replicateGrant(
+    const grantId = await new AccessFixture(storage.database, world).replicateGrant(
         principal.user.reference("universe", users.alice),
         token,
         [
@@ -233,12 +237,13 @@ test("run only the one method a one-method grant includes, refusing every other 
         ],
     );
     const granted = userContext(users.alice, spaceId, {
+        environment: world,
         actors: [token],
         grants: [{ id: grantId, scope: users.alice }],
     });
     const created = await store
         .mutate(granted.access(), {
-            id: RequestId.create(Date.now()),
+            id: RequestId.create(world),
             calls: [team.call("create", { spaceId, name: "Core" })],
         })
         .then(([written]) => written);
@@ -307,32 +312,33 @@ const contact = defineObject(
 );
 
 test("create each variant of a sum type from its fields beside the shared ones, refusing another variant's field", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     const storage = await TestDatabase.create(
         tablesOf({
             packages: [objectPackage, { objects: { contact }, tables: [] }],
             follows: [],
             tables: [],
         }).tables,
-        {
-            isMigrated: true,
-        },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
-    await openSpace(storage.database, spaceId);
-    const store = new ObjectStore({
+    await openSpace(storage.database, world, spaceId);
+    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([contact]),
         database: storage.database,
         callKey: testCallKey,
-        events: await testEvents(storage.database),
+        events: await testEvents(storage.database, world),
         origin: { package: contact.package },
     });
     const create = (input: MethodInput<typeof contact, "create">) =>
         store
-            .mutate(userContext(users.alice, spaceId).access(), {
-                id: RequestId.create(Date.now()),
+            .mutate(userContext(users.alice, spaceId, { environment: world }).access(), {
+                id: RequestId.create(world),
                 calls: [contact.call("create", { spaceId, ...input })],
             })
             .then(([written]) => written);
@@ -349,8 +355,8 @@ test("create each variant of a sum type from its fields beside the shared ones, 
     // refuse an email contact with a phone's number
     const mixed = await refusal(
         store
-            .mutate(userContext(users.alice, spaceId).access(), {
-                id: RequestId.create(Date.now()),
+            .mutate(userContext(users.alice, spaceId, { environment: world }).access(), {
+                id: RequestId.create(world),
                 calls: [
                     {
                         type: contact.typeReference,
@@ -380,7 +386,7 @@ test("create each variant of a sum type from its fields beside the shared ones, 
     expect([...columns, mixed]).toEqual([
         { label: "Mail", kind: "email", address: "alice@example.com", number: null, region: null },
         { label: "Desk", kind: "phone", address: null, number: "+4930123456", region: "de" },
-        ["BAD_REQUEST", "INVALID_INPUT", 'invalid input: unrecognized key: "number"'],
+        ["BAD_REQUEST", "INPUT_INVALID", 'invalid input: unrecognized key: "number"'],
     ]);
 });
 
@@ -397,6 +403,9 @@ const ticket = defineObject(
 );
 
 test("create an object without a field its creation fills, taking the field the caller gives", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // serve tickets whose creation fills the queue a caller leaves out
     const storage = await TestDatabase.create(
         tablesOf({
@@ -404,15 +413,13 @@ test("create an object without a field its creation fills, taking the field the 
             follows: [],
             tables: [],
         }).tables,
-        {
-            isMigrated: true,
-        },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
-    await openSpace(storage.database, spaceId);
-    const store = new ObjectStore({
+    await openSpace(storage.database, world, spaceId);
+    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([
             ticket.implement({
@@ -428,13 +435,13 @@ test("create an object without a field its creation fills, taking the field the 
         ]),
         database: storage.database,
         callKey: testCallKey,
-        events: await testEvents(storage.database),
+        events: await testEvents(storage.database, world),
         origin: { package: ticket.package },
     });
     const create = (input: MethodInput<typeof ticket, "create">) =>
         store
-            .mutate(AccessContext.of(Caller.of(spacePrincipal(spaceId)), Date.now()), {
-                id: RequestId.create(Date.now()),
+            .mutate(AccessContext.of(Caller.of(spacePrincipal(spaceId)), world.clock.now()), {
+                id: RequestId.create(world),
                 calls: [ticket.call("create", { spaceId, ...input })],
             })
             .then(([written]) => written);
@@ -465,33 +472,34 @@ const channel = defineObject(
 );
 
 test("create an object under a natural key the creator chooses, refusing a taken one", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     const storage = await TestDatabase.create(
         tablesOf({
             packages: [objectPackage, { objects: { channel }, tables: [] }],
             follows: [],
             tables: [],
         }).tables,
-        {
-            isMigrated: true,
-        },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
-    await openSpace(storage.database, spaceId);
-    const store = new ObjectStore({
+    await openSpace(storage.database, world, spaceId);
+    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([channel]),
         database: storage.database,
         callKey: testCallKey,
-        events: await testEvents(storage.database),
+        events: await testEvents(storage.database, world),
         origin: { package: channel.package },
     });
-    const context = userContext(users.alice, spaceId);
+    const context = userContext(users.alice, spaceId, { environment: world });
     const create = (name: string) =>
         store
             .mutate(context.access(), {
-                id: RequestId.create(Date.now()),
+                id: RequestId.create(world),
                 calls: [
                     channel.call("create", { spaceId, id: "core", holderId: users.alice, name }),
                 ],
@@ -518,61 +526,68 @@ const topic = defineObject(
 );
 
 test("create an object once for a request two transactions run, the one reading before the other committed running again", async () => {
-    const storage = await TestDatabase.create(
-        tablesOf({
-            packages: [objectPackage, { objects: { topic }, tables: [] }],
-            follows: [],
-            tables: [],
-        }).tables,
-        {
-            isMigrated: true,
-        },
+    // run in a world of its own, moving its time while the work waits
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
+    await simulation.drive(
+        (async () => {
+            const storage = await TestDatabase.create(
+                tablesOf({
+                    packages: [objectPackage, { objects: { topic }, tables: [] }],
+                    follows: [],
+                    tables: [],
+                }).tables,
+                { environment: world, isMigrated: true },
+            );
+            onTestFinished(() => storage.close());
+            await openSpace(storage.database, world, spaceId);
+            const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
+                chain: async () => undefined,
+                environment: world,
+                principal: spacePrincipal(spaceId),
+                servers: serversOf([topic]),
+                database: storage.database,
+                callKey: testCallKey,
+                events: await testEvents(storage.database, world),
+                origin: { package: topic.package },
+            });
+
+            // create the topic unless the transaction reads it, both transactions under one request
+            const caller = userContext(users.alice, spaceId, { environment: world }).access();
+            const id = RequestId.create(world);
+            const create = topic.call("create", { spaceId, holderId: users.alice, name: "ideas" });
+            const step = (attempted: () => Promise<void>) =>
+                Transaction.run(storage.database, async (transaction) => {
+                    const [found] = await transaction
+                        .view()
+                        .read(topic.table)
+                        .findMany({ where: { name: "ideas" } });
+                    await attempted();
+                    if (found === undefined) {
+                        await store.mutate(caller, { id, calls: [create] }, { transaction });
+                    }
+                });
+
+            // read in the later transaction, commit the first, then create in the later one
+            const committed = Promise.withResolvers<void>();
+            let attempts = 0;
+            const later = step(async () => {
+                attempts += 1;
+                if (attempts === 1) {
+                    await committed.promise;
+                }
+            });
+            await step(async () => {});
+            committed.resolve();
+            await later;
+
+            // expect the one topic, the later transaction running again as it lost the race
+            const rows = await storage.database
+                .select({ name: topic.table.name })
+                .from(topic.table);
+            expect({ rows, attempts }).toEqual({ rows: [{ name: "ideas" }], attempts: 2 });
+        })(),
     );
-    onTestFinished(() => storage.close());
-    await openSpace(storage.database, spaceId);
-    const store = new ObjectStore({
-        chain: async () => undefined,
-        clock: Clock.system,
-        principal: spacePrincipal(spaceId),
-        servers: serversOf([topic]),
-        database: storage.database,
-        callKey: testCallKey,
-        events: await testEvents(storage.database),
-        origin: { package: topic.package },
-    });
-
-    // create the topic unless the transaction reads it, both transactions under one request
-    const caller = userContext(users.alice, spaceId).access();
-    const id = RequestId.create(Date.now());
-    const create = topic.call("create", { spaceId, holderId: users.alice, name: "ideas" });
-    const step = (attempted: () => Promise<void>) =>
-        Transaction.run(storage.database, async (transaction) => {
-            const [found] = await transaction
-                .view()
-                .read(topic.table)
-                .findMany({ where: { name: "ideas" } });
-            await attempted();
-            if (found === undefined) {
-                await store.mutate(caller, { id, calls: [create] }, { transaction });
-            }
-        });
-
-    // read in the later transaction, commit the first, then create in the later one
-    const committed = Promise.withResolvers<void>();
-    let attempts = 0;
-    const later = step(async () => {
-        attempts += 1;
-        if (attempts === 1) {
-            await committed.promise;
-        }
-    });
-    await step(async () => {});
-    committed.resolve();
-    await later;
-
-    // expect the one topic, the later transaction running again as it lost the race
-    const rows = await storage.database.select({ name: topic.table.name }).from(topic.table);
-    expect({ rows, attempts }).toEqual({ rows: [{ name: "ideas" }], attempts: 2 });
 });
 
 /** Watches of a space's objects, by their watcher, which code adds for others too. */
@@ -591,6 +606,9 @@ const watch = defineObject(
 );
 
 test("fill a subject field from the caller, and write all its columns in an internal creation", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // serve the watches to the space's work
     const storage = await TestDatabase.create(
         tablesOf({
@@ -598,28 +616,26 @@ test("fill a subject field from the caller, and write all its columns in an inte
             follows: [],
             tables: [],
         }).tables,
-        {
-            isMigrated: true,
-        },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
-    await openSpace(storage.database, spaceId);
-    const store = new ObjectStore({
+    await openSpace(storage.database, world, spaceId);
+    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([watch]),
         database: storage.database,
         callKey: testCallKey,
-        events: await testEvents(storage.database),
+        events: await testEvents(storage.database, world),
         origin: { package: watch.package },
     });
-    const caller = AccessContext.of(Caller.of(spacePrincipal(spaceId)), Date.now());
+    const caller = AccessContext.of(Caller.of(spacePrincipal(spaceId)), world.clock.now());
     const ada = principal.user.reference(Scope.universe.id, users.alice);
 
     // watch a topic as the space, and add a watch of another topic for ada
     const [watched, added] = await store.mutate(caller, {
-        id: RequestId.create(Date.now()),
+        id: RequestId.create(world),
         calls: [
             watch.call("create", { spaceId, topic: "Launch" }),
             watch.call("add", {

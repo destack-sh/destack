@@ -1,3 +1,4 @@
+import { testSimulation } from "../src/test/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { TestDatabase } from "@destack/db/test";
 import { defineDatabase, Snapshot } from "@destack/db";
@@ -5,16 +6,15 @@ import { testCallKey } from "@destack/object/test";
 import { anyone, Manager, principal } from "@destack/access";
 import { Identifier, schema } from "@destack/schema";
 import { ObjectReference, Scope, Subject } from "@destack/sync";
-import { Clock } from "@destack/environment";
-import { v7 } from "uuid";
 import { defineObject, field } from "../src/index.ts";
-import { type StackOptions, ObjectStore, Stack } from "../src/server/index.ts";
+import { type StackOptions, Stack } from "../src/server/index.ts";
 import { serversOf, testEvents } from "../src/test/index.ts";
 import { objectDatabase } from "./schema.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
+import { TestObjectStore } from "../src/test/index.ts";
 
 /** The space the stack declares in. */
-const spaceId = schema.identifier("space").parse(`space-${v7()}`);
+const spaceId = schema.identifier("space").parse(`space-01996ab0-0000-7000-8000-00000000a00c`);
 
 /** Tags a stack declares by name. */
 const tag = defineObject(
@@ -109,27 +109,34 @@ const manager = Manager.schema.omit({ name: true }).parse({
 });
 
 test("declare records as their create inputs in reference order, the name filling their name and references resolved by name, identifier, scope or wildcard", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // open the space over a database with the declared types' tables
     const types = [badge, seal, stamp, marker, tag];
     const tables = [...objectDatabase.tables, ...[...types, crate].flatMap((type) => type.tables)];
     const storage = await TestDatabase.create(defineDatabase({ name: "main", tables }), {
+        environment: world,
         isMigrated: true,
     });
     onTestFinished(() => storage.close());
     const { database } = storage;
-    await openSpace(database, spaceId);
-    await database
-        .insert(space.table)
-        .values({ id: spaceId, scope: Scope.universe.id, createdAt: 0, updatedAt: 0 });
-    const store = new ObjectStore({
+    await openSpace(database, world, spaceId);
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .insert(space.table)
+                .values({ id: spaceId, scope: Scope.universe.id, createdAt: 0, updatedAt: 0 }),
+    );
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([...types, crate]),
         policies: [space],
         database,
         callKey: testCallKey,
-        events: await testEvents(database),
+        events: await testEvents(database, world),
         origin: { package: tag.package },
     });
     let applied: StackOptions["applied"] = {};
@@ -137,6 +144,7 @@ test("declare records as their create inputs in reference order, the name fillin
         // apply the document against the one applied last
         const plan = await new Stack({
             database,
+            isHome: false,
             objects: types,
             policies: [crate.policy],
             manager,
@@ -148,7 +156,7 @@ test("declare records as their create inputs in reference order, the name fillin
             release: async () => {
                 throw new TypeError("no release in this test");
             },
-        }).apply(Date.now());
+        }).apply(world.clock.now());
         applied = document;
 
         return plan;
@@ -158,8 +166,8 @@ test("declare records as their create inputs in reference order, the name fillin
     const red = { color: "#f00" };
     await apply({ tags: { red } });
     const [redTag] = await Snapshot.live(database).read(tag.table).findMany();
-    const user = Identifier.create("user");
-    const crateId = Identifier.create("crate");
+    const user = Identifier.create("user", world);
+    const crateId = Identifier.create("crate", world);
     await apply({
         tags: { red },
         seals: { wax: {} },
@@ -238,7 +246,7 @@ test("declare records as their create inputs in reference order, the name fillin
     });
 
     // refuse an unknown name, an unknown identifier of an applied type and a scoped global principal
-    const missing = Identifier.create("tag");
+    const missing = Identifier.create("tag", world);
     const refused = async (document: StackOptions["document"]) =>
         await refusal(apply({ tags: { red }, ...document }));
     expect([
@@ -247,9 +255,9 @@ test("declare records as their create inputs in reference order, the name fillin
         await refused({ badges: { lost: { holder: { id: redTag?.id, scope: "enclosing" } } } }),
         await refused({ badges: { lost: { holder: { id: user, scope: "self" } } } }),
     ]).toEqual([
-        ["INTERNAL_SERVER_ERROR", "INVALID_DECLARATION", "unknown tag: blue"],
-        ["INTERNAL_SERVER_ERROR", "INVALID_DECLARATION", `unknown tag: ${missing}`],
-        ["INTERNAL_SERVER_ERROR", "INVALID_DECLARATION", `unknown tag: ${redTag?.id}`],
-        ["INTERNAL_SERVER_ERROR", "INVALID_DECLARATION", `user ${user} is global and has no scope`],
+        ["INTERNAL_SERVER_ERROR", "DECLARATION_INVALID", "unknown tag: blue"],
+        ["INTERNAL_SERVER_ERROR", "DECLARATION_INVALID", `unknown tag: ${missing}`],
+        ["INTERNAL_SERVER_ERROR", "DECLARATION_INVALID", `unknown tag: ${redTag?.id}`],
+        ["INTERNAL_SERVER_ERROR", "DECLARATION_INVALID", `user ${user} is global and has no scope`],
     ]);
 });

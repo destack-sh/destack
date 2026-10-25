@@ -36,15 +36,16 @@ import {
     Transaction,
 } from "@destack/db";
 import {
-    nth,
     canonicalize,
     Digest,
+    type DigestCrypto,
     Duration,
     found,
     type Identifier,
     type JsonObject,
     type JsonValue,
     mapValues,
+    nth,
     present,
     schema,
     zip,
@@ -55,7 +56,7 @@ import { CallError } from "../error/call.ts";
 import { Replay } from "../audit/replay.ts";
 import { AccessContext, Authorization, Authorizer, Caller, decisionTables } from "@destack/access";
 import { Observable } from "./observable.ts";
-import { RetryPolicy, Clock } from "@destack/environment";
+import { RetryPolicy, type Clock, type Environment } from "@destack/environment";
 import * as sync from "@destack/sync";
 import { Failure, type FamilyError } from "@destack/error";
 import { Branch, type BranchChange, BranchType } from "../branch/index.ts";
@@ -294,8 +295,8 @@ export interface ObjectClientOptions<Objects extends Readonly<Record<string, Obj
     readonly device?: Subject;
     /** Where and how to call the package serving the objects. */
     readonly endpoint: ClientOptions;
-    /** The client's clock for log compaction, query time to live and access decisions. */
-    readonly clock: Clock;
+    /** The environment the client runs in, whose clock compacts its log and decides access. */
+    readonly environment: Environment;
     /** Where and how to call the machine serving a moved scope now. */
     readonly reconnect: (machine: Identifier<"machine">) => ClientOptions;
     /** Where and how to call the home of an enclosing scope whose rows the client changes. */
@@ -381,8 +382,8 @@ export class ObjectClient<
     readonly #logMilliseconds: number;
     /** How transient failures retry. */
     readonly #retry: RetryPolicy;
-    /** The clock the client reads time at. */
-    readonly clock: Clock;
+    /** The environment the client runs in: its clock, network and randomness. */
+    readonly environment: Environment;
     /** Aborts outcome waits and lookups on close. */
     readonly #closing = new AbortController();
     /** The object rows the replica had at a log sequence, absent before the first count. */
@@ -425,9 +426,9 @@ export class ObjectClient<
                 ? LOCAL_LOG_MILLISECONDS
                 : Duration.milliseconds(options.log.retention);
         this.#retry = { ...RETRY, ...options.retry };
-        this.clock = options.clock;
+        this.environment = options.environment;
         this.origin = options.origin;
-        this.writerId = RequestId.create(options.clock.now());
+        this.writerId = RequestId.create(options.environment);
         this.#undoStack = new UndoStack(this);
 
         // replicate the scope's objects for the caller, and the principals storing local objects
@@ -438,10 +439,16 @@ export class ObjectClient<
         this.#owners = [options.caller, ...(options.device === undefined ? [] : [options.device])];
 
         // connect to the store serving the replicated objects
-        this.#store = ObjectClient.store(options.endpoint);
-        this.#reconnect = (machine) => ObjectClient.store(options.reconnect(machine));
+        this.#store = ObjectClient.store(options.endpoint, options.environment);
+        this.#reconnect = (machine) =>
+            ObjectClient.store(options.reconnect(machine), options.environment);
         this.#hasHomes = options.homes !== undefined;
-        this.#home = ObjectClient.homes(this.scope, () => this.#store, options.homes);
+        this.#home = ObjectClient.homes(
+            this.scope,
+            () => this.#store,
+            options.homes,
+            options.environment,
+        );
 
         // replicate durable objects with their predictions, and ephemeral and external objects apart
         const tables = ObjectClient.#storedTables(this.objects, "durable");
@@ -475,7 +482,6 @@ export class ObjectClient<
         const others = SEPARATE_STORAGES.flatMap((storage) => this.#stored(storage));
         this.#local = new sync.Feed(options.database, [...tables, ...others, sync.replicaResult], {
             upstream: this.#upstream(this.objects),
-            clock: this.clock,
         });
     }
 
@@ -560,7 +566,7 @@ export class ObjectClient<
 
         return new ObjectClient({
             ...options,
-            origin: options.origin ?? RequestId.create(options.clock.now()),
+            origin: options.origin ?? RequestId.create(options.environment),
         });
     }
 
@@ -608,6 +614,7 @@ export class ObjectClient<
         scope: string,
         local: () => Client<StoreProcedures>,
         homes: ((scope: string) => ClientOptions) | undefined,
+        environment: Environment,
     ): (home: string) => Client<StoreProcedures> {
         const known = new Map<string, Client<StoreProcedures>>();
 
@@ -623,18 +630,23 @@ export class ObjectClient<
             }
 
             // connect to each other scope's home once
-            const connected = known.get(home) ?? ObjectClient.store(homes(home));
+            const connected = known.get(home) ?? ObjectClient.store(homes(home), environment);
             known.set(home, connected);
 
             return connected;
         };
     }
 
+    /** The clock the client reads time at, its environment's. */
+    get clock(): Clock {
+        return this.environment.clock;
+    }
+
     /** Call a store's procedures, speaking the object package's release. */
-    static store(endpoint: ClientOptions): Client<StoreProcedures> {
+    static store(endpoint: ClientOptions, environment: Environment): Client<StoreProcedures> {
         const router = { store: storeProcedures };
 
-        return createClient({ router }, endpoint).store;
+        return createClient({ router }, endpoint, environment).store;
     }
 
     /** List the tables a client's local database has for some object types. */
@@ -761,7 +773,7 @@ export class ObjectClient<
         isMainLine: boolean,
     ): Submission<Value> {
         // predict every call
-        const id = RequestId.create(this.clock.now());
+        const id = RequestId.create(this.environment);
         const predicted = this.prediction.add(
             this.database,
             id,
@@ -1009,9 +1021,11 @@ export class ObjectClient<
                     }
                 }
 
-                // back off
+                // back off, drawn from the leading mutation's request
                 failures += 1;
-                await RetryPolicy.pause(this.#retry, failures, this.clock, signal);
+                const leading = present(mutations[0], "the leading mutation");
+                const drawn = RetryPolicy.draw(`${leading.id} ${failures}`);
+                await RetryPolicy.pause(this.#retry, failures, this.clock, signal, () => drawn);
             }
         }
     }
@@ -1066,7 +1080,7 @@ export class ObjectClient<
     ): Promise<void> {
         // register the replica, and read its parameters as they are now
         const parameters = async () => PARAMETERS.parse(await follow.parameters());
-        await follow.replica.register(this.database, { clock: this.clock });
+        await follow.replica.register(this.database);
         let failures = 0;
         const resetFailures = () => {
             failures = 0;
@@ -1088,13 +1102,14 @@ export class ObjectClient<
                 // follow the replica, resetting failures on each page
                 await this.#followPages(follow, subscribed, store, stream, resetFailures);
             } catch (error) {
-                // restart on change or move, report other failures
+                // restart on change or move, back off from a draining server, and report other failures
                 if (signal.aborted) {
                     return;
                 } else if (stream.aborted || this.#redirect(error, store)) {
                     continue;
+                } else if (!ObjectError.is(error, "SERVER_DRAINING")) {
+                    report(error);
                 }
-                report(error);
                 isFinal = Replay.failure(error) !== undefined;
             } finally {
                 reshaped.abort();
@@ -1109,9 +1124,10 @@ export class ObjectClient<
                 continue;
             }
 
-            // back off
+            // back off, drawn from the writer and the replica
             failures += 1;
-            await RetryPolicy.pause(this.#retry, failures, this.clock, signal);
+            const drawn = RetryPolicy.draw(`${this.writerId} ${follow.replica.name} ${failures}`);
+            await RetryPolicy.pause(this.#retry, failures, this.clock, signal, () => drawn);
         }
     }
 
@@ -1166,7 +1182,6 @@ export class ObjectClient<
         for await (const page of replica.apply(this.database, pages, {
             subscription: followed,
             audience: "caller",
-            clock: this.clock,
             ...(prediction === undefined ? {} : { prediction }),
         })) {
             // deliver the page's broadcasts and scopes
@@ -1222,6 +1237,7 @@ export class ObjectClient<
             this.#authorizer,
             Transaction.reading(this.database),
             () => caller,
+            this.environment,
         );
         const decision = await authorization.check(
             object.permission(permission),
@@ -1337,20 +1353,24 @@ export class ObjectClient<
                 await subscribed.done;
                 this.#subscriptions.delete(subscribed);
                 const ids = subscribed.ids();
-                if (options.ttl === undefined) {
-                    await this.database.delete(subscription).where(inArray(subscription.id, ids));
-                } else {
-                    await this.database
-                        .update(subscription)
-                        .set({
-                            releasedAt: this.clock.now(),
-                            ttl:
-                                options.ttl === "forever"
-                                    ? null
-                                    : Duration.milliseconds(options.ttl),
-                        })
-                        .where(inArray(subscription.id, ids));
-                }
+
+                // forget the subscription's rows, or release them for their time to live
+                await this.database.transaction(async (transaction) => {
+                    if (options.ttl === undefined) {
+                        await transaction.delete(subscription).where(inArray(subscription.id, ids));
+                    } else {
+                        await transaction
+                            .update(subscription)
+                            .set({
+                                releasedAt: this.clock.now(),
+                                ttl:
+                                    options.ttl === "forever"
+                                        ? null
+                                        : Duration.milliseconds(options.ttl),
+                            })
+                            .where(inArray(subscription.id, ids));
+                    }
+                });
 
                 // evict after closing an evictable query
                 if (options.ttl !== undefined && options.ttl !== "forever") {
@@ -1401,7 +1421,7 @@ export class ObjectClient<
     async release(object: ObjectType, query: Omit<ObjectQuery, "object"> = {}): Promise<void> {
         // find the query's closed subscriptions
         const split = this.#split(object, query);
-        const name = await ObjectClient.#queryName(split.query);
+        const name = await ObjectClient.#queryName(split.query, this.environment.crypto);
         const closed = await this.database
             .select({ id: subscription.id })
             .from(subscription)
@@ -1978,10 +1998,10 @@ export class ObjectClient<
     /** Follow a storage query and the lookups its rows key. */
     #subscribe(split: StorageQuery, root: string | undefined, signal: AbortSignal): Subscription {
         // key a local query, or subscribe a replicated one
-        const id = RequestId.create(this.clock.now());
+        const id = RequestId.create(this.environment);
         const isLocal = split.object.storage === "local";
         const named = isLocal
-            ? ObjectClient.#queryName(split.query)
+            ? ObjectClient.#queryName(split.query, this.environment.crypto)
             : this.#insertSubscription(split, id, root);
 
         // read a local query at once, or wait until the replica subscribes to it
@@ -2035,7 +2055,7 @@ export class ObjectClient<
         id: string,
         root: string | undefined,
     ): Promise<string> {
-        const name = await ObjectClient.#queryName(split.query);
+        const name = await ObjectClient.#queryName(split.query, this.environment.crypto);
         await this.database.insert(subscription).values({
             id,
             origin: this.origin,
@@ -2228,7 +2248,7 @@ export class ObjectClient<
             target: undefined,
             prepared: undefined,
             caller: await this.#callerContext(database),
-            location: { kind: "client", database },
+            location: { kind: "client", database, environment: this.environment },
             objects: this.objects,
             replicas: [],
             run: (entry, _caller, mutates, code) => {
@@ -2253,12 +2273,13 @@ export class ObjectClient<
             });
         }
         if (revision !== undefined && target?.["revision"] !== revision) {
-            throw ObjectError.of("STALE_REVISION", `${object.name} revision has changed`);
+            throw ObjectError.of("REVISION_STALE", `${object.name} revision has changed`);
         }
 
         return method.execute(target === undefined ? context : context.with({ target: target }), {
             kind: "client",
             database,
+            environment: this.environment,
         });
     }
 
@@ -2301,7 +2322,7 @@ export class ObjectClient<
         const { outcomes } = await this.#call((replica) =>
             replica.push({
                 scope: this.scope,
-                mutations: [{ id: RequestId.create(this.clock.now()), calls: [call] }],
+                mutations: [{ id: RequestId.create(this.environment), calls: [call] }],
                 writerId: this.writerId,
             }),
         );
@@ -2351,13 +2372,13 @@ export class ObjectClient<
         const { kind } = object.method(name);
         const generated =
             kind === "create" && input["id"] === undefined
-                ? { id: object.generateId() }
+                ? { id: object.generateId(this.environment) }
                 : kind === "createMany"
                   ? {
                         items: BatchItem.array()
                             .parse(input["items"])
                             .map((item) => ({
-                                id: object.generateId(),
+                                id: object.generateId(this.environment),
                                 ...item,
                             })),
                     }
@@ -2402,7 +2423,7 @@ export class ObjectClient<
         const before = first === undefined ? home : this.#readHome(first);
         if (home !== before) {
             throw ObjectError.of(
-                "MIXED_HOMES",
+                "HOMES_MIXED",
                 `a mutation must change rows of one home, but its calls change rows of ${before} and ${home}`,
             );
         }
@@ -2584,8 +2605,8 @@ export class ObjectClient<
     }
 
     /** Name a storage query by a prefix of its content's digest. */
-    static async #queryName(query: ObjectQuery): Promise<string> {
-        return (await Digest.json(query)).slice(0, QUERY_NAME_LENGTH);
+    static async #queryName(query: ObjectQuery, crypto: DigestCrypto): Promise<string> {
+        return (await Digest.json(query, crypto)).slice(0, QUERY_NAME_LENGTH);
     }
 
     /** Decide whether stored queries are the queries given. */

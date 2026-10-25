@@ -1,4 +1,5 @@
-import { ObjectReference } from "@destack/sync";
+import { testSimulation } from "../src/test/index.ts";
+import { ObjectReference, Scope } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { principal, relation, through, union } from "@destack/access";
 import { defineDatabase, type LogPosition } from "@destack/db";
@@ -13,17 +14,15 @@ import {
     field,
     type ObjectType,
 } from "../src/index.ts";
-import { ObjectStore } from "../src/server/index.ts";
 import { user } from "./schema.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
-import { Clock } from "@destack/environment";
-import { VirtualClock } from "@destack/environment/simulation";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
+import { TestObjectStore } from "../src/test/index.ts";
 
 /** The space containing the pages. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000007");
@@ -180,6 +179,9 @@ test("group each caller's changes into activities, and read and revert a page as
 });
 
 test("refuse serving history that reads through an object recording none", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // read pages through an untracked folder
     const folder = defineObject({
         name: "folder",
@@ -205,23 +207,22 @@ test("refuse serving history that reads through an object recording none", async
             name: "main",
             ...tablesOf({ packages: [objectPackage], follows: [], tables: [] }),
         }),
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
-    const events = await testEvents(storage.database);
-    expect(
-        () =>
-            new ObjectStore({
-                chain: async () => undefined,
-                clock: Clock.system,
-                principal: spacePrincipal(spaceId),
-                servers: serversOf([activity, folder, sheet]),
-                database: storage.database,
-                callKey: testCallKey,
-                events,
-                origin: { package: activity.package },
-            }),
-    ).toThrow(
+    const events = await testEvents(storage.database, world);
+    await expect(
+        TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
+            chain: async () => undefined,
+            environment: world,
+            principal: spacePrincipal(spaceId),
+            servers: serversOf([activity, folder, sheet]),
+            database: storage.database,
+            callKey: testCallKey,
+            events,
+            origin: { package: activity.package },
+        }),
+    ).rejects.toThrow(
         new TypeError(
             "object sheet records history but reads through folder, which has no history",
         ),
@@ -230,6 +231,11 @@ test("refuse serving history that reads through an object recording none", async
 
 /** Serve pages over a new database to one user at a set time. */
 async function servePages() {
+    // run in a world of its own
+    const simulation = testSimulation(0);
+    const { clock } = simulation;
+    const world = simulation.environment("test");
+
     // store the pages, their activities and checkpoints, and requests in one database
     const objects = [activity, checkpoint, page];
     const storage = await TestDatabase.create(
@@ -247,32 +253,36 @@ async function servePages() {
                 tables: [],
             }),
         }),
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
-    await openSpace(storage.database, spaceId);
+    await openSpace(storage.database, world, spaceId);
 
     // decide every call as the current user at the current time
     let current = users.alice;
-    const clock = new VirtualClock(0);
-    const store = new ObjectStore({
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
         principal: spacePrincipal(spaceId),
         servers: serversOf(objects),
         database: storage.database,
         callKey: testCallKey,
-        events: await testEvents(storage.database),
+        events: await testEvents(storage.database, world),
         origin: {
             package: activity.package,
         },
-        clock,
+        environment: world,
     });
     const controller = new AbortController();
     onTestFinished(() => controller.abort());
-    const sign = () => userContext(current, spaceId, { signal: controller.signal, clock: clock });
+    const sign = () =>
+        userContext(current, spaceId, {
+            signal: controller.signal,
+            environment: world,
+        });
     let context = sign();
 
     return {
+        environment: world,
         storage,
         call: <Object extends ObjectType, Name extends CallableName<Object>>(
             object: Object,

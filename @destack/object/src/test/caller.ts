@@ -1,9 +1,10 @@
-import type { Clock } from "@destack/environment";
+import type { Environment } from "@destack/environment";
 import type { Example } from "@destack/package/declare";
-import { RequestId, type Subject } from "@destack/sync";
+import { type Call, RequestId, type Subject } from "@destack/sync";
 import { type ClientOptions, type ClientTarget, createClient } from "../client/package.ts";
 import type { PackageHandle } from "../declare/package.ts";
 import type { ObjectType } from "../object/object.ts";
+import { MethodContext } from "../method/context.ts";
 import type { Client, ProcedureRouter } from "../procedure/index.ts";
 import type { Server } from "../server/http.ts";
 import type { TestSigner } from "./store.ts";
@@ -15,10 +16,10 @@ const TEST_ORIGIN = "https://objects.test";
 export interface TestServed {
     /** The served scope. */
     readonly scope: string;
-    /** The clock the calls read. */
-    readonly clock: Clock;
+    /** The world the calls run in. */
+    readonly environment: Environment;
     /** Read the server of a served package, refusing another. */
-    readonly server: (handle: PackageHandle) => Server;
+    readonly server: (handle: PackageHandle) => Pick<Server, "fetch">;
     /** Read a served object type with its package, absent for a type served nowhere. */
     readonly type: (
         name: string,
@@ -43,6 +44,25 @@ export class TestCaller {
         this.#isSteppedUp = isSteppedUp;
     }
 
+    /** Call as the same subject, each request's work run by a driver such as a simulation. */
+    driven(drive: <Value>(work: Promise<Value>) => Promise<Value>): TestCaller {
+        // sign and serve each request under the driver
+        const served = this.#served;
+        const driving: TestServed = {
+            scope: served.scope,
+            environment: served.environment,
+            type: (name) => served.type(name),
+            server: (handle) => {
+                const server = served.server(handle);
+
+                return { fetch: (request, ...context) => drive(server.fetch(request, ...context)) };
+            },
+            sign: (request, signer) => drive(served.sign(request, signer)),
+        };
+
+        return new TestCaller(driving, this.subject, this.#isSteppedUp);
+    }
+
     /** Call as the same subject having just authenticated with a second factor (RFC 9470). */
     stepUp(): TestCaller {
         return new TestCaller(this.#served, this.subject, true);
@@ -52,7 +72,7 @@ export class TestCaller {
     client<Definition extends ProcedureRouter>(
         handle: PackageHandle & ClientTarget<Definition>,
     ): Client<Definition> {
-        return createClient(handle, this.endpoint(handle));
+        return createClient(handle, this.endpoint(handle), this.#served.environment);
     }
 
     /** Address a served package through a fetch that signs each request. */
@@ -75,6 +95,39 @@ export class TestCaller {
         };
     }
 
+    /** Make a call through the client of its type's package, answering its parsed result. */
+    async call<Result>(
+        called: Call<Result>,
+        options: { readonly writerId?: string } = {},
+    ): Promise<Result> {
+        // find the called procedure on the client of the type's package
+        const served = this.#served.type(called.type.type);
+        if (served === undefined) {
+            throw new TypeError(`the test store serves no object type ${called.type.type}`);
+        }
+        const { type, handle } = served;
+        const client: unknown = Reflect.get(this.client(handle), type.name);
+        const procedure: unknown = Reflect.get(Object(client), called.method);
+        if (typeof procedure !== "function") {
+            throw new TypeError(`${type.name} has no method ${called.method}`);
+        }
+
+        // name a mutation's request, or its writer for an ephemeral type
+        const named = !type.method(called.method).mutates
+            ? {}
+            : type.storage === "ephemeral"
+              ? { writerId: options.writerId ?? `writer-${this.subject.id}` }
+              : { requestId: RequestId.create(this.#served.environment) };
+        const answered: unknown = await Reflect.apply(procedure, undefined, [
+            { ...called.input, ...named },
+        ]);
+
+        // read the answer as the method's result, parsed by its output schema
+        const [result] = MethodContext.results([type], [called], [answered]);
+
+        return result;
+    }
+
     /** Make an example's calls in the served space, each through the caller's client. */
     async given(example: Pick<Example, "objects">): Promise<void> {
         for (const [scope, calls] of Object.entries(example.objects)) {
@@ -91,23 +144,8 @@ export class TestCaller {
                 if (served === undefined) {
                     throw new TypeError(`the test store serves no object type ${object.name}`);
                 }
-                const { type, handle } = served;
-                const procedure: unknown = Reflect.get(
-                    Reflect.get(this.client(handle), type.name),
-                    method,
-                );
-                if (typeof procedure !== "function") {
-                    throw new TypeError(`${type.name} has no method ${method}`);
-                }
-                await Reflect.apply(procedure, undefined, [
-                    {
-                        ...type.in(this.#served.scope),
-                        ...(type.method(method).mutates
-                            ? { requestId: RequestId.create(this.#served.clock.now()) }
-                            : {}),
-                        ...input,
-                    },
-                ]);
+                const { type } = served;
+                await this.call(type.call(method, { ...type.in(this.#served.scope), ...input }));
             }
         }
     }

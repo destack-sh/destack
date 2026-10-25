@@ -1,3 +1,5 @@
+import type { Environment } from "@destack/environment";
+import { testSimulation } from "../src/test/index.ts";
 import { users } from "./fixture/user.ts";
 import { Scope, RequestId } from "@destack/sync";
 import {
@@ -7,12 +9,7 @@ import {
     type Row,
     type RelationalQueryBuilder,
 } from "@destack/db";
-import {
-    ClaimController,
-    type ClaimHome,
-    implementPackage,
-    ObjectStore,
-} from "../src/server/index.ts";
+import { ClaimController, type ClaimHome, implementPackage } from "../src/server/index.ts";
 import {
     Claim,
     type ClaimLookup,
@@ -26,8 +23,7 @@ import {
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { TestDatabase } from "@destack/db/test";
 import { Package } from "@destack/package";
-import { nth, Identifier, present, schema } from "@destack/schema";
-import { v7 } from "uuid";
+import { nth, Identifier, present, schema, Uuid } from "@destack/schema";
 import { profile, profilesDatabase, profilesPackage } from "./fixture/profile.ts";
 import { none, universe } from "@destack/access";
 import { AccessFixture } from "@destack/access/test";
@@ -36,24 +32,25 @@ import { testCallKey } from "@destack/object/test";
 import { testEvents } from "../src/test/index.ts";
 
 import { claim, serveClaims } from "./fixture/claim.ts";
-import { Clock } from "@destack/environment";
-import { VirtualClock } from "@destack/environment/simulation";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
 
 test("enforce unique handles across spaces in separate databases", async () => {
-    const storage = await universeStorage();
-    const claims = await serveClaims(storage.database, Clock.system);
-    const east = await serveProfiles(claims);
-    const west = await serveProfiles(claims);
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await universeStorage(world);
+    const claims = await serveClaims(storage.database, world);
+    const east = await serveProfiles(world, claims);
+    const west = await serveProfiles(world, claims);
     const handle = async (name: string) =>
         (await Claim.lookup(profile, names(storage.database), "handle", [name]))?.id;
 
     // let one space claim a handle, and refuse it to another space
     const ada = await east.alice.profile.create({
         spaceId: east.spaceId,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(world),
         handle: "ada",
     });
     expect(await handle("ada")).toBe(ada.id);
@@ -61,7 +58,7 @@ test("enforce unique handles across spaces in separate databases", async () => {
         await refusal(
             west.bob.profile.create({
                 spaceId: west.spaceId,
-                requestId: RequestId.create(Date.now()),
+                requestId: RequestId.create(world),
                 handle: "ada",
             }),
         ),
@@ -71,19 +68,19 @@ test("enforce unique handles across spaces in separate databases", async () => {
     await east.alice.profile.update({
         spaceId: east.spaceId,
         id: ada.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(world),
         revision: ada.revision,
         handle: "lovelace",
     });
     const bob = await west.bob.profile.create({
         spaceId: west.spaceId,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(world),
         handle: "ada",
     });
     await east.alice.profile.delete({
         spaceId: east.spaceId,
         id: ada.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(world),
         revision: ada.revision + 1,
     });
     expect([await handle("ada"), await handle("lovelace")]).toEqual([bob.id, undefined]);
@@ -92,7 +89,7 @@ test("enforce unique handles across spaces in separate databases", async () => {
     await west.bob.profile.update({
         spaceId: west.spaceId,
         id: bob.id,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(world),
         revision: bob.revision,
         handle: null,
     });
@@ -100,15 +97,18 @@ test("enforce unique handles across spaces in separate databases", async () => {
 
     // leave no reservation once every owner let go: the failed claim left none behind
     const index = Claim.index(profile, "handle");
-    expect(await Claim.expired(readClaims(storage.database), [index], Date.now())).toEqual({
+    expect(await Claim.expired(readClaims(storage.database), [index], world.clock.now())).toEqual({
         claims: [],
     });
 });
 
 test("reserve a write's names before it commits and confirm them once it committed", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // record each claim call with the profiles the space committed when it arrived
-    const storage = await universeStorage();
-    const served = await serveClaims(storage.database, Clock.system);
+    const storage = await universeStorage(world);
+    const served = await serveClaims(storage.database, world);
     const home = present(served.home, "the universe's claims");
     const seen: (readonly [string, number])[] = [];
     let spaceDatabase: DatabaseConnection | undefined;
@@ -125,13 +125,13 @@ test("reserve a write's names before it commits and confirm them once it committ
             query: (call) => home.query(call),
         },
     };
-    const east = await serveProfiles(claims);
+    const east = await serveProfiles(world, claims);
     spaceDatabase = east.database;
 
     // create a profile claiming a handle
     await east.alice.profile.create({
         spaceId: east.spaceId,
-        requestId: RequestId.create(Date.now()),
+        requestId: RequestId.create(world),
         handle: "ada",
     });
 
@@ -143,10 +143,12 @@ test("reserve a write's names before it commits and confirm them once it committ
 
 test("claim the names of writes outside the object store and finish expired reservations", async () => {
     const now = 1_800_000_000_000;
-    const clock = new VirtualClock(now - RESERVATION_MILLISECONDS);
-    const storage = await universeStorage();
-    const claims = await serveClaims(storage.database, clock);
-    const east = await serveProfiles(claims);
+    const simulation = testSimulation(now - RESERVATION_MILLISECONDS);
+    const { clock } = simulation;
+    const world = simulation.environment("test");
+    const storage = await universeStorage(world);
+    const claims = await serveClaims(storage.database, world);
+    const east = await serveProfiles(world, claims);
     const handle = async (name: string) =>
         (await Claim.lookup(profile, names(storage.database), "handle", [name]))?.id;
 
@@ -159,12 +161,20 @@ test("claim the names of writes outside the object store and finish expired rese
         createdAt: now,
         updatedAt: now,
     };
-    await east.database
-        .insert(profile.table)
-        .values({ ...row, id: schema.identifier("profile").parse(`profile-${v7()}`) });
-    await east.database
-        .insert(profile.table)
-        .values({ ...row, id: schema.identifier("profile").parse(`profile-${v7()}`) });
+    await east.database.transaction(
+        async (transaction) =>
+            await transaction.insert(profile.table).values({
+                ...row,
+                id: schema.identifier("profile").parse(`profile-${Uuid.v7(world)}`),
+            }),
+    );
+    await east.database.transaction(
+        async (transaction) =>
+            await transaction.insert(profile.table).values({
+                ...row,
+                id: schema.identifier("profile").parse(`profile-${Uuid.v7(world)}`),
+            }),
+    );
     const { changes } = await east.database.log.read({ tables: [profile.table], after });
     const replace = async (position: number) => {
         const change = nth(changes, position);
@@ -172,7 +182,7 @@ test("claim the names of writes outside the object store and finish expired rese
         const object = { objectId: schema.string().parse(change.key.id), owner: east.spaceId };
         const claimant = await Claimant.of(profile, object, image, Snapshot.live(east.database));
         const [replaced] = await present(claims.home, "the universe's claims").mutate({
-            id: RequestId.create(now),
+            id: RequestId.create(world),
             calls: [claim.call("replace", claimant)],
         });
 
@@ -191,8 +201,13 @@ test("claim the names of writes outside the object store and finish expired rese
     ]);
 
     // confirm an existing object's claim, release a failed one, and wait for the later one
-    const existing = schema.identifier("profile").parse(`profile-${v7()}`);
-    await east.database.insert(profile.table).values({ ...row, id: existing, handle: "existing" });
+    const existing = schema.identifier("profile").parse(`profile-${Uuid.v7(world)}`);
+    await east.database.transaction(
+        async (transaction) =>
+            await transaction
+                .insert(profile.table)
+                .values({ ...row, id: existing, handle: "existing" }),
+    );
     const reserve = (key: string, objectId: string, at: number) => {
         const owner = east.spaceId;
         const index = Claim.index(profile, "handle");
@@ -205,15 +220,16 @@ test("claim the names of writes outside the object store and finish expired rese
             { ...claimant, state: "active" },
             "request",
             at - RESERVATION_MILLISECONDS,
+            world,
         );
     };
     await reserve('["universe","existing"]', existing, now);
-    await reserve('["universe","lost"]', `profile-${v7()}`, now);
-    await reserve('["universe","later"]', `profile-${v7()}`, now + 1000);
+    await reserve('["universe","lost"]', `profile-${Uuid.v7(world)}`, now);
+    await reserve('["universe","later"]', `profile-${Uuid.v7(world)}`, now + 1000);
     clock.set(now);
 
     // finish the expired reservations through the controller, looking again at the later one
-    const controller = new ClaimController(claims, east.database, [profile], clock);
+    const controller = new ClaimController(claims, east.database, [profile], world);
     expect([await controller.reconcile(), await handle("existing"), await handle("lost")]).toEqual([
         1000,
         existing,
@@ -222,13 +238,16 @@ test("claim the names of writes outside the object store and finish expired rese
 });
 
 test("resolve a confirmed name to its object alone, and refuse it to others while trashed", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     const storage = await TestDatabase.create(
         tablesOf({ packages: [], follows: [], tables: [claimTable] }).tables,
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
     const { database } = storage;
-    const [first, second] = [`place-${v7()}`, `place-${v7()}`];
+    const [first, second] = [`place-${Uuid.v7(world)}`, `place-${Uuid.v7(world)}`];
     const index = "package-1/place/name";
     const owner = "account-1";
     const entry = (key: string, objectId: string) => ({
@@ -245,26 +264,26 @@ test("resolve a confirmed name to its object alone, and refuse it to others whil
         claims: [entry(key, objectId)],
         state,
     });
-    const now = Date.now();
+    const now = world.clock.now();
 
     // reserve a name and confirm it once the write committed
     expect([
-        await Claim.reserve(database, claimant("notes", "active"), "request-1", now),
-        await Claim.reserve(database, claimant("notes", "active", second), "request-2", now),
+        await Claim.reserve(database, claimant("notes", "active"), "request-1", now, world),
+        await Claim.reserve(database, claimant("notes", "active", second), "request-2", now, world),
     ]).toEqual([[], [entry("notes", second)]]);
     const reserved = await Claim.owner(readClaims(database), { index, key: "notes" });
     await Claim.confirm(database, claimant("notes", "active"), "request-1");
     const active = await Claim.owner(readClaims(database), { index, key: "notes" });
 
     // retain the name while its object sits in the trash, still refusing it to another object
-    await Claim.replace(database, claimant("notes", "trashed"));
+    await Claim.replace(database, claimant("notes", "trashed"), world);
     const trashed = await Claim.owner(readClaims(database), { index, key: "notes" });
-    const taken = await Claim.replace(database, claimant("notes", "active", second));
+    const taken = await Claim.replace(database, claimant("notes", "active", second), world);
 
     // restore and rename the object
-    await Claim.replace(database, claimant("notes", "active"));
+    await Claim.replace(database, claimant("notes", "active"), world);
     const restored = await Claim.owner(readClaims(database), { index, key: "notes" });
-    await Claim.replace(database, claimant("archive", "active"));
+    await Claim.replace(database, claimant("archive", "active"), world);
     expect([
         reserved,
         active,
@@ -285,23 +304,26 @@ test("resolve a confirmed name to its object alone, and refuse it to others whil
 });
 
 /** Serve one space's profiles in a separate database, returning a client per user. */
-async function serveProfiles(claims: ClaimHome) {
+async function serveProfiles(world: Environment, claims: ClaimHome) {
     // store the space's profiles in a separate database
-    const spaceId = schema.identifier("space").parse(`space-${v7()}`);
-    const storage = await TestDatabase.create(profilesDatabase, { isMigrated: true });
+    const spaceId = schema.identifier("space").parse(`space-01996ab0-0000-7000-8000-00000000a006`);
+    const storage = await TestDatabase.create(profilesDatabase, {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
-    await openSpace(storage.database, spaceId);
+    await openSpace(storage.database, world, spaceId);
 
     // authenticate each request as the user its bearer credential identifies
     const served = TestObjectStore.serve(
-        new ObjectStore({
+        await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
             servers: [implementPackage(profilesPackage, {})],
             chain: async () => undefined,
-            clock: Clock.system,
+            environment: world,
             origin: { package: Package.of(profilesPackage) },
             principal: spacePrincipal(spaceId),
             callKey: testCallKey,
-            events: await testEvents(storage.database),
+            events: await testEvents(storage.database, world),
             database: storage.database,
             claims,
         }),
@@ -310,6 +332,7 @@ async function serveProfiles(claims: ClaimHome) {
     const connect = (user: Identifier<"user">) => served.as(user).client(profilesPackage);
 
     return {
+        environment: world,
         spaceId,
         database: storage.database,
         alice: connect(users.alice),
@@ -318,6 +341,9 @@ async function serveProfiles(claims: ClaimHome) {
 }
 
 test("key an index within the enclosing scope it is unique across", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // declare routes in folders of accounts, unique per account
     const account = defineObject({
         name: "account",
@@ -351,9 +377,7 @@ test("key an index within the enclosing scope it is unique across", async () => 
             follows: [],
             tables: [],
         }).tables,
-        {
-            isMigrated: true,
-        },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
     const folders: readonly (readonly [string, string])[] = [
@@ -363,12 +387,12 @@ test("key an index within the enclosing scope it is unique across", async () => 
     ];
     for (const [accountId, folderId] of folders) {
         if (folderId !== "folder-2") {
-            await new AccessFixture(storage.database).replicateScope(
+            await new AccessFixture(storage.database, world).replicateScope(
                 account.reference(Scope.universe.id, accountId),
                 account.policy,
             );
         }
-        await new AccessFixture(storage.database).replicateScope(
+        await new AccessFixture(storage.database, world).replicateScope(
             folder.reference(accountId, folderId),
             folder.policy,
         );
@@ -417,6 +441,9 @@ test("key an index within the enclosing scope it is unique across", async () => 
 });
 
 test("retain a trashed object's names, activate them on restore, and release them on purge", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // declare tags whose names are unique everywhere and whose purge retains the record
     const tag = defineObject({
         name: "tag",
@@ -429,14 +456,14 @@ test("retain a trashed object's names, activate them on restore, and release the
     });
     const storage = await TestDatabase.create(
         tablesOf({ packages: [], follows: [], tables: [claimTable] }).tables,
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
     const { database } = storage;
     const snapshot = Snapshot.live(database);
 
     // write the tag's row as it stands, sits in the trash, is restored and is purged
-    const [first, second] = [Identifier.create("tag"), Identifier.create("tag")];
+    const [first, second] = [Identifier.create("tag", world), Identifier.create("tag", world)];
     const standing = { id: first, scope: "space-1", name: "urgent", deletedAt: null };
     const trashed = { ...standing, deletedAt: 1, purgedAt: null };
     const purged = { ...trashed, purgedAt: 2 };
@@ -444,7 +471,7 @@ test("retain a trashed object's names, activate them on restore, and release the
     const write = async (row: Row & { readonly id: string }) => {
         const object = { objectId: row.id, owner: "space-1" };
 
-        return Claim.replace(database, await Claimant.of(tag, object, row, snapshot));
+        return Claim.replace(database, await Claimant.of(tag, object, row, snapshot), world);
     };
     const owner = async () => (await Claim.lookup(tag, names(database), "name", ["urgent"]))?.id;
     const states = [];
@@ -465,7 +492,7 @@ test("retain a trashed object's names, activate them on restore, and release the
 });
 
 /** Open the universe's database with its claims and the journal of their calls. */
-async function universeStorage() {
+async function universeStorage(world: Environment) {
     const tables = [
         ...new Set(
             tablesOf({
@@ -475,7 +502,7 @@ async function universeStorage() {
             }).tables,
         ),
     ];
-    const storage = await TestDatabase.create(tables, { isMigrated: true });
+    const storage = await TestDatabase.create(tables, { environment: world, isMigrated: true });
     onTestFinished(() => storage.close());
 
     return storage;

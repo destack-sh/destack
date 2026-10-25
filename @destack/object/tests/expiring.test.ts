@@ -1,25 +1,31 @@
+import { TestObjectStore } from "../src/test/index.ts";
+import { testSimulation } from "../src/test/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { testCallKey } from "@destack/object/test";
 import { reconciliation, TestDatabase } from "@destack/db/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
-import { contained, none, principal, relation } from "@destack/access";
+import { contained, none, principal, relation, universe } from "@destack/access";
 
 import { eq, defineDatabase } from "@destack/db";
-import { schema } from "@destack/schema";
+import { schema, Uuid } from "@destack/schema";
 import { Scope, RequestId } from "@destack/sync";
-import { v7 } from "uuid";
 
-import { defineObject, defineShape, field, Follow } from "../src/index.ts";
-import { ExpiringController, ObjectStore } from "../src/server/index.ts";
+import { defineObject, definePackage, defineShape, field, Follow } from "../src/index.ts";
+import { ExpiringController } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { auditedActions } from "./fixture/audit.ts";
 import { userContext, users } from "./fixture/user.ts";
-import { Clock } from "@destack/environment";
 import { tablesOf } from "../src/stack/db.ts";
 import objectPackage from "../src/package.ts";
 
 /** The space containing the alerts. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002");
+
+/** The two people whose reminders expire at once. */
+const PEOPLE = [
+    "person-01996ab0-0000-7000-8000-000000000003",
+    "person-01996ab0-0000-7000-8000-000000000004",
+];
 
 /** A day in milliseconds. */
 const DAY = 24 * 60 * 60 * 1000;
@@ -57,37 +63,49 @@ const alertDatabase = defineDatabase({
 });
 
 test("remove objects for good once a rule's window passes, as the system, and look again when the next one passes", async () => {
-    const storage = await TestDatabase.create(alertDatabase, { isMigrated: true });
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create(alertDatabase, {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     const database = storage.database;
-    await openSpace(database, spaceId);
-    const store = new ObjectStore({
+    await openSpace(database, world, spaceId);
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([alert]),
         database,
         callKey: testCallKey,
-        events: await testEvents(database),
+        events: await testEvents(database, world),
         origin: {
             package: alert.package,
         },
     });
-    const context = userContext(users.frank, spaceId);
+    const context = userContext(users.frank, spaceId, { environment: world });
     const create = async (title: string, times: { createdAt: number; readAt: number | null }) => {
         const created = await store
             .mutate(context.access(), {
-                id: RequestId.create(Date.now()),
+                id: RequestId.create(world),
                 calls: [alert.call("create", { spaceId, title })],
             })
             .then(([written]) => written);
-        await database.update(alert.table).set(times).where(eq(alert.table.id, created.id));
+        await database.transaction(
+            async (transaction) =>
+                await transaction
+                    .update(alert.table)
+                    .set(times)
+                    .where(eq(alert.table.id, created.id)),
+        );
 
         return created.id;
     };
 
     // read long ago, unread long ago, and read yesterday
-    const now = Date.now();
+    const now = world.clock.now();
     await create("Read long ago", { createdAt: now - 40 * DAY, readAt: now - 31 * DAY });
     await create("Unread long ago", { createdAt: now - 181 * DAY, readAt: null });
     const recent = await create("Read yesterday", {
@@ -117,6 +135,9 @@ test("remove objects for good once a rule's window passes, as the system, and lo
 });
 
 test("leave the expired rows a database replicates to the deletes their home sends", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // store the alerts as replicas a follow brings, one long expired
     const follow = Follow.of(
         defineShape({
@@ -131,30 +152,36 @@ test("leave the expired rows a database replicates to the deletes their home sen
         name: "main",
         ...tablesOf({ packages: [objectPackage], follows: [follow], tables: [] }),
     });
-    const storage = await TestDatabase.create(replicated, { isMigrated: true });
+    const storage = await TestDatabase.create(replicated, {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     const database = storage.database;
-    await openSpace(database, spaceId);
-    const store = new ObjectStore({
+    await openSpace(database, world, spaceId);
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spacePrincipal(spaceId),
         servers: serversOf([alert], { follows: [follow] }),
         database,
         callKey: testCallKey,
-        events: await testEvents(database),
+        events: await testEvents(database, world),
         origin: { package: alert.package },
     });
-    const now = Date.now();
-    await database.insert(alert.table).values({
-        id: alert.identifier(`alert-${v7()}`),
-        scope: spaceId,
-        ownerId: users.frank,
-        title: "Replicated",
-        createdAt: now - 400 * DAY,
-        updatedAt: now - 400 * DAY,
-        readAt: null,
-    });
+    const now = world.clock.now();
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(alert.table).values({
+                id: alert.identifier(`alert-${Uuid.v7(world)}`),
+                scope: spaceId,
+                ownerId: users.frank,
+                title: "Replicated",
+                createdAt: now - 400 * DAY,
+                updatedAt: now - 400 * DAY,
+                readAt: null,
+            }),
+    );
 
     // expire nothing and schedule nothing
     const controller = new ExpiringController(store);
@@ -182,4 +209,46 @@ test("let the code serving an expiring type remove its objects, and leave a univ
         alert.policy.definition.permissions["expire"],
         universal.policy.definition.permissions["expire"],
     ]).toEqual([contained(), none()]);
+});
+
+test("remove the expired objects of several people at once, one mutation per scope", async () => {
+    // serve reminders in two people's scopes at the universe, one expired in each
+    const person = defineObject({
+        name: "person",
+        plural: "people",
+        scope: Scope.universe.id,
+        isScope: true,
+        fields: {},
+        permissions: { read: none() },
+    });
+    const reminder = defineObject({
+        name: "reminder",
+        plural: "reminders",
+        scope: person,
+        fields: { expiresAt: field.time() },
+        expiring: [{ after: { milliseconds: 0 }, from: "expiresAt" }],
+        permissions: ["read"],
+    });
+    await using objects = await TestObjectStore.open({
+        packages: [definePackage({ objects: { person, reminder } })],
+        scope: universe.reference(Scope.universe.id, Scope.universe.id),
+        scopes: PEOPLE.map((id) => person.reference(Scope.universe.id, id)),
+    });
+    const now = objects.environment.clock.now();
+    await objects.database.transaction(
+        async (transaction) =>
+            await transaction.insert(reminder.table).values(
+                PEOPLE.map((id) => ({
+                    id: reminder.identifier(`reminder-${Uuid.v7(objects.environment)}`),
+                    scope: person.identifier(id),
+                    createdAt: now - DAY,
+                    updatedAt: now - DAY,
+                    expiresAt: now - 1,
+                })),
+            ),
+    );
+
+    // let the store's expiry remove both, each in its own scope's mutation, failing the settling otherwise
+    await objects.settle();
+    expect(await objects.database.select().from(reminder.table)).toEqual([]);
 });

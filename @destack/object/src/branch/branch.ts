@@ -8,9 +8,8 @@ import {
 } from "@destack/db";
 import { ObjectReference } from "@destack/sync";
 import { PackageId } from "@destack/package";
-import { schema } from "@destack/schema";
+import { schema, Uuid } from "@destack/schema";
 import * as sync from "@destack/sync";
-import { v7 } from "uuid";
 import { MethodContext } from "../method/index.ts";
 
 import type { ObjectType } from "../object/index.ts";
@@ -110,7 +109,7 @@ export class Branch {
         for (const [index, entry] of calls.entries()) {
             await context.mutate(context.caller, [
                 this.types.entry.call("create", {
-                    id: `${this.types.entry.identity}-${v7()}`,
+                    id: `${this.types.entry.identity}-${Uuid.v7(context.environment)}`,
                     parentId: this.id,
                     position: last + index + 1,
                     type: entry.type,
@@ -168,7 +167,7 @@ export class Branch {
             } else {
                 await context.mutate(context.caller, [
                     this.types.change.call("create", {
-                        id: `${this.types.change.identity}-${v7()}`,
+                        id: `${this.types.change.identity}-${Uuid.v7(context.environment)}`,
                         parentId: this.id,
                         table: entry.table,
                         key: entry.key,
