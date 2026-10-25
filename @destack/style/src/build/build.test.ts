@@ -1,7 +1,7 @@
+import { testSimulation } from "@destack/test/world";
 import type { Environment } from "@destack/environment";
 import { Package } from "@destack/package";
 import { BuildWriter } from "@destack/package/manifest";
-import { Simulation } from "@destack/environment/simulation";
 import { afterEach, expect, test, vi } from "@destack/test";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,9 +17,6 @@ const DEPENDENCY = Package.parse({
 
 /** The package directory, where the fixture modules resolve `@destack/style`. */
 const ROOT = fileURLToPath(new URL("../..", import.meta.url));
-
-/** The start of every test's world: 2026-10-24 at midnight UTC. */
-const START = Date.UTC(2026, 9, 24);
 
 /** The development servers to close after each test. */
 const servers: ViteDevServer[] = [];
@@ -151,7 +148,7 @@ async function stylesheets(
 
 test("serve the collected rules as a stylesheet module, reloading it when transforms add rules", async () => {
     // compile one style, request the sheet and read its rules, then compile the style again
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const environment = simulation.environment("test");
     const server = await serve(environment);
     const client = server.environments.client;
@@ -177,7 +174,7 @@ test("serve the collected rules as a stylesheet module, reloading it when transf
 
 test("serve the sheet without the StyleX plugin's timer polling its rule version", async () => {
     // record every interval a development server starts
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const environment = simulation.environment("test");
     const intervals = vi.spyOn(globalThis, "setInterval");
     await serve(environment);
@@ -189,7 +186,7 @@ test("serve the sheet without the StyleX plugin's timer polling its rule version
 });
 
 test("append every rule to the entry's stylesheet, leaving lazy pages' stylesheets", async () => {
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const environment = simulation.environment("test");
     expect(await stylesheets(environment, "/fixture/entry")).toEqual({
         "entry.css":
@@ -200,7 +197,7 @@ test("append every rule to the entry's stylesheet, leaving lazy pages' styleshee
 
 test("append every rule to the stylesheet of a chunk several entries share", async () => {
     // read the sheets whatever the bundler names the shared chunk
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const environment = simulation.environment("test");
     const sheets = await stylesheets(environment, ["/fixture/one", "/fixture/two"]);
 
@@ -212,7 +209,7 @@ test("append every rule to the stylesheet of a chunk several entries share", asy
 
 test("keep a build's rules for the builds depending on it when no module imports the sheet", async () => {
     // read the rules file the bundle keeps
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const environment = simulation.environment("test");
     const result = await bundle(environment, "/fixture/bare");
     const outputs = (Array.isArray(result) ? result : [result]).flatMap((each) =>
@@ -228,7 +225,7 @@ test("keep a build's rules for the builds depending on it when no module imports
 
 test("add the rules each dependency's build keeps to the stylesheet, ordered with the build's own", async () => {
     // keep a dependency's rules as its build keeps them
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const environment = simulation.environment("test");
     const { files } = environment;
     const dependency = await files.makeTemporaryDirectory("style-dependency-");
@@ -262,7 +259,7 @@ test("add the rules each dependency's build keeps to the stylesheet, ordered wit
 
 test("keep only a build's own rules after an earlier build in the same process", async () => {
     // build a bundle using plum and teal, then one using teal alone
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const environment = simulation.environment("test");
     await bundle(environment, "/fixture/entry");
     const sheets = await stylesheets(environment, "/fixture/solo");
