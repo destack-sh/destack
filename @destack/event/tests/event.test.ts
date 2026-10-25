@@ -1,3 +1,4 @@
+import { TEST_START } from "@destack/test/world";
 import { TestDatabase } from "@destack/db/test";
 import { Filter, sql } from "@destack/db";
 import type { JsonCondition } from "@destack/db";
@@ -20,9 +21,6 @@ const MINUTE = 60_000;
 
 /** A day, in milliseconds. */
 const DAY = 24 * 60 * MINUTE;
-
-/** The start of the tests' time, in Unix milliseconds. */
-const START = Date.UTC(2026, 9, 1);
 
 /** A retention setting, which the test's reader reads two days for space-1 and a day elsewhere. */
 const KEEP = { name: "keep" };
@@ -84,7 +82,7 @@ const MISSING_LINE_TABLE = {
 async function open(kinds: readonly EventKind[] = [reading]) {
     const fixture = await EventFixture.open(kinds);
     onTestFinished(() => fixture[Symbol.asyncDispose]());
-    fixture.clock.set(START);
+    fixture.clock.set(TEST_START);
 
     return fixture;
 }
@@ -94,7 +92,7 @@ function measured(id: string, minute: number, meter: string, value: number, note
     return {
         scope: "space-1",
         id,
-        time: (START + minute * MINUTE) * 1000,
+        time: (TEST_START + minute * MINUTE) * 1000,
         keys: { meter, resource: "/spaces/space-1", value },
         data: note === undefined ? { unit: "byte" } : { unit: "byte", note },
     };
@@ -102,7 +100,7 @@ function measured(id: string, minute: number, meter: string, value: number, note
 
 /** The microseconds some minutes after the start. */
 function at(minute: number): number {
-    return (START + minute * MINUTE) * 1000;
+    return (TEST_START + minute * MINUTE) * 1000;
 }
 
 test("page a scope's events a condition selects in time order, appending one again changing nothing and refusing one with other contents", async () => {
@@ -287,7 +285,7 @@ test("sweep a scope's segment files without a catalog row once an hour old, dail
     await bucket.put(`${directory}/orphan.parquet`, "lost");
 
     // advance a day, leave a fresh uncatalogued file as a write in flight, then sweep
-    fixture.clock.set(START + DAY);
+    fixture.clock.set(TEST_START + DAY);
     await bucket.put(`${directory}/inflight.parquet`, "writing");
     await fixture.settle();
 
@@ -617,7 +615,7 @@ test("lock a locked kind's segments for its retention, chained by digest and nev
         first?.previous,
         deleting === "deleted",
         (await bucket.head(first?.file ?? ""))?.retainUntil?.getTime(),
-    ]).toEqual([2, true, null, false, START + 365 * DAY]);
+    ]).toEqual([2, true, null, false, TEST_START + 365 * DAY]);
 });
 
 test("compact an unlocked kind's small segments and expire them past the retention their scope reads", async () => {
@@ -633,13 +631,13 @@ test("compact an unlocked kind's small segments and expire them past the retenti
         setting === KEEP && owner.id === meters.id && scope === "space-1" ? 2 * DAY : DAY,
     );
     onTestFinished(() => fixture[Symbol.asyncDispose]());
-    fixture.clock.set(START);
+    fixture.clock.set(TEST_START);
     const { store, database } = fixture;
 
     // flush one reading at a time as each comes due by age
     for (const minute of [1, 2, 3]) {
         await store.append(scoped, [measured(`r${String(minute)}`, minute, "db.bytes", minute)]);
-        fixture.clock.set(START + (minute + 1) * MINUTE);
+        fixture.clock.set(TEST_START + (minute + 1) * MINUTE);
         await fixture.settle();
     }
     const compacted = await database.database
@@ -649,7 +647,7 @@ test("compact an unlocked kind's small segments and expire them past the retenti
     const read = await store.query(scoped, { scopes: ["space-1"] });
 
     // three days later every segment is past the scope's retention
-    fixture.clock.set(START + 3 * DAY);
+    fixture.clock.set(TEST_START + 3 * DAY);
     await fixture.settle();
     expect([
         compacted.map((segment) => segment.rows),
@@ -671,7 +669,7 @@ test("read a row of a kind's table as its event with the kind's keys, refusing a
     const event = {
         scope: "space-1",
         id: "reading-1",
-        time: START * 1000,
+        time: TEST_START * 1000,
         keys: { meter: "power", resource: "machine-1", value: 42 },
         data: { unit: "W" },
     };
