@@ -1,4 +1,4 @@
-import { contained, none } from "@destack/access";
+import { none } from "@destack/access";
 import { Duration } from "@destack/schema";
 import { TABLE, Condition } from "@destack/db";
 import type { ObjectType } from "../object/object.ts";
@@ -27,11 +27,9 @@ export const expiring: Trait<readonly ExpiryRule[]> & {
     options: (definition) => definition.expiring,
     columns: () => ({}),
     constraints: () => [],
-    // let the code serving the type expire its objects, where code is contained outside the universe
-    policy: (_options, object, permissions) =>
-        permissions.includes("expire")
-            ? {}
-            : { permissions: { expire: object.isUniverseOnly ? none() : contained() } },
+    // let the code serving the type expire its objects, through its role
+    policy: (_options, _object, permissions) =>
+        permissions.includes("expire") ? {} : { permissions: { expire: none() } },
     methods: () => ({ expire: expiry }),
     validate: (rules, object) => expiring.requireRules(object, rules),
     after(object, rules) {
