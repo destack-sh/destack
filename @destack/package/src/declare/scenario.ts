@@ -7,15 +7,15 @@ import type { Declaration } from "./declaration.ts";
 import { type Example, requireDescription } from "./example.ts";
 
 /** What a scenario's steps and observations speak and its examples play in. */
-export interface Interaction<Step = unknown, Observation = unknown, Environment = unknown> {
+export interface Interaction<Step = unknown, Observation = unknown, Globals = unknown> {
     /** The name a runner picks the driver by, such as `ui`. */
     readonly name: string;
     /** The schema of a step, a JSON object with its action. */
     readonly step: schema.Schema<Step>;
     /** The schema of an observation, a JSON object with its kind. */
     readonly observation: schema.Schema<Observation>;
-    /** The schema of the environment the given examples play in, such as a theme and locale. */
-    readonly environment: schema.Schema<Environment>;
+    /** The schema of the globals the given examples play with, such as a theme and locale. */
+    readonly globals: schema.Schema<Globals>;
 }
 
 /** The step every interaction shares: change example properties, as the user or a control would. */
@@ -43,12 +43,12 @@ export type Then<Observation = JsonValue> = schema.Infer<
     ReturnType<typeof thenOf<schema.Schema<Observation>>>
 >;
 
-/** The examples a scenario starts from and the environment it plays in, after Gherkin's Given. */
-export interface Given<Instance = unknown, Environment = unknown> {
+/** The examples a scenario starts from and the globals it plays with, after Gherkin's Given. */
+export interface Given<Instance = unknown, Globals = unknown> {
     /** The examples a driver starts when the scenario starts. */
     readonly examples: readonly Example<object, Instance>[];
-    /** The environment the examples play in, its interaction's, the host's own when absent. */
-    readonly environment?: Environment;
+    /** The globals the examples play with, its interaction's, the host's own when absent. */
+    readonly globals?: Globals;
 }
 
 /** A scenario as its module defines it: examples, steps on them and resulting observations. */
@@ -61,8 +61,8 @@ export interface ScenarioDefinition<Speaks extends Interaction = Interaction, In
     readonly name: string;
     /** One sentence saying what the scenario shows. */
     readonly description: string;
-    /** The examples it starts from and the environment it plays in. */
-    readonly given: Given<Instance, schema.Infer<Speaks["environment"]>>;
+    /** The examples it starts from and the globals it plays with. */
+    readonly given: Given<Instance, schema.Infer<Speaks["globals"]>>;
     /** The steps, taken in order. */
     readonly when: readonly (SetStep | schema.Infer<Speaks["step"]>)[];
     /** The observations expected after each step or once at the end. */
@@ -90,9 +90,9 @@ export function defineScenario<Speaks extends Interaction, Instance>(
     requireExpectations(name, when.length, then);
     requireExamples(name, when, given);
 
-    // require an environment the interaction plays in
-    if (given.environment !== undefined) {
-        interaction.environment.parse(given.environment);
+    // require globals the interaction accepts
+    if (given.globals !== undefined) {
+        interaction.globals.parse(given.globals);
     }
 
     return Object.freeze({
@@ -184,8 +184,8 @@ export const ScenarioDescription = schema.object({
     interaction: Moniker,
     /** The examples the scenario starts from, by declaration moniker. */
     examples: schema.array(Moniker),
-    /** The environment of the examples as JSON for the interaction, the host's when absent. */
-    environment: schema.json().exactOptional(),
+    /** The globals of the examples as JSON for the interaction, the host's when absent. */
+    globals: schema.json().exactOptional(),
     /** The steps, taken in order. */
     when: schema.array(schema.json()).min(1),
     /** The observations expected after each step or once at the end. */
