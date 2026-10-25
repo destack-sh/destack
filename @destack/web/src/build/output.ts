@@ -1,4 +1,4 @@
-import { readdir, readFile } from "node:fs/promises";
+import type { FileSystem } from "@destack/environment";
 import { join, relative, resolve, sep } from "node:path";
 import { createBuilder, type InlineConfig } from "vite";
 import {
@@ -77,9 +77,6 @@ const ViteManifest = schema.record(
     }),
 );
 
-/** The render modes Start knows, any other naming the module choosing one. */
-const RENDER_MODES = new Set(["sync", "async", "stream"]);
-
 /** Compile Solid applications through Start's client and server environments. */
 export const webOutput: OutputKind = {
     expand(name, request) {
@@ -156,7 +153,12 @@ export const webOutput: OutputKind = {
         // keep prerendered pages and site files beside the browser assets for static or hybrid hosting
         if (application.prerender !== undefined) {
             const module = join(temporary, "server/server.js");
-            const pages = await prerender(module, requireSite(application), application.prerender);
+            const pages = await prerender(
+                module,
+                requireSite(application),
+                application.prerender,
+                pass.environment,
+            );
             for (const [path, bytes] of pages) {
                 pass.file(`output/${browser}/${path}`, bytes);
             }
@@ -164,7 +166,11 @@ export const webOutput: OutputKind = {
         if (application.metadata !== undefined) {
             const encoder = new TextEncoder();
             const site = requireSite(application);
-            for (const file of writeMetadata(site, application.metadata, new Date())) {
+            for (const file of writeMetadata(
+                site,
+                application.metadata,
+                new Date(pass.environment.clock.now()),
+            )) {
                 pass.file(`output/${browser}${file.path}`, encoder.encode(file.text));
             }
         }
@@ -200,18 +206,11 @@ interface WebBuild {
 
 /** List the framework modules an application names beside its root component. */
 function frameworkFiles(application: WebOptions): string[] {
-    const renderMode =
-        application.renderMode !== undefined && !RENDER_MODES.has(application.renderMode)
-            ? application.renderMode
-            : undefined;
-
     return [
         application.document,
         application.entryClient,
         application.entryServer,
         application.middleware,
-        application.setup,
-        renderMode,
     ].filter((path): path is string => typeof path === "string");
 }
 
@@ -253,7 +252,12 @@ function builderConfiguration(build: WebBuild): InlineConfig {
                 options: { [VIEW_PACKAGE]: SolidApplication.strip().parse(application) },
             }),
             entryPlugin(),
-            ...environmentPlugins(temporary, application.minify ?? false, runtime),
+            ...environmentPlugins(
+                temporary,
+                application.minify ?? false,
+                runtime,
+                pass.environment.files,
+            ),
         ],
         build: {
             sourcemap: true,
@@ -278,11 +282,16 @@ function builderConfiguration(build: WebBuild): InlineConfig {
 }
 
 /** Write Start's client and server builds into the temporary directory, each for its runtime. */
-function environmentPlugins(temporary: string, minify: boolean, runtime: Runtime): Plugin[] {
+function environmentPlugins(
+    temporary: string,
+    minify: boolean,
+    runtime: Runtime,
+    files: FileSystem,
+): Plugin[] {
     // resolve the host modules of the browser and of the server runtime
     const isWorkerd = runtime === "workerd";
-    const browserHosts = new HostModules("browser");
-    const serverHosts = new HostModules(runtime);
+    const browserHosts = new HostModules("browser", files);
+    const serverHosts = new HostModules(runtime, files);
 
     return [
         { ...browserHosts.plugin(), applyToEnvironment: ({ name }) => name === "client" },
@@ -298,8 +307,6 @@ function environmentPlugins(temporary: string, minify: boolean, runtime: Runtime
                             minify,
                             rolldownOptions: {
                                 resolve: { conditionNames: runtimeConditions("browser") },
-                                external: (specifier: string, importer: string | undefined) =>
-                                    browserHosts.resolve(specifier, importer) === "external",
                             },
                         },
                     },
@@ -317,8 +324,6 @@ function environmentPlugins(temporary: string, minify: boolean, runtime: Runtime
                                         : ["module", "main"],
                                     conditionNames: runtimeConditions(runtime),
                                 },
-                                external: (specifier: string, importer: string | undefined) =>
-                                    serverHosts.resolve(specifier, importer) === "external",
                                 platform: isWorkerd ? "browser" : "node",
                             },
                         },
@@ -342,15 +347,16 @@ async function keepSide(build: WebBuild, side: "client" | "server", output: stri
     if (side === "server" && !isEmitted(build.application)) {
         return;
     }
-    const entries = await readdir(root, { recursive: true, withFileTypes: true });
+    const { files } = pass.environment;
+    const entries = await files.readDirectory(root, { recursive: true });
 
     // keep each file, describing the asset manifest and its source maps
-    for (const entry of entries.filter((candidate) => candidate.isFile())) {
-        const path = join(entry.parentPath, entry.name);
-        const local = relative(root, path).replaceAll("\\", "/");
+    for (const entry of entries.filter((candidate) => candidate.kind === "file")) {
+        const path = join(root, entry.name);
+        const local = entry.name.replaceAll("\\", "/");
         const generated = `output/${output}/${local}`;
         if (local === ".vite/manifest.json") {
-            const manifest = ViteManifest.parse(JSON.parse(await readFile(path, "utf8")));
+            const manifest = ViteManifest.parse(JSON.parse(await files.readTextFile(path)));
             const described = pass.describeAssets(manifest, build.stage);
             pass.file(generated, new TextEncoder().encode(JSON.stringify(described)));
         } else {

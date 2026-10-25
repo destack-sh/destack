@@ -1,10 +1,14 @@
-import { readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterAll, beforeAll, expect, onTestFinished, refusal, test } from "@destack/test";
+import { testHost } from "@destack/test/host";
 import { CompilerPool, type LocalPackageStore, type PackageBuild } from "@destack/build";
-import { PackageCopy, testStore } from "@destack/build/test";
+import { PackageCopy, testStore, testSimulation } from "@destack/build/test";
+import type { Simulation } from "@destack/environment/simulation";
 import { requests } from "../../tests/fixture/website/request.ts";
+
+/** The real host, whose files the website fixture lives in. */
+const HOST = testHost();
 
 /** The website fixture, an application rendered in each mode. */
 const WEBSITE = new URL("../../tests/fixture/website/source/", import.meta.url);
@@ -12,6 +16,8 @@ const WEBSITE = new URL("../../tests/fixture/website/source/", import.meta.url);
 /** The longest a cold build of the website on its stored closure takes. */
 const WEBSITE_BUILD_MILLISECONDS = 60_000;
 
+/** The world the tests build in. */
+let simulation: Simulation;
 /** The checkout's test store. */
 let store: LocalPackageStore;
 /** The compilers building into the store. */
@@ -20,6 +26,7 @@ let compilers: CompilerPool;
 let source: PackageCopy;
 
 beforeAll(async () => {
+    simulation = testSimulation();
     store = await testStore();
     compilers = await CompilerPool.open(store);
     source = await PackageCopy.open(WEBSITE, compilers);
@@ -29,6 +36,7 @@ afterAll(async () => {
     await source[Symbol.asyncDispose]();
     await compilers[Symbol.asyncDispose]();
     await store[Symbol.asyncDispose]();
+    await simulation[Symbol.asyncDispose]();
 });
 
 /** A module whose default export answers requests. */
@@ -138,13 +146,13 @@ test(
         // write a server entry reading a browser global, which the website's DOM library types
         const entries = ["server.ts", "client.ts"].map((name) => join(source.source, name));
         onTestFinished(async () => {
-            await Promise.all(entries.map((entry) => rm(entry)));
+            await Promise.all(entries.map((entry) => HOST.files.remove(entry)));
         });
-        await writeFile(
+        await HOST.files.writeTextFile(
             join(source.source, "server.ts"),
             "/** Render the page title. */\nexport function render(): string {\n    return document.title;\n}\n",
         );
-        await writeFile(join(source.source, "client.ts"), "export {};\n");
+        await HOST.files.writeTextFile(join(source.source, "client.ts"), "export {};\n");
 
         // refuse the build before framework compilation or rendering
         const application = {
@@ -166,20 +174,20 @@ test(
     async () => {
         // declare the asset imports and retain two distinct emitted assets through the application's render
         const file = join(source.source, "src/app.tsx");
-        const original = await readFile(file, "utf8");
+        const original = await HOST.files.readTextFile(file);
         const assets = ["assets.d.ts", "first.svg", "second.svg"].map((name) =>
             join(source.source, "src", name),
         );
         onTestFinished(async () => {
-            await writeFile(file, original);
-            await Promise.all(assets.map((asset) => rm(asset)));
+            await HOST.files.writeTextFile(file, original);
+            await Promise.all(assets.map((asset) => HOST.files.remove(asset)));
         });
-        await writeFile(
+        await HOST.files.writeTextFile(
             join(source.source, "src/assets.d.ts"),
             '/** SVG assets imported as URLs. */\ndeclare module "*.svg?url" {\n    const url: string;\n    export default url;\n}\n',
         );
         for (const name of ["first", "second"]) {
-            await writeFile(
+            await HOST.files.writeTextFile(
                 join(source.source, `src/${name}.svg`),
                 `<svg xmlns="http://www.w3.org/2000/svg"><!--${name.repeat(1500)}--></svg>`,
             );
@@ -190,15 +198,15 @@ test(
                 '<main style={theme.variables({ ...DEFAULT_DISPLAY, appearance: "light" })}>',
                 '<main style={theme.variables({ ...DEFAULT_DISPLAY, appearance: "light" })}><img src={first} /><img src={second} />',
             );
-        await writeFile(file, edited);
+        await HOST.files.writeTextFile(file, edited);
         const request = { outputs: { website: requests.browser } };
 
         // compare the full distribution before and after an application edit
         await using first = await source.build(request);
         await using repeated = await source.build(request);
-        await writeFile(file, edited.replace("Hello Destack", "Edited Destack"));
+        await HOST.files.writeTextFile(file, edited.replace("Hello Destack", "Edited Destack"));
         await using changed = await source.build(request);
-        await writeFile(file, edited);
+        await HOST.files.writeTextFile(file, edited);
         await using restored = await source.build(request);
         expect({
             repeated: repeated.manifest,

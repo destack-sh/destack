@@ -1,4 +1,5 @@
 import { isAbsolute, join } from "node:path";
+import type { Clock, Environment, FileSystem } from "@destack/environment";
 import { createServer, type ServerOptions, type ViteDevServer } from "vite";
 import { loadTransforms, PackageSource } from "@destack/build/local";
 import type { Plugin } from "@destack/package/build";
@@ -153,18 +154,25 @@ export interface DevelopmentServerOptions {
     configuration?: string;
     /** Network and filesystem access, listening on loopback by default. */
     server?: ServerOptions;
+    /** The clock, files and processes the server compiles with. */
+    environment: Environment<"files" | "process">;
 }
 
 /** Open the application's package source with its selected entry. */
 async function open(options: DevelopmentServerOptions): Promise<PackageSource> {
-    return await PackageSource.open({
-        directory: options.directory,
-        runtime: "browser",
-        ...(options.configuration === undefined ? {} : { configuration: options.configuration }),
-        entries: { ".": options.application.app },
-        tree: {},
-        roots: "package",
-    });
+    return await PackageSource.open(
+        {
+            directory: options.directory,
+            runtime: "browser",
+            ...(options.configuration === undefined
+                ? {}
+                : { configuration: options.configuration }),
+            entries: { ".": options.application.app },
+            tree: {},
+            roots: "package",
+        },
+        options.environment,
+    );
 }
 
 /** Create a Vite server of fresh plugins for an application and listen with it. */
@@ -184,14 +192,15 @@ async function serve(
         publicDir: application.publicDirectory ?? "public",
         base: application.base ?? "/",
         plugins: [
-            modulePlugin(),
-            definitionPlugin(source.directory, onDefinitionChange),
-            metadataPlugin(application),
+            modulePlugin(options.environment.files),
+            definitionPlugin(source.directory, options.environment.files, onDefinitionChange),
+            metadataPlugin(application, options.environment.clock),
             ...(await loadTransforms({
                 directory: source.directory,
                 runtime: "browser",
                 server: application.ssr !== false,
                 options: { [VIEW_PACKAGE]: SolidApplication.strip().parse(application) },
+                environment: options.environment,
             })),
             entryPlugin(),
         ],
@@ -216,9 +225,9 @@ async function serve(
 }
 
 /** Watch the definitions of the application and of each package whose modules the server loads. */
-function definitionPlugin(directory: string, onChange: () => void): Plugin {
+function definitionPlugin(directory: string, files: FileSystem, onChange: () => void): Plugin {
     // find packages afresh for this server and remember the definitions watched
-    const packages = new PackageLocator();
+    const packages = new PackageLocator(files);
     const watched = new Set<string>();
     let server: ViteDevServer | undefined;
     const watch = (vite: ViteDevServer, owner: string) => {
@@ -255,7 +264,7 @@ function definitionPlugin(directory: string, onChange: () => void): Plugin {
 }
 
 /** Serve the site files an application publishes, written per request as builds write them. */
-function metadataPlugin(application: WebOptions): Plugin {
+function metadataPlugin(application: WebOptions, clock: Clock): Plugin {
     return {
         name: "@destack/web/metadata",
         configureServer(vite) {
@@ -272,7 +281,7 @@ function metadataPlugin(application: WebOptions): Plugin {
             vite.middlewares.use((request, response, next) => {
                 // find the site file the request names
                 const path = request.url?.replace(/\?.*$/su, "");
-                const files = writeMetadata(site, metadata, new Date());
+                const files = writeMetadata(site, metadata, new Date(clock.now()));
                 const file = files.find((candidate) => candidate.path === path);
                 if (file === undefined) {
                     next();

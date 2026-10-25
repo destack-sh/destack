@@ -1,10 +1,13 @@
-import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { testSimulation } from "@destack/test/world";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Window } from "happy-dom";
 import { expect, test } from "@destack/test";
+import { testHost } from "@destack/test/host";
 import { DevelopmentServer } from "./server.ts";
+
+/** The real host, whose files and network the development server runs on. */
+const HOST = testHost();
 
 /** The workspace's installed dependencies, which the application's modules resolve through. */
 const INSTALLED = fileURLToPath(new URL("../../../../node_modules", import.meta.url));
@@ -103,22 +106,27 @@ async function writeApplication(): Promise<{
     dependency: string;
 }> {
     // place the dependency beside the application, linked into its installation
-    const root = await realpath(await mkdtemp(join(tmpdir(), "destack-web-server-")));
+    const root = await HOST.files.realPath(
+        await HOST.files.makeTemporaryDirectory("destack-web-server-"),
+    );
     const application = join(root, "application");
     const dependency = join(root, "dependency");
-    await mkdir(join(application, "src"), { recursive: true });
-    await mkdir(join(application, "node_modules", "@fixture"), { recursive: true });
-    await mkdir(join(dependency, "src"), { recursive: true });
-    await symlink(dependency, join(application, "node_modules", "@fixture", "dependency"));
-    await symlink(INSTALLED, join(root, "node_modules"));
-    await writeFile(
+    await HOST.files.mkdir(join(application, "src"), { recursive: true });
+    await HOST.files.mkdir(join(application, "node_modules", "@fixture"), { recursive: true });
+    await HOST.files.mkdir(join(dependency, "src"), { recursive: true });
+    await HOST.files.symlink(
+        dependency,
+        join(application, "node_modules", "@fixture", "dependency"),
+    );
+    await HOST.files.symlink(INSTALLED, join(root, "node_modules"));
+    await HOST.files.writeTextFile(
         join(root, "bun.lock"),
         JSON.stringify({ lockfileVersion: 2, workspaces: {}, packages: {} }),
     );
 
     // write the dependency, labelling text by whether the build stamped its module
     const version = { version: "2026.9.0", type: "module" };
-    await writeFile(
+    await HOST.files.writeTextFile(
         join(dependency, "package.json"),
         JSON.stringify({
             name: "@fixture/dependency",
@@ -126,14 +134,14 @@ async function writeApplication(): Promise<{
             exports: { ".": "./src/index.ts" },
         }),
     );
-    await writeFile(join(dependency, "destack.json"), definition(DEPENDENCY, {}));
-    await writeFile(
+    await HOST.files.writeTextFile(join(dependency, "destack.json"), definition(DEPENDENCY, {}));
+    await HOST.files.writeTextFile(
         join(dependency, "src", "index.ts"),
         'export function label(text: string, module?: unknown): string {\n    return `${module === undefined ? "unstamped" : "stamped"} ${text}`;\n}\n',
     );
 
     // write the application calling it
-    await writeFile(
+    await HOST.files.writeTextFile(
         join(application, "package.json"),
         JSON.stringify({
             name: "@fixture/application",
@@ -141,16 +149,16 @@ async function writeApplication(): Promise<{
             dependencies: { "@fixture/dependency": "2026.9.0" },
         }),
     );
-    await writeFile(join(application, "destack.json"), definition(APPLICATION, {}));
-    await writeFile(
+    await HOST.files.writeTextFile(join(application, "destack.json"), definition(APPLICATION, {}));
+    await HOST.files.writeTextFile(
         join(application, "src", "mark.ts"),
         'export function mark(text: string, module?: unknown): string {\n    return `${module === undefined ? "unstamped" : "stamped"} ${text}`;\n}\n',
     );
-    await writeFile(
+    await HOST.files.writeTextFile(
         join(application, "src", "own.ts"),
         'import { mark } from "./mark.ts";\n\nexport default mark("note");\n',
     );
-    await writeFile(
+    await HOST.files.writeTextFile(
         join(application, "src", "app.ts"),
         'import { label } from "@fixture/dependency";\n\nexport default label("note");\n',
     );
@@ -161,20 +169,22 @@ async function writeApplication(): Promise<{
 /** Write an application rendering with view and web through authored entries. */
 async function writeAuthoredApplication(): Promise<{ root: string; application: string }> {
     // link view, web and their Solid into the application's installation
-    const root = await realpath(await mkdtemp(join(tmpdir(), "destack-web-entry-")));
+    const root = await HOST.files.realPath(
+        await HOST.files.makeTemporaryDirectory("destack-web-entry-"),
+    );
     const application = join(root, "application");
-    await mkdir(join(application, "src"), { recursive: true });
-    await mkdir(join(application, "node_modules", "@destack"), { recursive: true });
-    await symlink(VIEW, join(application, "node_modules", "@destack", "view"));
-    await symlink(PACKAGE, join(application, "node_modules", "@destack", "web"));
-    await symlink(
+    await HOST.files.mkdir(join(application, "src"), { recursive: true });
+    await HOST.files.mkdir(join(application, "node_modules", "@destack"), { recursive: true });
+    await HOST.files.symlink(VIEW, join(application, "node_modules", "@destack", "view"));
+    await HOST.files.symlink(PACKAGE, join(application, "node_modules", "@destack", "web"));
+    await HOST.files.symlink(
         join(VIEW, "node_modules", "solid-js"),
         join(application, "node_modules", "solid-js"),
     );
-    await symlink(join(PACKAGE, "..", "..", "bun.lock"), join(root, "bun.lock"));
+    await HOST.files.symlink(join(PACKAGE, "..", "..", "bun.lock"), join(root, "bun.lock"));
 
     // write the application and its modules
-    await writeFile(
+    await HOST.files.writeTextFile(
         join(application, "package.json"),
         JSON.stringify({
             name: "@fixture/authored",
@@ -187,9 +197,9 @@ async function writeAuthoredApplication(): Promise<{ root: string; application: 
             },
         }),
     );
-    await writeFile(join(application, "destack.json"), definition(AUTHORED, {}));
+    await HOST.files.writeTextFile(join(application, "destack.json"), definition(AUTHORED, {}));
     for (const [path, text] of Object.entries(AUTHORED_MODULES)) {
-        await writeFile(join(application, path), `${text}\n`);
+        await HOST.files.writeTextFile(join(application, path), `${text}\n`);
     }
 
     return { root, application };
@@ -204,9 +214,12 @@ async function load(server: DevelopmentServer, path = "/src/app.ts"): Promise<un
 
 test("restart the server with fresh package definitions once a dependency's definition changes", async () => {
     // serve the application and load it with the dependency, which watches the dependency's definition
+    await using simulation = testSimulation();
+    const world = simulation.environment("test");
     const { root, application, dependency } = await writeApplication();
     try {
         await using server = await DevelopmentServer.start({
+            environment: world,
             directory: application,
             application: { kind: "web", app: "src/app.ts", ssr: false, publicDirectory: false },
             server: { port: 0 },
@@ -223,7 +236,7 @@ test("restart the server with fresh package definitions once a dependency's defi
             .toEqual(["destack.json"]);
 
         // stamp the dependency's label with the calling module
-        await writeFile(
+        await HOST.files.writeTextFile(
             join(dependency, "destack.json"),
             definition(DEPENDENCY, { label: { module: 1 } }),
         );
@@ -232,15 +245,18 @@ test("restart the server with fresh package definitions once a dependency's defi
         await expect.poll(() => server.vite, { timeout: 1500, interval: 10 }).not.toBe(before);
         expect([loaded, await load(server)]).toEqual(["unstamped note", "stamped note"]);
     } finally {
-        await rm(root, { recursive: true });
+        await HOST.files.remove(root, { recursive: true });
     }
 });
 
 test("restart the server with the application's own definition once it changes", async () => {
     // serve the application and load its module calling its own label
+    await using simulation = testSimulation();
+    const world = simulation.environment("test");
     const { root, application } = await writeApplication();
     try {
         await using server = await DevelopmentServer.start({
+            environment: world,
             directory: application,
             application: { kind: "web", app: "src/app.ts", ssr: false, publicDirectory: false },
             server: { port: 0 },
@@ -255,7 +271,7 @@ test("restart the server with the application's own definition once it changes",
                 interval: 10,
             })
             .toBe(true);
-        await writeFile(
+        await HOST.files.writeTextFile(
             join(application, "destack.json"),
             definition(APPLICATION, { mark: { module: 1 } }),
         );
@@ -267,15 +283,18 @@ test("restart the server with the application's own definition once it changes",
             "stamped note",
         ]);
     } finally {
-        await rm(root, { recursive: true });
+        await HOST.files.remove(root, { recursive: true });
     }
 });
 
 test("load an authored client entry in served pages, which hydrates them", async () => {
     // serve the application through its authored entries
+    await using simulation = testSimulation();
+    const world = simulation.environment("test");
     const { root, application } = await writeAuthoredApplication();
     try {
         await using server = await DevelopmentServer.start({
+            environment: world,
             directory: application,
             application: {
                 kind: "web",
@@ -292,9 +311,11 @@ test("load an authored client entry in served pages, which hydrates them", async
         const url = `http://127.0.0.1:${port}/`;
 
         // load the client entry after the Vite client, as a generated entry loads
-        const page = await (await fetch(url, { headers: { accept: "text/html" } })).text();
+        const page = await (
+            await HOST.network.fetch(new Request(url, { headers: { accept: "text/html" } }))
+        ).text();
         const scripts = [...page.matchAll(/<script [^>]*src="[^"]*"[^>]*><\/script>/gu)];
-        const entry = await fetch(new URL("/src/entry-client.tsx", url));
+        const entry = await HOST.network.fetch(new Request(new URL("/src/entry-client.tsx", url)));
         expect([scripts.map(([script]) => script), entry.status]).toEqual([
             [
                 '<script type="module" src="/@vite/client"></script>',
@@ -324,15 +345,18 @@ test("load an authored client entry in served pages, which hydrates them", async
             await window.happyDOM.close();
         }
     } finally {
-        await rm(root, { recursive: true });
+        await HOST.files.remove(root, { recursive: true });
     }
 });
 
 test("serve the site files an application publishes as builds write them", async () => {
     // serve an application publishing its crawler rules and model guide
+    await using simulation = testSimulation();
+    const world = simulation.environment("test");
     const { root, application } = await writeApplication();
     try {
         await using server = await DevelopmentServer.start({
+            environment: world,
             directory: application,
             application: {
                 kind: "web",
@@ -352,7 +376,9 @@ test("serve the site files an application publishes as builds write them", async
 
         // read each file with its media type
         const read = async (path: string) => {
-            const response = await fetch(`http://127.0.0.1:${port}${path}`);
+            const response = await HOST.network.fetch(
+                new Request(`http://127.0.0.1:${port}${path}`),
+            );
 
             return [response.headers.get("content-type"), await response.text()];
         };
@@ -362,6 +388,6 @@ test("serve the site files an application publishes as builds write them", async
             ["text/plain; charset=utf-8", "# Example\n\n> A site.\n"],
         ]);
     } finally {
-        await rm(root, { recursive: true });
+        await HOST.files.remove(root, { recursive: true });
     }
 });

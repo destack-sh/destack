@@ -1,12 +1,8 @@
-import { type ChildProcessByStdio, spawn } from "node:child_process";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
-import { createInterface } from "node:readline";
-import type { Readable } from "node:stream";
-import { pathToFileURL } from "node:url";
+import { join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import type { Environment, Subprocess } from "@destack/environment";
 import { PackagePath } from "@destack/package/file";
-import { schema } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 import { WebError } from "../../error/error.ts";
 
 /** The longest a request's response may take by default, in milliseconds. */
@@ -26,6 +22,19 @@ export const PrerenderOptions = schema.object({
 });
 /** Requests rendered to static HTML during a build. */
 export type PrerenderOptions = schema.Infer<typeof PrerenderOptions>;
+
+/** The file in a render directory holding its plan. */
+export const RENDER_PLAN_FILE = "plan.json";
+
+/** What a renderer renders: the server module's URL and the page URLs, oldest first. */
+export const RenderPlan = schema.object({
+    /** The file URL of the server module handling the requests. */
+    module: schema.string(),
+    /** The URLs to render, by page index. */
+    urls: schema.array(schema.string()),
+});
+/** What a renderer renders. */
+export type RenderPlan = schema.Infer<typeof RenderPlan>;
 
 /** The status and headers the renderer writes beside each page body. */
 const RenderedResponse = schema.object({
@@ -52,24 +61,27 @@ export async function prerender(
     module: string,
     site: string,
     options: PrerenderOptions,
+    environment: Environment<"files" | "process">,
 ): Promise<Map<string, Uint8Array<ArrayBuffer>>> {
     // reject ambiguous URLs before executing application code
     const requests = planRequests(site, options);
 
     // reuse the renderer across requests
-    const files = new Map<string, Uint8Array<ArrayBuffer>>();
-    const directory = await mkdtemp(join(tmpdir(), "destack-render-"));
+    const { files } = environment;
+    const pages = new Map<string, Uint8Array<ArrayBuffer>>();
+    const directory = await files.makeTemporaryDirectory("destack-render-");
     try {
-        const program = await writeProgram(directory, module, requests);
-        await runProgram(program, options.timeout ?? RESPONSE_TIMEOUT, requests.length);
+        await writePlan(directory, module, requests, environment);
+        const timeout = options.timeout ?? RESPONSE_TIMEOUT;
+        await runRenderer(directory, timeout, requests.length, environment);
         for (const [index, request] of requests.entries()) {
-            files.set(request.path, await readPage(directory, index, request));
+            pages.set(request.path, await readPage(directory, index, request, environment));
         }
     } finally {
-        await rm(directory, { recursive: true });
+        await files.remove(directory, { recursive: true });
     }
 
-    return files;
+    return pages;
 }
 
 /** Plan each route's request and page, refusing uncanonical paths and duplicate files. */
@@ -112,26 +124,18 @@ function pagePath(route: string, isNotFound: boolean): string {
     return PackagePath.parse(`${directory}/index.html`.replace(/^\//u, ""));
 }
 
-/** Write the program rendering each request with the server module, returning its path. */
-async function writeProgram(
+/** Write the plan the renderer reads: the server module and each request's URL. */
+async function writePlan(
     directory: string,
     module: string,
     requests: readonly PageRequest[],
-): Promise<string> {
-    // import the server module and the renderer to render every URL
-    const program = join(directory, "render.js");
-    const renderer = import.meta.resolve("@destack/web/build");
-    const urls = requests.map((request) => request.url.href);
-    await writeFile(
-        program,
-        [
-            `import * as server from ${JSON.stringify(pathToFileURL(module).href)};`,
-            `import { renderPages } from ${JSON.stringify(renderer)};`,
-            `await renderPages(server.handleRequest, ${JSON.stringify(urls)}, ${JSON.stringify(directory)});`,
-        ].join("\n"),
-    );
-
-    return program;
+    environment: Environment<"files">,
+): Promise<void> {
+    const plan: RenderPlan = {
+        module: pathToFileURL(module).href,
+        urls: requests.map((request) => request.url.href),
+    };
+    await environment.files.writeTextFile(join(directory, RENDER_PLAN_FILE), JSON.stringify(plan));
 }
 
 /** Read a rendered page, refusing a response of another status, not HTML, or personalized. */
@@ -139,9 +143,10 @@ async function readPage(
     directory: string,
     index: number,
     request: PageRequest,
+    environment: Environment<"files">,
 ): Promise<Uint8Array<ArrayBuffer>> {
     // read the response the renderer wrote beside the page
-    const { response, body } = await readRendered(directory, index, request);
+    const { response, body } = await readRendered(directory, index, request, environment);
 
     // require the expected status and an HTML body
     const contentType = response.headers["content-type"];
@@ -173,12 +178,14 @@ async function readRendered(
     directory: string,
     index: number,
     request: PageRequest,
+    environment: Environment<"files">,
 ): Promise<{ response: RenderedResponse; body: Uint8Array<ArrayBuffer> }> {
     try {
         // read the metadata, then the page body
-        const metadata = await readFile(join(directory, `${index}.json`), "utf8");
+        const { files } = environment;
+        const metadata = await files.readTextFile(join(directory, `${index}.json`));
         const response = RenderedResponse.parse(JSON.parse(metadata));
-        const body = new Uint8Array(await readFile(join(directory, `${index}.html`)));
+        const body = await files.readFile(join(directory, `${index}.html`));
 
         return { response, body };
     } catch (cause) {
@@ -190,83 +197,135 @@ async function readRendered(
     }
 }
 
-/** Render trusted source with a deadline between completed responses. */
-async function runProgram(program: string, timeout: number, count: number): Promise<void> {
-    // start the renderer without the host's environment
-    const child = spawn(process.execPath, ["run", "--no-env-file", program], {
-        cwd: dirname(program),
-        env: { PATH: process.env["PATH"], NO_COLOR: "1" },
-        stdio: ["ignore", "pipe", "pipe"],
-    });
-    await supervise(child, timeout, count);
-}
-
-/** Wait for a renderer to report every response. */
-function supervise(
-    child: ChildProcessByStdio<null, Readable, Readable>,
+/** Render a directory's plan in the renderer, with a deadline between completed responses. */
+async function runRenderer(
+    directory: string,
     timeout: number,
     count: number,
+    environment: Environment<"process">,
 ): Promise<void> {
-    return new Promise<void>((resolve, reject) => {
-        // stop the renderer when a response exceeds the timeout
-        let completed = 0;
-        let diagnostics = "";
-        let failure: Error | undefined;
-        const expire = () => {
-            failure = WebError.of(
-                "PRERENDER_TIMEOUT",
-                `prerender response ${completed} exceeded ${timeout} ms`,
-            );
-            child.kill("SIGKILL");
-        };
-        let timer = setTimeout(expire, timeout);
-
-        // extend the deadline only after the next complete response
-        const progress = createInterface({ input: child.stdout });
-        progress.on("line", (line) => {
-            if (completed < count && line === JSON.stringify({ rendered: completed })) {
-                completed++;
-                clearTimeout(timer);
-                timer = setTimeout(expire, timeout);
-            }
-        });
-
-        // bound the diagnostics kept from the renderer
-        child.stderr.setEncoding("utf8");
-        child.stderr.on("data", (chunk: string) => {
-            diagnostics += chunk;
-            if (diagnostics.length > MAX_DIAGNOSTICS) {
-                failure = WebError.of(
-                    "DIAGNOSTICS_TOO_LONG",
-                    "prerender diagnostics exceeded 1 MiB",
-                );
-                child.kill("SIGKILL");
-            }
-        });
-        child.on("error", (error) => {
-            failure = error;
-        });
-
-        // settle once the renderer exits
-        child.on("close", (code) => {
-            // stop the deadline and the progress reader
-            clearTimeout(timer);
-            progress.close();
-
-            // report the failure that stopped the renderer, else an unclean exit or missing responses
-            const error = failure ?? exitFailure(code, completed, count, diagnostics);
-            if (error === undefined) {
-                resolve();
-            } else {
-                reject(error);
-            }
-        });
+    // start the renderer without the host's environment
+    const { process } = environment;
+    const renderer = fileURLToPath(import.meta.resolve("@destack/web/prerender"));
+    const path = process.variables["PATH"];
+    const child = process.spawn([process.executable, "run", "--no-env-file", renderer, directory], {
+        workingDirectory: directory,
+        variables: {
+            ...(path === undefined ? {} : { PATH: path }),
+            NO_COLOR: "1",
+        },
+        stdout: "pipe",
+        stderr: "pipe",
     });
+    await supervise(child, timeout, count, environment);
+}
+
+/** Wait for a renderer to report every response, each within the timeout of the last. */
+async function supervise(
+    child: Subprocess,
+    timeout: number,
+    count: number,
+    environment: Pick<Environment, "clock">,
+): Promise<void> {
+    // stop the renderer once a response runs past the timeout
+    let completed = 0;
+    let failure: Error | undefined;
+    const stop = (error: Error) => {
+        failure ??= error;
+        child.kill("SIGKILL");
+    };
+    let deadline = new AbortController();
+    const arm = () => {
+        // restart the deadline
+        deadline.abort();
+        deadline = new AbortController();
+        const step = deadline.signal;
+        void environment.clock.sleep(timeout, step).then(
+            () =>
+                stop(
+                    WebError.of(
+                        "PRERENDER_TIMEOUT",
+                        `prerender response ${completed} exceeded ${timeout} ms`,
+                    ),
+                ),
+            (error: unknown) => {
+                if (!step.aborted) {
+                    throw error;
+                }
+            },
+        );
+    };
+    arm();
+
+    // count the responses and bound the diagnostics
+    const progress = readLines(child.stdout, (line) => {
+        if (completed < count && line === JSON.stringify({ rendered: completed })) {
+            completed++;
+            arm();
+        }
+    });
+    const diagnostics = readDiagnostics(child.stderr, () =>
+        stop(WebError.of("DIAGNOSTICS_TOO_LONG", "prerender diagnostics exceeded 1 MiB")),
+    );
+
+    // wait for the renderer to end, stopping the deadline however the wait ends
+    let ended: readonly [number, void, string];
+    try {
+        ended = await Promise.all([child.exited, progress, diagnostics]);
+    } finally {
+        deadline.abort();
+    }
+
+    // report what stopped the renderer, an unclean exit or a missing response
+    const [code, , text] = ended;
+    const error = failure ?? exitFailure(code, completed, count, text);
+    if (error !== undefined) {
+        throw error;
+    }
+}
+
+/** Call a listener with each line a stream's text carries, until it ends. */
+async function readLines(
+    stream: ReadableStream<Uint8Array>,
+    line: (text: string) => void,
+): Promise<void> {
+    // split the text at line ends
+    const decoder = new TextDecoder();
+    let pending = "";
+    for await (const chunk of stream) {
+        const lines = `${pending}${decoder.decode(chunk, { stream: true })}`.split("\n");
+        pending = present(lines.pop(), "a split line");
+        for (const each of lines) {
+            line(each);
+        }
+    }
+}
+
+/** Read a stream's text up to the diagnostics bound, calling a listener once it runs over. */
+async function readDiagnostics(
+    stream: ReadableStream<Uint8Array>,
+    overflow: () => void,
+): Promise<string> {
+    // keep the text until it runs past the bound
+    const decoder = new TextDecoder();
+    let text = "";
+    for await (const chunk of stream) {
+        // stop keeping text past the bound
+        if (text.length > MAX_DIAGNOSTICS) {
+            continue;
+        }
+        text += decoder.decode(chunk, { stream: true });
+        if (text.length > MAX_DIAGNOSTICS) {
+            overflow();
+        }
+    }
+
+    return text;
 }
 
 /** Read the failure of a renderer that exited uncleanly or early, absent otherwise. */
 function exitFailure(
-    code: number | null,
+    code: number,
     completed: number,
     count: number,
     diagnostics: string,

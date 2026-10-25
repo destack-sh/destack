@@ -3,8 +3,12 @@
     "id": "package-01a103c1-562e-7137-942d-c7336bd8e645",
     "language": "typescript",
     "runtimes": ["browser", "bun", "workerd"],
+    "entrypoints": ["src/build/prerender/program.ts", "src/test/setup.ts"],
     "exports": {
         "./build": {
+            "runtimes": ["bun"]
+        },
+        "./prerender": {
             "runtimes": ["bun"]
         }
     },

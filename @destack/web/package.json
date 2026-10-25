@@ -8,13 +8,15 @@
         "./destack.json": "./destack.json",
         "./build": "./src/build/index.ts",
         "./error": "./src/error/index.ts",
-        "./render": "./src/render/index.ts"
+        "./render": "./src/render/index.ts",
+        "./prerender": "./src/build/prerender/program.ts"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "dependencies": {
+        "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
