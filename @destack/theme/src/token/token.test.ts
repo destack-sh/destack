@@ -1,13 +1,10 @@
+import { testSimulation } from "@destack/test/world";
 import { fileURLToPath } from "node:url";
 import type { FileSystem } from "@destack/environment";
-import { Simulation } from "@destack/environment/simulation";
 import { expect, test } from "@destack/test";
 import { Source } from "../token/source.ts";
 import { TextStyleName, WeightName } from "../theme/theme.ts";
 import { TOKENS, TokenTree } from "../token/token.ts";
-
-/** The start of every test's world: 2026-10-24 at midnight UTC. */
-const START = Date.UTC(2026, 9, 24);
 
 /** Read a package file through a world's files. */
 function read(files: FileSystem, path: string): Promise<string> {
@@ -23,7 +20,7 @@ function keys(family: string): string[] {
 
 test("generate the token constants and text styles tokens.json describes", async () => {
     // read the generated modules in a world
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const { files } = simulation.environment("test");
 
     expect(await read(files, "src/token/tokens.stylex.ts")).toBe(Source.constants(TOKENS));
