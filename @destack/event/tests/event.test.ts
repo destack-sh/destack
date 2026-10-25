@@ -190,32 +190,32 @@ test("read the events of several scopes, hot and flushed, in one time order", as
     const fixture = await open();
     const { store } = fixture;
 
-    // flush three readings of the space, leave one hot, and add two of the organisation
+    // flush three readings of the space, leave one hot, and add two of the organization
     const within = (id: string, minute: number) => ({
         ...measured(id, minute, "db.bytes", minute),
         scope: "space-2",
     });
-    const organisation = (id: string, minute: number) => ({
+    const organization = (id: string, minute: number) => ({
         ...measured(id, minute, "db.bytes", minute),
-        scope: "organisation-1",
+        scope: "organization-1",
     });
     await store.append(reading, [within("w1", 1), within("w2", 3), within("w3", 5)]);
     await fixture.settle();
-    await store.append(reading, [within("w4", 6), organisation("o1", 2), organisation("o2", 4)]);
+    await store.append(reading, [within("w4", 6), organization("o1", 2), organization("o2", 4)]);
 
-    // read only the organisation, and with the space within it
+    // read only the organization, and with the space within it
     const ids = async (scopes: readonly [string, ...string[]]) =>
         (await store.query(reading, { scopes })).events.map((event) => [event.scope, event.id]);
-    expect([await ids(["organisation-1"]), await ids(["organisation-1", "space-2"])]).toEqual([
+    expect([await ids(["organization-1"]), await ids(["organization-1", "space-2"])]).toEqual([
         [
-            ["organisation-1", "o1"],
-            ["organisation-1", "o2"],
+            ["organization-1", "o1"],
+            ["organization-1", "o2"],
         ],
         [
             ["space-2", "w1"],
-            ["organisation-1", "o1"],
+            ["organization-1", "o1"],
             ["space-2", "w2"],
-            ["organisation-1", "o2"],
+            ["organization-1", "o2"],
             ["space-2", "w3"],
             ["space-2", "w4"],
         ],
