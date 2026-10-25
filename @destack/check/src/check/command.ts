@@ -19,7 +19,7 @@ export async function main(environment: Environment<"files" | "process" | "host"
 
     // reject independent tool settings
     if (files.some((file) => file.startsWith("-"))) {
-        throw CheckError.of("INVALID_CONFIGURATION", "tool overrides are not supported");
+        throw CheckError.of("CONFIGURATION_INVALID", "tool overrides are not supported");
     }
 
     // write direct-tool settings when requested
@@ -37,7 +37,7 @@ export async function main(environment: Environment<"files" | "process" | "host"
     if (command === "affected") {
         const [base] = files;
         if (base === undefined) {
-            throw CheckError.of("INVALID_CONFIGURATION", "affected needs a base commit");
+            throw CheckError.of("CONFIGURATION_INVALID", "affected needs a base commit");
         }
         const directories = await listAffected(options.directory, base, environment);
         await process.stdout.write(
@@ -56,7 +56,7 @@ export async function main(environment: Environment<"files" | "process" | "host"
     } else if (command === "format" || command === "format-check") {
         result = await formatPackage(options, command === "format");
     } else {
-        throw CheckError.of("INVALID_CONFIGURATION", `unknown command: ${command}`);
+        throw CheckError.of("CONFIGURATION_INVALID", `unknown command: ${command}`);
     }
 
     // report diagnostics or formatter output and preserve failure status

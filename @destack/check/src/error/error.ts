@@ -8,7 +8,7 @@ export const CheckError = defineErrorFamily(
     { name: DOMAIN },
     {
         // bad request
-        INVALID_CONFIGURATION: { code: "BAD_REQUEST" },
+        CONFIGURATION_INVALID: { code: "BAD_REQUEST" },
 
         // internal server error
         LANGUAGE_SERVICE_FAILED: { code: "INTERNAL_SERVER_ERROR" },

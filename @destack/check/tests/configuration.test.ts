@@ -116,7 +116,7 @@ test("refuse a hand-edited tsconfig.json", async () => {
     await files.writeTextFile(path, source.replace('"strict": true', '"strict": false'));
     expect(await refusal(checkConfiguration(directory, files))).toEqual([
         "BAD_REQUEST",
-        "INVALID_CONFIGURATION",
+        "CONFIGURATION_INVALID",
         "tsconfig.json differs from the shared configuration; run configure",
     ]);
 });

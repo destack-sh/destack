@@ -11,7 +11,7 @@ export async function listAffected(
     // read the workspace enclosing the directory
     const workspace = await Workspace.read(directory, environment.files);
     if (workspace === undefined) {
-        throw CheckError.of("INVALID_CONFIGURATION", `${directory} is not inside a workspace`);
+        throw CheckError.of("CONFIGURATION_INVALID", `${directory} is not inside a workspace`);
     }
 
     // list the files changed since the merge base with both sides of renames

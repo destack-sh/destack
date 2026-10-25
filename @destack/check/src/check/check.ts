@@ -57,7 +57,7 @@ async function lintPackage(options: CheckOptions, fix: boolean): Promise<CheckRe
     const selection = options.files ?? ["src"];
     for (const entry of selection) {
         if (!(await files.exists(resolve(directory, entry)))) {
-            throw CheckError.of("INVALID_CONFIGURATION", `selected path does not exist: ${entry}`);
+            throw CheckError.of("CONFIGURATION_INVALID", `selected path does not exist: ${entry}`);
         }
     }
 

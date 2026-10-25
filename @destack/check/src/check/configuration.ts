@@ -58,7 +58,7 @@ export function lintConfiguration(
     const rules: Record<string, "error"> = {};
     for (const plugin of plugins) {
         if (names.has(plugin.name)) {
-            throw CheckError.of("INVALID_CONFIGURATION", `duplicate lint plugin: ${plugin.name}`);
+            throw CheckError.of("CONFIGURATION_INVALID", `duplicate lint plugin: ${plugin.name}`);
         }
         names.add(plugin.name);
         for (const name of Object.keys(plugin.rules)) {
@@ -280,7 +280,7 @@ async function readPreloads(
             const target = member.manifest.exports?.[subpath];
             if (typeof target !== "string") {
                 throw CheckError.of(
-                    "INVALID_CONFIGURATION",
+                    "CONFIGURATION_INVALID",
                     `${specifier} is no single module its package exports`,
                 );
             }
@@ -479,7 +479,7 @@ export async function checkConfiguration(
             const source = await files.readTextFile(path);
             if (!isDeepStrictEqual(JSON.parse(source), configuration)) {
                 throw CheckError.of(
-                    "INVALID_CONFIGURATION",
+                    "CONFIGURATION_INVALID",
                     `${name} differs from the shared configuration; run configure`,
                 );
             }
