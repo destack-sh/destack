@@ -508,7 +508,7 @@ export class ShaderMount {
         const flat = value.flat();
         if (Array.isArray(first) && flat.length !== size * value.length) {
             throw ShaderError.of(
-                "INVALID_UNIFORM",
+                "UNIFORM_INVALID",
                 `the vectors of uniform ${name} differ in size`,
             );
         }
@@ -528,7 +528,7 @@ export class ShaderMount {
                 return context.uniformMatrix4fv(location, false, flat);
             default:
                 throw ShaderError.of(
-                    "INVALID_UNIFORM",
+                    "UNIFORM_INVALID",
                     `uniform ${name} has ${size} components, not 2, 3, 4, 9 or 16`,
                 );
         }

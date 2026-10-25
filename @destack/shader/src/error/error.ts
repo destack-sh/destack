@@ -4,8 +4,8 @@ import type {} from "@destack/package/import-meta";
 /** The shader package's failures, each reason with the call error code it answers. */
 export const ShaderError = defineErrorFamily(import.meta.destack.package, {
     // bad request
-    INVALID_COLOR: { code: "BAD_REQUEST" },
-    INVALID_UNIFORM: { code: "BAD_REQUEST" },
+    COLOR_INVALID: { code: "BAD_REQUEST" },
+    UNIFORM_INVALID: { code: "BAD_REQUEST" },
 
     // precondition failed
     CANVAS_UNSUPPORTED: { code: "PRECONDITION_FAILED" },

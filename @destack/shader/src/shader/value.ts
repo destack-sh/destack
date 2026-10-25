@@ -99,7 +99,7 @@ export function colorsOf(values: readonly string[], element: Element): Map<strin
     const texts = [...new Set(values)];
     for (const text of texts) {
         if (!CSS.supports("color", text)) {
-            throw ShaderError.of("INVALID_COLOR", `${text} is not a CSS color`);
+            throw ShaderError.of("COLOR_INVALID", `${text} is not a CSS color`);
         }
     }
 
