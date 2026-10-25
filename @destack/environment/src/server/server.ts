@@ -1,4 +1,4 @@
-import type { TcpListener, TcpListenOptions } from "../network/tcp/tcp.ts";
+import type { SocketListener, SocketListenOptions } from "../network/socket/socket.ts";
 
 /** A WebSocket a listener accepted, with its attachment. */
 export interface ServerSocket<Attachment> {
@@ -52,10 +52,10 @@ export interface ServeOptions<Attachment> {
     readonly websocket?: ServerSocketHandler<Attachment>;
 }
 
-/** The accepting of connections: requests and WebSockets, and TCP. */
+/** The accepting of connections: requests and WebSockets, and stream sockets. */
 export interface Server {
     /** Accept requests and WebSockets, as `Bun.serve` does. */
     readonly http: <Attachment>(options: ServeOptions<Attachment>) => Listener<Attachment>;
-    /** Accept TCP connections at a host name and port, as `Bun.listen` does. */
-    readonly tcp: (options: TcpListenOptions) => Promise<TcpListener>;
+    /** Accept connections at a host name and port or a Unix socket's path, as `Bun.listen` does. */
+    readonly socket: (options: SocketListenOptions) => Promise<SocketListener>;
 }

@@ -1,5 +1,7 @@
 import { expect, test } from "@destack/test";
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { createServer, type Server, type Socket } from "node:net";
 import { TLSSocket } from "node:tls";
 import { BunNetwork } from "../bun.ts";
@@ -39,7 +41,7 @@ function portOf(server: Server): number {
 
 test("echo bytes over a system TCP connection on the loopback, and end it from the client", async () => {
     // echo each connection's bytes back
-    const listener = await BunServer.tcp({
+    const listener = await BunServer.socket({
         hostname: "127.0.0.1",
         accept: (socket) => void socket.readable.pipeTo(socket.writable).catch(() => undefined),
     });
@@ -56,7 +58,47 @@ test("echo bytes over a system TCP connection on the loopback, and end it from t
     expect(echoed).toBe("hello\r\n");
 });
 
-/** Server a STARTTLS greeting: plain until the client asks, then TLS echoing in upper case. */
+test("echo bytes over a Unix socket, refusing TLS on one and a path nothing listens at", async () => {
+    // echo each connection's bytes back at a socket in a fresh directory
+    const directory = await mkdtemp(join(tmpdir(), "destack-socket-"));
+    const unix = join(directory, "echo.sock");
+    const listener = await BunServer.socket({
+        unix,
+        accept: (socket) => void socket.readable.pipeTo(socket.writable).catch(() => undefined),
+    });
+
+    // connect it, write a line and read it back, then refuse a TLS connection at the path
+    try {
+        const socket = BunNetwork.connect({ unix });
+        await socket.opened;
+        const writer = socket.writable.getWriter();
+        await writer.write(ENCODER.encode("hello\n"));
+        const echoed = await readBytes(socket.readable.getReader(), "hello\n".length);
+        await socket.close();
+        const refusal = (() => {
+            try {
+                return BunNetwork.connect({ unix }, { secureTransport: "on" });
+            } catch (error) {
+                return error;
+            }
+        })();
+        const unserved = await BunNetwork.connect({
+            unix: join(directory, "missing.sock"),
+        }).opened.catch((error: Error) => ("code" in error ? error.code : error));
+
+        expect([listener.address, echoed, refusal, unserved]).toEqual([
+            { unix },
+            "hello\n",
+            new TypeError("a Unix socket connection cannot use TLS"),
+            "ConnectionRefused",
+        ]);
+    } finally {
+        await listener.stop();
+        await rm(directory, { recursive: true });
+    }
+});
+
+/** Serve a STARTTLS greeting: plain until the client asks, then TLS echoing in upper case. */
 function serveStartTls(pem: { readonly key: string; readonly cert: string }) {
     return createServer((plain: Socket) => {
         // greet, and switch to TLS once the client asks

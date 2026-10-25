@@ -1,5 +1,5 @@
 import { NetworkError } from "./error.ts";
-import type { ConnectOptions, SocketAddress, TcpSocket } from "./tcp/tcp.ts";
+import type { ConnectOptions, SocketAddress, Socket } from "./socket/socket.ts";
 
 /** A TLS client certificate a request presents (RFC 8705). */
 export interface ClientCertificate {
@@ -55,8 +55,8 @@ export interface ClientSocket {
 export interface Network {
     /** Send a request and answer its response. */
     readonly fetch: (request: Request, options?: FetchOptions) => Promise<Response>;
-    /** Open a TCP connection to an address, such as an SMTP server's. */
-    readonly connect: (address: SocketAddress, options?: ConnectOptions) => TcpSocket;
+    /** Open a connection to a host and port, such as an SMTP server's, or to a Unix socket. */
+    readonly connect: (address: SocketAddress, options?: ConnectOptions) => Socket;
     /** Open a WebSocket to a URL, offering subprotocols. */
     readonly websocket: (url: string, protocols?: string | readonly string[]) => ClientSocket;
 }
@@ -159,7 +159,7 @@ export const Network: { readonly system: Network } = {
             return fetch(request);
         },
         connect: () => {
-            throw NetworkError.of("UNSUPPORTED", "a TCP connection needs a host network");
+            throw NetworkError.of("UNSUPPORTED", "a socket connection needs a host network");
         },
         websocket: (url, protocols) =>
             new SystemSocket(

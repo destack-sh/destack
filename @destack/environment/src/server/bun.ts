@@ -1,6 +1,6 @@
 import type { ServerWebSocket } from "bun";
 import type { Listener, ServeOptions, Server, ServerSocket } from "./server.ts";
-import { listenTcp } from "../network/tcp/bun.ts";
+import { listenSocket } from "../network/socket/bun.ts";
 
 /** What Bun stores beside a socket: the key of its attachment in the listener. */
 interface BunSocketKey {
@@ -88,5 +88,5 @@ function serveHttp<Attachment>(options: ServeOptions<Attachment>): Listener<Atta
     return listener;
 }
 
-/** Accept requests, sockets and TCP connections through Bun's servers. */
-export const BunServer: Server = { http: serveHttp, tcp: listenTcp };
+/** Accept requests, WebSockets and stream sockets through Bun's servers. */
+export const BunServer: Server = { http: serveHttp, socket: listenSocket };

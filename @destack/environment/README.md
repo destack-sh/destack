@@ -25,6 +25,7 @@ await environment.crypto.digest("SHA-256", bytes); // crypto.subtle's operations
 await environment.network.fetch(new Request("https://notes.test/today"));
 environment.network.websocket(url, ["tunnel"]); // a WebSocket, binary as ArrayBuffers
 environment.network.connect({ hostname: "smtp.test", port: 25 }); // a TCP socket, as Cloudflare's connect()
+environment.network.connect({ unix: "/run/destack.sock" }); // a Unix socket, as Bun.connect({ unix })
 body.pipeThrough(environment.compression.compress("gzip")); // CompressionStream
 environment.telemetry.tracers.getTracer("notes"); // OpenTelemetry's providers, stamped on telemetry.clock
 new TraceIdGenerator(environment); // OpenTelemetry's IdGenerator, trace ids starting with their millisecond
@@ -46,7 +47,7 @@ const { code, stdout } = await environment.process
 environment.process.variables["HOME"];
 // Bun.serve and Bun.listen
 environment.server.http({ hostname: "127.0.0.1", port: 0, fetch });
-await environment.server.tcp({ hostname: "127.0.0.1", accept });
+await environment.server.socket({ hostname: "127.0.0.1", accept });
 environment.host.os; // "darwin" | "linux" | "win32"
 environment.workers.start(new URL("./worker.ts", import.meta.url), { name: "database" });
 ```
@@ -66,7 +67,6 @@ const port = environment.broadcast.open("destack:space");
 using _subscription = port.on((message) => apply(message));
 await environment.storage.persist(); // the Storage Standard's persist(), beside localStorage's getItem and setItem
 environment.navigation.navigate("/inbox"); // the Navigation API
-await environment.clipboard.writeText(text);
 environment.display.media("(prefers-color-scheme: dark)"); // matchMedia
 // each node a tab of one origin, sharing its locks and broadcast channels
 const tab = new BrowserSimulation(simulation).environment("tab");

@@ -7,13 +7,13 @@ import {
     SimulatedRandom,
     Simulation,
 } from "../src/simulation/index.ts";
-import type { ServerSocket, TcpSocket } from "../src/index.ts";
+import type { ServerSocket, Socket } from "../src/index.ts";
 
 /** The simulations' start: 2026-10-16 at midnight UTC. */
 const START = Date.UTC(2026, 9, 16);
-/** The encoder of the TCP tests' lines. */
+/** The encoder of the socket tests' lines. */
 const ENCODER = new TextEncoder();
-/** The decoder of the TCP tests' lines. */
+/** The decoder of the socket tests' lines. */
 const DECODER = new TextDecoder();
 
 test("release a simulated clock's waits in deadline order as it moves in whole milliseconds, and refuse moving it back", async () => {
@@ -448,10 +448,58 @@ test("break sockets across a partition and from a crashed node, and close them o
     ]);
 });
 
-/** Listen for TCP connections on a node, echoing each line back in upper case. */
+test("connect nodes sharing the host's files over a Unix socket through isolation and loss, refusing TLS toward one", async () => {
+    // listen at a Unix socket on one node, then isolate both nodes and drop every network delivery
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const listener = await simulation.network.server("database").socket({
+        unix: "/run/destack.sock",
+        accept: (socket) => void socket.readable.pipeTo(socket.writable).catch(() => undefined),
+    });
+    simulation.network.isolate("database");
+    simulation.network.isolate("app");
+    simulation.network.degrade({ drop: 1 });
+
+    // echo a line from another node, refuse a path nothing listens at, and refuse TLS toward the socket
+    const { network } = simulation.environment("app");
+    const socket = network.connect({ unix: "/run/destack.sock" });
+    const echoed = (async () => {
+        await socket.opened;
+        const writer = socket.writable.getWriter();
+        await writer.write(ENCODER.encode("ping"));
+        const { value } = await socket.readable.getReader().read();
+
+        return DECODER.decode(value);
+    })();
+    const refused = network
+        .connect({ unix: "/run/missing.sock" })
+        .opened.catch((error: Error) => coded(error));
+    const insecure = (() => {
+        try {
+            return network.connect({ unix: "/run/destack.sock" }, { secureTransport: "on" });
+        } catch (error) {
+            return error;
+        }
+    })();
+
+    expect([
+        listener.address,
+        await simulation.drive(echoed),
+        await simulation.drive(refused),
+        insecure,
+    ]).toEqual([
+        { unix: "/run/destack.sock" },
+        "ping",
+        "ConnectionRefused: connection refused: nothing listens at /run/missing.sock",
+        new TypeError("a Unix socket connection cannot use TLS"),
+    ]);
+    await socket.close();
+    await listener.stop();
+});
+
+/** Listen for socket connections on a node, echoing each line back in upper case. */
 async function listenUpper(simulation: Simulation, node: string) {
-    const accepted: TcpSocket[] = [];
-    const listener = await simulation.network.server(node).tcp({
+    const accepted: Socket[] = [];
+    const listener = await simulation.network.server(node).socket({
         hostname: "smtp.test",
         port: 25,
         accept: (socket) => {
@@ -558,7 +606,7 @@ test("half-close a TCP connection, delivering the peer's bytes in flight, and ig
     simulation.network.degrade({ delay: { least: 5, most: 50 } });
     const served: string[] = [];
     let serverRead = "";
-    await simulation.network.server("mail").tcp({
+    await simulation.network.server("mail").socket({
         hostname: "smtp.test",
         port: 25,
         accept: (socket) => {
@@ -905,6 +953,25 @@ test("jump a day at once, waking a repeating wait a single time where running st
         run: { count: 360, now: START + 3_600_000 },
         jump: { count: 1, now: START + 86_400_000 },
     });
+});
+
+test("jump right after driven work settles, and refuse a jump while a drive still waits", async () => {
+    // drive a sleep to its end, then jump at once while the loop winds down
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const { clock } = simulation.environment("node");
+    await simulation.drive(clock.sleep(1000));
+    await simulation.jump(START + 60_000);
+    const jumped = simulation.clock.now() - START;
+
+    // refuse jumping while a drive of a later sleep still waits on the loop
+    const pending = simulation.drive(clock.sleep(1000));
+    const refused = await simulation.jump(START + 120_000).then(
+        () => "jumped",
+        (error: unknown) => (error instanceof Error ? error.message : "refused"),
+    );
+    await pending;
+
+    expect([jumped, refused]).toEqual([60_000, "a simulation cannot jump while it runs"]);
 });
 
 test("give up an aborted request, lose a response cut on its way back, and keep a listener a node serves again", async () => {

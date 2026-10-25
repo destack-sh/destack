@@ -1,5 +1,5 @@
 import { Network } from "./network.ts";
-import { connectTcp } from "./tcp/bun.ts";
+import { connectSocket } from "./socket/bun.ts";
 
 /** Bun's network: the web's, with client certificates, Unix sockets and TCP connections. */
 export const BunNetwork: Network = {
@@ -15,6 +15,6 @@ export const BunNetwork: Network = {
             ...(decompress === undefined ? {} : { decompress }),
         });
     },
-    connect: connectTcp,
+    connect: connectSocket,
     websocket: Network.system.websocket,
 };

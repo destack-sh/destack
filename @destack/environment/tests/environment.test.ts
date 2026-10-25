@@ -88,7 +88,7 @@ test("accept requests and TCP connections a node serves from another node", asyn
         fetch: (request) => new Response(`accepted ${new URL(request.url).pathname}`),
     });
     const accepted: string[] = [];
-    const tcp = await host.server.tcp({
+    const tcp = await host.server.socket({
         hostname: "mail.test",
         port: 25,
         accept: () => accepted.push("mail"),

@@ -1,16 +1,19 @@
-import type { Socket, SocketHandler, TLSOptions } from "bun";
+import type * as bun from "bun";
 import { present } from "@destack/schema";
 import {
     type ConnectOptions,
+    type HostAddress,
+    refuseUnixTls,
+    socketName,
     type SocketAddress,
-    TcpInbox,
-    type TcpListener,
-    type TcpListenOptions,
-    type TcpSocket,
-} from "./tcp.ts";
+    SocketInbox,
+    type SocketListener,
+    type SocketListenOptions,
+    type Socket,
+} from "./socket.ts";
 
-/** One end of a TCP connection over a Bun socket, read and written as web streams. */
-class BunTcpEnd implements TcpSocket {
+/** One end of a connection over a Bun socket, read and written as web streams. */
+class BunSocketEnd implements Socket {
     /** The bytes the peer sends. */
     readonly readable: ReadableStream<Uint8Array>;
     /** The bytes sent to the peer. */
@@ -28,9 +31,9 @@ class BunTcpEnd implements TcpSocket {
     /** The settlers of the close. */
     readonly #closing = Promise.withResolvers<void>();
     /** The readable and its controller, taking received bytes. */
-    readonly #inbox = TcpInbox.open(() => this.#socket?.terminate());
+    readonly #inbox = SocketInbox.open(() => this.#socket?.terminate());
     /** The Bun socket, once it opened. */
-    #socket: Socket<BunTcpEnd> | undefined;
+    #socket: bun.Socket<BunSocketEnd> | undefined;
     /** The settlers of the next drain, while a write waits for the socket's buffer. */
     #drain: PromiseWithResolvers<void> | undefined;
     /** Whether the readable ended, by the peer's end, a failure or the TLS socket replacing it. */
@@ -65,7 +68,7 @@ class BunTcpEnd implements TcpSocket {
     }
 
     /** Take the Bun socket once it opened. */
-    open(socket: Socket<BunTcpEnd>): void {
+    open(socket: bun.Socket<BunSocketEnd>): void {
         this.#socket = socket;
         this.#opening.resolve();
     }
@@ -105,9 +108,30 @@ class BunTcpEnd implements TcpSocket {
         }
     }
 
+    /** Fail a connect as the simulated network does, refused where nothing listens. */
+    refuse(error: Error): void {
+        // read a missing or unserved address as a refusal naming it
+        const code = "code" in error ? error.code : undefined;
+        const address = this.#target?.address;
+        const isRefused = code === "ECONNREFUSED" || code === "ENOENT";
+        this.settle(
+            isRefused && address !== undefined
+                ? Object.assign(
+                      new TypeError(
+                          `connection refused: nothing listens at ${socketName(address)}`,
+                      ),
+                      { code: "ConnectionRefused", cause: error },
+                  )
+                : error,
+        );
+    }
+
     /** Settle the close once the socket closed. */
     settle(failure?: Error): void {
+        // end the readable, fail a write waiting for a drain, and settle the close
         this.end(failure);
+        this.#drain?.reject(closed());
+        this.#drain = undefined;
         this.#closing.resolve();
     }
 
@@ -117,23 +141,36 @@ class BunTcpEnd implements TcpSocket {
         await this.closed;
     }
 
+    /** Let the process exit while the connection stays open, once it opened. */
+    unref(): void {
+        void this.opened.then(
+            () => this.#socket?.unref(),
+            () => undefined,
+        );
+    }
+
     /** Start TLS over a connection connected for it, answering the socket that replaces it. */
-    startTls(): TcpSocket {
+    startTls(): Socket {
         // refuse an upgrade of a connection not connected for one
         const socket = this.#socket;
-        if (this.#target?.options.secureTransport !== "starttls" || socket === undefined) {
+        const target = this.#target;
+        if (
+            target?.options.secureTransport !== "starttls" ||
+            !("hostname" in target.address) ||
+            socket === undefined
+        ) {
             throw new TypeError("only an open connection connected with starttls can start TLS");
         }
 
         // hand the socket to TLS, which reads and writes it from now on, retiring this end
-        const secure = new BunTcpEnd();
+        const secure = new BunSocketEnd();
         this.#isEnded = true;
         this.#isReplaced = true;
         this.#inbox.controller.close();
         this.#closing.resolve();
         socket.upgradeTLS({
             data: secure,
-            tls: BunTcpEnd.tls(this.#target.address, this.#target.options),
+            tls: BunSocketEnd.tls(target.address, target.options),
             socket: HANDLERS,
         });
 
@@ -141,7 +178,7 @@ class BunTcpEnd implements TcpSocket {
     }
 
     /** Read the TLS options of a connect: its server name and trusted authorities. */
-    static tls(address: SocketAddress, options: ConnectOptions): TLSOptions {
+    static tls(address: HostAddress, options: ConnectOptions): bun.TLSOptions {
         return {
             serverName: address.hostname,
             ...(options.certificateAuthorities === undefined
@@ -156,6 +193,9 @@ class BunTcpEnd implements TcpSocket {
         while (rest.length > 0) {
             // write what the socket takes, and wait for a drain for the rest
             const written = present(this.#socket, "the open socket").write(rest);
+            if (written < 0) {
+                throw closed();
+            }
             rest = rest.subarray(written);
             if (rest.length > 0) {
                 this.#drain = Promise.withResolvers<void>();
@@ -166,60 +206,81 @@ class BunTcpEnd implements TcpSocket {
 }
 
 /** The handlers of every Bun socket, passing each event to the end the socket keeps. */
-const HANDLERS: SocketHandler<BunTcpEnd> = {
+const HANDLERS: bun.SocketHandler<BunSocketEnd> = {
     open: (socket) => socket.data.open(socket),
     data: (socket, chunk) => socket.data.receive(chunk),
     drain: (socket) => socket.data.drain(),
     end: (socket) => socket.data.end(),
     error: (socket, error) => socket.data.end(error),
-    connectError: (socket, error) => socket.data.settle(error),
+    connectError: (socket, error) => socket.data.refuse(error),
     close: (socket, error) => socket.data.settle(error),
 };
 
-/** Connect a TCP connection through Bun's sockets, in TLS from the first byte when asked. */
-export function connectTcp(address: SocketAddress, options: ConnectOptions = {}): TcpSocket {
-    // refuse runtimes without Bun's sockets
+/** Connect through Bun's sockets to a host and port, in TLS when asked, or to a Unix socket. */
+export function connectSocket(address: SocketAddress, options: ConnectOptions = {}): Socket {
+    // refuse runtimes without Bun's sockets, and TLS toward a Unix socket
     if (typeof Bun === "undefined") {
         throw new TypeError("connecting requires the Bun runtime");
     }
+    refuseUnixTls(address, options);
 
-    // connect in plain text, or in TLS verified against the given authorities
-    const end = new BunTcpEnd({ address, options });
-    void Bun.connect<BunTcpEnd>({
-        hostname: address.hostname,
-        port: address.port,
-        data: end,
-        socket: HANDLERS,
-        ...(options.secureTransport === "on" ? { tls: BunTcpEnd.tls(address, options) } : {}),
-    }).catch(() => undefined);
+    // connect to the Unix socket, or to the host in plain text or in TLS
+    const end = new BunSocketEnd({ address, options });
+    const connecting =
+        "unix" in address
+            ? Bun.connect<BunSocketEnd>({ unix: address.unix, data: end, socket: HANDLERS })
+            : Bun.connect<BunSocketEnd>({
+                  hostname: address.hostname,
+                  port: address.port,
+                  data: end,
+                  socket: HANDLERS,
+                  ...(options.secureTransport === "on"
+                      ? { tls: BunSocketEnd.tls(address, options) }
+                      : {}),
+              });
+    void connecting.catch(() => undefined);
 
     return end;
 }
 
-/** Listen for plain TCP connections through Bun's sockets. */
-export async function listenTcp(options: TcpListenOptions): Promise<TcpListener> {
+/** Listen for plain connections through Bun's sockets, at a host and port or a Unix socket. */
+export async function listenSocket(options: SocketListenOptions): Promise<SocketListener> {
     // refuse runtimes without Bun's sockets
     if (typeof Bun === "undefined") {
         throw new TypeError("listening requires the Bun runtime");
     }
 
     // accept each connection as an end of its own
-    const hostname = options.hostname ?? "localhost";
-    const listener = Bun.listen<BunTcpEnd>({
-        hostname,
-        port: options.port ?? 0,
-        socket: {
-            ...HANDLERS,
-            open: (socket) => {
-                socket.data = new BunTcpEnd();
-                socket.data.open(socket);
-                options.accept(socket.data);
-            },
+    const socket: bun.SocketHandler<BunSocketEnd> = {
+        ...HANDLERS,
+        open: (accepted) => {
+            accepted.data = new BunSocketEnd();
+            accepted.data.open(accepted);
+            options.accept(accepted.data);
         },
-    });
+    };
+
+    // listen at the Unix socket, or at the host and the given or a free port
+    if (options.unix !== undefined) {
+        const listener = Bun.listen<BunSocketEnd>({ unix: options.unix, socket });
+
+        return {
+            address: { unix: options.unix },
+            stop: async () => listener.stop(true),
+            unref: () => listener.unref(),
+        };
+    }
+    const hostname = options.hostname ?? "localhost";
+    const listener = Bun.listen<BunSocketEnd>({ hostname, port: options.port ?? 0, socket });
 
     return {
         address: { hostname, port: listener.port },
         stop: async () => listener.stop(true),
+        unref: () => listener.unref(),
     };
+}
+
+/** Describe a write to a connection that closed, as the simulated network reports it. */
+function closed(): TypeError {
+    return Object.assign(new TypeError("the connection closed"), { code: "ConnectionClosed" });
 }

@@ -9,15 +9,20 @@ import type {
 import {
     type ConnectOptions,
     type SocketAddress,
-    TcpInbox,
-    type TcpListener,
-    type TcpListenOptions,
-    type TcpSocket,
-} from "./tcp/tcp.ts";
+    refuseUnixTls,
+    socketName,
+    SocketInbox,
+    type SocketListener,
+    type SocketListenOptions,
+    type Socket,
+} from "./socket/socket.ts";
 import { Random } from "../random/random.ts";
 import type { SimulatedClock } from "../clock/simulated.ts";
 import type { SimulationEvent } from "../simulation/simulation.ts";
 import { ABNORMAL_CLOSURE, NORMAL_CLOSURE, SimulatedWebSocket } from "./websocket.ts";
+
+/** The prefix of a Unix socket's key, which every node sharing the host's files reaches. */
+const UNIX_KEY = "unix:";
 
 /** The first dynamic port, where simulated listeners on port zero start (RFC 6335). */
 const FIRST_DYNAMIC_PORT = 49152;
@@ -76,7 +81,7 @@ interface Connection {
     readonly client: string;
     /** The server's node. */
     readonly server: string;
-    /** The listener's host name and port. */
+    /** The listener's key: its host name and port, or its Unix socket's path. */
     readonly address: string;
     /** The client's socket. */
     readonly socket: SimulatedWebSocket;
@@ -88,34 +93,34 @@ interface Connection {
     isOpen: boolean;
 }
 
-/** A TCP listener's place on the network. */
-interface TcpEndpoint {
+/** A socket listener's place on the network. */
+interface SocketEndpoint {
     /** The node listening. */
     readonly node: string;
     /** Take an accepted connection's server end. */
-    readonly accept: (socket: TcpSocket) => void;
+    readonly accept: (socket: Socket) => void;
 }
 
-/** One way of a TCP connection: the receiving end's inbox and when its last delivery arrives. */
-interface TcpWay {
+/** One way of a socket connection: the receiving end's inbox and when its last delivery arrives. */
+interface SocketWay {
     /** The receiving end's inbox, which a TLS upgrade replaces. */
-    inbox: TcpInbox;
+    inbox: SocketInbox;
     /** When the last delivery arrives, which keeps the bytes in order. */
     arrival: number;
     /** Whether the way carries bytes, ends after its bytes in flight, or ended at the receiver. */
     state: "open" | "ending" | "ended";
 }
 
-/** An open TCP connection between a client node and a listening node. */
-interface TcpConnection {
+/** An open socket connection between a client node and a listening node. */
+interface SocketConnection {
     /** The client's node. */
     readonly client: string;
     /** The server's node. */
     readonly server: string;
-    /** The listener's host name and port. */
+    /** The listener's key: its host name and port, or its Unix socket's path. */
     readonly address: string;
     /** The ways toward the server and toward the client. */
-    readonly ways: Record<Direction, TcpWay>;
+    readonly ways: Record<Direction, SocketWay>;
     /** The settlers of its ends' closes. */
     readonly closes: Set<() => void>;
     /** Whether the connection still carries bytes. */
@@ -231,10 +236,10 @@ export class SimulatedNetwork {
     readonly #endpoints = new Map<string, Endpoint>();
     /** The open connections. */
     readonly #connections = new Set<Connection>();
-    /** The TCP listeners by host name and port. */
-    readonly #tcpEndpoints = new Map<string, TcpEndpoint>();
-    /** The open TCP connections. */
-    readonly #tcpConnections = new Set<TcpConnection>();
+    /** The socket listeners by key. */
+    readonly #socketEndpoints = new Map<string, SocketEndpoint>();
+    /** The open socket connections. */
+    readonly #socketConnections = new Set<SocketConnection>();
     /** The pairs of nodes that cannot reach each other, as `a b` keys. */
     readonly #partitions = new Set<string>();
     /** The nodes cut off from every other, such as browsers gone offline. */
@@ -292,11 +297,11 @@ export class SimulatedNetwork {
         };
     }
 
-    /** Read the server a node accepts requests, sockets and TCP connections through. */
+    /** Read the server a node accepts requests, WebSockets and stream sockets through. */
     server(node: string): Server {
         return {
             http: (options) => this.#serve(node, options),
-            tcp: async (options) => this.#listen(node, options),
+            socket: async (options) => this.#listen(node, options),
         };
     }
 
@@ -313,9 +318,9 @@ export class SimulatedNetwork {
                 this.#break(connection);
             }
         }
-        for (const connection of this.#tcpConnections) {
+        for (const connection of this.#socketConnections) {
             if (SimulatedNetwork.#pair(connection.client, connection.server) === pair) {
-                this.#breakTcp(connection);
+                this.#breakSocket(connection);
             }
         }
     }
@@ -330,15 +335,15 @@ export class SimulatedNetwork {
         this.#tellIsolation(node, true);
         this.#record({ kind: "partition", at: this.#clock.now(), detail: `${node} *` });
 
-        // break its connections
+        // break the connections the isolation cuts
         for (const connection of this.#connections) {
-            if (connection.client === node || connection.server === node) {
+            if (this.#isCut(connection.client, connection.server)) {
                 this.#break(connection);
             }
         }
-        for (const connection of this.#tcpConnections) {
-            if (connection.client === node || connection.server === node) {
-                this.#breakTcp(connection);
+        for (const connection of this.#socketConnections) {
+            if (this.#isSocketCut(connection.address, connection.client, connection.server)) {
+                this.#breakSocket(connection);
             }
         }
     }
@@ -372,12 +377,13 @@ export class SimulatedNetwork {
         }
     }
 
-    /** Report whether the network between two nodes is cut, by a partition or an isolation. */
+    /** Report whether the network between two nodes is cut, never a node from itself. */
     #isCut(left: string, right: string): boolean {
         return (
-            this.#isolated.has(left) ||
-            this.#isolated.has(right) ||
-            this.#partitions.has(SimulatedNetwork.#pair(left, right))
+            left !== right &&
+            (this.#isolated.has(left) ||
+                this.#isolated.has(right) ||
+                this.#partitions.has(SimulatedNetwork.#pair(left, right)))
         );
     }
 
@@ -408,14 +414,14 @@ export class SimulatedNetwork {
                 this.#endpoints.delete(origin);
             }
         }
-        for (const [address, endpoint] of this.#tcpEndpoints) {
+        for (const [address, endpoint] of this.#socketEndpoints) {
             if (endpoint.node === node) {
-                this.#tcpEndpoints.delete(address);
+                this.#socketEndpoints.delete(address);
             }
         }
-        for (const connection of this.#tcpConnections) {
+        for (const connection of this.#socketConnections) {
             if (connection.client === node || connection.server === node) {
-                this.#breakTcp(connection);
+                this.#breakSocket(connection);
             }
         }
 
@@ -464,45 +470,51 @@ export class SimulatedNetwork {
         return listener;
     }
 
-    /** Listen for TCP connections as a node at a host name and port. */
-    #listen(node: string, options: TcpListenOptions): TcpListener {
-        // take the given port, or the next free one for zero or none
-        const isFree = options.port === undefined || options.port === 0;
-        const port = isFree ? this.#port : options.port;
-        this.#port += isFree ? 1 : 0;
+    /** Listen for socket connections as a node at a host name and port, or at a Unix socket. */
+    #listen(node: string, options: SocketListenOptions): SocketListener {
+        // take the Unix socket, the given port, or the next free one for zero or none
+        const requested = options.port ?? 0;
+        const port = requested === 0 ? this.#port : requested;
+        const listened: SocketAddress =
+            options.unix === undefined
+                ? { hostname: options.hostname ?? "localhost", port }
+                : { unix: options.unix };
+        this.#port += options.unix === undefined && requested === 0 ? 1 : 0;
 
         // refuse an address another listener has
-        const hostname = options.hostname ?? "localhost";
-        const address = `${hostname}:${port}`;
-        if (this.#tcpEndpoints.has(address)) {
+        const address = socketKey(listened);
+        if (this.#socketEndpoints.has(address)) {
             throw new TypeError(`${address} is already listened at`);
         }
         const endpoint = { node, accept: options.accept };
-        this.#tcpEndpoints.set(address, endpoint);
+        this.#socketEndpoints.set(address, endpoint);
 
         return {
-            address: { hostname, port },
+            address: listened,
             stop: async () => {
                 // stop listening, never removing one a restarted node listens with now
-                if (this.#tcpEndpoints.get(address) === endpoint) {
-                    this.#tcpEndpoints.delete(address);
+                if (this.#socketEndpoints.get(address) === endpoint) {
+                    this.#socketEndpoints.delete(address);
                 }
-                for (const connection of this.#tcpConnections) {
+                for (const connection of this.#socketConnections) {
                     if (connection.address === address) {
-                        this.#breakTcp(connection);
+                        this.#breakSocket(connection);
                     }
                 }
             },
+            // keep nothing running, as the simulation's clock decides when it ends
+            unref: () => {},
         };
     }
 
-    /** Open a node's TCP connection to a listener, TLS being a plain upgrade here. */
-    #connect(from: string, address: SocketAddress, options: ConnectOptions = {}): TcpSocket {
-        // make the client's end, sending once the connection opened
-        const key = `${address.hostname}:${address.port}`;
-        const connecting = Promise.withResolvers<TcpConnection>();
-        const inbox = TcpInbox.open(() => undefined);
-        const client = this.#tcpEnd({
+    /** Open a node's socket connection to a listener, TLS being a plain upgrade here. */
+    #connect(from: string, address: SocketAddress, options: ConnectOptions = {}): Socket {
+        // refuse TLS toward a Unix socket, and make the client's end, sending once the connection opened
+        refuseUnixTls(address, options);
+        const key = socketKey(address);
+        const connecting = Promise.withResolvers<SocketConnection>();
+        const inbox = SocketInbox.open(() => undefined);
+        const client = this.#socketEnd({
             connected: connecting.promise,
             way: "toServer",
             inbox,
@@ -512,12 +524,15 @@ export class SimulatedNetwork {
         // reach the listener, accepting the connection at its end after the latency
         const opened = (async () => {
             // refuse an address nothing listens at, a node cut off from it, and a lost connection
-            const endpoint = this.#tcpEndpoints.get(key);
+            const endpoint = this.#socketEndpoints.get(key);
             const at = this.#clock.now();
             if (endpoint === undefined) {
                 this.#record({ kind: "refusal", at, detail: `${from} connect ${key}: unserved` });
-                throw refusal(`connection refused: nothing listens at ${key}`, "ConnectionRefused");
-            } else if (this.#isCut(from, endpoint.node)) {
+                throw refusal(
+                    `connection refused: nothing listens at ${socketName(address)}`,
+                    "ConnectionRefused",
+                );
+            } else if (this.#isSocketCut(key, from, endpoint.node)) {
                 this.#record({
                     kind: "refusal",
                     at,
@@ -527,7 +542,7 @@ export class SimulatedNetwork {
                     `connection failed: ${from} cannot reach ${endpoint.node}`,
                     "FailedToOpenSocket",
                 );
-            } else if (this.#isLost()) {
+            } else if (this.#isSocketLost(key, from, endpoint.node)) {
                 this.#record({ kind: "loss", at, detail: `${from} connect ${key}` });
                 throw refusal(
                     `connection failed: the connection to ${key} was lost`,
@@ -537,8 +552,8 @@ export class SimulatedNetwork {
             await this.#clock.sleep(this.#latency());
 
             // open both ends, handing the server's to the listener
-            const serverInbox = TcpInbox.open(() => undefined);
-            const connection: TcpConnection = {
+            const serverInbox = SocketInbox.open(() => undefined);
+            const connection: SocketConnection = {
                 client: from,
                 server: endpoint.node,
                 address: key,
@@ -549,14 +564,14 @@ export class SimulatedNetwork {
                 closes: new Set(),
                 isOpen: true,
             };
-            this.#tcpConnections.add(connection);
+            this.#socketConnections.add(connection);
             this.#record({
                 kind: "request",
                 at: this.#clock.now(),
                 detail: `${from} connect ${key}`,
             });
             endpoint.accept(
-                this.#tcpEnd({
+                this.#socketEnd({
                     connected: Promise.resolve(connection),
                     way: "toClient",
                     inbox: serverInbox,
@@ -570,17 +585,17 @@ export class SimulatedNetwork {
         return client;
     }
 
-    /** Make one end of a TCP connection: its inbox's readable, and a writable sending one way. */
-    #tcpEnd(options: {
-        readonly connected: Promise<TcpConnection>;
+    /** Make one end of a connection: its inbox's readable, and a writable sending one way. */
+    #socketEnd(options: {
+        readonly connected: Promise<SocketConnection>;
         readonly way: Direction;
-        readonly inbox: TcpInbox;
+        readonly inbox: SocketInbox;
         readonly connect: ConnectOptions | undefined;
-    }): TcpSocket {
+    }): Socket {
         // settle the end's close with its connection's, or at once as its connection fails
         const { connected, way, inbox, connect } = options;
         const closing = Promise.withResolvers<void>();
-        let connection: TcpConnection | undefined;
+        let connection: SocketConnection | undefined;
         let isReplaced = false;
         const opened = connected.then(
             (open) => {
@@ -596,14 +611,14 @@ export class SimulatedNetwork {
         opened.catch(() => undefined);
 
         // send each written chunk, and the end, refusing a closed, broken or replaced connection
-        const send = async (arrive: (open: TcpConnection) => void) => {
+        const send = async (arrive: (open: SocketConnection) => void) => {
             const open = await connected;
             if (isReplaced) {
                 throw new TypeError("the connection started TLS on another socket");
             } else if (!open.isOpen || open.ways[way].state !== "open") {
                 throw open.broken ?? refusal("the connection closed", "ConnectionClosed");
             }
-            this.#deliverTcp(open, way, () => arrive(open));
+            this.#deliverSocket(open, way, () => arrive(open));
         };
         const writable = new WritableStream<Uint8Array>({
             write: async (chunk) => {
@@ -611,17 +626,19 @@ export class SimulatedNetwork {
                 await send((open) => open.ways[way].inbox.controller.enqueue(copied));
             },
             close: async () => {
-                this.#endTcp(await connected, way);
+                this.#endSocket(await connected, way);
             },
         });
-        const socket: TcpSocket = {
+        const socket: Socket = {
             readable: inbox.readable,
             writable,
             opened,
             closed: closing.promise,
+            // keep nothing running, as the simulation's clock decides when it ends
+            unref: () => {},
             close: async () => {
                 // end this way after its bytes in flight, once, and wait for the peer to end its own
-                this.#endTcp(await connected, way);
+                this.#endSocket(await connected, way);
                 await closing.promise;
             },
             startTls: () => {
@@ -634,13 +651,13 @@ export class SimulatedNetwork {
 
                 // replace this end with a new one receiving into a new inbox, ending this one's readable
                 const receiving = way === "toServer" ? "toClient" : "toServer";
-                const fresh = TcpInbox.open(() => undefined);
+                const fresh = SocketInbox.open(() => undefined);
                 connection.ways[receiving].inbox = fresh;
                 isReplaced = true;
                 inbox.controller.close();
                 closing.resolve();
 
-                return this.#tcpEnd({
+                return this.#socketEnd({
                     connected: Promise.resolve(connection),
                     way,
                     inbox: fresh,
@@ -652,12 +669,15 @@ export class SimulatedNetwork {
         return socket;
     }
 
-    /** Deliver TCP bytes one way, in order, after their latency, or break the connection. */
-    #deliverTcp(connection: TcpConnection, way: Direction, arrive: () => void): void {
-        // break a connection across a partition or losing the bytes
-        const isCut = this.#isCut(connection.client, connection.server);
-        if (isCut || this.#isLost()) {
-            this.#breakTcp(connection);
+    /** Deliver socket bytes one way, in order, after their latency, or break the connection. */
+    #deliverSocket(connection: SocketConnection, way: Direction, arrive: () => void): void {
+        // break a connection across a partition or losing the bytes, which a node never does to itself
+        const { address, client, server } = connection;
+        if (
+            this.#isSocketCut(address, client, server) ||
+            this.#isSocketLost(address, client, server)
+        ) {
+            this.#breakSocket(connection);
 
             return;
         }
@@ -673,8 +693,8 @@ export class SimulatedNetwork {
         void this.#transit(arrival);
     }
 
-    /** End one way of a TCP connection after its bytes in flight, then the other way. */
-    #endTcp(connection: TcpConnection, way: Direction): void {
+    /** End one way of a socket connection after its bytes in flight, then the other way. */
+    #endSocket(connection: SocketConnection, way: Direction): void {
         // end each way of an open connection once
         const ending = connection.ways[way];
         if (!connection.isOpen || ending.state !== "open") {
@@ -684,25 +704,25 @@ export class SimulatedNetwork {
 
         // close the receiver's readable once the earlier bytes arrived
         const other = way === "toServer" ? "toClient" : "toServer";
-        this.#deliverTcp(connection, way, () => {
+        this.#deliverSocket(connection, way, () => {
             ending.state = "ended";
             ending.inbox.controller.close();
 
             // end the other way as the peer, and settle every end's close once both ended
             if (connection.ways[other].state === "ended") {
                 connection.isOpen = false;
-                this.#tcpConnections.delete(connection);
+                this.#socketConnections.delete(connection);
                 for (const close of connection.closes) {
                     close();
                 }
             } else {
-                this.#endTcp(connection, other);
+                this.#endSocket(connection, other);
             }
         });
     }
 
-    /** Break a TCP connection at once at both ends, as a lost transport. */
-    #breakTcp(connection: TcpConnection): void {
+    /** Break a socket connection at once at both ends, as a lost transport. */
+    #breakSocket(connection: SocketConnection): void {
         // break once, failing both readables
         if (!connection.isOpen) {
             return;
@@ -711,7 +731,7 @@ export class SimulatedNetwork {
         const broken = refusal(`the connection ${detail} broke`, "ECONNRESET");
         connection.isOpen = false;
         connection.broken = broken;
-        this.#tcpConnections.delete(connection);
+        this.#socketConnections.delete(connection);
         this.#record({ kind: "break", at: this.#clock.now(), detail });
 
         // fail both readables, and settle every end's close
@@ -849,7 +869,7 @@ export class SimulatedNetwork {
         const isCut = this.#isCut(connection.client, connection.server);
         if (!connection.isOpen) {
             return;
-        } else if (isCut || this.#isLost()) {
+        } else if (isCut || this.#isLost(connection.client, connection.server)) {
             this.#break(connection);
 
             return;
@@ -910,7 +930,7 @@ export class SimulatedNetwork {
                 `fetch failed: ${from} cannot reach ${endpoint.node}`,
                 "FailedToOpenSocket",
             );
-        } else if (this.#isLost()) {
+        } else if (this.#isLost(from, endpoint.node)) {
             this.#record({ kind: "loss", at, detail });
             throw refusal(`fetch failed: the request to ${origin} was lost`, "ConnectionClosed");
         }
@@ -922,11 +942,25 @@ export class SimulatedNetwork {
         return endpoint;
     }
 
-    /** Draw whether a delivery is lost. */
-    #isLost(): boolean {
+    /** Report whether the network cuts a socket connection, never a Unix socket's. */
+    #isSocketCut(key: string, left: string, right: string): boolean {
+        return !key.startsWith(UNIX_KEY) && this.#isCut(left, right);
+    }
+
+    /** Draw whether a socket delivery is lost, never one over a Unix socket. */
+    #isSocketLost(key: string, left: string, right: string): boolean {
+        return !key.startsWith(UNIX_KEY) && this.#isLost(left, right);
+    }
+
+    /** Draw whether a delivery between two nodes is lost, never one a node sends itself. */
+    #isLost(left: string, right: string): boolean {
         const { drop } = this.#faults;
 
-        return drop !== undefined && Random.int(this.#random, 1_000_000) < drop * 1_000_000;
+        return (
+            left !== right &&
+            drop !== undefined &&
+            Random.int(this.#random, 1_000_000) < drop * 1_000_000
+        );
     }
 
     /** Draw a delivery's latency. */
@@ -1011,4 +1045,9 @@ function decoded(response: Response): Response {
         statusText: response.statusText,
         headers,
     });
+}
+
+/** Key a socket address on the simulated network: its host and port, or its Unix socket's path. */
+function socketKey(address: SocketAddress): string {
+    return "unix" in address ? `${UNIX_KEY}${address.unix}` : `${address.hostname}:${address.port}`;
 }
