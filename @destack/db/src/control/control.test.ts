@@ -153,7 +153,7 @@ test("reconcile listed keys, the keys of changes, keys due again, and refused ke
     ]);
 });
 
-test("report a key failing transiently only once it lasts past the window, and any other failure at once", async () => {
+test("report a key failing transiently only once its retries last past the window, and any other failure at once", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
 
@@ -207,11 +207,13 @@ test("report a key failing transiently only once it lasts past the window, and a
         await running;
     });
 
-    // report "broken" at once and retry the others, then report "peer" once it fails past the window
+    // report "broken" at once and retry the others, then report "peer" once its retries fail past the window
     await loop.idle();
     const atOnce = [...reported];
-    clock.advance(40);
-    await loop.idle();
+    for (let retried = 0; retried < 8; retried += 1) {
+        clock.advance(5);
+        await loop.idle();
+    }
     isDown = false;
     clock.advance(5);
     await loop.idle();

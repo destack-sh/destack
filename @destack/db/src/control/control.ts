@@ -19,6 +19,9 @@ const RETRY = RetryPolicy.of({ maximumInterval: 5 * 60_000 });
 /** How long a key may fail transiently before its failures are reported: a minute. */
 const TRANSIENT_REPORT_MILLISECONDS = 60_000;
 
+/** The transient failures a key reaches before a report, its retries 1, 2 and 4 s apart. */
+const TRANSIENT_REPORT_ATTEMPTS = 4;
+
 /** A loop converging the actual state of each listed key to its rows. */
 export interface ReconcileController {
     /** The controller's name in reports. */
@@ -778,7 +781,7 @@ export class ControlLoop {
                 previous?.isReported === true &&
                 previous.failure.domain === failure.domain &&
                 previous.failure.reason === failure.reason;
-            const isReported = !isRepeated && this.#recordFailure(work, failure);
+            const isReported = !isRepeated && this.#recordFailure(work, failure, failed);
             if (isReported) {
                 this.#report(work.controller, work.key, error);
             }
@@ -811,7 +814,7 @@ export class ControlLoop {
     }
 
     /** Record when a key's transient failures began, answering whether one is due a report. */
-    #recordFailure(work: Work, failure: Failure): boolean {
+    #recordFailure(work: Work, failure: Failure, attempts: number): boolean {
         // report a lasting failure at once
         const now = this.#clock.now();
         const since = this.#transient.get(work.controller) ?? new Map<string, number>();
@@ -822,11 +825,11 @@ export class ControlLoop {
             return true;
         }
 
-        // report a transient failure once it lasted past the window
+        // report a transient failure once it lasted past the window over several attempts
         const first = since.get(work.key) ?? now;
         since.set(work.key, first);
 
-        return now - first >= this.#transientFor;
+        return now - first >= this.#transientFor && attempts >= TRANSIENT_REPORT_ATTEMPTS;
     }
 
     /** Reconcile a key under this instance's lease, stopped by the loop or a lost lease. */
