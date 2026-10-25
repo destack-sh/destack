@@ -553,6 +553,26 @@ export class MethodContext<
         throw this.#unauthorized();
     }
 
+    /** Decide whether another subject has a permission on an object now, as Zanzibar's check does. */
+    async permits(
+        subject: Subject,
+        permission: PermissionReference,
+        target: ObjectReference,
+    ): Promise<boolean> {
+        // decide through the store's authorizer for the subject alone
+        const location = this.#location;
+        if (location.kind !== "store") {
+            throw new TypeError(
+                `${this.object.name}.${this.name} decides for another subject only in its store`,
+            );
+        }
+        const { authorizer, snapshot } = location.authorization;
+        const context = AccessContext.of(Caller.of(subject), this.now);
+        const access = await authorizer.resolve(snapshot, authorizer.governingScope(target), context);
+
+        return (await authorizer.check(snapshot, permission, target, access)).isAllowed;
+    }
+
     /** Require the caller to have a permission on an object, refusing a prediction. */
     require(permission: PermissionReference, target: ObjectReference): Promise<void> {
         // decide through the store's authorization, else through the hook's session
