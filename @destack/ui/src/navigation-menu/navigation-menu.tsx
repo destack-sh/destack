@@ -1,3 +1,4 @@
+import type { Clock } from "@destack/environment";
 import { Icon } from "@destack/icon";
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
@@ -21,13 +22,14 @@ import {
     type JSX,
     merge,
     omit,
-    onCleanup,
     Portal,
     type Setter,
     Show,
     useContext,
+    useEnvironment,
     useLocale,
 } from "@destack/view";
+import { Timeout } from "@destack/view/primitives/timer";
 import { type PartAttributes, type Render, useRender, renderPart } from "../part/index.ts";
 import { ListState } from "../focus/index.ts";
 
@@ -179,9 +181,11 @@ export class NavigationMenuControl {
     readonly #prefix: string;
     /** Replace the viewport element. */
     readonly #setViewport: Setter<HTMLElement | undefined>;
+    /** The page's clock. */
+    readonly #clock: Clock;
     /** The pending open of a hovered trigger. */
-    #timer: ReturnType<typeof setTimeout> | undefined;
-    /** The time the pointer last left a trigger, in milliseconds since the page loaded. */
+    readonly #timer: Timeout;
+    /** The time the pointer last left a trigger, on the page's clock. */
     #leftAt: number;
 
     /** Create a navigation menu with its open item. */
@@ -207,20 +211,20 @@ export class NavigationMenuControl {
         this.#setOpen = setOpen;
         this.#setViewport = setViewport;
         this.#prefix = createUniqueId();
-        this.#timer = undefined;
+        this.#clock = useEnvironment().clock;
+        this.#timer = new Timeout();
         this.#leftAt = Number.NEGATIVE_INFINITY;
-        onCleanup(() => clearTimeout(this.#timer));
     }
 
     /** Open an item now, closing the one open before. */
     show(item: string): void {
-        clearTimeout(this.#timer);
+        this.#timer.clear();
         this.#setOpen(item);
     }
 
     /** Close every item. */
     hide(): void {
-        clearTimeout(this.#timer);
+        this.#timer.clear();
         this.#setOpen(undefined);
     }
 
@@ -228,12 +232,11 @@ export class NavigationMenuControl {
     enter(item: string): void {
         // skip the delay while a panel is open or right after one closed
         const skip = this.#properties.skipDelayDuration ?? SKIP_DELAY_DURATION;
-        const isSkipping = this.open() !== undefined || performance.now() - this.#leftAt < skip;
-        clearTimeout(this.#timer);
+        const isSkipping = this.open() !== undefined || this.#clock.now() - this.#leftAt < skip;
         if (isSkipping) {
             this.show(item);
         } else {
-            this.#timer = setTimeout(
+            this.#timer.set(
                 () => this.show(item),
                 this.#properties.delayDuration ?? DELAY_DURATION,
             );
@@ -242,8 +245,8 @@ export class NavigationMenuControl {
 
     /** Cancel a pending open and remember when the pointer left a trigger. */
     leave(): void {
-        clearTimeout(this.#timer);
-        this.#leftAt = performance.now();
+        this.#timer.clear();
+        this.#leftAt = this.#clock.now();
     }
 
     /** Set the element open panels render into. */

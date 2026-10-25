@@ -237,7 +237,7 @@ test("type a date and a date and time into their fields, submitting the date as 
             {
                 email: "milk@example.com",
                 day: "2026-10-07",
-                at: new Date("2026-10-07T09:30").toISOString(),
+                at: "2026-10-07T09:30:00.000Z",
             },
         ],
     ]);

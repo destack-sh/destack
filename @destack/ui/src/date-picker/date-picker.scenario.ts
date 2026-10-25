@@ -10,7 +10,7 @@ export const datePickerFocusDayOnOpen = defineScenario({
     name: "focus-day-on-open",
     description:
         "move the focus onto the calendar's focused day, the range's start, as the calendar opens",
-    given: { examples: [datePickerTrip], environment: { locale: "en-US" } },
+    given: { examples: [datePickerTrip], globals: { locale: "en-US" } },
     when: [{ action: "click", target: { role: "button", name: "Pick a date" } }],
     then: {
         observe: { focused: { kind: "focused" } },

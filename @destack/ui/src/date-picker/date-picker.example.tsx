@@ -4,6 +4,9 @@ import { createSignal } from "@destack/view";
 import { Day } from "../calendar/index.ts";
 import { DatePicker } from "./date-picker.tsx";
 
+/** The day the examples count as today, fixed so their renders stay the same. */
+const EXAMPLE_TODAY = Day.parse("2026-10-04");
+
 /** A date picker that sets a task's due day. */
 export const datePickerDueDay = defineExample({
     of: DatePicker,
@@ -12,7 +15,14 @@ export const datePickerDueDay = defineExample({
     render: () => {
         const [due, setDue] = createSignal<PlainDate>();
 
-        return <DatePicker aria-label="Due date" selected={due()} onSelect={setDue} />;
+        return (
+            <DatePicker
+                today={EXAMPLE_TODAY}
+                aria-label="Due date"
+                selected={due()}
+                onSelect={setDue}
+            />
+        );
     },
 });
 
@@ -24,6 +34,7 @@ export const datePickerEditedSpan = defineExample({
         "a date picker that filters notes by a span, offering the last week and month beside its calendar",
     render: () => (
         <DatePicker
+            today={EXAMPLE_TODAY}
             mode="range"
             aria-label="Edited"
             presets={[
@@ -47,6 +58,7 @@ export const datePickerTrip = defineExample({
     description: "a date picker that types or picks the day a trip starts and ends",
     render: () => (
         <DatePicker
+            today={EXAMPLE_TODAY}
             mode="range"
             aria-label="Trip"
             defaultSelected={{ from: Day.parse("2026-10-12"), to: Day.parse("2026-10-16") }}
@@ -61,6 +73,7 @@ export const datePickerDaysOff = defineExample({
     description: "a date picker that marks the days off in a month, counted on its trigger",
     render: () => (
         <DatePicker
+            today={EXAMPLE_TODAY}
             mode="multiple"
             aria-label="Days off"
             defaultSelected={[Day.parse("2026-10-05"), Day.parse("2026-10-06")]}
@@ -74,6 +87,11 @@ export const datePickerDueDayOpen = defineExample({
     name: "due-day-open",
     description: "the due day picker with its calendar open below its fields",
     render: () => (
-        <DatePicker aria-label="Due date" defaultSelected={Day.parse("2026-10-12")} defaultOpen />
+        <DatePicker
+            today={EXAMPLE_TODAY}
+            aria-label="Due date"
+            defaultSelected={Day.parse("2026-10-12")}
+            defaultOpen
+        />
     ),
 });

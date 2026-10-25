@@ -1,5 +1,7 @@
 import { expect, test } from "@destack/test";
-import { type JSX, renderToString } from "@destack/view";
+import { Simulation } from "@destack/environment/simulation";
+import { BrowserEnvironment } from "@destack/environment/browser";
+import { EnvironmentContext, type JSX, renderToString } from "@destack/view";
 import type { Example } from "@destack/package/declare";
 import manifest from "../package.json" with { type: "json" };
 import { Sidebar, SidebarContent, SidebarProvider, SidebarTrigger } from "../src/sidebar/index.ts";
@@ -22,6 +24,9 @@ const STATE = new Set([
     "virtualizer",
 ]);
 
+/** The start of every test's world: 2026-10-24 at midnight UTC. */
+const START = Date.UTC(2026, 9, 24);
+
 /** The components the package exports, its wrapped chart entry points and state units left out. */
 const COMPONENTS = Object.keys(manifest.exports)
     .filter((path) => !path.includes("*"))
@@ -35,32 +40,40 @@ const EXAMPLES: readonly (readonly [string, object])[] = await Promise.all(
     ),
 );
 
-test("render a sidebar and a toaster to a string without a browser, open and with no toasts", () => {
+test("render a sidebar and a toaster to a string without a browser, open and with no toasts", async () => {
+    // render on a server's environment in a world of its own
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const server = BrowserEnvironment.server(simulation.environment("server"));
     const html = renderToString(() => (
-        <SidebarProvider>
-            <Sidebar>
-                <SidebarContent>Notebooks</SidebarContent>
-            </Sidebar>
-            <SidebarTrigger />
-            <Toaster />
-        </SidebarProvider>
+        <EnvironmentContext value={server}>
+            <SidebarProvider>
+                <Sidebar>
+                    <SidebarContent>Notebooks</SidebarContent>
+                </Sidebar>
+                <SidebarTrigger />
+                <Toaster />
+            </SidebarProvider>
+        </EnvironmentContext>
     ));
 
     // the server renders the defaults with their hydration keys: an expanded sidebar on a wide screen and an empty stack
     expect(html.replaceAll(CLASS_ATTRIBUTE, "").replaceAll(ICON_BODY, "$1$2")).toBe(
-        '<div _hk=200 data-slot="sidebar-wrapper">' +
-            '<div _hk=2040 id="0" data-slot="sidebar" data-state="expanded" data-variant="sidebar" data-side="left">' +
-            '<div><div _hk=204230 data-slot="sidebar-content" >Notebooks</div></div></div>' +
-            '<button _hk=2080 data-slot="sidebar-trigger" data-variant="ghost" data-size="icon-sm" aria-label="Toggle sidebar" aria-controls="0" aria-expanded="true" >' +
-            '<svg _hk=20840 viewBox="0 0 256 256" fill="currentColor" width="1em" height="1em" aria-hidden="true" data-slot="icon" ></svg></button>' +
-            '<section _hk=20b aria-label="Notifications" aria-live="polite" aria-relevant="additions text" aria-atomic="false" tabindex="-1" data-slot="toaster" data-position="bottom-right">' +
+        '<div _hk=00200 data-slot="sidebar-wrapper">' +
+            '<div _hk=002040 id="000" data-slot="sidebar" data-state="expanded" data-variant="sidebar" data-side="left">' +
+            '<div><div _hk=00204230 data-slot="sidebar-content" >Notebooks</div></div></div>' +
+            '<button _hk=002080 data-slot="sidebar-trigger" data-variant="ghost" data-size="icon-sm" aria-label="Toggle sidebar" aria-controls="000" aria-expanded="true" >' +
+            '<svg _hk=0020840 viewBox="0 0 256 256" fill="currentColor" width="1em" height="1em" aria-hidden="true" data-slot="icon" ></svg></button>' +
+            '<section _hk=0020b aria-label="Notifications" aria-live="polite" aria-relevant="additions text" aria-atomic="false" tabindex="-1" data-slot="toaster" data-position="bottom-right">' +
             '<ol popover="manual" data-slot="toaster-stack"></ol></section></div>',
     );
 });
 
 test("render every exported component's examples to strings without a browser", async () => {
-    // render the examples of each component the package exports
-    const rendered: string[] = [];
+    // render the examples of each component the package exports on a server's environment
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const server = BrowserEnvironment.server(simulation.environment("server"));
+    const rendered = new Set<string>();
+    const failures: string[] = [];
     for (const [name, examples] of EXAMPLES) {
         for (const [exported, example] of Object.entries(examples)) {
             // skip the module URL the server compile adds to component modules
@@ -68,16 +81,24 @@ test("render every exported component's examples to strings without a browser", 
             if (render === undefined) {
                 continue;
             }
-            expect(
-                renderToString(() => render()),
-                exported,
-            ).not.toBe("");
-            rendered.push(name);
+
+            // render the example, recording an empty result or an error by its export
+            try {
+                const html = renderToString(() => (
+                    <EnvironmentContext value={server}>{render()}</EnvironmentContext>
+                ));
+                if (html === "") {
+                    failures.push(`${exported}: empty`);
+                }
+            } catch (error) {
+                failures.push(`${exported}: ${String(error)}`);
+            }
+            rendered.add(name);
         }
     }
 
-    // each component shows at least one example
-    expect(new Set(rendered).size).toBe(COMPONENTS.length);
+    // render every example, and at least one of each component
+    expect([failures, [...rendered]]).toEqual([[], COMPONENTS]);
 });
 
 /** Report whether an export is an example, which renders an element. */

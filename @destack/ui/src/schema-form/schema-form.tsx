@@ -4,8 +4,9 @@ import {
     type JsonObject,
     type JsonValue,
     type PlainDate,
-    PlainTime,
+    type PlainTime,
     schema,
+    TimeZone,
 } from "@destack/schema";
 import * as style from "@destack/style";
 import { space } from "@destack/theme/tokens.stylex";
@@ -17,6 +18,7 @@ import {
     type JSX,
     Show,
     untrack,
+    useEnvironment,
     useLocale,
     useSchemaForm,
 } from "@destack/view";
@@ -59,9 +61,6 @@ const INPUT_TYPES = {
     url: "url",
     json: "text",
 } as const;
-
-/** The minutes of an hour. */
-const HOUR_MINUTES = 60;
 
 /** A `YYYY-MM-DD` date, as the JSON Schema `date` format writes it. */
 const DATE_TEXT = /^\d{4}-\d{2}-\d{2}$/u;
@@ -247,17 +246,20 @@ function DateControl(properties: FieldControlProperties<SchemaTextField>): JSX.E
 
 /** Render a date picker beside a time field. */
 function MomentControl(properties: FieldControlProperties<SchemaTextField>): JSX.Element {
-    // start from the local date and time of the instant held
+    // start from the date and time of the instant held in the page's time zone
     const locale = useLocale();
+    const { timeZone } = useEnvironment();
     const field = properties.field;
-    const start = untrack(() => localMomentOf(properties.held.value()));
+    const start = untrack(() => momentOf(properties.held.value(), timeZone));
     let day = start?.day;
     let time = start?.time;
 
     // write the instant once both are typed, else empty the field
     const write = (): void => {
         properties.held.set(
-            day === undefined || time === undefined ? clearedOf(field) : instantOf(day, time),
+            day === undefined || time === undefined
+                ? clearedOf(field)
+                : new Date(TimeZone.instant(timeZone, day, time)).toISOString(),
         );
     };
 
@@ -671,40 +673,18 @@ function dayOf(value: JsonValue | undefined): PlainDate | undefined {
     return typeof value === "string" && DATE_TEXT.test(value) ? Day.parse(value) : undefined;
 }
 
-/** Read the local date and time of day of an instant, undefined for anything else. */
-function localMomentOf(
+/** Read the date and time of day of an instant in a time zone, undefined for anything else. */
+function momentOf(
     value: JsonValue | undefined,
+    timeZone: TimeZone,
 ): { readonly day: PlainDate; readonly time: PlainTime } | undefined {
     // read the instant
-    const instant = new Date(typeof value === "string" ? value : "");
-    if (Number.isNaN(instant.getTime())) {
+    const instant = Date.parse(typeof value === "string" ? value : "");
+    if (Number.isNaN(instant)) {
         return undefined;
     }
 
-    // split it on the local clock
-    const day = {
-        year: instant.getFullYear(),
-        month: instant.getMonth() + 1,
-        day: instant.getDate(),
-    };
-
-    return { day, time: `${pad(instant.getHours())}:${pad(instant.getMinutes())}` };
-}
-
-/** Write the instant of a local date and time of day as RFC 3339 in UTC. */
-function instantOf(day: PlainDate, time: PlainTime): string {
-    // set the local date and time, keeping years below 100 as they are
-    const instant = new Date(0);
-    const minutes = PlainTime.minutes(time);
-    instant.setFullYear(day.year, day.month - 1, day.day);
-    instant.setHours(Math.floor(minutes / HOUR_MINUTES), minutes % HOUR_MINUTES, 0, 0);
-
-    return instant.toISOString();
-}
-
-/** Write a part of a date or time in two digits. */
-function pad(part: number): string {
-    return String(part).padStart(2, "0");
+    return { day: TimeZone.date(timeZone, instant), time: TimeZone.time(timeZone, instant) };
 }
 
 /** Parse JSON text, absent where it is no JSON. */

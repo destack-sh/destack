@@ -1,5 +1,6 @@
+import type { Environment } from "@destack/environment";
 import { type Localization, t } from "@destack/locale";
-import { PlainTime } from "@destack/schema";
+import { PlainTime, TimeZone } from "@destack/schema";
 import * as style from "@destack/style";
 import {
     createControllableSignal,
@@ -131,17 +132,20 @@ class TimeFormat implements DateSegmentFormat {
         return this.#locale.render(t`AM/PM`);
     }
 
-    /** Read the local clock's hour, minute or day period. */
-    now(kind: DateSegmentKind): number {
+    /** Read the hour, minute or day period on an environment's clock in its time zone. */
+    now(kind: DateSegmentKind, environment: Pick<Environment, "clock" | "timeZone">): number {
         // read the clock's hour on the locale's hour cycle
-        const now = new Date();
-        const hours = now.getHours();
+        const minutes = PlainTime.minutes(
+            TimeZone.time(environment.timeZone, environment.clock.now()),
+        );
+        const hours = Math.floor(minutes / HOUR_MINUTES);
+        const minute = minutes % HOUR_MINUTES;
         if (kind === "hour") {
             return this.isTwelveHour ? hours % HALF_DAY || HALF_DAY : hours;
         }
         // the minute
         else if (kind === "minute") {
-            return now.getMinutes();
+            return minute;
         }
 
         return hours < HALF_DAY ? 0 : 1;

@@ -9,14 +9,18 @@ import {
     type Accessor,
     createControllableSignal,
     createEffect,
+    createMemo,
     createSignal,
     createUniqueId,
     For,
     type JSX,
     omit,
+    onSettled,
     type Setter,
     Show,
     untrack,
+    useEnvironment,
+    useNow,
     useLocale,
 } from "@destack/view";
 import { Focus, type KeyboardDelegate } from "../focus/index.ts";
@@ -128,6 +132,7 @@ const CALENDAR_OPTIONS = [
     "captionLayout",
     "showWeekNumber",
     "showOutsideDays",
+    "autoFocus",
     "xstyle",
     "style",
 ] as const;
@@ -162,7 +167,7 @@ export type CalendarProperties = Omit<
     readonly disabled?: (day: PlainDate) => boolean;
     /** The weekday weeks start on, 1 for Monday to 7 for Sunday, the locale's by default. */
     readonly weekStartsOn?: number;
-    /** The day the calendar counts as today, the local clock's by default. */
+    /** The day the calendar counts as today, the page clock's by default. */
     readonly today?: PlainDate;
     /** The months shown side by side, one by default. */
     readonly numberOfMonths?: number;
@@ -176,6 +181,8 @@ export type CalendarProperties = Omit<
     readonly showWeekNumber?: boolean;
     /** Whether the days of neighbouring months fill the first and last weeks, true by default. */
     readonly showOutsideDays?: boolean;
+    /** Whether the focused day takes the focus once the calendar mounts. */
+    readonly autoFocus?: boolean;
     /** The StyleX styles applied after the calendar's styles. */
     readonly xstyle?: style.Styles;
 } & CalendarSelection;
@@ -197,8 +204,8 @@ class CalendarControl {
     /** The selection the person last made, which a selection from outside differs from. */
     #selected: CalendarValue = undefined;
 
-    /** Create the state of a calendar from its properties. */
-    constructor(properties: CalendarProperties, firstDay: Accessor<number>) {
+    /** Create the state of a calendar from its properties, showing a first month at first. */
+    constructor(properties: CalendarProperties, firstDay: Accessor<number>, month: PlainDate) {
         // follow the controlled selection or the calendar's own
         const [value, setValue] = createControllableSignal<CalendarValue>({
             isControlled: () => "selected" in properties,
@@ -206,13 +213,7 @@ class CalendarControl {
             defaultValue: properties.defaultSelected,
             onChange: (next) => report(properties, next),
         });
-        const start = untrack(() =>
-            Day.clamp(
-                properties.defaultMonth ?? firstOf(value()) ?? properties.today ?? Day.today(),
-                properties.min,
-                properties.max,
-            ),
-        );
+        const start = untrack(() => Day.clamp(month, properties.min, properties.max));
         const [first, setFirst] = createSignal<PlainDate>(Day.monthOf(start), SAME_DAY);
         this.properties = properties;
         this.value = value;
@@ -350,21 +351,63 @@ class CalendarDelegate implements KeyboardDelegate<PlainDate> {
 
 /** Render a month grid of days, which arrow keys, Page Up, Page Down, Home and End move through. */
 export function Calendar(properties: CalendarProperties): JSX.Element {
+    // read today once mounted, so the server and the browser render the same
+    const environment = useEnvironment();
+    const now = useNow();
+    const today = createMemo((): PlainDate | undefined => {
+        // take the given day, else the clock's once the view knows the time
+        if (properties.today !== undefined) {
+            return properties.today;
+        }
+        const time = now();
+
+        return time === undefined ? undefined : Day.at(environment.timeZone, time);
+    });
+
+    // keep the first start: the given month, the selection's, or today's once known
+    const given = untrack(
+        () =>
+            properties.defaultMonth ??
+            firstOf("selected" in properties ? properties.selected : properties.defaultSelected),
+    );
+    const start = createMemo<PlainDate | undefined>((previous) => previous ?? given ?? today());
+
+    return (
+        <Show when={start()} keyed>
+            {(month) => <CalendarMonths calendar={properties} month={month} today={today} />}
+        </Show>
+    );
+}
+
+/** Render a started calendar's months from its first month, marking today once known. */
+function CalendarMonths(properties: {
+    /** The calendar's properties. */
+    readonly calendar: CalendarProperties;
+    /** The first month shown at first. */
+    readonly month: PlainDate;
+    /** The day it is, absent before the view knows the time. */
+    readonly today: Accessor<PlainDate | undefined>;
+}): JSX.Element {
     // read the locale's direction and week, and the calendar's state
+    const calendar = properties.calendar;
     const locale = useLocale();
-    const firstDay = (): number => properties.weekStartsOn ?? Day.firstDayOf(locale.tag);
-    const control = new CalendarControl(properties, firstDay);
-    const today = (): PlainDate => properties.today ?? Day.today();
+    const firstDay = (): number => calendar.weekStartsOn ?? Day.firstDayOf(locale.tag);
+    const control = new CalendarControl(calendar, firstDay, properties.month);
+    const today = properties.today;
+
+    // focus the focused day once mounted when asked
+    onSettled(() => {
+        if (calendar.autoFocus === true) {
+            control.focus.enter(control.focused());
+        }
+    });
 
     return (
         <div
             data-slot="calendar"
-            {...omit(properties, ...CALENDAR_OPTIONS)}
+            {...omit(calendar, ...CALENDAR_OPTIONS)}
             onFocusOut={(event) => control.focus.focusOut(event)}
-            {...style.attributes(
-                [text.footnote, styles.calendar, properties.xstyle],
-                properties.style,
-            )}
+            {...style.attributes([text.footnote, styles.calendar, calendar.xstyle], calendar.style)}
         >
             <CalendarHeader
                 direction={locale.direction}
@@ -375,10 +418,9 @@ export function Calendar(properties: CalendarProperties): JSX.Element {
                 {(month) => (
                     <CalendarMonth
                         month={month}
-                        layout={properties.captionLayout ?? "label"}
-                        min={properties.min}
-                        max={properties.max}
-                        today={today()}
+                        layout={calendar.captionLayout ?? "label"}
+                        min={calendar.min}
+                        max={calendar.max}
                         onPick={(picked) =>
                             control.moveTo(
                                 Day.addMonths(control.focused(), monthsBetween(month, picked)),
@@ -391,10 +433,10 @@ export function Calendar(properties: CalendarProperties): JSX.Element {
                                 weeks={Day.weeks(month, firstDay())}
                                 month={month}
                                 focus={control.focus}
-                                stateOf={(day) => stateOf(properties, control.value(), day)}
+                                stateOf={(day) => stateOf(calendar, control.value(), day)}
                                 today={today()}
-                                weekNumbers={properties.showWeekNumber === true}
-                                outsideDays={properties.showOutsideDays !== false}
+                                weekNumbers={calendar.showWeekNumber === true}
+                                outsideDays={calendar.showOutsideDays !== false}
                                 isDisabled={(day) => control.isUnavailable(day)}
                                 onSelect={(day) => control.select(day)}
                             />
@@ -421,8 +463,6 @@ function CalendarMonth(properties: {
     readonly min: PlainDate | undefined;
     /** The latest day allowed. */
     readonly max: PlainDate | undefined;
-    /** The day it is, around which the year picker spans without limits. */
-    readonly today: PlainDate;
     /** Handle the person picking another month or year. */
     readonly onPick: (month: PlainDate) => void;
     /** Render the month's grid, named by the caption's id. */
@@ -434,8 +474,10 @@ function CalendarMonth(properties: {
     const name = (month: PlainDate, options: Intl.DateTimeFormatOptions): string =>
         locale.date(Day.time(month), { ...options, timeZone: "UTC" });
     const years = (): number[] => {
-        const from = properties.min?.year ?? properties.today.year - YEARS_BACK;
-        const to = properties.max?.year ?? properties.today.year + YEARS_AHEAD;
+        // span the years around the shown month
+        const center = properties.month.year;
+        const from = properties.min?.year ?? center - YEARS_BACK;
+        const to = properties.max?.year ?? center + YEARS_AHEAD;
 
         return Array.from({ length: to - from + 1 }, (_, index) => from + index);
     };
@@ -507,8 +549,8 @@ interface CalendarGridProperties {
     readonly focus: Focus<PlainDate>;
     /** Read how a day stands in the selection. */
     readonly stateOf: (day: PlainDate) => DayState;
-    /** The day it is. */
-    readonly today: PlainDate;
+    /** The day it is, absent before the view knows the time. */
+    readonly today: PlainDate | undefined;
     /** Report whether a day is unavailable. */
     readonly isDisabled: (day: PlainDate) => boolean;
     /** Handle a day being chosen. */
@@ -557,7 +599,10 @@ function CalendarGrid(properties: CalendarGridProperties): JSX.Element {
                                             month={properties.month}
                                             focus={properties.focus}
                                             state={properties.stateOf(day)}
-                                            isToday={PlainDate.equals(day, properties.today)}
+                                            isToday={
+                                                properties.today !== undefined &&
+                                                PlainDate.equals(day, properties.today)
+                                            }
                                             isDisabled={properties.isDisabled(day)}
                                             onSelect={properties.onSelect}
                                         />

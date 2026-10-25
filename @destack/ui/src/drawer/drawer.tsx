@@ -258,7 +258,7 @@ export function DrawerContent(properties: DrawerContentProperties): JSX.Element 
             {...rest}
             onPointerDown={(event) => swipe.start(event)}
             onPointerMove={(event) => swipe.follow(event)}
-            onPointerUp={() => swipe.release()}
+            onPointerUp={(event) => swipe.release(event)}
             onPointerCancel={() => swipe.cancel()}
             xstyle={[
                 styles.drawer,

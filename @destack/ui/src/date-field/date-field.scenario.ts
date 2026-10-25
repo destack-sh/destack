@@ -10,7 +10,7 @@ export const dateFieldTypeDigits = defineScenario({
     name: "type-digits",
     description:
         "type a date digit by digit, moving on to the next segment once a segment takes no more digits",
-    given: { examples: [dateFieldBirthday], environment: { locale: "en-US" } },
+    given: { examples: [dateFieldBirthday], globals: { locale: "en-US" } },
     when: [
         { action: "focus", target: { role: "spinbutton", name: "Month" } },
         { action: "press", key: "1" },
@@ -46,7 +46,7 @@ export const dateFieldStepSegments = defineScenario({
     name: "step-segments",
     description:
         "step a segment with the up and down arrow keys, wrapping at its bounds, move along the segments with the side arrow keys and clear one with Backspace",
-    given: { examples: [dateFieldArchived], environment: { locale: "en-US" } },
+    given: { examples: [dateFieldArchived], globals: { locale: "en-US" } },
     when: [
         { action: "focus", target: { role: "spinbutton", name: "Month" } },
         { action: "press", key: "ArrowUp" },

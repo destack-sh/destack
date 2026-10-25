@@ -1,3 +1,4 @@
+import type { Environment } from "@destack/environment";
 import { type Localization, t } from "@destack/locale";
 import { PlainDate } from "@destack/schema";
 import * as style from "@destack/style";
@@ -114,9 +115,9 @@ class DateFormat implements DateSegmentFormat {
     }
 
     /** Read today's year, month or day. */
-    now(kind: DateSegmentKind): number {
+    now(kind: DateSegmentKind, environment: Pick<Environment, "clock" | "timeZone">): number {
         // read the part of today's date
-        const today = Day.today();
+        const today = Day.today(environment);
         if (kind === "year") {
             return today.year;
         }

@@ -1,3 +1,5 @@
+import type { Environment } from "@destack/environment";
+import { TelemetryScope } from "@destack/telemetry";
 import { Icon } from "@destack/icon";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
@@ -26,8 +28,10 @@ import {
     onSettled,
     Show,
     useContext,
+    useEnvironment,
     useLocale,
 } from "@destack/view";
+import { StoredItem } from "@destack/view/primitives/storage";
 import {
     type ElementPartProperties,
     type PartAttributes,
@@ -42,6 +46,12 @@ import { Sheet, SheetContent, SheetTitle } from "../sheet/index.ts";
 import { Skeleton } from "../skeleton/index.ts";
 import { Tooltip, TooltipContent, TooltipContext } from "../tooltip/index.ts";
 import { visuallyHiddenStyle } from "../visually-hidden/index.ts";
+
+/** The 32-bit FNV-1a offset basis, which starts each skeleton row's hash. */
+const FNV_OFFSET = 2_166_136_261;
+
+/** The 32-bit FNV-1a prime, which mixes each character into the hash. */
+const FNV_PRIME = 16_777_619;
 
 /** The key the open state is remembered under in the viewer's local storage. */
 const STORAGE_KEY = "destack-sidebar-open";
@@ -270,6 +280,10 @@ export class SidebarControl {
     readonly #setMobileOpen: (isOpen: boolean) => void;
     /** Replace whether the viewport is narrow. */
     readonly #setMobile: (isMobile: boolean) => void;
+    /** The page's environment, whose display the sidebar follows. */
+    readonly #environment: Environment<"display">;
+    /** The open state the viewer left the sidebar in. */
+    readonly #stored: StoredItem;
 
     /** Create the state of a sidebar. */
     constructor(properties: SidebarProviderProperties) {
@@ -291,18 +305,22 @@ export class SidebarControl {
         this.#setOpen = setOpen;
         this.#setMobileOpen = setMobileOpen;
         this.#setMobile = setMobile;
+        const environment = useEnvironment();
+        const telemetry = TelemetryScope.of(import.meta.destack.package, environment.telemetry);
+        this.#environment = environment;
+        this.#stored = new StoredItem(STORAGE_KEY, environment, telemetry);
     }
 
     /** Take the state the viewer left the sidebar in, and follow the viewport's width. */
     follow(): () => void {
         // start as the viewer left it
-        const stored = remembered();
+        const stored = this.#stored.read();
         if (stored !== undefined) {
-            this.#setOpen(stored);
+            this.#setOpen(stored === "true");
         }
 
         // follow the viewport's width
-        const query = window.matchMedia(MOBILE_QUERY);
+        const query = this.#environment.display.media(MOBILE_QUERY);
         const follow = (event: MediaQueryListEvent) => this.#setMobile(event.matches);
         this.#setMobile(query.matches);
         query.addEventListener("change", follow);
@@ -314,7 +332,7 @@ export class SidebarControl {
     setOpen(isOpen: boolean): void {
         this.#setOpen(isOpen);
         this.#properties.onOpenChange?.(isOpen);
-        remember(isOpen);
+        this.#stored.write(String(isOpen));
     }
 
     /** Open or close the sheet of a narrow viewport. */
@@ -729,7 +747,7 @@ export function SidebarMenuSkeleton(
 ): JSX.Element {
     // vary the text's width between rows
     const rest = omit(properties, "showIcon", "xstyle", "style");
-    const textWidth = `${50 + Math.floor(Math.random() * 40)}%`;
+    const textWidth = `${50 + (hashOf(createUniqueId()) % 40)}%`;
 
     return (
         <div
@@ -745,28 +763,6 @@ export function SidebarMenuSkeleton(
             </div>
         </div>
     );
-}
-
-/** Read the open state the viewer left the sidebar in. */
-function remembered(): boolean | undefined {
-    try {
-        const stored = localStorage.getItem(STORAGE_KEY);
-
-        return stored === null ? undefined : stored === "true";
-    } catch {
-        // start from the default where the browser blocks storage
-        return undefined;
-    }
-}
-
-/** Remember the open state for the viewer's next visit, skipping browsers that block storage. */
-function remember(isOpen: boolean): void {
-    try {
-        localStorage.setItem(STORAGE_KEY, String(isOpen));
-    } catch {
-        // keep the state for this visit only where the browser blocks storage
-        return;
-    }
 }
 
 /** Render a button at the end of an entry, such as one that opens the entry's menu. */
@@ -836,4 +832,15 @@ export function SidebarMenuSubButton(properties: SidebarMenuSubButtonProperties)
         part: part,
         properties: rest,
     });
+}
+
+/** Hash an identifier to a whole number, alike on the server and in the hydrating page. */
+function hashOf(id: string): number {
+    // mix each character into the FNV-1a hash
+    let hash = FNV_OFFSET;
+    for (const character of id) {
+        hash = Math.imul(hash ^ character.charCodeAt(0), FNV_PRIME) >>> 0;
+    }
+
+    return hash;
 }

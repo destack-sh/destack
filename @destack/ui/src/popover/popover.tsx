@@ -27,6 +27,7 @@ import {
 } from "@destack/view";
 import { Button, type ButtonProperties } from "../button/index.ts";
 import { TopLayer } from "../layer/index.ts";
+import { Timeout } from "@destack/view/primitives/timer";
 import { type Align, Position, type Side } from "../position/index.ts";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
 
@@ -253,7 +254,7 @@ export class HoverPopover extends PopoverControl {
     /** The wait before a trigger the pointer left closes the popover, in milliseconds. */
     readonly closeDelay: Accessor<number>;
     /** The pending open or close. */
-    #timer: ReturnType<typeof setTimeout> | undefined;
+    readonly #timer: Timeout;
 
     /** Create a popover that waits the given delays and cancels them when its owner disposes. */
     constructor(
@@ -265,31 +266,28 @@ export class HoverPopover extends PopoverControl {
         super(properties);
         this.openDelay = openDelay;
         this.closeDelay = closeDelay;
-        this.#timer = undefined;
-        onCleanup(() => clearTimeout(this.#timer));
+        this.#timer = new Timeout();
     }
 
     /** Open the popover after the open delay. */
     openLater(): void {
-        clearTimeout(this.#timer);
-        this.#timer = setTimeout(() => this.open(), this.openDelay());
+        this.#timer.set(() => this.open(), this.openDelay());
     }
 
     /** Close the popover after the close delay. */
     closeLater(): void {
-        clearTimeout(this.#timer);
-        this.#timer = setTimeout(() => this.close(), this.closeDelay());
+        this.#timer.set(() => this.close(), this.closeDelay());
     }
 
     /** Open the popover now, cancelling a pending change. */
     override open(): void {
-        clearTimeout(this.#timer);
+        this.#timer.clear();
         super.open();
     }
 
     /** Close the popover now, cancelling a pending change. */
     override close(): void {
-        clearTimeout(this.#timer);
+        this.#timer.clear();
         super.close();
     }
 }

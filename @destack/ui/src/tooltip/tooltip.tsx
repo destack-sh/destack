@@ -1,7 +1,15 @@
 import * as style from "@destack/style";
 import { color, radius, space } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import { createContext, createEffect, type JSX, merge, omit, useContext } from "@destack/view";
+import {
+    createContext,
+    createEffect,
+    type JSX,
+    merge,
+    omit,
+    useContext,
+    useEnvironment,
+} from "@destack/view";
 import { Button, type ButtonProperties } from "../button/index.ts";
 import { HoverPopover, type HoverPopoverProperties } from "../popover/index.ts";
 import { type Align, Position, type Side } from "../position/index.ts";
@@ -45,21 +53,20 @@ export class TooltipGroup {
         this.#hiddenAt = Number.NEGATIVE_INFINITY;
     }
 
-    /** Return the wait before a tooltip shows. */
-    delayOf(own: number | undefined): number {
-        const isWarm =
-            this.#shown > 0 || performance.now() - this.#hiddenAt < this.skipDelayDuration;
+    /** Return the wait before a tooltip shows at a time. */
+    delayOf(own: number | undefined, now: number): number {
+        const isWarm = this.#shown > 0 || now - this.#hiddenAt < this.skipDelayDuration;
 
         return isWarm ? 0 : (own ?? this.delayDuration);
     }
 
-    /** Count a tooltip showing or hiding. */
-    follow(isShown: boolean, wasShown: boolean | undefined): void {
+    /** Count a tooltip showing or hiding at a time. */
+    follow(isShown: boolean, wasShown: boolean | undefined, now: number): void {
         if (isShown) {
             this.#shown += 1;
         } else if (wasShown === true) {
             this.#shown -= 1;
-            this.#hiddenAt = performance.now();
+            this.#hiddenAt = now;
         }
     }
 }
@@ -143,14 +150,17 @@ export function useTooltip(): HoverPopover {
 
 /** Connect a trigger to the tooltip that describes it. */
 export function Tooltip(properties: TooltipProperties): JSX.Element {
-    // wait the group's delay and tell the group as the tooltip shows and hides
+    // wait the group's delay and tell the group as the tooltip shows and hides, on the page's clock
     const group = useContext(TooltipGroupContext);
+    const { clock } = useEnvironment();
     const tooltip = new HoverPopover(
         properties,
-        () => group.delayOf(properties.delayDuration),
+        () => group.delayOf(properties.delayDuration, clock.now()),
         () => CLOSE_DELAY,
     );
-    createEffect(tooltip.isOpen, (isShown, wasShown) => group.follow(isShown, wasShown));
+    createEffect(tooltip.isOpen, (isShown, wasShown) =>
+        group.follow(isShown, wasShown, clock.now()),
+    );
 
     return <TooltipContext value={tooltip}>{properties.children}</TooltipContext>;
 }

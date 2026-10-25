@@ -15,6 +15,7 @@ import {
     createEffect,
     createSignal,
     For,
+    isServer,
     type JSX,
     merge,
     omit,
@@ -22,6 +23,7 @@ import {
     type Setter,
     untrack,
     useContext,
+    useEnvironment,
     useLocale,
 } from "@destack/view";
 import { Button, type ButtonProperties } from "../button/index.ts";
@@ -315,11 +317,12 @@ export function Carousel(properties: CarouselProperties): JSX.Element {
         "style",
     );
 
-    // move to the next slide on each autoplay tick
+    // move to the next slide on each autoplay tick of the page's clock, which a server render has none of
     const delay = properties.autoplay;
-    if (delay !== undefined) {
-        const timer = setInterval(() => control.tick(), delay);
-        onCleanup(() => clearInterval(timer));
+    if (delay !== undefined && !isServer) {
+        const { clock } = useEnvironment();
+        const timer = clock.setInterval(() => control.tick(), delay);
+        onCleanup(() => clock.clearInterval(timer));
     }
     createEffect(
         () => control.index(),

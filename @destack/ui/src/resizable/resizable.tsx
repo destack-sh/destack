@@ -1,3 +1,6 @@
+import { schema } from "@destack/schema";
+import { TelemetryScope } from "@destack/telemetry";
+import { StoredItem } from "@destack/view/primitives/storage";
 import * as style from "@destack/style";
 import { color, radius, size, space, stroke } from "@destack/theme/tokens.stylex";
 import {
@@ -9,11 +12,19 @@ import {
     merge,
     omit,
     onCleanup,
+    onSettled,
     type Setter,
     Show,
     useContext,
+    useEnvironment,
     useLocale,
 } from "@destack/view";
+
+/** The storage key prefix of saved layouts. */
+const LAYOUT_KEY = "destack-resizable:";
+
+/** The shape of a saved layout: each panel's share. */
+const SavedLayout = schema.array(schema.number());
 
 /** The share a keyboard step moves a handle by, in percent of the group. */
 const KEYBOARD_STEP = 10;
@@ -106,14 +117,14 @@ export class ResizableControl {
     readonly panels: Accessor<readonly ResizablePanelState[]>;
     /** The properties of the group, read for its handlers and saved layout. */
     readonly #properties: ResizablePanelGroupProperties;
-    /** The shares the group saved, by panel index. */
-    readonly #saved: readonly number[];
+    /** The layout the group saves under its id, absent without one. */
+    readonly #stored: StoredItem | undefined;
+    /** The package's telemetry, reporting garbled saved layouts. */
+    readonly #telemetry: TelemetryScope;
     /** Replace the panels. */
     readonly #setPanels: Setter<readonly ResizablePanelState[]>;
     /** The number of handles joined so far, which numbers the next handle. */
     #handles: number;
-    /** The number of panels joined so far, which numbers the next panel. */
-    #count: number;
 
     /** Create a group without panels, restoring the layout it saved under its id. */
     constructor(
@@ -127,20 +138,33 @@ export class ResizableControl {
         this.direction = direction;
         this.panels = panels;
         this.#properties = properties;
-        this.#saved = properties.autoSaveId === undefined ? [] : loadLayout(properties.autoSaveId);
+        const environment = useEnvironment();
+        this.#telemetry = TelemetryScope.of(import.meta.destack.package, environment.telemetry);
+        this.#stored =
+            properties.autoSaveId === undefined
+                ? undefined
+                : new StoredItem(
+                      `${LAYOUT_KEY}${properties.autoSaveId}`,
+                      environment,
+                      this.#telemetry,
+                  );
         this.#setPanels = setPanels;
         this.#handles = 0;
-        this.#count = 0;
     }
 
-    /** Add a panel until it unmounts, answering the share the group saved for it. */
-    register(panel: ResizablePanelState): number | undefined {
+    /** Add a panel until it unmounts. */
+    register(panel: ResizablePanelState): void {
         // add the panel and number it
         this.#setPanels((panels) => [...panels, panel]);
         onCleanup(() => this.#setPanels((panels) => panels.filter((entry) => entry !== panel)));
-        this.#count += 1;
+    }
 
-        return this.#saved[this.#count - 1];
+    /** Set the panels' shares to the saved layout, which the server never reads. */
+    restore(): void {
+        const saved = this.#load();
+        if (saved.length > 0) {
+            this.apply(saved);
+        }
     }
 
     /** Number the next handle, the one after that many panels. */
@@ -226,8 +250,19 @@ export class ResizableControl {
     /** Tell the layout handler of a layout and save it under the group's id. */
     report(layout: readonly number[]): void {
         this.#properties.onLayout?.(layout);
-        if (this.#properties.autoSaveId !== undefined) {
-            saveLayout(this.#properties.autoSaveId, layout);
+        this.#stored?.write(JSON.stringify(layout));
+    }
+
+    /** Read the saved layout, none where storage refuses or keeps something else. */
+    #load(): readonly number[] {
+        // read the saved shares, reporting a garbled layout
+        const text = this.#stored?.read();
+        try {
+            return text === undefined ? [] : SavedLayout.parse(JSON.parse(text));
+        } catch (error) {
+            this.#telemetry.captureException(error, { level: "warning" });
+
+            return [];
         }
     }
 }
@@ -243,31 +278,6 @@ function collapseStep(
         panel.collapsible && share + delta < panel.minimum / 2 && share > panel.collapsedSize;
 
     return isCollapsing ? sign * (panel.collapsedSize - share) : undefined;
-}
-
-/** The storage key prefix of saved layouts. */
-const LAYOUT_KEY = "destack-resizable:";
-
-/** Read the layout a group saved under its id, none when storage refuses. */
-function loadLayout(id: string): readonly number[] {
-    try {
-        const saved: unknown = JSON.parse(localStorage.getItem(`${LAYOUT_KEY}${id}`) ?? "[]");
-
-        return Array.isArray(saved) && saved.every((entry) => typeof entry === "number")
-            ? saved
-            : [];
-    } catch {
-        return [];
-    }
-}
-
-/** Save a group's layout under its id, skipping storage that refuses. */
-function saveLayout(id: string, layout: readonly number[]): void {
-    try {
-        localStorage.setItem(`${LAYOUT_KEY}${id}`, JSON.stringify(layout));
-    } catch {
-        // keep the layout in memory alone where storage refuses
-    }
 }
 
 /** The properties of a panel group, the native element's attributes included. */
@@ -332,6 +342,9 @@ export function ResizablePanelGroup(properties: ResizablePanelGroupProperties): 
     const control = new ResizableControl(() => group.direction, properties);
     const rest = omit(group, "direction", "onLayout", "autoSaveId", "xstyle", "style");
 
+    // restore the saved layout once settled, so the server and the hydrating page render alike
+    onSettled(() => control.restore());
+
     return (
         <ResizableContext value={control}>
             <div
@@ -361,10 +374,7 @@ export function ResizablePanel(properties: ResizablePanelProperties): JSX.Elemen
         collapsible: properties.collapsible === true,
         collapsedSize: properties.collapsedSize ?? 0,
     };
-    const saved = control.register(panel);
-    if (saved !== undefined) {
-        resize(saved);
-    }
+    control.register(panel);
     const rest = omit(
         properties,
         "defaultSize",

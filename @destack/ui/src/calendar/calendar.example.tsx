@@ -5,9 +5,12 @@ import { Calendar } from "./calendar.tsx";
 import { Day } from "./day.ts";
 import type { DateRange } from "./selection.ts";
 
-/** Report whether a day lies before today. */
+/** The day the trip example takes as today, fixed so its render stays the same. */
+const TRIP_TODAY = Day.parse("2026-10-04");
+
+/** Report whether a day lies before the trip example's today. */
 function isPast(day: PlainDate): boolean {
-    return PlainDate.compare(day, Day.today()) < 0;
+    return PlainDate.compare(day, TRIP_TODAY) < 0;
 }
 
 /** A calendar that picks the days of a trip, past days disabled. */
@@ -18,7 +21,15 @@ export const calendarTripDays = defineExample({
     render: () => {
         const [trip, setTrip] = createSignal<DateRange | undefined>(undefined);
 
-        return <Calendar mode="range" selected={trip()} onSelect={setTrip} disabled={isPast} />;
+        return (
+            <Calendar
+                mode="range"
+                selected={trip()}
+                onSelect={setTrip}
+                disabled={isPast}
+                today={TRIP_TODAY}
+            />
+        );
     },
 });
 

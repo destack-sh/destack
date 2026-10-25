@@ -1,8 +1,9 @@
+import type { Environment } from "@destack/environment";
 import { type Localization, t } from "@destack/locale";
 import * as style from "@destack/style";
 import { color, motion, radius, shadow, size, space, stroke } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import { For, type JSX, omit, Show, untrack, useLocale } from "@destack/view";
+import { For, type JSX, omit, Show, untrack, useEnvironment, useLocale } from "@destack/view";
 import { type FieldControl, useFieldControl } from "../field/control.ts";
 import { ListState } from "../focus/index.ts";
 
@@ -117,7 +118,10 @@ export interface DateSegmentFormat {
     /** Label a segment for assistive technology. */
     readonly name: (kind: DateSegmentKind) => string;
     /** Read a segment's value now, where stepping an empty segment starts. */
-    readonly now: (kind: DateSegmentKind) => number;
+    readonly now: (
+        kind: DateSegmentKind,
+        environment: Pick<Environment, "clock" | "timeZone">,
+    ) => number;
 }
 
 /** The properties of a segmented field, the native element's attributes included. */
@@ -156,6 +160,8 @@ class DateSegmentControl {
     readonly list: ListState;
     /** The digits typed into the focused segment so far, empty once it takes no more. */
     #typed = "";
+    /** The page's environment, whose clock and time zone an empty segment steps from. */
+    readonly #environment: Pick<Environment, "clock" | "timeZone">;
 
     /** Create the state of a segmented field from its group's properties. */
     constructor(
@@ -172,6 +178,7 @@ class DateSegmentControl {
             isTypeahead: false,
         });
         this.#locale = locale;
+        this.#environment = useEnvironment();
     }
 
     /** Report whether the segments take no input. */
@@ -235,7 +242,10 @@ class DateSegmentControl {
         // step from the value, or from now while the segment is empty
         const [min, max] = this.properties.format.limits(kind, this.properties.values);
         const value = this.properties.values[kind];
-        const stepped = value === undefined ? this.properties.format.now(kind) : value + step;
+        const stepped =
+            value === undefined
+                ? this.properties.format.now(kind, this.#environment)
+                : value + step;
         this.#typed = "";
         this.#change(kind, wrap(stepped, min, max));
     }

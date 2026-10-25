@@ -1,5 +1,6 @@
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { BunEnvironment } from "@destack/environment/bun";
 import { schema } from "@destack/schema";
 
 /** The first line of each generated module. */
@@ -7,6 +8,9 @@ const HEADER = "// generate with `bun run generate` from @tanstack/charts' entry
 
 /** The entry points binding other frameworks, which charts in views never use. */
 const FRAMEWORKS = /^(alpine|angular|lit|octane|preact|react|react-native|solid|svelte|vue)(\/|$)/u;
+
+/** The files this script reads and writes. */
+const { files } = BunEnvironment.system;
 
 /** The directory of the generated modules. */
 const MODULES = new URL("module/", import.meta.url);
@@ -17,7 +21,9 @@ const Manifest = schema.looseObject({ exports: schema.record(schema.string(), sc
 /** The upstream manifest. */
 const manifest = Manifest.parse(
     JSON.parse(
-        await readFile(new URL(import.meta.resolve("@tanstack/charts/package.json")), "utf8"),
+        await files.readTextFile(
+            fileURLToPath(import.meta.resolve("@tanstack/charts/package.json")),
+        ),
     ),
 );
 
@@ -29,9 +35,12 @@ const entries = Object.keys(manifest.exports)
     .toSorted();
 
 // write one module re-exporting each entry point
-await rm(MODULES, { recursive: true, force: true });
+await files.remove(fileURLToPath(MODULES), { recursive: true, force: true });
 for (const entry of entries) {
     const file = new URL(`${entry}.ts`, MODULES);
-    await mkdir(dirname(file.pathname), { recursive: true });
-    await writeFile(file, `${HEADER}\n\nexport * from "@tanstack/charts/${entry}";\n`);
+    await files.mkdir(dirname(fileURLToPath(file)), { recursive: true });
+    await files.writeTextFile(
+        fileURLToPath(file),
+        `${HEADER}\n\nexport * from "@tanstack/charts/${entry}";\n`,
+    );
 }

@@ -1,21 +1,20 @@
-import { expect, test } from "@destack/test";
+import { expect, test, vi } from "@destack/test";
 import { render } from "@destack/view/test";
 import { flush } from "@destack/view";
 import { IconPicker, IconPickerContent, IconPickerSearch } from "./index.ts";
 
 /** Wait until a container shows an element a selector finds, flushing between looks. */
 async function shown(container: HTMLElement, selector: string): Promise<HTMLElement> {
-    for (let attempt = 0; attempt < 100; attempt++) {
+    return await vi.waitFor(() => {
+        // render what the loaded data changed, then look
         flush();
         const found = container.querySelector<HTMLElement>(selector);
-        if (found !== null) {
-            return found;
+        if (found === null) {
+            throw new TypeError(`nothing shows ${selector}`);
         }
-        await new Promise((resolve) => {
-            setTimeout(resolve, 10);
-        });
-    }
-    throw new TypeError(`nothing shows ${selector}`);
+
+        return found;
+    });
 }
 
 test("pick an icon a search finds by one of its words, under its category's heading", async () => {

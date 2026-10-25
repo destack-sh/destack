@@ -15,7 +15,7 @@ import {
     tableFeatures,
 } from "@tanstack/table-core";
 import { Errored, flush, type JSX } from "@destack/view";
-import { render, stubPopovers } from "@destack/view/test";
+import { render, stubPopovers, wait } from "@destack/view/test";
 import {
     createTable,
     DataTable,
@@ -275,9 +275,7 @@ async function pressAndRead(key: string, modifiers: KeyboardEventInit = {}): Pro
         new KeyboardEvent("keydown", { key, bubbles: true, ...modifiers }),
     );
     flush();
-    await new Promise((resolve) => {
-        setTimeout(resolve);
-    });
+    await wait(1);
     flush();
 
     return (

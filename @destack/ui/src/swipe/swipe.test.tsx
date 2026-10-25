@@ -49,7 +49,7 @@ function drawSwipe(direction: SwipeDirection, canStart: () => boolean = () => tr
         <div
             onPointerDown={(event) => swipe.start(event)}
             onPointerMove={(event) => swipe.follow(event)}
-            onPointerUp={() => swipe.release()}
+            onPointerUp={(event) => swipe.release(event)}
         >
             <button>Close</button>
         </div>

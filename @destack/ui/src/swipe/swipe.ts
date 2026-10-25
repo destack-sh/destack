@@ -108,7 +108,7 @@ export class Swipe {
 
         // sample the pointer and the element's extent along the axis
         const box = event.currentTarget.getBoundingClientRect();
-        const sample = { position: this.#position(event), time: performance.now() };
+        const sample = { position: this.#position(event), time: event.timeStamp };
         this.#run = {
             start: sample.position,
             extent: this.#isVertical() ? box.height : box.width,
@@ -124,17 +124,17 @@ export class Swipe {
         if (run !== undefined) {
             const position = this.#position(event);
             run.previous = run.last;
-            run.last = { position, time: performance.now() };
+            run.last = { position, time: event.timeStamp };
             this.#setOffset((position - run.start) * this.#sign());
         }
     }
 
     /** Hand the travel and the speed of the last move to the handler as the pointer lets go. */
-    release(): void {
+    release(event: PointerEvent): void {
         const run = this.#run;
         if (run !== undefined) {
             const moved = (run.last.position - run.previous.position) * this.#sign();
-            const elapsed = Math.max(performance.now() - run.previous.time, 1);
+            const elapsed = Math.max(event.timeStamp - run.previous.time, 1);
             this.#onRelease({
                 travel: this.offset() ?? 0,
                 speed: moved / elapsed,

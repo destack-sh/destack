@@ -5,7 +5,9 @@ import { render, stubPopovers, wait } from "@destack/view/test";
 
 /** Render a toaster that clears the page's toasts after the test. */
 function drawToaster(duration: number): HTMLElement {
+    // start from no toasts, as the page's one store outlives other files' examples
     stubPopovers();
+    toast.dismiss();
     onTestFinished(() => toast.dismiss());
 
     return render(() => <Toaster duration={duration} />).container;

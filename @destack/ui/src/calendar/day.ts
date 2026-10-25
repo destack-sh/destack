@@ -1,5 +1,6 @@
+import type { Environment } from "@destack/environment";
 import type { LocaleTag } from "@destack/locale";
-import { PlainDate } from "@destack/schema";
+import { PlainDate, TimeZone } from "@destack/schema";
 
 /** The first day of the week where the locale does not say, ISO 8601's Monday. */
 const DEFAULT_FIRST_DAY = 1;
@@ -45,11 +46,14 @@ export const Day = {
         return Date.UTC(date.year, date.month - 1, date.day);
     },
 
-    /** Read the date of the local clock now. */
-    today(): PlainDate {
-        const now = new Date();
+    /** Read today's date on an environment's clock in its time zone. */
+    today(environment: Pick<Environment, "clock" | "timeZone">): PlainDate {
+        return Day.at(environment.timeZone, environment.clock.now());
+    },
 
-        return { year: now.getFullYear(), month: now.getMonth() + 1, day: now.getDate() };
+    /** Read the day an instant in epoch milliseconds falls on in a time zone. */
+    at(timeZone: string, time: number): PlainDate {
+        return TimeZone.date(timeZone, time);
     },
 
     /** Move a date by a number of months, keeping the day of month within the target month. */

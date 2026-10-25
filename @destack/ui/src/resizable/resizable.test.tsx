@@ -1,6 +1,8 @@
 import { expect, test } from "@destack/test";
 import { flush } from "@destack/view";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "./index.ts";
+import { BrowserSimulation } from "@destack/environment/browser/simulation";
+import { Simulation } from "@destack/environment/simulation";
 import { render } from "@destack/view/test";
 
 /** The custom property StyleX sets to a panel's dynamic flex grow, its share of the group. */
@@ -66,17 +68,23 @@ test("collapse a collapsible panel on Enter and restore it to its smallest share
     ]);
 });
 
-test("restore the layout a group saved under its id", () => {
-    localStorage.setItem("destack-resizable:notes", JSON.stringify([45, 55]));
-    const { container } = render(() => (
-        <ResizablePanelGroup autoSaveId="notes">
-            <ResizablePanel defaultSize={30}>Notebooks</ResizablePanel>
-            <ResizableHandle />
-            <ResizablePanel>Note</ResizablePanel>
-        </ResizablePanelGroup>
-    ));
+test("restore the layout a group saved under its id", async () => {
+    // save a layout in a tab's storage, and render the group in that tab
+    await using simulation = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 24) });
+    const tab = new BrowserSimulation(simulation).environment("tab");
+    tab.storage.setItem("destack-resizable:notes", JSON.stringify([45, 55]));
+    const { container } = render(
+        () => (
+            <ResizablePanelGroup autoSaveId="notes">
+                <ResizablePanel defaultSize={30}>Notebooks</ResizablePanel>
+                <ResizableHandle />
+                <ResizablePanel>Note</ResizablePanel>
+            </ResizablePanelGroup>
+        ),
+        { environment: tab },
+    );
     press(container, "ArrowRight");
-    expect([shares(container), localStorage.getItem("destack-resizable:notes")]).toEqual([
+    expect([shares(container), tab.storage.getItem("destack-resizable:notes")]).toEqual([
         ["55", "45"],
         "[55,45]",
     ]);

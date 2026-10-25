@@ -80,6 +80,8 @@ export type DatePickerProperties = {
     readonly "aria-label"?: string;
     /** The choices offered beside the calendar, such as today or the next seven days. */
     readonly presets?: readonly DatePickerPreset[];
+    /** The day the calendar counts as today, the page clock's by default. */
+    readonly today?: PlainDate;
     /** Whether the calendar is open, which makes the open state controlled. */
     readonly open?: boolean | undefined;
     /** Whether the calendar starts open while the open state is uncontrolled. */
@@ -157,19 +159,7 @@ function DatePickerPanel(properties: DatePickerProperties): JSX.Element {
             >
                 <DatePickerTrigger properties={properties} value={value()} />
             </Show>
-            <PopoverContent
-                align="start"
-                data-slot="date-picker-content"
-                onToggle={(event) => {
-                    // move the focus onto the calendar's focused day as it opens
-                    if (event.newState === "open") {
-                        event.currentTarget
-                            .querySelector<HTMLElement>("[data-day][tabindex='0']")
-                            ?.focus();
-                    }
-                }}
-                xstyle={styles.content}
-            >
+            <PopoverContent align="start" data-slot="date-picker-content" xstyle={styles.content}>
                 <Show when={properties.presets}>
                     {(presets) => (
                         <div
@@ -192,10 +182,14 @@ function DatePickerPanel(properties: DatePickerProperties): JSX.Element {
                         </div>
                     )}
                 </Show>
-                <Calendar
-                    {...selectionOf(properties.mode, value(), change)}
-                    disabled={properties.disabled ?? (() => false)}
-                />
+                <Show when={popover.isOpen()}>
+                    <Calendar
+                        autoFocus
+                        {...selectionOf(properties.mode, value(), change)}
+                        {...(properties.today === undefined ? {} : { today: properties.today })}
+                        disabled={properties.disabled ?? (() => false)}
+                    />
+                </Show>
             </PopoverContent>
         </>
     );

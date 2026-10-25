@@ -10,7 +10,7 @@ export const calendarMoveFocusedDay = defineScenario({
     name: "move-focused-day",
     description:
         "move the focused day with arrows, Home, End, Page Up and Page Down, crossing months",
-    given: { examples: [calendarLateOctober], environment: { locale: "de-AT" } },
+    given: { examples: [calendarLateOctober], globals: { locale: "de-AT" } },
     when: [
         { action: "focus", target: { role: "button", name: "Freitag, 30. Oktober 2026" } },
         { action: "press", key: "ArrowRight" },

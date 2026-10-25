@@ -1,3 +1,4 @@
+import type { Clock } from "@destack/environment";
 import { Icon, type IconBodies } from "@destack/icon";
 import checkCircle from "@destack/icon/phosphor/check-circle";
 import info from "@destack/icon/phosphor/info";
@@ -14,12 +15,13 @@ import {
     For,
     type JSX,
     merge,
-    onCleanup,
     onSettled,
     type Setter,
     Show,
+    useEnvironment,
     useLocale,
 } from "@destack/view";
+import { Timeout } from "@destack/view/primitives/timer";
 import { Button } from "../button/index.ts";
 import { Spinner } from "../spinner/index.ts";
 import { isDismissal, Swipe, type SwipeDirection, swipeStyle } from "../swipe/index.ts";
@@ -381,10 +383,12 @@ function focusOnShortcut(target: () => HTMLElement | undefined): void {
 class ToastTimer {
     /** The time left, in milliseconds, infinite for a toast that stays. */
     #remaining: number;
-    /** The time the countdown last started, in milliseconds since the page loaded. */
+    /** The time the countdown last started, on the page's clock. */
     #started = 0;
+    /** The page's clock. */
+    readonly #clock: Clock = useEnvironment().clock;
     /** The pending end of the countdown. */
-    #timer: ReturnType<typeof setTimeout> | undefined = undefined;
+    readonly #timer = new Timeout();
     /** The pointer and the focus resting on the toast, each holding the countdown. */
     #holds = 0;
     /** End the toast once its time runs out. */
@@ -396,15 +400,14 @@ class ToastTimer {
         this.#remaining = duration;
         this.#onEnd = onEnd;
         this.#run();
-        onCleanup(() => clearTimeout(this.#timer));
     }
 
     /** Pause the countdown while the pointer or the focus rests on the toast. */
     pause(): void {
         this.#holds += 1;
         if (this.#holds === 1) {
-            clearTimeout(this.#timer);
-            this.#remaining -= performance.now() - this.#started;
+            this.#timer.clear();
+            this.#remaining -= this.#clock.now() - this.#started;
         }
     }
 
@@ -419,8 +422,8 @@ class ToastTimer {
     /** Count down the time left, unless the toast stays. */
     #run(): void {
         if (Number.isFinite(this.#remaining)) {
-            this.#started = performance.now();
-            this.#timer = setTimeout(this.#onEnd, this.#remaining);
+            this.#started = this.#clock.now();
+            this.#timer.set(this.#onEnd, this.#remaining);
         }
     }
 }
@@ -464,7 +467,7 @@ function ToastItem(properties: {
             onFocusOut={() => timer.resume()}
             onPointerDown={(event) => swipe.start(event)}
             onPointerMove={(event) => swipe.follow(event)}
-            onPointerUp={() => swipe.release()}
+            onPointerUp={(event) => swipe.release(event)}
             onPointerCancel={() => swipe.cancel()}
             {...style.attrs(
                 text.footnote,

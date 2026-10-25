@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { createSignal, flush } from "@destack/view";
-import { markup, render } from "@destack/view/test";
+import { markup, render, wait } from "@destack/view/test";
 import { isSubmitted, ToggleInput, ToggleState } from "./toggle-state.tsx";
 
 test("keep an uncontrolled toggle's own state, report each change and reset to the default", () => {
@@ -123,9 +123,7 @@ test("leave the hidden input agreeing with its control after its form resets", a
     ));
     container.querySelector("form")?.reset();
     flush();
-    await new Promise((resolve) => {
-        setTimeout(resolve);
-    });
+    await wait(1);
 
     // the browser restores each input to its markup, and each then follows its control again
     expect({

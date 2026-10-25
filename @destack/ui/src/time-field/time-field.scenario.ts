@@ -10,7 +10,7 @@ export const timeFieldChooseDayPeriod = defineScenario({
     name: "choose-day-period",
     description:
         "type the hour and minute digit by digit and choose the afternoon by its letter on a 12-hour clock",
-    given: { examples: [timeFieldReminder], environment: { locale: "en-US" } },
+    given: { examples: [timeFieldReminder], globals: { locale: "en-US" } },
     when: [
         { action: "focus", target: { role: "spinbutton", name: "Hour" } },
         { action: "press", key: "9" },

@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { testHost } from "@destack/test/host";
 import { join } from "node:path";
 import { TOKENS } from "@destack/theme";
 import { present } from "@destack/schema";
@@ -9,7 +9,7 @@ const VARIABLE = /var\((--destack-[a-z0-9-]+)/gu;
 
 test("style prose through custom properties the theme's tokens define alone", async () => {
     // read the custom properties the stylesheet reads and the ones the theme's tokens define
-    const sheet = await readFile(join(import.meta.dirname, "prose.css"), "utf8");
+    const sheet = await testHost().files.readTextFile(join(import.meta.dirname, "prose.css"));
     const used = [...sheet.matchAll(VARIABLE)].map((match) =>
         present(match[1], "a custom property's name"),
     );

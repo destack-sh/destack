@@ -1,3 +1,4 @@
+import { Timeout } from "@destack/view/primitives/timer";
 import * as style from "@destack/style";
 import { visuallyHiddenStyle } from "../visually-hidden/index.ts";
 import { type Accessor, createControllableSignal, type JSX, onSettled } from "@destack/view";
@@ -89,8 +90,9 @@ export function isSubmitted(properties: ToggleFormProperties): boolean {
 
 /** Render the hidden native input that carries a control's state into its form. */
 export function ToggleInput(properties: ToggleInputProperties): JSX.Element {
-    // restore the first state when the input's form resets
+    // restore the first state when the input's form resets, a task later on the page's clock
     let element: HTMLInputElement | undefined;
+    const restoring = new Timeout();
     onSettled(() => {
         const reset = (event: Event) => {
             // reset the control, then write its state over the one the form restores after the event
@@ -99,9 +101,9 @@ export function ToggleInput(properties: ToggleInputProperties): JSX.Element {
                 return;
             }
             properties.onReset();
-            setTimeout(() => {
+            restoring.set(() => {
                 input.checked = properties.checked;
-            });
+            }, 0);
         };
         document.addEventListener("reset", reset);
 
