@@ -92,7 +92,7 @@ export const NestedMethod = {
         const { object } = context;
         const parent = context.parent();
         if (parent === undefined && nesting.optional !== true) {
-            throw ObjectError.of("MISSING_PARENT", `${object.name} needs a parent`);
+            throw ObjectError.of("PARENT_MISSING", `${object.name} needs a parent`);
         }
 
         // require a receiving parent outside the subtree

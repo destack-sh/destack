@@ -51,7 +51,7 @@ export interface PackageInput {
     /** What its installations can do beyond that, each with what it needs, by name. */
     readonly capabilities?: Readonly<Record<string, Capability>>;
     /** The reasons the package fails with, which its manifest lists. */
-    readonly errors?: ErrorFamily<ReasonDeclarations>;
+    readonly errors?: Pick<ErrorFamily<ReasonDeclarations>, "describe">;
     /** The oldest caller release the package serves, every release when absent. */
     readonly since?: Version;
 }

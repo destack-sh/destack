@@ -30,6 +30,7 @@ import * as historyExports from "../history/index.ts";
 import * as sequenceExports from "../sequence/index.ts";
 import * as textExports from "../text/index.ts";
 import * as stackExports from "../stack/index.ts";
+import * as installationExports from "../installation/index.ts";
 import * as branchExports from "../branch/index.ts";
 import * as claimExports from "../claim/index.ts";
 import * as hookExports from "../hook/index.ts";
@@ -37,6 +38,8 @@ import * as declareExports from "../declare/index.ts";
 import * as procedureExports from "../procedure/index.ts";
 import * as healthExports from "../health/index.ts";
 import * as bodyExports from "../server/body.ts";
+import * as hmacExports from "../webhook/hmac.ts";
+import * as webhookExports from "../webhook/standard.ts";
 
 /** The definition keys that may have lazy references, `*` for any and `[]` for list entries. */
 const LAZY_PATHS: readonly (readonly string[])[] = [
@@ -105,6 +108,7 @@ export class ExportIndex {
                 ...errorExports,
                 ...auditExports,
                 ...policyAccessExports,
+                ...installationExports,
                 ...historyExports,
                 ...sequenceExports,
                 ...textExports,
@@ -116,6 +120,8 @@ export class ExportIndex {
                 ...procedureExports,
                 ...healthExports,
                 ...bodyExports,
+                ...hmacExports,
+                ...webhookExports,
             },
             "@destack/access": accessExports,
         });

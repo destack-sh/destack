@@ -26,7 +26,7 @@ export const observe = controlledMethod
         const { observedGeneration, conditions, fields } = context.input;
         if (observedGeneration > context.target.generation) {
             throw ObjectError.of(
-                "STALE_GENERATION",
+                "GENERATION_STALE",
                 `expected ${context.object.name} at generation ${observedGeneration}, got ${context.target.generation}`,
             );
         }

@@ -13,7 +13,7 @@ import {
     principal,
     Relationship,
 } from "@destack/access";
-import { Scope, ObjectReference, Subject } from "@destack/sync";
+import { Scope, ObjectReference, Subject, SyncError } from "@destack/sync";
 import type { JsonValue } from "@destack/schema";
 import {
     type Condition,
@@ -55,6 +55,14 @@ const BROADCAST_BYTES = 16 * 1024;
 /** An event an object sends, with the object it is about. */
 const SENT_EVENT = ObjectReference.extend({ event: schema.json() });
 
+/** The events sent to a followed scope's objects, waiting for the follow to yield them. */
+interface ScopeEvents {
+    /** The events received and not yet yielded. */
+    readonly received: JsonValue[];
+    /** Settles once an event arrives, renewed as the follow takes them. */
+    arrival: PromiseWithResolvers<void>;
+}
+
 /** The replicas a store streams: client feeds of scope queries, and databases below. */
 export class ObjectSource {
     /** The store whose objects the replicas copy. */
@@ -79,8 +87,7 @@ export class ObjectSource {
             }
 
             // compile the queries against the followed shapes' types first
-            const types = [...this.store.followed, ...this.store.decided];
-            const compiled = Object.values(ObjectType.queries(types, named, [scope]));
+            const compiled = Object.values(ObjectType.queries(this.store.followed, named, [scope]));
 
             // follow each queried table's rows under its queries' conditions
             const tables = [...new Set(compiled.map((query) => query.table))];
@@ -168,7 +175,17 @@ export class ObjectSource {
         // allow the caller by the publication's audience
         const publication = this.publication(subscription);
         const follower = await this.#authorizeFollower(publication, subscription, context);
-        yield* this.#relay(publication, subscription, follower, context);
+        let isPaged = false;
+        for await (const page of this.#relay(publication, subscription, follower, context)) {
+            isPaged = true;
+            yield page;
+        }
+
+        // refuse a stream its caller's credential lapsed before any page, for the follower to resume anew
+        const lapse: unknown = context.signal.reason;
+        if (!isPaged && SyncError.is(lapse, "CREDENTIAL_LAPSED")) {
+            throw lapse;
+        }
     }
 
     /** Stream an authorized follower's replica by its publication. */
@@ -276,17 +293,18 @@ export class ObjectSource {
             return { context };
         }
 
-        // decide for the scope's principal or a caller living in it, or the installation a partition below it runs
+        // decide for the scope's principal or a caller living in it
         const following = context.access(request.target);
         const resident = [following.subject, ...following.groups].filter(
             (subject) => subject.id === request.target || subject.scope === request.target,
         );
-        if (
-            resident.length === 0 &&
-            (await this.#isPartitionOf(request.target, following.subject))
-        ) {
+
+        // let an outsider the target's replicate permission allows follow it, such as the machine a move targets
+        if (resident.length === 0 && (await this.#mayReplicate(request.target, context))) {
             return { context };
-        } else if (resident.length === 0) {
+        }
+        // refuse any other outsider
+        else if (resident.length === 0) {
             throw ObjectError.of(
                 "FOLLOWER_OUTSIDE_TARGET",
                 `only ${request.target} and its contents can follow its replicas`,
@@ -303,24 +321,11 @@ export class ObjectSource {
         return { context };
     }
 
-    /** Decide whether a scope is a partition inside the scope of the installation following it. */
-    async #isPartitionOf(target: string, follower: Subject): Promise<boolean> {
-        // allow an installation following a partition its scope encloses, as its partitions follow their chains
-        if (!principal.installation.is(follower)) {
-            return false;
-        }
-        const [row] = await Scope.read(Snapshot.live(this.store.database), [target]);
-
-        return (
-            row !== undefined && row.partition === target && row.ancestors.includes(follower.scope)
-        );
-    }
-
     /** Read the principal following, refusing an anonymous follower as unauthenticated. */
     static #principal(context: RequestContext): Subject {
         const caller = context.caller();
         if (Caller.isAnonymous(caller)) {
-            throw ObjectError.of("MISSING_CREDENTIAL", "missing caller credential");
+            throw ObjectError.of("CREDENTIAL_MISSING", "missing caller credential");
         }
 
         return Caller.principal(caller);
@@ -337,7 +342,7 @@ export class ObjectSource {
         // require a principal type its followers declare
         const policy = this.store.authorizer.policy(subject);
         if (!Object.hasOwn(policy.definition.permissions, FOLLOW)) {
-            throw ObjectError.of("NO_FOLLOWERS", `a ${subject.type} has no followers`);
+            throw ObjectError.of("FOLLOWERS_MISSING", `a ${subject.type} has no followers`);
         }
 
         // decide `follow` on the principal from the caller's identity and stated sets
@@ -353,6 +358,24 @@ export class ObjectSource {
             { ...caller, credential },
         );
         await authorization.require(policy.permission(FOLLOW), subject);
+    }
+
+    /** Decide whether a caller outside a scope has `replicate` on it, as a relation grants it. */
+    async #mayReplicate(target: string, context: RequestContext): Promise<boolean> {
+        // decide the scope's permission, none for a scope type without replicas of its chain
+        const scope = await Scope.object(Snapshot.live(this.store.database), target);
+        const policy = this.store.authorizer.policy(scope);
+        if (!Object.hasOwn(policy.definition.permissions, REPLICATE)) {
+            return false;
+        }
+        const authorization = await this.store.authorize(
+            Transaction.reading(this.store.database),
+            target,
+            context.access(target),
+        );
+        const decision = await authorization.check(policy.permission(REPLICATE), scope);
+
+        return decision.isAllowed;
     }
 
     /** Require `replicate` on a caller's object, or else on a scope. */
@@ -389,7 +412,7 @@ export class ObjectSource {
         const [first] = granting;
         if (first === undefined) {
             throw ObjectError.of(
-                "NO_CHAIN_REPLICAS",
+                "CHAIN_REPLICAS_MISSING",
                 `a ${scope.type} has no replicas of its chain`,
             );
         }
@@ -419,6 +442,52 @@ export class ObjectSource {
         }));
     }
 
+    /** Follow the row standing for a principal from the universe where it is missing. */
+    async stand(subject: Subject | undefined, signal: AbortSignal): Promise<void> {
+        // take the principal standing for itself, or the space an installation lives in
+        if (subject === undefined || this.store.standing.length === 0) {
+            return;
+        }
+        const standingFor = principal.installation.is(subject) ? subject.scope : subject.id;
+
+        // find the standing follow of the type representing it, unless its row is here
+        const object = this.#representing(standingFor);
+        const kind = object?.represents;
+        const follow = this.store.standing.find((each) =>
+            each.shape.objects.some((type) => object?.same(type) === true),
+        );
+        if (
+            kind === undefined ||
+            follow === undefined ||
+            (await this.#standing(standingFor)) !== undefined
+        ) {
+            return;
+        }
+
+        // follow the row's key, its parameter named for the principal kind
+        await this.store.acquire(
+            follow,
+            { key: { scope: Scope.universe.id, [kind.name]: standingFor } },
+            signal,
+        );
+    }
+
+    /** Find the one decided type representing the principal kind of an identifier. */
+    #representing(target: string): ObjectType | undefined {
+        const representing = this.store.decided.filter(
+            (type) =>
+                type.represents !== undefined &&
+                type.table[TABLE].column("id").definition.schema.safeParse(target).success,
+        );
+        if (representing.length > 1) {
+            throw new TypeError(
+                `types ${representing.map((type) => type.name).join(", ")} all represent ${target}`,
+            );
+        }
+
+        return representing[0];
+    }
+
     /** Find a principal's row in the decided type representing its kind, with its scope. */
     async #standing(
         target: string,
@@ -433,17 +502,7 @@ export class ObjectSource {
         | undefined
     > {
         // find the one decided type representing the principal kind of the identifier
-        const representing = this.store.decided.filter(
-            (type) =>
-                type.represents !== undefined &&
-                type.table[TABLE].column("id").definition.schema.safeParse(target).success,
-        );
-        if (representing.length > 1) {
-            throw new TypeError(
-                `types ${representing.map((type) => type.name).join(", ")} all represent ${target}`,
-            );
-        }
-        const [object] = representing;
+        const object = this.#representing(target);
         const kind = object?.represents;
         if (object === undefined || kind === undefined) {
             return undefined;
@@ -511,8 +570,8 @@ export class ObjectSource {
                 feed,
                 scope,
                 caller,
-                chain,
-                compile(queries),
+                audience,
+                (current) => ObjectType.queries(this.store.durable, this.#served(queries), current),
                 after,
                 options,
                 context.request.signal,
@@ -542,13 +601,13 @@ export class ObjectSource {
         yield* pages();
     }
 
-    /** Follow queries over their scopes and the replicas a caller sees below them. */
+    /** Follow queries over their scopes' chain and the replicas a caller sees below them. */
     async *#replicating(
         feed: sync.Feed,
         scope: string,
         caller: Subject | undefined,
-        chain: readonly string[],
-        queries: Record<string, sync.Query>,
+        audience: ObjectAudience,
+        compile: (chain: readonly string[]) => Record<string, sync.Query>,
         after: LogPosition | undefined,
         options: sync.FeedOptions,
         signal: AbortSignal,
@@ -559,20 +618,37 @@ export class ObjectSource {
         let reflected = options.previous && ObjectSource.#withReplicas(options.previous, held);
         let position = after;
         while (!signal.aborted && options.drain?.aborted !== true) {
-            // watch the replicas until they change, its failure surfacing once the follow ends
+            // compile the queries over the scope's chain now and the replicas held now
+            const { chain } = audience;
             const current = canonicalize(held);
-            const compiled = ObjectSource.#withReplicas(queries, held);
+            const compiled = ObjectSource.#withReplicas(compile(chain), held);
             const rekept = new AbortController();
             const following = AbortSignal.any([signal, rekept.signal]);
+
+            // follow again once the replicas change, or once the scope's chain grows or moves
             const names = [sync.replica, sync.replicaSubscription].map(
                 (table) => table[TABLE].sqlName,
             );
-            const changed = database.log.until(
-                async (tables) =>
+            const scopes = Scope.table[TABLE].sqlName;
+            const changed = database.log.until(async (tables) => {
+                // follow again over replicas the reader holds anew
+                if (
                     names.some((name) => tables.has(name)) &&
-                    canonicalize(await sync.Replica.tables(database, scope, caller)) !== current,
-                following,
-            );
+                    canonicalize(await sync.Replica.tables(database, scope, caller)) !== current
+                ) {
+                    return true;
+                }
+                // follow again over a chain a scope change grew or moved
+                else if (tables.has(scopes)) {
+                    await audience.refresh();
+
+                    return canonicalize(audience.chain) !== canonicalize(chain);
+                }
+                // keep following otherwise
+                else {
+                    return false;
+                }
+            }, following);
             changed.then(
                 (isChanged) => isChanged && rekept.abort(),
                 () => rekept.abort(),
@@ -610,6 +686,13 @@ export class ObjectSource {
         const store = this.store.requireEphemeral();
         const release = store.track(EphemeralStorage.writerKey(context.access(scope), writerId));
         const compiled = ObjectType.queries(store.objects, queries, [scope]);
+
+        // collect the scope's events for the whole follow, kept across its restarts
+        const events: ScopeEvents = { received: [], arrival: Promise.withResolvers<void>() };
+        const stop = store.tracker.listen(scope, (event) => {
+            events.received.push(event);
+            events.arrival.resolve();
+        });
         const earlier =
             previous === undefined ? undefined : EphemeralParameters.parse(previous).queries;
         const reflected = earlier && ObjectType.queries(store.objects, earlier, [scope]);
@@ -634,10 +717,11 @@ export class ObjectSource {
                         options,
                     );
 
-                    return this.#interleave(pages, scope, audience.authorization, signal);
+                    return this.#interleave(pages, events, audience, signal);
                 },
             );
         } finally {
+            stop();
             release();
         }
     }
@@ -658,7 +742,7 @@ export class ObjectSource {
         const feed = new sync.Feed(
             await external.open(scope),
             external.objects.map((object) => object.table),
-            { clock: this.store.clock },
+            {},
         );
         const compiled = ObjectType.queries(external.objects, queries, [scope]);
         const earlier =
@@ -879,7 +963,7 @@ export class ObjectSource {
         // refuse a scope with no home or replica here
         else {
             throw ObjectError.of(
-                "NO_HOME_OR_REPLICA",
+                "HOME_OR_REPLICA_MISSING",
                 `${watermark.scope} has no home or replica here`,
             );
         }
@@ -1057,15 +1141,17 @@ export class ObjectSource {
         const policy = this.store.authorizer.policy(scope);
         if (!Object.hasOwn(policy.definition.permissions, REPLICATE)) {
             throw ObjectError.of(
-                "NO_CHAIN_REPLICAS",
+                "CHAIN_REPLICAS_MISSING",
                 `a ${scope.type} has no replicas of its chain`,
             );
         }
 
-        // decide for the principal standing for the follower, or for the caller
-        const authorization = !AccessContext.isRemote(reader)
-            ? await this.store.authorize(Transaction.reading(database), via, reader, { within: [] })
-            : await this.store.authorize(Transaction.reading(database), via, reader);
+        // decide for the follower inside the scopes its row places it, wherever it calls from
+        const authorization = await this.store.authorize(
+            Transaction.reading(database),
+            via,
+            reader,
+        );
         await authorization.require(policy.permission(REPLICATE), scope);
     }
 
@@ -1157,50 +1243,55 @@ export class ObjectSource {
         );
     }
 
-    /** Interleave a stream's pages with the readable objects' events. */
+    /** Interleave a stream's pages with the readable objects' events, once it yielded a page. */
     async *#interleave(
         pages: AsyncGenerator<sync.Page>,
-        scope: string,
-        authorization: Authorization,
+        events: ScopeEvents,
+        audience: Pick<ObjectAudience, "authorization">,
         signal: AbortSignal,
     ): AsyncGenerator<sync.Page> {
-        // collect the scope's events, waking the loop when one arrives
-        const received: JsonValue[] = [];
+        // decide each object's events once per access the audience has
         const readable = new Map<string, boolean>();
-        const waker = { arrival: Promise.withResolvers<void>() };
-        let stop: (() => void) | undefined;
+        let decider = audience.authorization;
         let last: sync.Page | undefined;
         let next = pages.next();
         try {
             while (!signal.aborted) {
-                // wait for the next page unless events wait
+                // wait for the next page, or for events once a page gave their position
                 const arrived =
-                    received.length > 0
+                    last !== undefined && events.received.length > 0
                         ? { kind: "events" as const }
                         : await Promise.race([
                               next.then((page) => ({ kind: "page" as const, page })),
-                              waker.arrival.promise.then(() => ({ kind: "events" as const })),
+                              ...(last === undefined
+                                  ? []
+                                  : [
+                                        events.arrival.promise.then(() => ({
+                                            kind: "events" as const,
+                                        })),
+                                    ]),
                           ]);
 
-                // yield the next page, listening for events after the first
+                // yield the next page
                 if (arrived.kind === "page") {
                     if (arrived.page.done === true) {
                         return;
                     }
-                    stop ??= this.store.requireEphemeral().tracker.listen(scope, (event) => {
-                        received.push(event);
-                        waker.arrival.resolve();
-                    });
                     last = arrived.page.value;
                     next = pages.next();
                     yield arrived.page.value;
                     continue;
                 }
-                waker.arrival = Promise.withResolvers<void>();
+                events.arrival = Promise.withResolvers<void>();
 
-                // yield the readable events
+                // yield the events readable under the audience's current access, deciding again once it changed
+                const { authorization } = audience;
+                if (authorization !== decider) {
+                    readable.clear();
+                    decider = authorization;
+                }
                 const broadcasts = await this.#readable(
-                    received.splice(0),
+                    events.received.splice(0),
                     readable,
                     authorization,
                 );
@@ -1215,7 +1306,6 @@ export class ObjectSource {
                 }
             }
         } finally {
-            stop?.();
             await pages.return(undefined);
         }
     }

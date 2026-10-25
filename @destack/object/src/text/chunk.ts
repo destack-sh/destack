@@ -428,7 +428,7 @@ const ChunkLayout = {
         // refuse a run the text already contains
         const duplicate = found.find((entry) => inserted.has(entry.run));
         if (duplicate !== undefined) {
-            throw ObjectError.of("DUPLICATE_RUN", `${field} already has run ${duplicate.run}`);
+            throw ObjectError.of("RUN_DUPLICATE", `${field} already has run ${duplicate.run}`);
         }
 
         // refuse an element no chunk contains
@@ -470,7 +470,7 @@ const ChunkLayout = {
         for (const edit of edits) {
             // refuse inserting a run the text already has
             if ("insert" in edit && sequence.runs.some((piece) => piece.run === edit.run)) {
-                throw ObjectError.of("DUPLICATE_RUN", `${field} already has run ${edit.run}`);
+                throw ObjectError.of("RUN_DUPLICATE", `${field} already has run ${edit.run}`);
             }
 
             // apply the edit after inverting it against the text before
@@ -479,7 +479,7 @@ const ChunkLayout = {
                 sequence = sequence.apply(edit);
             } catch (error) {
                 if (error instanceof RangeError) {
-                    throw ObjectError.of("INVALID_TEXT_EDIT", error.message);
+                    throw ObjectError.of("TEXT_EDIT_INVALID", error.message);
                 }
                 throw error;
             }
@@ -531,7 +531,7 @@ const ChunkLayout = {
                 before = FractionalIndex.between(before, after);
                 chunks.created.push({
                     ...parent,
-                    id: Identifier.create("chunk"),
+                    id: Identifier.create("chunk", context.environment),
                     position: before,
                     runs,
                     text: new Sequence(runs).text(),

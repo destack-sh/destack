@@ -47,7 +47,7 @@ export const DECLARED_ERRORS = {
 
 /** What a call failure has beside its code, as gRPC's ErrorInfo beside its status. */
 export type CallErrorOptions<Data> = ORPCErrorOptions<Data> & {
-    /** The failure's stable cause within its domain, such as STALE_REVISION. */
+    /** The failure's stable cause within its domain, such as REVISION_STALE. */
     readonly reason: string;
     /** The package whose reason it is, such as @destack/object, or http. */
     readonly domain: string;

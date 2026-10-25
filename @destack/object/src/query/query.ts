@@ -28,7 +28,7 @@ export function compileQueries(
             const { object: objectName, scopes, ...options } = query;
             const object = objects.find((entry) => entry.name === objectName);
             if (!object) {
-                throw ObjectError.of("UNKNOWN_OBJECT", `object ${objectName} not found`);
+                throw ObjectError.of("OBJECT_UNKNOWN", `object ${objectName} not found`);
             }
             // read every scope's rows, each decided by its access
             else if (scopes === "every") {
@@ -60,7 +60,7 @@ export function compile(
     const { permission, ...found } = options;
     if (permission !== undefined && !object.permissions.includes(permission)) {
         throw ObjectError.of(
-            "UNKNOWN_PERMISSION",
+            "PERMISSION_UNKNOWN",
             `object ${object.name} has no permission ${permission}`,
         );
     }
@@ -87,7 +87,7 @@ export function related(
             : objects.find((entry) => entry.table === relation.table);
     if (relation === undefined || target === undefined) {
         throw ObjectError.of(
-            "UNKNOWN_INCLUDE",
+            "INCLUDE_UNKNOWN",
             `object ${object.name} has no include named ${name}`,
         );
     }
@@ -162,12 +162,12 @@ const QueryDerivation = {
     ): FindOptions {
         // require a listed object type, and trash selection at the root only
         if (object.listing === undefined) {
-            throw ObjectError.of("UNLISTED", `object ${object.name} is not listed`);
+            throw ObjectError.of("LISTING_MISSING", `object ${object.name} is not listed`);
         } else if (options.deleted !== undefined && object.lifecycle.recoverable === undefined) {
-            throw ObjectError.of("NO_TRASH", `object ${object.name} has no trash`);
+            throw ObjectError.of("TRASH_MISSING", `object ${object.name} has no trash`);
         } else if (options.deleted !== undefined && !isRoot) {
             throw ObjectError.of(
-                "INCLUDED_TRASH",
+                "TRASH_INCLUDED",
                 `included ${object.name} objects cannot select their trash`,
             );
         }

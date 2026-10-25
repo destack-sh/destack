@@ -96,7 +96,7 @@ export const RecoverableMethod = {
             .handle(async (context) => {
                 // require a purged record
                 if (!RecoverableMethod.isPurged(context.target)) {
-                    throw ObjectError.of("NOT_PURGED", `${context.object.name} is not purged`);
+                    throw ObjectError.of("PURGE_REQUIRED", `${context.object.name} is not purged`);
                 }
 
                 // delete it at the loaded revision

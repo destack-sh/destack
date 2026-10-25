@@ -7,25 +7,24 @@ import { HibernationHost, SOCKET_HEADER, SOCKET_INSTANCE_HEADER } from "./socket
 const INSTANCE = "instance-test";
 
 test("report a socket close its instance refuses, delivering the close once", async () => {
-    using telemetry = TestTelemetry.register();
-
     // refuse every close, as an instance whose replicas are stale answers 503
+    const simulation = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 16) });
+    using telemetry = new TestTelemetry(simulation.telemetry);
     const delivered: string[] = [];
     const host = new HibernationHost(async (_instanceId, path, request) => {
         delivered.push(`${request.method} ${path}`);
 
         return new Response(null, { status: request.method === "DELETE" ? 503 : 204 });
-    });
+    }, simulation.environment("host").telemetry);
 
     // hibernate a socket the instance accepts under one identifier
-    const simulation = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 16) });
     const accepted = new Response(null, {
         headers: {
             [SOCKET_HEADER]: JSON.stringify({ id: "socket-1", attachment: null }),
             [SOCKET_INSTANCE_HEADER]: INSTANCE,
         },
     });
-    simulation.network.of("host").serve({
+    simulation.network.server("host").http({
         hostname: "host.test",
         port: 80,
         fetch: (request, listener) =>
@@ -36,7 +35,7 @@ test("report a socket close its instance refuses, delivering the close once", as
     });
 
     // open and close the socket from the client
-    const socket = simulation.network.of("client").connect("ws://host.test/");
+    const socket = simulation.network.of("client").websocket("ws://host.test/");
     await simulation.run({ until: () => socket.readyState === WebSocket.OPEN });
     socket.close();
     await simulation.run({ until: () => telemetry.exceptions().length === 1 });

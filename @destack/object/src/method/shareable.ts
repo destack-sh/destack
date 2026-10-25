@@ -294,7 +294,7 @@ export const ShareableMethod = {
     /** Read the permission reading an object of a type needs. */
     requireReading(object: ObjectType) {
         if (object.reading === undefined) {
-            throw ObjectError.of("NOTHING_TO_READ", `${object.name} has no objects to read`);
+            throw ObjectError.of("READING_MISSING", `${object.name} has no objects to read`);
         }
 
         return object.reading;
@@ -317,7 +317,7 @@ export const ShareableMethod = {
             row["deletedAt"] !== undefined &&
             row["deletedAt"] !== null
         ) {
-            throw ObjectError.of("IN_TRASH", `${context.object.name} is in the trash`);
+            throw ObjectError.of("OBJECT_TRASHED", `${context.object.name} is in the trash`);
         }
     },
 

@@ -10,14 +10,14 @@ import { Health } from "../server/health.ts";
 import type {
     EphemeralHost,
     HookHandler,
-    ServerContext,
+    InstalledServerContext,
     WebhookHandler,
     Workload,
     WorkloadContext,
 } from "./workload.ts";
 import { CallKey } from "../audit/key.ts";
 import type { Hibernation, SocketHandler } from "./socket.ts";
-import type { Clock } from "@destack/environment";
+import type { Environment } from "@destack/environment";
 
 import type {} from "@destack/package/import-meta";
 
@@ -158,6 +158,11 @@ export class WorkloadInstance implements AsyncDisposable {
         return this.#current.requireSocketHandler();
     }
 
+    /** Settle once every package the workload serves serves, its readiness met. */
+    ready(): Promise<void> {
+        return this.#current.ready();
+    }
+
     /** What the workload does with its store's hook requests, refusing a workload serving none. */
     requireHookHandler(): HookHandler {
         return this.#current.requireHookHandler();
@@ -247,7 +252,7 @@ class WorkloadStart {
                 resources: options.resources,
                 ...(options.server === undefined ? {} : { server: options.server }),
                 callKey: options.callKey,
-                clock: options.clock,
+                environment: options.environment,
                 ...(options.ephemeral === undefined ? {} : { ephemeral: options.ephemeral }),
                 ...(options.hibernation === undefined ? {} : { hibernation: options.hibernation }),
                 signal: start.#controller.signal,
@@ -302,7 +307,7 @@ class WorkloadStart {
             ...served,
             health: new Health(handle.name),
             resources: options.resources,
-            clock: options.clock,
+            environment: options.environment,
             report: (error) => options.report(error),
             ...(clock === undefined ? {} : { alarm: clock.alarm() }),
             activation:
@@ -330,10 +335,15 @@ class WorkloadStart {
         return this.#packages.has(handle.id);
     }
 
+    /** Settle once every package the start serves serves, its readiness met. */
+    async ready(): Promise<void> {
+        await Promise.all([...this.#packages.values()].map(({ server }) => server.ready()));
+    }
+
     /** What the start does with its hibernated sockets' events, refusing a start without them. */
     requireSocketHandler(): SocketHandler {
         if (this.#sockets === undefined) {
-            throw ObjectError.of("NO_SOCKET_HANDLER", "the workload has no socket handler");
+            throw ObjectError.of("SOCKET_HANDLER_MISSING", "the workload has no socket handler");
         }
 
         return this.#sockets;
@@ -342,7 +352,7 @@ class WorkloadStart {
     /** What the start does with its store's hook requests, refusing a start serving none. */
     requireHookHandler(): HookHandler {
         if (this.#hooks === undefined) {
-            throw ObjectError.of("NO_HOOKS", "the workload has no hooks");
+            throw ObjectError.of("HOOKS_MISSING", "the workload has no hooks");
         }
 
         return this.#hooks;
@@ -351,7 +361,7 @@ class WorkloadStart {
     /** What the start does with its webhook deliveries, refusing a start receiving none. */
     requireWebhookHandler(): WebhookHandler {
         if (this.#webhooks === undefined) {
-            throw ObjectError.of("NO_WEBHOOKS", "the workload does not accept webhooks");
+            throw ObjectError.of("WEBHOOKS_MISSING", "the workload does not accept webhooks");
         }
 
         return this.#webhooks;
@@ -378,7 +388,7 @@ class WorkloadStart {
         // require the package
         const server = this.#packages.get(handle.id)?.server;
         if (!server) {
-            throw ObjectError.of("UNKNOWN_PACKAGE", `unknown workload package: ${handle.name}`);
+            throw ObjectError.of("PACKAGE_UNKNOWN", `unknown workload package: ${handle.name}`);
         }
 
         return server.fetch(request, authentication);
@@ -423,7 +433,7 @@ export interface WorkloadInstanceOptions {
     /** The installation's resources. */
     readonly resources: ResourceContext;
     /** The server context of the installation the workload runs as, absent outside a space. */
-    readonly server?: ServerContext;
+    readonly server?: InstalledServerContext;
     /** Read the key the workload's journals fingerprint sensitive inputs under. */
     readonly callKey: CallKey;
     /** Set a wake-up for the packages' earliest due controller key. */
@@ -434,10 +444,13 @@ export interface WorkloadInstanceOptions {
     readonly hibernation?: Hibernation;
     /** Report a failure of the workload's background work to its host. */
     readonly report: (error: unknown) => void;
-    /** The clock the workload runs at. */
-    readonly clock: Clock;
+    /** The environment the workload runs in: its clock, randomness, crypto and network. */
+    readonly environment: Environment;
     /** Select the server options of one served package. */
     readonly serverOptions: (
         handle: PackageHandle,
-    ) => Omit<ServerOptions, keyof PackageHandler | "health" | "resources" | "clock" | "report">;
+    ) => Omit<
+        ServerOptions,
+        keyof PackageHandler | "health" | "resources" | "environment" | "report"
+    >;
 }

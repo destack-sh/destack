@@ -1,5 +1,6 @@
+import type { Environment } from "@destack/environment";
 import type { Channel, DatabaseConnection, Table } from "@destack/db";
-import type { JsonValue } from "@destack/schema";
+import type { Identifier, JsonValue } from "@destack/schema";
 import type { Publisher, Uplink } from "@destack/sync";
 import {
     type SandboxName,
@@ -14,7 +15,6 @@ import type { PackageHandler } from "../server/index.ts";
 import type { Deriver } from "@destack/identity";
 import { type CallKey } from "../audit/key.ts";
 import type { Hibernation, SocketHandler } from "./socket.ts";
-import type { Clock } from "@destack/environment";
 
 /** A declared unit of deployment. */
 export interface Workload extends Declaration {
@@ -55,11 +55,11 @@ export interface WorkloadContext {
     /** The installation's resource and package clients. */
     readonly resources: ResourceContext;
     /** The server context of the installation the workload runs as, absent outside a space. */
-    readonly server?: ServerContext;
+    readonly server?: InstalledServerContext;
     /** Read the key the workload's journals fingerprint sensitive inputs under. */
     readonly callKey: CallKey;
-    /** The clock the workload runs at. */
-    readonly clock: Clock;
+    /** The environment the workload runs in: its clock, randomness, crypto and network. */
+    readonly environment: Environment;
     /** Where the instance stores its ephemeral objects, absent outside a runner. */
     readonly ephemeral?: EphemeralHost;
     /** The WebSockets the host hibernates for the instance, absent where it hibernates none. */
@@ -76,14 +76,31 @@ export interface WorkloadContext {
     readonly defer: (dispose: () => void | PromiseLike<void>) => void;
 }
 
-/** The context a package's server runs in: its installation, bindings, keys and egress. */
-export interface ServerContext {
+/** The context a package's server runs in: a base installation's, or an installed one's. */
+export type ServerContext = BaseServerContext | InstalledServerContext;
+
+/** The context of a base installation, born with its scope and shipped with the platform. */
+export interface BaseServerContext {
+    /** The base installation, born with its scope. */
+    readonly origin: "base";
     /** The installation's identifier. */
-    readonly installation: string;
-    /** The installation's name in its space, its address there as `<name>--<space>`. */
+    readonly installation: Identifier<"installation">;
+    /** The installation's partition scope: its space, machine, device or the universe. */
+    readonly scope: string;
+    /** The package's required capabilities, which a base installation runs with. */
+    readonly capabilities: readonly string[];
+}
+
+/** The context of a declared or installed installation: its build, bindings, keys and egress. */
+export interface InstalledServerContext {
+    /** The installation its scope's stack declares, or one someone installed. */
+    readonly origin: "declared" | "installed";
+    /** The installation's identifier. */
+    readonly installation: Identifier<"installation">;
+    /** The installation's name in its scope, its address there as `<name>--<scope>`. */
     readonly name: string;
-    /** The installation's space. */
-    readonly space: string;
+    /** The installation's partition scope: its space, machine, device or the universe. */
+    readonly scope: string;
     /** The one partition of the installation's database the instance serves. */
     readonly partition?: string;
     /** The build the installation's deployment runs. */
@@ -109,6 +126,8 @@ export interface ServerContext {
     readonly fetch: (request: Request) => Promise<Response>;
     /** The URL callers call the installation at, its packages mounted below. */
     readonly url: string;
+    /** The clock, network and randomness the installation runs in. */
+    readonly environment: Environment;
     /** Run the installation's controllers once this settles, at once when absent. */
     readonly activation?: Promise<void>;
 }

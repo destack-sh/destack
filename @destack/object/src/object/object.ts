@@ -15,7 +15,7 @@ import {
 import {
     Scope,
     type ObjectReference,
-    type ObjectTypeReference,
+    ObjectTypeReference,
     type Query,
     type Subject,
     Call,
@@ -42,6 +42,7 @@ import {
     nth,
     Duration,
     Identifier,
+    type UuidEnvironment,
     type JsonObject,
     present,
     schema,
@@ -185,6 +186,8 @@ interface Derived {
     declaration?: schema.Schema;
     /** The references a declaration gives, by created field. */
     declaredReferences?: Readonly<Record<string, DeclaredReference>>;
+    /** The fields a declaration sets, which a managed record's manager owns. */
+    declaredFields?: ReadonlySet<string>;
 }
 
 /** The scope and identifier of an object's row, read from a row of any object table. */
@@ -273,13 +276,36 @@ export interface ObjectRelationInput {
     readonly isRequired?: true;
 }
 
-/** The scope objects live in: a scope type, or the universe. */
-export type ObjectScope = typeof Scope.universe.id | ObjectType;
+/** The scope objects live in: a scope type, a principal's policy, or the universe. */
+export type ObjectScope = typeof Scope.universe.id | ObjectType | Policy;
 /** The scope objects live in: a scope type, or the universe. */
 export const ObjectScope = {
     /** Decide whether objects live in several scopes. */
     isList(scope: ObjectScope | readonly ObjectScope[]): scope is readonly ObjectScope[] {
         return Array.isArray(scope);
+    },
+
+    /** List the policies of the scope types objects live in, leaving out the universe. */
+    policies(scope: ObjectScope | readonly ObjectScope[]): Policy[] {
+        return [scope]
+            .flat()
+            .flatMap((type) =>
+                type === Scope.universe.id ? [] : [type instanceof ObjectType ? type.policy : type],
+            );
+    },
+
+    /** Decide whether two scope declarations share a scope type, by policy. */
+    isBeside(
+        scope: ObjectScope | readonly ObjectScope[],
+        other: ObjectScope | readonly ObjectScope[],
+    ): boolean {
+        const keys = (declared: ObjectScope | readonly ObjectScope[]) =>
+            ObjectScope.policies(declared).map((policy) =>
+                ObjectTypeReference.key(policy.typeReference),
+            );
+        const others = keys(other);
+
+        return keys(scope).some((key) => others.includes(key));
     },
 };
 
@@ -297,7 +323,9 @@ export type ScopeIdentityOf<Scope> = Scope extends readonly unknown[]
     ? string
     : Scope extends ObjectType
       ? IdentityOf<Scope>
-      : Scope;
+      : Scope extends Policy<string, infer Kind>
+        ? Kind
+        : Scope;
 
 /** The permissions of an object type: role-granted names, or relation-derived expressions. */
 export type ObjectPermissions<Permissions extends string = string> =
@@ -617,6 +645,15 @@ export type ObjectOf<Declared extends Partial<ObjectConfiguration>> = ObjectType
         : ObjectConfiguration[Key];
 }>;
 
+/** The brand of a call's object type, which exists in types alone. */
+declare const CALLED_OBJECT: unique symbol;
+
+/** A method call of an object type, typed by the type it calls and the result it answers. */
+export type ObjectCall<Type extends ObjectType = ObjectType, Result = unknown> = Call<Result> & {
+    /** The called object type, in types alone. */
+    readonly [CALLED_OBJECT]?: Type;
+};
+
 /** A declared object type with its storage, permissions, methods and declaration schema. */
 export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfiguration> {
     /** The declaring package, supplied by the module transform. */
@@ -767,6 +804,13 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     /** The reference relation to each object's owner, absent if the scope is the owner. */
     get owner(): string | undefined {
         return this.definition.owner;
+    }
+
+    /** Whether each object is a partition: by its definition, or as the principal it stands for. */
+    get isPartition(): boolean {
+        const { partition, represents } = this.definition;
+
+        return partition === true || represents?.definition.partition === true;
     }
 
     /** The principal kind each object stands for, absent for objects standing for none. */
@@ -966,17 +1010,17 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return this.idSchema.safeParse(id).success;
     }
 
-    /** Generate a new object's identifier, refusing a type with a natural key. */
-    generateId(): Identifier<Configuration["identity"]> {
+    /** Generate an object's identifier from an environment, refusing a naturally keyed type. */
+    generateId(environment: UuidEnvironment): Identifier<Configuration["identity"]> {
         this.requireGenerated();
 
-        return Identifier.create(this.identity);
+        return Identifier.create(this.identity, environment);
     }
 
     /** Refuse an identifier for a type with a natural key. */
     private requireGenerated(): void {
         if (this.keyed !== undefined) {
-            throw ObjectError.of("MISSING_KEY", `creating ${this.name} requires a key`);
+            throw ObjectError.of("KEY_MISSING", `creating ${this.name} requires a key`);
         }
     }
 
@@ -1059,14 +1103,14 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     readScope(name: string, input: JsonObject): string {
         // refuse a method the type lacks, which a call from elsewhere may ask for
         if (!Object.hasOwn(this.methods, name)) {
-            throw ObjectError.of("UNKNOWN_METHOD", `object ${this.name} has no method ${name}`);
+            throw ObjectError.of("METHOD_UNKNOWN", `object ${this.name} has no method ${name}`);
         }
 
         // read the scope field, or the universe
         const field = this.route.field;
         const scope = field === undefined ? Scope.universe.id : input[field];
         if (typeof scope !== "string") {
-            throw ObjectError.of("MISSING_FIELD", `call has no ${field}`);
+            throw ObjectError.of("FIELD_MISSING", `call has no ${field}`);
         }
 
         return scope;
@@ -1200,7 +1244,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         this: Self,
         name: Name,
         input: Input & ExtraFields<Input, CallInput<Self, Name>>,
-    ): Call<MethodOutput<Self, Name>> {
+    ): ObjectCall<Self, MethodOutput<Self, Name>> {
         return ObjectType.#record(this, name, input);
     }
 
@@ -1238,7 +1282,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         if (validated instanceof Promise) {
             throw new TypeError(`the output schema of ${label} is asynchronous`);
         } else if (validated.issues !== undefined) {
-            throw ObjectError.of("INVALID_OUTPUT", `invalid output of ${label}`, {
+            throw ObjectError.of("OUTPUT_INVALID", `invalid output of ${label}`, {
                 data: Issues.of(validated.issues),
             });
         }
@@ -1444,9 +1488,12 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
 
     /** Decide whether the objects live in a scope. */
     livesIn(scope: ObjectReference): boolean {
+        // read the policies of the scope types and principals the objects live in
+        const policies = ObjectScope.policies(this.scope);
+
         return (
             this.scope !== Scope.universe.id &&
-            (this.scopes.length === 0 || this.scopes.some((type) => type.policy.is(scope)))
+            (policies.length === 0 || policies.some((policy) => policy.is(scope)))
         );
     }
 
@@ -1552,7 +1599,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             (mutates && !method.mutates)
         ) {
             throw ObjectError.of(
-                "UNKNOWN_METHOD",
+                "METHOD_UNKNOWN",
                 `unknown ${mutates ? "mutating " : ""}method ${Call.label(entry)}`,
             );
         } else if (!mutates && method.mutates) {
@@ -1750,6 +1797,17 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return this.lifecycle.recoverable?.retain === "record";
     }
 
+    /** List the fields a declaration sets, its create input's, which its manager owns. */
+    declaredFields(): ReadonlySet<string> {
+        this.derived.declaredFields ??= new Set(
+            Object.keys(InputSchema.fields(this.input("create")).shape).filter(
+                (field) => !this.supplied.includes(field),
+            ),
+        );
+
+        return this.derived.declaredFields;
+    }
+
     /** Report whether stacks can declare the type's records, which then have manager columns. */
     isDeclarable(): this is ObjectOf<{ table: ManagedTable }> {
         return (
@@ -1929,11 +1987,11 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         }
     }
 
-    /** List the object types among a definition's scopes, leaving out the universe. */
+    /** List the object types among a definition's scopes, leaving out the universe and policies. */
     static #scopeTypes(scope: ObjectScope | readonly ObjectScope[]): ObjectType[] {
         const scopes: readonly ObjectScope[] = [scope].flat();
 
-        return scopes.filter((type): type is ObjectType => type !== Scope.universe.id);
+        return scopes.filter((type) => type instanceof ObjectType);
     }
 
     /** List the tables the objects need: the store's or the event log's, and the type's. */
@@ -1999,7 +2057,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         const isSharing = Object.values(this.methods).some((declared) =>
             SHARING_KINDS.has(declared.kind),
         );
-        if (this.definition.partition === true && isSharing) {
+        if (this.isPartition && isSharing) {
             throw new TypeError(
                 `object ${this.name} must share a partitioned scope through its relationships`,
             );
@@ -2341,7 +2399,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             throw new TypeError(
                 `local object ${this.name} cannot run method ${remote[0]} outside the client`,
             );
-        } else if (ObjectScope.isList(this.scope) || this.scope === Scope.universe.id) {
+        } else if (!(this.scope instanceof ObjectType)) {
             throw new TypeError(`local object ${this.name} must belong to one scope type`);
         }
     }
@@ -2558,6 +2616,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             case "through":
             case "granters":
             case "readers":
+            case "subjectSet":
             case "self":
                 return false;
         }
@@ -2857,10 +2916,12 @@ export type DefinedType<Definition extends ObjectDefinition, Methods> = ObjectTy
             DefinedTraits<Definition> & {
                 readonly shareable: Option<Definition, "partition"> extends true
                     ? undefined
-                    : ProvisionedSharingOf<
-                          Option<Definition, "provisioned">,
-                          Option<Definition, "shareable">
-                      >;
+                    : Option<Definition, "represents"> extends Policy<string, string, true>
+                      ? undefined
+                      : ProvisionedSharingOf<
+                            Option<Definition, "provisioned">,
+                            Option<Definition, "shareable">
+                        >;
             }
         >;
     readonly permissions: DefinedPermissions<Definition>;

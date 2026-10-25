@@ -9,7 +9,7 @@ import type {} from "@destack/package/import-meta";
 /** The machine a misdirected answer moves the scope to. */
 const MOVED = schema.identifier("machine").parse("machine-01996ab0-0000-7000-8000-0000000000e1");
 
-test("decode a call error from its body with its reason and domain, read oRPC's own failure as HTTP's, and refuse a plain error", () => {
+test("decode a call error from its body with its reason and domain, read an oRPC failure as HTTP's, and refuse a plain error", () => {
     // decode the body a client reads from a refused call
     const sent = new CallError("MISDIRECTED_REQUEST", {
         reason: "SCOPE_MOVED",

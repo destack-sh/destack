@@ -9,7 +9,7 @@ import { defineMethod, Method } from "../method/method.ts";
 import {
     type Procedure,
     type ReplayFields,
-    type RequiredFields,
+    type ValueFields,
     type RowSchema,
     type TargetFields,
 } from "../method/procedure.ts";
@@ -149,7 +149,7 @@ export const transitions: Trait<StateFields> & {
                 const state = schema.string().parse(context.target[field]);
                 if (!transition.from.includes(state)) {
                     throw ObjectError.of(
-                        "INVALID_TRANSITION",
+                        "TRANSITION_INVALID",
                         `${context.object.name} cannot ${name} while ${field} is ${state}`,
                     );
                 }
@@ -166,7 +166,7 @@ export type TransitionProcedures<Object extends ObjectType, Declared extends Met
         schema.Object<
             TargetFields<Object> &
                 ReplayFields<Object> &
-                RequiredFields<Object, NonNullable<Declared["fields"]>[number] & string>
+                ValueFields<Object, NonNullable<Declared["fields"]>[number] & string>
         >,
         RowSchema<Object>
     >;

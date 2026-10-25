@@ -1,3 +1,4 @@
+import type { Environment } from "@destack/environment";
 import type { ObjectStore } from "../server/store.ts";
 import type { Call } from "@destack/sync";
 import { AccessContext, Caller } from "@destack/access";
@@ -90,6 +91,11 @@ export class SettlementContext {
         return Snapshot.live(this.database).read(table);
     }
 
+    /** The environment the settlement runs in, its store's. */
+    get environment(): Environment {
+        return this.store.environment;
+    }
+
     /** The store's principal acting as itself, such as its space or installation. */
     get self(): AccessContext {
         return AccessContext.of(Caller.of(this.store.principal), this.now);
@@ -105,7 +111,7 @@ export class SettlementContext {
         caller: AccessContext,
         calls: Calls,
     ): Promise<ResultsOf<Calls>> {
-        return this.store.mutate(caller, { id: RequestId.create(this.now), calls });
+        return this.store.mutate(caller, { id: RequestId.create(this.store.environment), calls });
     }
 
     /** Read the object the call acted on or created, failing for a call without one. */

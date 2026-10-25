@@ -20,6 +20,12 @@ const RoleBinding = RoleRequest.extend({
     manager: access.Manager.schema,
 });
 
+/** A role code owns in a scope, bound to one subject. */
+const InherentRole = RoleRequest.extend({
+    /** The one subject the role is bound to. */
+    subject: Subject,
+});
+
 /** The roles of a scope, over the access role table. */
 export const role = defineObject(
     {
@@ -136,6 +142,42 @@ export const role = defineObject(
                     await ObjectPolicy.scopeObject(context, execution),
                     binding,
                     Execution.store(execution, context).authorization.applying(manager),
+                );
+
+                return {};
+            },
+        }),
+        applyInherent: defineMethod<{
+            kind: "custom";
+            permission: "inherit";
+            input: typeof InherentRole;
+            output: typeof Empty;
+            mutates: true;
+            target: "scope";
+            table: typeof accessRole;
+        }>({
+            kind: "custom",
+            permission: "inherit",
+            input: InherentRole,
+            output: Empty,
+            mutates: true,
+            target: "scope",
+            result: "value",
+            isPredicted: false,
+            isInternal: true,
+            procedure: (_name, schemas) => ({
+                route: { method: "POST", path: "/apply-inherent" },
+                input: schemas.scope.extend({ ...schemas.replay, ...InherentRole.shape }),
+                output: Empty,
+            }),
+            handler: async (context, execution) => {
+                // define the code-owned role with exactly its permissions, bound to its subject
+                const { subject, ...request } = InherentRole.parse(context.input);
+                await Role.applyInherent(
+                    await ObjectPolicy.scopeObject(context, execution),
+                    request,
+                    subject,
+                    Execution.store(execution, context).authorization,
                 );
 
                 return {};

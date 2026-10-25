@@ -3,7 +3,7 @@ import type { PackageHandle } from "../declare/package.ts";
 import type { PackageHandler } from "./http.ts";
 import type { RequestContext } from "./context.ts";
 import type { Controller } from "@destack/db";
-import type { ServerContext } from "../workload/workload.ts";
+import type { InstalledServerContext, ServerContext } from "../workload/workload.ts";
 import type { ObjectType } from "../object/object.ts";
 import type { Follow } from "../replica/shape.ts";
 import type { ExternalStorage } from "./external.ts";
@@ -34,6 +34,8 @@ export type ImplementationInput<Handle extends ObjectPackage = ObjectPackage> = 
     readonly providers?: ResourceControllerOptions["providers"];
     /** The shapes the package's code reads replicated, with the keys it follows them at. */
     readonly follows?: readonly Follow[];
+    /** The on-demand follows of the rows standing for callers, acquired where they are missing. */
+    readonly standing?: readonly Extract<Follow, { readonly onDemand: unknown }>[];
     /** The files with the package's external objects. */
     readonly external?: ExternalStorage;
     /** The package's access decisions beside its objects'. */
@@ -69,14 +71,16 @@ export function implementPackage<const Handle extends ObjectPackage>(
     handle: Handle,
     definition:
         | ImplementationInput<Handle>
-        | ((context: ServerContext) => ImplementationInput<Handle>),
+        | ((context: InstalledServerContext) => ImplementationInput<Handle>),
 ): PackageImplementation {
-    // serve a static definition, else build the installation's from its context
+    // serve a static definition, else build an installed installation's from its context
     const read = (context: ServerContext | undefined): ImplementationInput => {
         if (typeof definition !== "function") {
             return definition;
         } else if (context === undefined) {
             throw new TypeError(`package ${handle.name} can only serve an installation`);
+        } else if (context.origin === "base") {
+            throw new TypeError(`package ${handle.name} can only serve an installed installation`);
         }
 
         return definition(context);

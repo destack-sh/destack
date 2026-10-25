@@ -127,7 +127,7 @@ export const ObjectSearch = Object.assign(ObjectSearchSchema, {
         if (searched === undefined) {
             return [];
         } else if (typeof searched !== "string") {
-            throw ObjectError.of("MISSING_TEXT", "a search needs text");
+            throw ObjectError.of("TEXT_MISSING", "a search needs text");
         }
 
         return SearchText.query(searched).map((word) => ({
@@ -143,7 +143,7 @@ export const ObjectSearch = Object.assign(ObjectSearchSchema, {
         if (entry === undefined) {
             return [];
         } else if (!Array.isArray(entry)) {
-            throw ObjectError.of("EMPTY_COMBINATION", "a combination needs conditions");
+            throw ObjectError.of("COMBINATION_EMPTY", "a combination needs conditions");
         }
 
         return entry.map((nested: unknown) => ObjectSearch.readCondition(nested));
@@ -152,7 +152,7 @@ export const ObjectSearch = Object.assign(ObjectSearchSchema, {
     /** Read a condition, refusing an entry that is not a condition. */
     readCondition(entry: unknown): OpenCondition {
         if (!ObjectSearch.isCondition(entry)) {
-            throw ObjectError.of("EMPTY_COMBINATION", "a combination needs conditions");
+            throw ObjectError.of("COMBINATION_EMPTY", "a combination needs conditions");
         }
 
         return entry;

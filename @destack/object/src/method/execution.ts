@@ -1,3 +1,4 @@
+import type { Environment } from "@destack/environment";
 import { schema } from "@destack/schema";
 import { Snapshot, TABLE, Transaction, type DatabaseConnection, Key } from "@destack/db";
 import type { RowChange } from "@destack/db";
@@ -28,6 +29,8 @@ export type Execution =
           readonly kind: "client";
           /** The client's replica the prediction reads and writes. */
           readonly database: DatabaseConnection;
+          /** The client's environment. */
+          readonly environment: Environment;
       };
 
 /** A store executing a call, with its transaction and the caller's authorization. */

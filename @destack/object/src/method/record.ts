@@ -22,13 +22,14 @@ import {
     Table,
 } from "@destack/db";
 import {
-    nth,
     canonicalize,
+    type JsonObject,
+    nth,
     present,
     schema,
-    zip,
-    type JsonObject,
+    Uuid,
     type Version,
+    zip,
 } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
 import { conceal, CallError } from "../error/call.ts";
@@ -846,7 +847,7 @@ export const RecordMethod = {
         const rows = await RecordMethod.matchingRows(context, execution);
         const changes = rows.map((row) => {
             const each = context.at(row);
-            RecordMethod.requireUnmanaged(each, execution);
+            RecordMethod.requireUnmanagedFields(each, execution, written);
 
             return {
                 table,
@@ -899,14 +900,14 @@ export const RecordMethod = {
             // refuse a stale revision
             else if (RecordedRow.parse(target).revision !== revision) {
                 throw ObjectError.of(
-                    "STALE_REVISION",
+                    "REVISION_STALE",
                     `${context.object.name} revision has changed`,
                 );
             }
 
             // write the item's fields over its target, refusing a managed object
             const each = context.at(target);
-            RecordMethod.requireUnmanaged(each, execution);
+            RecordMethod.requireUnmanagedFields(each, execution, written);
             const values = RecordMethod.writtenValues(table, item, written);
 
             return {
@@ -1177,7 +1178,7 @@ export const RecordMethod = {
         reader?: TupleReader,
     ): Promise<void> {
         // build the row as it will be written, with column defaults
-        const id = context.id ?? context.object.generateId();
+        const id = context.id ?? context.object.generateId(execution.store.environment);
         const definition = context.object.table[TABLE];
         const values = await RecordMethod.createdValues(context.with({ id }), execution);
         const row = definition.defaults(Table.values(context.object.table, Row.parse(values)));
@@ -1189,7 +1190,15 @@ export const RecordMethod = {
         const initial =
             (await RecordMethod.readCreation(context)?.(context.with({ id }), created)) ?? {};
         const { authorizer } = authorization;
-        grants.creating(created, authorizer.initialRelationships(created, initial, context.now));
+        grants.creating(
+            created,
+            authorizer.initialRelationships(
+                created,
+                initial,
+                context.now,
+                authorization.environment,
+            ),
+        );
         await RecordMethod.requirePermitted(context, execution, row, grants, "concealed");
     },
 
@@ -1213,7 +1222,9 @@ export const RecordMethod = {
 
         // check the permission on a new object with those columns, under an unused key for a keyed type
         const id =
-            context.object.keyed === undefined ? context.object.generateId() : crypto.randomUUID();
+            context.object.keyed === undefined
+                ? context.object.generateId(execution.store.environment)
+                : Uuid.v4(execution.store.environment.random);
         const row = definition.defaults({ ...named, id, scope: context.scope, ...parent });
         await RecordMethod.requirePermitted(
             context,
@@ -1365,7 +1376,10 @@ export const RecordMethod = {
                 message: `${declared.object.name} ${parentId} not found`,
             });
         } else if (parent["deletedAt"] !== null) {
-            throw ObjectError.of("IN_TRASH", `${declared.object.name} ${parentId} is in the trash`);
+            throw ObjectError.of(
+                "OBJECT_TRASHED",
+                `${declared.object.name} ${parentId} is in the trash`,
+            );
         }
     },
 
@@ -1406,12 +1420,28 @@ export const RecordMethod = {
         return chosen;
     },
 
-    /** Refuse changes to a managed object from anyone but its manager. */
+    /** Refuse changing a managed object as a whole, such as deleting it, but as its manager. */
     requireUnmanaged(context: MethodContext, execution: Execution): void {
         // let the record's manager through
         const manager = execution.kind === "store" ? execution.authorization.manager : null;
         if (context.isDeclarable() && context.target !== undefined) {
             Manager.requireChangeable(context.target, manager, context.object.name);
+        }
+    },
+
+    /** Refuse changing a managed object's declared fields from anyone but its manager. */
+    requireUnmanagedFields(
+        context: MethodContext,
+        execution: Execution,
+        changed: readonly string[],
+    ): void {
+        // leave the fields no declaration sets to their own permissions
+        if (!context.isDeclarable()) {
+            return;
+        }
+        const declared = context.object.declaredFields();
+        if (changed.some((name) => declared.has(name))) {
+            RecordMethod.requireUnmanaged(context, execution);
         }
     },
 
@@ -1671,8 +1701,11 @@ export class MethodBuilder<
             handler: (context) => context.update(Table.decode(context.object.table, context.input)),
             inverse: (step) => RecordMethod.restoreUpdated(step),
             async execute(context, execution) {
-                // refuse managed objects and unwritable fields
-                RecordMethod.requireUnmanaged(context, execution);
+                // refuse changing managed fields and unwritable fields
+                const changed = Object.keys(context.input).filter((name) =>
+                    Object.hasOwn(context.object.fields, name),
+                );
+                RecordMethod.requireUnmanagedFields(context, execution, changed);
                 if (execution.kind === "store") {
                     await execution.authorization.requireWritable(context, context.id, execution);
                 }

@@ -1,6 +1,6 @@
+import type { Clock, Environment } from "@destack/environment";
 import {
-    context,
-    telemetry,
+    type ContextManager,
     type Histogram,
     type Attributes,
     type Span,
@@ -8,6 +8,7 @@ import {
     type Tracer,
     SpanKind,
     SpanStatusCode,
+    trace,
 } from "@destack/telemetry";
 import { AsyncIteratorClass } from "@orpc/shared";
 import { CallError } from "../error/index.ts";
@@ -24,14 +25,22 @@ export class CallTelemetry {
     readonly #duration: Histogram;
     /** The RPC span kind. */
     readonly #kind: SpanKind;
+    /** The clock calls are timed on. */
+    readonly #clock: Clock;
+    /** The manager of the context calls run in. */
+    readonly #context: ContextManager;
 
-    /** Create the telemetry. */
-    constructor(kind: "client" | "server") {
+    /** Create the telemetry on an environment's tracers, meters and clock. */
+    constructor(kind: "client" | "server", environment: Environment) {
         // create the tracer and the duration histogram
-        const { tracer, meter } = telemetry.scope(manifest);
+        const { tracers, meters } = environment.telemetry;
         this.#kind = kind === "client" ? SpanKind.CLIENT : SpanKind.SERVER;
-        this.#tracer = tracer;
-        this.#duration = meter.createHistogram(`rpc.${kind}.call.duration`, { unit: "s" });
+        this.#tracer = tracers.getTracer(manifest.name, manifest.version);
+        this.#duration = meters
+            .getMeter(manifest.name, manifest.version)
+            .createHistogram(`rpc.${kind}.call.duration`, { unit: "s" });
+        this.#clock = environment.clock;
+        this.#context = environment.telemetry.context;
     }
 
     /** Measure a call. */
@@ -47,10 +56,16 @@ export class CallTelemetry {
             ...labels,
         };
 
-        return this.#tracer.startActiveSpan(
+        // run the call in its span, a child of the active one
+        const parent = this.#context.active();
+        const span = this.#tracer.startSpan(
             path.join("/"),
             { kind: this.#kind, attributes },
-            (span) => this.#invoke(next, attributes, span),
+            parent,
+        );
+
+        return this.#context.with(trace.setSpan(parent, span), () =>
+            this.#invoke(next, attributes, span),
         );
     }
 
@@ -61,8 +76,8 @@ export class CallTelemetry {
         span: Span,
     ): Promise<unknown> {
         // start the timer and span
-        const started = performance.now();
-        const active = context.active();
+        const started = this.#clock.now();
+        const active = this.#context.active();
         try {
             const result = await next();
 
@@ -96,7 +111,7 @@ export class CallTelemetry {
         return new AsyncIteratorClass(
             async () => {
                 try {
-                    return await context.with(active, () => iterator.next());
+                    return await this.#context.with(active, () => iterator.next());
                 } catch (error) {
                     failure = error;
                     throw error;
@@ -107,7 +122,7 @@ export class CallTelemetry {
                 try {
                     if (reason !== "next") {
                         attributes["error.type"] = "cancelled";
-                        await context.with(active, () => iterator.return?.());
+                        await this.#context.with(active, () => iterator.return?.());
                     }
                 } catch (error) {
                     failure = error;
@@ -133,7 +148,7 @@ export class CallTelemetry {
         }
         span.setAttributes(attributes);
         span.end();
-        this.#duration.record((performance.now() - started) / 1000, attributes);
+        this.#duration.record((this.#clock.now() - started) / 1000, attributes);
     }
 }
 

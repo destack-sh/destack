@@ -99,6 +99,7 @@ export const Orderable = {
         return FractionalIndex.place(
             typeof last?.["position"] === "string" ? last["position"] : undefined,
             undefined,
+            context.environment.random,
         );
     },
 

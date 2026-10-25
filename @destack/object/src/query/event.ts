@@ -68,7 +68,7 @@ export const EventLog = {
         const unserved = DATAFLOW_FIELDS.find((name) => input[name] !== undefined);
         if (unserved !== undefined) {
             throw ObjectError.of(
-                "UNSERVED_EVENTS",
+                "EVENTS_UNSERVED",
                 `${context.object.name} lists from the event log, which cannot filter by ${unserved}`,
             );
         }
@@ -147,7 +147,7 @@ export const EventLog = {
         const [field, ...others] = Object.entries(orderBy ?? { time: "desc" });
         if (field === undefined || field[0] !== "time" || others.length > 0) {
             throw ObjectError.of(
-                "TIME_ORDER_ONLY",
+                "ORDER_UNSUPPORTED",
                 `${context.object.name} can only list in time order`,
             );
         }

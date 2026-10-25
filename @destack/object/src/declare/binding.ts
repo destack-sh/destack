@@ -9,6 +9,7 @@ import { ModuleMetadata, type Package, PackageId } from "@destack/package";
 import { schema, Version } from "@destack/schema";
 import { Exchange } from "@destack/access/token";
 import { createClient } from "../client/package.ts";
+import type { Environment } from "@destack/environment";
 import type { Client, ProcedureRouter } from "../procedure/index.ts";
 import type { PackageHandle } from "./package.ts";
 
@@ -68,7 +69,11 @@ export class InstallationBinding<
         return {
             http: {
                 code: INSTALLATION_PROVIDER,
-                connect: async (binding: ResourceBinding) => {
+                connect: async (
+                    binding: ResourceBinding,
+                    _declaration: unknown,
+                    environment: Environment,
+                ) => {
                     // require the credential the host lends the binding
                     const credential = binding.credential;
                     if (credential === undefined) {
@@ -76,13 +81,19 @@ export class InstallationBinding<
                     }
 
                     // act for the caller of the served call a call passes as its context
-                    const client = createClient<Router, BindingContext>(this.handle, {
-                        url: binding.reference,
-                        headers: (options) => ({
-                            authorization: `Bearer ${credential}`,
-                            ...Exchange.ask(Exchange.of(options.context?.authentication?.caller)),
-                        }),
-                    });
+                    const client = createClient<Router, BindingContext>(
+                        this.handle,
+                        {
+                            url: binding.reference,
+                            headers: (options) => ({
+                                authorization: `Bearer ${credential}`,
+                                ...Exchange.ask(
+                                    Exchange.of(options.context?.authentication?.caller),
+                                ),
+                            }),
+                        },
+                        environment,
+                    );
 
                     // dispose nothing
                     return Object.assign(client, {

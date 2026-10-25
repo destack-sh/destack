@@ -87,7 +87,10 @@ export type StackInputOf<Object extends ObjectType> =
               "name" | StackSuppliedOf<Object>,
               ReferencesOf<Configuration>
           > &
-              NameInputOf<MethodInput<Object, "create" & MethodName<Object>>>
+              NameInputOf<MethodInput<Object, "create" & MethodName<Object>>> & {
+                  /** The scope the record goes in, the stack's own by default. */
+                  readonly scope?: StackScope;
+              }
         : never;
 
 /** A create input's name, which the declaration's name fills when absent. */

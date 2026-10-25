@@ -7,7 +7,7 @@ import { copyRequest } from "@destack/environment";
 import type { Uplink } from "@destack/sync";
 import type { Connector, ResourceDeclaration } from "@destack/resource";
 import { ResourceContext } from "@destack/resource/context";
-import { telemetry } from "@destack/telemetry";
+import { TelemetryScope } from "@destack/telemetry";
 import type { Telemetry, TelemetryOptions } from "@destack/telemetry/sdk";
 import { OTLP_ORIGIN_PATH, OtlpExporter } from "@destack/telemetry/otlp";
 import type {} from "@destack/package/import-meta";
@@ -28,18 +28,15 @@ import {
 } from "./socket.ts";
 import type { PackageId } from "@destack/package";
 import type { Alarm } from "@destack/db";
-import type { EphemeralHost, ServerContext, Workload } from "./workload.ts";
+import type { EphemeralHost, InstalledServerContext, Workload } from "./workload.ts";
 import { CallKey } from "../audit/key.ts";
-import { Clock } from "@destack/environment";
+import type { Environment } from "@destack/environment";
 
 /** How long a stopping runner drains its requests: below the host's fifteen-second stop timeout. */
 const DRAIN_MILLISECONDS = 10_000;
 
 /** The address of the stack package of a workload's holder, relaying the space's access. */
 const STACK_ADDRESS = "@destack/stack";
-
-/** The runner's log records. */
-const { log } = telemetry.scope(import.meta.destack.package);
 
 /** What a runner runs: one workload, its package's resources, and the clients of its space. */
 export interface RunnerOptions {
@@ -57,8 +54,8 @@ export interface RunnerOptions {
     readonly ephemeral: EphemeralHost;
     /** The connectors the runtime supplies by provider code, ahead of the declared connectors. */
     readonly connectors?: Readonly<Record<string, Connector>>;
-    /** The clock. */
-    readonly clock: Clock;
+    /** The environment: the clock, the network and the randomness. */
+    readonly environment: Environment;
 }
 
 /** A workload instance a host started, on any runtime. */
@@ -76,13 +73,13 @@ export class WorkloadRunner implements AsyncDisposable {
     /** The WebSockets the host hibernates for the instance. */
     readonly #hibernation: Hibernation;
     /** The telemetry that exports to the host, which relays it to observability. */
-    readonly #telemetry: Pick<Telemetry, "shutdown">;
+    readonly #telemetry: Environment["telemetry"] & Pick<Telemetry, "shutdown">;
     /** Create the runner with a started instance and its telemetry. */
     private constructor(
         start: WorkloadStart,
         instance: WorkloadInstance,
         packages: ReadonlyMap<string, PackageHandle>,
-        running: Pick<Telemetry, "shutdown">,
+        running: Environment["telemetry"] & Pick<Telemetry, "shutdown">,
         packageId: PackageId,
         connections: AsyncDisposableStack,
         hibernation: Hibernation,
@@ -102,31 +99,39 @@ export class WorkloadRunner implements AsyncDisposable {
         runner: RunnerOptions,
         start: WorkloadStart,
         build: BuildReader,
-        startTelemetry: (options: TelemetryOptions) => Promise<Pick<Telemetry, "shutdown">>,
+        startTelemetry: (
+            options: TelemetryOptions,
+            environment: Environment,
+        ) => Promise<Environment["telemetry"] & Pick<Telemetry, "shutdown">>,
         report: (error: unknown) => void,
     ): Promise<WorkloadRunner> {
-        // export the package's telemetry to its host
+        // export the package's telemetry to its host, the instance's environment emitting through it
         const running = await startTelemetry(
             WorkloadRunner.#telemetryOptions(runner, start, build, report),
+            runner.environment,
         );
+        const environment = { ...runner.environment, telemetry: running };
 
         // start the instance on the bound resources
         const connections = new AsyncDisposableStack();
         try {
             const resources = await WorkloadRunner.#connect(runner, start, connections);
-            const keys = await InstallationRoot.open(Uint8Array.fromHex(start.root));
-            const callKey = CallKey.of(keys);
+            const keys = await InstallationRoot.open(
+                Uint8Array.fromHex(start.root),
+                runner.environment.crypto,
+            );
+            const callKey = CallKey.of(keys, runner.environment.crypto);
             const stack = Egress.url(start.egress, STACK_ADDRESS);
             const host = runner.socketHost ?? {
                 url: Egress.beside(start.egress, SOCKET_PATH),
-                fetch: (request: Request) => fetch(request),
+                fetch: (request: Request) => runner.environment.network.fetch(request),
             };
             const hibernation = new Hibernation(host, start.secret, report);
             const instance = await WorkloadInstance.start(runner.workload, {
                 resources,
                 server: WorkloadRunner.#server(runner, start, { build, stack, resources, keys }),
                 callKey: () => callKey,
-                clock: runner.clock,
+                environment,
                 report,
                 ...(runner.alarm === undefined ? {} : { alarm: runner.alarm }),
                 ephemeral: runner.ephemeral,
@@ -138,7 +143,7 @@ export class WorkloadRunner implements AsyncDisposable {
             const packages = new Map(instance.packages.map((handle) => [handle.id, handle]));
 
             // set the instance
-            log.info("workload.started", {
+            TelemetryScope.of(import.meta.destack.package, running).log.info("workload.started", {
                 workload: runner.workload.name,
                 instance: start.instance,
             });
@@ -169,7 +174,12 @@ export class WorkloadRunner implements AsyncDisposable {
         // post to the host's OTLP path with the runner's secret, resolving frames through the build
         const endpoint = Egress.beside(start.egress, OTLP_ORIGIN_PATH);
         const headers = () => ({ authorization: `Bearer ${start.secret}` });
-        const exporter = OtlpExporter.http({ endpoint, headers }, report, new Symbolicator(build));
+        const fetch = (request: Request) => runner.environment.network.fetch(request);
+        const exporter = OtlpExporter.http(
+            { endpoint, headers, fetch },
+            report,
+            new Symbolicator(build),
+        );
 
         return exporter.options(runner.workload.package, { ratio: start.sampling });
     }
@@ -184,26 +194,28 @@ export class WorkloadRunner implements AsyncDisposable {
             readonly resources: ResourceContext;
             readonly keys: Deriver;
         },
-    ): ServerContext {
+    ): InstalledServerContext {
         const { build, stack, resources, keys } = bound;
 
         return {
+            origin: start.origin,
             installation: start.installation,
             name: start.name,
-            space: start.space,
+            scope: start.scope,
             ...(start.partition === undefined ? {} : { partition: start.partition }),
             build,
             settings: start.settings,
             capabilities: start.capabilities,
             resources,
             keys,
+            environment: runner.environment,
             publisher: runner.publisher(stack, start.secret),
             publisherAt: (address, packageId) =>
                 runner.publisher(
                     `${Egress.url(start.egress, address)}${PackageMount.path(packageId)}`,
                     start.secret,
                 ),
-            fetch: (request) => fetch(request),
+            fetch: (request) => runner.environment.network.fetch(request),
             url: start.url,
             at: (address) => ({
                 url: Egress.url(start.egress, address),
@@ -211,7 +223,7 @@ export class WorkloadRunner implements AsyncDisposable {
                     const headers = new Headers(request.headers);
                     headers.set("authorization", `Bearer ${start.secret}`);
 
-                    return fetch(copyRequest(request, { headers }));
+                    return runner.environment.network.fetch(copyRequest(request, { headers }));
                 },
             }),
         };
@@ -227,7 +239,10 @@ export class WorkloadRunner implements AsyncDisposable {
         // refuse a request without the host's secret before anything serves it
         if (request.headers.get("authorization") !== `Bearer ${this.start.secret}`) {
             return Promise.resolve(
-                refusal(ObjectError.of("INVALID_HOST_SECRET", "invalid host secret")),
+                refusal(
+                    ObjectError.of("HOST_SECRET_INVALID", "invalid host secret"),
+                    this.#telemetry,
+                ),
             );
         }
 
@@ -271,7 +286,10 @@ export class WorkloadRunner implements AsyncDisposable {
         const served = this.#packages.get(this.#packageId);
         if (served === undefined) {
             return Promise.resolve(
-                refusal(ObjectError.of("NO_PACKAGE_ROUTES", "no package here has routes")),
+                refusal(
+                    ObjectError.of("PACKAGE_ROUTES_MISSING", "no package here has routes"),
+                    this.#telemetry,
+                ),
             );
         }
 
@@ -287,6 +305,9 @@ export class WorkloadRunner implements AsyncDisposable {
             const socket = this.#hibernation.socket(description);
             const handler = this.instance.requireSocketHandler();
 
+            // hand the event over once the workload serves, its replicas ready as its requests wait for
+            await this.instance.ready();
+
             // hand over its close or its message
             if (request.method === "DELETE") {
                 await handler.close(socket);
@@ -301,7 +322,7 @@ export class WorkloadRunner implements AsyncDisposable {
         }
         // answer a refusal as it is
         catch (error) {
-            return refusal(error);
+            return refusal(error, this.#telemetry);
         }
     }
 
@@ -315,7 +336,7 @@ export class WorkloadRunner implements AsyncDisposable {
         try {
             return await this.instance.requireHookHandler().fetch(request);
         } catch (error) {
-            return refusal(error);
+            return refusal(error, this.#telemetry);
         }
     }
 
@@ -329,7 +350,7 @@ export class WorkloadRunner implements AsyncDisposable {
                 .requireWebhookHandler()
                 .fetch(new Request(url.href, request));
         } catch (error) {
-            return refusal(error);
+            return refusal(error, this.#telemetry);
         }
     }
 
@@ -373,7 +394,9 @@ export class WorkloadRunner implements AsyncDisposable {
             }
 
             // connect to the bound resource
-            const client = connections.use(await connector.connect(binding, declaration));
+            const client = connections.use(
+                await connector.connect(binding, declaration, runner.environment),
+            );
             resources.bind(declaration, client);
         }
 
@@ -383,8 +406,8 @@ export class WorkloadRunner implements AsyncDisposable {
     /** Serve the workload's packages to the callers the host forwards. */
     static #serve(runner: RunnerOptions, start: WorkloadStart) {
         return {
-            clock: runner.clock,
-            scope: start.space,
+            clock: runner.environment.clock,
+            scope: start.scope,
             instance: start.instance,
             drainTimeout: DRAIN_MILLISECONDS,
             authenticate: async (request: Request) => Caller.forwarded(request),

@@ -1,3 +1,5 @@
+import type { Environment } from "@destack/environment";
+import { testSimulation } from "../test/index.ts";
 import { testCallKey } from "../test/context.ts";
 import { reconciliation, TestDatabase } from "@destack/db/test";
 import { expect, onTestFinished, test } from "@destack/test";
@@ -10,9 +12,9 @@ import { schema, present, type Identifier } from "@destack/schema";
 
 import { Replica, Scope, type Uplink } from "@destack/sync";
 import { ObjectStore } from "./index.ts";
-import { Clock } from "@destack/environment";
 import { tablesOf } from "../stack/db.ts";
 import objectPackage from "../package.ts";
+import { TestObjectStore } from "../test/index.ts";
 
 /** Refuse a change sent over the uplink, as these replicas receive none. */
 const refuseChanges = () => Promise.reject(new Error("the fixture receives no changes"));
@@ -100,17 +102,17 @@ const MEMBERS = Follow.of(
 );
 
 /** Serve people and profiles over a database, following them at the universe with an uplink. */
-async function serve(database: DatabaseConnection, uplink?: Uplink) {
-    return new ObjectStore({
+async function serve(world: Environment, database: DatabaseConnection, uplink?: Uplink) {
+    return await TestObjectStore.at(principal.space.reference(Scope.universe.id, spaceId), {
         chain: async () =>
             uplink === undefined ? undefined : { kind: "follower", parent: Scope.universe.id },
-        clock: Clock.system,
+        environment: world,
         principal: principal.space.reference(Scope.universe.id, spaceId),
         servers: serversOf([person, profile], uplink === undefined ? {} : { follows: [PEOPLE] }),
         database,
         ...(uplink === undefined ? {} : { uplink }),
         callKey: testCallKey,
-        events: await testEvents(database),
+        events: await testEvents(database, world),
         origin: {
             package: person.package,
         },
@@ -118,13 +120,16 @@ async function serve(database: DatabaseConnection, uplink?: Uplink) {
 }
 
 test("replicate the profiles in the scopes of the people a space reads, each decided in its person's scope", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     const tables = [...person.tables, ...profile.tables, ...call.tables];
-    const home = await TestDatabase.create(tables, { isMigrated: true });
+    const home = await TestDatabase.create(tables, { environment: world, isMigrated: true });
     const declared = defineDatabase({
         name: "space",
         ...tablesOf({ packages: [objectPackage], follows: [PEOPLE], tables: [] }),
     });
-    const space = await TestDatabase.create(declared, { isMigrated: true });
+    const space = await TestDatabase.create(declared, { environment: world, isMigrated: true });
     onTestFinished(async () => {
         await Promise.all([home.close(), space.close()]);
     });
@@ -136,36 +141,42 @@ test("replicate the profiles in the scopes of the people a space reads, each dec
     const cy = personId(3);
     const people = [ada, bob, cy];
     for (const id of people) {
-        await new AccessFixture(home.database).replicateScope(
+        await new AccessFixture(home.database, world).replicateScope(
             person.reference(Scope.universe.id, id),
             person.policy,
         );
     }
-    await home.database.insert(person.table).values(
-        people.map((id) => ({
-            id,
-            name: id,
-            scope: "universe",
-            createdAt: now,
-            updatedAt: now,
-        })),
+    await home.database.transaction(
+        async (transaction) =>
+            await transaction.insert(person.table).values(
+                people.map((id) => ({
+                    id,
+                    name: id,
+                    scope: "universe",
+                    createdAt: now,
+                    updatedAt: now,
+                })),
+            ),
     );
-    await home.database.insert(profile.table).values(
-        people.map((id, index) => ({
-            id: profileId(id),
-            handle: `@${index}`,
-            email: `${index}@example.com`,
-            scope: id,
-            createdAt: now,
-            updatedAt: now,
-        })),
+    await home.database.transaction(
+        async (transaction) =>
+            await transaction.insert(profile.table).values(
+                people.map((id, index) => ({
+                    id: profileId(id),
+                    handle: `@${index}`,
+                    email: `${index}@example.com`,
+                    scope: id,
+                    createdAt: now,
+                    updatedAt: now,
+                })),
+            ),
     );
-    await new AccessFixture(home.database).suspendReplica(cy, now);
+    await new AccessFixture(home.database, world).suspendReplica(cy, now);
 
     // let the space read ada and the suspended cy
-    const served = await serve(home.database);
+    const served = await serve(world, home.database);
     const join = (id: string) =>
-        new AccessFixture(home.database).replicateRelationship(
+        new AccessFixture(home.database, world).replicateRelationship(
             person.reference(Scope.universe.id, id),
             "joined",
             principal.space.reference(Scope.universe.id, spaceId),
@@ -174,7 +185,7 @@ test("replicate the profiles in the scopes of the people a space reads, each dec
     await join(cy);
 
     // store the space's replica of the universe in its database, decided at home for the space
-    const replicating: ObjectStore = await serve(space.database, {
+    const replicating: ObjectStore = await serve(world, space.database, {
         receive: refuseChanges,
         call: refuseQueries,
         confirm: async () => {},
@@ -206,7 +217,7 @@ test("replicate the profiles in the scopes of the people a space reads, each dec
             space.database,
             Scope.universe.id,
             await home.database.log.position(),
-            AbortSignal.timeout(5000),
+            world.clock.timeout(5000),
         );
 
         return {
@@ -236,7 +247,10 @@ test("replicate the profiles in the scopes of the people a space reads, each dec
     });
 
     // take a person leaving the space out with their profile
-    await home.database.delete(accessRelationship).where(eq(accessRelationship.id, joined));
+    await home.database.transaction(
+        async (transaction) =>
+            await transaction.delete(accessRelationship).where(eq(accessRelationship.id, joined)),
+    );
     expect(await replicated()).toEqual({
         people: [bob, cy],
         profiles: [[profileId(bob), bob, "@1", null]],
@@ -244,6 +258,9 @@ test("replicate the profiles in the scopes of the people a space reads, each dec
 });
 
 test("replicate the badges a space is shown from the scopes of teams without replicas here, and withhold the badges it is not shown", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // create ada and a team at home, the team's badges and ada's badges
     const home = await TestDatabase.create(
         tablesOf({
@@ -251,14 +268,14 @@ test("replicate the badges a space is shown from the scopes of teams without rep
             follows: [],
             tables: [],
         }).tables,
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     const space = await TestDatabase.create(
         defineDatabase({
             name: "space",
             ...tablesOf({ packages: [objectPackage], follows: [SHOWN], tables: [] }),
         }),
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(async () => {
         await Promise.all([home.close(), space.close()]);
@@ -266,42 +283,51 @@ test("replicate the badges a space is shown from the scopes of teams without rep
     const now = 1;
     const ada = personId(1);
     const crew = schema.identifier("team").parse("team-01996ab0-0000-7000-8000-000000000001");
-    await new AccessFixture(home.database).replicateScope(
+    await new AccessFixture(home.database, world).replicateScope(
         person.reference(Scope.universe.id, ada),
         person.policy,
     );
-    await new AccessFixture(home.database).replicateScope(
+    await new AccessFixture(home.database, world).replicateScope(
         team.reference(Scope.universe.id, crew),
         team.policy,
     );
     const at = { createdAt: now, updatedAt: now };
-    await home.database
-        .insert(person.table)
-        .values({ id: ada, name: "Ada", scope: "universe", ...at });
-    await home.database
-        .insert(team.table)
-        .values({ id: crew, name: "Crew", scope: "universe", ...at });
+    await home.database.transaction(
+        async (transaction) =>
+            await transaction
+                .insert(person.table)
+                .values({ id: ada, name: "Ada", scope: "universe", ...at }),
+    );
+    await home.database.transaction(
+        async (transaction) =>
+            await transaction
+                .insert(team.table)
+                .values({ id: crew, name: "Crew", scope: "universe", ...at }),
+    );
     const badges = [
         [badgeId(1), crew, "shown in the team"],
         [badgeId(2), crew, "hidden in the team"],
         [badgeId(3), ada, "shown in ada's scope"],
     ] as const;
-    await home.database
-        .insert(badge.table)
-        .values(badges.map(([id, scope, label]) => ({ id, scope, label, ...at })));
+    await home.database.transaction(
+        async (transaction) =>
+            await transaction
+                .insert(badge.table)
+                .values(badges.map(([id, scope, label]) => ({ id, scope, label, ...at }))),
+    );
 
     // let the space read ada, and show it the first and the last badge
-    const served = new ObjectStore({
+    const served = await TestObjectStore.at(principal.space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: principal.space.reference(Scope.universe.id, spaceId),
         servers: serversOf([person, team, badge]),
         database: home.database,
         callKey: testCallKey,
-        events: await testEvents(home.database),
+        events: await testEvents(home.database, world),
         origin: { package: person.package },
     });
-    const fixture = new AccessFixture(home.database);
+    const fixture = new AccessFixture(home.database, world);
     const spaceSubject = principal.space.reference(Scope.universe.id, spaceId);
     await fixture.replicateRelationship(
         person.reference(Scope.universe.id, ada),
@@ -313,30 +339,33 @@ test("replicate the badges a space is shown from the scopes of teams without rep
     }
 
     // replicate the universe the space reads into its database, which serves only people and badges
-    const replicating: ObjectStore = new ObjectStore({
-        chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
-        clock: Clock.system,
-        principal: principal.space.reference(Scope.universe.id, spaceId),
-        servers: serversOf([person, badge], { follows: [SHOWN] }),
-        database: space.database,
-        uplink: {
-            receive: refuseChanges,
-            call: refuseQueries,
-            confirm: async () => {},
-            stream: (asked, signal) =>
-                served.source.replicate(
-                    asked,
-                    asked.after,
-                    {
-                        subject: principal.space.reference(Scope.universe.id, asked.target),
-                    },
-                    signal,
-                ),
+    const replicating: ObjectStore = await TestObjectStore.at(
+        principal.space.reference(Scope.universe.id, spaceId),
+        {
+            chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
+            environment: world,
+            principal: principal.space.reference(Scope.universe.id, spaceId),
+            servers: serversOf([person, badge], { follows: [SHOWN] }),
+            database: space.database,
+            uplink: {
+                receive: refuseChanges,
+                call: refuseQueries,
+                confirm: async () => {},
+                stream: (asked, signal) =>
+                    served.source.replicate(
+                        asked,
+                        asked.after,
+                        {
+                            subject: principal.space.reference(Scope.universe.id, asked.target),
+                        },
+                        signal,
+                    ),
+            },
+            callKey: testCallKey,
+            events: await testEvents(space.database, world),
+            origin: { package: person.package },
         },
-        callKey: testCallKey,
-        events: await testEvents(space.database),
-        origin: { package: person.package },
-    });
+    );
     await follow(replicating, home.database, space.database);
 
     // list the shown badges of the team and of ada, and withhold the hidden one
@@ -348,22 +377,23 @@ test("replicate the badges a space is shown from the scopes of teams without rep
 });
 
 test("replicate each person once the space may read them at the change's position, though the home lists relationships as objects", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     const home = await TestDatabase.create(
         tablesOf({
             packages: [objectPackage, { objects: { person }, tables: [] }],
             follows: [],
             tables: [],
         }).tables,
-        {
-            isMigrated: true,
-        },
+        { environment: world, isMigrated: true },
     );
     const space = await TestDatabase.create(
         defineDatabase({
             name: "space",
             ...tablesOf({ packages: [objectPackage], follows: [MEMBERS], tables: [] }),
         }),
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(async () => {
         await Promise.all([home.close(), space.close()]);
@@ -374,34 +404,37 @@ test("replicate each person once the space may read them at the change's positio
     const spaceSubject = principal.space.reference(Scope.universe.id, spaceId);
     const [ada, bob, cy] = [personId(1), personId(2), personId(3)];
     const join = (database: DatabaseConnection, id: string) =>
-        new AccessFixture(database).replicateRelationship(
+        new AccessFixture(database, world).replicateRelationship(
             person.reference(Scope.universe.id, id),
             "joined",
             spaceSubject,
         );
     for (const id of [ada, bob]) {
-        await new AccessFixture(home.database).replicateScope(
+        await new AccessFixture(home.database, world).replicateScope(
             person.reference(Scope.universe.id, id),
             person.policy,
         );
-        await home.database.insert(person.table).values({ id, name: id, ...at });
+        await home.database.transaction(
+            async (transaction) =>
+                await transaction.insert(person.table).values({ id, name: id, ...at }),
+        );
     }
     const joined = await join(home.database, ada);
 
     // serve the people and their relationships as objects, and replica what the space reads
-    const served = new ObjectStore({
+    const served = await TestObjectStore.at(spaceSubject, {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: spaceSubject,
         servers: serversOf([person, relationship]),
         database: home.database,
         callKey: testCallKey,
-        events: await testEvents(home.database),
+        events: await testEvents(home.database, world),
         origin: { package: person.package },
     });
-    const replicating: ObjectStore = new ObjectStore({
+    const replicating: ObjectStore = await TestObjectStore.at(spaceSubject, {
         chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
-        clock: Clock.system,
+        environment: world,
         principal: spaceSubject,
         servers: serversOf([person], { follows: [MEMBERS] }),
         database: space.database,
@@ -420,7 +453,7 @@ test("replicate each person once the space may read them at the change's positio
                 ),
         },
         callKey: testCallKey,
-        events: await testEvents(space.database),
+        events: await testEvents(space.database, world),
         origin: { package: person.package },
     });
     await follow(replicating, home.database, space.database);
@@ -429,7 +462,7 @@ test("replicate each person once the space may read them at the change's positio
             space.database,
             Scope.universe.id,
             await home.database.log.position(),
-            AbortSignal.timeout(5000),
+            world.clock.timeout(5000),
         );
         const rows = await space.database.select().from(person.table).orderBy(asc(person.table.id));
 
@@ -440,7 +473,7 @@ test("replicate each person once the space may read them at the change's positio
     // let bob join the space, then create cy joining it in one commit
     await join(home.database, bob);
     await home.database.transaction(async (transaction) => {
-        await new AccessFixture(transaction).replicateScope(
+        await new AccessFixture(transaction, world).replicateScope(
             person.reference(Scope.universe.id, cy),
             person.policy,
         );
@@ -450,7 +483,10 @@ test("replicate each person once the space may read them at the change's positio
     expect(await replicated()).toEqual([ada, bob, cy]);
 
     // take ada out once she leaves the space
-    await home.database.delete(accessRelationship).where(eq(accessRelationship.id, joined));
+    await home.database.transaction(
+        async (transaction) =>
+            await transaction.delete(accessRelationship).where(eq(accessRelationship.id, joined)),
+    );
     expect(await replicated()).toEqual([bob, cy]);
 });
 
@@ -480,7 +516,7 @@ async function follow(
         space,
         Scope.universe.id,
         await home.log.position(),
-        AbortSignal.timeout(5000),
+        replicating.environment.clock.timeout(5000),
     );
 }
 

@@ -8,6 +8,7 @@ import {
     json,
     lease,
     text,
+    TABLE,
     uniqueIndex,
 } from "@destack/db";
 import type { DatabaseDefinition, Table } from "@destack/db";
@@ -64,7 +65,7 @@ export const SYSTEM_TABLES: readonly Table[] = [
     followKey,
 ];
 
-/** List a store's tables: its system tables, what it serves and follows, and its host's tables. */
+/** List a store's tables: system tables, what it serves, follows and needs, and its host's. */
 export function tablesOf(store: {
     /** The packages the store serves. */
     readonly packages: readonly Pick<PackageHandle, "objects" | "tables">[];
@@ -90,6 +91,17 @@ export function tablesOf(store: {
         ...store.packages.flatMap((handle) => handle.tables),
         ...store.tables,
     ]);
+
+    // add the tables each table's aggregates and dependents read, such as an issue's comments
+    for (const table of local) {
+        const { aggregates, dependents } = table[TABLE];
+        for (const aggregate of aggregates) {
+            local.add("into" in aggregate ? aggregate.into() : aggregate.from());
+        }
+        for (const dependent of dependents) {
+            local.add(dependent.from());
+        }
+    }
 
     return {
         tables: [...local].filter((table) => !replicated.has(table)),

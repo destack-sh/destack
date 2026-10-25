@@ -114,6 +114,9 @@ export type Capability = schema.Infer<typeof Capability>;
 /** The kind of the declaration `definePackage` makes, as manifests list it. */
 export const PACKAGE_DECLARATION = DeclarationName.parse("package");
 
+/** The export a build's package declaration comes from: its module's default export. */
+export const PACKAGE_EXPORT = "default";
+
 /** The package defining the package kind: object itself. */
 const KIND_PACKAGE_ID = PackageId.parse(import.meta.destack.package.id);
 

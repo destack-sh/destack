@@ -477,24 +477,26 @@ export type VariantSchema<
     {
         [Field in keyof Variants & string]: {
             [Value in keyof Variants[Field] & string]: schema.Object<
-                Fields & { [Key in Field]: schema.Schema<Value, Value> } & RequiredFields<
+                Fields & { [Key in Field]: schema.Schema<Value, Value> } & ValueFields<
                         Object,
-                        VariantField<Variants[Field][Value]>
+                        VariantField<Variants[Field][Value]>,
+                        null
                     >
             >;
         }[keyof Variants[Field] & string];
     }[keyof Variants & string][]
 >;
 
-/** The JSON validators of the columns a write gives a value, refusing null. */
-export type RequiredFields<
+/** The JSON validators of the columns a write gives a value, refusing some values, such as null. */
+export type ValueFields<
     Object extends ObjectType,
     Written extends string,
+    Refused = never,
     Row = Insert<Object["table"]>,
 > = {
     [Key in Extract<Written, keyof Row>]-?: schema.Schema<
-        JsonOf<NonNullable<Row[Key]>>,
-        Accepted<JsonOf<NonNullable<Row[Key]>>>
+        JsonOf<Exclude<Row[Key], undefined | Refused>>,
+        Accepted<JsonOf<Exclude<Row[Key], undefined | Refused>>>
     >;
 };
 

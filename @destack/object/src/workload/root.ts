@@ -1,3 +1,4 @@
+import type { Crypto } from "@destack/environment";
 import { Derivation, type Deriver } from "@destack/identity";
 
 /** The bytes of an installation root: a 256-bit secret. */
@@ -13,12 +14,12 @@ export const InstallationRoot = {
         return space.derive({ label: INSTALLATION_ROOT_LABEL, context: installation });
     },
 
-    /** Open an installation's root as the deriver of its keys. */
-    async open(root: Uint8Array<ArrayBuffer>): Promise<Deriver> {
+    /** Open an installation's root as the deriver of its keys, on an environment's WebCrypto. */
+    async open(root: Uint8Array<ArrayBuffer>, crypto: Crypto): Promise<Deriver> {
         if (root.length !== ROOT_BYTES) {
             throw new TypeError(`an installation root has ${ROOT_BYTES} bytes, not ${root.length}`);
         }
 
-        return Derivation.of(await Derivation.root(root));
+        return Derivation.of(await Derivation.root(root, crypto), crypto);
     },
 };

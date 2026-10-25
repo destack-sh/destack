@@ -2,49 +2,29 @@
     "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
     "id": "package-01a0d462-1b26-7401-be27-6258e0a32141",
     "language": "typescript",
-    "runtimes": [
-        "browser",
-        "bun",
-        "workerd"
-    ],
+    "runtimes": ["browser", "bun", "workerd"],
+    "entrypoints": ["src/browser/database.worker.ts"],
     "exports": {
         "./browser": {
-            "runtimes": [
-                "browser"
-            ]
+            "runtimes": ["browser"]
         },
         "./bun": {
-            "runtimes": [
-                "bun"
-            ]
+            "runtimes": ["bun"]
         },
         "./cloudflare": {
-            "runtimes": [
-                "bun",
-                "workerd"
-            ]
+            "runtimes": ["bun", "workerd"]
         },
         "./inspect": {
-            "runtimes": [
-                "bun"
-            ]
+            "runtimes": ["bun"]
         },
         "./server": {
-            "runtimes": [
-                "bun",
-                "workerd"
-            ]
+            "runtimes": ["bun", "workerd"]
         },
         "./test": {
-            "runtimes": [
-                "bun"
-            ]
+            "runtimes": ["bun"]
         },
         "./workload": {
-            "runtimes": [
-                "bun",
-                "workerd"
-            ]
+            "runtimes": ["bun", "workerd"]
         }
     },
     "declarations": {
@@ -129,30 +109,18 @@
     "check": {
         "expect": [
             {
-                "files": [
-                    "src/object/object.ts"
-                ],
-                "rules": [
-                    "destack/no-overload-cast"
-                ],
+                "files": ["src/object/object.ts"],
+                "rules": ["destack/no-overload-cast"],
                 "reason": "defineObject states the type its definition computes, as zod's z.object and Drizzle's pgTable, and implement states its handler map, as oRPC's router implementation (rulings 2026-10-16)"
             },
             {
-                "files": [
-                    "src/object/description.ts"
-                ],
-                "rules": [
-                    "destack/no-overload-cast"
-                ],
+                "files": ["src/object/description.ts"],
+                "rules": ["destack/no-overload-cast"],
                 "reason": "readDefinition reads a decoded description as the definition defineObject states, the definition boundary in reverse (ruling 2026-10-16)"
             },
             {
-                "files": [
-                    "src/method/context.ts"
-                ],
-                "rules": [
-                    "destack/no-overload-cast"
-                ],
+                "files": ["src/method/context.ts"],
+                "rules": ["destack/no-overload-cast"],
                 "reason": "MethodContext.results states call results after parsing each by its method's output schema, as an oRPC client reads its contract's output (ruling 2026-10-16)"
             }
         ]

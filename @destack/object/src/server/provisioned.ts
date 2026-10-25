@@ -24,7 +24,7 @@ import { type ResourceType, type ResourceRow } from "../trait/provisioned.ts";
 import { DesiredState } from "../trait/desired.ts";
 
 /** The condition of a resource waiting for draining consumers to stop before recreation. */
-export const DRAINING = "draining";
+export const DRAINING = "Draining";
 
 /** The parsed desired states a controller stores: the platform's, its predecessor's and apps'. */
 const DESIRED_STATES_KEPT = 16;
@@ -192,7 +192,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
                 reconciliation,
                 { reference: row.id },
                 {
-                    ready: {
+                    Ready: {
                         status: "true",
                         reason: "External",
                         message:
@@ -204,7 +204,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
             );
         }
         // provision a resource whose specification changed and apply its desired states
-        else if (!Observation.isCurrent(row, "ready") || row.reference === null) {
+        else if (!Observation.isCurrent(row, "Ready") || row.reference === null) {
             const provisioned = await ResourceController.#provision(
                 object,
                 row,
@@ -256,7 +256,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
                 row,
                 reconciliation,
                 {},
-                { ready: ResourceController.#unready("NoProvider", message) },
+                { Ready: ResourceController.#unready("NoProvider", message) },
             );
 
             return undefined;
@@ -270,7 +270,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
                 reconciliation,
                 {},
                 {
-                    ready: ResourceController.#unready("NoProvisioning", message),
+                    Ready: ResourceController.#unready("NoProvisioning", message),
                 },
             );
 
@@ -288,7 +288,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
             };
 
             return await ResourceController.#observe(object, row, reconciliation, fields, {
-                ready: ResourceController.#unready("Provisioned", provisioned.reference),
+                Ready: ResourceController.#unready("Provisioned", provisioned.reference),
             });
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
@@ -298,7 +298,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
                 reconciliation,
                 {},
                 {
-                    ready: ResourceController.#unready("ProvisioningFailed", message),
+                    Ready: ResourceController.#unready("ProvisioningFailed", message),
                 },
             );
             throw error;
@@ -322,7 +322,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
                 row,
                 reconciliation,
                 {},
-                { ready: ResourceController.#unready("NoProvider", message) },
+                { Ready: ResourceController.#unready("NoProvider", message) },
             );
 
             return;
@@ -330,9 +330,12 @@ export class ResourceController implements ObjectController<ResourceType<"space"
 
         // skip resources whose desired states applied already
         const desired = [...row.states, ...row.drainingStates];
-        const stateDigest = await Digest.json(desired);
-        const appliedDigest = await Digest.json(row.appliedStates);
-        if (appliedDigest === stateDigest && row.conditions["ready"]?.reason === "Applied") {
+        const stateDigest = await Digest.json(desired, reconciliation.store.environment.crypto);
+        const appliedDigest = await Digest.json(
+            row.appliedStates,
+            reconciliation.store.environment.crypto,
+        );
+        if (appliedDigest === stateDigest && row.conditions["Ready"]?.reason === "Applied") {
             return;
         }
 
@@ -348,7 +351,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
             return;
         }
         const { plan, isDraining } = planned;
-        const planDigest = await Plan.digest(plan);
+        const planDigest = await Plan.digest(plan, reconciliation.store.environment.crypto);
         const waiting = { steps: plan.steps.map((step) => ResourceController.#planStep(step)) };
 
         // wait for an approval of this exact plan when its risk is at the approval threshold
@@ -360,7 +363,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
                 reconciliation,
                 { plan: waiting },
                 {
-                    ready: ResourceController.#unready("AwaitingApproval", message),
+                    Ready: ResourceController.#unready("AwaitingApproval", message),
                 },
             );
         }
@@ -373,7 +376,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
                 reconciliation,
                 { plan: waiting, approvedPlan: null },
                 {
-                    ready: ResourceController.#unready("Recreating", message),
+                    Ready: ResourceController.#unready("Recreating", message),
                     [DRAINING]: { status: "true", reason: "Recreating", message },
                 },
             );
@@ -437,7 +440,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
                     row,
                     reconciliation,
                     {},
-                    { ready: ResourceController.#unready(reason, message) },
+                    { Ready: ResourceController.#unready(reason, message) },
                 );
                 if (!isBlocked) {
                     throw error;
@@ -464,7 +467,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
         row: ResourceRow,
         provider: ResourceControllerOptions["providers"][number],
         plan: Plan,
-        digests: { readonly plan: string; readonly states: readonly Digest[] },
+        digests: { readonly plan: Digest; readonly states: readonly Digest[] },
         reconciliation: ObjectReconciliation<ResourceType<"space">>,
         options: ReconcileOptions,
     ): Promise<void> {
@@ -486,7 +489,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
                 reconciliation,
                 { appliedStates: [...digests.states], plan: null, approvedPlan: null },
                 {
-                    ready: { status: "true", reason: "Applied", message },
+                    Ready: { status: "true", reason: "Applied", message },
                     ...(row.conditions[DRAINING] === undefined
                         ? {}
                         : { [DRAINING]: { status: "false", reason: "Applied", message } }),
@@ -504,7 +507,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
                 reconciliation,
                 { plan: waiting },
                 {
-                    ready: ResourceController.#unready("ApplyFailed", message),
+                    Ready: ResourceController.#unready("ApplyFailed", message),
                 },
             );
             throw error;
@@ -526,7 +529,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
                 ? requestedAt + Duration.milliseconds(retention.within)
                 : undefined;
         if (retention === "forever" || (ends !== undefined && ends > reconciliation.now)) {
-            if (row.conditions["ready"]?.reason !== "Retained") {
+            if (row.conditions["Ready"]?.reason !== "Retained") {
                 const message = "content retained after removal";
                 await ResourceController.#observe(
                     object,
@@ -534,7 +537,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
                     reconciliation,
                     {},
                     {
-                        ready: ResourceController.#unready("Retained", message),
+                        Ready: ResourceController.#unready("Retained", message),
                     },
                 );
             }
@@ -551,7 +554,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
                 row,
                 reconciliation,
                 {},
-                { ready: ResourceController.#unready("InUse", message) },
+                { Ready: ResourceController.#unready("InUse", message) },
             );
 
             return undefined;
@@ -570,7 +573,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
                     reconciliation,
                     {},
                     {
-                        ready: ResourceController.#unready("DestroyFailed", message),
+                        Ready: ResourceController.#unready("DestroyFailed", message),
                     },
                 );
                 throw error;

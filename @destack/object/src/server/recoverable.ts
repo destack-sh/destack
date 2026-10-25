@@ -93,9 +93,9 @@ export class RecoverableController implements ReconcileController {
                     now,
                 );
                 await store.mutate(
-                    store.serving(object, now),
+                    store.as(object, now),
                     {
-                        id: RequestId.create(now),
+                        id: RequestId.create(store.environment),
                         calls: rows.map((row) =>
                             object.call(
                                 RecoverableController.#purgeMethod(object),

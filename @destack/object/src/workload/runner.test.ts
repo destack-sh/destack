@@ -1,19 +1,20 @@
+import { Simulation } from "@destack/environment/simulation";
 import { Package, type PackageId } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
 import { type Uplink } from "@destack/sync";
-import { expect, onTestFinished, test } from "@destack/test";
+import { afterAll, expect, onTestFinished, test } from "@destack/test";
 import { Caller, principal } from "@destack/access";
 import { schema } from "@destack/schema";
 import { PackageHandle } from "../declare/index.ts";
 import { PackageMount } from "../declare/mount.ts";
 import { startTelemetry } from "@destack/telemetry/bun";
+import { startSilentTelemetry } from "@destack/telemetry/test";
 import { WorkloadRunner } from "./runner.ts";
 import type { RequestContext } from "../server/index.ts";
 import type { WorkloadStart } from "./start.ts";
 import { defineWorkload, type EphemeralHost } from "./workload.ts";
-import { FORWARDED_URL_HEADER, ROUTE_PATH, WEBHOOK_PATH } from "./start.ts";
+import { ForwardedRequest, FORWARDED_HEAD_HEADER, ROUTE_PATH, WEBHOOK_PATH } from "./start.ts";
 import { SOCKET_HEADER, SOCKET_PATH } from "./socket.ts";
-import { Clock } from "@destack/environment";
 
 /** The OTLP logs export the observability service receives. */
 const LogsExport = schema
@@ -97,7 +98,8 @@ const start: WorkloadStart = {
     root: "00".repeat(32),
     capabilities: [],
     instance: schema.identifier("instance").parse("instance-01996ab0-0000-7000-8000-000000000002"),
-    space: spaceId,
+    scope: spaceId,
+    origin: "installed",
     installation: schema
         .identifier("installation")
         .parse("installation-01996ab0-0000-7000-8000-000000000003"),
@@ -110,7 +112,15 @@ const start: WorkloadStart = {
     sampling: 1,
 };
 
+/** The world the runners' telemetry starts in, its failures and identifiers its own. */
+const world = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 24) });
+
+afterAll(async () => {
+    await world[Symbol.asyncDispose]();
+});
+
 test("start the workload with its installation's settings, serve a forwarded caller below the mount of each package the workload serves, and export telemetry with only its release to the host with the runner's secret", async () => {
+    const node = world.environment("test");
     // capture the telemetry the runner exports to its host
     const exported: {
         url: string;
@@ -118,9 +128,7 @@ test("start the workload with its installation's settings, serve a forwarded cal
         release: Record<string, string>[];
         events: string[];
     }[] = [];
-    const fetch = globalThis.fetch;
-    const exporting = async (input: RequestInfo | URL, options?: RequestInit) => {
-        const request = new Request(input, options);
+    const exporting = async (request: Request) => {
         const body = LogsExport.parse(await request.json());
         exported.push({
             url: request.url,
@@ -144,11 +152,11 @@ test("start the workload with its installation's settings, serve a forwarded cal
         return Response.json({});
     };
 
-    // fake the runtime's fetch
-    globalThis.fetch = Object.assign(exporting, { preconnect: () => {} });
-    onTestFinished(() => {
-        globalThis.fetch = fetch;
-    });
+    // send the runner's requests through a network that captures them
+    const environment = {
+        ...node,
+        network: { ...node.network, fetch: exporting },
+    };
 
     // start a workload with packages that answer with the path and the caller, reading its installation's settings
     let settings: unknown;
@@ -162,7 +170,7 @@ test("start the workload with its installation's settings, serve a forwarded cal
     };
     const runner = await WorkloadRunner.start(
         {
-            clock: Clock.system,
+            environment,
             ephemeral: refusingEphemeral,
             workload: defineWorkload(
                 {
@@ -190,8 +198,8 @@ test("start the workload with its installation's settings, serve a forwarded cal
             publisher: () => publisher,
         },
         start,
-        await MemoryBuild.write(new Map(), { package: NOTES }),
-        startTelemetry,
+        await MemoryBuild.write(new Map(), { package: NOTES }, environment.crypto),
+        (options) => startTelemetry(options, world.environment("runner")),
         (error) => {
             throw error;
         },
@@ -201,7 +209,7 @@ test("start the workload with its installation's settings, serve a forwarded cal
     const mount = `http://runner.test${PackageMount.path(notes.id)}`;
     const unauthorized = await runner.fetch(new Request(`${mount}/notes`));
     const refusal: unknown = await unauthorized.json();
-    const now = Date.now();
+    const now = node.clock.now();
     const alice = principal.user.reference("universe", "alice");
     const forwarded = (audience: PackageId) => {
         const headers = new Headers({ authorization: "Bearer forwarding" });
@@ -254,7 +262,7 @@ test("start the workload with its installation's settings, serve a forwarded cal
                 code: "UNAUTHORIZED",
                 status: 401,
                 message: "invalid host secret",
-                reason: "INVALID_HOST_SECRET",
+                reason: "HOST_SECRET_INVALID",
                 domain: "@destack/object",
             },
         ],
@@ -278,10 +286,11 @@ test("start the workload with its installation's settings, serve a forwarded cal
 });
 
 test("forward a webhook delivery below the webhook path to the workload, refusing one without the host's secret", async () => {
+    const node = world.environment("test");
     // start a workload answering each delivery with its path below the webhook path
     const runner = await WorkloadRunner.start(
         {
-            clock: Clock.system,
+            environment: node,
             ephemeral: refusingEphemeral,
             workload: defineWorkload(
                 {
@@ -308,8 +317,8 @@ test("forward a webhook delivery below the webhook path to the workload, refusin
             }),
         },
         start,
-        await MemoryBuild.write(new Map(), { package: NOTES }),
-        async () => ({ shutdown: async () => {} }),
+        await MemoryBuild.write(new Map(), { package: NOTES }, node.crypto),
+        (options) => startSilentTelemetry(options, world.environment("runner")),
         (error) => {
             throw error;
         },
@@ -336,7 +345,7 @@ test("forward a webhook delivery below the webhook path to the workload, refusin
                 code: "UNAUTHORIZED",
                 status: 401,
                 message: "invalid host secret",
-                reason: "INVALID_HOST_SECRET",
+                reason: "HOST_SECRET_INVALID",
                 domain: "@destack/object",
             }),
         ],
@@ -344,6 +353,7 @@ test("forward a webhook delivery below the webhook path to the workload, refusin
 });
 
 test("accept a hibernated socket, hand its messages and close to the workload, and send its answers in order through the host", async () => {
+    const node = world.environment("test");
     // start a workload echoing each message and recording each close, its host in memory
     const sent: (readonly [string, string, string])[] = [];
     const closed: string[] = [];
@@ -358,7 +368,7 @@ test("accept a hibernated socket, hand its messages and close to the workload, a
     };
     const runner = await WorkloadRunner.start(
         {
-            clock: Clock.system,
+            environment: node,
             ephemeral: refusingEphemeral,
             workload: defineWorkload(
                 {
@@ -401,8 +411,8 @@ test("accept a hibernated socket, hand its messages and close to the workload, a
             socketHost: host,
         },
         start,
-        await MemoryBuild.write(new Map(), { package: NOTES }),
-        async () => ({ shutdown: async () => {} }),
+        await MemoryBuild.write(new Map(), { package: NOTES }, world.environment("runner").crypto),
+        (options) => startSilentTelemetry(options, world.environment("runner")),
         (error) => {
             throw error;
         },
@@ -442,11 +452,12 @@ test("accept a hibernated socket, hand its messages and close to the workload, a
 });
 
 test("hand a routed request to the workload's package at the route path, under the URL it asked for, and refuse a workload serving another package alone", async () => {
+    const node = world.environment("test");
     // start a workload whose package answers the path and the URL a request asked for, then route a request to it
     const routed = async (served: PackageHandle) => {
         await using runner = await WorkloadRunner.start(
             {
-                clock: Clock.system,
+                environment: node,
                 ephemeral: refusingEphemeral,
                 workload: defineWorkload(
                     {
@@ -458,7 +469,7 @@ test("hand a routed request to the workload's package at the route path, under t
                                     router: {},
                                     fetch: async (request: Request) =>
                                         new Response(
-                                            `${new URL(request.url).pathname} ${request.headers.get(FORWARDED_URL_HEADER)}`,
+                                            `${new URL(request.url).pathname} ${ForwardedRequest.restore(request)?.url}`,
                                         ),
                                 },
                             ],
@@ -479,8 +490,8 @@ test("hand a routed request to the workload's package at the route path, under t
                 }),
             },
             start,
-            await MemoryBuild.write(new Map(), { package: NOTES }),
-            async () => ({ shutdown: async () => {} }),
+            await MemoryBuild.write(new Map(), { package: NOTES }, node.crypto),
+            (options) => startSilentTelemetry(options, world.environment("runner")),
             (error) => {
                 throw error;
             },
@@ -489,7 +500,9 @@ test("hand a routed request to the workload's package at the route path, under t
             new Request(`http://runner.test${ROUTE_PATH}`, {
                 headers: {
                     authorization: "Bearer forwarding",
-                    [FORWARDED_URL_HEADER]: "https://notes.acme.com/blog?page=2",
+                    [FORWARDED_HEAD_HEADER]: ForwardedRequest.head(
+                        new Request("https://notes.acme.com/blog?page=2"),
+                    ),
                 },
             }),
         );
@@ -507,7 +520,7 @@ test("hand a routed request to the workload's package at the route path, under t
                 code: "NOT_FOUND",
                 status: 404,
                 message: "no package here has routes",
-                reason: "NO_PACKAGE_ROUTES",
+                reason: "PACKAGE_ROUTES_MISSING",
                 domain: "@destack/object",
             }),
         ],

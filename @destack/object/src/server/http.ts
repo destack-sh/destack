@@ -1,3 +1,4 @@
+import type { DigestCrypto } from "@destack/schema";
 import type { Health } from "./health.ts";
 import { ObjectError } from "../error/error.ts";
 import { RequestHandler, type HandlerOptions, type Router } from "./handler.ts";
@@ -7,12 +8,12 @@ import { type Authentication, Caller, Credential, LinkSecret } from "@destack/ac
 import type { ResourceContext } from "@destack/resource/context";
 import type { ProcedureRouter } from "../procedure/index.ts";
 
-import { reportError } from "../error/report.ts";
+import { refusal, reportError } from "../error/report.ts";
 import { BOOKMARK_HEADER, type Bookmark } from "../procedure/bookmark.ts";
 import { LINK_SECRET_HEADER, RequestContext, type ServerAccess } from "./context.ts";
 import type { ProcedureContext } from "./procedure.ts";
 import { type Alarm, ControlLoop, type Controller } from "@destack/db";
-import { copyRequest, Clock, LONGEST_DELAY, until } from "@destack/environment";
+import { copyRequest, type Environment, LONGEST_DELAY, until } from "@destack/environment";
 
 import type {} from "@destack/package/import-meta";
 
@@ -34,7 +35,7 @@ export class Server implements AsyncDisposable {
     /** Resolve when draining and disposal finish. */
     readonly #stopped = Promise.withResolvers<void>();
     /** Resolve once the server serves. */
-    readonly #serving = Promise.withResolvers<void>();
+    readonly #readiness = Promise.withResolvers<void>();
     /** The shutdown. */
     #closing?: Promise<void>;
     /** End the streams of accepted requests once draining starts. */
@@ -45,8 +46,12 @@ export class Server implements AsyncDisposable {
     #controlled?: Promise<void>;
     /** The running controllers, settled once they stop. */
     #running?: Promise<void>;
-    /** The loop running the controllers, absent without controllers. */
-    readonly #loop?: ControlLoop;
+    /** The lapse of each credential in use by its key and expiry, one timer per credential. */
+    readonly #lapses = new Map<string, AbortSignal>();
+    /** The loop running the controllers syncing the replicas, absent without them. */
+    readonly #syncing: ControlLoop | undefined;
+    /** The loop running the other controllers once the replicas are synced, absent without them. */
+    readonly #loop: ControlLoop | undefined;
 
     /** Wait until the server stopped. */
     get stopped(): Promise<void> {
@@ -56,7 +61,7 @@ export class Server implements AsyncDisposable {
     /** Create the server. */
     private constructor(options: ServerOptions) {
         // leave the refusal of a server stopped before it served to those waiting for it
-        this.#serving.promise.catch(() => undefined);
+        this.#readiness.promise.catch(() => undefined);
 
         // reject missing enforcement
         for (const callback of ["authenticate", "authorizeMachine"] as const) {
@@ -87,37 +92,47 @@ export class Server implements AsyncDisposable {
             authorize: (context) => Server.#authorize(context, options),
         });
 
-        // run the controllers
-        const controllers = options.controllers ?? [];
-        const access = options.access;
-        if (controllers.length > 0 && access === undefined) {
+        // run the controllers syncing the replicas, and the others once they are synced
+        this.#syncing = Server.#loopOf(options.syncing ?? [], options);
+        this.#loop = Server.#loopOf(options.controllers ?? [], options);
+    }
+
+    /** Create the loop of some controllers over the access database, absent for none. */
+    static #loopOf(
+        controllers: readonly Controller[],
+        options: ServerOptions,
+    ): ControlLoop | undefined {
+        // run no loop without controllers, and refuse controllers without an access database
+        const { access } = options;
+        if (controllers.length === 0) {
+            return undefined;
+        } else if (access === undefined) {
             throw new TypeError("a server with controllers needs an access database");
-        } else if (controllers.length > 0 && access !== undefined) {
-            const loop = new ControlLoop(access.database, controllers, {
-                report: (controller, key, error) => {
-                    // report the failure with the controller and the failed key
-                    options.report?.(
-                        new Error(`${controller.name} failed to reconcile ${key}`, {
-                            cause: error,
-                        }),
-                    );
-                },
-                ...(options.instance === undefined ? {} : { lease: { holder: options.instance } }),
-                ...(options.alarm === undefined ? {} : { alarm: options.alarm }),
-                clock: options.clock,
-            });
-            this.#loop = loop;
         }
+
+        return new ControlLoop(access.database, controllers, {
+            report: (controller, key, error) => {
+                // report the failure with the controller and the failed key
+                options.report?.(
+                    new Error(`${controller.name} failed to reconcile ${key}`, { cause: error }),
+                );
+            },
+            ...(options.instance === undefined ? {} : { lease: { holder: options.instance } }),
+            ...(options.alarm === undefined ? {} : { alarm: options.alarm }),
+            clock: options.environment.clock,
+        });
     }
 
     /** Settle once the server serves, its readiness met. */
-    serving(): Promise<void> {
-        return this.#serving.promise;
+    ready(): Promise<void> {
+        return this.#readiness.promise;
     }
 
     /** Settle once no controller key is due now or reconciling, or at a deadline. */
     idle(deadline?: number): Promise<void> {
-        return this.#loop === undefined ? Promise.resolve() : this.#loop.idle(deadline);
+        return Promise.all([this.#syncing?.idle(deadline), this.#loop?.idle(deadline)]).then(
+            () => undefined,
+        );
     }
 
     /** Start the server: run the controllers maintaining its replicas, then serve once ready. */
@@ -129,14 +144,14 @@ export class Server implements AsyncDisposable {
             const signal = server.#reconciling.signal;
             await Promise.race([options.activation, until(signal)]);
             if (!signal.aborted) {
-                await server.#loop?.run(signal);
+                await Promise.all([server.#syncing?.run(signal), server.#runOnceSynced(signal)]);
             }
         })();
         server.#controlled = Promise.all([server.#running, server.#serve()]).then(() => undefined);
 
         // stop serving once readiness or the controllers fail
         server.#controlled.catch((error: unknown) => {
-            reportError(error);
+            reportError(error, options.environment.telemetry);
             options.report?.(error);
             if (!server.#reconciling.signal.aborted) {
                 server.health.set("not-serving");
@@ -144,6 +159,14 @@ export class Server implements AsyncDisposable {
         });
 
         return server;
+    }
+
+    /** Run the other controllers once the replicas are synced, unless stopped first. */
+    async #runOnceSynced(signal: AbortSignal): Promise<void> {
+        await this.#options.synced?.(signal);
+        if (!signal.aborted) {
+            await this.#loop?.run(signal);
+        }
     }
 
     /** Stop the controllers at once, while the server serves its requests until it drains. */
@@ -159,7 +182,7 @@ export class Server implements AsyncDisposable {
         const { ready } = this.#options;
         if (ready === undefined) {
             this.health.set("serving");
-            this.#serving.resolve();
+            this.#readiness.resolve();
         }
         // wait for readiness, delaying requests while starting
         else {
@@ -174,7 +197,7 @@ export class Server implements AsyncDisposable {
 
             // refuse waiting for a server stopped before it served, else serve
             if (signal.aborted) {
-                this.#serving.reject(
+                this.#readiness.reject(
                     ObjectError.of(
                         "SERVER_STOPPED",
                         "the server stopped before it started serving",
@@ -182,20 +205,16 @@ export class Server implements AsyncDisposable {
                 );
             } else {
                 this.health.set("serving");
-                this.#serving.resolve();
+                this.#readiness.resolve();
             }
         }
     }
 
     /** Wait until the server serves, or for the retry window of a starting server. */
     async #awaitServing(): Promise<void> {
-        // race serving with the window, then stop the timer
-        let timer: ReturnType<typeof setTimeout> | undefined;
-        const window = new Promise<void>((resolve) => {
-            timer = setTimeout(resolve, STARTING_RETRY_SECONDS * 1000);
-        });
-        await Promise.race([this.#serving.promise, window]);
-        clearTimeout(timer);
+        // race serving with the window on the server's clock
+        const window = this.#options.environment.clock.timeout(STARTING_RETRY_SECONDS * 1000);
+        await Promise.race([this.#readiness.promise, until(window)]);
     }
 
     /** Serve a request, as a caller verified elsewhere in this process where one is given. */
@@ -211,16 +230,15 @@ export class Server implements AsyncDisposable {
             await this.#awaitServing();
         }
 
-        // refuse requests still starting, asking to retry soon, and while draining
+        // refuse requests still starting, asking to retry soon, and while draining, stopped or failed
         if (!this.#closing && this.health.status === "starting") {
-            return this.#headers(
-                new Response(null, {
-                    status: 503,
-                    headers: { "retry-after": String(STARTING_RETRY_SECONDS) },
-                }),
-            );
+            const starting = ObjectError.of("SERVER_STARTING", "the server is starting");
+            const refused = refusal(starting, this.#options.environment.telemetry);
+            refused.headers.set("retry-after", String(STARTING_RETRY_SECONDS));
+
+            return this.#headers(refused);
         } else if (this.#closing || this.health.status !== "serving") {
-            return this.#headers(new Response(null, { status: 503 }));
+            return this.#headers(refusal(this.#unavailable(), this.#options.environment.telemetry));
         }
 
         // pass cancellation across the response
@@ -231,12 +249,7 @@ export class Server implements AsyncDisposable {
             // dispatch authenticated protocols or procedures
             const accepted = copyRequest(request, { signal });
             this.#requests.set(controller, accepted);
-            const context = await Server.#authenticate(
-                accepted,
-                this.#options,
-                authentication,
-                this.#draining.signal,
-            );
+            const context = await this.#authenticate(accepted, authentication);
             signal.throwIfAborted();
             const response = await this.#dispatch(accepted, context);
 
@@ -250,7 +263,7 @@ export class Server implements AsyncDisposable {
             }
 
             // map the failure to its HTTP response
-            const failure = reportError(error);
+            const failure = reportError(error, this.#options.environment.telemetry);
 
             return this.#headers(Response.json(failure.toJSON(), { status: failure.status }));
         }
@@ -278,6 +291,21 @@ export class Server implements AsyncDisposable {
         return this.#closing;
     }
 
+    /** Describe why a server past starting refuses a request: draining, stopped or failed. */
+    #unavailable(): Error {
+        const { status } = this.health;
+        if (status === "stopped") {
+            return ObjectError.of("SERVER_STOPPED", "the server stopped");
+        } else if (status === "not-serving") {
+            return ObjectError.of(
+                "SERVER_NOT_SERVING",
+                "the server stopped serving after a failure",
+            );
+        } else {
+            return ObjectError.of("SERVER_DRAINING", "the server is draining");
+        }
+    }
+
     /** Apply the response headers. */
     #headers(response: Response): Response {
         // leave responses without a header policy
@@ -303,13 +331,25 @@ export class Server implements AsyncDisposable {
         await this.close();
     }
 
+    /** Scope a call: the credential's scope where the server serves it, else the server's own. */
+    static #scopeOf(
+        scopes: readonly string[] | undefined,
+        bound: string | undefined,
+    ): string | undefined {
+        return scopes === undefined || (bound !== undefined && scopes.includes(bound))
+            ? bound
+            : scopes[0];
+    }
+
     /** Authenticate a request, or take a caller verified elsewhere in this process. */
-    static async #authenticate(
+    async #authenticate(
         request: Request,
-        options: ServerOptions,
         given: Authentication | undefined,
-        draining: AbortSignal,
     ): Promise<RequestContext> {
+        // read the server's options and its drain
+        const options = this.#options;
+        const draining = this.#draining.signal;
+
         // take the given caller, else authenticate the request, and require it current here
         let authenticated: Authentication | undefined;
         let authenticationError: Error | undefined;
@@ -318,11 +358,11 @@ export class Server implements AsyncDisposable {
                 given ?? (await options.verify?.(request)) ?? (await options.authenticate(request));
             if (verified !== undefined) {
                 const { credential } = verified;
-                const scope = options.scope ?? credential.scope;
+                const scope = Server.#scopeOf(options.scopes, credential.scope);
                 Credential.requireCurrent(
                     credential,
                     options.package.id,
-                    options.clock.now(),
+                    options.environment.clock.now(),
                     scope,
                 );
             }
@@ -335,8 +375,8 @@ export class Server implements AsyncDisposable {
         }
 
         // digest the link secrets and scope the call
-        const linkSecrets = await Server.#linkSecrets(request);
-        const scope = options.scope ?? authenticated?.credential.scope;
+        const linkSecrets = await Server.#linkSecrets(request, this.#options.environment.crypto);
+        const scope = Server.#scopeOf(options.scopes, authenticated?.credential.scope);
 
         return new RequestContext(request, {
             audience: options.package.id,
@@ -346,21 +386,45 @@ export class Server implements AsyncDisposable {
             ...(options.access === undefined ? {} : { access: options.access }),
             ...(authenticationError === undefined ? {} : { authenticationError }),
             linkSecrets,
-            clock: options.clock,
+            environment: options.environment,
             draining,
+            ...(authenticated === undefined
+                ? {}
+                : { lapse: this.#lapseOf(authenticated.credential) }),
         });
     }
 
+    /** Read the signal a credential's lapse aborts, shared by its requests until it lapses. */
+    #lapseOf(credential: Credential): AbortSignal {
+        // share the lapse of a credential seen before
+        const key = `${Credential.key(credential)} ${credential.expiresAt}`;
+        const known = this.#lapses.get(key);
+        if (known !== undefined) {
+            return known;
+        }
+
+        // arm one timer for its lapse, forgotten once it lapses
+        const lapse = RequestContext.lapse(
+            credential,
+            this.#options.environment.clock,
+            this.#draining.signal,
+        );
+        this.#lapses.set(key, lapse);
+        lapse.addEventListener("abort", () => this.#lapses.delete(key), { once: true });
+
+        return lapse;
+    }
+
     /** Digest the link secrets a request presents, refusing an invalid one. */
-    static async #linkSecrets(request: Request) {
+    static async #linkSecrets(request: Request, crypto: DigestCrypto) {
         const presented = (request.headers.get(LINK_SECRET_HEADER) ?? "")
             .split(",")
             .map((secret) => secret.trim())
             .filter((secret) => secret.length > 0);
 
-        return Promise.all(presented.map((secret) => LinkSecret.digest(secret))).catch(
+        return Promise.all(presented.map((secret) => LinkSecret.digest(secret, crypto))).catch(
             (error: unknown) => {
-                throw ObjectError.of("INVALID_LINK_SECRET", "invalid link secret", {
+                throw ObjectError.of("LINK_SECRET_INVALID", "invalid link secret", {
                     cause: error,
                 });
             },
@@ -377,7 +441,7 @@ export class Server implements AsyncDisposable {
             context.access.authentication !== "public" &&
             Caller.isAnonymous(context.request.caller())
         ) {
-            throw ObjectError.of("MISSING_CREDENTIAL", "missing caller credential");
+            throw ObjectError.of("CREDENTIAL_MISSING", "missing caller credential");
         }
 
         // renew the call's access
@@ -442,7 +506,7 @@ export class Server implements AsyncDisposable {
             void reader
                 .cancel(signal.reason)
                 .catch((error) => {
-                    reportError(error);
+                    reportError(error, this.#options.environment.telemetry);
                     responseError = error;
                 })
                 .finally(finish);
@@ -492,23 +556,25 @@ export class Server implements AsyncDisposable {
             this.#stopped.resolve();
         });
 
-        // abort overdue requests at the deadline
+        // abort overdue requests at the deadline on the server's clock
         const deadline = Promise.withResolvers<never>();
-        const timer = setTimeout(() => {
+        const expiry = this.#options.environment.clock.timeout(this.#options.drainTimeout);
+        const expire = () => {
             const error = new DOMException("server drain deadline exceeded", "TimeoutError");
             for (const controller of this.#requests.keys()) {
                 controller.abort(error);
             }
 
             deadline.reject(error);
-        }, this.#options.drainTimeout);
+        };
+        expiry.addEventListener("abort", expire, { once: true });
 
         // wait for draining or the deadline
         try {
             await Promise.race([completion, deadline.promise]);
         } finally {
-            // stop the controllers
-            clearTimeout(timer);
+            // stop the deadline and the controllers
+            expiry.removeEventListener("abort", expire);
             this.#reconciling.abort();
             await this.#controlled;
         }
@@ -551,10 +617,10 @@ export class Server implements AsyncDisposable {
 export interface ServerOptions extends PackageHandler {
     /** The health. */
     health: Health;
-    /** The clock calls run at. */
-    readonly clock: Clock;
-    /** The one scope the server serves, absent for a server of every scope. */
-    scope?: string;
+    /** The environment calls run in: their clock, telemetry and effects. */
+    readonly environment: Environment;
+    /** The scopes the server serves, its own first, absent for a server of every scope. */
+    scopes?: readonly string[];
     /** The installation's resource clients. */
     resources: ResourceContext;
     /** Verify credentials as the host after the package, undefined without a credential. */
@@ -572,7 +638,10 @@ export interface ServerOptions extends PackageHandler {
 }
 
 /** The procedures and enforcement of a package. */
-export interface PackageHandler extends Omit<HandlerOptions<RequestContext>, "health"> {
+export interface PackageHandler extends Omit<
+    HandlerOptions<RequestContext>,
+    "health" | "environment"
+> {
     /** The procedures. */
     router: Router<ProcedureRouter, RequestContext>;
     /** The headers of every response. */
@@ -581,8 +650,12 @@ export interface PackageHandler extends Omit<HandlerOptions<RequestContext>, "he
     access?: ServerAccess;
     /** Serve another HTTP protocol for an authenticated request, or return undefined. */
     readonly fetch?: (request: Request, context: RequestContext) => Promise<Response | undefined>;
-    /** The package's controllers. */
+    /** The package's controllers, started once its replicas are synced. */
     readonly controllers?: readonly Controller[];
+    /** The controllers syncing the package's replicas, started at once. */
+    readonly syncing?: readonly Controller[];
+    /** Wait until the package's replicas are synced, at once when absent. */
+    readonly synced?: (signal: AbortSignal) => Promise<void>;
     /** Verify a credential whose keys the package has before the host, undefined for another. */
     readonly verify?: (request: Request) => Promise<Authentication | undefined>;
     /** Wait until the package can answer before it serves. */

@@ -36,23 +36,25 @@ export class HttpsBinding extends ResourceDeclaration<HttpsClient, HttpsDescript
         return {
             connection: {
                 code: CONNECTION_PROVIDER,
-                connect: async (binding: ResourceBinding) => {
+                connect: async (binding: ResourceBinding, _declaration, environment) => {
                     // require the instance credential the host's egress identifies the call by
                     const credential = binding.credential;
                     if (credential === undefined) {
                         throw new TypeError(`https binding ${this.name} has no credential`);
                     }
 
-                    // call below the bound address, disposing nothing
+                    // call below the bound address through the environment's network, disposing nothing
                     const base = binding.reference.replace(/\/$/u, "");
 
                     return {
                         url: base,
                         fetch: (path: string, init: RequestInit = {}) => {
+                            // send the instance credential below the bound address
                             const headers = new Headers(init.headers);
                             headers.set("authorization", `Bearer ${credential}`);
+                            const request = new Request(`${base}${path}`, { ...init, headers });
 
-                            return fetch(`${base}${path}`, { ...init, headers });
+                            return environment.network.fetch(request);
                         },
                         [Symbol.asyncDispose]: () => Promise.resolve(),
                     };

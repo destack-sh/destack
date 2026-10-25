@@ -75,7 +75,7 @@ export const GrantInput = schema.union([
 export function readGrant(input: unknown): schema.Infer<typeof GrantInput> {
     const grant = GrantInput.safeParse(input);
     if (!grant.success) {
-        throw ObjectError.of("INVALID_CALL", "a grant must have exactly one relation or role");
+        throw ObjectError.of("CALL_INVALID", "a grant must have exactly one relation or role");
     }
 
     return grant.data;
@@ -318,7 +318,7 @@ export const Roles = {
             .flat()
             .filter(
                 (scope): scope is ObjectType =>
-                    typeof scope !== "string" && scope.roles !== undefined,
+                    typeof scope !== "string" && "roles" in scope && scope.roles !== undefined,
             );
     },
 };
@@ -330,8 +330,10 @@ export const shareable: Trait<SharingGate> = {
     options: (definition) => {
         // derive no sharing methods for a partitioned scope, shared through its relationships
         const grant = Roles.gate(definition);
+        const isPartition =
+            definition.partition === true || definition.represents?.definition.partition === true;
 
-        return grant === undefined || definition.partition === true
+        return grant === undefined || isPartition
             ? undefined
             : { grant, read: definition.shareable?.read ?? "read" };
     },

@@ -56,18 +56,17 @@ export class ObjectSink {
         return [...this.#listed.values()].filter((entry) => entry.action === "follow");
     }
 
-    /** List the replicas the store waits for: declared up its chain, decided for itself. */
+    /** List the replicas the store waits for: its own chain's, each up to the universe. */
     async gates(): Promise<Extract<ReplicaIntent, { readonly action: "follow" }>[]> {
         // take the scopes from the store's scope up to the universe
         const view = Snapshot.live(this.store.database);
         const ancestry = new Set(await this.ancestry(this.store.scope, view));
 
-        // leave replicas of other homes, decided for another principal, or acquired by a use
+        // leave followed shapes, which report each key synced without gating the store
+        const chain = ObjectSink.chainName(this.store.scope);
+
         return (await this.followed()).filter(
-            ({ subscription, isAcquired }) =>
-                ancestry.has(subscription.scope) &&
-                subscription.subject === undefined &&
-                !isAcquired,
+            ({ subscription }) => subscription.name === chain && ancestry.has(subscription.scope),
         );
     }
 
@@ -185,7 +184,10 @@ export class ObjectSink {
                 actions.map(
                     async (entry): Promise<[string, ReplicaIntent & { digest: string }]> => {
                         const { action, subscription } = entry;
-                        const digest = await Digest.json({ action, subscription });
+                        const digest = await Digest.json(
+                            { action, subscription },
+                            this.store.environment.crypto,
+                        );
 
                         return [ObjectSink.#key(subscription), { ...entry, digest }];
                     },
@@ -255,7 +257,7 @@ export class ObjectSink {
                     );
                 },
                 revised,
-                { subscription, audience, clock: this.store.clock, synced },
+                { subscription, audience, synced },
             );
         } catch (error) {
             // fail a refused follow unless the loop revised its request meanwhile
@@ -268,7 +270,7 @@ export class ObjectSink {
     /** Read a store's scope and the scopes above it, up to the universe. */
     async ancestry(target: string, view: Snapshot): Promise<readonly string[]> {
         // read the chain above a placed scope, the universe alone above an unplaced one
-        const kind = target === Scope.universe.id ? undefined : await this.store.chain(view);
+        const kind = await this.#chain(target, view);
 
         return kind === undefined
             ? [...new Set([target, Scope.universe.id])]
@@ -285,8 +287,8 @@ export class ObjectSink {
             readonly home: string;
         }[]
     > {
-        // follow nothing at the universe, nor for a scope without a chain
-        const kind = target === Scope.universe.id ? undefined : await this.store.chain(view);
+        // follow nothing at the universe, nor for a scope without a known chain
+        const kind = await this.#chain(target, view);
         if (kind === undefined) {
             return [];
         }
@@ -364,13 +366,24 @@ export class ObjectSink {
                 target,
                 parameters: {
                     scopes: chain,
-                    local: scope === target ? [...this.store.authorizer.local] : [],
-                    types: isScoped ? this.#inheritedTypes(scope) : [],
+                    local: [...this.store.authorizer.local],
+                    // leave out the types a scope the store serves beside its own hands down, which it originates
+                    types:
+                        isScoped && !this.store.partitions.slice(1).includes(scope)
+                            ? this.#inheritedTypes(scope)
+                            : [],
                     via: [],
                     between: [],
                 },
             }),
         );
+    }
+
+    /** Read a scope's known chain, absent at the universe, without a chain or while pending. */
+    async #chain(target: string, view: Snapshot): Promise<ChainOptions | undefined> {
+        const chain = target === Scope.universe.id ? undefined : await this.store.chain(view);
+
+        return chain?.kind === "pending" ? undefined : chain;
     }
 
     /** Read a placed scope, its parent and the parent's ancestors, up to the universe. */

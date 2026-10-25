@@ -3,14 +3,12 @@ import { AccessError, none, Policy, principal } from "@destack/access";
 import { DatabaseError } from "@destack/db";
 import { schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
-import { startTelemetry } from "@destack/telemetry/bun";
-import { MetricReader } from "@destack/telemetry/metric";
-import { SimpleSpanProcessor, type ReadableSpan } from "@destack/telemetry/trace";
 import { createClient } from "../client/index.ts";
 import { conceal, CallError } from "../error/index.ts";
 import { Health } from "./health.ts";
 import { defineProcedure, eventIterator } from "../procedure/index.ts";
 import { fixturePackage } from "../test/fixture.ts";
+import { testSimulation } from "../test/world.ts";
 import { implement, RequestHandler, type HandlerOptions } from "./handler.ts";
 import type {} from "@destack/package/import-meta";
 
@@ -43,35 +41,10 @@ function countOf(value: number | { readonly count: number }): number {
     return value.count;
 }
 
-test("enforce access and audit requirements through streamed HTTP calls", async ({
-    onTestFinished,
-}) => {
-    // collect telemetry
-    const spans: ReadableSpan[] = [];
-    const reader = new CallMetrics();
-    const telemetry = await startTelemetry({
-        name: "notes",
-        version: "2026.9.0",
-        report: (error) => {
-            throw error;
-        },
-        traces: {
-            spanProcessors: [
-                new SimpleSpanProcessor({
-                    exporter: {
-                        export(batch, complete) {
-                            spans.push(...batch);
-                            complete({ code: 0 });
-                        },
-                        async shutdown() {},
-                    },
-                }),
-            ],
-        },
-        metrics: { readers: [reader] },
-        logs: {},
-    });
-    onTestFinished(() => telemetry.shutdown());
+test("enforce access and audit requirements through streamed HTTP calls", async () => {
+    // run in a world whose telemetry records the calls' spans and metrics
+    const simulation = testSimulation();
+    const world = simulation.environment("server");
 
     // declare a protected audited stream
     const notes = new Policy(import.meta.destack.package, {
@@ -103,17 +76,29 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
     const health = new Health("notes");
 
     // reject missing enforcement
-    expect(() => new RequestHandler(router, { package: fixturePackage, health })).toThrow(
-        new TypeError("protected procedures require authorization"),
-    );
     expect(
-        () => new RequestHandler(router, { package: fixturePackage, health, authorize }),
+        () =>
+            new RequestHandler(router, {
+                package: fixturePackage,
+                environment: world,
+                health,
+            }),
+    ).toThrow(new TypeError("protected procedures require authorization"));
+    expect(
+        () =>
+            new RequestHandler(router, {
+                package: fixturePackage,
+                environment: world,
+                health,
+                authorize,
+            }),
     ).toThrow(new TypeError("audited procedures require audit recording"));
 
     // record audit outcomes
     const records: { caller: string; outcome: string }[] = [];
     const handler = new RequestHandler(router, {
         package: fixturePackage,
+        environment: world,
         health,
         authorize,
         audit: async ({ context, outcome }) => {
@@ -132,6 +117,7 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
                 return response.matched ? response.response : new Response(null, { status: 404 });
             },
         },
+        world,
     );
 
     // record success after the stream finishes
@@ -155,6 +141,7 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
                 return response.matched ? response.response : new Response(null, { status: 404 });
             },
         },
+        world,
     );
     await expect(denied.read()).rejects.toMatchObject({ code: "FORBIDDEN", status: 403 });
     expect(invoked).toBe(1);
@@ -178,6 +165,7 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
                 return response.matched ? response.response : new Response(null, { status: 404 });
             },
         },
+        world,
     );
     await expect(concealed.read()).rejects.toMatchObject({ code: "NOT_FOUND", status: 404 });
     expect(bodies).toEqual([
@@ -195,6 +183,7 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
     // fail the call when its audit fails at the end
     const unavailable = new RequestHandler(router, {
         package: fixturePackage,
+        environment: world,
         health,
         authorize,
         audit: async () => {
@@ -215,6 +204,7 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
                 return response.matched ? response.response : new Response(null, { status: 404 });
             },
         },
+        world,
     );
     const drained = (async () => {
         await Array.fromAsync(await blocked.read());
@@ -235,9 +225,8 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
     expect(ready.matched && ready.response.status).toBe(200);
 
     // record call metrics without request values
-    await telemetry.flush();
-    const collected = await reader.collect();
-    const calls = collected.resourceMetrics.scopeMetrics
+    const collected = await simulation.telemetry.metrics();
+    const calls = collected.scopeMetrics
         .flatMap((scope) => scope.metrics)
         .map((metric) => ({
             name: metric.descriptor.name,
@@ -270,11 +259,14 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
         { name: "rpc.client.call.duration", calls: outcomes },
         { name: "rpc.server.call.duration", calls: released },
     ]);
-    expect(new Set(spans.map((span) => span.spanContext().traceId)).size).toBe(4);
+    expect(new Set(simulation.telemetry.spans.map((span) => span.spanContext().traceId)).size).toBe(
+        4,
+    );
 });
 
 /** Withhold streamed values after access is revoked. */
 test("withhold streamed values after access revocation", async () => {
+    const world = testSimulation().environment("test");
     const waiting = Promise.withResolvers<void>();
     const release = Promise.withResolvers<void>();
     let isAllowed = true;
@@ -306,6 +298,7 @@ test("withhold streamed values after access revocation", async () => {
     // revoke access during a pending read
     const handler = new RequestHandler(router, {
         package: fixturePackage,
+        environment: world,
         health: new Health("watch"),
         authorize: async () => {
             if (!isAllowed) {
@@ -326,6 +319,7 @@ test("withhold streamed values after access revocation", async () => {
                 return result.matched ? result.response : new Response(null, { status: 404 });
             },
         },
+        world,
     );
     const received = (async () => {
         const values: string[] = [];
@@ -345,6 +339,7 @@ test("withhold streamed values after access revocation", async () => {
 });
 
 test("answer a failure thrown by a handler with the status its code declares", async () => {
+    const world = testSimulation().environment("test");
     // throw the SERVICE_UNAVAILABLE code from a handler
     const procedures = {
         read: defineProcedure({
@@ -364,6 +359,7 @@ test("answer a failure thrown by a handler with the status its code declares", a
     });
     const handler = new RequestHandler(router, {
         package: fixturePackage,
+        environment: world,
         health: new Health("read"),
     });
 
@@ -383,6 +379,7 @@ test("answer a failure thrown by a handler with the status its code declares", a
                 return response;
             },
         },
+        world,
     );
     await expect(client.read()).rejects.toMatchObject({
         code: "SERVICE_UNAVAILABLE",
@@ -393,6 +390,7 @@ test("answer a failure thrown by a handler with the status its code declares", a
 });
 
 test("answer a lower package's failure with the call error it names, and an unknown failure as internal", async () => {
+    const world = testSimulation().environment("test");
     // throw a database failure, an access challenge and an unknown failure from handlers
     const procedures = {
         read: defineProcedure({
@@ -424,6 +422,7 @@ test("answer a lower package's failure with the call error it names, and an unkn
     });
     const handler = new RequestHandler(router, {
         package: fixturePackage,
+        environment: world,
         health: new Health("read"),
     });
     const client = createClient(
@@ -436,6 +435,7 @@ test("answer a lower package's failure with the call error it names, and an unkn
                 return result.matched ? result.response : new Response(null, { status: 404 });
             },
         },
+        world,
     );
 
     // receive each failure's mapped code, status, message and details
@@ -458,11 +458,3 @@ test("answer a lower package's failure with the call error it names, and an unkn
         ["INTERNAL_SERVER_ERROR", 500, "internal server error", undefined],
     ]);
 });
-
-/** Collect metrics after the calls finish. */
-class CallMetrics extends MetricReader {
-    /** Complete synchronous collection. */
-    protected async onForceFlush(): Promise<void> {}
-    /** Release the reader. */
-    protected async onShutdown(): Promise<void> {}
-}

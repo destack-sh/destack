@@ -1,3 +1,4 @@
+import type { Environment } from "@destack/environment";
 import { ObjectReference, type ObjectTypeReference, Subject } from "@destack/sync";
 import { ObjectError } from "../error/error.ts";
 import {
@@ -6,6 +7,7 @@ import {
     Caller,
     type Creation,
     type Decision,
+    type Manager,
     type Permission,
     type PermissionReference,
     principal,
@@ -46,9 +48,9 @@ import { Observation, type ObservationReport, type ObservedRecord } from "../obj
 import type { OptionOf, Method, MethodConfiguration } from "./method.ts";
 import { CallSite } from "./site.ts";
 import type { MethodKind } from "./kind.ts";
-import type { ServerContext } from "../workload/workload.ts";
+import type { InstalledServerContext } from "../workload/workload.ts";
 import type { Settled, SettlementContext } from "./settlement.ts";
-import type { IsSum } from "./record.ts";
+import { type IsSum, RecordMethod } from "./record.ts";
 import type { Listing } from "../query/listing.ts";
 import { ParentReference } from "../trait/nested.ts";
 import type { Session } from "./reader.ts";
@@ -59,9 +61,6 @@ import { BranchWrite } from "../branch/write.ts";
 import { Replay } from "../audit/replay.ts";
 
 import type {} from "@destack/package/import-meta";
-
-/** How long a call waits for a key it acquires to replicate: 5 s, above sub-second replica lag. */
-const ACQUIRE_MILLISECONDS = 5000;
 
 /** The values of a draw: the integers a double represents exactly, 2^53. */
 const RANDOM_RANGE = 2 ** 53;
@@ -191,6 +190,17 @@ export class MethodContext<
         return MethodContext.results([...this.objects, ...this.replicas], calls, results);
     }
 
+    /** The environment the call runs in: its store's, its client's or its installation's. */
+    get environment(): Environment {
+        const location = this.#location;
+
+        return location.kind === "sandbox"
+            ? location.server.environment
+            : location.kind === "store"
+              ? location.store.environment
+              : location.environment;
+    }
+
     /** Generate a new identifier from the call's request, stable across attempts in order. */
     async generateId(object: ObjectType): Promise<Identifier<string>> {
         return object.deriveId(this.#requireRequestId(), await this.takePosition());
@@ -200,7 +210,10 @@ export class MethodContext<
     async random(): Promise<number> {
         // read 53 bits of the digest of the request and the transaction's next position
         const key = `${this.#requireRequestId()}/${await this.takePosition()}`;
-        const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(key));
+        const digest = await this.environment.crypto.digest(
+            "SHA-256",
+            new TextEncoder().encode(key),
+        );
         const bits = new DataView(digest).getBigUint64(0) >> RANDOM_SHIFT;
 
         return Number(bits) / RANDOM_RANGE;
@@ -416,6 +429,19 @@ export class MethodContext<
         return location.authorization.authorizer;
     }
 
+    /** The declaration managing the call's writes, null for a call no stack declaration makes. */
+    get manager(): Manager | null {
+        // read the manager of the store's authorization
+        const location = this.#location;
+        if (location.kind !== "store") {
+            throw new TypeError(
+                `${this.object.name}.${this.name} can only read its manager in its store`,
+            );
+        }
+
+        return location.authorization.manager;
+    }
+
     /** List a page of the subjects of a type with a permission on an object. */
     lookup(
         permission: PermissionReference,
@@ -578,7 +604,7 @@ export class MethodContext<
     requireParent(): ObjectReference {
         const parent = this.parent();
         if (parent === undefined) {
-            throw ObjectError.of("MISSING_PARENT", `${this.object.name} needs a parent`);
+            throw ObjectError.of("PARENT_MISSING", `${this.object.name} needs a parent`);
         }
 
         return parent;
@@ -619,20 +645,54 @@ export class MethodContext<
             );
         }
 
-        // wait a bounded time for the replica, which a retry finds synced
-        const signal = AbortSignal.timeout(ACQUIRE_MILLISECONDS);
-        try {
-            await location.store.acquire(follow, at, signal);
-        } catch (error) {
-            if (!signal.aborted) {
-                throw error;
-            }
+        await location.store.acquire(follow, at);
+    }
 
+    /** Insert an object of the package's own type as its create method writes it. */
+    async insert<Inserted extends Table>(
+        type: ObjectType & { readonly table: Inserted },
+        values: Readonly<Partial<Insert<Inserted>>>,
+    ): Promise<Select<Inserted>> {
+        // refuse another package's type, and a call outside the store
+        const location = this.#location;
+        if (type.package.id !== this.object.package.id) {
             throw ObjectError.of(
-                "REPLICA_SYNCING",
-                `the ${follow.shape.name} replica of ${at.key.scope} is still syncing`,
+                "INSERT_REFUSED",
+                `${this.object.package.name} cannot insert ${type.name}: only the declaring package can`,
             );
+        } else if (location.kind !== "store") {
+            throw new TypeError(`${this.object.name}.${this.name} can only insert in its store`);
         }
+
+        // create as the type's create method, its parent given by the parent columns
+        const input = type.table[TABLE].encode(Row.parse(values));
+        const parent =
+            type.parent?.object === "any" && input["parentId"] !== undefined
+                ? {
+                      parent: {
+                          packageId: input["parentPackageId"],
+                          type: input["parentType"],
+                          id: input["parentId"],
+                      },
+                  }
+                : {};
+        const creating = new MethodContext<MethodConfiguration, unknown, undefined, undefined>({
+            ...this.#fields,
+            object: type,
+            name: "create",
+            method: type.method("create"),
+            input: { ...input, ...parent },
+            id: undefined,
+            target: undefined,
+        });
+
+        // require the receiving parent and the creation, then write the row and record its access
+        await RecordMethod.authorizeCreate(creating, location);
+        const { row } = await RecordMethod.insertAuthorized(creating, location, (created) =>
+            RecordMethod.createObject(created, location),
+        );
+
+        return Table.complete(type.table, Row.parse(row));
     }
 
     /** Update the target's desired state at its revision, advancing a controlled generation. */
@@ -706,7 +766,7 @@ export class MethodContext<
             .where(RecordedRow.at(table, target))
             .returning();
         if (deleted.length === 0) {
-            throw ObjectError.of("STALE_REVISION", `${this.object.name} revision has changed`);
+            throw ObjectError.of("REVISION_STALE", `${this.object.name} revision has changed`);
         }
     }
 
@@ -758,7 +818,7 @@ export class MethodContext<
             .where(RecordedRow.at(table, target))
             .returning();
         if (!row) {
-            throw ObjectError.of("STALE_REVISION", `${this.object.name} revision has changed`);
+            throw ObjectError.of("REVISION_STALE", `${this.object.name} revision has changed`);
         }
 
         return row;
@@ -769,17 +829,17 @@ export class MethodContext<
         return this.caller.now;
     }
 
-    /** The principal the call's code runs as: its type's installation, else its store's. */
+    /** The principal the call's code runs as: the installation serving its type. */
     get self(): AccessContext {
-        // act as the installation serving the type in the store, else as the store's principal
+        // act as the installation serving the type in the store
         const location = this.#location;
         if (location.kind === "store") {
-            return location.store.serving(this.object, this.now);
+            return location.store.as(this.object, this.now);
         }
         // act as the sandbox's installation
         else if (location.kind === "sandbox") {
-            const { space, installation } = location.server;
-            const subject = principal.installation.reference(space, installation);
+            const { scope, installation } = location.server;
+            const subject = principal.installation.reference(scope, installation);
 
             return AccessContext.of(Caller.of(subject), this.now);
         }
@@ -816,19 +876,24 @@ export class MethodContext<
         return server.capabilities.includes(capability);
     }
 
-    /** Act for the call's space: as the space, or as its installation under the space's grant. */
-    async space(): Promise<AccessContext> {
-        // act as the space when the call's code runs as it
-        const self = this.self;
-        const installation = self.subject;
-        if (!principal.installation.is(installation)) {
-            return self;
+    /** Act with the delegation the call's partition grants the installation running the call. */
+    async delegated(): Promise<AccessContext> {
+        // find the principal of the partition the installation lives in
+        const installation = this.self.subject;
+        const delegators = [principal.space, principal.machine, principal.device];
+        const kind = delegators.find(
+            (each) => schema.identifier(each.name).safeParse(installation.scope).success,
+        );
+        if (kind === undefined) {
+            throw new TypeError(
+                `${this.object.name}.${this.name} runs in ${installation.scope}, which delegates to no installation`,
+            );
         }
 
-        // act as the space with the installation acting for it, within the space's live grant
-        const space = principal.space.reference(sync.Scope.universe.id, installation.scope);
+        // act as the partition with the installation acting for it, within the partition's live grant
+        const delegator = kind.reference(sync.Scope.universe.id, installation.scope);
         const reader = { read: <Read extends Table>(table: Read) => this.read(table) };
-        const parties = { delegator: space, delegate: installation };
+        const parties = { delegator, delegate: installation };
         const caller = await Grant.act(reader, parties, this.now);
 
         return AccessContext.of(caller, this.now);
@@ -892,7 +957,7 @@ export type CallLocation =
           /** The hook's session with the store in its mutation. */
           readonly session: Session;
           /** The server context of the installation the sandbox runs as. */
-          readonly server: ServerContext;
+          readonly server: InstalledServerContext;
           /** The log position the call's mutation started at, absent for a query and a prepare. */
           readonly base?: LogPosition;
       };
@@ -943,7 +1008,41 @@ type InputValueOf<Configuration extends MethodConfiguration> = InputOf<
     (OptionOf<Configuration, "kind", MethodKind> extends "create"
         ? ParentInput<TableOf<Configuration>> &
               VariantInput<TableOf<Configuration>, OptionOf<Configuration, "variants", never>>
-        : {});
+        : {}) &
+    BulkInput<Configuration>;
+
+/** A bulk method's input: the matched columns, else each listed object at its revision. */
+type BulkInput<Configuration extends MethodConfiguration> =
+    OptionOf<Configuration, "kind", MethodKind> extends "updateMany"
+        ? OptionOf<Configuration, "items", false> extends true
+            ? {
+                  readonly items: readonly ({
+                      readonly id: string;
+                      readonly revision: number;
+                  } & WrittenInput<
+                      TableOf<Configuration>,
+                      OptionOf<Configuration, "fields", string>,
+                      true
+                  >)[];
+              }
+            : MatchInput<Configuration> &
+                  WrittenInput<
+                      TableOf<Configuration>,
+                      OptionOf<Configuration, "fields", string>,
+                      true
+                  >
+        : OptionOf<Configuration, "kind", MethodKind> extends "deleteMany"
+          ? MatchInput<Configuration>
+          : {};
+
+/** A bulk method's matched columns, under `where`. */
+type MatchInput<Configuration extends MethodConfiguration> = {
+    readonly where: WrittenInput<
+        TableOf<Configuration>,
+        OptionOf<Configuration, "match", string>,
+        true
+    >;
+};
 
 /** A method's target: the loaded row for a method loading its object, else absent. */
 type TargetOf<Configuration extends MethodConfiguration> =
@@ -1041,6 +1140,16 @@ export type TypesOf<Declaration extends Method, Definition extends Table> = {
     }
         ? Fields
         : string;
+    readonly match: Declaration extends {
+        readonly match?: readonly (infer Match extends string)[];
+    }
+        ? Match
+        : string;
+    readonly items: Declaration extends { readonly isItemized?: infer Itemized extends boolean }
+        ? boolean extends Itemized
+            ? false
+            : Itemized
+        : false;
     readonly variants: Exclude<Declaration["variants"], undefined>;
     readonly table: Definition;
 };

@@ -1,6 +1,7 @@
+import { testSimulation } from "../test/index.ts";
 import { principal } from "@destack/access";
 import { PackageId, Package } from "@destack/package";
-import { expect, onTestFinished, refusal, test, vi } from "@destack/test";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { schema } from "@destack/schema";
 import { health } from "../health/index.ts";
 import { Health } from "./health.ts";
@@ -8,14 +9,12 @@ import { implementHealth } from "./health.ts";
 import { createClient } from "../client/index.ts";
 import { eventIterator, defineProcedure } from "../procedure/index.ts";
 import { implement, Server, type ServerOptions } from "./index.ts";
-import { authenticateUser, fixturePackage, hosting } from "../test/fixture.ts";
+import { authenticateUser, fixturePackage, hosting, authenticateByName } from "../test/fixture.ts";
 import { Observable } from "../client/observable.ts";
 import { CallError } from "../error/index.ts";
 import type { RequestContext } from "./context.ts";
 import { Bookmark, BOOKMARK_HEADER } from "../procedure/bookmark.ts";
 import { Watermark } from "@destack/sync";
-import { Clock } from "@destack/environment";
-import { VirtualClock } from "@destack/environment/simulation";
 
 /** The authentication lifetime of the lapsing callers, which the scenarios' clock moves past. */
 const LAPSE_MILLISECONDS = 200;
@@ -26,6 +25,7 @@ function settle(call: Promise<unknown>): Promise<string> {
 }
 
 test("reauthenticate completed snapshot subscriptions and report revoked access", async () => {
+    const world = testSimulation().environment("test");
     // serve a finite snapshot subscription
     let requests = 0;
     const procedures = {
@@ -42,7 +42,7 @@ test("reauthenticate completed snapshot subscriptions and report revoked access"
         .$context<RequestContext>()
         .use(({ next }) => next({ context: { application: "snapshot" } }));
     const server = Server.start({
-        clock: Clock.system,
+        environment: world,
         ...hosting,
         health: new Health("snapshot"),
         drainTimeout: 1000,
@@ -52,7 +52,7 @@ test("reauthenticate completed snapshot subscriptions and report revoked access"
                 throw CallError.http("UNAUTHORIZED", { message: "invalid bearer credential" });
             }
 
-            return hosting.authenticate(request);
+            return authenticateByName(world.clock)(request);
         },
         router: implementation.router({
             watch: implementation.watch.handler(async function* ({ context }) {
@@ -72,6 +72,7 @@ test("reauthenticate completed snapshot subscriptions and report revoked access"
                 headers: { authorization: "alice" },
                 fetch: (request) => server.fetch(request),
             },
+            world,
         );
         const stream = Observable.observe(
             (signal) => client.watch(undefined, { signal }),
@@ -107,8 +108,10 @@ test.for([
 ] as const)(
     "serve a stream past its caller's lapse to its next consistent point: $name",
     async ({ revoked, outcome }) => {
+        const world = testSimulation().environment("test");
         // serve a run of two values with the second after the caller's lapse
-        const clock = new VirtualClock(Date.now());
+        const simulation = testSimulation();
+        const { clock } = simulation;
         let isRevoked = false;
         const procedures = {
             watch: defineProcedure({
@@ -124,12 +127,12 @@ test.for([
         };
         const implementation = implement(procedures).$context<RequestContext>();
         const server = Server.start({
-            clock,
+            environment: simulation.environment("server"),
             ...hosting,
             health: new Health("lapse"),
             drainTimeout: 1000,
             authenticate: async () => {
-                const alice = authenticateUser("alice");
+                const alice = authenticateUser("alice", clock.now());
 
                 return {
                     ...alice,
@@ -165,6 +168,7 @@ test.for([
                     headers: { authorization: "alice" },
                     fetch: (request) => server.fetch(request),
                 },
+                world,
             );
             const values: number[] = [];
             const error = await (async () => {
@@ -187,6 +191,7 @@ test.for([
 );
 
 test("drain complete HTTP response streams before reporting the server stopped", async () => {
+    const world = testSimulation().environment("test");
     // declare health and an open stream
     const release = Promise.withResolvers<void>();
     const readiness = new Health("reader");
@@ -215,8 +220,9 @@ test("drain complete HTTP response streams before reporting the server stopped",
 
     for (const callback of ["authenticate", "authorizeMachine"] as const) {
         const missing: ServerOptions = {
-            clock: Clock.system,
+            environment: world,
             ...hosting,
+            authenticate: authenticateByName(world.clock),
             router,
             health: readiness,
             drainTimeout: 1000,
@@ -227,8 +233,9 @@ test("drain complete HTTP response streams before reporting the server stopped",
         );
     }
     const server = Server.start({
-        clock: Clock.system,
+        environment: world,
         ...hosting,
+        authenticate: authenticateByName(world.clock),
         router,
         health: readiness,
         fetch: async (request, context) => {
@@ -286,6 +293,7 @@ test("drain complete HTTP response streams before reporting the server stopped",
             headers: { authorization: "alice" },
             fetch: (request) => server.fetch(request),
         },
+        world,
     );
     const stream = await client.read();
     expect(await stream.next()).toEqual({ done: false, value: "first" });
@@ -322,6 +330,7 @@ test("drain complete HTTP response streams before reporting the server stopped",
 });
 
 test("end a stream that follows its context signal once the server drains, stopping within the deadline", async () => {
+    const world = testSimulation().environment("test");
     // declare a stream that yields until its context signal aborts
     const procedures = {
         follow: defineProcedure({
@@ -344,8 +353,9 @@ test("end a stream that follows its context signal once the server drains, stopp
         }),
     });
     const server = Server.start({
-        clock: Clock.system,
+        environment: world,
         ...hosting,
+        authenticate: authenticateByName(world.clock),
         router,
         health: new Health("follower"),
         drainTimeout: 5000,
@@ -359,6 +369,7 @@ test("end a stream that follows its context signal once the server drains, stopp
             headers: { authorization: "alice" },
             fetch: (request) => server.fetch(request),
         },
+        world,
     );
     const stream = await client.follow();
     const first = await stream.next();
@@ -375,6 +386,7 @@ test("end a stream that follows its context signal once the server drains, stopp
 });
 
 test("end a request's context signal once its response is answered", async () => {
+    const world = testSimulation().environment("test");
     // record the context of a call that answers at once
     let seen: RequestContext | undefined;
     const procedures = {
@@ -396,8 +408,9 @@ test("end a request's context signal once its response is answered", async () =>
         }),
     });
     const server = Server.start({
-        clock: Clock.system,
+        environment: world,
         ...hosting,
+        authenticate: authenticateByName(world.clock),
         router,
         health: new Health("answerer"),
         drainTimeout: 5000,
@@ -412,6 +425,7 @@ test("end a request's context signal once its response is answered", async () =>
             headers: { authorization: "alice" },
             fetch: (request) => server.fetch(request),
         },
+        world,
     );
     const answer = await client.get();
 
@@ -420,6 +434,10 @@ test("end a request's context signal once its response is answered", async () =>
 });
 
 test("serialize authentication failures and preserve drain timeout causes", async () => {
+    // run in a world of its own, moving its time while the drain waits
+    await using simulation = testSimulation();
+    const world = simulation.environment("test");
+
     // leave a request open past the drain deadline
     const waiting = Promise.withResolvers<void>();
     const entered = Promise.withResolvers<void>();
@@ -449,8 +467,9 @@ test("serialize authentication failures and preserve drain timeout causes", asyn
     // observe stopping
     let isStopped = false;
     const server = Server.start({
-        clock: Clock.system,
+        environment: world,
         ...hosting,
+        authenticate: authenticateByName(world.clock),
         router,
         health: new Health("work"),
         drainTimeout: 5,
@@ -466,6 +485,7 @@ test("serialize authentication failures and preserve drain timeout causes", asyn
             url: "https://test.local",
             fetch: (request) => server.fetch(request),
         },
+        world,
     );
     await expect(client.get()).rejects.toMatchObject({ code: "UNAUTHORIZED", status: 401 });
 
@@ -484,6 +504,7 @@ test("serialize authentication failures and preserve drain timeout causes", asyn
             headers: { authorization: "alice" },
             fetch: (request) => server.fetch(request),
         },
+        world,
     );
 
     // record the drain timeout cause
@@ -496,7 +517,9 @@ test("serialize authentication failures and preserve drain timeout causes", asyn
     // retain resources until cancellation is acknowledged
     await entered.promise;
     try {
-        await expect(server.close()).rejects.toMatchObject({ name: "TimeoutError" });
+        await expect(simulation.drive(server.close())).rejects.toMatchObject({
+            name: "TimeoutError",
+        });
         expect(isStopped).toBe(false);
         expect(server.health.status).toBe("draining");
     } finally {
@@ -511,6 +534,7 @@ test("serialize authentication failures and preserve drain timeout causes", asyn
 });
 
 test("return observed watermarks and require them on the client's later requests", async () => {
+    const world = testSimulation().environment("test");
     // observe write watermarks and require read watermarks
     const procedures = {
         write: defineProcedure({
@@ -532,8 +556,9 @@ test("return observed watermarks and require them on the client's later requests
     };
     const implementation = implement(procedures).$context<RequestContext>();
     const server = Server.start({
-        clock: Clock.system,
+        environment: world,
         ...hosting,
+        authenticate: authenticateByName(world.clock),
         health: new Health("bookmark"),
         drainTimeout: 1000,
         router: implementation.router({
@@ -566,6 +591,7 @@ test("return observed watermarks and require them on the client's later requests
                 fetch: (request) => server.fetch(request),
                 bookmark,
             },
+            world,
         );
         expect(await client.read()).toEqual([]);
         await client.write();
@@ -581,6 +607,7 @@ test("return observed watermarks and require them on the client's later requests
 });
 
 test("require the watermarks a caller's credential has beside its bookmark's", async () => {
+    const world = testSimulation().environment("test");
     // authenticate callers whose credentials include the position their grant was written at
     const granted = { scope: "universe", log: "log-1", epoch: "epoch-1", sequence: 3 };
     const procedures = {
@@ -595,10 +622,10 @@ test("require the watermarks a caller's credential has beside its bookmark's", a
     };
     const implementation = implement(procedures).$context<RequestContext>();
     const server = Server.start({
-        clock: Clock.system,
+        environment: world,
         ...hosting,
         authenticate: async (request: Request) => {
-            const authentication = await hosting.authenticate(request);
+            const authentication = await authenticateByName(world.clock)(request);
 
             return {
                 ...authentication,
@@ -624,6 +651,7 @@ test("require the watermarks a caller's credential has beside its bookmark's", a
                     },
                     fetch: (request) => server.fetch(request),
                 },
+                world,
             ).read();
         const local = { scope: "space-1", log: "log-1", epoch: "epoch-1", sequence: 7 };
         expect([await read(), await read(JSON.stringify([local]))]).toEqual([
@@ -638,8 +666,10 @@ test("require the watermarks a caller's credential has beside its bookmark's", a
 test.for(["before the call", "during the call", "between events"] as const)(
     "end a server stream once its caller aborts %s",
     async (moment) => {
-        // count the running generators
+        // count the running generators, in a world of their own
         let running = 0;
+        const simulation = testSimulation();
+        const world = simulation.environment("server");
         const procedures = {
             follow: defineProcedure({
                 package: Package.of(fixturePackage),
@@ -654,8 +684,9 @@ test.for(["before the call", "during the call", "between events"] as const)(
         };
         const implementation = implement(procedures).$context<RequestContext>();
         const server = Server.start({
-            clock: Clock.system,
+            environment: world,
             ...hosting,
+            authenticate: authenticateByName(world.clock),
             health: new Health("follow"),
             drainTimeout: 1000,
             router: implementation.router({
@@ -686,6 +717,7 @@ test.for(["before the call", "during the call", "between events"] as const)(
                 headers: { authorization: "alice" },
                 fetch: (request) => server.fetch(request),
             },
+            world,
         );
         const controller = new AbortController();
         if (moment === "before the call") {
@@ -710,10 +742,14 @@ test.for(["before the call", "during the call", "between events"] as const)(
             () => "aborted",
         );
 
-        // end every generator
-        const started = performance.now();
-        await server.close();
-        expect([outcome, running, performance.now() - started < 100]).toEqual(["aborted", 0, true]);
+        // end every generator before the drain timeout
+        const started = world.clock.now();
+        await simulation.drive(server.close());
+        expect([outcome, running, world.clock.now() - started < 1000]).toEqual([
+            "aborted",
+            0,
+            true,
+        ]);
     },
 );
 
@@ -729,12 +765,13 @@ async function collectGarbage(): Promise<void> {
     for (let round = 0; round < 3; round++) {
         collect();
         await new Promise((resolve) => {
-            setTimeout(resolve, 10);
+            setImmediate(resolve);
         });
     }
 }
 
 test("report a handler's invalid output as an internal failure and a caller's invalid input as the caller's", async () => {
+    const world = testSimulation().environment("test");
     // serve a procedure whose handler breaks its output schema
     const routes = {
         echo: defineProcedure({
@@ -749,8 +786,9 @@ test("report a handler's invalid output as an internal failure and a caller's in
     };
     const implementation = implement(routes);
     await using server = Server.start({
-        clock: Clock.system,
+        environment: world,
         ...hosting,
+        authenticate: authenticateByName(world.clock),
         health: new Health("echo"),
         drainTimeout: 1000,
         router: implementation.router({
@@ -764,6 +802,7 @@ test("report a handler's invalid output as an internal failure and a caller's in
             headers: { authorization: "alice" },
             fetch: (request) => server.fetch(request),
         },
+        world,
     );
 
     expect([
@@ -771,11 +810,15 @@ test("report a handler's invalid output as an internal failure and a caller's in
         await settle(client.echo({ text: "hi" })),
     ]).toEqual([
         "INTERNAL_SERVER_ERROR: INTERNAL_SERVER_ERROR: internal server error",
-        "BAD_REQUEST: INVALID_INPUT: invalid input: text: too small: expected string to have >=3 characters",
+        "BAD_REQUEST: INPUT_INVALID: invalid input: text: too small: expected string to have >=3 characters",
     ]);
 });
 
 test("delay a request while starting and answer it once ready, and refuse it with a retry pause past the window", async () => {
+    // run in a world of its own, moving its time by hand
+    await using simulation = testSimulation();
+    const world = simulation.environment("test");
+
     // serve a procedure behind a readiness the test opens
     const routes = {
         echo: defineProcedure({
@@ -790,13 +833,10 @@ test("delay a request while starting and answer it once ready, and refuse it wit
     };
     const implementation = implement(routes);
     const opened = Promise.withResolvers<void>();
-    vi.useFakeTimers();
-    onTestFinished(() => {
-        vi.useRealTimers();
-    });
-    await using server = Server.start({
-        clock: Clock.system,
+    const server = Server.start({
+        environment: world,
         ...hosting,
+        authenticate: authenticateByName(world.clock),
         health: new Health("echo"),
         drainTimeout: 1000,
         ready: () => opened.promise,
@@ -804,6 +844,7 @@ test("delay a request while starting and answer it once ready, and refuse it wit
             echo: implementation.echo.handler(({ input }) => input),
         }),
     });
+    onTestFinished(() => simulation.drive(server.close()));
     const client = createClient(
         { router: routes },
         {
@@ -811,31 +852,34 @@ test("delay a request while starting and answer it once ready, and refuse it wit
             headers: { authorization: "alice" },
             fetch: (request) => server.fetch(request),
         },
+        world,
     );
 
     // refuse a request still starting once the window passes
     const refused = server.fetch(new Request("https://test.local/echo", { method: "POST" }));
-    await vi.advanceTimersByTimeAsync(1000);
+    await simulation.run({ to: simulation.clock.now() + 1000 });
     const starting = await refused;
 
     // delay a call within the window and answer it once the server opens
     const answered = client.echo({ text: "hello" });
-    await vi.advanceTimersByTimeAsync(100);
+    await simulation.run({ to: simulation.clock.now() + 100 });
     opened.resolve();
 
     expect([
         starting.status,
         starting.headers.get("retry-after"),
-        await answered,
+        await simulation.drive(answered),
         server.health.status,
     ]).toEqual([503, "1", { text: "hello" }, "serving"]);
 });
 
 test("refuse waiting for a server stopped while it waits for readiness, ending the wait quietly", async () => {
+    const world = testSimulation().environment("test");
     // start a server whose readiness waits until its stop aborts it
     const server = Server.start({
-        clock: Clock.system,
+        environment: world,
         ...hosting,
+        authenticate: authenticateByName(world.clock),
         health: new Health("waiting"),
         drainTimeout: 1000,
         ready: (signal) =>
@@ -846,10 +890,10 @@ test("refuse waiting for a server stopped while it waits for readiness, ending t
     });
 
     // stop it before it serves
-    const serving = refusal(server.serving());
+    const ready = refusal(server.ready());
     await server.close();
 
-    expect([await serving, server.health.status]).toEqual([
+    expect([await ready, server.health.status]).toEqual([
         ["SERVICE_UNAVAILABLE", "SERVER_STOPPED", "the server stopped before it started serving"],
         "stopped",
     ]);
@@ -869,9 +913,10 @@ test("refuse a caller authenticated for another package as unauthenticated, audi
     };
     const implementation = implement(procedures);
     const audited: string[] = [];
-    const alice = authenticateUser("alice");
+    const world = testSimulation().environment("server");
+    const alice = authenticateUser("alice", world.clock.now());
     const server = Server.start({
-        clock: Clock.system,
+        environment: world,
         ...hosting,
         router: implementation.router({ get: implementation.get.handler(() => "complete") }),
         health: new Health("work"),
@@ -893,6 +938,7 @@ test("refuse a caller authenticated for another package as unauthenticated, audi
     const client = createClient(
         { router: procedures },
         { url: "https://test.local", fetch: (request) => server.fetch(request) },
+        world,
     );
     expect(await settle(client.get())).toBe(
         "UNAUTHORIZED: AUDIENCE_MISMATCH: caller authentication has a different audience or scope",

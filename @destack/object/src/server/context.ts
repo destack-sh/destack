@@ -1,4 +1,5 @@
-import type { ObjectReference } from "@destack/sync";
+import { Uuid } from "@destack/schema";
+import { type ObjectReference, SyncError } from "@destack/sync";
 import { ObjectError } from "../error/error.ts";
 import type { PackageId } from "@destack/package";
 import {
@@ -14,7 +15,7 @@ import type { ResourceContext } from "@destack/resource/context";
 import type { ProcedureContext } from "./procedure.ts";
 import { BOOKMARK_HEADER, Bookmark } from "../procedure/bookmark.ts";
 
-import { Clock } from "@destack/environment";
+import { type Clock, type Environment } from "@destack/environment";
 
 import type {} from "@destack/package/import-meta";
 
@@ -34,15 +35,15 @@ export class RequestContext {
     /** The credential failure, absent after a successful or anonymous authentication. */
     readonly authenticationError: Error | undefined;
     /** The server-generated request identifier. */
-    readonly requestId = crypto.randomUUID();
+    readonly requestId: string;
     /** Abort when the request closes, its caller lapses or the server drains. */
     readonly signal: AbortSignal;
     /** The digests of the presented link secrets. */
     readonly linkSecrets: readonly string[];
     /** The watermarks the caller requires, its credential's among them. */
     readonly bookmark: Bookmark;
-    /** The clock calls run at. */
-    readonly clock: Clock;
+    /** The clock, randomness and WebCrypto calls run on. */
+    readonly environment: Pick<Environment, "clock" | "crypto" | "random">;
     /** The watermarks this request's writes arrived at. */
     readonly observed = new Bookmark();
     /** The caller's authorization under the package's policies. */
@@ -71,7 +72,8 @@ export class RequestContext {
         this.resources = resources;
         this.authenticationError = authenticationError;
         this.linkSecrets = linkSecrets;
-        this.clock = options.clock;
+        this.environment = options.environment;
+        this.requestId = Uuid.v4(options.environment.random);
         this.bookmark = Bookmark.parse(request.headers.get(BOOKMARK_HEADER));
 
         // require the positions the credential's grants were written at
@@ -82,12 +84,17 @@ export class RequestContext {
         // authorize the current caller in the request's scope under the package's policies
         this.authorization =
             access &&
-            new Authorization(access.authorizer, Transaction.reading(access.database), () => {
-                const authorized = this.access();
-                Caller.requireChain(authorized);
+            new Authorization(
+                access.authorizer,
+                Transaction.reading(access.database),
+                () => {
+                    const authorized = this.access();
+                    Caller.requireChain(authorized);
 
-                return authorized;
-            });
+                    return authorized;
+                },
+                access.environment,
+            );
 
         // bind methods for cloned middleware contexts
         this.requireAuthorization = this.requireAuthorization.bind(this);
@@ -96,19 +103,27 @@ export class RequestContext {
         this.access = this.access.bind(this);
 
         // end the signal as the request closes, the credential lapses or the server drains
-        const lapse = authentication?.credential.expiresAt;
-        const lapsed = new AbortController();
-        if (lapse !== undefined) {
-            this.clock.sleep(lapse - this.clock.now(), this.request.signal).then(
-                () => lapsed.abort(new DOMException("the credential lapsed", "TimeoutError")),
-                () => {},
-            );
-        }
         this.signal = AbortSignal.any([
             this.request.signal,
-            lapsed.signal,
+            ...(options.lapse === undefined ? [] : [options.lapse]),
             ...(options.draining === undefined ? [] : [options.draining]),
         ]);
+    }
+
+    /** The clock calls run at, the environment's. */
+    get clock(): Clock {
+        return this.environment.clock;
+    }
+
+    /** Arm a credential's lapse on a clock: a signal aborted as it lapses, unless stopped first. */
+    static lapse(credential: Credential, clock: Clock, stopping: AbortSignal): AbortSignal {
+        const lapsed = new AbortController();
+        clock.sleep(credential.expiresAt - clock.now(), stopping).then(
+            () => lapsed.abort(SyncError.of("CREDENTIAL_LAPSED", "the caller's credential lapsed")),
+            () => {},
+        );
+
+        return lapsed.signal;
     }
 
     /** Read the caller's authorization, present for every package declared with access. */
@@ -137,7 +152,7 @@ export class RequestContext {
         if (this.authenticationError !== undefined) {
             throw this.authenticationError;
         } else if (credential === undefined) {
-            throw ObjectError.of("MISSING_CREDENTIAL", "missing caller credential");
+            throw ObjectError.of("CREDENTIAL_MISSING", "missing caller credential");
         }
 
         return credential;
@@ -177,10 +192,12 @@ export interface RequestContextOptions {
     readonly authenticationError?: Error;
     /** The digests of the presented link secrets. */
     readonly linkSecrets?: readonly string[];
-    /** The clock calls run at. */
-    readonly clock: Clock;
+    /** The clock, randomness and WebCrypto calls run on. */
+    readonly environment: Pick<Environment, "clock" | "crypto" | "random">;
     /** Abort once the server drains, ending streams at their next consistent point. */
     readonly draining?: AbortSignal;
+    /** Abort once the caller's credential lapses, one signal per credential. */
+    readonly lapse?: AbortSignal;
 }
 
 /** The policies and database that decide a package's calls. */
@@ -189,6 +206,8 @@ export interface ServerAccess {
     readonly authorizer: Authorizer;
     /** The database with relationships and roles. */
     readonly database: DatabaseConnection;
+    /** The clock, randomness and WebCrypto the access rows and secrets come from. */
+    readonly environment: Pick<Environment, "clock" | "crypto" | "random">;
     /** Resolve the object or scope a call acts on. */
     readonly target?: (call: ProcedureContext<RequestContext>) => Promise<ObjectReference>;
 }

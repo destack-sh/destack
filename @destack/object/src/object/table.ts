@@ -1,4 +1,5 @@
 import { present, type Identifier } from "@destack/schema";
+import { Policy } from "@destack/access";
 import { Scope } from "@destack/sync";
 import {
     type ColumnBuilder,
@@ -317,6 +318,10 @@ export const ObjectTable = {
         // default to the universe
         else if (declared === Scope.universe.id) {
             return text("scope").notNull().default(Scope.universe.id);
+        }
+        // take one principal's identifiers, such as a space's
+        else if (declared instanceof Policy) {
+            return identifier("scope", declared.name).notNull();
         }
         // take one scope type's identifiers
         else {

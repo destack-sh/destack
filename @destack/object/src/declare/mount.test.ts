@@ -31,7 +31,7 @@ test("mount each package under a separate path and route requests below it", asy
     });
 });
 
-test("mount a native device's local objects under a path of their own and split paths below it", () => {
+test("mount a native device's local objects under their path and split paths below it", () => {
     const path = DeviceMount.path("device-01");
 
     expect({

@@ -15,11 +15,37 @@ import {
 import type { Reconciliation } from "@destack/db";
 import { AccessContext } from "@destack/access";
 import { RequestId } from "@destack/sync";
+import { Failure } from "@destack/error";
 import { canonicalize, schema, type JsonValue } from "@destack/schema";
 import type { ObjectType } from "./object.ts";
-import { Observation, type ObservationReport, type ObservedRecord } from "./condition.ts";
+import {
+    ConditionMap,
+    Observation,
+    type ObservationReport,
+    type ObservedRecord,
+} from "./condition.ts";
 import { type ResultsOf } from "../method/context.ts";
 import type { MutateOptions, ObjectStore } from "../server/store.ts";
+
+/** The condition of a controlled object's last reconcile succeeding, as Crossplane's Synced. */
+const SYNCED = "Synced";
+
+/** The synced condition of a controlled object whose last reconcile succeeded. */
+const SYNCED_CONDITION = { status: "true", reason: "ReconcileSuccess", message: "" } as const;
+
+/** The fields of a controlled object its controller observes. */
+const ObservedFields = schema
+    .object({
+        /** The scope the object lives in. */
+        scope: schema.string(),
+        /** The object's identifier. */
+        id: schema.string(),
+        /** The desired generation. */
+        generation: schema.number().int(),
+        /** The conditions by name. */
+        conditions: ConditionMap,
+    })
+    .strip();
 
 /** The fields of a pending object's key, as its key name has them. */
 const KeyFields = schema.record(schema.string(), Scalar);
@@ -119,11 +145,12 @@ export const ObjectController = {
                 )
             ).flat();
 
-            // add the key of a changed object left pending
+            // add the key of a changed object left pending, past a controlled object's status change
             const row = Change.image(change);
             const isPending =
                 Change.of(change, table) &&
                 change.operation !== "delete" &&
+                !ObjectController.isObserved(object, change) &&
                 Predicate.matches(match, row);
             const selected = isPending ? [...watched, readKey(row)] : watched;
 
@@ -177,35 +204,112 @@ export const ObjectController = {
 
         // reconcile them, running methods as the type's serving principal at one time
         const now = store.clock.now();
-        const caller = store.serving(object, now);
+        const caller = store.as(object, now);
         const mutate: ObjectReconciliation["mutate"] = (calls, options) =>
             store.mutate(
                 caller,
-                { id: RequestId.create(now), calls: [...calls] },
+                { id: RequestId.create(store.environment), calls: [...calls] },
                 { ...options, component: object.name },
             );
+        const observe: ObjectReconciliation["observe"] = async (observed, row, observation) => {
+            // skip an observation the row has
+            if (Observation.isRecorded(row, observation)) {
+                return row;
+            }
 
-        return declared.reconcile({
-            rows,
-            now,
-            database: store.database,
-            store,
-            caller,
-            signal: reconciliation.signal,
-            ...(reconciliation.epoch === undefined ? {} : { epoch: reconciliation.epoch }),
-            changed: () => reconciliation.changed(),
-            mutate,
-            observe: async (observed, row, observation) => {
-                // skip an observation the row has
-                if (Observation.isRecorded(row, observation)) {
-                    return row;
-                }
+            // record the generation, the conditions and the fields
+            const [written] = await mutate([Observation.call(observed, row, observation)]);
 
-                // record the generation, the conditions and the fields
-                const [written] = await mutate([Observation.call(observed, row, observation)]);
+            return written;
+        };
+        const observeAll = async (
+            observed: readonly (ObservedRecord & Readonly<Record<string, unknown>>)[],
+            observation: ObservationReport,
+        ) => {
+            // record one observation on every row without it, in one mutation
+            const calls = observed
+                .filter((row) => !Observation.isRecorded(row, observation))
+                .map((row) => Observation.call(object, row, observation));
+            if (calls.length > 0) {
+                await mutate(calls);
+            }
+        };
 
-                return written;
-            },
-        });
+        // reconcile, recording a lasting failure on each controlled object until its next change
+        try {
+            const delay = await declared.reconcile({
+                rows,
+                now,
+                database: store.database,
+                store,
+                caller,
+                signal: reconciliation.signal,
+                ...(reconciliation.epoch === undefined ? {} : { epoch: reconciliation.epoch }),
+                changed: () => reconciliation.changed(),
+                mutate,
+                observe,
+            });
+
+            // clear the failures the objects recorded before
+            const failed = object.isControlled
+                ? rows.filter((row) => !ObjectController.isSynced(row))
+                : [];
+            const reread = await ObjectController.reread(store, object, failed);
+            await observeAll(reread, { conditions: { [SYNCED]: SYNCED_CONDITION } });
+
+            return delay;
+        } catch (error) {
+            // record a declared failure no retry may resolve
+            const failure = Failure.of(error);
+            if (object.isControlled && Failure.isDeclared(error) && !Failure.isTransient(failure)) {
+                const condition = ObjectController.failedCondition(failure);
+                const observed = rows.map((row) => ({ ...row, ...ObservedFields.parse(row) }));
+                await observeAll(observed, { conditions: { [SYNCED]: condition } });
+            }
+            throw error;
+        }
+    },
+
+    /** Report whether a change only observed a controlled object, its generation unchanged. */
+    isObserved(object: ObjectType, change: Change): boolean {
+        return (
+            object.isControlled &&
+            change.operation === "update" &&
+            change.before["generation"] === change.after["generation"]
+        );
+    },
+
+    /** Report whether a controlled object's last reconcile succeeded or never failed. */
+    isSynced(row: Row): boolean {
+        return ObservedFields.parse(row).conditions[SYNCED]?.status !== "false";
+    },
+
+    /** Describe a failed reconcile as Crossplane's ReconcileError, findable by its reason. */
+    failedCondition(failure: Failure): ObservationReport["conditions"][string] {
+        return {
+            status: "false",
+            reason: "ReconcileError",
+            message: `${failure.domain} ${failure.reason}: ${failure.message}`,
+        };
+    },
+
+    /** Read controlled objects again after a reconcile, leaving out the removed ones. */
+    async reread(
+        store: ObjectStore,
+        object: ObjectType,
+        rows: readonly Row[],
+    ): Promise<(ObservedRecord & Readonly<Record<string, unknown>>)[]> {
+        // skip the read for no rows
+        if (rows.length === 0) {
+            return [];
+        }
+
+        // read the rows by identifier
+        const ids = rows.map((row) => ObjectController.readIdentifier(row));
+        const fresh = await Snapshot.live(store.database)
+            .read(object.table)
+            .findMany({ where: { id: { in: ids } } });
+
+        return fresh.map((row) => ({ ...row, ...ObservedFields.parse(row) }));
     },
 };

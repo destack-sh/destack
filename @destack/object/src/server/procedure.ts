@@ -1,3 +1,4 @@
+import type { Environment } from "@destack/environment";
 import type { AuditOutcome } from "../audit/execution.ts";
 import type { Context } from "@orpc/server";
 import { AsyncIteratorClass } from "@orpc/shared";
@@ -36,7 +37,7 @@ export const ProcedureContext = {
     async invoke<State extends Context>(
         context: ProcedureContext<State>,
         next: () => Promise<unknown>,
-        options: Pick<HandlerOptions<State>, "authorize" | "audit">,
+        options: Pick<HandlerOptions<State>, "authorize" | "audit" | "environment">,
     ): Promise<unknown> {
         // tell a denial from a failure
         const audit = options.audit;
@@ -45,11 +46,12 @@ export const ProcedureContext = {
                 await options.authorize(context);
             }
         } catch (error) {
-            const failure = reportError(error);
+            const failure = reportError(error, options.environment.telemetry);
             if (audit) {
                 await recordAudit(
                     { context: context, outcome: auditOutcome(failure), error: failure },
                     audit,
+                    options.environment.telemetry,
                 );
             }
             throw failure;
@@ -60,11 +62,12 @@ export const ProcedureContext = {
         try {
             result = await next();
         } catch (error) {
-            const failure = reportError(error);
+            const failure = reportError(error, options.environment.telemetry);
             if (audit) {
                 await recordAudit(
                     { context: context, outcome: auditOutcome(failure), error: failure },
                     audit,
+                    options.environment.telemetry,
                 );
             }
             throw failure;
@@ -75,7 +78,11 @@ export const ProcedureContext = {
             return streamProcedure(result, context, options);
         }
         if (audit) {
-            await recordAudit({ context: context, outcome: "success" }, audit);
+            await recordAudit(
+                { context: context, outcome: "success" },
+                audit,
+                options.environment.telemetry,
+            );
         }
 
         return result;
@@ -86,7 +93,7 @@ export const ProcedureContext = {
 function streamProcedure<State extends Context>(
     stream: AsyncIterable<unknown>,
     context: ProcedureContext<State>,
-    options: Pick<HandlerOptions<State>, "authorize" | "audit">,
+    options: Pick<HandlerOptions<State>, "authorize" | "audit" | "environment">,
 ): AsyncIteratorClass<unknown> {
     // record completion apart from cancellation
     const audit = options.audit;
@@ -111,7 +118,7 @@ function streamProcedure<State extends Context>(
 
                 return result;
             } catch (error) {
-                const reported = reportError(error);
+                const reported = reportError(error, options.environment.telemetry);
                 failure = reported;
                 outcome = auditOutcome(reported);
                 throw reported;
@@ -126,10 +133,14 @@ function streamProcedure<State extends Context>(
             } catch (error) {
                 outcome = "failure";
                 failure = error;
-                throw reportError(error);
+                throw reportError(error, options.environment.telemetry);
             } finally {
                 if (audit) {
-                    await recordAudit({ context: context, outcome, error: failure }, audit);
+                    await recordAudit(
+                        { context: context, outcome, error: failure },
+                        audit,
+                        options.environment.telemetry,
+                    );
                 }
             }
         },
@@ -140,6 +151,7 @@ function streamProcedure<State extends Context>(
 async function recordAudit<State extends Context>(
     event: ProcedureAudit<State>,
     audit: (event: ProcedureAudit<State>) => Promise<void>,
+    telemetry: Environment["telemetry"],
 ): Promise<void> {
     try {
         await audit(event);
@@ -150,7 +162,7 @@ async function recordAudit<State extends Context>(
                 ? new AggregateError([event.error, error], "procedure failure audit failed")
                 : error;
 
-        throw reportError(failure);
+        throw reportError(failure, telemetry);
     }
 }
 

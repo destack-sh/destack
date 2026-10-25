@@ -1,3 +1,4 @@
+import { schema } from "@destack/schema";
 import { ResourceContext } from "@destack/resource/context";
 import { MemoryBuild } from "@destack/package/test";
 import { type Uplink } from "@destack/sync";
@@ -8,14 +9,15 @@ import { expect, onTestFinished, test, refusal } from "@destack/test";
 import type { Controller, FollowController } from "@destack/db";
 import { Health } from "../server/health.ts";
 import { Server } from "../server/index.ts";
-import { defineWorkload, type ServerContext } from "./workload.ts";
+import { defineWorkload, type InstalledServerContext } from "./workload.ts";
 import { WorkloadInstance } from "./instance.ts";
 import { Package } from "@destack/package";
 import { PackageHandle } from "../declare/index.ts";
-import { hosting } from "../test/fixture.ts";
+import { hosting, authenticateByName } from "../test/fixture.ts";
 import { testCallKey } from "../test/context.ts";
-import { Clock } from "@destack/environment";
+import { Environment } from "@destack/environment";
 import { tablesOf } from "../index.ts";
+import { testSimulation } from "../test/world.ts";
 
 /** The first fixture package. */
 const first = PackageHandle.of(
@@ -52,12 +54,16 @@ const publisher = {
     call: () => Promise.reject(new Error("the fixture publisher answers no queries")),
 } satisfies Uplink;
 
-/** The fixture installation's server context. */
-const server: ServerContext = {
-    installation: "installation-01996ab0-0000-7000-8000-000000000002",
+/** Read the fixture installation's server context in a test's world, with its empty build. */
+const serverIn = async (world: Environment): Promise<InstalledServerContext> => ({
+    origin: "installed",
+    installation: schema
+        .identifier("installation")
+        .parse("installation-01996ab0-0000-7000-8000-000000000002"),
     name: "notes",
-    space: "space-01996ab0-0000-7000-8000-000000000001",
-    build: await MemoryBuild.write(new Map(), { package: first }),
+    scope: "space-01996ab0-0000-7000-8000-000000000001",
+    build: await MemoryBuild.write(new Map(), { package: first }, world.crypto),
+    environment: world,
     settings: {},
     capabilities: [],
     resources: new ResourceContext(),
@@ -73,9 +79,12 @@ const server: ServerContext = {
         url: address,
         fetch: () => Promise.reject(new Error("the fixture installation cannot call an address")),
     }),
-};
+});
 
 test("release startup resources when the workload shuts down during startup", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     const events: string[] = [];
     await expect(
         WorkloadInstance.start(
@@ -93,14 +102,19 @@ test("release startup resources when the workload shuts down during startup", as
                 },
             }),
             {
-                clock: Clock.system,
+                environment: world,
                 callKey: testCallKey,
                 report: (error) => {
                     throw error;
                 },
                 resources: hosting.resources,
-                server,
-                serverOptions: (handle) => ({ ...hosting, package: handle, drainTimeout: 100 }),
+                server: await serverIn(world),
+                serverOptions: (handle) => ({
+                    ...hosting,
+                    authenticate: authenticateByName(world.clock),
+                    package: handle,
+                    drainTimeout: 100,
+                }),
             },
         ),
     ).rejects.toMatchObject({ name: "AbortError" });
@@ -108,6 +122,9 @@ test("release startup resources when the workload shuts down during startup", as
 }, 1000);
 
 test("start two packages and drain accepted requests before shared cleanup", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     const events: string[] = [];
     const accepted = Promise.withResolvers<void>();
     const released = Promise.withResolvers<void>();
@@ -138,14 +155,19 @@ test("start two packages and drain accepted requests before shared cleanup", asy
             },
         }),
         {
-            clock: Clock.system,
+            environment: world,
             callKey: testCallKey,
             report: (error) => {
                 throw error;
             },
             resources: hosting.resources,
-            server,
-            serverOptions: (handle) => ({ ...hosting, package: handle, drainTimeout: 1000 }),
+            server: await serverIn(world),
+            serverOptions: (handle) => ({
+                ...hosting,
+                authenticate: authenticateByName(world.clock),
+                package: handle,
+                drainTimeout: 1000,
+            }),
         },
     );
 
@@ -167,6 +189,10 @@ test("start two packages and drain accepted requests before shared cleanup", asy
 }, 1500);
 
 test("retain shared resources until an overdue request observes cancellation", async () => {
+    // run in a world of its own, moving its time while the drain waits
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
+
     const accepted = Promise.withResolvers<void>();
     const cancelled = Promise.withResolvers<void>();
     const released = Promise.withResolvers<void>();
@@ -198,14 +224,19 @@ test("retain shared resources until an overdue request observes cancellation", a
             },
         }),
         {
-            clock: Clock.system,
+            environment: world,
             callKey: testCallKey,
             report: (error) => {
                 throw error;
             },
             resources: hosting.resources,
-            server,
-            serverOptions: (handle) => ({ ...hosting, package: handle, drainTimeout: 5 }),
+            server: await serverIn(world),
+            serverOptions: (handle) => ({
+                ...hosting,
+                authenticate: authenticateByName(world.clock),
+                package: handle,
+                drainTimeout: 5,
+            }),
         },
     );
 
@@ -221,16 +252,19 @@ test("retain shared resources until an overdue request observes cancellation", a
         message: "workload shutdown failed",
         errors: [{ name: "TimeoutError", message: "server drain deadline exceeded" }],
     });
-    await cancelled.promise;
+    await simulation.drive(cancelled.promise);
     expect(events).toEqual([]);
 
     // release after the handler stops
     released.resolve();
-    await Promise.all([responseFailure, closeFailure]);
+    await simulation.drive(Promise.all([responseFailure, closeFailure]));
     expect(events).toEqual(["resources"]);
 }, 1500);
 
 test("reject a package served twice and release startup resources", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     const events: string[] = [];
     const implementation = { package: first, router: {} };
     await expect(
@@ -246,14 +280,19 @@ test("reject a package served twice and release startup resources", async () => 
                 },
             }),
             {
-                clock: Clock.system,
+                environment: world,
                 callKey: testCallKey,
                 report: (error) => {
                     throw error;
                 },
                 resources: hosting.resources,
-                server,
-                serverOptions: (handle) => ({ ...hosting, package: handle, drainTimeout: 1000 }),
+                server: await serverIn(world),
+                serverOptions: (handle) => ({
+                    ...hosting,
+                    authenticate: authenticateByName(world.clock),
+                    package: handle,
+                    drainTimeout: 1000,
+                }),
             },
         ),
     ).rejects.toThrow(`duplicate workload package: ${first.name}`);
@@ -261,7 +300,11 @@ test("reject a package served twice and release startup resources", async () => 
 }, 1500);
 
 test("hand the workload its webhook deliveries, refusing a workload receiving none", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // start a workload answering deliveries with their path, and one receiving none
+    const server = await serverIn(world);
     const start = (webhooks: boolean) =>
         WorkloadInstance.start(
             defineWorkload({
@@ -279,14 +322,19 @@ test("hand the workload its webhook deliveries, refusing a workload receiving no
                 }),
             }),
             {
-                clock: Clock.system,
+                environment: world,
                 callKey: testCallKey,
                 report: (error) => {
                     throw error;
                 },
                 resources: hosting.resources,
                 server,
-                serverOptions: (handle) => ({ ...hosting, package: handle, drainTimeout: 1000 }),
+                serverOptions: (handle) => ({
+                    ...hosting,
+                    authenticate: authenticateByName(world.clock),
+                    package: handle,
+                    drainTimeout: 1000,
+                }),
             },
         );
     await using receiving = await start(true);
@@ -299,14 +347,18 @@ test("hand the workload its webhook deliveries, refusing a workload receiving no
     expect([answered.status, await answered.text()]).toEqual([202, "/github/notes"]);
     expect(await refusal(() => deaf.requireWebhookHandler())).toEqual([
         "NOT_FOUND",
-        "NO_WEBHOOKS",
+        "WEBHOOKS_MISSING",
         "the workload does not accept webhooks",
     ]);
 }, 1500);
 
 test("give a starting workload its server context", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+    const server = await serverIn(world);
+
     // start a workload that records its server context
-    let received: ServerContext | undefined;
+    let received: InstalledServerContext | undefined;
     await using instance = await WorkloadInstance.start(
         defineWorkload({
             name: "fixture",
@@ -317,20 +369,28 @@ test("give a starting workload its server context", async () => {
             },
         }),
         {
-            clock: Clock.system,
+            environment: world,
             callKey: testCallKey,
             report: (error) => {
                 throw error;
             },
             resources: hosting.resources,
             server,
-            serverOptions: (handle) => ({ ...hosting, package: handle, drainTimeout: 100 }),
+            serverOptions: (handle) => ({
+                ...hosting,
+                authenticate: authenticateByName(world.clock),
+                package: handle,
+                drainTimeout: 100,
+            }),
         },
     );
     expect([instance.packages, received]).toEqual([[], server]);
 });
 
 test("serve the next start once a reload starts it, drain the previous start beside it, and release both by close", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // start a workload serving the first package, then the second after a reload
     const events: string[] = [];
     let starts = 0;
@@ -347,14 +407,19 @@ test("serve the next start once a reload starts it, drain the previous start bes
             },
         }),
         {
-            clock: Clock.system,
+            environment: world,
             callKey: testCallKey,
             report: (error) => {
                 throw error;
             },
             resources: hosting.resources,
-            server,
-            serverOptions: (handle) => ({ ...hosting, package: handle, drainTimeout: 100 }),
+            server: await serverIn(world),
+            serverOptions: (handle) => ({
+                ...hosting,
+                authenticate: authenticateByName(world.clock),
+                package: handle,
+                drainTimeout: 100,
+            }),
         },
     );
     expect(instance.packages).toEqual([first]);
@@ -369,6 +434,9 @@ test("serve the next start once a reload starts it, drain the previous start bes
 });
 
 test("fold the reloads requested during a start into one start after it", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // start a workload whose second start waits until released
     let starts = 0;
     const gate = Promise.withResolvers<void>();
@@ -385,14 +453,19 @@ test("fold the reloads requested during a start into one start after it", async 
             },
         }),
         {
-            clock: Clock.system,
+            environment: world,
             callKey: testCallKey,
             report: (error) => {
                 throw error;
             },
             resources: hosting.resources,
-            server,
-            serverOptions: (handle) => ({ ...hosting, package: handle, drainTimeout: 100 }),
+            server: await serverIn(world),
+            serverOptions: (handle) => ({
+                ...hosting,
+                authenticate: authenticateByName(world.clock),
+                package: handle,
+                drainTimeout: 100,
+            }),
         },
     );
 
@@ -408,10 +481,13 @@ test("fold the reloads requested during a start into one start after it", async 
 });
 
 test("run one start's controllers at a time, stopping the previous start's before the next start's run", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // record each start's controller running and stopping, over an access database
     const storage = await TestDatabase.create(
         tablesOf({ packages: [], follows: [], tables: [marker] }).tables,
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
     const events: string[] = [];
@@ -448,6 +524,7 @@ test("run one start's controllers at a time, stopping the previous start's befor
                             access: {
                                 authorizer: new Authorizer([], []),
                                 database: storage.database,
+                                environment: world,
                             },
                         },
                     ],
@@ -455,14 +532,19 @@ test("run one start's controllers at a time, stopping the previous start's befor
             },
         }),
         {
-            clock: Clock.system,
+            environment: world,
             callKey: testCallKey,
             report: (error) => {
                 throw error;
             },
             resources: hosting.resources,
-            server,
-            serverOptions: (handle) => ({ ...hosting, package: handle, drainTimeout: 100 }),
+            server: await serverIn(world),
+            serverOptions: (handle) => ({
+                ...hosting,
+                authenticate: authenticateByName(world.clock),
+                package: handle,
+                drainTimeout: 100,
+            }),
         },
     );
 
@@ -477,10 +559,13 @@ test("run one start's controllers at a time, stopping the previous start's befor
 });
 
 test("close a server whose controllers were never activated, running none of them", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // start a server whose controllers wait for an activation that never comes
     const storage = await TestDatabase.create(
         tablesOf({ packages: [], follows: [], tables: [marker] }).tables,
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
     const runs: string[] = [];
@@ -497,13 +582,18 @@ test("close a server whose controllers were never activated, running none of the
     };
     const started = Server.start({
         ...hosting,
+        authenticate: authenticateByName(world.clock),
         package: first,
-        clock: Clock.system,
+        environment: world,
         health: new Health(first.name),
         drainTimeout: 100,
         router: {},
         controllers: [controller],
-        access: { authorizer: new Authorizer([], []), database: storage.database },
+        access: {
+            authorizer: new Authorizer([], []),
+            database: storage.database,
+            environment: world,
+        },
         activation: new Promise<void>(() => {}),
     });
 

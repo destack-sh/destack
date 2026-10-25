@@ -12,6 +12,7 @@ export {
     ObjectKey,
     type RetentionSetting,
     ObjectType,
+    type ObjectCall,
     type ObjectOf,
     type ObjectConfiguration,
     SCOPE_READ,

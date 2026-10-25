@@ -9,9 +9,8 @@ import {
     type DatabaseConnection,
     type ReconcileController,
 } from "@destack/db";
-import { schema, Duration, type JsonValue } from "@destack/schema";
+import { schema, Duration, type JsonValue, Uuid } from "@destack/schema";
 
-import { v7 } from "uuid";
 import type { MethodContext } from "../method/context.ts";
 import { settlement, SettlementContext } from "../method/settlement.ts";
 import { Method } from "../method/method.ts";
@@ -33,18 +32,21 @@ export const Settlement = {
         context: MethodContext,
         key: string,
     ): Promise<string> {
-        const id = v7();
-        await database.insert(settlement).values({
-            id,
-            key,
-            object: context.object.name,
-            method: context.name,
-            scope: context.scope,
-            target: context.id ?? null,
-            prepared: null,
-            committedAt: null,
-            createdAt: context.now,
-        });
+        const id = Uuid.v7(context.environment);
+        await database.transaction(
+            async (transaction) =>
+                await transaction.insert(settlement).values({
+                    id,
+                    key,
+                    object: context.object.name,
+                    method: context.name,
+                    scope: context.scope,
+                    target: context.id ?? null,
+                    prepared: null,
+                    committedAt: null,
+                    createdAt: context.now,
+                }),
+        );
 
         return id;
     },
@@ -56,11 +58,14 @@ export const Settlement = {
         context: MethodContext,
         prepared: JsonValue,
     ): Promise<void> {
-        const recorded = await database
-            .update(settlement)
-            .set({ prepared: { value: prepared } })
-            .where(and(eq(settlement.id, id), isNull(settlement.claimedAt)))
-            .returning({ id: settlement.id });
+        const recorded = await database.transaction(
+            async (transaction) =>
+                await transaction
+                    .update(settlement)
+                    .set({ prepared: { value: prepared } })
+                    .where(and(eq(settlement.id, id), isNull(settlement.claimedAt)))
+                    .returning({ id: settlement.id }),
+        );
         if (recorded.length === 0) {
             Settlement.refuseOutlasted(context);
         }
@@ -96,23 +101,32 @@ export const Settlement = {
         now: number,
         grace = SETTLE_GRACE_MILLISECONDS,
     ): Promise<Settlement | undefined> {
-        const [claimed] = await database
-            .update(settlement)
-            .set({ claimedAt: now })
-            .where(
-                and(
-                    eq(settlement.id, id),
-                    or(isNull(settlement.claimedAt), lte(settlement.claimedAt, now - grace)),
-                ),
-            )
-            .returning();
+        const [claimed] = await database.transaction(
+            async (transaction) =>
+                await transaction
+                    .update(settlement)
+                    .set({ claimedAt: now })
+                    .where(
+                        and(
+                            eq(settlement.id, id),
+                            or(
+                                isNull(settlement.claimedAt),
+                                lte(settlement.claimedAt, now - grace),
+                            ),
+                        ),
+                    )
+                    .returning(),
+        );
 
         return claimed;
     },
 
     /** Forget a settlement once its call settled. */
     async forget(database: DatabaseConnection, id: string): Promise<void> {
-        await database.delete(settlement).where(eq(settlement.id, id));
+        await database.transaction(
+            async (transaction) =>
+                await transaction.delete(settlement).where(eq(settlement.id, id)),
+        );
     },
 
     /** Settle one claimed settlement as recorded, committing or rolling back, then forget it. */

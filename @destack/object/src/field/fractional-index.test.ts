@@ -1,3 +1,4 @@
+import { testSimulation } from "../test/index.ts";
 import { expect, test } from "@destack/test";
 import { FractionalIndex } from "./fractional-index.ts";
 
@@ -45,8 +46,9 @@ test("place concurrent indexes in one gap apart from each other and between thei
         [undefined, "a0"],
         ["a0", undefined],
     ];
+    const { random } = testSimulation().environment("test");
     const placed = gaps.map(([before, after]) =>
-        Array.from({ length: 50 }, () => FractionalIndex.place(before, after)),
+        Array.from({ length: 50 }, () => FractionalIndex.place(before, after, random)),
     );
 
     expect(

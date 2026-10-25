@@ -9,8 +9,10 @@ export const device = defineObject({
     represents: principal.device,
     fields: {},
     permissions: {
-        // let the people signed in on the device, who live inside it, see and use its local objects
-        read: contained(principal.user),
-        use: contained(principal.user),
+        // let the device and the people signed in on it, who live inside it, see and use its local objects
+        read: contained(principal.user, principal.device),
+        use: contained(principal.user, principal.device),
+        // let the device replicate its chain
+        replicate: contained(principal.device),
     },
 });

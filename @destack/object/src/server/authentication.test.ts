@@ -1,3 +1,4 @@
+import { testSimulation } from "../test/index.ts";
 import { AccessFixture } from "@destack/access/test";
 import { Scope, Subject } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
@@ -20,7 +21,7 @@ import {
 } from "@destack/access";
 import { boolean, defineTable, eq, text } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { exportJWK, generateKeyPair, SignJWT } from "jose";
+import { Jwt, KeyPair } from "@destack/identity";
 import { TokenIssuer, TokenVerifier } from "@destack/access/token";
 import { Health } from "./health.ts";
 import { CallError } from "../error/index.ts";
@@ -29,13 +30,15 @@ import { createClient } from "../client/index.ts";
 import { implement } from "./handler.ts";
 import { Server } from "./http.ts";
 import { RequestContext } from "./context.ts";
-import { authenticateUser, fixturePackage, hosting } from "../test/fixture.ts";
-import { Clock } from "@destack/environment";
+import { authenticateUser, fixturePackage, hosting, authenticateByName } from "../test/fixture.ts";
 import { tablesOf } from "../index.ts";
 
 test.each(["universe", "host-local", "account-personal", "space-personal"])(
     "enforce the configured %s authorization scope",
     async (scope) => {
+        // run in a world of its own
+        const world = testSimulation().environment("test");
+
         // serve one procedure in every scope
         const definition = {
             read: defineProcedure({
@@ -52,13 +55,13 @@ test.each(["universe", "host-local", "account-personal", "space-personal"])(
         const implementation = implement(definition).$context<RequestContext>();
         let credentialScope = scope;
         await using server = Server.start({
-            clock: Clock.system,
+            environment: world,
             ...hosting,
-            scope,
+            scopes: [scope],
             health: new Health("scope"),
             drainTimeout: 100,
             authenticate: async () => {
-                const alice = authenticateUser("alice");
+                const alice = authenticateUser("alice", world.clock.now());
 
                 return { ...alice, credential: { ...alice.credential, scope: credentialScope } };
             },
@@ -79,6 +82,7 @@ test.each(["universe", "host-local", "account-personal", "space-personal"])(
                 url: "https://fixture.test",
                 fetch: (request) => server.fetch(request),
             },
+            world,
         );
 
         // return the scope and reject credentials of another scope
@@ -93,6 +97,9 @@ test.each(["universe", "host-local", "account-personal", "space-personal"])(
 );
 
 test("verify a credential the package verifies before the host, which answers every other request", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // serve the caller's name, the package verifying its key and refusing a revoked one
     const definition = {
         me: defineProcedure({
@@ -107,8 +114,9 @@ test("verify a credential the package verifies before the host, which answers ev
     const implementation = implement(definition).$context<RequestContext>();
     const verified: string[] = [];
     await using server = Server.start({
-        clock: Clock.system,
+        environment: world,
         ...hosting,
+        authenticate: authenticateByName(world.clock),
         health: new Health("verify"),
         drainTimeout: 100,
         verify: async (request) => {
@@ -118,7 +126,7 @@ test("verify a credential the package verifies before the host, which answers ev
                 throw CallError.http("UNAUTHORIZED", { message: "the package key is revoked" });
             }
 
-            return key === null ? undefined : authenticateUser("bob");
+            return key === null ? undefined : authenticateUser("bob", world.clock.now());
         },
         router: implementation.router({
             me: implementation.me.handler(({ context }) => Caller.sender(context.caller()).id),
@@ -128,6 +136,7 @@ test("verify a credential the package verifies before the host, which answers ev
         createClient(
             { router: definition },
             { url: "https://fixture.test", headers, fetch: (request) => server.fetch(request) },
+            world,
         ).me();
 
     // answer the package's caller, the host's caller without the package's key, and refuse a revoked key
@@ -146,12 +155,15 @@ test("verify a credential the package verifies before the host, which answers ev
 
 /** Hand over a user verified for a package until a time. */
 function handed(name: string, audience: PackageId, expiresAt: number): Authentication {
-    const user = authenticateUser(name);
+    const user = authenticateUser(name, expiresAt - 60_000);
 
     return { ...user, credential: { ...user.credential, audience, expiresAt } };
 }
 
 test("serve a caller handed over in-process while it is current for this package, and refuse one verified for another package", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // serve the caller's name to callers handed over by in-process code
     const definition = {
         me: defineProcedure({
@@ -166,8 +178,9 @@ test("serve a caller handed over in-process while it is current for this package
     const implementation = implement(definition).$context<RequestContext>();
     const other = PackageId.parse("package-019f7480-0000-7000-8000-000000000009");
     await using server = Server.start({
-        clock: Clock.system,
+        environment: world,
         ...hosting,
+        authenticate: authenticateByName(world.clock),
         health: new Health("handed"),
         drainTimeout: 100,
         router: implementation.router({
@@ -181,13 +194,14 @@ test("serve a caller handed over in-process while it is current for this package
                 url: "https://fixture.test",
                 fetch: (request) => server.fetch(request, authentication),
             },
+            world,
         ).me();
 
     // answer a current caller verified for this package, refusing an expired one and one verified for another
-    const later = Date.now() + 60000;
+    const later = world.clock.now() + 60000;
     expect({
         current: await me(handed("alice", hosting.package.id, later)),
-        expired: await refusal(me(handed("bob", hosting.package.id, Date.now() - 1))),
+        expired: await refusal(me(handed("bob", hosting.package.id, world.clock.now() - 1))),
         other: await refusal(me(handed("carol", other, later))),
     }).toEqual({
         current: "alice",
@@ -201,6 +215,9 @@ test("serve a caller handed over in-process while it is current for this package
 });
 
 test("authorize a caller bound to a space in the scopes inside it, refusing the universe above it", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // place a folder inside a space
     const packageId = hosting.package.id;
     const spaceId = "space-019f7480-0000-7000-8000-000000000003";
@@ -208,10 +225,13 @@ test("authorize a caller bound to a space in the scopes inside it, refusing the 
     const module = { package: { id: packageId, name: "@example/folders", version: "2026.9.0" } };
     const space = new Policy(module.package, { name: "space", permissions: {}, scope: true });
     const folder = new Policy(module.package, { name: "folder", permissions: {}, scope: true });
-    const storage = await TestDatabase.create(accessTables, { isMigrated: true });
+    const storage = await TestDatabase.create(accessTables, {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     const { database } = storage;
-    const fixture = new AccessFixture(database);
+    const fixture = new AccessFixture(database, world);
     await fixture.replicateScope(
         { packageId, type: "space", scope: "universe", id: spaceId },
         space,
@@ -222,15 +242,15 @@ test("authorize a caller bound to a space in the scopes inside it, refusing the 
     );
 
     // call the space with a credential bound to it
-    const alice = authenticateUser("alice");
+    const alice = authenticateUser("alice", world.clock.now());
     const credential = { ...alice.credential, audience: packageId, scope: spaceId };
     const context = new RequestContext(new Request("https://fixture.test/"), {
-        clock: Clock.system,
+        environment: world,
         audience: packageId,
         scope: spaceId,
         authentication: { caller: alice.caller, credential },
         resources: new ResourceContext(),
-        access: { authorizer: new Authorizer([space, folder], []), database },
+        access: { authorizer: new Authorizer([space, folder], []), database, environment: world },
     });
     const authorization = context.requireAuthorization();
 
@@ -254,9 +274,12 @@ test("authorize a caller bound to a space in the scopes inside it, refusing the 
 
 /** Apply the same identity and object rules to direct and forwarded requests. */
 test.each(["direct", "forwarded"])("host personal notes through %s requests", async (transport) => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // declare the note permissions
     const packageId = PackageId.parse("package-019f7480-0000-7000-8000-000000000001");
-    const spaceId = "space-019f7480-0000-7000-8000-000000000002";
+    const spaceId = schema.identifier("space").parse("space-019f7480-0000-7000-8000-000000000002");
     const module = { package: { id: packageId, name: "@example/notes", version: "2026.9.0" } };
     const note = new Policy(module.package, {
         name: "note",
@@ -301,40 +324,45 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     };
 
     // sign credentials with an asymmetric key
-    const keys = await generateKeyPair("ES256");
+    const { pair } = await KeyPair.generate(world.crypto);
     const issuer = new TokenIssuer({
         issuer: "https://account.example",
         authority: { kind: "universe" },
         sign: (payload, header) =>
-            new SignJWT(payload)
-                .setProtectedHeader({ alg: "ES256", kid: "current", ...header })
-                .sign(keys.privateKey),
+            Jwt.sign(
+                payload,
+                { ...header, alg: "ES256", kid: "current" },
+                pair.privateKey,
+                world.crypto,
+            ),
     });
     const verifier = new TokenVerifier({
         issuer: "https://account.example",
         authority: { kind: "universe" },
         audience: packageId,
-        keys: { keys: [{ ...(await exportJWK(keys.publicKey)), kid: "current", alg: "ES256" }] },
+        keys: { keys: [{ ...pair.publicKey, kid: "current", alg: "ES256" }] },
+        environment: world,
     });
     const owner: Subject = principal.user.reference("universe", "owner");
     const guest: Subject = principal.user.reference("universe", "guest");
     const credentials = new Map<string, string>();
     for (const subject of [owner, guest]) {
-        const now = Date.now();
+        const now = world.clock.now();
         const token = await issuer.issue(
             {
                 caller: Caller.of(subject),
                 credential: {
                     kind: "session",
                     id: subject.id,
-                    client: Identifier.create("client"),
+                    client: Identifier.create("client", world),
                     audience: packageId,
                     scope: spaceId,
                     verifiedAt: now,
                     expiresAt: now + 60000,
                 },
             },
-            Date.now(),
+            world.clock.now(),
+            world,
         );
         credentials.set(subject.id, token.accessToken);
     }
@@ -362,13 +390,11 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     );
     const storage = await TestDatabase.create(
         tablesOf({ packages: [], follows: [], tables: [noteTable] }).tables,
-        {
-            isMigrated: true,
-        },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
     const database = storage.database;
-    await new AccessFixture(database).replicateScope(
+    await new AccessFixture(database, world).replicateScope(
         {
             packageId,
             type: "space",
@@ -382,7 +408,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
         .values(
             ["one", "two"].map((id) => ({ id, scope: spaceId, owner: owner.id, public: false })),
         );
-    const asOwner = AccessContext.of(Caller.of(owner), Date.now());
+    const asOwner = AccessContext.of(Caller.of(owner), world.clock.now());
 
     // store the host's installation state
     let isEnabled = true;
@@ -392,15 +418,15 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     const resources = new ResourceContext();
     const implementation = implement(procedures).$context<RequestContext>();
     await using server = Server.start({
-        clock: Clock.system,
+        environment: world,
         package: hosting.package,
-        scope: spaceId,
+        scopes: [spaceId],
         resources,
         authenticate: async (request) => {
             authentications++;
 
             return request.headers.has("authorization") || request.headers.has("cookie")
-                ? verifier.authenticate(request, Date.now(), spaceId)
+                ? verifier.authenticate(request, world.clock.now(), spaceId)
                 : undefined;
         },
         authorizeMachine: async () => {
@@ -429,6 +455,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
         access: {
             authorizer,
             database,
+            environment: world,
             target: async ({ input }) => note.reference(spaceId, key.parse(input).id),
         },
     });
@@ -450,6 +477,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
                           }),
                 ),
         },
+        world,
     );
     expect(await client.me()).toBe("owner");
     expect(await client.read({ id: "one" })).toBe("personal note");
@@ -457,9 +485,9 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     expect(authentications).toBe(3);
 
     // limit an owner's token to one object by their stored grant to it
-    const now = Date.now();
+    const now = world.clock.now();
     const token = principal.client.reference(Scope.universe.id, "client-restricted");
-    const grantId = await new AccessFixture(database).replicateGrant(owner, token, [
+    const grantId = await new AccessFixture(database, world).replicateGrant(owner, token, [
         { ...note.permission("read"), scope: spaceId, objectId: "one" },
     ]);
     const restricted = await issuer.issue(
@@ -472,14 +500,15 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
             credential: {
                 kind: "personal",
                 id: "restricted-token",
-                client: Identifier.create("client"),
+                client: Identifier.create("client", world),
                 audience: packageId,
                 scope: spaceId,
                 verifiedAt: now,
                 expiresAt: now + 60000,
             },
         },
-        Date.now(),
+        world.clock.now(),
+        world,
     );
     bearer = restricted.accessToken;
     expect(await client.read({ id: "one" })).toBe("personal note");
@@ -497,7 +526,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
         "permission denied: read",
     ]);
     const byOwner = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
-        Authorization.run(authorizer, database, () => asOwner, call);
+        Authorization.run(authorizer, database, () => asOwner, world, call);
     const shared = await byOwner((authorization) =>
         Relationship.grant(
             {
@@ -527,7 +556,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     expect(await client.read({ id: "one" })).toBe("personal note");
     expect(await refusal(client.me())).toEqual([
         "UNAUTHORIZED",
-        "MISSING_CREDENTIAL",
+        "CREDENTIAL_MISSING",
         "missing caller credential",
     ]);
     bearer = "invalid";

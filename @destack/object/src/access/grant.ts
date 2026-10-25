@@ -4,6 +4,8 @@ import { type MethodBuilder } from "../method/record.ts";
 import { defineObject } from "../object/object.ts";
 import { Execution } from "../method/execution.ts";
 import { ObjectPolicy } from "../object/access.ts";
+import { defineShape } from "../replica/shape.ts";
+import { schema } from "@destack/schema";
 
 /** The grants of a scope: what its principal lets delegates do for it. */
 export const grant = defineObject(
@@ -39,3 +41,20 @@ export const grant = defineObject(
         ),
     }),
 );
+
+/** The grants delegated to one principal, which it follows to act for their delegators. */
+export const grantShape = defineShape({
+    name: "grant",
+    parameters: schema.object({
+        /** The package of the delegate's type. */
+        delegatePackageId: schema.string(),
+        /** The delegate's type. */
+        delegateType: schema.string(),
+        /** The scope the delegate lives in. */
+        delegateScope: schema.string(),
+        /** The delegate's identifier. */
+        delegateId: schema.string(),
+    }),
+    objects: [grant],
+    queries: (delegate) => [grant.query({ scopes: "every", where: { ...delegate } })],
+});

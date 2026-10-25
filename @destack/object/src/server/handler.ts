@@ -1,4 +1,5 @@
-import { context, extractContext } from "@destack/telemetry";
+import type { Environment } from "@destack/environment";
+import { extractContext } from "@destack/telemetry";
 import { isCallError } from "../error/call.ts";
 import { reportError } from "../error/report.ts";
 import { ObjectError } from "../error/error.ts";
@@ -65,7 +66,11 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
                 new SmartCoercionPlugin({
                     schemaConverters: [RequestHandler.#converter(payloads)],
                 }),
-                RequestHandler.#releasePlugin<State>(options.package, metas),
+                RequestHandler.#releasePlugin<State>(
+                    options.package,
+                    metas,
+                    options.environment.telemetry,
+                ),
                 ...(options.plugins ?? []),
             ],
             clientInterceptors: [
@@ -74,7 +79,12 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
             ],
 
             adapterInterceptors: [
-                (call) => context.with(extractContext(call.request.headers), () => call.next()),
+                (call) => {
+                    const { telemetry } = options.environment;
+                    const extracted = extractContext(call.request.headers, telemetry);
+
+                    return telemetry.context.with(extracted, () => call.next());
+                },
                 ...(options.adapterInterceptors ?? []),
             ],
         });
@@ -100,6 +110,7 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
     static #releasePlugin<State extends RequestState>(
         served: PackageHandle,
         metas: ReadonlyMap<string, ProcedureMetadata>,
+        telemetry: Environment["telemetry"],
     ): NonNullable<OpenAPIHandlerOptions<State>["plugins"]>[number] {
         return {
             order: 1,
@@ -129,7 +140,7 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
                     try {
                         return await call.next();
                     } catch (error) {
-                        throw isCallError(error) ? error : reportError(error);
+                        throw isCallError(error) ? error : reportError(error, telemetry);
                     }
                 });
             },
@@ -141,7 +152,7 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
         options: HandlerOptions<State>,
         metas: ReadonlyMap<string, ProcedureMetadata>,
     ): NonNullable<OpenAPIHandlerOptions<State>["clientInterceptors"]> {
-        const telemetry = new CallTelemetry("server");
+        const telemetry = new CallTelemetry("server", options.environment);
 
         return [
             (call) =>
@@ -198,11 +209,11 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
 
         // require a release
         if (header === null) {
-            throw ObjectError.of("MISSING_VERSION", `package ${name} requires ${VERSION_HEADER}`);
+            throw ObjectError.of("VERSION_MISSING", `package ${name} requires ${VERSION_HEADER}`);
         }
         // refuse a header that is not a release
         else if (caller === undefined) {
-            throw ObjectError.of("INVALID_VERSION", `invalid ${VERSION_HEADER}: ${header}`);
+            throw ObjectError.of("VERSION_INVALID", `invalid ${VERSION_HEADER}: ${header}`);
         }
         // refuse a release newer than this one
         else if (Version.compare(caller, version) > 0) {
@@ -239,7 +250,7 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
         // require a decoded JSON object input and assign each release's fields in order
         const decoded = JsonInput.safeParse(input);
         if (!decoded.success) {
-            throw ObjectError.of("INVALID_CONVERSION", "a converted input must be a JSON object");
+            throw ObjectError.of("CONVERSION_INVALID", "a converted input must be a JSON object");
         }
         const converted = Expression.upgrade(convert, decoded.data, caller, served);
 
@@ -331,6 +342,8 @@ export interface HandlerOptions<State extends Context> extends OpenAPIHandlerOpt
     package: PackageHandle;
     /** The health. */
     health: Health;
+    /** The environment calls run in, whose tracers, meters and clock time them. */
+    readonly environment: Environment;
     /** Authorize a call. */
     authorize?(call: ProcedureContext<State>): Promise<void>;
     /** Record an audit event. */

@@ -1,8 +1,9 @@
 import { present } from "@destack/schema";
-import { permission, type AccessExpression } from "@destack/access";
+import { permission, subjectSet, union, type AccessExpression } from "@destack/access";
 
 import type { Attachment } from "../object/object.ts";
 import type { Trait } from "./trait.ts";
+import { installedPackage } from "../installation/package.ts";
 
 /** Objects taking attachments of other types. */
 export const attachments: Trait<readonly Attachment[]> = {
@@ -79,15 +80,22 @@ export const attachments: Trait<readonly Attachment[]> = {
                     `object ${object.name} already derives permission ${receive}, which attaching ${plural} also derives`,
                 );
             }
-            // derive the receive permission
+            // derive the receive permission: the attaching one, or the attachment package's installations
             else {
-                attaching[receive] = permission(attachment.by);
+                const { packageId } = attachment.object.policy.definition;
+                attaching[receive] = union(
+                    permission(attachment.by),
+                    subjectSet(installedPackage, packageId, "installation"),
+                );
             }
         }
 
-        // join each attachment type's open parent relation
+        // join each attachment type's open parent relation, granting the package sets it derives
+        const isGranting = Object.values(attaching).length > 0;
+
         return {
             permissions: attaching,
+            sets: isGranting ? [installedPackage] : [],
             contributes: options.map((attachment) => ({
                 policy: attachment.object.policy,
                 relation: "parent",

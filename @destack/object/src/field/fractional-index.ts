@@ -1,3 +1,4 @@
+import type { Random } from "@destack/environment";
 import { BASE_62_DIGITS, generateKeyBetween } from "fractional-indexing";
 import { schema } from "@destack/schema";
 
@@ -11,19 +12,18 @@ export const FractionalIndex = Object.assign(schema.string().regex(/^[A-Za-z][0-
         return generateKeyBetween(before ?? null, after ?? null);
     },
 
-    /** Place an index between two others with random final digits. */
-    place(before: string | undefined, after: string | undefined): string {
+    /** Place an index between two others with final digits drawn from some randomness. */
+    place(before: string | undefined, after: string | undefined, random: Random): string {
         // extend the shortest index between them with random digits, the last never zero, staying below the upper end
         const middle = FractionalIndex.between(before, after);
-        const random = [...crypto.getRandomValues(new Uint8Array(JITTER_DIGITS))].map(
-            (value, index) =>
-                BASE_62_DIGITS.charAt(
-                    index === JITTER_DIGITS - 1
-                        ? 1 + (value % (BASE_62_DIGITS.length - 1))
-                        : value % BASE_62_DIGITS.length,
-                ),
+        const jitter = [...random.bytes(JITTER_DIGITS)].map((value, index) =>
+            BASE_62_DIGITS.charAt(
+                index === JITTER_DIGITS - 1
+                    ? 1 + (value % (BASE_62_DIGITS.length - 1))
+                    : value % BASE_62_DIGITS.length,
+            ),
         );
-        const placed = middle + random.join("");
+        const placed = middle + jitter.join("");
 
         return after === undefined || placed < after ? placed : middle;
     },

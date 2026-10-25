@@ -1,3 +1,4 @@
+import { testSimulation } from "../test/world.ts";
 import { Package } from "@destack/package";
 import { AccessFixture } from "@destack/access/test";
 import { expect, onTestFinished, test } from "@destack/test";
@@ -12,13 +13,13 @@ import { implement } from "./handler.ts";
 import { Server } from "./http.ts";
 import type { RequestContext } from "./context.ts";
 import { fixturePackage, hosting } from "../test/fixture.ts";
-import { Clock } from "@destack/environment";
 import { tablesOf } from "../index.ts";
 
 /** The authentication renaming a vault requires. */
 const RECENT = { assurance: 2, maxAge: 10 * 60 * 1000 };
 
 test("challenge a hand-written procedure's caller for its elevated permission, then allow it once it authenticates again", async () => {
+    const world = testSimulation().environment("test");
     // declare a vault its owner renames after recent strong authentication
     const module = {
         package: { id: hosting.package.id, name: "@example/vault", version: "2026.9.0" },
@@ -52,12 +53,10 @@ test("challenge a hand-written procedure's caller for its elevated permission, t
     // open a database for alice's vault
     const storage = await TestDatabase.create(
         tablesOf({ packages: [], follows: [], tables: [vaults] }).tables,
-        {
-            isMigrated: true,
-        },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
-    await new AccessFixture(storage.database).replicateScope(
+    await new AccessFixture(storage.database, world).replicateScope(
         {
             packageId: hosting.package.id,
             type: "space",
@@ -85,13 +84,13 @@ test("challenge a hand-written procedure's caller for its elevated permission, t
     const implementation = implement(procedures).$context<RequestContext>();
     let level = 1;
     await using server = Server.start({
-        clock: Clock.system,
+        environment: world,
         ...hosting,
         health: new Health("vault"),
         drainTimeout: 100,
         authenticate: async () => {
             const subject = principal.user.reference("universe", "alice");
-            const now = Date.now();
+            const now = world.clock.now();
 
             return {
                 caller: Caller.of(subject),
@@ -119,6 +118,7 @@ test("challenge a hand-written procedure's caller for its elevated permission, t
         access: {
             authorizer,
             database: storage.database,
+            environment: world,
             target: async ({ input }) =>
                 vault.reference(
                     hosting.scope,
@@ -132,6 +132,7 @@ test("challenge a hand-written procedure's caller for its elevated permission, t
             url: "https://vault.test",
             fetch: (request) => server.fetch(request),
         },
+        world,
     );
 
     // challenge a single factor and rename after elevation

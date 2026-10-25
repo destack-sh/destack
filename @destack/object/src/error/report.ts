@@ -1,17 +1,19 @@
-import { telemetry, trace } from "@destack/telemetry";
+import type { Environment } from "@destack/environment";
+import { TelemetryScope, trace } from "@destack/telemetry";
 
 import { ValidationError } from "@orpc/contract";
 import { CallError } from "./call.ts";
 import { present } from "@destack/schema";
+import { FamilyError } from "@destack/error";
 import { refuseInput } from "./error.ts";
 
 import type {} from "@destack/package/import-meta";
 
-/** The instruments capturing unexpected failures. */
-const instruments = telemetry.scope(import.meta.destack.package);
-
-/** Record unexpected failures and return an error safe for clients. */
-export function reportError(error: unknown): CallError<string, unknown> {
+/** Record unexpected failures on a telemetry and return an error safe for clients. */
+export function reportError(
+    error: unknown,
+    telemetry: Environment["telemetry"],
+): CallError<string, unknown> {
     // read the call error a failure is or has
     const failure = CallError.of(error);
 
@@ -26,14 +28,21 @@ export function reportError(error: unknown): CallError<string, unknown> {
             "the call error of invalid input",
         );
     }
-    // pass deliberate refusals on, such as a client failure or a declared unavailability
-    else if (failure !== undefined && failure.code !== "INTERNAL_SERVER_ERROR") {
+    // pass deliberate refusals for callers on, such as a client failure or a declared unavailability, never a host family's
+    else if (
+        failure !== undefined &&
+        failure.code !== "INTERNAL_SERVER_ERROR" &&
+        !(error instanceof FamilyError && error.audience === "host")
+    ) {
         return failure;
     }
 
     // capture unexpected failures as escaping their request, and hide them
-    trace.getActiveSpan()?.recordException(error instanceof Error ? error : String(error));
-    instruments.captureException(error, { isEscaped: true });
+    const span = trace.getSpan(telemetry.context.active());
+    span?.recordException(error instanceof Error ? error : String(error));
+    TelemetryScope.of(import.meta.destack.package, telemetry).captureException(error, {
+        isEscaped: true,
+    });
 
     return CallError.http("INTERNAL_SERVER_ERROR", {
         message: "internal server error",
@@ -42,8 +51,8 @@ export function reportError(error: unknown): CallError<string, unknown> {
 }
 
 /** Answer a failure with its status and the body clients read errors from. */
-export function refusal(error: unknown): Response {
-    const reported = reportError(error);
+export function refusal(error: unknown, telemetry: Environment["telemetry"]): Response {
+    const reported = reportError(error, telemetry);
 
     return Response.json(reported.toJSON(), { status: reported.status });
 }

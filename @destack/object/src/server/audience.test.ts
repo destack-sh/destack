@@ -1,3 +1,4 @@
+import { testSimulation } from "../test/index.ts";
 import { testCallKey } from "../test/context.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import {
@@ -17,16 +18,13 @@ import { testEvents, serversOf } from "../test/index.ts";
 import { AccessFixture } from "@destack/access/test";
 import { eq, type Table } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { schema, type Identifier } from "@destack/schema";
+import { schema, type Identifier, Uuid, type UuidEnvironment } from "@destack/schema";
 import { type Page, Scope, type Subject } from "@destack/sync";
-import { v7 } from "uuid";
 import { defineObject, field } from "../index.ts";
 import { ObjectAudience } from "./audience.ts";
-import { ObjectStore } from "./index.ts";
-import { Clock } from "@destack/environment";
-import { VirtualClock } from "@destack/environment/simulation";
 import objectPackage from "../package.ts";
 import { tablesOf } from "../index.ts";
+import { TestObjectStore } from "../test/index.ts";
 
 /** The spaces the notebooks live in. */
 const space = defineObject({
@@ -63,12 +61,15 @@ const note = defineObject({
 const SHARED_MILLISECONDS = 200;
 
 /** The space the notebooks live in. */
-const spaceId = schema.identifier("space").parse(`space-${v7()}`);
+const spaceId = schema.identifier("space").parse(`space-01996ab0-0000-7000-8000-00000000a001`);
 
 /** The caller following the space. */
 const ada = principal.user.reference(Scope.universe.id, "ada");
 
 test("decide again after changes of the caller's access, and leave other identities' and other roles' changes alone", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // create two notebooks with a note each, a role ada has on the first and a role she lacks
     const storage = await TestDatabase.create(
         tablesOf({
@@ -76,61 +77,78 @@ test("decide again after changes of the caller's access, and leave other identit
             follows: [],
             tables: [],
         }).tables,
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
     const database = storage.database;
-    await new AccessFixture(database).replicateScope(
+    await new AccessFixture(database, world).replicateScope(
         space.reference(Scope.universe.id, spaceId),
         space.policy,
     );
     const at = { scope: spaceId, createdAt: 1, updatedAt: 1 };
-    await database.insert(space.table).values({ ...at, id: spaceId, scope: Scope.universe.id });
-    const [first, second] = [newId("notebook"), newId("notebook")];
-    await database.insert(notebook.table).values([
-        { ...at, id: first, name: "First" },
-        { ...at, id: second, name: "Second" },
-    ]);
-    const [firstNote, secondNote] = [newId("note"), newId("note")];
-    await database.insert(note.table).values([
-        { ...at, id: firstNote, parentId: first, title: "First" },
-        { ...at, id: secondNote, parentId: second, title: "Second" },
-    ]);
-    const [readerRole, otherRole] = [newId("role"), newId("role")];
-    await database.insert(accessRole).values(
-        [readerRole, otherRole].map((id) => ({
-            ...at,
-            id,
-            name: id,
-            description: "Reads notebooks",
-        })),
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .insert(space.table)
+                .values({ ...at, id: spaceId, scope: Scope.universe.id }),
     );
-    await database.insert(accessRelationship).values(
-        Relationship.encode({
-            id: newId("relationship"),
-            object: notebook.reference(spaceId, first),
-            role: readerRole,
-            subject: ada,
-            createdAt: 1,
-            expiresAt: null,
-        }),
+    const [first, second] = [newId("notebook", world), newId("notebook", world)];
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(notebook.table).values([
+                { ...at, id: first, name: "First" },
+                { ...at, id: second, name: "Second" },
+            ]),
+    );
+    const [firstNote, secondNote] = [newId("note", world), newId("note", world)];
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(note.table).values([
+                { ...at, id: firstNote, parentId: first, title: "First" },
+                { ...at, id: secondNote, parentId: second, title: "Second" },
+            ]),
+    );
+    const [readerRole, otherRole] = [newId("role", world), newId("role", world)];
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(accessRole).values(
+                [readerRole, otherRole].map((id) => ({
+                    ...at,
+                    id,
+                    name: id,
+                    description: "Reads notebooks",
+                })),
+            ),
+    );
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(accessRelationship).values(
+                Relationship.encode({
+                    id: newId("relationship", world),
+                    object: notebook.reference(spaceId, first),
+                    role: readerRole,
+                    subject: ada,
+                    createdAt: 1,
+                    expiresAt: null,
+                }),
+            ),
     );
 
     // follow the space as ada
-    const store = new ObjectStore({
+    const store = await TestObjectStore.at(principal.space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: principal.space.reference(Scope.universe.id, spaceId),
         servers: serversOf([space, notebook, note]),
         database,
         callKey: testCallKey,
-        events: await testEvents(database),
+        events: await testEvents(database, world),
         origin: { package: notebook.package },
     });
     const audience = await ObjectAudience.of(
         store,
         spaceId,
-        AccessContext.of(Caller.of(ada), Date.now()),
+        AccessContext.of(Caller.of(ada), world.clock.now()),
     );
     const decided = async (write: () => PromiseLike<unknown>, tables: readonly Table[]) => {
         const { sequence } = await database.log.position();
@@ -143,14 +161,17 @@ test("decide again after changes of the caller's access, and leave other identit
     // decide again once her role grants reading
     const granted = await decided(
         () =>
-            database.insert(accessRolePermission).values({
-                id: newId("role-permission"),
-                roleId: readerRole,
-                scope: spaceId,
-                packageId: notebook.policy.definition.packageId,
-                type: notebook.name,
-                name: "read",
-            }),
+            database.transaction(
+                async (transaction) =>
+                    await transaction.insert(accessRolePermission).values({
+                        id: newId("role-permission", world),
+                        roleId: readerRole,
+                        scope: spaceId,
+                        packageId: notebook.policy.definition.packageId,
+                        type: notebook.name,
+                        name: "read",
+                    }),
+            ),
         [accessRolePermission],
     );
     expect(granted).toEqual([true]);
@@ -158,18 +179,24 @@ test("decide again after changes of the caller's access, and leave other identit
     // leave a role ada has no binding of, and decide again once her role changes
     const unrelated = await decided(
         () =>
-            database
-                .update(accessRole)
-                .set({ description: "Reads every notebook" })
-                .where(eq(accessRole.id, otherRole)),
+            database.transaction(
+                async (transaction) =>
+                    await transaction
+                        .update(accessRole)
+                        .set({ description: "Reads every notebook" })
+                        .where(eq(accessRole.id, otherRole)),
+            ),
         [accessRole],
     );
     const described = await decided(
         () =>
-            database
-                .update(accessRole)
-                .set({ description: "Reads the first notebook" })
-                .where(eq(accessRole.id, readerRole)),
+            database.transaction(
+                async (transaction) =>
+                    await transaction
+                        .update(accessRole)
+                        .set({ description: "Reads the first notebook" })
+                        .where(eq(accessRole.id, readerRole)),
+            ),
         [accessRole],
     );
     expect([unrelated, described]).toEqual([[false], [true]]);
@@ -183,15 +210,18 @@ test("decide again after changes of the caller's access, and leave other identit
     };
     const joined = await decided(
         () =>
-            database.insert(accessRelationship).values(
-                Relationship.encode({
-                    id: newId("relationship"),
-                    object: team,
-                    relation: "member",
-                    subject: ada,
-                    createdAt: 1,
-                    expiresAt: null,
-                }),
+            database.transaction(
+                async (transaction) =>
+                    await transaction.insert(accessRelationship).values(
+                        Relationship.encode({
+                            id: newId("relationship", world),
+                            object: team,
+                            relation: "member",
+                            subject: ada,
+                            createdAt: 1,
+                            expiresAt: null,
+                        }),
+                    ),
             ),
         [accessRelationship],
     );
@@ -199,7 +229,7 @@ test("decide again after changes of the caller's access, and leave other identit
 
     // decide again once the space is suspended
     const suspended = await decided(
-        () => new AccessFixture(database).suspendReplica(spaceId, 2),
+        () => new AccessFixture(database, world).suspendReplica(spaceId, 2),
         [Scope.table],
     );
     expect(suspended).toEqual([true]);
@@ -226,6 +256,9 @@ const album = defineObject({
 });
 
 test("decide again once a relationship an arrow follows changes, and leave another identity's relationship alone", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // store a space with a shelf and an album, following it as ada
     const storage = await TestDatabase.create(
         tablesOf({
@@ -233,45 +266,57 @@ test("decide again once a relationship an arrow follows changes, and leave anoth
             follows: [],
             tables: [],
         }).tables,
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
     const { database } = storage;
-    await new AccessFixture(database).replicateScope(
+    await new AccessFixture(database, world).replicateScope(
         space.reference(Scope.universe.id, spaceId),
         space.policy,
     );
     const at = { scope: spaceId, createdAt: 1, updatedAt: 1 };
-    await database.insert(space.table).values({ ...at, id: spaceId, scope: Scope.universe.id });
-    const [shelfId, albumId] = [newId("shelf"), newId("album")];
-    await database.insert(shelf.table).values({ ...at, id: shelfId });
-    await database.insert(album.table).values({ ...at, id: albumId });
-    const store = new ObjectStore({
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .insert(space.table)
+                .values({ ...at, id: spaceId, scope: Scope.universe.id }),
+    );
+    const [shelfId, albumId] = [newId("shelf", world), newId("album", world)];
+    await database.transaction(
+        async (transaction) => await transaction.insert(shelf.table).values({ ...at, id: shelfId }),
+    );
+    await database.transaction(
+        async (transaction) => await transaction.insert(album.table).values({ ...at, id: albumId }),
+    );
+    const store = await TestObjectStore.at(principal.space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: principal.space.reference(Scope.universe.id, spaceId),
         servers: serversOf([space, shelf, album]),
         database,
         callKey: testCallKey,
-        events: await testEvents(database),
+        events: await testEvents(database, world),
         origin: { package: album.package },
     });
     const audience = await ObjectAudience.of(
         store,
         spaceId,
-        AccessContext.of(Caller.of(ada), Date.now()),
+        AccessContext.of(Caller.of(ada), world.clock.now()),
     );
     const relate = async (name: string, subject: Subject) => {
         const { sequence } = await database.log.position();
-        await database.insert(accessRelationship).values(
-            Relationship.encode({
-                id: newId("relationship"),
-                object: album.reference(spaceId, albumId),
-                relation: name,
-                subject,
-                createdAt: 1,
-                expiresAt: null,
-            }),
+        await database.transaction(
+            async (transaction) =>
+                await transaction.insert(accessRelationship).values(
+                    Relationship.encode({
+                        id: newId("relationship", world),
+                        object: album.reference(spaceId, albumId),
+                        relation: name,
+                        subject,
+                        createdAt: 1,
+                        expiresAt: null,
+                    }),
+                ),
         );
         const { changes } = await database.log.read({
             tables: [accessRelationship],
@@ -288,12 +333,17 @@ test("decide again once a relationship an arrow follows changes, and leave anoth
     }).toEqual({ shelved: [true], owner: [false] });
 });
 
-/** Build a fresh identifier of a type. */
-function newId<Prefix extends string>(prefix: Prefix): Identifier<Prefix> {
-    return schema.identifier(prefix).parse(`${prefix}-${v7()}`);
+/** Build a fresh identifier of a type in a world. */
+function newId<Prefix extends string>(prefix: Prefix, world: UuidEnvironment): Identifier<Prefix> {
+    return schema.identifier(prefix).parse(`${prefix}-${Uuid.v7(world)}`);
 }
 
 test("drop a notebook from a live replica once the relationship sharing it expires, deciding alike with an identical audience", async () => {
+    // run in a world of its own
+    const simulation = testSimulation();
+    const { clock } = simulation;
+    const world = simulation.environment("test");
+
     // share a notebook with ada for a moment
     const storage = await TestDatabase.create(
         tablesOf({
@@ -301,45 +351,55 @@ test("drop a notebook from a live replica once the relationship sharing it expir
             follows: [],
             tables: [],
         }).tables,
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
     const database = storage.database;
-    await new AccessFixture(database).replicateScope(
+    await new AccessFixture(database, world).replicateScope(
         space.reference(Scope.universe.id, spaceId),
         space.policy,
     );
     const at = { scope: spaceId, createdAt: 1, updatedAt: 1 };
-    await database.insert(space.table).values({ ...at, id: spaceId, scope: Scope.universe.id });
-    const shared = newId("notebook");
-    await database.insert(notebook.table).values({ ...at, id: shared, name: "Shared" });
-    const clock = new VirtualClock(Date.now());
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .insert(space.table)
+                .values({ ...at, id: spaceId, scope: Scope.universe.id }),
+    );
+    const shared = newId("notebook", world);
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(notebook.table).values({ ...at, id: shared, name: "Shared" }),
+    );
     const expiresAt = clock.now() + SHARED_MILLISECONDS;
-    await database.insert(accessRelationship).values(
-        Relationship.encode({
-            id: newId("relationship"),
-            object: notebook.reference(spaceId, shared),
-            relation: "viewer",
-            subject: ada,
-            createdAt: 1,
-            expiresAt,
-        }),
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(accessRelationship).values(
+                Relationship.encode({
+                    id: newId("relationship", world),
+                    object: notebook.reference(spaceId, shared),
+                    relation: "viewer",
+                    subject: ada,
+                    createdAt: 1,
+                    expiresAt,
+                }),
+            ),
     );
 
     // follow the notebooks as ada on the test's clock, with a second identical audience deciding alike
-    const store = new ObjectStore({
+    const store = await TestObjectStore.at(principal.space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
-        clock,
+        environment: world,
         principal: principal.space.reference(Scope.universe.id, spaceId),
         servers: serversOf([space, notebook, note]),
         database,
         callKey: testCallKey,
-        events: await testEvents(database),
+        events: await testEvents(database, world),
         origin: { package: notebook.package },
     });
     const [following, identical] = await Promise.all([
-        ObjectAudience.of(store, spaceId, AccessContext.of(Caller.of(ada), Date.now())),
-        ObjectAudience.of(store, spaceId, AccessContext.of(Caller.of(ada), Date.now())),
+        ObjectAudience.of(store, spaceId, AccessContext.of(Caller.of(ada), world.clock.now())),
+        ObjectAudience.of(store, spaceId, AccessContext.of(Caller.of(ada), world.clock.now())),
     ]);
     const subscription = new AbortController();
     onTestFinished(() => subscription.abort());
@@ -376,6 +436,9 @@ test("drop a notebook from a live replica once the relationship sharing it expir
 });
 
 test("pass the keys an account hands down to its space for listing, and only those the caller uses under the query's permission", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // hand down two keys of an account to its space, one ada uses and one bob uses
     const account = defineObject({
         name: "account",
@@ -409,51 +472,57 @@ test("pass the keys an account hands down to its space for listing, and only tho
             follows: [],
             tables: [],
         }).tables,
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
     const database = storage.database;
-    const accountId = newId("account");
-    const roomId = newId("room");
-    const access = new AccessFixture(database);
+    const accountId = newId("account", world);
+    const roomId = newId("room", world);
+    const access = new AccessFixture(database, world);
     await access.replicateScope(account.reference(Scope.universe.id, accountId), account.policy);
     await access.replicateScope(room.reference(accountId, roomId), room.policy);
     const bob = principal.user.reference(Scope.universe.id, "bob");
     const keys = [
-        { id: newId("key"), name: "Ada's", consumer: ada },
-        { id: newId("key"), name: "Bob's", consumer: bob },
+        { id: newId("key", world), name: "Ada's", consumer: ada },
+        { id: newId("key", world), name: "Bob's", consumer: bob },
     ];
     for (const { id, name, consumer } of keys) {
-        await database
-            .insert(key.table)
-            .values({ id, scope: accountId, name, createdAt: 1, updatedAt: 1 });
-        await database.insert(accessRelationship).values(
-            Relationship.encode({
-                id: newId("relationship"),
-                object: key.reference(accountId, id),
-                relation: "consumer",
-                subject: consumer,
-                createdAt: 1,
-                expiresAt: null,
-            }),
+        await database.transaction(
+            async (transaction) =>
+                await transaction
+                    .insert(key.table)
+                    .values({ id, scope: accountId, name, createdAt: 1, updatedAt: 1 }),
+        );
+        await database.transaction(
+            async (transaction) =>
+                await transaction.insert(accessRelationship).values(
+                    Relationship.encode({
+                        id: newId("relationship", world),
+                        object: key.reference(accountId, id),
+                        relation: "consumer",
+                        subject: consumer,
+                        createdAt: 1,
+                        expiresAt: null,
+                    }),
+                ),
         );
     }
 
     // decide the handed-down keys for ada in the room, by listing and by her use of them
-    const store = new ObjectStore({
+    const store = await TestObjectStore.at(principal.space.reference(Scope.universe.id, roomId), {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: principal.space.reference(Scope.universe.id, roomId),
         servers: serversOf([account, room, key]),
         database,
         callKey: testCallKey,
-        events: await testEvents(database),
+        events: await testEvents(database, world),
         origin: { package: key.package },
     });
     const audience = await ObjectAudience.of(
         store,
         roomId,
-        AccessContext.of(Caller.of(ada), Date.now()),
+        AccessContext.of(Caller.of(ada), world.clock.now()),
     );
     const rows = await database.select().from(key.table).orderBy(key.table.name);
     const position = await database.log.position();

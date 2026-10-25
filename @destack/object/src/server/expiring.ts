@@ -101,16 +101,20 @@ export class ExpiringController implements ReconcileController {
                         rule,
                         now,
                     );
-                    await store.mutate(
-                        store.serving(object, now),
-                        {
-                            id: RequestId.create(now),
-                            calls: rows.map((row) =>
-                                object.call("expire", object.target(ObjectKey.parse(row))),
-                            ),
-                        },
-                        { component: EXPIRY },
-                    );
+                    // remove each scope's rows in a mutation of its own, as a mutation acts in one scope
+                    const keys = rows.map((row) => ObjectKey.parse(row));
+                    for (const scoped of Map.groupBy(keys, (key) => key.scope).values()) {
+                        await store.mutate(
+                            store.as(object, now),
+                            {
+                                id: RequestId.create(store.environment),
+                                calls: scoped.map((key) =>
+                                    object.call("expire", object.target(key)),
+                                ),
+                            },
+                            { component: EXPIRY },
+                        );
+                    }
                     batch = rows.length;
                     removed += batch;
                 }

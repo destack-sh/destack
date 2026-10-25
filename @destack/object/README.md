@@ -19,6 +19,7 @@ const store = new ObjectStore({
     callKey,
     events,
     origin,
+    environment,
 });
 const [created] = await store.mutate(caller, {
     id: requestId,
@@ -163,6 +164,31 @@ const badges: Record<string, StackInputOf<typeof badge>> = {
 };
 ```
 
+A declaration handler names the document collection users declare in, and reads a declared record with fields another row keeps.
+
+```ts
+rollout.implement({
+    declaration: {
+        collection: "installations", // the type's plural by default
+        immutable: ["name"],
+        read: async (row, reader) => nth(await Rollout.read(reader, [row]), 0), // its get by default
+    },
+});
+```
+
+## Installations
+
+`installation` is the principal of software in a space, machine, device or the universe: born with its scope, declared by its stack, or installed.
+
+```ts
+// a scope's base installations, born in the act that receives it, each bound to its package's role
+const contexts = await Installation.receive(authorization, scope, ancestors, [stackPackage]);
+const served = stackServer.at(nth(contexts, 0)); // { origin: "base", installation, scope, capabilities }
+
+// a declared or installed one, written by a handler in its call's transaction
+const id = await Installation.install(context, spaceId, { origin: "installed", packageId, name });
+```
+
 ## Controllers
 
 A type's `controller` works through its pending rows, and says when to look again.
@@ -229,9 +255,9 @@ import { Health, Server } from "@destack/object/server";
 
 const server = Server.start({
     ...handler, // the routes and enforcement a store builds for a package
-    clock,
+    environment,
     health: new Health(handler.package.name),
-    authenticate: (request) => verifier.authenticate(request, clock.now()),
+    authenticate: (request) => verifier.authenticate(request, environment.clock.now()),
     authorizeMachine: async () => {},
 });
 await server.fetch(request);
@@ -251,11 +277,12 @@ const store = new ObjectStore({
     callKey,
     events,
     origin,
+    environment,
 });
 const row = await store.query(caller, page.call("get", { spaceId, id }));
 const [renamed] = await store.mutate(caller, { id: requestId, calls: [rename] });
-// the installation serving the type, else the store's own principal
-await store.mutate(store.serving(page), { id: RequestId.create(), calls: [create] });
+// the installation serving the type
+await store.mutate(store.as(page), { id: RequestId.create(environment), calls: [create] });
 ```
 
 ## Replicas
@@ -338,8 +365,9 @@ const store = new ObjectStore({
     callKey,
     events,
     origin,
+    environment,
 });
-await store.mutate(store.serving(call), {
+await store.mutate(store.as(call), {
     id: requestId,
     calls: [call.call("record", { scope, items: [{ id, time, data, actor, method }] })],
 });
@@ -375,7 +403,7 @@ indexes: { handle: { on: ["handle"], unique: true, across: () => universe } },
 
 const claim = defineObject({ name: "claim", /* … */ }, () => claimMethods);
 const home = RemoteStore.of(accounts.store, Scope.universe.id);
-const store = new ObjectStore({ servers: [profileServer], claims: { object: claim, home }, principal: space, database, callKey, events, origin });
+const store = new ObjectStore({ servers: [profileServer], claims: { object: claim, home }, principal: space, database, callKey, events, origin, environment });
 const owner = await Claim.lookup(profile, store.claims, "handle", ["ada"]); // { scope, id }
 ```
 
@@ -398,6 +426,7 @@ const store = new ObjectStore({
     principal,
     callKey,
     origin,
+    environment,
 });
 // a call in another room: 421 MISDIRECTED_REQUEST { scope, partition }, which the router resends once
 request.headers.set(PARTITION_HEADER, roomId);
@@ -405,7 +434,7 @@ request.headers.set(PARTITION_HEADER, roomId);
 
 ## Nested calls
 
-`context.mutate` runs more calls in a handler's transaction as the caller or the code itself (`context.self`), `context.space()` acts for the space, and `context.enabled` reads a capability.
+`context.mutate` runs more calls in a handler's transaction as the caller or the code itself (`context.self`), `context.insert` writes an object of the package's own type as its create method does without running its handler, `context.delegated()` acts with the space's grant to the installation, and `context.enabled` reads a capability.
 
 ```ts
 export const shelf = base.shelf.implement({
@@ -419,7 +448,8 @@ export const shelf = base.shelf.implement({
         },
     },
 });
-const recipient = await context.query(await context.space(), user.call("recipient", { id }));
+const card = await context.insert(base.card, { parentId: board.id, label: "Ship" }); // the card's row
+const recipient = await context.query(await context.delegated(), user.call("recipient", { id }));
 if (context.enabled("push")) await deliverPush(recipient);
 ```
 
@@ -558,6 +588,8 @@ await client.check(page, id, "write");
 import { BrowserTab } from "@destack/object/browser";
 
 const tab = await BrowserTab.open({
+    environment,
+    worker,
     name: "pages",
     objects: { page },
     scope,

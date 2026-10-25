@@ -25,6 +25,7 @@ import { type MethodContext } from "../method/context.ts";
 import { type Method } from "../method/method.ts";
 import {
     ObjectPermissions,
+    ObjectScope,
     ObjectType,
     SCOPE,
     type ObjectDefinition,
@@ -42,11 +43,8 @@ export const ObjectPolicy = {
         definition: ObjectDefinition,
         owner: Package,
     ): { permissions: string[]; policy: Policy } {
-        // resolve the relations declared, read from fields and enclosing scopes
+        // collect the declared permissions, the traits' policies and the permissions they derive
         const permissions = ObjectPermissions.expressions(definition.permissions ?? []);
-        const relations = ObjectPolicy.declaredRelations(type, definition, owner, permissions);
-
-        // collect the traits' policies and the permissions they derive
         const names = Object.keys(permissions);
         const object = ObjectPolicy.traitObject(type, (definition.represents?.package ?? owner).id);
         const policies = type.traits.flatMap(({ trait, options }) =>
@@ -55,6 +53,10 @@ export const ObjectPolicy = {
         const derived = Object.fromEntries(
             policies.flatMap((policy) => Object.entries(policy.permissions ?? {})),
         );
+
+        // resolve the relations declared, read from fields and enclosing scopes by either kind of permission
+        const read = { ...derived, ...permissions };
+        const relations = ObjectPolicy.declaredRelations(type, definition, owner, read);
 
         // register the policy over declared and derived permissions
         const policy = ObjectPolicy.objectPolicy(owner, definition, {
@@ -126,7 +128,12 @@ export const ObjectPolicy = {
         objects: readonly ObjectType[],
         others: readonly (Policy | ObjectType | TableMapping)[],
         replicated: ReadonlySet<Table>,
-        partition?: string,
+        options: {
+            /** The one partition whose scopes' access the database stores, else none. */
+            readonly partition?: string | undefined;
+            /** The mappings of subject set types, registered once a policy grants their sets. */
+            readonly sets?: readonly TableMapping[];
+        } = {},
     ): Authorizer {
         // collect each object type once and the types they relate to
         const types: ObjectType[] = [];
@@ -163,7 +170,8 @@ export const ObjectPolicy = {
             {
                 replicated,
                 tables: new Set([...replicated, ...objects.map((object) => object.table)]),
-                ...(partition === undefined ? {} : { partition }),
+                ...(options.partition === undefined ? {} : { partition: options.partition }),
+                ...(options.sets === undefined ? {} : { sets: options.sets }),
             },
         );
     },
@@ -185,7 +193,7 @@ export const ObjectPolicy = {
             );
         } else if (!Object.hasOwn(policy.definition.permissions, permission)) {
             throw ObjectError.of(
-                "UNKNOWN_PERMISSION",
+                "PERMISSION_UNKNOWN",
                 `${object.type} has no permission ${permission}`,
             );
         }
@@ -420,9 +428,12 @@ export const ObjectPolicy = {
             ...(definition.isScope === true || represented?.definition.scope === true
                 ? { scope: true }
                 : {}),
-            ...(definition.partition === true ? { partition: true } : {}),
+            ...(definition.partition === true || represented?.definition.partition === true
+                ? { partition: true }
+                : {}),
             ...(represented?.definition.isGlobal === true ? { isGlobal: true } : {}),
             contributes: policies.flatMap((policy) => policy.contributes ?? []),
+            sets: policies.flatMap((policy) => policy.sets ?? []),
         });
     },
 
@@ -452,8 +463,9 @@ export const ObjectPolicy = {
             // map a plain reference by identifier, in the universe, the row's scope or across scopes
             else if (isRelation && field.type === "reference" && field.target) {
                 const target = field.target();
-                const isBeside = type.scopes.some((scope) =>
-                    target.scopes.some((other) => other.same(scope)),
+                const isBeside = ObjectScope.isBeside(
+                    type.definition.scope,
+                    target.definition.scope,
                 );
                 relations[name] =
                     target.scope === Scope.universe.id

@@ -32,7 +32,11 @@ export const DesiredState = {
         states: readonly ResourceState[],
     ): Promise<Digest[]> {
         // digest each state and read the states the scope has already
-        const digests = await Promise.all(states.map((state) => Digest.json(state)));
+        const digests = await Promise.all(
+            states.map((state) =>
+                Digest.json(state, transaction.database.state.environment.crypto),
+            ),
+        );
         const stored = await transaction
             .read(desiredState)
             .findMany({ where: { scope, digest: { in: digests } } });
@@ -72,7 +76,7 @@ export const DesiredState = {
         const missing = digests.filter((digest) => !states.has(digest));
         if (missing.length > 0) {
             throw ObjectError.of(
-                "MISSING_DESIRED_STATE",
+                "DESIRED_STATE_MISSING",
                 `${scope} has no desired states ${missing.join(", ")}`,
             );
         }

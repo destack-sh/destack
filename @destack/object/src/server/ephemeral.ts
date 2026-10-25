@@ -42,6 +42,8 @@ export class EphemeralStorage implements AsyncDisposable {
     readonly #linger: number;
     /** The memory database this store opened and closes, absent if its caller has one. */
     #memory: { readonly close: () => Promise<void> } | undefined;
+    /** The channel the store replicates over, which it closes. */
+    readonly #channel: Channel<unknown>;
 
     /** Store ephemeral object types in memory, replicated over a channel. */
     constructor(
@@ -73,8 +75,9 @@ export class EphemeralStorage implements AsyncDisposable {
         this.#byTable = new Map(objects.map((object) => [object.table, object]));
         this.#report = options.report;
         this.#linger = options.linger ?? LINGER_MILLISECONDS;
+        this.#channel = channel;
         this.tracker = new sync.Tracker(database, tables, channel, options);
-        this.feed = new sync.Feed(database, tables, { clock: options.clock });
+        this.feed = new sync.Feed(database, tables);
 
         // track owners
         this.#unwatch = this.tracker.watchTracked((owner, isTracked) =>
@@ -187,9 +190,10 @@ export class EphemeralStorage implements AsyncDisposable {
         this.tracker.close();
     }
 
-    /** Stop replicating and close the memory database this store opened. */
+    /** Stop replicating, then close the channel and the memory database this store opened. */
     async [Symbol.asyncDispose](): Promise<void> {
         this.close();
+        await this.#channel.close();
         await this.#memory?.close();
     }
 

@@ -1,3 +1,4 @@
+import { testSimulation } from "../test/index.ts";
 import { Caller, principal } from "@destack/access";
 import { expect, onTestFinished, test } from "@destack/test";
 import { Exchange } from "@destack/access/token";
@@ -44,8 +45,9 @@ const notes = definePackage({ objects: { note: note(NOTES, health) } }, { packag
 test("call a bound installation at its reference with the credential the host lends, speaking the package's release, for the served caller a call passes", async () => {
     // answer health checks
     const calls: (string | null)[][] = [];
-    const server = Bun.serve({
-        port: 0,
+    const world = testSimulation().environment("test");
+    const server = world.server.http({
+        hostname: "lent.test",
         fetch: (request) => {
             calls.push([
                 request.headers.get("authorization"),
@@ -60,8 +62,8 @@ test("call a bound installation at its reference with the credential the host le
 
     // connect through the binding's HTTP connector and call the package
     const binding = defineInstallationBinding("notes", notes);
-    const url = `http://127.0.0.1:${server.port}`;
-    const client = await binding.connectors.http.connect(bound(url, "secret"), binding);
+    const url = server.url.origin;
+    const client = await binding.connectors.http.connect(bound(url, "secret"), binding, world);
     const answer = await client.note.check();
 
     // call again for the person a served call came from, as the egress exchanges for them
@@ -90,8 +92,9 @@ test("call a bound installation at its reference with the credential the host le
 
 test("refuse connecting an installation binding the host lends no credential", async () => {
     const binding = defineInstallationBinding("notes", notes);
+    const world = testSimulation().environment("test");
 
     await expect(
-        binding.connectors.http.connect(bound("http://127.0.0.1"), binding),
+        binding.connectors.http.connect(bound("http://127.0.0.1"), binding, world),
     ).rejects.toThrow("installation binding notes has no credential");
 });

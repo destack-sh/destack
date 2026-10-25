@@ -1,3 +1,5 @@
+import type { Environment } from "@destack/environment";
+import { testSimulation } from "../test/index.ts";
 import { testCallKey } from "../test/context.ts";
 import { reconciliation, TestDatabase } from "@destack/db/test";
 import { expect, onTestFinished, test, refusal } from "@destack/test";
@@ -9,9 +11,9 @@ import { present, schema } from "@destack/schema";
 import { defineObject, defineShape, field, Follow } from "../index.ts";
 import { serversOf, testEvents } from "../test/index.ts";
 import { ObjectStore } from "./index.ts";
-import { Clock } from "@destack/environment";
 import { tablesOf } from "../stack/db.ts";
 import objectPackage from "../package.ts";
+import { TestObjectStore } from "../test/index.ts";
 
 /** The space whose store replicates the people it joined. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000041");
@@ -64,21 +66,22 @@ const space = principal.space.reference(Scope.universe.id, spaceId);
 /** The space's installation acting for the space under a stored grant giving some permissions. */
 async function delegated(
     database: DatabaseConnection,
+    environment: Pick<Environment, "clock" | "crypto" | "random">,
     permissions: readonly ("read" | "write")[],
 ): Promise<AccessContext> {
     // store the space's grant to its installation
     const installation = principal.installation.reference(spaceId, "installation-a");
-    const id = await new AccessFixture(database).replicateGrant(
+    const id = await new AccessFixture(database, environment).replicateGrant(
         space,
         installation,
         permissions.map((name) => person.permission(name)),
-        Date.now(),
+        environment.clock.now(),
         GRANT_ID,
     );
 
     return AccessContext.of(
         { ...Caller.of(space), actors: [installation], grants: [{ id, scope: spaceId }] },
-        Date.now(),
+        environment.clock.now(),
     );
 }
 
@@ -94,7 +97,7 @@ const PEOPLE = Follow.of(
 );
 
 /** Serve ada at the universe, and a space store replicating her without serving people. */
-async function serveHome() {
+async function serveHome(world: Environment) {
     // store ada at home, joined by the space
     const home = await TestDatabase.create(
         tablesOf({
@@ -102,9 +105,7 @@ async function serveHome() {
             follows: [],
             tables: [],
         }).tables,
-        {
-            isMigrated: true,
-        },
+        { environment: world, isMigrated: true },
     );
     const replicating = await TestDatabase.create(
         defineDatabase({
@@ -115,14 +116,14 @@ async function serveHome() {
                 tables: [],
             }),
         }),
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(async () => {
         await Promise.all([home.close(), replicating.close()]);
     });
     for (const database of [home.database, replicating.database]) {
         // store ada's scope and her joining the space, at home and in the space's access replica
-        const access = new AccessFixture(database);
+        const access = new AccessFixture(database, world);
         await access.replicateScope(person.reference(Scope.universe.id, adaId), person.policy);
         await access.replicateRelationship(
             person.reference(Scope.universe.id, adaId),
@@ -130,24 +131,31 @@ async function serveHome() {
             space,
         );
     }
-    await home.database
-        .insert(person.table)
-        .values({ id: adaId, name: "Ada", scope: Scope.universe.id, createdAt: 1, updatedAt: 1 });
+    await home.database.transaction(
+        async (transaction) =>
+            await transaction.insert(person.table).values({
+                id: adaId,
+                name: "Ada",
+                scope: Scope.universe.id,
+                createdAt: 1,
+                updatedAt: 1,
+            }),
+    );
 
     // serve people at home, and replicate them into the space over the home's uplink
-    const universe = new ObjectStore({
+    const universe = await TestObjectStore.at(Scope.universe, {
         chain: async () => undefined,
-        clock: Clock.system,
+        environment: world,
         principal: Scope.universe,
         servers: serversOf([greeted]),
         database: home.database,
         callKey: testCallKey,
-        events: await testEvents(home.database),
+        events: await testEvents(home.database, world),
         origin: { package: person.package },
     });
-    const store: ObjectStore = new ObjectStore({
+    const store: ObjectStore = await TestObjectStore.at(space, {
         chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
-        clock: Clock.system,
+        environment: world,
         principal: space,
         servers: serversOf([label], { follows: [PEOPLE] }),
         policies: [person],
@@ -158,7 +166,7 @@ async function serveHome() {
                 universe.source.replicate(asked, asked.after, { subject: space }, signal),
         },
         callKey: testCallKey,
-        events: await testEvents(replicating.database),
+        events: await testEvents(replicating.database, world),
         origin: { package: person.package },
     });
 
@@ -185,7 +193,7 @@ async function serveHome() {
         replicating.database,
         Scope.universe.id,
         await home.database.log.position(),
-        AbortSignal.timeout(5000),
+        world.clock.timeout(5000),
     );
 
     // read ada's name at home
@@ -214,24 +222,30 @@ async function outcome(promise: Promise<unknown>): Promise<unknown> {
 }
 
 test("answer a query nothing here handles at its rows' home, and send a write there within the caller's grant", async () => {
-    const { store, name, database } = await serveHome();
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const { store, name, database } = await serveHome(world);
     const rename = (value: string) => ({
-        id: RequestId.create(Date.now()),
+        id: RequestId.create(store.environment),
         calls: [person.call("update", { id: adaId, name: value })],
     });
 
     // greet ada at home, as the space and as its installation reading for it
     const greeting = person.call("greeting", { id: adaId });
-    const asSpace = await store.query(AccessContext.of(Caller.of(space), Date.now()), greeting);
-    const asInstallation = await store.query(await delegated(database, ["read"]), greeting);
+    const asSpace = await store.query(
+        AccessContext.of(Caller.of(space), world.clock.now()),
+        greeting,
+    );
+    const asInstallation = await store.query(await delegated(database, world, ["read"]), greeting);
 
     // rename her under a grant giving reading alone, then under one giving writing
     const refused = await outcome(
-        store.mutate(await delegated(database, ["read"]), rename("Ada Lovelace")),
+        store.mutate(await delegated(database, world, ["read"]), rename("Ada Lovelace")),
     );
     const unchanged = await name();
     const [renamed] = await store.mutate(
-        await delegated(database, ["read", "write"]),
+        await delegated(database, world, ["read", "write"]),
         rename("Ada L."),
     );
 

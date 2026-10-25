@@ -1,3 +1,4 @@
+import type { Environment } from "@destack/environment";
 import type { Manager } from "@destack/access";
 import { ObjectError } from "../error/error.ts";
 import * as access from "@destack/access";
@@ -51,6 +52,7 @@ export class Authorization extends access.Authorization {
         authorizer: Authorizer,
         transaction: Transaction,
         context: () => AccessContext,
+        environment: Pick<Environment, "clock" | "crypto" | "random">,
         options: {
             /** The caller's access in the call's scope. */
             readonly resolved: Access;
@@ -58,7 +60,7 @@ export class Authorization extends access.Authorization {
             readonly manager?: Manager;
         },
     ) {
-        super(authorizer, transaction, context, options);
+        super(authorizer, transaction, context, environment, options);
         this.access = options.resolved;
         this.#writes = transaction.changes.writes(authorizer.decidingTables);
     }
@@ -68,7 +70,7 @@ export class Authorization extends access.Authorization {
         // read the caller as it acts now, as the copied authorization does
         const context = () => this.context();
 
-        return new Authorization(this.authorizer, this.transaction, context, {
+        return new Authorization(this.authorizer, this.transaction, context, this.environment, {
             resolved: this.access,
             manager,
         });
@@ -378,7 +380,7 @@ export class Authorization extends access.Authorization {
             );
         } else if (isSubjects) {
             throw ObjectError.of(
-                "INSUFFICIENT_GRANT",
+                "GRANT_INSUFFICIENT",
                 `grant ${grant.id} does not give ${permission.name} on ${object.name} ${id}`,
                 { data: { permission, object: object.reference(scope, id), grant: grant.id } },
             );

@@ -1,3 +1,4 @@
+import { testSimulation } from "../test/world.ts";
 import { expect, test } from "@destack/test";
 import { createClient } from "../client/index.ts";
 import { health } from "../health/index.ts";
@@ -7,6 +8,7 @@ import { CallError } from "../error/index.ts";
 import { fixturePackage } from "../test/fixture.ts";
 
 test("stream current health and subsequent readiness changes", async () => {
+    const world = testSimulation().environment("test");
     // serve the health procedures
     const readiness = new Health("notes");
     const handler = new RequestHandler<{ caller: string; request: Request }>(
@@ -15,6 +17,7 @@ test("stream current health and subsequent readiness changes", async () => {
         },
         {
             package: fixturePackage,
+            environment: world,
             health: readiness,
             authorize: async ({ request: state }) => {
                 if (state.caller !== "alice") {
@@ -37,6 +40,7 @@ test("stream current health and subsequent readiness changes", async () => {
                 return result.matched ? result.response : new Response(null, { status: 404 });
             },
         },
+        world,
     );
 
     // read the initial state

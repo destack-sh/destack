@@ -1,3 +1,4 @@
+import { testSimulation } from "../test/world.ts";
 import { Package } from "@destack/package";
 import { expect, test } from "@destack/test";
 import { schema } from "@destack/schema";
@@ -7,8 +8,7 @@ import { Health } from "./health.ts";
 import { defineProcedure, VERSION_HEADER } from "../procedure/index.ts";
 import { implement } from "./handler.ts";
 import { Server } from "./http.ts";
-import { fixturePackage, hosting } from "../test/fixture.ts";
-import { Clock } from "@destack/environment";
+import { fixturePackage, hosting, authenticateByName } from "../test/fixture.ts";
 
 /** A search procedure whose input renamed text to query and gained a limit in 2026.9.0. */
 const search = defineProcedure({
@@ -36,11 +36,13 @@ const Failure = schema
 const served = PackageHandle.of(fixturePackage, { since: "2026.8.0" });
 
 test("convert inputs of earlier releases, dropping the fields this release no longer declares, and refuse releases the package does not serve", async () => {
+    const world = testSimulation().environment("test");
     // serve a search that echoes its input
     const implementation = implement({ search });
     await using server = Server.start({
-        clock: Clock.system,
+        environment: world,
         ...hosting,
+        authenticate: authenticateByName(world.clock),
         package: served,
         router: implementation.router({
             search: implementation.search.handler(({ input }) => ({
@@ -90,12 +92,13 @@ test("convert inputs of earlier releases, dropping the fields this release no lo
             "VERSION_RETIRED",
             "package @destack/fixture no longer serves releases before 2026.8.0",
         ],
-        ["BAD_REQUEST", "MISSING_VERSION", "package @destack/fixture requires Destack-Version"],
-        ["BAD_REQUEST", "INVALID_VERSION", "invalid Destack-Version: next"],
+        ["BAD_REQUEST", "VERSION_MISSING", "package @destack/fixture requires Destack-Version"],
+        ["BAD_REQUEST", "VERSION_INVALID", "invalid Destack-Version: next"],
     ]);
 });
 
 test("speak the release of the package defining a procedure, which the served package's retirement leaves alone", async () => {
+    const world = testSimulation().environment("test");
     // serve another package's echo procedure from the fixture package, at a later release than the fixture's
     const protocol = Package.parse({
         id: "package-019f7480-0000-7000-8000-000000000002",
@@ -113,8 +116,9 @@ test("speak the release of the package defining a procedure, which the served pa
         .output(schema.object({ text: schema.string() }));
     const implementation = implement({ echo });
     await using server = Server.start({
-        clock: Clock.system,
+        environment: world,
         ...hosting,
+        authenticate: authenticateByName(world.clock),
         package: served,
         router: implementation.router({
             echo: implementation.echo.handler(({ input }) => input),

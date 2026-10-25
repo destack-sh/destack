@@ -74,7 +74,7 @@ export const TrackedHistory = {
                 table,
                 before: null,
                 after: Table.complete(table, {
-                    id: Identifier.create("activity"),
+                    id: Identifier.create("activity", execution.store.environment),
                     scope: context.scope,
                     parentPackageId: object.policy.definition.packageId,
                     parentType: object.name,

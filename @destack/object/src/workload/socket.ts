@@ -1,7 +1,12 @@
 import { schema, type JsonValue } from "@destack/schema";
 import { ObjectError } from "../error/error.ts";
-import type { Listener, ServerSocket, ServerSocketHandler } from "@destack/environment";
-import { telemetry } from "@destack/telemetry";
+import type {
+    Environment,
+    Listener,
+    ServerSocket,
+    ServerSocketHandler,
+} from "@destack/environment";
+import { TelemetryScope } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
 
 import type { Fetch } from "../declare/fetch.ts";
@@ -17,9 +22,6 @@ export const SOCKET_INSTANCE_HEADER = "Destack-Socket-Instance";
 
 /** The most bytes in one WebSocket message: 1 MiB. */
 const MESSAGE_BYTES = 1024 * 1024;
-
-/** The instruments capturing the closes instances refuse. */
-const instruments = telemetry.scope(import.meta.destack.package);
 
 /** A hibernated socket as a host describes it: its identifier and the value stored beside it. */
 export const SocketDescription = schema.object({
@@ -136,6 +138,13 @@ export class Hibernation {
         };
     }
 
+    /** Replace the value stored beside a socket, in order with its sends, as a renewal does. */
+    attach(id: string, attachment: JsonValue): void {
+        const url = `${this.#host.url}/${encodeURIComponent(id)}`;
+        const body = JSON.stringify(attachment);
+        this.#enqueue(id, { method: "PUT", body }, url);
+    }
+
     /** Wait until a socket's sends and closes so far settled. */
     async settled(id: string): Promise<void> {
         await this.#pending.get(id);
@@ -179,7 +188,7 @@ export class Hibernation {
 /** A socket the host hibernates for an instance, with the acceptance the instance answered. */
 type HostSocket = ServerSocket<{
     readonly instance: string;
-    readonly acceptance: SocketAcceptance;
+    acceptance: SocketAcceptance;
 }>;
 
 /** Hand an instance a request its host makes at a path below its origin. */
@@ -195,10 +204,13 @@ export class HibernationHost {
     readonly #hibernated = new Map<string, Map<string, HostSocket>>();
     /** Hand an instance its hibernated sockets' events. */
     readonly #deliver: SocketDelivery;
+    /** The instruments capturing the closes instances refuse. */
+    readonly #instruments: TelemetryScope;
 
-    /** Hibernate sockets, delivering their events to their instances. */
-    constructor(deliver: SocketDelivery) {
+    /** Hibernate sockets, delivering their events to their instances, captures on a telemetry. */
+    constructor(deliver: SocketDelivery, telemetry: Environment["telemetry"]) {
         this.#deliver = deliver;
+        this.#instruments = TelemetryScope.of(import.meta.destack.package, telemetry);
     }
 
     /** The handler a listener serving hibernated sockets takes. */
@@ -225,7 +237,7 @@ export class HibernationHost {
         const instanceId = answer.headers.get(SOCKET_INSTANCE_HEADER);
         if (accepted === null || instanceId === null) {
             throw ObjectError.of(
-                "MISSING_ACCEPTANCE",
+                "ACCEPTANCE_MISSING",
                 "the response has no socket acceptance for a named instance",
             );
         }
@@ -240,7 +252,7 @@ export class HibernationHost {
         });
     }
 
-    /** Answer an instance's listing of its hibernated sockets, or its send or close of one. */
+    /** Answer an instance's listing of its sockets, or its send, attach or close of one. */
     async answer(instanceId: string, request: Request): Promise<Response> {
         // list every hibernated socket of the instance
         const sockets = this.#sockets(instanceId);
@@ -253,13 +265,16 @@ export class HibernationHost {
             );
         }
 
-        // close the socket of the identifier, a closed one at once, or send to it
+        // close the socket of the identifier, a closed one at once, or replace its stored value, or send to it
         const id = decodeURIComponent(pathname.slice(SOCKET_PATH.length + 1));
         const socket = sockets.get(id);
         if (request.method === "DELETE") {
             socket?.close();
         } else if (socket === undefined) {
             throw ObjectError.of("SOCKET_NOT_FOUND", `hibernated socket ${id} not found`);
+        } else if (request.method === "PUT") {
+            const attachment = schema.json().parse(await request.json());
+            socket.attachment.acceptance = { ...socket.attachment.acceptance, attachment };
         } else {
             socket.send(new Uint8Array(await request.arrayBuffer()));
         }
@@ -314,7 +329,7 @@ export class HibernationHost {
 
         // report a close the instance refuses, which its connection's lapse then sweeps
         if (!response.ok && request.method === "DELETE") {
-            instruments.captureException(
+            this.#instruments.captureException(
                 ObjectError.of(
                     "INSTANCE_REFUSED",
                     `instance ${instance} rejected closing socket ${acceptance.id}: ${response.status}`,
