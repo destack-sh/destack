@@ -216,7 +216,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
             !reference.startsWith(REFERENCE_PREFIX) ||
             reference.length === REFERENCE_PREFIX.length
         ) {
-            throw DatabaseError.of("INVALID_RECORD", `no Durable Object database ${reference}`);
+            throw DatabaseError.of("RECORD_INVALID", `no Durable Object database ${reference}`);
         }
 
         return reference.slice(REFERENCE_PREFIX.length);
@@ -376,7 +376,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
         const body = DurableObjectDatabaseOperation.parse(await request.json());
         if (body.operation !== "read") {
             throw DatabaseError.of(
-                "INVALID_QUERY",
+                "QUERY_INVALID",
                 `this object only accepts reads, not ${body.operation}`,
             );
         }
@@ -393,7 +393,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
             const query = new DurableObjectQuery(this, { kind: "joined", transaction });
             const read = await query.read(statement.sql, parameters, statement.rows);
             if (read.rowsWritten > 0) {
-                throw DatabaseError.of("INVALID_QUERY", "a read of another object wrote rows");
+                throw DatabaseError.of("QUERY_INVALID", "a read of another object wrote rows");
             }
 
             return read.rows.map(encoded);

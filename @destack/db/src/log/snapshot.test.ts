@@ -205,7 +205,7 @@ test("read history past compaction, and refuse compacted windows and other epoch
     const { epoch } = await database.log.position();
     expect(await refusal(snapshot.read(revision).findMany({ where: everything }))).toEqual([
         "GONE",
-        "STALE_EPOCH",
+        "EPOCH_STALE",
         `position of epoch ${position.epoch} is not in the log's epoch ${epoch}`,
     ]);
 });

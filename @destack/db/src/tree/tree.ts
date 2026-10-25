@@ -36,11 +36,11 @@ export class Tree {
         for (const name of [definition.id, definition.scope, definition.parent]) {
             const column = definition.table[TABLE].columns[name];
             if (column === undefined || column.definition.kind !== "text") {
-                throw DatabaseError.of("INVALID_MIGRATION", `unknown tree column: ${name}`);
+                throw DatabaseError.of("MIGRATION_INVALID", `unknown tree column: ${name}`);
             }
             if (column.definition.nullable !== (name === definition.parent)) {
                 throw DatabaseError.of(
-                    "INVALID_MIGRATION",
+                    "MIGRATION_INVALID",
                     `invalid tree column nullability: ${name}`,
                 );
             }

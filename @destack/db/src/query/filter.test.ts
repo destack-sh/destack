@@ -96,5 +96,5 @@ test("refuse a filter on a field outside the filterable ones", async () => {
         await refusal(() =>
             Filter.parse("secret = x", { fields: new Set(["status", "title", "owner"]) }),
         ),
-    ).toEqual(["BAD_REQUEST", "INVALID_QUERY", "unknown field secret at 0 in filter secret = x"]);
+    ).toEqual(["BAD_REQUEST", "QUERY_INVALID", "unknown field secret at 0 in filter secret = x"]);
 });

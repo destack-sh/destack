@@ -364,7 +364,7 @@ export async function readState(database: DatabaseConnection): Promise<TableStat
             const name = await readName(database);
             const problem = schema.prettifyError(parsed.error);
             throw DatabaseError.of(
-                "INVALID_MIGRATION",
+                "MIGRATION_INVALID",
                 `the applied state of table ${row.table} in database ${name} has an unknown format: ${problem}`,
                 { cause: parsed.error },
             );

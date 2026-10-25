@@ -688,7 +688,7 @@ export class Transaction {
             const image = after ?? before;
             if (image !== null && Key.isPredefined(table, image)) {
                 throw DatabaseError.of(
-                    "INVALID_RECORD",
+                    "RECORD_INVALID",
                     `cannot write predefined row ${Key.name(table, image)} of ${table[TABLE].name}`,
                 );
             }

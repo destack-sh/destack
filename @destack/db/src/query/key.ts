@@ -45,7 +45,7 @@ export const Key = {
                 : sql<boolean>`${column} = ${sql.param(value, column)}`;
         });
         if (first === undefined) {
-            throw DatabaseError.of("INVALID_QUERY", `${table[TABLE].name} has no key`);
+            throw DatabaseError.of("QUERY_INVALID", `${table[TABLE].name} has no key`);
         }
 
         return and(first, ...rest);
@@ -93,7 +93,7 @@ export const Key = {
                 !(value instanceof Uint8Array)
             ) {
                 throw DatabaseError.of(
-                    "INVALID_QUERY",
+                    "QUERY_INVALID",
                     `${table[TABLE].name} row has no key value ${property}`,
                 );
             }
@@ -143,7 +143,7 @@ export const Key = {
         const [owner, ...values] = KeyName.parse(JSON.parse(name));
         if (owner !== table[TABLE].sqlName) {
             throw DatabaseError.of(
-                "INVALID_QUERY",
+                "QUERY_INVALID",
                 `key name ${name} does not belong to ${table[TABLE].name}`,
             );
         }
@@ -156,7 +156,7 @@ export const Key = {
 
                 if (value === undefined) {
                     throw DatabaseError.of(
-                        "INVALID_QUERY",
+                        "QUERY_INVALID",
                         `key name ${name} is missing ${property}`,
                     );
                 }
@@ -171,7 +171,7 @@ export const Key = {
         const value = row[property];
         if (value === undefined) {
             throw DatabaseError.of(
-                "INVALID_QUERY",
+                "QUERY_INVALID",
                 `${table[TABLE].name} row has no key value ${property}`,
             );
         }

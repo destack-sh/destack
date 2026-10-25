@@ -70,7 +70,7 @@ async function readParents(
             scopes.set(row.scope, parents);
         }
         if (parents.has(row.id)) {
-            throw DatabaseError.of("INVALID_MIGRATION", "tree identity already exists");
+            throw DatabaseError.of("MIGRATION_INVALID", "tree identity already exists");
         }
         parents.set(row.id, row.parent);
     }
@@ -88,11 +88,11 @@ function requireChains(scopes: ReadonlyMap<string, ReadonlyMap<string, string | 
             let current: string | null = id;
             while (current !== null && !complete.has(current)) {
                 if (path.has(current)) {
-                    throw DatabaseError.of("INVALID_MIGRATION", "tree contains a cycle");
+                    throw DatabaseError.of("MIGRATION_INVALID", "tree contains a cycle");
                 }
                 const parent = parents.get(current);
                 if (parent === undefined) {
-                    throw DatabaseError.of("INVALID_MIGRATION", "tree parent is missing");
+                    throw DatabaseError.of("MIGRATION_INVALID", "tree parent is missing");
                 }
                 path.add(current);
                 current = parent;

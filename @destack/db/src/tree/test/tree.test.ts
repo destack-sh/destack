@@ -35,7 +35,7 @@ test("migrate, query, move and remove scoped trees", async () => {
     );
     await expect(database.migrate([node])).rejects.toMatchObject({
         reason: "MIGRATION_FAILED",
-        cause: { reason: "INVALID_MIGRATION", message: "tree parent is missing" },
+        cause: { reason: "MIGRATION_INVALID", message: "tree parent is missing" },
     });
     expect(await database.select().from(node).orderBy(node.id)).toEqual([
         { id: "a", scope: "one", parent: null },
@@ -52,7 +52,7 @@ test("migrate, query, move and remove scoped trees", async () => {
     );
     await expect(database.migrate([node])).rejects.toMatchObject({
         reason: "MIGRATION_FAILED",
-        cause: { reason: "INVALID_MIGRATION", message: "tree contains a cycle" },
+        cause: { reason: "MIGRATION_INVALID", message: "tree contains a cycle" },
     });
     await database.transaction(
         async (transaction) =>

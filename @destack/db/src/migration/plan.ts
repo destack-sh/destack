@@ -935,7 +935,7 @@ function changeValues(
                 steps.push(step("update", change.target, change.risk, change.detail, []));
             }
         } catch (error) {
-            if (!ResourceError.is(error, "UNREACHABLE_PLAN")) {
+            if (!ResourceError.is(error, "PLAN_UNREACHABLE")) {
                 throw error;
             }
             problems.push(...error.data.problems);

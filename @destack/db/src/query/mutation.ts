@@ -283,12 +283,12 @@ export class MutationQuery<
 function insertSQL(table: Table, records: readonly WriteRecord[]): SQL {
     // require records of known columns
     if (records.length === 0) {
-        throw DatabaseError.of("INVALID_QUERY", `insert into ${table[TABLE].name} has no records`);
+        throw DatabaseError.of("QUERY_INVALID", `insert into ${table[TABLE].name} has no records`);
     }
     for (const property of new Set(records.flatMap((record) => Object.keys(record)))) {
         if (!Object.hasOwn(table[TABLE].columns, property)) {
             throw DatabaseError.of(
-                "INVALID_QUERY",
+                "QUERY_INVALID",
                 `${table[TABLE].name} has no column ${property}`,
             );
         }
@@ -337,7 +337,7 @@ function assignments(table: Table, changes: WriteRecord): SQL {
         const column = table[TABLE].columns[property];
         if (column === undefined) {
             throw DatabaseError.of(
-                "INVALID_QUERY",
+                "QUERY_INVALID",
                 `${table[TABLE].name} has no column ${property}`,
             );
         }
@@ -347,7 +347,7 @@ function assignments(table: Table, changes: WriteRecord): SQL {
             : [sql`${sql.identifier(column.definition.name)} = ${valueOf(column, value)}`];
     });
     if (set.length === 0) {
-        throw DatabaseError.of("INVALID_QUERY", `update of ${table[TABLE].name} sets no column`);
+        throw DatabaseError.of("QUERY_INVALID", `update of ${table[TABLE].name} sets no column`);
     }
 
     return sql.join(set, sql.raw(", "));

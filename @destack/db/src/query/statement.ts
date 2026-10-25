@@ -105,7 +105,7 @@ export function elementValue(column: Column, index: number, dialect: Dialect): S
     // refuse SQLite bytes, which SQLite cannot decode from their base64 JSON form
     if (dialect === "sqlite" && isBinary) {
         throw DatabaseError.of(
-            "INVALID_QUERY",
+            "QUERY_INVALID",
             `SQLite cannot read bytes from JSON: ${column.definition.name} is binary`,
         );
     }

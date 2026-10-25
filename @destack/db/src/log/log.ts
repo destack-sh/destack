@@ -329,7 +329,7 @@ export class Log {
             changes.push(...read.changes.filter((change) => change.sequence <= through));
             if (read.sequence <= reached) {
                 throw DatabaseError.of(
-                    "INVALID_QUERY",
+                    "QUERY_INVALID",
                     `the log ends at ${read.sequence}, before ${through}`,
                 );
             }
@@ -960,7 +960,7 @@ function decodeKey<Definition extends Table>(
             const value = key[index];
             if (value === undefined) {
                 throw DatabaseError.of(
-                    "INVALID_QUERY",
+                    "QUERY_INVALID",
                     `logged key of ${table[TABLE].name} is missing ${property}`,
                 );
             }
@@ -993,7 +993,7 @@ function tableOf<Definition extends Table>(
     const table = tables.get(name);
     if (table === undefined) {
         throw DatabaseError.of(
-            "INVALID_QUERY",
+            "QUERY_INVALID",
             `the log changed a table the read does not select: ${name}`,
         );
     }

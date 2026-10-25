@@ -225,7 +225,7 @@ test("escape a pattern's wildcards with a backslash, refusing an escape ending i
     ]);
     expect(await refusal(() => matching("a\\"))).toEqual([
         "BAD_REQUEST",
-        "INVALID_QUERY",
+        "QUERY_INVALID",
         "a like pattern cannot end with its escape character",
     ]);
 });
@@ -242,7 +242,7 @@ test("refuse a descending character range, reading a mixed one as its characters
     // refuse z-a, and read Z-a as Z and a with a hyphen
     const fields = Namespace.fields(sample);
     expect(await refusal(() => Condition.resolve({ name: { characters: "z-a" } }, fields))).toEqual(
-        ["BAD_REQUEST", "INVALID_QUERY", "character range z-a is descending"],
+        ["BAD_REQUEST", "QUERY_INVALID", "character range z-a is descending"],
     );
     const set = Predicate.compile(
         Condition.resolve({ name: { characters: "Z-a" } }, fields),
@@ -260,12 +260,12 @@ test("refuse comparing fields that order as different values, and a field the ta
         Predicate.require(Condition.resolve(condition, Namespace.fields(sample)), sample);
     expect(await refusal(require({ name: { gt: { field: "count" } } }))).toEqual([
         "BAD_REQUEST",
-        "INVALID_QUERY",
+        "QUERY_INVALID",
         "cannot compare condition_sample.name (text ordering) with count (number ordering)",
     ]);
     expect(await refusal(require({ count: { gt: { field: "missing" } } }))).toEqual([
         "BAD_REQUEST",
-        "INVALID_QUERY",
+        "QUERY_INVALID",
         "condition_sample has no column missing",
     ]);
 });

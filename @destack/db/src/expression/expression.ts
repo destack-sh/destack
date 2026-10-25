@@ -403,7 +403,7 @@ export const Expression = {
         // bound the size
         if (Expression.terms(expression) > EXPRESSION_TERMS) {
             throw DatabaseError.of(
-                "INVALID_QUERY",
+                "QUERY_INVALID",
                 `expression has more than ${EXPRESSION_TERMS} terms`,
             );
         }
@@ -411,10 +411,10 @@ export const Expression = {
         // require arithmetic over numbers, and a number or text result
         const kind = kindOf(expression, table, namespace);
         if (kind === undefined) {
-            throw DatabaseError.of("INVALID_QUERY", "expression mixes numbers with other values");
+            throw DatabaseError.of("QUERY_INVALID", "expression mixes numbers with other values");
         } else if (kind === "json") {
             throw DatabaseError.of(
-                "INVALID_QUERY",
+                "QUERY_INVALID",
                 "expression produces JSON: read a scalar from it",
             );
         }
@@ -425,7 +425,7 @@ export const Expression = {
         // read an all-null expression as real
         const kind = kindOf(expression, table, namespace);
         if (kind === undefined) {
-            throw DatabaseError.of("INVALID_QUERY", "expression mixes numbers with other values");
+            throw DatabaseError.of("QUERY_INVALID", "expression mixes numbers with other values");
         }
 
         return kind === "null" ? "real" : kind;
@@ -555,7 +555,7 @@ function kindOf(
             // read inside JSON only
             if (kindOf(expression.of, table, namespace) !== "json") {
                 throw DatabaseError.of(
-                    "INVALID_QUERY",
+                    "QUERY_INVALID",
                     `expression reads a ${expression.kind} of a value that is not JSON`,
                 );
             }
@@ -565,7 +565,7 @@ function kindOf(
             // read text only
             if (kindOf(expression.of, table, namespace) !== "text") {
                 throw DatabaseError.of(
-                    "INVALID_QUERY",
+                    "QUERY_INVALID",
                     "expression reads the text before a separator of a value that is not text",
                 );
             }
@@ -726,7 +726,7 @@ function renderCase(
     const scalar = requireKind(kindOf(expression.of, table, namespace));
     if (scalar === "json") {
         throw DatabaseError.of(
-            "INVALID_QUERY",
+            "QUERY_INVALID",
             "expression compares JSON in a case: read a scalar from it",
         );
     }
@@ -814,7 +814,7 @@ function kindOfCase(
     const compared = kindOf(expression.of, table, namespace);
     if (compared === "json") {
         throw DatabaseError.of(
-            "INVALID_QUERY",
+            "QUERY_INVALID",
             "expression compares JSON in a case: read a scalar from it",
         );
     } else if (compared === undefined) {
@@ -832,7 +832,7 @@ function kindOfColumn(expression: ExpressionOf<"column">, table: Table): Kind | 
     const column = table[TABLE].columns[expression.name];
     if (column === undefined) {
         throw DatabaseError.of(
-            "INVALID_QUERY",
+            "QUERY_INVALID",
             `${table[TABLE].name} has no column ${expression.name}`,
         );
     }
@@ -899,7 +899,7 @@ function kindOfRollup(
     // read the measured column
     else if (definition === undefined) {
         throw DatabaseError.of(
-            "INVALID_QUERY",
+            "QUERY_INVALID",
             `rollup ${expression.function} of ${expression.via} needs a column`,
         );
     }
@@ -907,7 +907,7 @@ function kindOfRollup(
     else if (expression.function === "sum") {
         if (definition.kind !== "integer") {
             throw DatabaseError.of(
-                "INVALID_QUERY",
+                "QUERY_INVALID",
                 `rollup sum of ${expression.via} sums ${definition.kind} values: sums need integers`,
             );
         }
@@ -976,7 +976,7 @@ function float(value: SQL): SQL {
 function jsonOf(value: ColumnValue | undefined, name: string): JsonValue {
     if (value instanceof Uint8Array || typeof value === "bigint") {
         throw DatabaseError.of(
-            "INVALID_QUERY",
+            "QUERY_INVALID",
             `expressions compute over JSON values, not column ${name}`,
         );
     }
@@ -987,7 +987,7 @@ function jsonOf(value: ColumnValue | undefined, name: string): JsonValue {
 /** Require an expression of known kinds, which a required expression has. */
 function requireKind<Value>(kind: Value | undefined): Value {
     if (kind === undefined) {
-        throw DatabaseError.of("INVALID_QUERY", "expression mixes numbers with other values");
+        throw DatabaseError.of("QUERY_INVALID", "expression mixes numbers with other values");
     }
 
     return kind;
@@ -1002,7 +1002,7 @@ function requireRelation<Read>(
 ): Read {
     if (read === undefined) {
         throw DatabaseError.of(
-            "INVALID_QUERY",
+            "QUERY_INVALID",
             `expression ${verb} relation ${via}, but ${table[TABLE].name} does not declare it`,
         );
     }

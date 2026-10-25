@@ -111,7 +111,7 @@ function literal(text: string): string {
 function characters(set: string): string {
     if (!CHARACTER_SET.test(set)) {
         throw DatabaseError.of(
-            "INVALID_QUERY",
+            "QUERY_INVALID",
             `character set ${set} accepts only letters, digits, their ranges and ._+/=:@*-`,
         );
     }
@@ -122,7 +122,7 @@ function characters(set: string): string {
         (piece) => piece.length === 3 && piece.charAt(0) > piece.charAt(2),
     );
     if (descending !== undefined) {
-        throw DatabaseError.of("INVALID_QUERY", `character range ${descending} is descending`);
+        throw DatabaseError.of("QUERY_INVALID", `character range ${descending} is descending`);
     }
 
     // move a literal hyphen last, where every dialect's class reads it literally
@@ -276,7 +276,7 @@ function requireSameOrdering(table: Table, left: string, right: string): void {
     const rightOrdering = Order.ordering(table, right);
     if (leftOrdering !== rightOrdering) {
         throw DatabaseError.of(
-            "INVALID_QUERY",
+            "QUERY_INVALID",
             `cannot compare ${table[TABLE].name}.${left} (${leftOrdering} ordering) with ${right} (${rightOrdering} ordering)`,
         );
     }
@@ -286,7 +286,7 @@ function requireSameOrdering(table: Table, left: string, right: string): void {
 function columnOf(table: Table, name: string): Column {
     const column = table[TABLE].columns[name];
     if (column === undefined) {
-        throw DatabaseError.of("INVALID_QUERY", `${table[TABLE].name} has no column ${name}`);
+        throw DatabaseError.of("QUERY_INVALID", `${table[TABLE].name} has no column ${name}`);
     }
 
     return column;
@@ -297,7 +297,7 @@ function requireText(table: Table, name: string): void {
     const column = table[TABLE].columns[name];
     if (column !== undefined && column.definition.kind !== "text") {
         throw DatabaseError.of(
-            "INVALID_QUERY",
+            "QUERY_INVALID",
             `field ${name} matches patterns, not ${column.definition.kind}`,
         );
     }
@@ -321,7 +321,7 @@ function bind(
         exists: (via, where) => {
             if (namespace.exists === undefined) {
                 throw DatabaseError.of(
-                    "INVALID_QUERY",
+                    "QUERY_INVALID",
                     `condition follows relation ${via}, but ${table[TABLE].name} does not declare it`,
                 );
             }
@@ -433,7 +433,7 @@ function likeTokens(pattern: string): LikeToken[] {
             const next = pattern[index + 1];
             if (next === undefined) {
                 throw DatabaseError.of(
-                    "INVALID_QUERY",
+                    "QUERY_INVALID",
                     "a like pattern cannot end with its escape character",
                 );
             }
@@ -655,7 +655,7 @@ function compileLike(predicate: Extract<Predicate, { readonly kind: "like" }>): 
             return undefined;
         } else if (typeof value !== "string") {
             throw DatabaseError.of(
-                "INVALID_QUERY",
+                "QUERY_INVALID",
                 `field ${name} matches patterns, not ${typeof value}`,
             );
         }
@@ -698,7 +698,7 @@ function textOf(value: unknown, name: string): string | undefined {
     if (value === null || value === undefined) {
         return undefined;
     } else if (typeof value !== "string") {
-        throw DatabaseError.of("INVALID_QUERY", `field ${name} matches text, not ${typeof value}`);
+        throw DatabaseError.of("QUERY_INVALID", `field ${name} matches text, not ${typeof value}`);
     }
 
     return value;
@@ -754,7 +754,7 @@ function compileSearch(predicate: Extract<Predicate, { readonly kind: "search" }
 
 /** Refuse a placeholder no value binds, as rendering refuses it. */
 function unbound(name: string): never {
-    throw DatabaseError.of("INVALID_QUERY", `no value for placeholder ${name}`);
+    throw DatabaseError.of("QUERY_INVALID", `no value for placeholder ${name}`);
 }
 
 /** Decide a compiled predicate on a row with relations unknown. */

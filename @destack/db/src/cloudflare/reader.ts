@@ -126,9 +126,9 @@ export class DurableObjectReader implements SqliteConnectionClient {
     }
 
     /** Build the refusal of anything but a read. */
-    static #refusal(): FamilyError<"INVALID_QUERY"> {
+    static #refusal(): FamilyError<"QUERY_INVALID"> {
         return DatabaseError.of(
-            "INVALID_QUERY",
+            "QUERY_INVALID",
             "a reader of another object's database can only run reads",
         );
     }

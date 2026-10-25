@@ -64,7 +64,7 @@ export function describeLog(table: Table): ChangeDescription | undefined {
     const scope = definition.columns["scope"];
     if (scope?.definition.nullable === true) {
         throw DatabaseError.of(
-            "INVALID_MIGRATION",
+            "MIGRATION_INVALID",
             `logged table has an optional scope column: ${definition.name}`,
         );
     }
@@ -80,7 +80,7 @@ export function describeLog(table: Table): ChangeDescription | undefined {
     );
     if (unlogged !== undefined) {
         throw DatabaseError.of(
-            "INVALID_MIGRATION",
+            "MIGRATION_INVALID",
             `logged key column is binary or sensitive: ${definition.name}.${unlogged}`,
         );
     }
@@ -106,7 +106,7 @@ export function loggedKey(table: Table): readonly Column[] {
     const columns = table[TABLE].key.map((property) => table[TABLE].column(property));
     if (columns.length === 0) {
         throw DatabaseError.of(
-            "INVALID_MIGRATION",
+            "MIGRATION_INVALID",
             `logged table ${table[TABLE].sqlName} has no primary key: declare its changes as "none"`,
         );
     }

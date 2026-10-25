@@ -393,7 +393,7 @@ export class SharedClient extends SharedQuery implements SqliteConnectionClient 
     static channel(channel: Channel<unknown>, name: string): Channel<unknown> {
         if (name !== LOG_TOPIC) {
             throw DatabaseError.of(
-                "NO_CHANNEL",
+                "CHANNEL_MISSING",
                 `a shared connection can only open its ${LOG_TOPIC} channel, not ${name}`,
             );
         }

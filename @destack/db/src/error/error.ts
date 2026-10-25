@@ -25,8 +25,8 @@ export type DeclaredNames = ReadonlyMap<
 /** The database package's failures, each reason with the call error code it answers. */
 export const DatabaseError = defineErrorFamily(import.meta.destack.package, {
     // bad request
-    INVALID_QUERY: { code: "BAD_REQUEST" },
-    INVALID_RECORD: { code: "BAD_REQUEST" },
+    QUERY_INVALID: { code: "BAD_REQUEST" },
+    RECORD_INVALID: { code: "BAD_REQUEST" },
 
     // conflict
     BROKEN_REFERENCE: { code: "CONFLICT" },
@@ -34,15 +34,15 @@ export const DatabaseError = defineErrorFamily(import.meta.destack.package, {
 
     // gone
     CHANGES_COMPACTED: { code: "GONE" },
-    STALE_EPOCH: { code: "GONE" },
+    EPOCH_STALE: { code: "GONE" },
 
     // internal server error
     CONTROLLER_FAILED: { code: "INTERNAL_SERVER_ERROR" },
     FOLLOW_ENDED: { code: "INTERNAL_SERVER_ERROR" },
-    INVALID_MIGRATION: { code: "INTERNAL_SERVER_ERROR" },
+    MIGRATION_INVALID: { code: "INTERNAL_SERVER_ERROR" },
     MIGRATION_FAILED: { code: "INTERNAL_SERVER_ERROR" },
-    NOT_APPLIED: { code: "INTERNAL_SERVER_ERROR" },
-    NO_CHANNEL: { code: "INTERNAL_SERVER_ERROR" },
+    MIGRATION_PENDING: { code: "INTERNAL_SERVER_ERROR" },
+    CHANNEL_MISSING: { code: "INTERNAL_SERVER_ERROR" },
     PLAN_CHANGED: { code: "INTERNAL_SERVER_ERROR" },
     QUERY_FAILED: { code: "INTERNAL_SERVER_ERROR" },
     TRANSACTION_CLOSED: { code: "INTERNAL_SERVER_ERROR" },
@@ -140,7 +140,7 @@ export function classifyError(error: unknown, declared: DeclaredNames): unknown 
             { cause: error },
         );
     } else if (code === "23514" || error.message.includes("CHECK constraint failed")) {
-        return DatabaseError.of("INVALID_RECORD", "a record fails a declared check", {
+        return DatabaseError.of("RECORD_INVALID", "a record fails a declared check", {
             cause: error,
         });
     }

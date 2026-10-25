@@ -106,7 +106,7 @@ export class Relations<
     get(table: Table, name: string): Relation {
         const relation = this.of(table)[name];
         if (relation === undefined) {
-            throw DatabaseError.of("INVALID_QUERY", `${table[TABLE].name} has no relation ${name}`);
+            throw DatabaseError.of("QUERY_INVALID", `${table[TABLE].name} has no relation ${name}`);
         }
 
         return relation;
@@ -133,7 +133,7 @@ export class Relations<
             for (const [name, table] of Object.entries(relations.tables)) {
                 if (Object.hasOwn(named, name) && named[name] !== table) {
                     throw DatabaseError.of(
-                        "INVALID_QUERY",
+                        "QUERY_INVALID",
                         `relations have two tables named ${name}`,
                     );
                 }
@@ -144,7 +144,7 @@ export class Relations<
                 for (const [name, relation] of Object.entries(declared)) {
                     if (Object.hasOwn(merged, name)) {
                         throw DatabaseError.of(
-                            "INVALID_QUERY",
+                            "QUERY_INVALID",
                             `${table[TABLE].name} has two relations ${name}`,
                         );
                     }
@@ -216,7 +216,7 @@ class Subquery {
             target.key[0] !== relation.on.column
         ) {
             throw DatabaseError.of(
-                "INVALID_QUERY",
+                "QUERY_INVALID",
                 `lookup ${via} of ${this.#table[TABLE].name} must follow a key path onto another table's key`,
             );
         }
@@ -225,7 +225,7 @@ class Subquery {
         const read = target.columns[column];
         if (read === undefined) {
             throw DatabaseError.of(
-                "INVALID_QUERY",
+                "QUERY_INVALID",
                 `relation ${via} looks up unknown column ${column} of ${target.name}`,
             );
         }
@@ -247,7 +247,7 @@ class Subquery {
         const relation = this.#joined(via);
         if (relation.table === this.#table) {
             throw DatabaseError.of(
-                "INVALID_QUERY",
+                "QUERY_INVALID",
                 `rollup ${via} of ${this.#table[TABLE].name} must aggregate another table`,
             );
         }
@@ -257,7 +257,7 @@ class Subquery {
         const read = column === undefined ? undefined : target.columns[column];
         if (column !== undefined && read === undefined) {
             throw DatabaseError.of(
-                "INVALID_QUERY",
+                "QUERY_INVALID",
                 `relation ${via} aggregates unknown column ${column} of ${target.name}`,
             );
         }
@@ -276,7 +276,7 @@ class Subquery {
         const on = relation.on;
         if (on.kind !== "key" && on.kind !== "junction") {
             throw DatabaseError.of(
-                "INVALID_QUERY",
+                "QUERY_INVALID",
                 `relation ${via} of ${this.#table[TABLE].name} must follow a key or junction path`,
             );
         }
@@ -399,7 +399,7 @@ export function defineRelations<
     for (const [name, named] of Object.entries(declared)) {
         const table = tables[name];
         if (table === undefined) {
-            throw DatabaseError.of("INVALID_QUERY", `relations have no table ${name}`);
+            throw DatabaseError.of("QUERY_INVALID", `relations have no table ${name}`);
         }
         if (named !== undefined) {
             relations.set(table, named);
@@ -462,7 +462,7 @@ function relationTo(table: Table, cardinality: "one" | "many"): RelationTo {
         const on = pathOf(table, from, to);
         if (to.table !== table) {
             throw DatabaseError.of(
-                "INVALID_QUERY",
+                "QUERY_INVALID",
                 `a relation to ${table[TABLE].name} joins a column of another table: ${to.table[TABLE].name}`,
             );
         }
@@ -477,7 +477,7 @@ function pathOf(table: Table, from: RelationColumn, to: RelationColumn): Path {
     if (from.via !== undefined && to.via !== undefined) {
         if (from.via.table !== to.via.table) {
             throw DatabaseError.of(
-                "INVALID_QUERY",
+                "QUERY_INVALID",
                 `a relation to ${table[TABLE].name} joins through two tables`,
             );
         }
@@ -496,7 +496,7 @@ function pathOf(table: Table, from: RelationColumn, to: RelationColumn): Path {
     // refuse a join table on one end only
     else {
         throw DatabaseError.of(
-            "INVALID_QUERY",
+            "QUERY_INVALID",
             `a relation to ${table[TABLE].name} has a join table on one end only`,
         );
     }

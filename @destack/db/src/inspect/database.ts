@@ -40,7 +40,7 @@ export const compareDatabase: Comparator = (before, after) => {
                 empty: new Set(),
             });
         } catch (error) {
-            throw ResourceError.is(error, "UNREACHABLE_PLAN")
+            throw ResourceError.is(error, "PLAN_UNREACHABLE")
                 ? unreachablePlan(
                       error.data.problems.map((problem) => ({
                           ...problem,

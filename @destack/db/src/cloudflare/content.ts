@@ -39,7 +39,7 @@ export class DurableObjectContentStore implements Pick<ContentStore, "read" | "w
         const digest = await Digest.of(page, this.#crypto);
         if (expected !== undefined && expected !== digest) {
             throw DatabaseError.of(
-                "INVALID_RECORD",
+                "RECORD_INVALID",
                 `content hash mismatch: expected ${expected}, got ${digest}`,
             );
         }

@@ -1010,7 +1010,7 @@ test("refuse writing a predefined row, and write other rows of its table", async
     }).toEqual({
         refused: [
             "BAD_REQUEST",
-            "INVALID_RECORD",
+            "RECORD_INVALID",
             `cannot write predefined row ["${unit[TABLE].sqlName}","metre"] of unit`,
         ],
         rows: [

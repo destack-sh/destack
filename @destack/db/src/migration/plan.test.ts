@@ -336,7 +336,7 @@ test("name what the declarations must fix instead of planning", async () => {
         ),
     ).toEqual([
         "CONFLICT",
-        "UNREACHABLE_PLAN",
+        "PLAN_UNREACHABLE",
         "table/destack__db__task: declare a default for the required column owner; table/destack__db__label: table exists without applied state",
     ]);
 });
@@ -404,7 +404,7 @@ test("widen column values freely and narrow them only by a conversion", async ()
         ),
     ).toEqual([
         "CONFLICT",
-        "UNREACHABLE_PLAN",
+        "PLAN_UNREACHABLE",
         "table/destack__db__preference/column/mode: declare a conversion for 2026.10.0",
     ]);
     const converted = await database.migrate([preferenceConverted]);
@@ -453,7 +453,7 @@ test("refuse requiring a key stored values lack without a conversion, reading ro
         ),
     ).toEqual([
         "CONFLICT",
-        "UNREACHABLE_PLAN",
+        "PLAN_UNREACHABLE",
         `table/${table(layoutSized)}/column/settings: declare a conversion for 2026.10.0`,
     ]);
     expect(await database.select().from(layoutOne)).toEqual([
@@ -566,7 +566,7 @@ test("narrow values and require a new column without a default only over a table
     const refused = await filled.migrate([preferenceStrict]).then(
         () => [],
         (error: unknown) =>
-            ResourceError.is(error, "UNREACHABLE_PLAN") ? error.data.problems : error,
+            ResourceError.is(error, "PLAN_UNREACHABLE") ? error.data.problems : error,
     );
     expect({ changed: review(changed), refused }).toEqual({
         changed: [
@@ -622,7 +622,7 @@ test("roll back without contracting what a newer release added, and refuse table
     const renamed = await moved.migrate([folderOne]).then(
         () => [],
         (error: unknown) =>
-            ResourceError.is(error, "UNREACHABLE_PLAN") ? error.data.problems : error,
+            ResourceError.is(error, "PLAN_UNREACHABLE") ? error.data.problems : error,
     );
 
     // refuse rolling back across widened mode values the first release cannot read
@@ -631,7 +631,7 @@ test("roll back without contracting what a newer release added, and refuse table
     const refused = await widened.migrate([preferenceOne]).then(
         () => [],
         (error: unknown) =>
-            ResourceError.is(error, "UNREACHABLE_PLAN") ? error.data.problems : error,
+            ResourceError.is(error, "PLAN_UNREACHABLE") ? error.data.problems : error,
     );
 
     // retain the theme column and table, since dropping them would lose them on the next upgrade
@@ -748,7 +748,7 @@ test("plan the union of declarations sharing a database", async () => {
         await refusal(database.plan(mergeStates([stateOf([taskOne]), stateOf([taskText])]))),
     ).toEqual([
         "CONFLICT",
-        "UNREACHABLE_PLAN",
+        "PLAN_UNREACHABLE",
         `table/${table(taskOne)}: releases disagree on column urgent`,
     ]);
 });
@@ -971,7 +971,7 @@ test("refuse an applied state in a format this release no longer reads, listing 
     // report the table and the database
     expect(await refusal(database.unapplied([taskOne]))).toEqual([
         "INTERNAL_SERVER_ERROR",
-        "INVALID_MIGRATION",
+        "MIGRATION_INVALID",
         `the applied state of table ${table(taskOne)} in database ${present(server, "the database").name} has an unknown format: ✖ Invalid input: expected array, received string\n  → at table.columns`,
     ]);
 });

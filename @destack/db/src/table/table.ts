@@ -164,7 +164,7 @@ export class Table<
                 column.definition.generated !== undefined ||
                 column.definition.default instanceof SQL;
             throw DatabaseError.of(
-                "INVALID_RECORD",
+                "RECORD_INVALID",
                 isComputed
                     ? `column ${property} of ${definition.name} takes a value only the database computes`
                     : `column ${property} of ${definition.name} needs a value`,
@@ -200,7 +200,7 @@ export class Table<
         for (const [property, value] of Object.entries(row)) {
             if (value === null && !table[TABLE].column(property).definition.nullable) {
                 throw DatabaseError.of(
-                    "INVALID_RECORD",
+                    "RECORD_INVALID",
                     `column ${property} of ${table[TABLE].name} is not nullable`,
                 );
             }
@@ -473,7 +473,7 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
     /** Read the table's full-text index, refusing a table nothing searches. */
     requireFullText(): FullTextIndex {
         if (this.fullText === undefined) {
-            throw DatabaseError.of("INVALID_QUERY", `${this.name} has no text to search`);
+            throw DatabaseError.of("QUERY_INVALID", `${this.name} has no text to search`);
         }
 
         return this.fullText;

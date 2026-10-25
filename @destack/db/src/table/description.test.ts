@@ -83,7 +83,7 @@ test("refuse a value outside an enum column's values in the database itself", as
                 sql`INSERT INTO ${sql.identifier(lamp[TABLE].sqlName)} (id, state) VALUES ('c', 'dim')`,
             ),
         ),
-    ).toEqual(["BAD_REQUEST", "INVALID_RECORD", "a record fails a declared check"]);
+    ).toEqual(["BAD_REQUEST", "RECORD_INVALID", "a record fails a declared check"]);
     expect((await storage.database.select().from(lamp)).length).toBe(2);
 });
 

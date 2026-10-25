@@ -51,7 +51,7 @@ export class PostgresConnector implements DatabaseConnector {
         if (unapplied.length > 0) {
             await connection.close();
             throw DatabaseError.of(
-                "NOT_APPLIED",
+                "MIGRATION_PENDING",
                 `database ${declaration.name} has not applied ${unapplied.join(", ")}`,
             );
         }

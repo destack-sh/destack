@@ -109,7 +109,7 @@ export class DatabaseConnection<
         const open = this.state.openChannel;
         if (open === undefined) {
             throw DatabaseError.of(
-                "NO_CHANNEL",
+                "CHANNEL_MISSING",
                 `the connection is its database's only writer and has no channel ${name}`,
             );
         }
