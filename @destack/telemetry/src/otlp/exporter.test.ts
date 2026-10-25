@@ -1,13 +1,11 @@
+import { testSimulation } from "@destack/test/world";
 import { TelemetryScope } from "../scope/index.ts";
-import { Simulation } from "@destack/environment/simulation";
 import { expect, test } from "@destack/test";
 import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
 import { startTelemetry } from "../bun/index.ts";
 import { OtlpExporter, type OtlpSignal } from "./exporter.ts";
 
-/** The start of every test's world: 2026-10-24 at midnight UTC. */
-const START = Date.UTC(2026, 9, 24);
 /** The instrumented package. */
 const source = {
     id: PackageId.parse("package-01996ab0-0000-7000-8000-000000000001"),
@@ -39,7 +37,7 @@ const LogsRequest = schema.looseObject({
 
 test("export a log record inside its span as OTLP/JSON, correlated by trace", async () => {
     // deliver every request as parsed JSON
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const environment = simulation.environment("test");
     const delivered: { signal: OtlpSignal; body: unknown }[] = [];
     const exporter = new OtlpExporter(
@@ -104,18 +102,18 @@ test("export a log record inside its span as OTLP/JSON, correlated by trace", as
                         "droppedAttributesCount": 0,
                         "droppedEventsCount": 0,
                         "droppedLinksCount": 0,
-                        "endTimeUnixNano": "1792800000000000000",
+                        "endTimeUnixNano": "1790812800000000000",
                         "events": [],
                         "flags": 257,
                         "kind": 1,
                         "links": [],
                         "name": "note.render",
                         "spanId": "e3440b233e0a77dc",
-                        "startTimeUnixNano": "1792800000000000000",
+                        "startTimeUnixNano": "1790812800000000000",
                         "status": {
                           "code": 0,
                         },
-                        "traceId": "01a16b35080086a37896d7dfdfd3257b",
+                        "traceId": "01a0f4c2c40086a37896d7dfdfd3257b",
                       },
                     ],
                   },
@@ -162,12 +160,12 @@ test("export a log record inside its span as OTLP/JSON, correlated by trace", as
                         "droppedAttributesCount": 0,
                         "eventName": "note.saved",
                         "flags": 1,
-                        "observedTimeUnixNano": "1792800000000000000",
+                        "observedTimeUnixNano": "1790812800000000000",
                         "severityNumber": 9,
                         "severityText": "INFO",
                         "spanId": "e3440b233e0a77dc",
-                        "timeUnixNano": "1792800000000000000",
-                        "traceId": "01a16b35080086a37896d7dfdfd3257b",
+                        "timeUnixNano": "1790812800000000000",
+                        "traceId": "01a0f4c2c40086a37896d7dfdfd3257b",
                       },
                     ],
                     "scope": {
@@ -187,7 +185,7 @@ test("export a log record inside its span as OTLP/JSON, correlated by trace", as
 
 test("post each signal below a target's endpoint through the target's fetch", async () => {
     // record each request the target's fetch posts
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const environment = simulation.environment("test");
     const posted: { url: string; method: string | undefined; type: string | null }[] = [];
     const exporter = OtlpExporter.http(
@@ -229,7 +227,7 @@ test("post each signal below a target's endpoint through the target's fetch", as
 
 test("export a captured exception with the frames its build's symbolicator resolves", async () => {
     // resolve each frame to its source, as a build's source maps do
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const environment = simulation.environment("test");
     const delivered: unknown[] = [];
     const exporter = new OtlpExporter(

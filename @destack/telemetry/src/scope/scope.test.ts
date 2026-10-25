@@ -1,5 +1,5 @@
+import { testSimulation } from "@destack/test/world";
 import { TelemetryScope } from "../scope/index.ts";
-import { Simulation } from "@destack/environment/simulation";
 import { expect, expectTypeOf, test } from "@destack/test";
 import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
@@ -7,8 +7,6 @@ import { startTelemetry } from "../bun/index.ts";
 import { OtlpExporter } from "../otlp/index.ts";
 import { markCaptured } from "./scope.ts";
 
-/** The start of every test's world: 2026-10-24 at midnight UTC. */
-const START = Date.UTC(2026, 9, 24);
 /** The instrumented package. */
 const source = {
     id: PackageId.parse("package-01996ab0-0000-7000-8000-000000000001"),
@@ -46,7 +44,7 @@ const Exported = schema.looseObject({
 
 test("declare metrics whose attributes take only their declared values, and export them with their unit", async () => {
     // collect the metrics each export carries
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const environment = simulation.environment("test");
     const metrics: unknown[] = [];
     const exporter = new OtlpExporter(
@@ -130,7 +128,7 @@ const ExportedLogs = schema.looseObject({
 
 test("capture handled failures and messages as exceptions with their error type, level, tags and fingerprint, each failure once", async () => {
     // collect the records each export carries, without stack traces
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const environment = simulation.environment("test");
     const records: unknown[] = [];
     const exporter = new OtlpExporter(
@@ -223,7 +221,7 @@ test("capture handled failures and messages as exceptions with their error type,
 
 test("record visits and actions as the platform's destack.visit and destack.action records, refusing a log record under its names", async () => {
     // collect each export's records with their string attributes
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const environment = simulation.environment("test");
     const records: unknown[] = [];
     const exporter = new OtlpExporter(

@@ -1,5 +1,5 @@
+import { testSimulation } from "@destack/test/world";
 import { TelemetryScope } from "../scope/index.ts";
-import { Simulation } from "@destack/environment/simulation";
 import { expect, test } from "@destack/test";
 import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
@@ -8,9 +8,6 @@ import { startTelemetry } from "./browser.ts";
 
 /** The origin of the page, whose server receives its exports. */
 const ORIGIN = "https://notes.test";
-
-/** The start of every test's world: 2026-10-24 at midnight UTC. */
-const START = Date.UTC(2026, 9, 24);
 
 /** The instrumented package. */
 const source = {
@@ -145,7 +142,7 @@ test("export a page's uncaught errors and unhandled rejections to its origin at 
     };
 
     // start the page's telemetry on its window, in a world
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const page = new PageWindow();
     const exporter = OtlpExporter.http(
         { endpoint: `${ORIGIN}${OTLP_ORIGIN_PATH}`, isKeepalive: true, fetch: send },

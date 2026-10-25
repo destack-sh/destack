@@ -1,14 +1,11 @@
+import { testSimulation } from "@destack/test/world";
 import { createContextKey, ROOT_CONTEXT, SpanKind, trace } from "@opentelemetry/api";
-import { Simulation } from "@destack/environment/simulation";
 import { expect, test } from "@destack/test";
 import { extractContext, injectContext } from "./context.ts";
 
-/** The start of every test's world: 2026-10-24 at midnight UTC. */
-const START = Date.UTC(2026, 9, 24);
-
 test("join a client span and its server span in one trace across inject and extract on a world", async () => {
     // start a client span on the world's telemetry and inject its context into outgoing headers
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const { telemetry } = simulation.environment("client");
     const tracer = telemetry.tracers.getTracer("@example/notes");
     const client = tracer.startSpan("note.sync", { kind: SpanKind.CLIENT });

@@ -1,5 +1,5 @@
+import { testSimulation } from "@destack/test/world";
 import type { Clock } from "@destack/environment";
-import { Simulation } from "@destack/environment/simulation";
 import { TelemetryScope } from "../scope/index.ts";
 import { expect, test } from "@destack/test";
 import { PackageId } from "@destack/package";
@@ -11,9 +11,6 @@ import { startTelemetry } from "../bun/index.ts";
 import { OtlpExporter } from "../otlp/index.ts";
 import { RatioSampler } from "./sampler.ts";
 import { TailSampler } from "./tail.ts";
-
-/** The start of every test's world: 2026-10-24 at midnight UTC. */
-const START = Date.UTC(2026, 9, 24);
 
 /** The instrumented package. */
 const source = {
@@ -53,7 +50,7 @@ async function exportThroughTail(
     work: (scope: TelemetryScope, clock: Clock) => Promise<void>,
 ): Promise<string[]> {
     // export through a tail sampler behind a sampler keeping no trace by ratio, in a world
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const environment = simulation.environment("test");
     const exported: string[] = [];
     const exporter = new OtlpExporter(

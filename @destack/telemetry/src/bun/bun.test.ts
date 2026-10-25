@@ -1,15 +1,12 @@
+import { testSimulation } from "@destack/test/world";
 import { fileURLToPath } from "node:url";
 import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
-import { Simulation } from "@destack/environment/simulation";
 import { present, schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { testHost } from "@destack/test/host";
 import { OtlpExporter } from "../otlp/index.ts";
 import { Telemetry } from "../sdk/index.ts";
 import { observeProcess } from "./bun.ts";
-
-/** The start of every test's world: 2026-10-24 at midnight UTC. */
-const START = Date.UTC(2026, 9, 24);
 
 /** The package directory, whose preload a child process runs with. */
 const root = fileURLToPath(new URL("../..", import.meta.url));
@@ -38,7 +35,7 @@ if (process.env.FAILURE === "rejection") {
 /** Run the failing process to its end. */
 async function fail(failure: "exception" | "rejection") {
     // run the process from a world, its output and errors piped
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const { process } = simulation.environment("test");
     const child = process.spawn([process.executable, "-e", failing], {
         workingDirectory: root,
@@ -306,7 +303,7 @@ test("export the process's user and system CPU seconds as a delta process.cpu.ti
         },
         () => {},
     );
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const telemetry = new Telemetry(
         exporter.options(source),
         new AsyncLocalStorageContextManager(),
