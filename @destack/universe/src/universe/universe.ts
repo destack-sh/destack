@@ -273,11 +273,11 @@ export class Universe implements AsyncDisposable {
         // serve once the run applied the definition, refusing a run that did not complete
         const ready = async (signal: AbortSignal) => {
             const run = await applying.ended(database, signal);
-            if (run.state !== "completed") {
+            if (run.row.state !== "completed") {
                 throw UniverseError.of(
                     "DEFINITION_NOT_APPLIED",
-                    `the run applying the definition ${digest} is ${run.state}`,
-                    { cause: run.failure },
+                    `the run applying the definition ${digest} is ${run.row.state}`,
+                    { cause: run.row.failure },
                 );
             }
         };
