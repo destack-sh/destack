@@ -1,12 +1,9 @@
+import { testSimulation } from "@destack/test/world";
 import { fileURLToPath } from "node:url";
-import { Simulation } from "@destack/environment/simulation";
 import { expect, test } from "@destack/test";
 import { PackageLocator, type ModulePackage } from "../../locator/index.ts";
 import { transformModule } from "../transform.ts";
 import { ModuleMetadata } from "../../definition/metadata.ts";
-
-/** The start of every test's world: 2026-10-24 at midnight UTC. */
-const START = Date.UTC(2026, 9, 24);
 
 /** The package whose metadata the transform injects. */
 const owner: ModulePackage = {
@@ -24,7 +21,7 @@ const owner: ModulePackage = {
 const NOTE_PATH = fileURLToPath(new URL("fixture/notes/note.ts", import.meta.url));
 
 test("stamp declaration constructors and metadata reads with the calling module", async () => {
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const { files } = simulation.environment("test");
     const code = [
         'import { defineNote } from "./declare.ts";',
@@ -66,7 +63,7 @@ test("stamp declaration constructors and metadata reads with the calling module"
 });
 
 test("pass the calling module to stamped tags and to members of named and namespace imports", async () => {
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const { files } = simulation.environment("test");
     const code = [
         'import { Note, note } from "./declare.ts";',

@@ -1,11 +1,8 @@
+import { testSimulation } from "@destack/test/world";
 import type { FileSystem } from "@destack/environment";
-import { Simulation } from "@destack/environment/simulation";
 import { join } from "node:path";
 import { expect, test } from "@destack/test";
 import { PackageLocator } from "./locator.ts";
-
-/** The start of every test's world: 2026-10-24 at midnight UTC. */
-const START = Date.UTC(2026, 9, 24);
 
 /** The schema every package definition references. */
 const SCHEMA = "https://destack.app/schemas/2026.9.0/destack.json";
@@ -31,7 +28,7 @@ async function writePackage(
 
 test("read listed source packages at their given versions and other packages at their declared ones", async () => {
     // write a listed and an unlisted source package, and an installation of the listed name
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const { files } = simulation.environment("test");
     const root = await files.makeTemporaryDirectory("locator-");
     const packages = [

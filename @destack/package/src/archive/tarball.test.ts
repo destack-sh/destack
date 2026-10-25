@@ -1,12 +1,9 @@
+import { testSimulation } from "@destack/test/world";
 import { join } from "node:path";
 import type { Environment } from "@destack/environment";
-import { Simulation } from "@destack/environment/simulation";
 import { expect, test } from "@destack/test";
 import { testHost } from "@destack/test/host";
 import { Tarball, type TarballEntry } from "./tarball.ts";
-
-/** The start of every test's world: 2026-10-24 at midnight UTC. */
-const START = Date.UTC(2026, 9, 24);
 
 /** Read a stream's bytes. */
 async function read(stream: ReadableStream<Uint8Array>): Promise<Uint8Array<ArrayBuffer>> {
@@ -33,7 +30,7 @@ async function extract(
 }
 
 test("roundtrip files of short, prefixed and extended paths through a tarball the system tar extracts", async () => {
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const environment = simulation.environment("test");
     const directory = await environment.files.makeTemporaryDirectory("tarball-");
 
@@ -73,7 +70,7 @@ test("roundtrip files of short, prefixed and extended paths through a tarball th
 
 test("write equal entries to identical tarball bytes with a fixed gzip header, a checked trailer and a pinned digest", async () => {
     // stream the same entries twice in a world, and once through the host's compression streams
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const { compression, crypto } = simulation.environment("test");
     const first = await read(Tarball.stream(entries(), compression));
     const second = await read(Tarball.stream(entries(), compression));

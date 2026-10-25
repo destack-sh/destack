@@ -1,6 +1,6 @@
+import { testSimulation } from "@destack/test/world";
 import { dirname, join } from "node:path";
 import type { Crypto } from "@destack/environment";
-import { Simulation } from "@destack/environment/simulation";
 import { expect, refusal, test } from "@destack/test";
 import { Digest } from "@destack/schema";
 import { Package } from "../definition/package.ts";
@@ -9,9 +9,6 @@ import * as graph from "../graph/index.ts";
 import { MemoryBuild } from "../test/memory.ts";
 import { BuildReader } from "./reader.ts";
 import { BuildWriter } from "./writer.ts";
-
-/** The start of every test's world: 2026-10-24 at midnight UTC. */
-const START = Date.UTC(2026, 9, 24);
 
 /** The package whose builds the reader opens. */
 const app = Package.parse({
@@ -38,7 +35,7 @@ async function module(
 
 test("refuse a module's graph file whose bytes differ from its digest", async () => {
     // build a module, then serve another module's graph file under every graph path
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const { crypto } = simulation.environment("test");
     const source = new TextEncoder().encode("export {};\n");
     const build = await MemoryBuild.write(
@@ -69,7 +66,7 @@ test("refuse a module's graph file whose bytes differ from its digest", async ()
 
 test("refuse a distributed file whose bytes differ from its listing, and an unlisted path", async () => {
     // serve a build's file as other bytes of its length, then as longer bytes
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const { crypto } = simulation.environment("test");
     const source = new TextEncoder().encode("export {};\n");
     const build = await MemoryBuild.write(
@@ -103,7 +100,7 @@ test("refuse a distributed file whose bytes differ from its listing, and an unli
 
 test("open a remote build by its manifest digest, and refuse other bytes and unsafe addresses", async () => {
     // serve a build's manifest and its distributed files over a fake endpoint
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const { crypto } = simulation.environment("test");
     const content = new TextEncoder().encode("export {};");
     const build = await MemoryBuild.write(
@@ -174,7 +171,7 @@ test("open a remote build by its manifest digest, and refuse other bytes and uns
 
 test("list the Destack releases a build resolved, leaving its npm dependencies out", async () => {
     // build the app against a Destack release and an npm package
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const { crypto } = simulation.environment("test");
     const vault = {
         kind: "destack" as const,
@@ -201,7 +198,7 @@ test("list the Destack releases a build resolved, leaving its npm dependencies o
 
 test("read each list and the graph's modules once, and read a list again after a failed read", async () => {
     // build an app declaring one declaration, and fail its first read of the file list
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const { crypto } = simulation.environment("test");
     const build = await MemoryBuild.of(
         app,
@@ -267,7 +264,7 @@ test("read each list and the graph's modules once, and read a list again after a
 
 test("read a build a directory keeps: its manifest, its file list and each file's bytes", async () => {
     // write a build with one file into a directory
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const world = simulation.environment("test");
     const { files } = world;
     const directory = await files.makeTemporaryDirectory("read-build-");

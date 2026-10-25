@@ -1,15 +1,12 @@
-import { Simulation } from "@destack/environment/simulation";
+import { testSimulation } from "@destack/test/world";
 import { expect, test, refusal } from "@destack/test";
 import { join } from "node:path";
 import { rolldown } from "rolldown";
 import { HostModules } from "./host.ts";
 
-/** The start of every test's world: 2026-10-24 at midnight UTC. */
-const START = Date.UTC(2026, 9, 24);
-
 test("classify host modules a runtime keeps, a package replaces with nothing, and the rest as unavailable", async () => {
     // write a package whose browser field replaces node:fs with nothing
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const { files } = simulation.environment("test");
     const directory = await files.makeTemporaryDirectory("host-");
     await files.writeTextFile(
@@ -31,7 +28,7 @@ test("classify host modules a runtime keeps, a package replaces with nothing, an
 
 test("refuse a host module the runtime lacks and the importing package keeps", async () => {
     // resolve a host module the browser lacks for a module of no package
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const { files } = simulation.environment("test");
     const hosts = new HostModules("browser", files);
 
@@ -44,7 +41,7 @@ test("refuse a host module the runtime lacks and the importing package keeps", a
 
 test("bundle a host module the runtime keeps as an import, and one its package replaces as empty", async () => {
     // write a module importing node:fs, in a package whose browser field replaces it with nothing
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const { files } = simulation.environment("test");
     const directory = await files.makeTemporaryDirectory("host-");
     await files.writeTextFile(

@@ -1,13 +1,10 @@
-import { Simulation } from "@destack/environment/simulation";
+import { testSimulation } from "@destack/test/world";
 import { expect, test, refusal } from "@destack/test";
 import { Digest } from "@destack/schema";
 import { PackageId } from "../definition/package.ts";
 import { Declaration } from "./declaration.ts";
 import { Module } from "./module.ts";
 import { Moniker } from "./moniker.ts";
-
-/** The start of every test's world: 2026-10-24 at midnight UTC. */
-const START = Date.UTC(2026, 9, 24);
 
 /** The symbol the module defines. */
 const DEFINED = Moniker.of({
@@ -31,7 +28,7 @@ const ELSEWHERE = Moniker.of({
 
 test("encode a module whose declarations sit in it, at itself or its symbols, refusing one in another module", async () => {
     // declare an object at the module's symbol, one at the module, and one at another module's symbol
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const { crypto } = simulation.environment("test");
     const declared = {
         kindPackageId: PackageId.parse("package-01996ab0-0000-7000-8000-0000000000a2"),
