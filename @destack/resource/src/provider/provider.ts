@@ -31,7 +31,7 @@ export const ResourceRecord = {
 };
 
 /** A provisioned resource a host binds to a workload, as the workload's connector opens it. */
-export const ResourceBinding = schema.object({
+const resourceBinding = schema.object({
     /** The bound resource's identifier, which its kind's connector reads. */
     resource: schema.string().min(1),
     /** The resource kind, such as database. */
@@ -47,8 +47,25 @@ export const ResourceBinding = schema.object({
     /** The version of the bound object the deployment captured, such as a secret's. */
     version: schema.number().int().positive().exactOptional(),
 });
+
 /** A provisioned resource a host binds to a workload, as the workload's connector opens it. */
-export type ResourceBinding = schema.Infer<typeof ResourceBinding>;
+export const ResourceBinding = Object.assign(resourceBinding, {
+    /** Read the credential and scope a host lends for a resource, refusing a binding without. */
+    lent(binding: ResourceBinding): { readonly credential: string; readonly scope: string } {
+        const { credential, scope } = binding;
+        if (credential === undefined || scope === undefined) {
+            throw ResourceError.of(
+                "CREDENTIAL_MISSING",
+                `binding ${binding.resource} lends no credential and scope`,
+            );
+        }
+
+        return { credential, scope };
+    },
+});
+
+/** A provisioned resource a host binds to a workload, as the workload's connector opens it. */
+export type ResourceBinding = schema.Infer<typeof resourceBinding>;
 
 /** Opens clients of one kind's resources inside a workload. */
 export interface Connector<

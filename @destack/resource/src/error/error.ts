@@ -30,6 +30,7 @@ export const ResourceError = defineErrorFamily(
         // internal server error
         ALREADY_BOUND: { code: "INTERNAL_SERVER_ERROR" },
         BINDING_MISSING: { code: "INTERNAL_SERVER_ERROR" },
+        CREDENTIAL_MISSING: { code: "INTERNAL_SERVER_ERROR" },
         RESOURCE_UNPROVISIONED: { code: "INTERNAL_SERVER_ERROR" },
     },
     { audience: "host" },
