@@ -191,7 +191,8 @@ export class TokenEndpoint {
             return undefined;
         }
         const isOffline = scopes.includes(OFFLINE_ACCESS);
-        const terms = { ...consent, scopes, resource: issue.resource };
+        const { assurance } = issue.authentication.credential;
+        const terms = { ...consent, scopes, resource: issue.resource, assurance };
         try {
             return isOffline
                 ? await RefreshToken.issue(objects, terms, environment)

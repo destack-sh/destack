@@ -67,7 +67,11 @@ export function refreshGrant(options: RefreshOptions): TokenGrant {
         // describe the person through the client, until the token lapses, as offline access outlives the session
         const resource = row.resource ?? undefined;
         const authentication = AccountAuthentication.client(
-            { userId: consent.scope, clientId: party.clientId },
+            {
+                userId: consent.scope,
+                clientId: party.clientId,
+                assurance: row.assurance ?? undefined,
+            },
             row.expiresAt,
             PackageResource.audience(resource),
             environment.clock.now(),

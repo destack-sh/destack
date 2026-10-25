@@ -653,30 +653,42 @@ test("sign a device in as a new client through the browser once the person allow
     ]);
 });
 
-test("include the second factor of the session approving a device's client in its tokens", async () => {
+test("include the second factor of the session approving a device's client in its tokens, and keep it in refreshed ones", async () => {
     // authorize a fresh client in a browser the person stepped up in
     await using fixture = await TestAccountStore.open();
     const { person, browser } = await fixture.signInWithLink("ada@example.com");
     await fixture.simulation.jump(fixture.clock.now() + 1000);
     await fixture.elevate(person, browser);
+    const clientId = Identifier.create("client", fixture.environment);
     const redeemed = await fixture.authorize(browser, {
-        clientId: Identifier.create("client", fixture.environment),
+        clientId,
         redirectUri: LOOPBACK,
         scope: "openid offline_access",
         state: "state-2",
         resource: ACCOUNT_RESOURCE,
     });
 
-    // carry the approving session's second factor into the tokens
-    const { caller } = TestJwt.claims(Tokens.parse(await redeemed.json()).access_token);
+    // refresh the tokens a minute later
+    const tokens = Tokens.parse(await redeemed.json());
+    await fixture.simulation.jump(fixture.clock.now() + 60 * SECOND);
+    const refreshed = await provider(fixture, "/oauth2/token", {
+        grant_type: "refresh_token",
+        refresh_token: present(tokens.refresh_token, "the refresh token"),
+        client_id: clientId,
+    });
+    const renewed = Tokens.parse(await refreshed.json());
+
+    // carry the approving session's second factor into the tokens and their renewal
+    const { caller } = TestJwt.claims(tokens.access_token);
     const approving = await fixture.database
         .select({ authenticatedAt: session.table.authenticatedAt })
         .from(session.table)
         .where(eq(session.table.id, schema.identifier("session").parse(caller.credential.id)));
-    expect(caller.credential.assurance).toEqual({
-        level: 2,
-        authenticatedAt: nth(approving, 0).authenticatedAt,
-    });
+    const assurance = { level: 2, authenticatedAt: nth(approving, 0).authenticatedAt };
+    expect([
+        caller.credential.assurance,
+        TestJwt.claims(renewed.access_token).caller.credential.assurance,
+    ]).toEqual([assurance, assurance]);
 });
 
 test("send a signed-in person asked to sign in again within an age to the sign-in page", async () => {

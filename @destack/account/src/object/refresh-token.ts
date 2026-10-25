@@ -1,4 +1,4 @@
-import { none } from "@destack/access";
+import { AuthenticationAssurance, none } from "@destack/access";
 import { type DatabaseConnection, eq, type Select, Snapshot } from "@destack/db";
 import type { Environment } from "@destack/environment";
 import { defineObject, field } from "@destack/object";
@@ -34,6 +34,8 @@ export const refreshToken = defineObject(
             scopes: field.json(schema.array(schema.string())),
             /** The package the renewed access tokens are for, as its resource (RFC 8707). */
             resource: field.string().optional(),
+            /** How the person authenticated when the family began, kept across renewals. */
+            assurance: field.json(AuthenticationAssurance).optional(),
             /** Whether the token renews, or was spent on its successor. */
             status: field.enum(REFRESH_TOKEN_STATUSES),
             /** When the token lapses. */
@@ -49,7 +51,16 @@ export const refreshToken = defineObject(
     (method) => ({
         /** Issue a token in a family. */
         create: method.create("issue", {
-            fields: ["digest", "family", "consentId", "scopes", "resource", "status", "expiresAt"],
+            fields: [
+                "digest",
+                "family",
+                "consentId",
+                "scopes",
+                "resource",
+                "assurance",
+                "status",
+                "expiresAt",
+            ],
             isInternal: true,
             isPredicted: false,
         }),
@@ -87,6 +98,8 @@ export const RefreshToken = {
             readonly scopes: readonly string[];
             /** The package the renewed access tokens are for. */
             readonly resource?: string | undefined;
+            /** How the person authenticated when the family began. */
+            readonly assurance?: AuthenticationAssurance | undefined;
             /** The token the new one succeeds, spent in the same mutation. */
             readonly rotating?: RefreshToken | undefined;
         },
@@ -108,6 +121,7 @@ export const RefreshToken = {
                     consentId: terms.row.id,
                     scopes: [...terms.scopes],
                     resource: terms.resource ?? null,
+                    assurance: terms.assurance ?? null,
                     status: "live",
                     expiresAt: environment.clock.now() + REFRESH_TOKEN_MILLISECONDS,
                 }),

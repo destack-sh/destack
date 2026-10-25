@@ -2,6 +2,7 @@ import type { Crypto, Environment } from "@destack/environment";
 import {
     accessGrant,
     type Authentication,
+    type AuthenticationAssurance,
     Caller,
     Contact,
     Grant,
@@ -109,17 +110,23 @@ export const AccountAuthentication = {
             readonly userId: string;
             /** The client acting for them. */
             readonly clientId: string;
+            /** How the person authenticated, absent for a device code grant. */
+            readonly assurance?: AuthenticationAssurance | undefined;
         },
         lapse: number,
         audience: PackageId,
         now: number,
     ): Authentication {
-        const { userId, clientId } = acting;
+        // describe the person through the client, keeping how they authenticated
+        const { userId, clientId, assurance } = acting;
+        const authentication = authenticationOf("client", clientId, userId, lapse, audience, now);
+        const { caller, credential } = authentication;
+        const assured =
+            assurance === undefined
+                ? authentication
+                : { caller, credential: { ...credential, assurance } };
 
-        return withClient(
-            authenticationOf("client", clientId, userId, lapse, audience, now),
-            clientId,
-        );
+        return withClient(assured, clientId);
     },
 
     /** Verify a token client of an active user under the user's live grant to it. */
