@@ -14,7 +14,7 @@ import { Package } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
 import { RESOURCE_KIND_PACKAGE_ID } from "@destack/resource";
 import { type Identifier, present, schema } from "@destack/schema";
-import { fixtureOutputs, TestPackage, TestSpace, workload } from "@destack/stack/test";
+import { fixtureOutputs, OWNER_EMAIL, TestPackage, TestSpace, workload } from "@destack/stack/test";
 import { testHost } from "@destack/test/host";
 import { HOOK_WORKLOAD } from "@destack/stack/workload";
 import { ObjectReference, RequestId } from "@destack/sync";
@@ -45,7 +45,7 @@ import { TestMailTransport } from "./mail.ts";
 const START = Date.UTC(2026, 9, 5);
 
 /** The provider code the machine provides and connects the space's mail under. */
-const MAIL_PROVIDER = "test";
+export const MAIL_PROVIDER = "test";
 
 /** The origin of the webhook endpoint the space's endpoints post to. */
 export const HOOKS_ORIGIN = "https://hooks.example.com";
@@ -274,7 +274,7 @@ export class TestMessage {
     static template() {
         return TestSpace.template(SPACE_OPTIONS, {
             name: "message",
-            spaces: [{ home: "owner" }],
+            spaces: [{ home: OWNER_EMAIL }],
             value: MessageWorld,
             write: (hosted) => TestMessage.#write(hosted),
         });
