@@ -2,9 +2,6 @@ import { schema } from "@destack/schema";
 import { DeclarationReference } from "@destack/package/declare";
 import { type Key, type Table, type RowImage, type Row, LogPosition, Condition } from "@destack/db";
 
-/** The default change retention of a change trigger in milliseconds: a week. */
-export const MAX_LAG_MILLISECONDS = 7 * 24 * 60 * 60 * 1000;
-
 /** The changes a change trigger fires on. */
 export const CHANGE_OPERATIONS = ["create", "update", "delete"] as const;
 
@@ -23,8 +20,6 @@ export const ChangeOn = schema.object({
     operations: schema.array(ChangeOperation).min(1),
     /** Where a new trigger starts: at the log's head, or with every matching row as created. */
     from: schema.enum(["now", "snapshot"]),
-    /** How long the log retains changes the trigger has not recorded, in milliseconds. */
-    maxLag: schema.number().int().positive(),
 });
 /** The changes of one object type a trigger fires on, as the manifest describes them. */
 export type ChangeOn = schema.Infer<typeof ChangeOn>;

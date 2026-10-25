@@ -1,10 +1,16 @@
-import { principal } from "@destack/access";
 import { implementPackage } from "@destack/object/server";
-import { CallError } from "@destack/object";
-import { schema } from "@destack/schema";
 import { ObjectReference, Subject } from "@destack/sync";
-import { approval, change, Change, ChangeRequest, changeRequest } from "./approval/index.ts";
+import {
+    approval,
+    ApprovalQuorum,
+    change,
+    Change,
+    ChangeRequest,
+    changeRequest,
+} from "./approval/index.ts";
 import workflowPackage from "./package.ts";
+import type {} from "@destack/package/import-meta";
+import { WorkflowError } from "./error/index.ts";
 
 /** The change runs as the workflow package serves them. */
 const changes = change.implement((step, input, context) => new Change(step, input, context).run());
@@ -16,28 +22,28 @@ export default implementPackage(workflowPackage, {
         changeRequest.implement({
             methods: {
                 create: async (context, next) => {
-                    // ask the approvers given, else the delegator of the caller's grant: its subject, or a space's owners
+                    // refuse the acting principal asking itself, as a pull request's author cannot
                     const { subject, actors } = context.caller;
-                    const given = schema
-                        .looseObject({ approvers: schema.array(Subject).exactOptional() })
-                        .parse(context.input).approvers;
-                    const delegator = principal.space.is(subject)
-                        ? { ...subject, relation: "owner" }
-                        : subject;
-                    const approvers = given ?? [delegator];
-
-                    // refuse a requester asking to approve their own change, as a pull request's author cannot
-                    if (given?.some((each) => Subject.same(each, subject)) === true) {
-                        throw new CallError("BAD_REQUEST", {
-                            message: "a requester cannot approve their own change",
-                        });
+                    const acting = actors.at(-1) ?? subject;
+                    const given = context.input.approvers;
+                    if (given?.some((each) => Subject.same(each, acting)) === true) {
+                        throw WorkflowError.of(
+                            "SELF_APPROVAL",
+                            "a requester cannot approve their own change",
+                        );
                     }
+
+                    // ask the approvers given, or those the caller's kind of request asks
+                    const approvers = given ?? ChangeRequest.approvers(context.caller);
+                    const count = context.input.count ?? 1;
+                    ApprovalQuorum.require(count, approvers.length);
 
                     // record the caller's subject and actors, and start the change's run
                     const row = await next(
                         context.with({
                             input: {
                                 ...context.input,
+                                count,
                                 actors: [...actors],
                                 ...ObjectReference.columns("requester", subject),
                             },
@@ -48,12 +54,12 @@ export default implementPackage(workflowPackage, {
                     return row;
                 },
 
-                execute: async (context) => {
-                    // make the approved call, recording its output on the change
+                apply: async (context, next) => {
+                    // make the approved call under the approving grant, then apply the change with its output
                     const output = await new ChangeRequest(context.target).execute(context);
-                    await context.update({ output });
+                    const applied = await next();
 
-                    return output;
+                    return await context.at(applied).update({ output });
                 },
 
                 withdraw: async (context, next) => {

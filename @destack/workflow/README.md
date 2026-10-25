@@ -6,15 +6,15 @@
 const summarize = defineWorkflow({
     name: "summarize",
     input: schema.object({ id: schema.string() }),
+    output: NO_OUTPUT,
 });
 const served = summarize.implement(async (step, input) => {
     const note = await step.query("read", note.call("get", { spaceId, id: input.id }));
     await step.sleep("pause", { minutes: 5 });
-
-    return step.call("write", summary.call("create", { spaceId, text: note.title }));
+    await step.call("write", summary.call("create", { spaceId, text: note.title }));
 });
 await store.mutate(caller, {
-    id: RequestId.create(),
+    id: RequestId.create(store.environment),
     calls: [summarize.start({ id }, { key: id, actor: caller.subject })],
 });
 ```
@@ -24,7 +24,7 @@ await store.mutate(caller, {
 A workflow runs a process that someone starts, and a controller keeps objects in the state their fields describe.
 
 ```ts
-defineWorkflow({ name: "publish", input }); // ask for approval, wait a day, then publish
+defineWorkflow({ name: "publish", input, output: NO_OUTPUT }); // ask for approval, wait a day, then publish
 reminder.implement({ controller: { pending: { sentAt: { isNull: true } }, reconcile } }); // send when due
 // both change state only through the methods of the type that keeps it
 ```
@@ -41,6 +41,7 @@ await step.run("count", schema.number(), async () => words(text)); // local code
 await step.sleepUntil("morning", nine);
 const approval = await step.waitFor("approval", note.call("list", { spaceId, where }), { timeout });
 const total = await step.invoke("child", count, { ids }); // a child run, answering its output
+await step.invoke("notify", notify, input, { onParentClose: "abandon" }); // runs on after its parent ends
 ```
 
 ## Runs
@@ -49,11 +50,11 @@ A run is due, waits, is paused or has ended; its actor pauses, resumes, cancels 
 
 ```ts
 summarize.start(input, { key: id, mode: "replace", at: tomorrow, actor });
-summarize.start(input, { actor: space }); // acts for the space within its grant to the installation
 summarize.run.call("reset", { ...target, step: "write" }); // run again from a step
 defineWorkflow({
     name: "digest",
     input,
+    output: schema.string(), // every workflow declares its output, NO_OUTPUT for none
     scope: "universe", // runs live in the universe, a space by default
     retries: { maximumAttempts: 3 }, // Temporal's RetryPolicy and its defaults
     timeout: { hours: 1 },
@@ -72,9 +73,11 @@ defineWorkflow({
 `Task` makes one call once, now or at a time, as the run's actor, as Cloud Tasks and Convex's `scheduler.runAt` do, through a task workflow of the package's own.
 
 ```ts
-const task = defineWorkflow({ name: "task", input: Task.input, output: Task.output });
-const served = task.implement((step, input) => Task.run(step, input));
-await context.mutate(context.self, [task.start({ call: reminder.call("send", target) }, { at, actor })]);
+const task = defineWorkflow({ name: "task", input: TaskInput, output: TaskOutput });
+const served = task.implement((step, input) => new Task(step, input).run());
+await context.mutate(context.self, [
+    task.start({ call: reminder.call("send", target) }, { at, actor }),
+]);
 ```
 
 ## Triggers
@@ -85,6 +88,7 @@ A trigger starts runs on a schedule, an object's changes or signed webhook deliv
 defineWorkflow({
     name: "remind",
     input,
+    output: NO_OUTPUT,
     triggers: {
         daily: {
             kind: "schedule", // a Kubernetes CronJob: cron, interval or once
@@ -107,6 +111,8 @@ defineWorkflow({
         },
     },
 });
+remind.trigger.call("pause", target); // a paused change trigger keeps its changes six days at least
+remind.trigger.call("reset", target); // start a stopped trigger over as a new one begins
 ```
 
 ## Approvals
@@ -114,8 +120,8 @@ defineWorkflow({
 `step.approve` asks approvers to decide on an object, and a change request makes a call once they approve it, as a pull request merges once approved.
 
 ```ts
-const decision = await step.approve("review", subject, { approvers: [bob, alice], count: 2 });
+const decision = await step.approve("review", subject, { approvers: [bob, alice], count: 2 }); // principals, never groups
 await client.changeRequest.create({ spaceId, parent, call: rename, approvers: [bob] });
-await client.changeRequest.create({ spaceId, call: publish }); // after APPROVAL_REQUIRED: asks the grant's delegator
+await client.changeRequest.create({ spaceId, call: publish }); // asks the grant's delegator
 await client.approval.approve(approval.target(asked));
 ```

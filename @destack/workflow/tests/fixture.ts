@@ -1,38 +1,45 @@
-import { anyone, principal, relation } from "@destack/access";
-import { AccessFixture } from "@destack/access/test";
-import { account, space } from "@destack/account/object";
-import { STACKS } from "@destack/account/test";
+import type { Environment, HostCapability } from "@destack/environment";
 import {
-    bucket,
-    type DatabaseConnection,
-    defineDatabase,
-    lease,
-    Table,
-    ControlLoop,
-} from "@destack/db";
-import { TestDatabase } from "@destack/db/test";
-import { VirtualClock } from "@destack/environment/simulation";
-import { defineObject, field, type ObjectType } from "@destack/object";
-import { implementPackage, ObjectStore } from "@destack/object/server";
-import { callTables, testEvents } from "@destack/object/test";
-import { PackageHandle } from "@destack/object";
-import { RequestId, type Call, type Subject, Scope } from "@destack/sync";
-import { subjectContext, testCallKey } from "@destack/object/test";
-import { type Identifier, schema } from "@destack/schema";
+    Grant,
+    type GrantPermission,
+    InstallationId,
+    principal,
+    relation,
+    universe,
+} from "@destack/access";
+import { space } from "@destack/account/object";
+import type { Simulation } from "@destack/environment/simulation";
+import {
+    defineObject,
+    field,
+    Follow,
+    grantShape,
+    PackageHandle,
+    type ObjectType,
+} from "@destack/object";
+import { DynamicObjectClient } from "@destack/object/client";
+import objectPackage from "@destack/object/package";
+import { implementPackage } from "@destack/object/server";
+import { TestObjectStore, testSimulation } from "@destack/object/test";
+import { Identifier, schema } from "@destack/schema";
+import { type Call, RequestId, Scope, type Subject, Uplink } from "@destack/sync";
+import { Snapshot } from "@destack/db";
 import { onTestFinished } from "@destack/test";
-import { v7 } from "uuid";
 import type {
     RunContext,
     Step,
+    WaitOf,
     Workflow,
+    WorkflowDeclaration,
     WorkflowImplementation,
     WorkflowServing,
 } from "../src/index.ts";
 import { approval, changeRequest } from "../src/approval/index.ts";
 import workflowPackage from "../src/package.ts";
 import workflowServer from "../src/server.ts";
+import { NOTES } from "./package.ts";
 
-/** The person starting the runs. */
+/** The person starting the runs, who owns the space. */
 export const alice = principal.user.reference(
     Scope.universe.id,
     schema.identifier("user").parse("user-01996ab0-0000-7000-8000-000000000100"),
@@ -44,13 +51,19 @@ export const bob = principal.user.reference(
     schema.identifier("user").parse("user-01996ab0-0000-7000-8000-000000000101"),
 );
 
-/** The installation serving the notes and running the workflows. */
-const INSTALLATION = schema
-    .identifier("installation")
-    .parse("installation-01996ab0-0000-7000-8000-000000000201");
+/** An agent installed in the space, which people let act for them. */
+export function agentOf(spaceId: string): Subject {
+    return principal.installation.reference(spaceId, "installation-agent");
+}
 
-/** The time the scenarios start at: the current minute, as replicated access uses real time. */
-export const START = Math.floor(Date.now() / 60_000) * 60_000;
+/** The node the space's store runs as in the fixture's world. */
+const SPACE_NODE = "space";
+
+/** The longest a grant takes to reach the space's replica, in milliseconds. */
+const REPLICA_MILLISECONDS = 2000;
+
+/** The longest a fixture runs its world toward a condition: twice the longest scenario's three hours. */
+const UNTIL_MILLISECONDS = 6 * 60 * 60 * 1000;
 
 /** Notes their owners write, and publish under a new title, which no role lets anyone else do. */
 export const note = defineObject(
@@ -73,6 +86,7 @@ export const note = defineObject(
             input: schema.object({ title: schema.string() }),
         }),
     }),
+    NOTES,
 );
 
 /** Notes as the fixture serves them, publishing under the given title. */
@@ -80,41 +94,51 @@ const servedNote = note.implement({
     methods: { publish: (call) => call.update({ title: call.input.title }) },
 });
 
-/** The workflow package as the fixtures serve it: approvals, change requests and change runs. */
-const PACKAGE = workflowServer.definition(undefined);
+/** The notes application's package, which clients call for notes. */
+export const notesPackage = PackageHandle.of(note.package, { objects: { note } });
 
-/** A space serving notes, the workflow package and a workflow, on a virtual clock. */
+/** A space serving notes, the workflow package and a workflow, on a simulated clock. */
 export interface WorkflowFixture {
-    /** The store serving the notes and the workflow. */
-    readonly store: ObjectStore;
-    /** The clock the store and the controller run on. */
-    readonly clock: VirtualClock;
-    /** The space the notes and runs live in. */
-    readonly spaceId: Identifier<"space">;
+    /** The store serving the space, called as its users. */
+    readonly served: TestObjectStore;
+    /** The simulated world the store and its controllers run in. */
+    readonly simulation: Simulation;
+    /** The world the space's store runs in. */
+    readonly environment: Environment;
     /** The workflow as the store serves it, its webhooks among it. */
-    readonly served: WorkflowImplementation;
-    /** Start a run as the store, acting as alice unless told otherwise. */
-    readonly start: (call: (spaceId: Identifier<"space">) => Call) => Promise<unknown>;
-    /** Call as alice in the space. */
-    readonly asAlice: (calls: readonly Call[]) => Promise<readonly unknown[]>;
-    /** Call as bob in the space. */
-    readonly asBob: (calls: readonly Call[]) => Promise<readonly unknown[]>;
+    readonly implementation: WorkflowImplementation;
+    /** Call the space's objects by type name as a subject, such as a workflow's runs. */
+    readonly objects: (subject: Subject) => DynamicObjectClient;
+    /** Let a delegate act for a person, as the person grants at the universe. */
+    readonly grant: (
+        delegator: Subject,
+        delegate: Subject,
+        permissions: readonly GrantPermission[],
+    ) => Promise<Identifier<"grant">>;
+    /** Start a run as the space, acting as the subject the call names. */
+    readonly start: (call: (spaceId: string) => Call) => Promise<unknown>;
     /** Read the workflow's runs, oldest first. */
     readonly runs: () => Promise<readonly Record<string, unknown>[]>;
-    /** Wait until the runs meet a condition, moving the clock to each next timer between looks. */
+    /** Run the world until a condition holds, failing on the controllers' errors. */
+    readonly when: (isMet: () => Promise<boolean>) => Promise<void>;
+    /** Run the world until the runs meet a condition, answering them. */
     readonly until: (
         condition: (runs: readonly Record<string, unknown>[]) => boolean,
     ) => Promise<readonly Record<string, unknown>[]>;
 }
 
-/** Serve notes and a workflow in alice's space, advancing runs on a virtual clock. */
-export async function openWorkflow<Input, Output>(
-    workflow: Workflow<Input, Output>,
-    code: (step: Step, input: Input, context: RunContext) => Promise<Output>,
-    serving: WorkflowServing = {},
+/** Serve notes and a workflow in alice's space, advancing runs on a simulated clock. */
+export async function openWorkflow<Input, Output, Waits extends ObjectType>(
+    workflow: Workflow<Input, Output, Waits>,
+    code: (step: Step<WaitOf<Waits>>, input: Input, context: RunContext) => Promise<Output>,
+    serving: (space: Environment<HostCapability>) => Promise<WorkflowServing> = async () => ({}),
     objects: readonly ObjectType[] = [],
 ): Promise<WorkflowFixture> {
-    return openServed(workflow, workflow.implement(code, serving), [], objects);
+    // serve the workflow in the space's world
+    const simulation = testSimulation();
+    const served = await serving(simulation.environment(SPACE_NODE));
+
+    return openServed(workflow, workflow.implement(code, served), [], objects, simulation);
 }
 
 /** A further workflow a fixture serves, which the main workflow's runs invoke. */
@@ -125,211 +149,211 @@ export interface InvokedServing {
     readonly served: WorkflowImplementation;
 }
 
-/** Serve notes and served workflows in a space alice owns, advancing runs on a virtual clock. */
+/** Serve notes and served workflows in a space alice owns, advancing runs on a simulated clock. */
 export async function openServed<Input, Output>(
-    workflow: Workflow<Input, Output>,
-    served: WorkflowImplementation,
+    workflow: WorkflowDeclaration<Input, Output>,
+    implementation: WorkflowImplementation,
     invoked: readonly InvokedServing[] = [],
     objects: readonly ObjectType[] = [],
+    simulation: Simulation = testSimulation(),
 ): Promise<WorkflowFixture> {
-    // migrate the notes, the runs and their steps, and the workflow package beside the journal, leases, buckets and access
-    const tables = [
-        ...callTables,
-        ...space.tables,
-        ...note.tables,
-        ...objects.flatMap((type) => type.tables),
-        ...[workflow, ...invoked.map((each) => each.workflow)].flatMap((each) =>
-            Object.values(each.objects).flatMap((type) => type.tables),
-        ),
-        ...Object.values(workflowPackage.objects).flatMap((type) => type.tables),
-        lease,
-        bucket,
+    // declare the notes, the further objects and the workflows as the notes application
+    const workflows = [workflow, ...invoked.map((each) => each.workflow)];
+    const declared = [
+        ...Object.values(notesPackage.objects),
+        ...objects,
+        ...workflows.flatMap((each) => Object.values(each.objects)),
     ];
-    const storage = await TestDatabase.create("sqlite", defineDatabase({ name: "main", tables }), {
-        isMigrated: true,
-    });
-    onTestFinished(() => storage.close());
-    const spaceId = await openSpace(storage.database);
-
-    // serve the notes, the workflow package and the workflow as the space's installation
-    const clock = new VirtualClock(START);
     const handle = PackageHandle.of(note.package, {
-        objects: {
-            note,
-            ...Object.fromEntries(objects.map((type) => [type.name, type])),
-            ...workflowPackage.objects,
-            ...workflow.objects,
-            ...Object.fromEntries(invoked.flatMap((each) => Object.entries(each.workflow.objects))),
-        },
+        objects: Object.fromEntries(declared.map((type) => [type.name, type])),
     });
-    const servings = [served, ...invoked.map((each) => each.served)];
-    const controllers = [
-        ...(PACKAGE.controllers ?? []),
-        ...servings.flatMap((serving) => serving.controllers),
-    ];
-    const store = new ObjectStore({
-        chain: async () => undefined,
-        clock,
-        principal: principal.installation.reference(spaceId, INSTALLATION),
-        servers: [
+
+    // serve the universe where people grant, in the simulated world
+    const { clock } = simulation;
+    const universal = await TestObjectStore.open({
+        packages: [objectPackage],
+        scope: universe.reference(Scope.universe.id, Scope.universe.id),
+        scopes: [alice, bob],
+        simulation,
+        node: "universe",
+    });
+    onTestFinished(() => universal[Symbol.asyncDispose]());
+
+    // follow the grants people give the space and its agent from the universe, as the space
+    const spaceId = Identifier.create("space", universal.environment);
+    const scope = principal.space.reference(Scope.universe.id, spaceId);
+    const runners = await Promise.all(
+        [note.package.id, workflowPackage.id].map(async (packageId) =>
+            principal.installation.reference(
+                spaceId,
+                await InstallationId.base(scope, packageId, universal.environment.crypto),
+            ),
+        ),
+    );
+    const grants = Follow.of(grantShape, {
+        keys: [scope, ...runners, agentOf(spaceId)].map((delegate) => ({
+            key: {
+                scope: Scope.universe.id,
+                delegatePackageId: delegate.packageId,
+                delegateType: delegate.type,
+                delegateScope: delegate.scope,
+                delegateId: delegate.id,
+            },
+        })),
+    });
+    const publisher = Uplink.of(() => universal.as(scope).client(objectPackage).store);
+
+    // serve the space's packages beside its access objects in the space alice owns, running their controllers
+    const implementations = [implementation, ...invoked.map((each) => each.served)];
+    const served = await TestObjectStore.open({
+        scope,
+        publisher: () => publisher,
+        packages: [
+            implementPackage(objectPackage, { follows: [grants] }),
+            workflowServer,
             implementPackage(handle, {
                 objects: [
                     servedNote,
                     ...objects,
-                    ...(PACKAGE.objects ?? []),
-                    ...servings.flatMap((serving) => serving.objects),
+                    ...implementations.flatMap((each) => each.objects),
                 ],
-                controllers,
+                controllers: implementations.flatMap((each) => each.controllers),
             }),
         ],
-        policies: [account, space],
-        database: storage.database,
-        callKey: testCallKey,
-        events: await testEvents(storage.database),
-        origin: { package: note.package },
+        simulation,
+        node: SPACE_NODE,
+        owners: [alice],
     });
+    onTestFinished(() => served[Symbol.asyncDispose]());
 
-    // grant the installation, as alice and bob each consent on first use, every permission of the served types
-    const servedTypes = [
-        note,
-        ...objects,
-        ...Object.values(workflowPackage.objects),
-        ...[workflow, ...invoked.map((each) => each.workflow)].flatMap((each) =>
-            Object.values(each.objects),
-        ),
-    ];
-    const consented = servedTypes.flatMap((type) =>
-        Object.keys(type.policy.definition.permissions).map((name) => ({
-            ...type.policy.permission(name),
-            scope: spaceId,
-        })),
-    );
-    const installation = principal.installation.reference(spaceId, INSTALLATION);
-    const access = new AccessFixture(storage.database);
+    // let alice and bob read the space and write and approve notes in it, binding the role as alice
+    const access = served.as(alice).client(objectPackage);
+    const member = await access.role.create({
+        scope: served.scope,
+        requestId: RequestId.create(served.environment),
+        name: "member",
+        description: "Writes and approves notes",
+        permissions: [
+            space.permission("read"),
+            note.permission("write"),
+            note.permission("approve"),
+        ],
+    });
     for (const user of [alice, bob]) {
-        await access.replicateGrant(user, installation, consented, START);
+        await access.relationship.create({
+            scope: served.scope,
+            requestId: RequestId.create(served.environment),
+            object: scope,
+            role: member.id,
+            subject: user,
+        });
     }
 
-    // run the workflows' controllers until the test ends, failing the test on a reconciliation error
-    const names = [workflow.name, ...invoked.map((each) => each.workflow.name), "change"];
-    const stopping = new AbortController();
-    const failures: unknown[] = [];
-    const loop = new ControlLoop(
-        store.database,
-        [
-            ...store
-                .controllers()
-                .filter((each) => names.some((name) => each.name.startsWith(name))),
-            ...controllers.map((build) => build(store)),
-        ],
-        { clock, report: (_controller, _key, error) => void failures.push(error) },
-    );
-    const running = loop.run(stopping.signal);
-    onTestFinished(async () => {
-        stopping.abort();
-        await running;
-        if (failures.length > 0) {
-            throw failures[0];
+    // grant at the universe as the delegator, and wait until the space follows the grant
+    const grant = async (
+        delegator: Subject,
+        delegate: Subject,
+        permissions: readonly GrantPermission[],
+    ) => {
+        const created = await universal
+            .as(delegator)
+            .client(objectPackage)
+            .grant.create({
+                scope: delegator.id,
+                requestId: RequestId.create(served.environment),
+                delegate,
+                permissions: [...permissions],
+            });
+        const signal = clock.timeout(REPLICA_MILLISECONDS);
+        const isFollowed = async () =>
+            (await Grant.read(Snapshot.live(served.database), created.id)) !== undefined;
+        if (!(await served.database.log.until(isFollowed, signal))) {
+            throw new Error(`the space did not follow grant ${created.id}`);
         }
-    });
 
-    // read the runs, and wait for a condition over them
+        return created.id;
+    };
+
+    // let alice and bob grant the installations serving the runs every permission of the served types
+    const consented = [...declared, ...Object.values(workflowPackage.objects)].flatMap((type) =>
+        Object.keys(type.policy.definition.permissions).map((name) => ({
+            ...type.policy.permission(name),
+            scope: served.scope,
+        })),
+    );
+    for (const user of [alice, bob]) {
+        for (const runner of runners) {
+            await grant(user, runner, consented);
+        }
+    }
+
+    // read the runs, oldest first
     const runs = async () =>
-        (await store.database.select().from(workflow.run.table)).toSorted((left, right) =>
+        (await served.database.select().from(workflow.run.table)).toSorted((left, right) =>
             schema.string().parse(left["id"]).localeCompare(schema.string().parse(right["id"])),
         );
-    const until = async (condition: (rows: readonly Record<string, unknown>[]) => boolean) => {
-        for (let look = 0; look < 1000; look++) {
-            // look once the controllers settled, failing on their errors
-            await loop.idle();
-            if (failures.length > 0) {
-                throw failures[0];
-            }
-            const rows = await runs();
-            if (condition(rows)) {
-                return rows;
-            }
 
-            // move the clock to the next timer, failing once none is left
-            const next = clock.next;
-            if (next === undefined) {
-                break;
-            }
-            clock.set(next);
+    // run the world until the condition holds, failing on the controllers' errors first
+    const when = async (isMet: () => Promise<boolean>) => {
+        try {
+            await simulation.run({ until: isMet, to: clock.now() + UNTIL_MILLISECONDS });
+        } catch (error) {
+            await served.settle();
+            throw error;
         }
-        const states = (await runs()).map(
-            (row) =>
-                `${JSON.stringify(row["state"])}@${JSON.stringify(row["wakeAt"])} ${JSON.stringify(row["failure"])}`,
-        );
-        throw new Error(`the runs did not reach the condition: ${states.join(", ")}`);
+        await served.settle();
     };
+
+    // run the world until the runs meet the condition, failing with their states
+    const until = async (condition: (rows: readonly Record<string, unknown>[]) => boolean) => {
+        let rows: readonly Record<string, unknown>[] = [];
+        try {
+            await when(async () => condition((rows = await runs())));
+        } catch (error) {
+            const states = rows.map(
+                (row) =>
+                    `${JSON.stringify(row["state"])}@${JSON.stringify(row["wakeAt"])} ${JSON.stringify(row["failure"])}`,
+            );
+            throw new Error(`the runs did not reach the condition: ${states.join(", ")}`, {
+                cause: error,
+            });
+        }
+
+        return rows;
+    };
+
+    // start a run as the space, which serves the workflow
+    const start = async (call: (spaceId: string) => Call) => {
+        const [started] = await served.store.mutate(
+            served.store.as(workflow.run),
+            { id: RequestId.create(served.environment), calls: [call(served.scope)] },
+            { scope: served.scope },
+        );
+
+        return started;
+    };
+
+    // call the served types by name as a subject
+    const objectsOf = (subject: Subject) =>
+        new DynamicObjectClient({
+            objects: declared,
+            scope: served.scope,
+            endpoint: served.as(subject).endpoint(handle),
+            environment: served.environment,
+        });
 
     return {
-        store,
-        clock,
-        spaceId,
         served,
-        start: (call) =>
-            store
-                .mutate(
-                    store.serving(workflow.run),
-                    { id: RequestId.create(clock.now()), calls: [call(spaceId)] },
-                    { scope: spaceId },
-                )
-                .then(([started]) => started),
-        asAlice: (calls) =>
-            store.mutate(subjectContext(alice, spaceId).access(), {
-                id: RequestId.create(clock.now()),
-                calls,
-            }),
-        asBob: (calls) =>
-            store.mutate(subjectContext(bob, spaceId).access(), {
-                id: RequestId.create(clock.now()),
-                calls,
-            }),
+        simulation,
+        environment: served.environment,
+        implementation,
+        objects: objectsOf,
+        grant,
+        start,
         runs,
+        when,
         until,
     };
-}
-
-/** Open a new space below a new account, in which anyone may write notes. */
-async function openSpace(database: DatabaseConnection): Promise<Identifier<"space">> {
-    // replicate the account and the space from their home's access, and create the space's row
-    const accountId = schema.identifier("account").parse(`account-${v7()}`);
-    const spaceId = schema.identifier("space").parse(`space-${v7()}`);
-    const reference = space.reference(accountId, spaceId);
-    const access = new AccessFixture(database);
-    await access.replicateScope(account.reference(Scope.universe.id, accountId));
-    await access.replicateScope(reference);
-    await database.insert(space.table).values(
-        Table.complete(space.table, {
-            id: spaceId,
-            scope: accountId,
-            name: "notes",
-            stack: STACKS.space,
-            createdAt: START,
-            updatedAt: START,
-        }),
-    );
-
-    // let anyone read the space and write notes in it, and alice own it
-    await access.replicateRole(
-        reference,
-        {
-            name: "member",
-            description: "Writes and approves notes",
-            permissions: [
-                space.permission("read"),
-                note.permission("write"),
-                note.permission("approve"),
-            ],
-        },
-        anyone.reference("*", "*"),
-        START,
-    );
-    await access.replicateRelationship(spaceId, reference, "owner", alice, START);
-
-    return spaceId;
 }
 
 /** The subject a run acts as, alice by default. */

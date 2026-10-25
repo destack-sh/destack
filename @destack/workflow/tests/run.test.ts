@@ -7,19 +7,25 @@ import { Scope } from "@destack/sync";
 import { Failure } from "@destack/error";
 import { expect, refusal, test } from "@destack/test";
 import { defineWorkflow, Run } from "../src/index.ts";
-import { actor, alice, note, openWorkflow, START, type WorkflowFixture } from "./fixture.ts";
+import { actor, alice, bob, note, openWorkflow, type WorkflowFixture } from "./fixture.ts";
+import { TEST_START } from "@destack/object/test";
+import { NOTES } from "./package.ts";
+import { NO_OUTPUT } from "../src/index.ts";
 
 /** A minute, in milliseconds. */
 const MINUTE = 60_000;
 
-test("retry a failing advance after its backoff, and fail once the attempts run out", async () => {
-    // fail twice before succeeding, with two attempts for the second workflow
-    const flaky = defineWorkflow({
-        name: "flaky",
-        input: schema.object({ succeedAt: schema.number() }),
-        output: schema.number(),
-        retries: { initialInterval: 1000, backoffCoefficient: 2 },
-    });
+test("retry a failing advance after its backoff until it succeeds, keeping the last failure", async () => {
+    // fail twice before succeeding
+    const flaky = defineWorkflow(
+        {
+            name: "flaky",
+            input: schema.object({ succeedAt: schema.number() }),
+            output: schema.number(),
+            retries: { initialInterval: 1000, backoffCoefficient: 2 },
+        },
+        NOTES,
+    );
     let calls = 0;
     const fixture = await openWorkflow(flaky, async (step, input) => {
         calls += 1;
@@ -36,16 +42,20 @@ test("retry a failing advance after its backoff, and fail once the attempts run 
     expect([run?.["attempts"], run?.["output"], run?.["failure"]]).toEqual([
         2,
         3,
-        { code: "INTERNAL_SERVER_ERROR", message: "attempt 2 failed" },
+        Failure.http("INTERNAL_SERVER_ERROR", "attempt 2 failed"),
     ]);
 });
 
 test("fail a run once its attempts run out, keeping the last failure", async () => {
-    const brittle = defineWorkflow({
-        name: "brittle",
-        input: schema.object({}),
-        retries: { initialInterval: 1000, maximumAttempts: 2 },
-    });
+    const brittle = defineWorkflow(
+        {
+            name: "brittle",
+            input: schema.object({}),
+            retries: { initialInterval: 1000, maximumAttempts: 2 },
+            output: NO_OUTPUT,
+        },
+        NOTES,
+    );
     const fixture = await openWorkflow(brittle, async () => {
         throw new Error("always");
     });
@@ -55,37 +65,49 @@ test("fail a run once its attempts run out, keeping the last failure", async () 
     const [run] = await fixture.until((rows) => rows[0]?.["state"] === "failed");
     expect([run?.["attempts"], run?.["failure"]]).toEqual([
         1,
-        { code: "INTERNAL_SERVER_ERROR", message: "always" },
+        Failure.http("INTERNAL_SERVER_ERROR", "always"),
     ]);
 });
 
 test("time a run out at its deadline while it sleeps past it", async () => {
-    const slow = defineWorkflow({ name: "slow", input: schema.object({}), timeout: { hours: 1 } });
+    const slow = defineWorkflow(
+        { name: "slow", input: schema.object({}), timeout: { hours: 1 }, output: NO_OUTPUT },
+        NOTES,
+    );
     const fixture = await openWorkflow(slow, async (step) => {
         await step.sleep("nap", { hours: 2 });
     });
 
-    // start a run sleeping two hours under an hour's timeout
+    // start a run sleeping two hours under an hour's timeout, and move to its deadline
     await fixture.start(() => slow.start({}, actor()));
+    await fixture.simulation.jump(TEST_START + 60 * MINUTE);
     const [run] = await fixture.until((rows) => rows[0]?.["state"] === "failed");
     expect([run?.["deadline"], run?.["failure"]]).toEqual([
-        START + 60 * MINUTE,
-        { code: "TIMEOUT", message: `run ${String(run?.["id"])} timed out` },
+        TEST_START + 60 * MINUTE,
+        {
+            code: "TIMEOUT",
+            reason: "RUN_TIMED_OUT",
+            domain: "@destack/workflow",
+            message: `run ${String(run?.["id"])} timed out`,
+        },
     ]);
 });
 
 test("start a run at its time, answer the live run of a key, and replace one that has not begun", async () => {
-    const digest = defineWorkflow({
-        name: "digest",
-        input: schema.object({ topic: schema.string() }),
-        output: schema.string(),
-    });
+    const digest = defineWorkflow(
+        {
+            name: "digest",
+            input: schema.object({ topic: schema.string() }),
+            output: schema.string(),
+        },
+        NOTES,
+    );
     const fixture = await openWorkflow(digest, async (step, input) =>
         step.run("send", schema.string(), async () => input.topic),
     );
 
     // start a run in ten minutes, replace its topic, and start the key again
-    const at = START + 10 * MINUTE;
+    const at = TEST_START + 10 * MINUTE;
     await fixture.start(() => digest.start({ topic: "a" }, { key: "daily", at, ...actor() }));
     await fixture.start(() =>
         digest.start({ topic: "b" }, { key: "daily", at, mode: "replace", ...actor() }),
@@ -111,7 +133,10 @@ test("start a run at its time, answer the live run of a key, and replace one tha
 });
 
 test("pause, resume and cancel a run as its actor, a resumed run due at its sleep's end", async () => {
-    const wait = defineWorkflow({ name: "wait", input: schema.object({}) });
+    const wait = defineWorkflow(
+        { name: "wait", input: schema.object({}), output: NO_OUTPUT },
+        NOTES,
+    );
     const fixture = await openWorkflow(wait, async (step) => {
         await step.sleep("hold", { hours: 1 });
     });
@@ -119,27 +144,31 @@ test("pause, resume and cancel a run as its actor, a resumed run due at its slee
     // start a sleeping run as alice, pause and resume it, then cancel it
     await fixture.start(() => wait.start({}, actor()));
     const [started] = await fixture.until((rows) => rows[0]?.["state"] === "waiting");
-    const target = wait.run.target({ scope: fixture.spaceId, id: String(started?.["id"]) });
-    await fixture.asAlice([wait.run.call("pause", target)]);
+    const runs = fixture.objects(alice);
+    const target = { id: String(started?.["id"]) };
+    await runs.call(wait.run.name, "pause", target);
     const paused = await fixture.until(() => true);
-    await fixture.asAlice([wait.run.call("resume", target)]);
+    await runs.call(wait.run.name, "resume", target);
     const resumed = await fixture.until((rows) => rows[0]?.["state"] === "pending");
-    await fixture.asAlice([wait.run.call("cancel", target)]);
+    await runs.call(wait.run.name, "cancel", target);
     const cancelled = await fixture.until(() => true);
     // resume it due at its sleep's end
     expect([
         paused[0]?.["state"],
         [resumed[0]?.["state"], resumed[0]?.["wakeAt"]],
         cancelled[0]?.["state"],
-    ]).toEqual(["paused", ["pending", START + 60 * MINUTE], "cancelled"]);
+    ]).toEqual(["paused", ["pending", TEST_START + 60 * MINUTE], "cancelled"]);
 });
 
 test("reset a completed run to a step, running that step and the later ones again", async () => {
-    const tally = defineWorkflow({
-        name: "tally",
-        input: schema.object({}),
-        output: schema.number(),
-    });
+    const tally = defineWorkflow(
+        {
+            name: "tally",
+            input: schema.object({}),
+            output: schema.number(),
+        },
+        NOTES,
+    );
     const counted: string[] = [];
     const fixture = await openWorkflow(tally, async (step) => {
         const first = await step.run("first", schema.number(), async () => {
@@ -159,15 +188,14 @@ test("reset a completed run to a step, running that step and the later ones agai
     // complete a run, reset it to its second step as alice, and complete it again
     await fixture.start(() => tally.start({}, actor()));
     const [done] = await fixture.until((rows) => rows[0]?.["state"] === "completed");
-    const target = tally.run.target({ scope: fixture.spaceId, id: String(done?.["id"]) });
-    const [reset] = await fixture.asAlice([tally.run.call("reset", { ...target, step: "second" })]);
-    const missing = await refusal(
-        fixture.asAlice([tally.run.call("reset", { ...target, step: "third" })]),
-    );
+    const runs = fixture.objects(alice);
+    const id = String(done?.["id"]);
+    const reset = await runs.call(tally.run.name, "reset", { id, step: "second" });
+    const missing = await refusal(runs.call(tally.run.name, "reset", { id, step: "third" }));
     const [again] = await fixture.until((rows) => rows[0]?.["state"] === "completed");
     expect({ reset, missing, counted, output: again?.["output"] }).toEqual({
         reset: { forgotten: 1 },
-        missing: ["NOT_FOUND", `run ${String(done?.["id"])} took no step third`],
+        missing: ["NOT_FOUND", "STEP_NOT_FOUND", `run ${String(done?.["id"])} has no step third`],
         counted: ["first", "second", "second"],
         output: 3,
     });
@@ -175,16 +203,20 @@ test("reset a completed run to a step, running that step and the later ones agai
 
 test("start runs at the workflow's rate, and advance one singleton run of a key at a time", async () => {
     // start one run a minute, and hold one slot per space from a run's start to its end
-    const report = defineWorkflow({
-        name: "report",
-        input: schema.object({ title: schema.string() }),
-        limits: { rate: { count: 1, every: { minutes: 1 } }, concurrency: { slots: 1 } },
-        singleton: true,
-    });
+    const report = defineWorkflow(
+        {
+            name: "report",
+            input: schema.object({ title: schema.string() }),
+            limits: { rate: { count: 1, every: { minutes: 1 } }, concurrency: { slots: 1 } },
+            singleton: true,
+            output: NO_OUTPUT,
+        },
+        NOTES,
+    );
     const fixture = await openWorkflow(report, async (step, input) => {
         await step.call(
             "write",
-            note.call("create", { spaceId: fixture.spaceId, title: input.title }),
+            note.call("create", { spaceId: fixture.served.scope, title: input.title }),
         );
         await step.sleep("settle", { seconds: 30 });
     });
@@ -199,34 +231,47 @@ test("start runs at the workflow's rate, and advance one singleton run of a key 
 
     // started a minute apart, each after the one before ended
     const started = rows
-        .map((row) => Number(row["startedAt"]) - START)
+        .map((row) => Number(row["startedAt"]) - TEST_START)
         .toSorted((left, right) => left - right);
     expect(started).toEqual([0, MINUTE, 2 * MINUTE]);
 });
 
 test("take a call step hours after the run started, past a request's retry period", async () => {
-    const late = defineWorkflow({ name: "late", input: schema.object({}) });
+    const late = defineWorkflow(
+        { name: "late", input: schema.object({}), output: NO_OUTPUT },
+        NOTES,
+    );
     const fixture = await openWorkflow(late, async (step) => {
         await step.sleep("wait", { hours: 3 });
-        await step.call("write", note.call("create", { spaceId: fixture.spaceId, title: "late" }));
+        await step.call(
+            "write",
+            note.call("create", { spaceId: fixture.served.scope, title: "late" }),
+        );
     });
 
-    // start a run that writes a note three hours in
+    // start a run that writes a note three hours in, and move to its wake
     await fixture.start(() => late.start({}, actor()));
+    await fixture.simulation.jump(TEST_START + 180 * MINUTE);
     const [run] = await fixture.until((rows) => rows[0]?.["state"] === "completed");
-    const titles = await fixture.store.database
+    const titles = await fixture.served.database
         .select({ title: note.table.title })
         .from(note.table);
     expect([run?.["state"], titles]).toEqual(["completed", [{ title: "late" }]]);
 });
 
 test("fail a run acting for a user who granted its installation nothing, as no consent lets it act", async () => {
-    const write = defineWorkflow({ name: "write", input: schema.object({}) });
+    const write = defineWorkflow(
+        { name: "write", input: schema.object({}), output: NO_OUTPUT },
+        NOTES,
+    );
     const fixture = await openWorkflow(write, async (step) => {
-        await step.call("write", note.call("create", { spaceId: fixture.spaceId, title: "late" }));
+        await step.call(
+            "write",
+            note.call("create", { spaceId: fixture.served.scope, title: "late" }),
+        );
     });
 
-    // start a run acting for carol, who never consented to the installation
+    // start a run acting for carol, who never consented to the installation serving it
     const carol = principal.user.reference(
         Scope.universe.id,
         "user-01996ab0-0000-7000-8000-000000000102",
@@ -236,33 +281,36 @@ test("fail a run acting for a user who granted its installation nothing, as no c
     const { failure } = schema.looseObject({ failure: Failure }).parse(run);
     expect([failure.code, failure.message]).toEqual([
         "FORBIDDEN",
-        `installation installation-01996ab0-0000-7000-8000-000000000201 acts for user ${carol.id} under no grant`,
+        `installation ${fixture.served.store.as(write.run).subject.id} has no grant to act for user ${carol.id}`,
     ]);
 });
 
 test("refuse a stranger controlling another's run", async () => {
-    const idle = defineWorkflow({ name: "idle", input: schema.object({}) });
+    const idle = defineWorkflow(
+        { name: "idle", input: schema.object({}), output: NO_OUTPUT },
+        NOTES,
+    );
     const fixture = await openWorkflow(idle, async (step) => {
         await step.sleep("hold", { hours: 1 });
     });
 
-    // start alice's run, and pause it as the store acting for bob
+    // start alice's run, and pause it as bob
     await fixture.start(() => idle.start({}, actor()));
     const [started] = await fixture.until((rows) => rows[0]?.["state"] === "waiting");
-    const target = idle.run.target({ scope: fixture.spaceId, id: String(started?.["id"]) });
-    expect(await refusal(fixture.asBob([idle.run.call("pause", target)]))).toEqual([
+    const target = { id: String(started?.["id"]) };
+    expect(await refusal(fixture.objects(bob).call(idle.run.name, "pause", target))).toEqual([
         "NOT_FOUND",
-        `no idle-run ${String(started?.["id"])}`,
+        "NOT_FOUND",
+        `idle-run ${String(started?.["id"])} not found`,
     ]);
 });
 
 test("fail a run whose function takes other steps on a later advance than it recorded", async () => {
     // take a step named after the advance, then sleep, so the second advance takes another name first
-    const fickle = defineWorkflow({
-        name: "fickle",
-        input: schema.object({}),
-        retries: { maximumAttempts: 1 },
-    });
+    const fickle = defineWorkflow(
+        { name: "fickle", input: schema.object({}), output: NO_OUTPUT },
+        NOTES,
+    );
     let advances = 0;
     const fixture = await openWorkflow(fickle, async (step) => {
         advances += 1;
@@ -271,14 +319,16 @@ test("fail a run whose function takes other steps on a later advance than it rec
         await step.sleep("pause", { minutes: 1 });
     });
 
-    // expect the run failed at its second advance with the divergence, as the first step changed
+    // expect the run failed for good at its second advance with the divergence, as the first step changed
     await fixture.start(() => fickle.start({}, actor()));
     const [run] = await fixture.until((rows) => rows[0]?.["state"] === "failed");
     expect([advances, run?.["failure"]]).toEqual([
         2,
         {
-            code: "INTERNAL_SERVER_ERROR",
-            message: `run ${String(run?.["id"])} diverged from its recorded steps: it takes second where it recorded first, as its function is not deterministic between steps`,
+            code: "UNPROCESSABLE_CONTENT",
+            reason: "RUN_NONDETERMINISTIC",
+            domain: "@destack/workflow",
+            message: `run ${String(run?.["id"])} takes step second where it recorded first`,
         },
     ]);
 });
@@ -300,6 +350,7 @@ const stamp = defineObject(
             output: schema.number(),
         }),
     }),
+    NOTES,
 );
 
 test("make a preparing call once across a crash between its commit and its step's record", async () => {
@@ -317,15 +368,18 @@ test("make a preparing call once across a crash between its commit and its step'
             },
         },
     });
-    const press = defineWorkflow({
-        name: "press",
-        input: schema.object({}),
-        output: schema.number(),
-    });
+    const press = defineWorkflow(
+        {
+            name: "press",
+            input: schema.object({}),
+            output: schema.number(),
+        },
+        NOTES,
+    );
     const fixture: WorkflowFixture = await openWorkflow(
         press,
         async (step) => {
-            const { spaceId } = fixture;
+            const spaceId = fixture.served.scope;
             const created = await step.call(
                 "create",
                 stamp.call("create", { spaceId, title: "first" }),
@@ -333,23 +387,26 @@ test("make a preparing call once across a crash between its commit and its step'
 
             return step.call("issue", stamp.call("issue", { spaceId, id: created.id }));
         },
-        {},
+        async () => ({}),
         [issuing],
     );
     await fixture.start(() => press.start({}, actor()));
     const [first] = await fixture.until((rows) => rows[0]?.["state"] === "completed");
 
-    // leave the state a crash after the issue committed and before its step completed leaves: the step started, the run due
+    // rewrite rows, as no verb reaches the moment between a call's commit and its step's record
+    //  leave the state a crash after the issue committed and before its step completed leaves: the step started, the run due
     const steps = press.step.table;
-    await fixture.store.database
-        .update(steps)
-        .set({ output: null, completedAt: null })
-        .where(eq(steps[TABLE].column("name"), "issue"));
     const runs = press.run.table;
-    await fixture.store.database
-        .update(runs)
-        .set({ state: "pending", output: null, wakeAt: null })
-        .where(eq(runs[TABLE].column("id"), String(first?.["id"])));
+    await fixture.served.database.transaction(async (transaction) => {
+        await transaction
+            .update(steps)
+            .set({ output: null, completedAt: null })
+            .where(eq(steps[TABLE].column("name"), "issue"));
+        await transaction
+            .update(runs)
+            .set({ state: "pending", output: null, wakeAt: null })
+            .where(eq(runs[TABLE].column("id"), String(first?.["id"])));
+    });
     const [again] = await fixture.until((rows) => rows[0]?.["state"] === "completed");
 
     // expect one issue, answered again by the journal under the request its started step derives
@@ -358,11 +415,14 @@ test("make a preparing call once across a crash between its commit and its step'
 
 test("wait until a run ends and answer it as it ended, and refuse a wait its signal aborts first", async () => {
     // answer a number at once, or sleep an hour first
-    const answer = defineWorkflow({
-        name: "answer",
-        input: schema.object({ isSleeping: schema.boolean() }),
-        output: schema.number(),
-    });
+    const answer = defineWorkflow(
+        {
+            name: "answer",
+            input: schema.object({ isSleeping: schema.boolean() }),
+            output: schema.number(),
+        },
+        NOTES,
+    );
     const fixture = await openWorkflow(answer, async (step, input) => {
         if (input.isSleeping) {
             await step.sleep("nap", { hours: 1 });
@@ -372,7 +432,7 @@ test("wait until a run ends and answer it as it ended, and refuse a wait its sig
     });
     const runOf = async (isSleeping: boolean) => {
         await fixture.start(() => answer.start({ isSleeping }, actor()));
-        const rows = await fixture.store.database.select().from(answer.run.table);
+        const rows = await fixture.served.database.select().from(answer.run.table);
         const row = rows.find(
             (each) =>
                 schema.object({ isSleeping: schema.boolean() }).parse(each["input"]).isSleeping ===
@@ -385,15 +445,15 @@ test("wait until a run ends and answer it as it ended, and refuse a wait its sig
     // wait for the quick run, and abort the wait for the sleeping one
     const ended = await (
         await runOf(false)
-    ).ended(fixture.store.database, AbortSignal.timeout(5000));
+    ).ended(fixture.served.database, fixture.simulation.clock.timeout(5000));
     const aborted = new AbortController();
-    const waiting = (await runOf(true)).ended(fixture.store.database, aborted.signal);
+    const waiting = (await runOf(true)).ended(fixture.served.database, aborted.signal);
     aborted.abort(new Error("stopped waiting"));
 
     // expect the quick run completed with its answer, and the aborted wait refused
     expect([
-        ended.state,
-        ended.row["output"],
+        ended.row.state,
+        ended.row.output,
         await waiting.catch((error: unknown) => String(error)),
     ]).toEqual(["completed", 42, "Error: stopped waiting"]);
 });

@@ -2,27 +2,27 @@ import type { ObjectType } from "@destack/object";
 import { DeclarationReference } from "@destack/package/declare";
 import { Duration, JsonValue, toJsonSchema } from "@destack/schema";
 import { WorkflowDescription } from "../workflow/description.ts";
-import type { Workflow } from "../workflow/workflow.ts";
+import { NO_OUTPUT, type WorkflowDeclaration } from "../workflow/workflow.ts";
 import { describeTrigger } from "./trigger.ts";
 
 /** Read a workflow's run type, which the build describes as one of the package's objects. */
-export function workflowRun<Input, Output>(workflow: Workflow<Input, Output>): ObjectType {
+export function workflowRun(workflow: WorkflowDeclaration): ObjectType {
     return workflow.run;
 }
 
 /** Read a workflow's step type, which the build describes as one of the package's objects. */
-export function workflowStep<Input, Output>(workflow: Workflow<Input, Output>): ObjectType {
+export function workflowStep(workflow: WorkflowDeclaration): ObjectType {
     return workflow.step;
 }
 
 /** Read a workflow's trigger type, which the build describes as one of the package's objects. */
-export function workflowTrigger<Input, Output>(workflow: Workflow<Input, Output>): ObjectType {
+export function workflowTrigger(workflow: WorkflowDeclaration): ObjectType {
     return workflow.trigger;
 }
 
 /** Describe a workflow: its schemas, waits, retries, timeout, expiry and limits. */
 export function describeWorkflow<Input, Output>(
-    workflow: Workflow<Input, Output>,
+    workflow: WorkflowDeclaration<Input, Output>,
 ): WorkflowDescription {
     // describe the input and output schemas and the types runs wait for
     const { limits, timeout, expiring } = workflow;
@@ -30,7 +30,7 @@ export function describeWorkflow<Input, Output>(
     return WorkflowDescription.parse({
         name: workflow.name,
         input: JsonValue.object(toJsonSchema(workflow.input)),
-        ...(workflow.output === undefined
+        ...(Object.is(workflow.output, NO_OUTPUT)
             ? {}
             : { output: JsonValue.object(toJsonSchema(workflow.output)) }),
         waits: workflow.waits.map((type) => DeclarationReference.of(type)),

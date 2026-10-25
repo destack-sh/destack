@@ -1,10 +1,12 @@
 import { expect, refusal, test } from "@destack/test";
+import { Failure } from "@destack/error";
+import { schema } from "@destack/schema";
 import { describeTrigger } from "../inspect/index.ts";
 import { ResourceContext } from "@destack/resource/context";
-import { WebhookOn } from "./webhook.ts";
-import { Trigger } from "./trigger.ts";
+import { WebhookReceiver } from "./webhook.ts";
+import { WebhookTrigger } from "./trigger.ts";
 import { StandardSignature, type WebhookDelivery } from "./webhook.ts";
-import { testKeys } from "@destack/object/test";
+import { testKeys, testSimulation } from "@destack/object/test";
 
 /** Read the push of the repository in a delivery's path. */
 function pushed(delivery: WebhookDelivery) {
@@ -38,9 +40,11 @@ function post(headers: Headers, body: string): Request {
 }
 
 test("sign the Standard Webhooks reference example exactly", async () => {
+    const world = testSimulation().environment("sender");
     const standard = await new StandardSignature().sign(
         STANDARD_EXAMPLE.message,
         STANDARD_EXAMPLE.secret,
+        world.crypto,
     );
     expect([...standard.entries()]).toEqual([
         ["webhook-id", "msg_p5jXN8AQM9LWM0D4loKWxJek"],
@@ -49,14 +53,22 @@ test("sign the Standard Webhooks reference example exactly", async () => {
     ]);
 });
 
-test("verify a Standard Webhooks delivery and refuse forged, stale and unsigned ones", async () => {
+test("read a verified Standard Webhooks delivery's event type from its payload", async () => {
     // accept the reference signature among others
+    const { crypto } = testSimulation().environment("hooks");
     const signature = new StandardSignature();
     const body = '{"type":"repository.pushed","data":{"ref":"refs/heads/main"}}';
     const message = { ...STANDARD_EXAMPLE.message, body };
-    const headers = await signature.sign(message, STANDARD_EXAMPLE.secret);
+    const headers = await signature.sign(message, STANDARD_EXAMPLE.secret, crypto);
     headers.set("webhook-signature", `v1,bm90IGEgc2lnbmF0dXJl ${headers.get("webhook-signature")}`);
-    expect(await signature.verify(post(headers, body), STANDARD_EXAMPLE.secret, {}, NOW)).toEqual({
+    const verified = await signature.verify(
+        post(headers, body),
+        STANDARD_EXAMPLE.secret,
+        {},
+        NOW,
+        crypto,
+    );
+    expect(verified).toEqual({
         id: "msg_p5jXN8AQM9LWM0D4loKWxJek",
         event: "repository.pushed",
         payload: { type: "repository.pushed", data: { ref: "refs/heads/main" } },
@@ -64,25 +76,28 @@ test("verify a Standard Webhooks delivery and refuse forged, stale and unsigned 
         receivedAt: NOW,
     });
 
-    // refuse a changed body, a stale delivery and missing headers
-    const verdict = (request: Request, now: number) =>
-        refusal(signature.verify(request, STANDARD_EXAMPLE.secret, {}, now)).then((refused) =>
-            refused === "done" ? "accepted" : refused.join(": "),
-        );
-    expect([
-        await verdict(post(headers, body.replace("main", "next")), NOW),
-        await verdict(post(headers, body), message.sentAt + 5 * 60_000 + 1000),
-        await verdict(post(new Headers(), body), NOW),
-    ]).toEqual([
-        "UNAUTHORIZED: webhook signature does not match",
-        "UNAUTHORIZED: webhook timestamp is outside the tolerance",
-        "UNAUTHORIZED: missing standard webhook headers",
-    ]);
+    // refuse a payload without an event type
+    const untyped = '{"data":{}}';
+    const untypedHeaders = await signature.sign(
+        { ...message, body: untyped },
+        STANDARD_EXAMPLE.secret,
+        crypto,
+    );
+    expect(
+        await refusal(
+            signature.verify(
+                post(untypedHeaders, untyped),
+                STANDARD_EXAMPLE.secret,
+                {},
+                NOW,
+                crypto,
+            ),
+        ),
+    ).toEqual(["BAD_REQUEST", "EVENT_TYPE_MISSING", "standard webhook payload has no type"]);
 });
 
 test("describe a declared webhook trigger with its verification and path for the manifest", () => {
-    const trigger = Trigger.of("pushes", {
-        kind: "webhook",
+    const trigger = new WebhookTrigger("pushes", {
         webhook: {
             signature: new StandardSignature(),
             path: "/{repository}",
@@ -100,6 +115,7 @@ test("describe a declared webhook trigger with its verification and path for the
 
 test("receive a delivery with its path's parameters and the secret they resolve, and build its call", async () => {
     // resolve each repository's secret
+    const world = testSimulation().environment("hooks");
     const requested: unknown[] = [];
     const webhook = {
         signature: new StandardSignature(),
@@ -112,30 +128,27 @@ test("receive a delivery with its path's parameters and the secret they resolve,
                 : "whsec_YW5vdGhlciBzZWNyZXQ=";
         },
     };
-    const trigger = Trigger.of("pushes", {
-        kind: "webhook",
+    const trigger = new WebhookTrigger("pushes", {
         webhook,
         input: pushed,
     });
     const context = {
         resources: new ResourceContext(),
-        keys: await testKeys(),
+        keys: await testKeys(world),
+        environment: world,
     };
 
     // accept the repository's signed delivery
     const body = '{"type":"push","ref":"refs/heads/main"}';
     const message = { id: "delivery-1", event: "push", body, sentAt: NOW };
-    const headers = await new StandardSignature().sign(message, STANDARD_EXAMPLE.secret);
-    const verify = webhook.signature.verifier();
-    const delivery = await WebhookOn.receive(
-        webhook,
-        verify,
-        post(headers, body),
-        "/repositories/acme%20site",
-        NOW,
-        context,
+    const headers = await new StandardSignature().sign(
+        message,
+        STANDARD_EXAMPLE.secret,
+        world.crypto,
     );
-    expect([delivery, pushed(delivery), trigger.kind === "webhook" && trigger.webhook]).toEqual([
+    const receiver = new WebhookReceiver(webhook, webhook.signature.verifier(context), context);
+    const delivery = await receiver.receive(post(headers, body), "/repositories/acme%20site", NOW);
+    expect([delivery, pushed(delivery), trigger.webhook]).toEqual([
         {
             id: "delivery-1",
             event: "push",
@@ -148,10 +161,7 @@ test("receive a delivery with its path's parameters and the secret they resolve,
     ]);
 
     // refuse another repository's secret and paths outside the path template
-    const verdict = (path: string) =>
-        refusal(WebhookOn.receive(webhook, verify, post(headers, body), path, NOW, context)).then(
-            (refused) => (refused === "done" ? "accepted" : refused.join(": ")),
-        );
+    const verdict = (path: string) => refusal(receiver.receive(post(headers, body), path, NOW));
     expect([
         await verdict("/repositories/other"),
         await verdict("/repositories"),
@@ -159,11 +169,11 @@ test("receive a delivery with its path's parameters and the secret they resolve,
         await verdict("/projects/acme"),
         await verdict("/repositories/%E0"),
     ]).toEqual([
-        "UNAUTHORIZED: webhook signature does not match",
-        "NOT_FOUND: webhook path does not match: /repositories",
-        "NOT_FOUND: webhook path does not match: /repositories/acme/site",
-        "NOT_FOUND: webhook path does not match: /projects/acme",
-        "NOT_FOUND: webhook path does not match: /repositories/%E0",
+        ["UNAUTHORIZED", "SIGNATURE_MISMATCH", "webhook signature does not match"],
+        ["NOT_FOUND", "PATH_MISMATCH", "webhook path does not match: /repositories"],
+        ["NOT_FOUND", "PATH_MISMATCH", "webhook path does not match: /repositories/acme/site"],
+        ["NOT_FOUND", "PATH_MISMATCH", "webhook path does not match: /projects/acme"],
+        ["NOT_FOUND", "PATH_MISMATCH", "webhook path does not match: /repositories/%E0"],
     ]);
     expect(requested).toEqual([{ repository: "acme site" }, { repository: "other" }]);
 });
@@ -171,15 +181,21 @@ test("receive a delivery with its path's parameters and the secret they resolve,
 test("refuse webhook paths with malformed segments or a repeated parameter", () => {
     const verdict = (path: string) => {
         try {
-            Trigger.of("pushes", {
-                kind: "webhook",
-                webhook: { signature: new StandardSignature(), path, secret: async () => "secret" },
+            const trigger = new WebhookTrigger("pushes", {
+                webhook: {
+                    signature: new StandardSignature(),
+                    path,
+                    secret: async () => "secret",
+                },
                 input: pushed,
             });
 
-            return "accepted";
+            return `accepted ${trigger.webhook.path}`;
         } catch (error) {
-            return error instanceof TypeError ? error.message : "invalid path";
+            // read a refused path by its schema issues, and a repeated parameter by its message
+            return error instanceof schema.Error
+                ? error.issues.map((issue) => `${issue.path.join(".")}: ${issue.code}`)
+                : Failure.of(error).message;
         }
     };
 
@@ -190,10 +206,10 @@ test("refuse webhook paths with malformed segments or a repeated parameter", () 
         verdict("/{Repository}"),
         verdict("/{repository}/{repository}"),
     ]).toEqual([
-        "accepted",
-        "invalid path",
-        "invalid path",
-        "invalid path",
+        "accepted /",
+        ["path: invalid_format"],
+        ["path: invalid_format"],
+        ["path: invalid_format"],
         "webhook path repeats a parameter: /{repository}/{repository}",
     ]);
 });

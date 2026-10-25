@@ -1,18 +1,14 @@
 import type { Condition } from "@destack/db";
 import { DeclarationName } from "@destack/package";
 import type { Declaration } from "@destack/package/declare";
-import type { ServerContext } from "@destack/object/workload";
+import type { InstalledServerContext } from "@destack/object/workload";
 import { schema } from "@destack/schema";
-import {
-    ChangeOn,
-    type ChangeOperation,
-    MAX_LAG_MILLISECONDS,
-    type ObjectChange,
-} from "./change.ts";
-import { ScheduleOn } from "./schedule.ts";
+import { ChangeOn, type ChangeOperation, type ObjectChange } from "./change.ts";
+import { Schedule, ScheduleOn } from "./schedule.ts";
 import {
     type WebhookDelivery,
     WebhookOn,
+    WebhookPath,
     type WebhookParameters,
     type WebhookSignature,
 } from "./webhook.ts";
@@ -66,8 +62,6 @@ export interface ChangeTriggerOn {
     readonly operations: readonly ChangeOperation[];
     /** Where a new trigger starts: at the log's head, now by default, or with a snapshot. */
     readonly from?: "now" | "snapshot";
-    /** How long the log retains changes the trigger has not taken, in milliseconds. */
-    readonly maxLag?: number;
 }
 
 /** The signed deliveries a trigger fires on, as its package declares them. */
@@ -77,44 +71,119 @@ export interface WebhookTriggerOn extends Pick<WebhookOn, "path"> {
     /** Read the signing secret of a delivery's route parameters. */
     readonly secret?: (
         parameters: WebhookParameters,
-        context: Pick<ServerContext, "resources" | "keys">,
+        context: Pick<InstalledServerContext, "resources" | "keys">,
     ) => Promise<string>;
 }
 
 /** A trigger firing on a schedule's occurrences. */
-export interface ScheduleTrigger<Input = unknown> {
-    /** The trigger's name within its workflow. */
-    readonly name: string;
+export class ScheduleTrigger<Input = unknown> {
     /** A trigger firing on a schedule. */
     readonly kind: "schedule";
+    /** The trigger's name within its workflow. */
+    readonly name: string;
     /** The schedule whose occurrences fire. */
     readonly schedule: ScheduleOn;
     /** Read the input of an occurrence's run. */
     readonly input: (occurrence: { readonly at: number }) => Input;
+
+    /** Check a schedule trigger as its workflow declares it. */
+    constructor(name: string, definition: Omit<ScheduleTrigger<Input>, "name" | "kind">) {
+        // check the name and the schedule
+        this.kind = "schedule";
+        this.name = DeclarationName.parse(name);
+        this.schedule = ScheduleOn.parse(definition.schedule);
+        Schedule.require(this.schedule.timing);
+        this.input = definition.input;
+    }
+
+    /** Key an occurrence by its time. */
+    static key(occurrence: { readonly at: number }): string {
+        return String(occurrence.at).padStart(NUMBER_DIGITS, "0");
+    }
 }
 
 /** A trigger firing on one object type's changes. */
-export interface ChangeTrigger<Input = unknown> {
-    /** The trigger's name within its workflow. */
-    readonly name: string;
+export class ChangeTrigger<Input = unknown> {
     /** A trigger firing on an object type's changes. */
     readonly kind: "change";
+    /** The trigger's name within its workflow. */
+    readonly name: string;
     /** The changes that fire, the defaults filled in. */
     readonly change: Required<Omit<ChangeTriggerOn, "where">> & Pick<ChangeTriggerOn, "where">;
     /** Read the input of a change's run. */
     readonly input: (change: ObjectChange) => Input;
+
+    /** Check a change trigger as declared, refusing a snapshot without creations. */
+    constructor(
+        name: string,
+        definition: {
+            readonly change: ChangeTriggerOn;
+            readonly input: (change: ObjectChange) => Input;
+        },
+    ) {
+        // default where the trigger starts, refusing a snapshot of rows it does not fire on
+        const checked = DeclarationName.parse(name);
+        const { object, where, from = "now", operations } = definition.change;
+        if (from === "snapshot" && !operations.includes("create")) {
+            throw new TypeError(
+                `trigger ${checked} starts with a snapshot of created rows but does not fire on creations`,
+            );
+        }
+        this.kind = "change";
+        this.name = checked;
+        this.change = {
+            object,
+            operations: [...operations],
+            from,
+            ...(where === undefined ? {} : { where }),
+        };
+        this.input = definition.input;
+    }
+
+    /** Key a change by its position and snapshot row. */
+    static key(change: ObjectChange): string {
+        const sequence = String(change.position.sequence).padStart(NUMBER_DIGITS, "0");
+        const row = change.key === undefined ? "" : schema.string().parse(change.key["id"]);
+
+        return `${change.position.epoch}/${sequence}/${row}`;
+    }
 }
 
 /** A trigger firing on signed webhook deliveries. */
-export interface WebhookTrigger<Input = unknown> {
-    /** The trigger's name within its workflow. */
-    readonly name: string;
+export class WebhookTrigger<Input = unknown> {
     /** A trigger firing on signed webhook deliveries. */
     readonly kind: "webhook";
-    /** The signed deliveries that fire. */
+    /** The trigger's name within its workflow. */
+    readonly name: string;
+    /** The signed deliveries that fire, their path template checked. */
     readonly webhook: WebhookTriggerOn;
     /** Read the input of a delivery's run. */
     readonly input: (delivery: WebhookDelivery) => Input;
+
+    /** Check a webhook trigger as its workflow declares it, refusing a malformed path template. */
+    constructor(name: string, definition: Omit<WebhookTrigger<Input>, "name" | "kind">) {
+        // require a secret exactly for a keyed scheme
+        const { signature, path, secret } = definition.webhook;
+        if (signature.isKeyed && secret === undefined) {
+            throw new TypeError(`${signature.name} webhooks need a secret on the trigger`);
+        } else if (!signature.isKeyed && secret !== undefined) {
+            throw new TypeError(`${signature.name} webhooks take no secret`);
+        }
+
+        // check the path template against the manifest's shape and its parameters
+        const { template } = new WebhookPath(
+            WebhookOn.parse({ verification: signature.name, path }).path,
+        );
+        this.kind = "webhook";
+        this.name = DeclarationName.parse(name);
+        this.webhook = { signature, path: template, ...(secret === undefined ? {} : { secret }) };
+        this.input = definition.input;
+    }
+
+    /** Key a delivery by its path's parameters and the sender's identifier. */
+    static key(delivery: WebhookDelivery): string {
+        return `${JSON.stringify(delivery.parameters)} ${delivery.id}`;
+    }
 }
 
 /** A workflow's declared trigger: what fires it, and the input of the run each event starts. */
@@ -123,70 +192,31 @@ export type Trigger<Input = unknown> =
     | ChangeTrigger<Input>
     | WebhookTrigger<Input>;
 
-/** An event that fired a trigger: an occurrence, a change or a delivery. */
-export type TriggerEvent = { readonly at: number } | ObjectChange | WebhookDelivery;
-
 /** A workflow's trigger as the workflow declares it, a change trigger's defaults left out. */
 export type TriggerDefinition<Input> =
-    | Omit<ScheduleTrigger<Input>, "name">
-    | (Omit<ChangeTrigger<Input>, "name" | "change"> & { readonly change: ChangeTriggerOn })
-    | Omit<WebhookTrigger<Input>, "name">;
+    | ({ readonly kind: "schedule" } & Omit<ScheduleTrigger<Input>, "name" | "kind">)
+    | {
+          readonly kind: "change";
+          readonly change: ChangeTriggerOn;
+          readonly input: (change: ObjectChange) => Input;
+      }
+    | ({ readonly kind: "webhook" } & Omit<WebhookTrigger<Input>, "name" | "kind">);
 
-/** The triggers of each kind and the events firing them. */
-export const Trigger = {
-    /** Check a workflow's trigger as declared, filling a change trigger's defaults. */
-    of<Input>(name: string, definition: TriggerDefinition<Input>): Trigger<Input> {
-        // check a schedule against its schema
-        const checked = DeclarationName.parse(name);
-        if (definition.kind === "schedule") {
-            const schedule = ScheduleOn.parse(definition.schedule);
-
-            return { name: checked, kind: "schedule", schedule, input: definition.input };
-        }
-        // check a webhook's path template
-        else if (definition.kind === "webhook") {
-            const { signature, path, secret } = definition.webhook;
-            WebhookOn.parameters(WebhookOn.parse({ verification: signature.name, path }).path);
-            const webhook = { signature, path, ...(secret === undefined ? {} : { secret }) };
-
-            return { name: checked, kind: "webhook", webhook, input: definition.input };
-        }
-
-        // default where a change trigger starts and how far it may lag, refusing a snapshot without creations
-        const { object, where, from = "now", maxLag = MAX_LAG_MILLISECONDS } = definition.change;
-        const { operations } = definition.change;
-        if (from === "snapshot" && !operations.includes("create")) {
-            throw new TypeError(
-                `trigger ${checked} starts with a snapshot of created rows but does not fire on creations`,
-            );
-        }
-        const change = {
-            object,
-            operations: [...operations],
-            from,
-            maxLag,
-            ...(where === undefined ? {} : { where }),
-        };
-
-        return { name: checked, kind: "change", change, input: definition.input };
-    },
-
-    /** Key an event: an occurrence by its time, a change by its position, a delivery by its id. */
-    key(event: TriggerEvent): string {
-        // key an occurrence by its time
-        if ("at" in event) {
-            return String(event.at).padStart(NUMBER_DIGITS, "0");
-        }
-        // key a delivery by its path's parameters and the sender's identifier
-        else if ("receivedAt" in event) {
-            return `${JSON.stringify(event.parameters)} ${event.id}`;
-        }
-        // key a change by its position and snapshot row
-        else {
-            const sequence = String(event.position.sequence).padStart(NUMBER_DIGITS, "0");
-            const row = event.key === undefined ? "" : schema.string().parse(event.key["id"]);
-
-            return `${event.position.epoch}/${sequence}/${row}`;
-        }
-    },
-};
+/** Check a workflow's declared trigger as the noun of its kind. */
+export function triggerOf<Input>(
+    name: string,
+    definition: TriggerDefinition<Input>,
+): Trigger<Input> {
+    // check a schedule
+    if (definition.kind === "schedule") {
+        return new ScheduleTrigger(name, definition);
+    }
+    // check a webhook
+    else if (definition.kind === "webhook") {
+        return new WebhookTrigger(name, definition);
+    }
+    // check a change
+    else {
+        return new ChangeTrigger(name, definition);
+    }
+}

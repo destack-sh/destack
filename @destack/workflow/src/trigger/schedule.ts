@@ -1,7 +1,8 @@
 import { Instant, schema, TimeZone } from "@destack/schema";
 import { CronExpressionParser } from "cron-parser";
 import { Failure } from "@destack/error";
-import { CallError } from "@destack/object";
+import type {} from "@destack/package/import-meta";
+import { WorkflowError } from "../error/index.ts";
 
 /** How a schedule trigger's runs may overlap, as a Kubernetes CronJob's concurrency policy. */
 export const CONCURRENCIES = ["allow", "forbid", "replace"] as const;
@@ -77,19 +78,29 @@ export const ScheduleSkip = schema.object({
 /** A skipped occurrence of a schedule and why. */
 export type ScheduleSkip = schema.Infer<typeof ScheduleSkip>;
 
-/** The occurrences of schedule timings: checked, listed back from a time, and found after one. */
-export const Schedule = {
+/** A schedule's checked timing: its occurrences listed back from a time, and found after one. */
+export class Schedule {
+    /** The timing. */
+    readonly timing: ScheduleTiming;
+
+    /** Check a timing: its calendar and time zone exist, and its range ends after it starts. */
+    constructor(timing: ScheduleTiming) {
+        Schedule.require(timing);
+        this.timing = timing;
+    }
+
     /** Require a timing's calendar and time zone to exist, and its range to end after it starts. */
-    require(timing: ScheduleTiming): ScheduleTiming {
+    static require(timing: ScheduleTiming): void {
         // refuse a calendar or time zone the cron parser refuses
         if (timing.timing === "cron") {
             try {
                 TimeZone.require(timing.timezone);
                 CronExpressionParser.parse(timing.cron, { tz: timing.timezone });
             } catch (error) {
-                throw new CallError("BAD_REQUEST", {
-                    message: `invalid schedule timing: ${Failure.of(error).message}`,
-                });
+                throw WorkflowError.of(
+                    "TIMING_INVALID",
+                    `invalid schedule timing: ${Failure.of(error).message}`,
+                );
             }
         }
 
@@ -100,22 +111,21 @@ export const Schedule = {
             timing.startsAt !== undefined &&
             timing.endsAt <= timing.startsAt
         ) {
-            throw new CallError("BAD_REQUEST", {
-                message: "invalid schedule timing: the schedule ends before its first occurrence",
-            });
+            throw WorkflowError.of(
+                "TIMING_INVALID",
+                "invalid schedule timing: the schedule ends before its first occurrence",
+            );
         }
-
-        return timing;
-    },
+    }
 
     /** List the latest occurrences after one time and up to another, at most a limit. */
     recent(
-        timing: ScheduleTiming,
         after: number,
         until: number,
         limit: number,
     ): { readonly due: number[]; readonly earlier: number | "many" } {
         // count fixed intervals within the end
+        const { timing } = this;
         if (timing.timing === "interval") {
             const end = timing.endsAt === undefined ? until : Math.min(until, timing.endsAt - 1);
             const first = Math.max(0, Math.floor((after - timing.startsAt) / timing.interval) + 1);
@@ -153,11 +163,12 @@ export const Schedule = {
         const isMore = walked.length > limit;
 
         return { due: walked.slice(0, limit).toReversed(), earlier: isMore ? "many" : 0 };
-    },
+    }
 
     /** Find the next occurrence after a time, absent once none follows. */
-    following(timing: ScheduleTiming, after: number): number | undefined {
+    following(after: number): number | undefined {
         // step to the next interval within the end
+        const { timing } = this;
         if (timing.timing === "interval") {
             const index = Math.max(0, Math.floor((after - timing.startsAt) / timing.interval) + 1);
             const next = timing.startsAt + index * timing.interval;
@@ -179,5 +190,5 @@ export const Schedule = {
             .getTime();
 
         return timing.endsAt !== undefined && next >= timing.endsAt ? undefined : next;
-    },
-};
+    }
+}

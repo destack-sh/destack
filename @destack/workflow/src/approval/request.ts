@@ -1,8 +1,8 @@
-import { contained, relation, through, union } from "@destack/access";
+import { none, relation, through, union } from "@destack/access";
 import { space } from "@destack/account/object";
 import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
-import { Call, Subject } from "@destack/sync";
+import { Call, ObjectReference, Subject } from "@destack/sync";
 import { Failure } from "@destack/error";
 import { approval } from "./approval.ts";
 
@@ -59,24 +59,22 @@ export const changeRequest = defineObject(
             failure: field.json(Failure).optional(),
         },
         permissions: {
-            // the object's readers, the requester, the space's managers and the change's own code read it
+            // the object's readers, the requester and the space's managers read it, its code through its role
             read: union(
                 through("parent", "read"),
                 relation("requester"),
                 through("scope", "manage"),
-                contained(),
             ),
-            // the object's approvers, the requester of its delegate's call, the space's managers, and its own code
+            // the object's approvers, the requester of its delegate's call and the space's managers approve it
             approve: union(
                 through("parent", "approve"),
                 relation("requester"),
                 through("scope", "manage"),
-                contained(),
             ),
             // the object's approvers, and anyone reading the space for a call its grant gives once approved
             open: union(through("parent", "approve"), through("scope", "read")),
-            // the change's own code advances it, and its requester withdraws it
-            advance: contained(),
+            // the change's code advances it through its role, and its requester withdraws it
+            advance: none(),
             withdraw: relation("requester"),
         },
         attachments: [approval.attach({ by: "approve" })],
@@ -87,15 +85,9 @@ export const changeRequest = defineObject(
             fields: ["call", "count", "as"],
             input: schema.object({
                 /** The principals asked to approve, the caller's grant delegator when absent. */
-                approvers: schema.array(Subject).min(1).exactOptional(),
+                approvers: schema.array(ObjectReference.strict()).min(1).exactOptional(),
             }),
         }),
         list: method.list("read"),
-        /** Make an approved change's call under the approving grant, recording its output. */
-        execute: method.mutation({
-            permission: "advance",
-            isInternal: true,
-            output: schema.json(),
-        }),
     }),
 );

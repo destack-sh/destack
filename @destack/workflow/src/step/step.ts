@@ -1,43 +1,33 @@
 import type { AccessContext } from "@destack/access";
-import { and, eq, TABLE, Transaction } from "@destack/db";
-import { CallSite, MethodContext, ObjectType } from "@destack/object";
+import { and, eq, type Select, TABLE, Transaction } from "@destack/db";
+import { CallSite, MethodContext, type ObjectCall, ObjectType } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
 import { CallError } from "@destack/object";
+import objectPackage from "@destack/object/package";
 import { RequestId, ObjectReference, ObjectTypeReference, Subject } from "@destack/sync";
 import { Duration, type JsonValue, present, schema } from "@destack/schema";
 import { Failure } from "@destack/error";
 import type * as sync from "@destack/sync";
-import { Approval, approval, type ApprovalState } from "../approval/approval.ts";
+import {
+    type Approval,
+    approval,
+    ApprovalQuorum,
+    type ApprovalState,
+} from "../approval/approval.ts";
 import { changeRequest } from "../approval/request.ts";
 import type { Run } from "../run/run.ts";
-import { recorded, type Workflow } from "../workflow/workflow.ts";
+import { type ChildRun, recorded, type StepType, type Workflow } from "../workflow/workflow.ts";
+import type {} from "@destack/package/import-meta";
+import { WorkflowError } from "../error/index.ts";
 
-/** A step's row as replaying it reads it. */
-export const StepRecord = schema.looseObject({
-    /** The step. */
-    id: schema.string(),
-    /** The step's name. */
-    name: schema.string(),
-    /** The step's place in its run, in the order the run first took it. */
-    position: schema.number().int(),
-    /** The step's output once it completed. */
-    output: schema.json().nullable(),
-    /** The failure a call step answered. */
-    failure: Failure.nullable(),
-    /** When a sleeping or waiting step wakes. */
-    wakeAt: schema.number().nullable(),
-    /** The change request a call step waits on while its call awaits approval. */
-    changeRequestId: schema.string().nullable(),
-    /** When the step completed, null while it waits. */
-    completedAt: schema.number().nullable(),
-    /** When the run first took the step, which stamps the request a prepared call derives. */
-    createdAt: schema.number(),
-});
-/** A step's row as replaying it reads it. */
-export type StepRecord = schema.Infer<typeof StepRecord>;
+/** A step's row as its workflow's step type stores it. */
+export type StepRecord = Select<StepType["table"]>;
 
 /** What steps read of their workflow: its name, the types it waits for, its run and step types. */
 type WorkflowObjects = Pick<Workflow, "name" | "waits" | "run" | "step">;
+
+/** A run as its steps read it: its workflow's objects, its row and its actor. */
+type StepRun = Pick<Run, "row" | "actor"> & { readonly workflow: WorkflowObjects };
 
 /** A workflow another run invokes: its name, input, runs, how they start, and their output. */
 export type InvokedWorkflow<Input, Output> = Pick<
@@ -45,63 +35,21 @@ export type InvokedWorkflow<Input, Output> = Pick<
     "name" | "input" | "output" | "run" | "start"
 >;
 
+/** What happens to an invoked run once its invoking run ends, as Temporal's parent close policy. */
+export interface InvokeOptions {
+    /** Cancel the invoked run with its parent, by default, or abandon it to run on. */
+    readonly onParentClose?: "cancel" | "abandon";
+}
+
 /** Who decides on an object, how many approvals approve it, and how long the run waits. */
 export interface ApprovalRequest {
     /** The principals asked to decide. */
-    readonly approvers: readonly Subject[];
+    readonly approvers: readonly ObjectReference[];
     /** The approvals that approve the object, one by default. */
     readonly count?: number;
     /** How long the run waits for the decision, absent to wait until it comes. */
     readonly timeout?: Duration;
 }
-
-/** The steps a workflow's function takes, each memoised by its name across its run's advances. */
-export interface Step {
-    /** Make an object method call once as the run's actor, waiting for any approval it needs. */
-    readonly call: <Result>(name: string, call: sync.Call<Result>) => Promise<Result>;
-    /** Read an object query method once as the run's actor, answering the same on replay. */
-    readonly query: <Result>(name: string, call: sync.Call<Result>) => Promise<Result>;
-    /** Run local code once, recording its output, which later advances read by its schema. */
-    readonly run: <Output>(
-        name: string,
-        output: schema.Schema<Output>,
-        work: () => Promise<Output>,
-    ) => Promise<Output>;
-    /** Wait for a duration from the step's first advance. */
-    readonly sleep: (name: string, duration: Duration) => Promise<void>;
-    /** Wait until a time. */
-    readonly sleepUntil: (name: string, at: number) => Promise<void>;
-    /** Wait for a listing's first object as its type's rows change, none past a timeout. */
-    readonly waitFor: <Item>(
-        name: string,
-        listing: sync.Call<{ readonly items: readonly Item[] }>,
-        options?: { readonly timeout?: Duration },
-    ) => Promise<Item | undefined>;
-    /** Ask approvers to decide on an object, answering the decision, requested past a timeout. */
-    readonly approve: (
-        name: string,
-        subject: ObjectReference,
-        request: ApprovalRequest,
-    ) => Promise<ApprovalState>;
-    /** Start a run of a workflow the store serves once, answering its output once it ends. */
-    readonly invoke: <Input, Output>(
-        name: string,
-        workflow: InvokedWorkflow<Input, Output>,
-        input: NoInfer<Input>,
-    ) => Promise<Output>;
-}
-
-/** An invoked run's row as its invoking step reads it. */
-const InvokedRun = schema.looseObject({
-    /** The run. */
-    id: schema.string(),
-    /** Whether the run is live or ended. */
-    state: schema.string(),
-    /** The run's output once completed, absent for a workflow returning nothing. */
-    output: schema.json().nullable().exactOptional(),
-    /** The failure the run ended with. */
-    failure: Failure.nullable(),
-});
 
 /** What a run's function knows of its run. */
 export interface RunContext {
@@ -126,14 +74,10 @@ export class Suspension extends Error {
     }
 }
 
-/** A run's steps as one advance of its function takes them, recorded as the run's step objects. */
-export class StepContext implements Step {
-    /** The workflow. */
-    readonly #workflow: WorkflowObjects;
-    /** The run. */
-    readonly #run: Pick<Run, "id" | "scope">;
-    /** The principal the run acts as. */
-    readonly #actor: Subject;
+/** The steps a workflow's function takes, each memoised by its name across its run's advances. */
+export class Step<Waits extends ObjectType = ObjectType> {
+    /** The run, of its workflow and acting for its actor. */
+    readonly #run: StepRun;
     /** The store the steps act through. */
     readonly #store: ObjectStore;
     /** The caller the run's calls run as. */
@@ -141,23 +85,20 @@ export class StepContext implements Step {
     /** The steps recorded before this advance, by name. */
     readonly #recorded: ReadonlyMap<string, StepRecord>;
     /** The names taken in this advance in order, which no two steps share. */
-    readonly #taken: string[] = [];
+    readonly #taken: string[];
     /** The recorded steps' names, by their place in the run. */
     readonly #positions: ReadonlyMap<number, string>;
 
     /** Take a run's steps over its recorded step objects, acting as its actor through a caller. */
     constructor(
-        workflow: WorkflowObjects,
-        run: Pick<Run, "id" | "scope">,
-        actor: Subject,
+        run: StepRun,
         caller: AccessContext,
         store: ObjectStore,
         recordedSteps: readonly StepRecord[],
     ) {
-        // hold the run, its actor, the caller acting as it and its steps by name
-        this.#workflow = workflow;
+        // take the run, its caller and its steps by name
         this.#run = run;
-        this.#actor = actor;
+        this.#taken = [];
         this.#caller = caller;
         this.#store = store;
         this.#recorded = new Map(recordedSteps.map((step) => [step.name, step]));
@@ -165,25 +106,21 @@ export class StepContext implements Step {
     }
 
     /** Read the steps a run recorded. */
-    static async load(
-        store: ObjectStore,
-        workflow: WorkflowObjects,
-        run: Pick<Run, "id" | "scope">,
-    ): Promise<StepRecord[]> {
-        const table = workflow.step.table;
+    static async load(store: ObjectStore, run: StepRun): Promise<StepRecord[]> {
+        const table = run.workflow.step.table;
         const rows = await store.database
             .select()
             .from(table)
-            .where(eq(table[TABLE].column("parentId"), run.id));
+            .where(eq(table[TABLE].column("parentId"), run.row.id));
 
-        return rows.map((row) => StepRecord.parse(row));
+        return rows;
     }
 
     /** Make an object method call once as the run's actor, waiting for any approval it needs. */
     async call<Result>(name: string, call: sync.Call<Result>): Promise<Result> {
         // answer a recorded call again by its method's output schema, its failure thrown again
         const recordedStep = this.#take(name);
-        const completed = StepContext.#completed(recordedStep);
+        const completed = Step.#completed(recordedStep);
         if (completed !== undefined) {
             return this.#answer(call, completed);
         }
@@ -201,7 +138,7 @@ export class StepContext implements Step {
                 return await Transaction.run(this.#store.database, async (transaction) => {
                     const [made] = await this.#store.mutate(
                         this.#caller,
-                        { id: RequestId.create(now), calls: [call] },
+                        { id: RequestId.create(this.#store.environment), calls: [call] },
                         { site: CallSite.store, transaction },
                     );
                     await this.#complete(name, { output: recorded(made) }, transaction);
@@ -212,10 +149,12 @@ export class StepContext implements Step {
 
             // make a preparing call, or one its rows' home runs, under a request its started step derives
             const started = recordedStep?.createdAt ?? now;
-            if (recordedStep === undefined) {
-                await this.#wait(name, undefined, recordedStep);
-            }
-            const id = await RequestId.derive(started, `${this.#run.id}:${name}`);
+            await this.#wait(name, undefined, recordedStep);
+            const id = await RequestId.derive(
+                started,
+                `${this.#run.row.id}:${name}`,
+                this.#store.environment.crypto,
+            );
             const [made] = await this.#store.mutate(
                 this.#caller,
                 { id, calls: [call] },
@@ -226,7 +165,8 @@ export class StepContext implements Step {
             return made;
         } catch (error) {
             // ask for approval of a call the grant gives once approved
-            if (CallError.of(error)?.code === "APPROVAL_REQUIRED") {
+            const refused = CallError.of(error);
+            if (refused?.reason === "APPROVAL_REQUIRED" && refused.domain === objectPackage.name) {
                 return this.#request(name, call);
             }
             // record a final refusal as the call's answer, and let anything else retry the advance
@@ -245,10 +185,10 @@ export class StepContext implements Step {
             const [opened] = await this.#store.mutate(
                 this.#caller,
                 {
-                    id: RequestId.create(this.#store.clock.now()),
+                    id: RequestId.create(this.#store.environment),
                     calls: [
                         changeRequest.call("create", {
-                            ...changeRequest.in(this.#run.scope),
+                            ...changeRequest.in(this.#run.row.scope),
                             call,
                         }),
                     ],
@@ -261,16 +201,16 @@ export class StepContext implements Step {
             const values = { changeRequestId: opened.id };
             await this.#record(
                 existing === undefined
-                    ? this.#workflow.step.call("create", {
-                          ...this.#workflow.step.in(this.#run.scope),
-                          parentId: this.#run.id,
+                    ? this.#run.workflow.step.call("create", {
+                          ...this.#run.workflow.step.in(this.#run.row.scope),
+                          parentId: this.#run.row.id,
                           name,
                           position: this.#position(name),
                           ...values,
                       })
-                    : this.#workflow.step.call("update", {
-                          ...this.#workflow.step.target({
-                              scope: this.#run.scope,
+                    : this.#run.workflow.step.call("update", {
+                          ...this.#run.workflow.step.target({
+                              scope: this.#run.row.scope,
                               id: existing.id,
                           }),
                           ...values,
@@ -311,9 +251,10 @@ export class StepContext implements Step {
         // refuse a call its approvers rejected or its requester withdrew
         else if (request.state === "rejected" || request.state === "withdrawn") {
             const failure = Failure.of(
-                new CallError("FORBIDDEN", {
-                    message: `change request ${changeRequestId} was ${request.state}`,
-                }),
+                WorkflowError.of(
+                    "CHANGE_REQUEST_CLOSED",
+                    `change request ${changeRequestId} was ${request.state}`,
+                ),
             );
             await this.#complete(name, { failure });
             throw Failure.error(failure);
@@ -327,7 +268,7 @@ export class StepContext implements Step {
     async query<Result>(name: string, call: sync.Call<Result>): Promise<Result> {
         // answer a recorded read again, else read once and record the answer
         const recordedStep = this.#take(name);
-        const completed = StepContext.#completed(recordedStep);
+        const completed = Step.#completed(recordedStep);
         if (completed !== undefined) {
             return this.#answer(call, completed);
         }
@@ -344,9 +285,9 @@ export class StepContext implements Step {
         work: () => Promise<Output>,
     ): Promise<Output> {
         // answer recorded output again by its schema, else do the work once and record it
-        const completed = StepContext.#completed(this.#take(name));
+        const completed = Step.#completed(this.#take(name));
         if (completed !== undefined) {
-            return output.parse(StepContext.#replay(completed));
+            return output.parse(Step.#replay(completed));
         }
         const done = output.parse(await work());
         await this.#complete(name, { output: recorded(done) });
@@ -366,7 +307,7 @@ export class StepContext implements Step {
     async sleepUntil(name: string, at: number): Promise<void> {
         // pass a completed sleep, and complete one whose time came
         const recordedStep = this.#take(name);
-        if (StepContext.#completed(recordedStep) !== undefined) {
+        if (Step.#completed(recordedStep) !== undefined) {
             return;
         } else if (at <= this.#store.clock.now()) {
             await this.#complete(name, { output: null });
@@ -382,7 +323,7 @@ export class StepContext implements Step {
     /** Wait for a listing's first object as the run's actor lists it. */
     async waitFor<Item>(
         name: string,
-        listing: sync.Call<{ readonly items: readonly Item[] }>,
+        listing: ObjectCall<Waits, { readonly items: readonly Item[] }>,
         options: { readonly timeout?: Duration } = {},
     ): Promise<Item | undefined> {
         // require a type the workflow declares it waits for
@@ -392,9 +333,9 @@ export class StepContext implements Step {
         const recordedStep = this.#take(name);
         const first = (page: JsonValue): Item | undefined =>
             MethodContext.results(this.#store.objects, [listing], [page])[0].items[0];
-        const completed = StepContext.#completed(recordedStep);
+        const completed = Step.#completed(recordedStep);
         if (completed !== undefined) {
-            const replayed = StepContext.#replay(completed);
+            const replayed = Step.#replay(completed);
 
             return replayed === null ? undefined : first(replayed);
         }
@@ -429,20 +370,23 @@ export class StepContext implements Step {
         name: string,
         subject: ObjectReference,
         request: ApprovalRequest,
+        ..._undeclared: typeof approval extends Waits ? [] : [never]
     ): Promise<ApprovalState> {
         // answer a recorded decision again
         const waitType = this.#waitType(approval.typeReference);
         const recordedStep = this.#take(name);
-        const completed = StepContext.#completed(recordedStep);
+        const completed = Step.#completed(recordedStep);
         if (completed !== undefined) {
             return schema
                 .enum(["requested", "approved", "rejected"])
-                .parse(StepContext.#replay(completed));
+                .parse(Step.#replay(completed));
         }
 
         // ask each approver once with the waiting step, asking again those who decided before
         const now = this.#store.clock.now();
         const { approvers, count = 1, timeout } = request;
+        ApprovalQuorum.require(count, approvers.length);
+        const quorum = new ApprovalQuorum(count);
         const at =
             recordedStep?.wakeAt ??
             (timeout === undefined ? undefined : now + Duration.milliseconds(timeout));
@@ -451,12 +395,12 @@ export class StepContext implements Step {
                 // ask the new approvers and again those who decided, recording the waiting step
                 const asked = await this.#asked(subject, approvers);
                 const calls = asked.flatMap(({ approver, row }) =>
-                    StepContext.#ask(subject, approver, row),
+                    Step.#ask(subject, approver, row),
                 );
                 if (calls.length > 0) {
                     await this.#store.mutate(
                         this.#caller,
-                        { id: RequestId.create(now), calls },
+                        { id: RequestId.create(this.#store.environment), calls },
                         { site: CallSite.store, transaction },
                     );
                 }
@@ -465,11 +409,10 @@ export class StepContext implements Step {
         }
 
         // answer the approvers' decision, requested once the timeout passed, else wait for approvals
-        const decided = Approval.decision(
+        const decided = quorum.decide(
             (await this.#asked(subject, approvers)).flatMap(({ row }) =>
                 row === undefined ? [] : [row],
             ),
-            count,
         );
         if (decided !== "requested" || (at !== undefined && at <= now)) {
             await this.#complete(name, { output: decided });
@@ -482,59 +425,62 @@ export class StepContext implements Step {
     /** Start a run of a workflow the store serves once, answering its output once it ends. */
     async invoke<Input, Output>(
         name: string,
-        workflow: InvokedWorkflow<Input, Output>,
+        workflow: InvokedWorkflow<Input, Output> & { readonly run: Waits },
         input: Input,
+        options: InvokeOptions = {},
     ): Promise<Output> {
-        // refuse a workflow answering no output, and answer a recorded run's output again
+        // answer a recorded run's output again
         const waitType = this.#waitType(workflow.run.typeReference);
         const output = workflow.output;
-        if (output === undefined) {
-            throw new TypeError(
-                `${this.#workflow.name} invokes ${workflow.name}, which declares no output`,
-            );
-        }
         const recordedStep = this.#take(name);
-        const completed = StepContext.#completed(recordedStep);
+        const completed = Step.#completed(recordedStep);
         if (completed !== undefined) {
-            return output.parse(StepContext.#replay(completed));
+            return output.parse(Step.#replay(completed));
         }
 
-        // start the run as this run's actor under a key the step derives, with the waiting step
-        const key = `${this.#run.id}/${name}`;
+        // start the run as this run's actor under a key the step derives, recording it with the waiting step
         if (recordedStep === undefined) {
+            const key = `${this.#run.row.id}/${name}`;
             await Transaction.run(this.#store.database, async (transaction) => {
-                await this.#store.mutate(
-                    this.#store.serving(workflow.run),
+                const [started] = await this.#store.mutate(
+                    this.#store.as(workflow.run),
                     {
-                        id: RequestId.create(this.#store.clock.now()),
-                        calls: [workflow.start(input, { key, actor: this.#actor })],
+                        id: RequestId.create(this.#store.environment),
+                        calls: [workflow.start(input, { key, actor: this.#run.actor })],
                     },
-                    { scope: this.#run.scope, transaction },
+                    { scope: this.#run.row.scope, transaction },
                 );
-                await this.#wait(name, undefined, recordedStep, transaction);
+                const child = {
+                    type: workflow.run.typeReference,
+                    id: schema.looseObject({ id: schema.string() }).parse(started).id,
+                    onParentClose: options.onParentClose ?? "cancel",
+                };
+                await this.#wait(name, undefined, recordedStep, transaction, child);
             });
             throw new Suspension(undefined, waitType);
         }
 
-        // answer an ended run's output or failure, else wait for it to end
+        // answer the child run the step recorded once it ends
+        const child = present(recordedStep.child, `the child run of step ${name}`);
         const table = workflow.run.table;
         const [invoked] = await this.#store.database
             .select()
             .from(table)
-            .where(eq(table[TABLE].column("key"), key));
-        const ended = InvokedRun.parse(invoked);
-        if (ended.state === "completed") {
-            await this.#complete(name, { output: ended.output ?? null });
+            .where(eq(table[TABLE].column("id"), child.id));
+        const run = present(invoked, `child run ${child.id}`);
+        if (run.state === "completed") {
+            const answered = present(run.output, `the output of completed run ${run.id}`);
+            await this.#complete(name, { output: answered });
 
-            return output.parse(ended.output ?? null);
-        } else if (ended.state === "failed" || ended.state === "cancelled") {
-            const failure =
-                ended.failure ??
-                Failure.of(
-                    new CallError("CLIENT_CLOSED_REQUEST", {
-                        message: `run ${ended.id} was cancelled`,
-                    }),
-                );
+            return output.parse(answered);
+        } else if (run.state === "failed") {
+            const failure = present(run.failure, `the failure of failed run ${run.id}`);
+            await this.#complete(name, { failure });
+            throw Failure.error(failure);
+        } else if (run.state === "cancelled") {
+            const failure = Failure.of(
+                WorkflowError.of("RUN_CANCELLED", `run ${run.id} was cancelled`),
+            );
             await this.#complete(name, { failure });
             throw Failure.error(failure);
         }
@@ -545,12 +491,12 @@ export class StepContext implements Step {
     #waitType(type: sync.ObjectTypeReference): string {
         const waitType = ObjectTypeReference.key(type);
         if (
-            !this.#workflow.waits.some(
+            !this.#run.workflow.waits.some(
                 (waited) => ObjectTypeReference.key(waited.typeReference) === waitType,
             )
         ) {
             throw new TypeError(
-                `${this.#workflow.name} waits for ${waitType}, which it does not declare`,
+                `${this.#run.workflow.name} waits for ${waitType}, which it does not declare`,
             );
         }
 
@@ -560,7 +506,7 @@ export class StepContext implements Step {
     /** Read each approver's approval of an object, absent for one never asked. */
     async #asked(
         subject: ObjectReference,
-        approvers: readonly Subject[],
+        approvers: readonly ObjectReference[],
     ): Promise<{ readonly approver: Subject; readonly row: Approval | undefined }[]> {
         const table = approval.table;
         const rows = await this.#store.database
@@ -612,7 +558,10 @@ export class StepContext implements Step {
     #take(name: string): StepRecord | undefined {
         // refuse a second step of the same name
         if (this.#taken.includes(name)) {
-            throw new TypeError(`run ${this.#run.id} takes two steps named ${name}`);
+            throw WorkflowError.of(
+                "STEP_DUPLICATE",
+                `run ${this.#run.row.id} has two steps named ${name}`,
+            );
         }
         this.#taken.push(name);
 
@@ -624,8 +573,9 @@ export class StepContext implements Step {
             (recordedStep !== undefined && recordedStep.position !== position) ||
             (recordedAt !== undefined && recordedAt !== name)
         ) {
-            throw new Error(
-                `run ${this.#run.id} diverged from its recorded steps: it takes ${name} where it recorded ${recordedAt ?? "nothing"}, as its function is not deterministic between steps`,
+            throw WorkflowError.of(
+                "RUN_NONDETERMINISTIC",
+                `run ${this.#run.row.id} takes step ${name} where it recorded ${recordedAt ?? "nothing"}`,
             );
         }
 
@@ -637,7 +587,7 @@ export class StepContext implements Step {
         const [result] = MethodContext.results(
             this.#store.objects,
             [call],
-            [StepContext.#replay(recordedStep)],
+            [Step.#replay(recordedStep)],
         );
 
         return result;
@@ -657,16 +607,16 @@ export class StepContext implements Step {
         };
         const call =
             existing === undefined
-                ? this.#workflow.step.call("create", {
-                      ...this.#workflow.step.in(this.#run.scope),
-                      parentId: this.#run.id,
+                ? this.#run.workflow.step.call("create", {
+                      ...this.#run.workflow.step.in(this.#run.row.scope),
+                      parentId: this.#run.row.id,
                       name,
                       position: this.#position(name),
                       ...values,
                   })
-                : this.#workflow.step.call("update", {
-                      ...this.#workflow.step.target({
-                          scope: this.#run.scope,
+                : this.#run.workflow.step.call("update", {
+                      ...this.#run.workflow.step.target({
+                          scope: this.#run.row.scope,
                           id: existing.id,
                       }),
                       ...values,
@@ -680,18 +630,20 @@ export class StepContext implements Step {
         at: number | undefined,
         existing: StepRecord | undefined,
         transaction?: Transaction,
+        child?: ChildRun,
     ): Promise<void> {
-        // record a new wait once, keeping its first wake time across advances
+        // record a new wait once
         if (existing !== undefined) {
             return;
         }
         await this.#record(
-            this.#workflow.step.call("create", {
-                ...this.#workflow.step.in(this.#run.scope),
-                parentId: this.#run.id,
+            this.#run.workflow.step.call("create", {
+                ...this.#run.workflow.step.in(this.#run.row.scope),
+                parentId: this.#run.row.id,
                 name,
                 position: this.#position(name),
                 ...(at === undefined ? {} : { wakeAt: at }),
+                ...(child === undefined ? {} : { child }),
             }),
             transaction,
         );
@@ -700,26 +652,26 @@ export class StepContext implements Step {
     /** Write a step record as the store, the run's lease making it the only writer. */
     async #record(call: sync.Call, transaction?: Transaction): Promise<void> {
         await this.#store.mutate(
-            this.#store.serving(this.#workflow.step),
-            { id: RequestId.create(this.#store.clock.now()), calls: [call] },
+            this.#store.as(this.#run.workflow.step),
+            { id: RequestId.create(this.#store.environment), calls: [call] },
             transaction === undefined ? {} : { transaction },
         );
     }
 
     /** Read a step this advance started, absent before. */
     async #started(name: string): Promise<StepRecord | undefined> {
-        const table = this.#workflow.step.table;
+        const table = this.#run.workflow.step.table;
         const [row] = await this.#store.database
             .select()
             .from(table)
             .where(
                 and(
-                    eq(table[TABLE].column("parentId"), this.#run.id),
+                    eq(table[TABLE].column("parentId"), this.#run.row.id),
                     eq(table[TABLE].column("name"), name),
                 ),
             );
 
-        return row === undefined ? undefined : StepRecord.parse(row);
+        return row;
     }
 
     /** Read a step's place in its run: the order this advance took it in. */

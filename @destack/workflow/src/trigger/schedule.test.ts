@@ -1,5 +1,4 @@
-import { CallError } from "@destack/object";
-import { expect, test } from "@destack/test";
+import { expect, refusal, test } from "@destack/test";
 import { Schedule, type ScheduleTiming } from "./schedule.ts";
 
 /** Nine in the morning in Berlin. */
@@ -8,11 +7,10 @@ const MORNING: ScheduleTiming = { timing: "cron", cron: "0 9 * * *", timezone: "
 test("follow a calendar in its time zone across a summer time change", () => {
     // step from the day before the change to the morning of the change
     const after = Date.parse("2026-03-28T12:00:00Z");
-    expect(Schedule.following(MORNING, after)).toBe(Date.parse("2026-03-29T07:00:00Z"));
+    expect(new Schedule(MORNING).following(after)).toBe(Date.parse("2026-03-29T07:00:00Z"));
 
     // run the two latest mornings and mark the earlier ones as more than the limit
-    const recent = Schedule.recent(
-        MORNING,
+    const recent = new Schedule(MORNING).recent(
         Date.parse("2026-03-26T12:00:00Z"),
         Date.parse("2026-03-31T00:00:00Z"),
         2,
@@ -24,32 +22,32 @@ test("follow a calendar in its time zone across a summer time change", () => {
 
     // end the calendar before an occurrence at its end
     const ended = { ...MORNING, endsAt: Date.parse("2026-03-29T07:00:00Z") };
-    expect(Schedule.following(ended, after)).toBeUndefined();
+    expect(new Schedule(ended).following(after)).toBeUndefined();
 });
 
 test("count intervals and one-off occurrences arithmetically", () => {
     // run the two latest minutes and count the three before them
     const minutely: ScheduleTiming = { timing: "interval", interval: 60_000, startsAt: 0 };
     expect([
-        Schedule.recent(minutely, 0, 300_000, 2),
-        Schedule.following(minutely, 90_000),
+        new Schedule(minutely).recent(0, 300_000, 2),
+        new Schedule(minutely).following(90_000),
     ]).toEqual([{ due: [240_000, 300_000], earlier: 3 }, 120_000]);
 
     // occur once
     const once: ScheduleTiming = { timing: "once", startsAt: 60_000 };
     expect([
-        Schedule.recent(once, 0, 60_000, 2),
-        Schedule.following(once, 0),
-        Schedule.following(once, 60_000),
+        new Schedule(once).recent(0, 60_000, 2),
+        new Schedule(once).following(0),
+        new Schedule(once).following(60_000),
     ]).toEqual([{ due: [60_000], earlier: 0 }, 60_000, undefined]);
 });
 
-test("refuse a timing that ends before it starts", () => {
+test("refuse a timing that ends before it starts", async () => {
     const backwards = { ...MORNING, startsAt: 60_000, endsAt: 60_000 };
-    expect(() => Schedule.require(backwards)).toThrow(
-        new CallError("BAD_REQUEST", {
-            message: "invalid schedule timing: the schedule ends before its first occurrence",
-        }),
-    );
-    expect(Schedule.require(MORNING)).toBe(MORNING);
+    expect(await refusal((async () => new Schedule(backwards))())).toEqual([
+        "BAD_REQUEST",
+        "TIMING_INVALID",
+        "invalid schedule timing: the schedule ends before its first occurrence",
+    ]);
+    expect(new Schedule(MORNING).timing).toBe(MORNING);
 });

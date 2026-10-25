@@ -3,6 +3,7 @@ import { space } from "@destack/account/object";
 import { type Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
+import { WorkflowError } from "../error/index.ts";
 
 /** The longest comment an approver writes with a decision, a review summary's worth. */
 const COMMENT_LENGTH = 4000;
@@ -72,22 +73,40 @@ export const approval = defineObject(
 /** An approval as its table stores it. */
 export type Approval = Select<typeof approval.table>;
 
-/** The decisions on an object awaiting approval. */
-export const Approval = {
-    /** Decide approvals: rejected by any rejection, approved by enough, else requested. */
-    decision(approvals: readonly Pick<Approval, "state">[], count: number): ApprovalState {
-        // reject on any rejection, as a review requesting changes blocks a merge
+/** The approvals an object needs, any rejection rejecting it as a review blocks a merge. */
+export class ApprovalQuorum {
+    /** The approvals that approve the object. */
+    readonly count: number;
+
+    /** Need a count of approvals. */
+    constructor(count: number) {
+        this.count = count;
+    }
+
+    /** Refuse asking more approvals than the approvers asked can give, one decision each. */
+    static require(count: number, approvers: number): void {
+        if (count > approvers) {
+            throw WorkflowError.of(
+                "QUORUM_UNREACHABLE",
+                `${count} approvals need at least ${count} approvers, not ${approvers}`,
+            );
+        }
+    }
+
+    /** Decide on approvals: rejected by any rejection, approved by enough, else requested. */
+    decide(approvals: readonly Pick<Approval, "state">[]): ApprovalState {
         const approved = approvals.filter((each) => each.state === "approved").length;
+        // reject on any rejection
         if (approvals.some((each) => each.state === "rejected")) {
             return "rejected";
         }
         // approve with enough approvals
-        else if (approved >= count) {
+        else if (approved >= this.count) {
             return "approved";
         }
         // wait for the rest
         else {
             return "requested";
         }
-    },
-};
+    }
+}

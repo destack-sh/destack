@@ -1,4 +1,4 @@
-import { AccessContext, Grant } from "@destack/access";
+import { AccessContext, Caller, Grant } from "@destack/access";
 import type { Select, Table } from "@destack/db";
 import type { MethodContext } from "@destack/object";
 import { CallError } from "@destack/object";
@@ -10,19 +10,26 @@ import { defineWorkflow } from "../workflow/workflow.ts";
 import { approval } from "./approval.ts";
 import { changeRequest } from "./request.ts";
 import { LIVE_STATES, Run } from "../run/run.ts";
+import { WorkflowError } from "../error/index.ts";
+import { NO_OUTPUT } from "../workflow/workflow.ts";
 
 /** The input of a change's run: its change request and the principals asked to approve it. */
 const ChangeInput = schema.object({
     /** The change request. */
     id: schema.identifier("change-request"),
     /** The principals asked to approve the change. */
-    approvers: schema.array(Subject).min(1),
+    approvers: schema.array(ObjectReference.strict()).min(1),
 });
 /** The input of a change's run. */
 export type ChangeInput = schema.Infer<typeof ChangeInput>;
 
 /** Apply a change request once its approvers approve it, or reject it once one rejects it. */
-export const change = defineWorkflow({ name: "change", input: ChangeInput, waits: [approval] });
+export const change = defineWorkflow({
+    name: "change",
+    input: ChangeInput,
+    waits: [approval],
+    output: NO_OUTPUT,
+});
 
 /** A call one principal asks others to approve, as its row stores it. */
 export class ChangeRequest {
@@ -34,8 +41,23 @@ export class ChangeRequest {
         this.row = row;
     }
 
+    /** Ask a delegated caller's delegator, refusing a direct caller naming no approvers. */
+    static approvers(caller: Caller): readonly ObjectReference[] {
+        // ask the person whose grant the delegated caller acts within
+        if (Caller.isDelegated(caller)) {
+            return [ObjectReference.parse(caller.subject)];
+        }
+        // refuse a direct request naming no approvers, which would approve itself
+        else {
+            throw WorkflowError.of(
+                "APPROVERS_MISSING",
+                "a direct change request names no approvers",
+            );
+        }
+    }
+
     /** Start the change's run as the change's own code, asking its approvers. */
-    async start(context: MethodContext, approvers: readonly Subject[]): Promise<void> {
+    async start(context: MethodContext, approvers: readonly ObjectReference[]): Promise<void> {
         const { id } = this.row;
         const start = change.start(
             { id, approvers: [...approvers] },
@@ -55,14 +77,16 @@ export class ChangeRequest {
         );
     }
 
-    /** Read whom the approved call runs as: the requester, or the last approver. */
-    async principal(context: MethodContext): Promise<Subject> {
-        // run a review's call as its requester
+    /** Read whom the approved call runs as and through which actors. */
+    async principal(
+        context: MethodContext,
+    ): Promise<{ readonly subject: Subject; readonly actors: readonly Subject[] }> {
+        // run a review's call as its requester, through the actors it called through
         if (this.row.as === "requester") {
-            return ObjectReference.at("requester", this.row);
+            return { subject: ObjectReference.at("requester", this.row), actors: this.row.actors };
         }
 
-        // run an elevation's call as the approver whose approval decided it
+        // run an elevation's call as the approver whose approval decided it, acting directly
         const approvals = await context.read(approval).findMany({
             where: {
                 parentPackageId: changeRequest.package.id,
@@ -73,21 +97,17 @@ export class ChangeRequest {
             orderBy: { updatedAt: "desc" },
             limit: 1,
         });
+        const decided = present(approvals[0], `the approval of ${this.row.id}`);
 
-        return ObjectReference.at(
-            "approver",
-            present(approvals[0], `the approval of ${this.row.id}`),
-        );
+        return { subject: ObjectReference.at("approver", decided), actors: [] };
     }
 
-    /** Make the approved call as its principal through the recorded actors' grants. */
+    /** Make the approved call as its principal, through the chain it presented. */
     async execute(context: MethodContext): Promise<JsonValue> {
-        // act as the principal through the actors, the change's own code when none were recorded
-        const subject = await this.principal(context);
+        // act as the principal through its actors' live grants, directly when it called directly
+        const chain = await this.principal(context);
         const reader = { read: <Read extends Table>(table: Read) => context.read(table) };
-        const recorded = this.row.actors;
-        const actors = recorded.length === 0 ? [context.self.subject] : recorded;
-        const acting = await Grant.chain(reader, { subject, actors }, context.now);
+        const acting = await Grant.chain(reader, chain, context.now);
 
         // make the call under the change's approval
         const caller = AccessContext.of(acting, context.now, { approval: this.row.id });
@@ -133,7 +153,6 @@ export class Change {
         // make the call once approved, recording the refusal it answers
         if (decision === "approved") {
             try {
-                await this.#step.call("execute", changeRequest.call("execute", target));
                 await this.#step.call("apply", changeRequest.call("apply", target));
             } catch (error) {
                 if (CallError.refusal(error) === undefined) {

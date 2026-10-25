@@ -51,7 +51,7 @@ export const WorkflowDescription = schema.object({
             schema.object({ input: schema.string().min(1) }),
         ]),
     }),
-    /** Whether a run holds its concurrency slot from its start to its end. */
+    /** Whether a run takes its concurrency slot from its start to its end. */
     isSingleton: schema.boolean(),
     /** The declared triggers starting runs. */
     triggers: schema.array(TriggerDescription),

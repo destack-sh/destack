@@ -22,18 +22,17 @@
         "@destack/db": "workspace:*",
         "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
+        "@destack/identity": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/resource": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/sync": "workspace:*",
         "@destack/telemetry": "workspace:*",
-        "cron-parser": "5.7.0",
-        "jose": "6.2.12"
+        "cron-parser": "5.7.0"
     },
     "devDependencies": {
         "@destack/test": "workspace:*",
-        "@types/bun": "1.4.2",
-        "uuid": "14.0.2"
+        "@types/bun": "1.4.2"
     }
 }
