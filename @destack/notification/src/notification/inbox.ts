@@ -15,6 +15,8 @@ export class InboxEntry {
     readonly isArchived: boolean;
     /** Whether it is snoozed now. */
     readonly isSnoozed: boolean;
+    /** Whether the delivery of the activity's last occurrence started. */
+    readonly isPlanned: boolean;
 
     /** Join a notification with its activity, deriving the person's state of it now. */
     constructor(notification: Notification, occurrence: Activity, now: number) {
@@ -27,6 +29,7 @@ export class InboxEntry {
         this.isArchived =
             notification.archivedAt !== null && notification.archivedAt >= occurrence.occurredAt;
         this.isSnoozed = notification.snoozedUntil !== null && notification.snoozedUntil > now;
+        this.isPlanned = notification.plannedAt >= occurrence.occurredAt;
     }
 
     /** Read a notification's entry with its activity, absent once the home lost the activity. */
@@ -74,13 +77,16 @@ export class Inbox {
         );
     }
 
+    /** List the active entries: unarchived and unsnoozed. */
+    active(): readonly InboxEntry[] {
+        return this.entries.filter((entry) => !entry.isArchived && !entry.isSnoozed);
+    }
+
     /** Count the unread entries, of one space or app where given. */
     unread(filter: { readonly space?: string; readonly packageId?: string } = {}): number {
-        return this.entries.filter(
+        return this.active().filter(
             (entry) =>
                 entry.isUnread &&
-                !entry.isArchived &&
-                !entry.isSnoozed &&
                 (filter.space === undefined || entry.activity.scope === filter.space) &&
                 (filter.packageId === undefined || entry.activity.packageId === filter.packageId),
         ).length;

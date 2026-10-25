@@ -16,7 +16,7 @@ export const summary = defineObject(
             sentAt: field.time().optional(),
         },
         permissions: { read: through("scope", "read"), plan: none() },
-        // keep a summary as long as the notifications it sent
+        // expire a summary as the notifications it sent expire
         expiring: [{ after: { days: 180 }, from: "at" }],
         constraints: {
             at: { kind: "unique", on: ["scope", "at"] },
@@ -24,8 +24,9 @@ export const summary = defineObject(
         },
     },
     (method) => ({
-        /** Schedule the summary at a time, answering the one scheduled there already. */
-        create: method.create("plan", { isInternal: true, fields: ["at"] }),
+        /** Find the summary scheduled at a time, or schedule it. */
+        findOrCreate: method.create("plan", { isInternal: true, fields: ["at"] }),
+        create: false,
         /** Send it to each summary destination of the notifications waiting for it. */
         send: method.mutation({ permission: "plan", isInternal: true }),
         update: false,

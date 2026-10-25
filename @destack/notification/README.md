@@ -1,6 +1,6 @@
 # @destack/notification
 
-`@destack/notification` declares notifications, records them as activities for each recipient, keeps each person's inbox in their home, and sends them as messages under the person's focus and summary settings.
+`@destack/notification` declares notifications, records them as activities for each recipient, stores each person's inbox in their home, and sends them as messages under the person's focus and summary settings.
 
 ```ts
 await call.mutate(call.caller, [
@@ -43,24 +43,25 @@ export const page = defineObject({
     ],
 });
 await call.mutate(call.caller, [
-    subscription.call("add", { parent, owner: Subject.key(caller), reason: "participating" }),
+    Subscription.subscribe(parent, caller, "participating"),
     update.call({ source, audience: { kind: "subscribers" }, payload }),
 ]);
 ```
 
 ## Inbox
 
-A person's home replicates their activities and keeps one `notification` of each with its read, snooze and archive state.
+A person's home replicates their activities and stores one `notification` of each with its read, snooze and archive state.
 
 ```ts
-const entries = Inbox.entries(notifications, activities, Date.now());
-const unread = Inbox.unread(entries, { space: spaceId });
+const inbox = new Inbox(notifications, activities, now);
+const unread = inbox.unread({ space: spaceId });
 await home.mutate.notification.snooze({ id, until: tomorrow });
+await home.mutate.notification.readMany({ items: [{ id, readAt: now }] });
 ```
 
 ## Delivery
 
-A notification's controller delivers each new occurrence once its `deliveryAt` is due: `Routing.decide` sends, defers, keeps for the scheduled summary, or skips each destination from the person's preference, focus and summary schedule, and a `summary` per home and time goes out once due.
+A notification's controller delivers each new occurrence once its `deliveryAt` is due: `Routing.decide` sends, defers, saves for the scheduled summary, or skips each destination from the person's preference, focus and summary schedule, and a `summary` per home and time goes out once due.
 
 ```ts
 const weekend: Focus = {
@@ -98,16 +99,14 @@ import { NotificationBadge, NotificationInbox } from "@destack/notification/view
 
 ## Tests
 
-`NotificationFixture` serves an app's objects in a space and each person's home in a database of its own, on a clock the test moves.
+`TestNotification` hosts a space of a test universe with a documents application and notifications installed, and five people calling with their own tokens.
 
 ```ts
-await using fixture = await NotificationFixture.open({
-    origin,
-    database,
-    objects,
-    people: { alice, bob },
-    actor: "alice",
-});
-await fixture.dispatch();
-Inbox.unread(await fixture.entries("bob"));
+await using fixture = await TestNotification.open({ batch: 2 });
+await fixture.call(
+    "alice",
+    document.call("broadcast", { ...fixture.scope, id, audience: "members" }),
+);
+await fixture.settle();
+const activities = await fixture.activities();
 ```

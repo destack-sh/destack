@@ -1,16 +1,28 @@
-import { space } from "@destack/account/object";
+import { space, user } from "@destack/account/object";
 import { principal, relation, union } from "@destack/access";
-import { ObjectReference, Subject } from "@destack/sync";
-import { defineObject, field } from "@destack/object";
-import { argument, Message, plural } from "@destack/locale";
+import { argument, type Catalog, Message, plural } from "@destack/locale";
+import {
+    defineObject,
+    field,
+    PACKAGE_DECLARATION,
+    PACKAGE_EXPORT,
+    PackageHandle,
+} from "@destack/object";
+import { describePackage } from "@destack/object/inspect";
+import objectPackage from "@destack/object/package";
+import { implementPackage } from "@destack/object/server";
+import type { Crypto } from "@destack/environment";
 import { Package } from "@destack/package";
-import { schema } from "@destack/schema";
-import { defineNotification } from "../../src/declare/index.ts";
-import { nameOf } from "./actor.ts";
-import { activity, announcement, subscription } from "../../src/index.ts";
+import type { BuildReader } from "@destack/package/manifest";
+import { MemoryBuild } from "@destack/package/test";
+import { present, schema } from "@destack/schema";
+import { ObjectReference, Subject } from "@destack/sync";
+import { defineNotification } from "../declare/index.ts";
+import { activity, announcement, subscription } from "../object/index.ts";
+import notificationPackage from "../package.ts";
 
-/** The package release declaring the fixture's notifications. */
-export const notes = Package.parse({
+/** The documents application, whose calls notify the people sharing its documents. */
+export const NOTES = Package.parse({
     id: "package-019f5530-8000-7000-8000-000000000002",
     name: "@alice/notes",
     version: "2026.9.0",
@@ -82,27 +94,28 @@ export const document = defineObject(
             }),
         }),
     }),
-    { package: notes },
-).implement({
+    { package: NOTES },
+);
+
+/** The documents' calls, which notify the people sharing a document. */
+export const documentHandlers = document.implement({
     methods: {
         remark: async (call) => {
-            // subscribe and notify the principals a remark mentions
+            // notify the principals a remark mentions, as its author's profile names them
             const { text, mentions } = call.input;
             const author = call.caller.subject;
-            const parent = documentParent(call.target.id);
+            const profile = await call
+                .read(user)
+                .findFirst({ where: { id: user.identifier(author.id) } });
             await call.mutate(call.caller, [
-                ...mentions.map((mentioned) =>
-                    subscription.call("add", {
-                        ...parent,
-                        ...ObjectReference.columns("owner", mentioned),
-                        reason: "mention",
-                    }),
-                ),
                 mention.call({
                     source: call.reference(),
                     recipients: mentions,
                     reason: "mention",
-                    payload: { author: nameOf(author), excerpt: text },
+                    payload: {
+                        author: present(profile, `the profile of ${author.id}`).name,
+                        excerpt: text,
+                    },
                 }),
             ]);
 
@@ -187,8 +200,8 @@ export const document = defineObject(
     },
 });
 
-/** Write a message of the fixture's package, which its catalogs translate. */
-const write = Message.context("", { package: notes });
+/** Write a message of the documents' package, which its catalogs translate. */
+const write = Message.context("", { package: NOTES });
 
 /** The headline of a change. */
 export const changed = write`Document changed`;
@@ -220,7 +233,7 @@ export const mention = defineNotification(
             },
         ],
     },
-    { package: notes },
+    { package: NOTES },
 );
 
 /** A document waits for the recipient's approval through a focus. */
@@ -236,7 +249,7 @@ export const review = defineNotification(
         summary: write`${plural(argument("count"), { one: "# approval requested", other: "# approvals requested" })}`,
         actions: [{ name: "approve", title: "Approve", type: document, method: "approve" }],
     },
-    { package: notes },
+    { package: NOTES },
 );
 
 /** A document changed, sent to recipients in a summary or at once. */
@@ -251,7 +264,7 @@ export const change = defineNotification(
         content: { title: changed, body: write`${argument("summary")}` },
         summary: changes,
     },
-    { package: notes },
+    { package: NOTES },
 );
 
 /** A document's publishing status, replaced by each later status. */
@@ -266,11 +279,55 @@ export const status = defineNotification(
         content: { title: write`Publishing`, body: write`${argument("state")}` },
         summary: write`${plural(argument("count"), { one: "# publishing update", other: "# publishing updates" })}`,
     },
-    { package: notes },
+    { package: NOTES },
 );
 
-/** Every notification the fixture declares. */
+/** Every notification the documents application declares. */
 export const notifications = [mention, review, change, status];
+
+/** The documents' package's German catalog, which its build ships. */
+const NOTES_CATALOG: Catalog = {
+    package: NOTES.id,
+    locale: "de",
+    messages: {
+        [changed.id]: "Dokument geändert",
+        [changes.id]:
+            ".input {$count :number}\n.match $count\none {{{$count} Änderung}}\n* {{{$count} Änderungen}}",
+    },
+};
+
+/** The documents package's handle. */
+export const notesPackage = PackageHandle.of(NOTES, { objects: { document } });
+
+/** The documents package's server. */
+export const notesServer = implementPackage(notesPackage, { objects: [documentHandlers] });
+
+/** Write the documents' build: its package, its notifications and its German catalog. */
+export function openNotesBuild(crypto: Crypto): Promise<BuildReader> {
+    return MemoryBuild.of(
+        NOTES,
+        [
+            {
+                kind: PACKAGE_DECLARATION,
+                kindPackageId: objectPackage.id,
+                name: PACKAGE_EXPORT,
+                description: describePackage(notesPackage),
+            },
+            ...notifications.map((declared) => ({
+                kind: "notification",
+                kindPackageId: notificationPackage.id,
+                name: declared.name,
+                description: declared.describe(),
+            })),
+        ],
+        crypto,
+        {
+            files: new Map([
+                ["locale/de.json", new TextEncoder().encode(JSON.stringify(NOTES_CATALOG))],
+            ]),
+        },
+    );
+}
 
 /** Refer to a document as its attachments' parent. */
 export function documentParent(id: string) {

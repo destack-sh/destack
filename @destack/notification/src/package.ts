@@ -1,8 +1,9 @@
 import { PUSH_CAPABILITY } from "./message/recipient.ts";
 import { user } from "@destack/account/object";
 import { message, messageAttempt } from "@destack/message";
-import { build, catalog, symbol } from "@destack/stack/object";
+import { build, catalog, declaration } from "@destack/stack/object";
 import { definePackage } from "@destack/object";
+import { NotificationError } from "./error/error.ts";
 import { activity } from "./object/activity.ts";
 import { announcement } from "./object/announcement.ts";
 import { notification } from "./object/notification.ts";
@@ -31,7 +32,7 @@ export default definePackage({
                 messageAttempt.permission("record"),
                 // read the notifications installed builds declare, from their index
                 build.permission("read"),
-                symbol.permission("read"),
+                declaration.permission("read"),
                 catalog.permission("read"),
             ],
             // read where people receive notifications
@@ -45,4 +46,5 @@ export default definePackage({
             optional: true,
         },
     },
+    errors: NotificationError,
 });

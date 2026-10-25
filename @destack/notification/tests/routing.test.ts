@@ -6,12 +6,12 @@ import {
     Recipient,
     Routing,
     type RoutingEntry,
-    type Settings,
+    Settings,
     summarySchedule,
     Window,
 } from "../src/index.ts";
 import type * as accountObject from "@destack/account/object";
-import { notes } from "./fixture/document.ts";
+import { NOTES } from "../src/test/notes.ts";
 
 /** How long an email waits in the scenarios: a quarter hour. */
 const EMAIL_DELAY = 15 * 60_000;
@@ -46,7 +46,7 @@ test("decide each destination by the first rule that applies, from read state do
     const entry: RoutingEntry = {
         isUnread: true,
         notification: { snoozedUntil: null },
-        activity: { packageId: notes.id, occurredAt: SATURDAY, interruption: "active" },
+        activity: { packageId: NOTES.id, occurredAt: SATURDAY, interruption: "active" },
     };
     const recipient: accountObject.Recipient = {
         desktops: [LAPTOP],
@@ -55,12 +55,12 @@ test("decide each destination by the first rule that applies, from read state do
         timeZone: "UTC",
         locale: "en",
     };
-    const settings: Settings = {
+    const settings = {
         preference: { channels: ["desktop", "push", "email"], delivery: "immediate" },
         focus: focus.definition.default,
         summarySchedule: summarySchedule.definition.default,
-    };
-    const focused = { ...focus.definition.default, until: SATURDAY + HOUR };
+    } satisfies Partial<Settings>;
+    const focused = { ...settings.focus, until: SATURDAY + HOUR };
     const desktop: Destination = { channel: "desktop", client: LAPTOP };
     const email: Destination = { channel: "email", address: "dana@example.com" };
     const summarized: Changes["settings"] = {
@@ -102,7 +102,7 @@ test("decide each destination by the first rule that applies, from read state do
         ["in a focus", { settings: { focus: focused } }],
         [
             "in a focus allowing the app",
-            { settings: { focus: { ...focused, allowed: [notes.id] } } },
+            { settings: { focus: { ...focused, allowed: [NOTES.id] } } },
         ],
         [
             "time-sensitive in a focus",
@@ -125,7 +125,7 @@ test("decide each destination by the first rule that applies, from read state do
         new Routing(
             { ...entry, ...changes.entry, activity: { ...entry.activity, ...changes.activity } },
             new Recipient({ ...recipient, ...changes.recipient }, PERSON),
-            { ...settings, ...changes.settings },
+            new Settings({ ...settings, ...changes.settings }),
             {
                 emailDelay: EMAIL_DELAY,
                 ...(changes.summaryAt === undefined ? {} : { summaryAt: changes.summaryAt }),

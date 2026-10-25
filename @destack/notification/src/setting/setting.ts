@@ -1,7 +1,7 @@
 import { PackageId } from "@destack/package";
 import { PlainTime, schema } from "@destack/schema";
 import { defineSetting } from "@destack/setting/declare";
-import { CHANNELS } from "../preference/preference.ts";
+import { CHANNELS, Preference } from "../preference/preference.ts";
 import { Window } from "../preference/window.ts";
 
 /** The most quiet windows one focus schedules: two per day for a week. */
@@ -27,7 +27,20 @@ export const focus = defineSetting({
     }),
     default: { schedules: [], allowed: [], isTimeSensitiveAllowed: true },
     scope: "user",
-    overrides: ["device"],
+    overrides: [],
+    apply: "immediate",
+});
+
+/** How a person receives each notification, by its key, as notification channels do. */
+export const preferences = defineSetting({
+    name: "preferences",
+    title: "Notifications",
+    description: "How each app's notifications reach you.",
+    schema: schema.record(schema.string(), Preference),
+    default: {},
+    scope: "user",
+    overrides: ["space"],
+    merge: "key",
     apply: "immediate",
 });
 
@@ -53,3 +66,6 @@ export type Focus = schema.Infer<typeof focus.definition.schema>;
 
 /** When the scheduled summary goes out, and how. */
 export type SummarySchedule = schema.Infer<typeof summarySchedule.definition.schema>;
+
+/** How a person receives each notification, by its key. */
+export type Preferences = schema.Infer<typeof preferences.definition.schema>;

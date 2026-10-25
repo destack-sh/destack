@@ -30,12 +30,10 @@ export class Recipient {
         // list the desktops, the browsers with their person, and the email address
         this.destinations = [
             ...row.desktops.map((id) => ({ channel: "desktop" as const, client: id })),
-            ...row.browsers.map(({ id, url, keys }) => ({
+            ...row.browsers.map(({ id }) => ({
                 channel: "push" as const,
                 client: id,
                 user: person,
-                url,
-                keys,
             })),
             ...(row.email === undefined ? [] : [{ channel: "email" as const, address: row.email }]),
         ];
@@ -51,7 +49,7 @@ export class Recipient {
             return SOURCE_LOCALE;
         }
 
-        // read a person's language from their public profile
+        // read a person's language from their public profile, which the space follows for its members
         const profile = await context
             .read(accountObject.user)
             .findFirst({ where: { id: accountObject.user.identifier(subject.id) } });
@@ -64,7 +62,7 @@ export class Recipient {
         const id = schema.identifier("user").parse(person.id);
         const call = accountObject.user.call("recipient", { id });
 
-        return new Recipient(await context.query(await context.space(), call), id);
+        return new Recipient(await context.query(await context.delegated(), call), id);
     }
 
     /** List the destinations a call may send to, pushing only where the installation may push. */
@@ -72,13 +70,6 @@ export class Recipient {
         return this.destinations.filter(
             (to) => to.channel !== "push" || context.enabled(PUSH_CAPABILITY),
         );
-    }
-
-    /** Find the current destination a decision found. */
-    destination(to: Destination): RecipientDestination {
-        const found = this.destinations.find((known) => Destination.same(known, to));
-
-        return present(found, `the recipient's ${to.channel} destination`);
     }
 
     /** Report whether the person still receives messages at a destination. */

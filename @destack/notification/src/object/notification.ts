@@ -4,9 +4,8 @@ import { type Select, type SQL, type SQLWrapper, sql } from "@destack/db";
 import type { Message } from "@destack/message";
 import { defineObject, field } from "@destack/object";
 import { Identifier, Instant, schema } from "@destack/schema";
-import { CallError } from "@destack/object";
+import { NotificationError } from "../error/error.ts";
 import { ObjectReference, type ReferenceColumns } from "@destack/sync";
-import type { Activity } from "./activity.ts";
 
 /** The prefix of activity identifiers, ahead of their UUID. */
 const ACTIVITY_PREFIX = "activity-";
@@ -37,7 +36,7 @@ export const notification = defineObject(
             summaryAt: field.time().optional(),
         },
         permissions: { read: through("scope", "read"), plan: none() },
-        // keep a notification as long as its activity
+        // expire a notification 180 days after it was planned, past its activity's expiry
         expiring: [{ after: { days: 180 }, from: "plannedAt" }],
         constraints: {
             delivery: { kind: "index", on: ["deliveryAt"] },
@@ -65,8 +64,8 @@ export const notification = defineObject(
         read: method.mutation({ permission: "read", inverse: "unread" }),
         /** Mark it unread. */
         unread: method.mutation({ permission: "read", inverse: "read" }),
-        /** Mark every notification read. */
-        readAll: method.updateMany("read", { fields: ["readAt"], match: [] }),
+        /** Mark listed notifications read as of a time, each at its revision. */
+        readMany: method.updateItems("read", { fields: ["readAt"] }),
 
         /** Defer it until a time in the future. */
         snooze: method.mutation({
@@ -86,12 +85,21 @@ export const notification = defineObject(
     methods: {
         read: async (call) => call.update({ readAt: call.now }),
         unread: async (call) => call.update({ readAt: null }),
+        readMany: async (call, next) => {
+            // refuse a read in the future
+            if (call.input.items.some((item) => (item.readAt ?? call.now) > call.now)) {
+                throw NotificationError.of(
+                    "READ_IN_FUTURE",
+                    "a notification cannot be read in the future",
+                );
+            }
+
+            return next();
+        },
         snooze: async (call) => {
             // require a snooze ending later
             if (call.input.until <= call.now) {
-                throw new CallError("BAD_REQUEST", {
-                    message: "a snooze cannot end in the past",
-                });
+                throw NotificationError.of("SNOOZE_IN_PAST", "a snooze cannot end in the past");
             }
 
             return call.update({ snoozedUntil: call.input.until });
@@ -123,8 +131,8 @@ export const Notification = {
         return Identifier.derive("activity", Identifier.uuid(notificationId));
     },
 
-    /** Read the notification a message was sent for, absent for another source. */
-    read(
+    /** Take the notification a message was sent for, absent for another source. */
+    from(
         sent: Pick<Message, keyof ReferenceColumns<"source">>,
     ): Identifier<"notification"> | undefined {
         const source = ObjectReference.at("source", sent);
@@ -138,13 +146,5 @@ export const Notification = {
             .string()
             .length(32)
             .parse(id.slice(id.indexOf("-") + 1).replaceAll("-", ""));
-    },
-
-    /** Report whether the delivery of the activity's last occurrence started. */
-    isPlanned(
-        state: Pick<Notification, "plannedAt"> | undefined,
-        occurrence: Pick<Activity, "occurredAt">,
-    ) {
-        return state !== undefined && state.plannedAt >= occurrence.occurredAt;
     },
 };

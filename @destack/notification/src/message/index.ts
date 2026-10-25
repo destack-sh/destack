@@ -1,2 +1,2 @@
 export * from "./recipient.ts";
-export * from "./decide.ts";
+export * from "./routing.ts";

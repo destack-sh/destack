@@ -76,7 +76,7 @@ export const announcement = defineObject(
             post: through("parent", "read"),
             expand: none(),
         },
-        // keep an expanded announcement 30 days
+        // expire an expanded announcement after 30 days
         expiring: [{ after: { days: 30 }, from: "expandedAt" }],
         constraints: {
             key: {

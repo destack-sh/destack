@@ -8,7 +8,7 @@ import {
 import { Package } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
 import { Duration, JsonValue, schema, toJsonSchema, zip } from "@destack/schema";
-import { CallError } from "@destack/object";
+import { NotificationError } from "../error/error.ts";
 import { ObjectReference, ObjectTypeReference, Subject } from "@destack/sync";
 import { Activity, activity, NotificationName } from "../object/activity.ts";
 import { announcement, type Announcement } from "../object/announcement.ts";
@@ -52,7 +52,7 @@ export const NotificationDescription = NotificationMetadata.extend({
     summary: Message,
     /** The actions, the first the default. */
     actions: schema.array(Action),
-    /** How long an unread notification collapses later ones of its thread. */
+    /** How long after its first occurrence a notification collapses later ones of its thread. */
     collapse: Duration.schema.exactOptional(),
 });
 /** A declared notification as manifests describe it. */
@@ -86,7 +86,7 @@ export interface NotificationDefinition<
     readonly actions?: {
         readonly [Index in keyof Types]: ActionDefinition<schema.Infer<Payload>, Types[Index]>;
     };
-    /** How long an unread notification collapses later ones of its thread. */
+    /** How long after its first occurrence a notification collapses later ones of its thread. */
     readonly collapse?: Duration;
 }
 
@@ -100,24 +100,21 @@ export class NotificationType<Payload extends schema.Schema = schema.Schema> {
     readonly definition: Omit<NotificationDefinition<Payload>, "actions">;
     /** The actions, the first the default. */
     readonly actions: readonly Action[];
-    /** The declaration's reference, as its rows keep it. */
+    /** The declaration's reference, as its rows store it. */
     readonly reference: DeclarationReference;
-    /** The recipient's preference setting. */
-    readonly preference: ReturnType<typeof Preference.setting>;
 
-    /** Keep a declaration and derive its preference setting. */
+    /** Create a declared type and derive its preference setting. */
     constructor(
         owner: Package,
         definition: Omit<NotificationDefinition<Payload>, "actions">,
         actions: readonly Action[],
     ) {
-        // keep the declaration and derive its reference and preference setting
+        // store the declaration and derive its reference and preference setting
         this.package = owner;
         this.name = definition.name;
         this.definition = definition;
         this.actions = actions;
         this.reference = DeclarationReference.of(this);
-        this.preference = Preference.setting(owner, definition);
     }
 
     /** Serialise the notification as its reference. */
@@ -215,9 +212,10 @@ export class NotificationType<Payload extends schema.Schema = schema.Schema> {
         const payload = schema.json().parse(this.definition.payload.parse(value));
         const bytes = new TextEncoder().encode(JSON.stringify(payload)).length;
         if (bytes > PAYLOAD_BYTES) {
-            throw new CallError("BAD_REQUEST", {
-                message: `notification ${this.name} takes at most ${PAYLOAD_BYTES} bytes`,
-            });
+            throw NotificationError.of(
+                "PAYLOAD_TOO_LARGE",
+                `notification ${this.name} exceeds ${PAYLOAD_BYTES} bytes`,
+            );
         }
 
         return payload;
@@ -228,7 +226,7 @@ export class NotificationType<Payload extends schema.Schema = schema.Schema> {
         localize: (recipient: Subject) => Promise<Localization>,
         context: MethodContext,
         notice: NotifyInput,
-        occurredAt: number,
+        at: { readonly occurredAt: number; readonly actor: Subject },
     ): Promise<ResultOf<typeof activity, "notify">> {
         // require a small payload and recipients other than the caller, each listed once
         const payload = this.payload(notice.payload);
@@ -238,6 +236,7 @@ export class NotificationType<Payload extends schema.Schema = schema.Schema> {
         }
 
         // read the existing activities and each recipient's localization
+        const { occurredAt, actor } = at;
         const thread = notice.thread ?? notice.parent.id;
         const existing = await this.#existing(context, notice, recipients, { thread, occurredAt });
         const locales = await Promise.all(recipients.map((recipient) => localize(recipient)));
@@ -246,7 +245,7 @@ export class NotificationType<Payload extends schema.Schema = schema.Schema> {
         const calls = zip(recipients, locales).map(([recipient, locale]) => {
             const known = existing.get(Subject.key(recipient));
 
-            const occurrence = { payload, locale, thread, occurredAt };
+            const occurrence = { payload, locale, thread, occurredAt, actor };
 
             return known === undefined
                 ? this.#post(notice, recipient, occurrence)
@@ -312,15 +311,17 @@ export class NotificationType<Payload extends schema.Schema = schema.Schema> {
         // require a declared action
         const declared = this.actions.find((action) => action.name === name);
         if (declared === undefined) {
-            throw new CallError("BAD_REQUEST", {
-                message: `notification ${this.name} has no action ${name}`,
-            });
+            throw NotificationError.of(
+                "ACTION_UNKNOWN",
+                `notification ${this.name} has no action ${name}`,
+            );
         }
         // require text exactly where the action asks for it
         else if ((declared.text === undefined) !== (text === undefined)) {
-            throw new CallError("BAD_REQUEST", {
-                message: `action ${name} of ${this.name} takes text only where it asks for it`,
-            });
+            throw NotificationError.of(
+                "TEXT_UNEXPECTED",
+                `action ${name} of ${this.name} must take text exactly when it declares text`,
+            );
         }
 
         // find the type the action calls among the served ones
@@ -330,8 +331,9 @@ export class NotificationType<Payload extends schema.Schema = schema.Schema> {
             (object) => ObjectTypeReference.key(object.typeReference) === key,
         );
         if (called === undefined) {
-            throw new TypeError(
-                `action ${name} of ${this.name} calls ${key}, which nothing here serves`,
+            throw NotificationError.of(
+                "ACTION_TYPE_NOT_SERVED",
+                `action ${name} of ${this.name} calls ${key}, which this space serves no more`,
             );
         }
 
@@ -392,7 +394,7 @@ export class NotificationType<Payload extends schema.Schema = schema.Schema> {
         const since = occurredAt - Duration.milliseconds(this.definition.collapse ?? COLLAPSE);
         const matched =
             key === undefined
-                ? { thread, firstOccurredAt: { gte: since } }
+                ? { thread, key: { isNull: true } as const, firstOccurredAt: { gte: since } }
                 : {
                       parentPackageId: parent.packageId,
                       parentType: parent.type,
@@ -417,15 +419,15 @@ export class NotificationType<Payload extends schema.Schema = schema.Schema> {
         return new Map(ordered.map((row) => [Subject.key(Activity.recipient(row)), row]));
     }
 
-    /** Build the call posting a recipient's first activity of a notice. */
+    /** Build the call posting a recipient's first activity of a notice, by its actor. */
     #post(notice: NotifyInput, recipient: Subject, occurrence: Occurrence) {
         const { parent, key, reason } = notice;
 
         return activity.call("post", {
             parent,
             ...ObjectReference.columns("recipient", recipient),
+            ...ObjectReference.columns("actor", occurrence.actor),
             packageId: this.reference.packageId,
-            release: this.package,
             name: this.name,
             ...(key === undefined ? {} : { key }),
             thread: occurrence.thread,
@@ -445,6 +447,7 @@ export class NotificationType<Payload extends schema.Schema = schema.Schema> {
 
         return activity.call("occur", {
             id: known.id,
+            ...ObjectReference.columns("actor", occurrence.actor),
             reason: notice.reason,
             payload: occurrence.payload,
             thread: occurrence.thread,
@@ -486,6 +489,8 @@ interface Occurrence {
     readonly thread: string;
     /** When it occurred. */
     readonly occurredAt: number;
+    /** Who caused it. */
+    readonly actor: Subject;
 }
 
 /** The notify method's input: a notice's source, recipients, reason and payload. */

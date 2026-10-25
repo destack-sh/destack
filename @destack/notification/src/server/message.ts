@@ -29,7 +29,7 @@ export interface PushNotice {
 export async function readMessageKey(context: MethodContext): Promise<MessageKey> {
     const sealing = message.call("contentKey", message.in(context.scope));
 
-    return MessageKey.of((await context.query(context.self, sealing)).key);
+    return MessageKey.of((await context.query(context.self, sealing)).key, context.environment);
 }
 
 /** Send a home's message for a notification, its content sealed to the home's message key. */
@@ -78,11 +78,11 @@ export function compose(
     // push a summary, or one notification with its activity and actions
     const data =
         notice === undefined
-            ? { scope: home, content: content, actions: [] }
+            ? { scope: home, content, actions: [] }
             : {
                   notification: notice.notification,
                   scope: home,
-                  content: content,
+                  content,
                   activity: { scope: notice.occurrence.scope, id: notice.occurrence.id },
                   actions: notice.occurrence.actions.map((action) => ({
                       name: action.name,

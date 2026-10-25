@@ -4,5 +4,5 @@ import { NotificationServer } from "./server/server.ts";
 
 export * from "./server/index.ts";
 
-/** The notification package's server: activities, announcements and their delivery as messages. */
+/** The notification package's server, which its installations share with their read builds. */
 export default implementPackage(notificationPackage, new NotificationServer({}).definition());

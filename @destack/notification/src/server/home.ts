@@ -1,9 +1,31 @@
+import { principal } from "@destack/access";
 import { Account, space, user } from "@destack/account/object";
-import { Follow, relationship } from "@destack/object";
+import { defineShape, Follow, relationship } from "@destack/object";
 import type { RowImage } from "@destack/db";
 import { schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
-import { accountSpaceShape, activityShape, relationshipShape } from "../object/activity.ts";
+import { activityShape } from "../object/activity.ts";
+
+/** A person's own relationships, which their home follows at the universe on their behalf. */
+export const relationshipShape = defineShape({
+    name: "person-relationship",
+    parameters: schema.object({ person: schema.identifier("user") }),
+    objects: [relationship],
+    queries: ({ person }) => [
+        relationship.query({
+            scopes: "every",
+            where: { subjectType: principal.user.name, subjectId: person },
+        }),
+    ],
+});
+
+/** The spaces of an account a person relates to, which their home follows at the universe. */
+export const accountSpaceShape = defineShape({
+    name: "account-space",
+    parameters: schema.object({ account: schema.identifier("account") }),
+    objects: [space],
+    queries: ({ account }) => [space.query({ scopes: "every", where: { scope: account } })],
+});
 
 /** Follow a home's person's relationships and activities in related spaces, on their behalf. */
 export const HOME_FOLLOWS: readonly Follow[] = [
@@ -24,8 +46,6 @@ export const HOME_FOLLOWS: readonly Follow[] = [
         },
     }),
     relationship.follow(activityShape, {
-        // follow the person's activity elsewhere at best effort, never gating the home
-        isReadinessGate: false,
         key: async (row, view, home) => {
             // follow nothing outside a home, or for another principal's relationship
             const person = home === undefined ? undefined : await Account.homeOwner(view, home);
@@ -42,8 +62,6 @@ export const HOME_FOLLOWS: readonly Follow[] = [
         },
     }),
     relationship.follow(accountSpaceShape, {
-        // follow the person's accounts' spaces at best effort, never gating the home
-        isReadinessGate: false,
         key: async (row, view, home) => {
             // follow the spaces of an account the person relates to, decided for the person
             const person = home === undefined ? undefined : await Account.homeOwner(view, home);
@@ -59,8 +77,6 @@ export const HOME_FOLLOWS: readonly Follow[] = [
         },
     }),
     space.follow(activityShape, {
-        // follow the person's activity elsewhere at best effort, never gating the home
-        isReadinessGate: false,
         key: async (row, view, home) => {
             // follow nothing outside a home, nor in the home itself
             const person = home === undefined ? undefined : await Account.homeOwner(view, home);

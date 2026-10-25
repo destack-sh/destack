@@ -27,7 +27,7 @@ export const Window = Object.assign(windowSchema, {
                     continue;
                 }
 
-                // keep the end of a window around now, the next day for an overnight one
+                // take the end of a window around now, the next day for an overnight one
                 const isOvernight = PlainTime.minutes(window.to) <= PlainTime.minutes(window.from);
                 const start = TimeZone.instant(timeZone, date, window.from);
                 const stop = TimeZone.instant(

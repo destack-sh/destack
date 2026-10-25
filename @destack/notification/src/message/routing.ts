@@ -1,17 +1,23 @@
 import type { Destination } from "@destack/message";
 import type { MethodContext } from "@destack/object";
-import { nth, Instant, schema, TimeZone } from "@destack/schema";
+import { Instant, schema, TimeZone } from "@destack/schema";
 import { setting } from "@destack/setting/object";
 import type { Subject } from "@destack/sync";
 import type { InboxEntry } from "../notification/inbox.ts";
 import type { Activity } from "../object/activity.ts";
 import { Preference } from "../preference/preference.ts";
 import { Window } from "../preference/window.ts";
-import { type Focus, focus, type SummarySchedule, summarySchedule } from "../setting/setting.ts";
+import {
+    type Focus,
+    focus,
+    preferences,
+    type SummarySchedule,
+    summarySchedule,
+} from "../setting/setting.ts";
 import type { Recipient } from "./recipient.ts";
 
 /** The reasons a destination skips a notification's occurrence. */
-export const SKIP_REASONS = ["read", "replaced", "unaddressed", "preference"] as const;
+export const SKIP_REASONS = ["read", "unaddressed", "preference"] as const;
 
 /** Why a destination skips a notification's occurrence. */
 export type SkipReason = (typeof SKIP_REASONS)[number];
@@ -24,8 +30,8 @@ export type RoutingEntry = Pick<InboxEntry, "isUnread"> & {
     readonly activity: Pick<Activity, "packageId" | "occurredAt" | "interruption">;
 };
 
-/** The schema of a decision. */
-const DecisionSchema = schema.discriminatedUnion("action", [
+/** What a destination does with a notification's occurrence now. */
+export const Decision = schema.discriminatedUnion("action", [
     schema.object({
         /** Send it now. */
         action: schema.literal("send"),
@@ -50,59 +56,53 @@ const DecisionSchema = schema.discriminatedUnion("action", [
     }),
 ]);
 
+/** What a destination does with a notification's occurrence now. */
+export type Decision = schema.Infer<typeof Decision>;
+
 /** The settings a person placed that a decision follows, resolved for one notification. */
-export interface Settings {
+export class Settings {
     /** How the person receives the notification. */
     readonly preference: Preference;
     /** When the person's notifications stay quiet. */
     readonly focus: Focus;
     /** When the person's scheduled summary goes out. */
     readonly summarySchedule: SummarySchedule;
-}
 
-/** The settings recipients place for their notifications. */
-export const Settings = {
+    /** Create a person's resolved settings for one notification. */
+    constructor(fields: Pick<Settings, "preference" | "focus" | "summarySchedule">) {
+        this.preference = fields.preference;
+        this.focus = fields.focus;
+        this.summarySchedule = fields.summarySchedule;
+    }
+
     /** Resolve a person's settings for each activity's package and space, in one read. */
-    async read(
+    static async read(
         context: MethodContext,
         person: Subject,
         occurrences: readonly Activity[],
     ): Promise<readonly Settings[]> {
-        // read the person's placed values of every setting the activities resolve
-        const preferences = occurrences.map((occurrence) =>
-            Preference.setting(occurrence.release, occurrence),
-        );
-        const references = new Map(
-            [...preferences, focus, summarySchedule].map(({ reference }) => [
-                `${reference.packageId} ${reference.name}`,
-                { packageId: reference.packageId, name: reference.name },
-            ]),
-        );
+        // read the person's placed values of the settings routing resolves
+        const references = [preferences, focus, summarySchedule].map(({ reference }) => ({
+            packageId: reference.packageId,
+            name: reference.name,
+        }));
         const placed = await context.read(setting).findMany({
-            where: { AND: [{ scope: person.id }, { OR: [...references.values()] }] },
+            where: { AND: [{ scope: person.id }, { OR: references }] },
         });
 
-        // resolve each for its activity's space and package over only the person's own values
-        return occurrences.map((occurrence, index) => {
-            const selection = {
-                scope: person.id,
-                space: occurrence.scope,
-                package: occurrence.packageId,
-            };
+        // resolve each for its activity's space over only the person's own values, its preference else the declared one
+        return occurrences.map((occurrence) => {
+            const selection = { scope: person.id, space: occurrence.scope };
+            const chosen = preferences.resolve(selection, placed, []).value;
 
-            return {
-                preference: nth(preferences, index).resolve(selection, placed, []).value,
+            return new Settings({
+                preference: chosen[Preference.key(occurrence)] ?? occurrence.preference,
                 focus: focus.resolve(selection, placed, []).value,
                 summarySchedule: summarySchedule.resolve(selection, placed, []).value,
-            };
+            });
         });
-    },
-};
-
-/** What a destination does with a notification's occurrence now. */
-export const Decision = DecisionSchema;
-/** What a destination does with a notification's occurrence now. */
-export type Decision = schema.Infer<typeof DecisionSchema>;
+    }
+}
 
 /** The routing of a person's notification occurrence to their destinations at one moment. */
 export class Routing {

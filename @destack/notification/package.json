@@ -8,6 +8,7 @@
     "exports": {
         ".": "./src/index.ts",
         "./declare": "./src/declare/index.ts",
+        "./error": "./src/error/index.ts",
         "./destack.json": "./destack.json",
         "./inspect": "./src/inspect/index.ts",
         "./object": "./src/object/index.ts",
@@ -26,6 +27,7 @@
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
         "@destack/db": "workspace:*",
+        "@destack/error": "workspace:*",
         "@destack/identity": "workspace:*",
         "@destack/locale": "workspace:*",
         "@destack/message": "workspace:*",
@@ -39,8 +41,19 @@
         "@destack/theme": "workspace:*",
         "@destack/ui": "workspace:*",
         "@destack/view": "workspace:*",
-        "@destack/workflow": "workspace:*",
-        "uuid": "14.0.2"
+        "@destack/workflow": "workspace:*"
+    },
+    "peerDependencies": {
+        "@destack/environment": "workspace:*",
+        "@destack/test": "workspace:*"
+    },
+    "peerDependenciesMeta": {
+        "@destack/environment": {
+            "optional": true
+        },
+        "@destack/test": {
+            "optional": true
+        }
     },
     "devDependencies": {
         "@destack/environment": "workspace:*",

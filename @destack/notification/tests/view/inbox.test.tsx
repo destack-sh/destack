@@ -1,5 +1,4 @@
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import germanCatalog from "../../locale/de.json" with { type: "json" };
 import { Catalog, Localization, SOURCE_LOCALE, t } from "@destack/locale";
 import { expect, onTestFinished, test } from "@destack/test";
 import { Loading, type JSX } from "@destack/view";
@@ -8,11 +7,7 @@ import { NotificationBadge, NotificationInbox } from "../../src/view/index.ts";
 import { openHome, type Home } from "./home.ts";
 
 /** The German catalog this package ships of its built-in messages. */
-const GERMAN = Catalog.of(
-    "locale/de.json",
-    JSON.parse(await readFile(join(import.meta.dirname, "../../locale/de.json"), "utf8")),
-    t`Unread`.package,
-);
+const GERMAN = Catalog.of("locale/de.json", germanCatalog, t`Unread`.package);
 
 /** The source language's localization, without catalogs. */
 const SOURCE = Localization.of(SOURCE_LOCALE, []);
@@ -39,6 +34,7 @@ function drawInHome(
                 },
             },
             localization,
+            home.environment,
         ),
     );
 

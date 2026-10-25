@@ -10,7 +10,7 @@ import type { NotificationServer } from "./server.ts";
 /** One addressee of an announcement's batch, with the reason it is notified. */
 interface Addressee {
     /** The position of the person in its audience, which the cursor records. */
-    readonly id: string;
+    readonly position: string;
     /** The person. */
     readonly owner: Subject;
     /** Why the person is notified. */
@@ -65,10 +65,11 @@ async function expand(
     const limit = server.batch;
     const page = { ...(row.cursor === null ? {} : { after: row.cursor }), limit };
 
-    // read the next batch of the audience, skipping the author and excluded principals
+    // read the next batch of the audience, skipping the author, the serving code without one, and excluded principals
     const audience = await readAudience(context, source, page);
-    const author = row.authorId === null ? [] : [Subject.key(ObjectReference.at("author", row))];
-    const skipped = new Set([...author, ...row.excluded]);
+    const actor =
+        row.authorId === null ? context.caller.subject : ObjectReference.at("author", row);
+    const skipped = new Set([Subject.key(actor), ...row.excluded]);
     const recipients = audience.filter((entry) => !skipped.has(Subject.key(entry.owner)));
 
     // notify each reason's recipients as of the announcement's post
@@ -84,12 +85,12 @@ async function expand(
             ...(row.key === null ? {} : { key: row.key }),
             thread: row.thread,
         };
-        await server.notify(context, notice, row.postedAt);
+        await server.notify(context, notice, { occurredAt: row.postedAt, actor });
     }
 
     // advance the cursor, finishing with a batch short of full
     return context.update({
-        cursor: audience.at(-1)?.id ?? row.cursor,
+        cursor: audience.at(-1)?.position ?? row.cursor,
         expandedAt: audience.length < limit ? context.now : null,
     });
 }
@@ -121,7 +122,7 @@ async function readAudience(
         });
 
         return rows.map((entry) => ({
-            id: entry.id,
+            position: entry.id,
             owner: ObjectReference.at("owner", entry),
             reason: entry.reason,
         }));
@@ -147,7 +148,7 @@ async function readPermitted(
     source: ObjectReference,
     permission: string,
     page: Page,
-): Promise<readonly { readonly id: string; readonly owner: Subject }[]> {
+): Promise<readonly { readonly position: string; readonly owner: Subject }[]> {
     // list the user principals with the permission
     const subjects = await context.lookup(
         { packageId: PackageId.parse(source.packageId), type: source.type, name: permission },
@@ -158,5 +159,5 @@ async function readPermitted(
         },
     );
 
-    return subjects.map((owner) => ({ id: Subject.key(owner), owner }));
+    return subjects.map((owner) => ({ position: Subject.key(owner), owner }));
 }

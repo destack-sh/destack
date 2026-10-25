@@ -1,7 +1,7 @@
-import { intersection, principal, relation, through } from "@destack/access";
+import { intersection, relation, through } from "@destack/access";
 import { type Select } from "@destack/db";
-import { defineObject, defineShape, field, ParentReference, relationship } from "@destack/object";
-import { Package, PackageId } from "@destack/package";
+import { defineObject, defineShape, field, ParentReference } from "@destack/object";
+import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
 import { ObjectReference, type ReferenceColumns, Subject } from "@destack/sync";
 import { space } from "@destack/account/object";
@@ -16,7 +16,7 @@ export const NOTIFY_RECIPIENTS = 100;
 /** The longest key or thread. */
 const KEY_LENGTH = 200;
 
-/** A notification's name, one segment of its preference setting's name. */
+/** A notification's name in its declaring package. */
 export const NotificationName = schema.string().regex(/^[a-z][a-zA-Z0-9]*$/u);
 
 /** A notification key or thread. */
@@ -32,14 +32,12 @@ export const activity = defineObject(
         fields: {
             /** The person it is for. */
             recipient: field.subject().personal(),
-            /** The principal whose call posted it. */
-            actor: field.subject().personal().caller(),
+            /** The principal who caused it: the notifying caller, or an announcement's author. */
+            actor: field.subject().personal(),
 
             // declaration and identity
             /** The package declaring the notification. */
             packageId: field.string(PackageId),
-            /** The release of the declaring package, whose preference setting it follows. */
-            release: field.json(Package),
             /** The notification's name in its package. */
             name: field.string(NotificationName),
             /** The identity a later notice with the same key replaces. */
@@ -74,10 +72,10 @@ export const activity = defineObject(
         permissions: {
             // the recipient reads it through its source
             read: intersection(relation("recipient"), through("parent", "read")),
-            // the source's readers post what their calls do to it, in their apps' sandboxes too
+            // the source's readers post what their calls do to it through their apps' code
             post: through("parent", "read"),
         },
-        // keep an activity 180 days, as code forges keep notifications five months
+        // expire an activity after 180 days, as code forges expire notifications after five months
         expiring: [{ after: { days: 180 }, from: "occurredAt" }],
         constraints: {
             key: {
@@ -101,6 +99,7 @@ export const activity = defineObject(
         notify: method.mutation({
             permission: "post",
             target: "scope",
+            isInternal: true,
             input: schema.object({
                 /** The object it is about. */
                 parent: ParentReference,
@@ -121,8 +120,8 @@ export const activity = defineObject(
             }),
             output: schema.object({}),
         }),
-        post: method.create("post"),
-        occur: method.update("post"),
+        post: method.create("post", { isInternal: true }),
+        occur: method.update("post", { isInternal: true }),
         act: method.mutation({
             permission: "read",
             input: schema.object({
@@ -164,27 +163,6 @@ export const Activity = {
 const ActivitySelection = schema.object({
     /** The recipient's identifier. */
     recipient: schema.string().min(1),
-});
-
-/** A person's own relationships, which their home follows at the universe on their behalf. */
-export const relationshipShape = defineShape({
-    name: "person-relationship",
-    parameters: schema.object({ person: schema.identifier("user") }),
-    objects: [relationship],
-    queries: ({ person }) => [
-        relationship.query({
-            scopes: "every",
-            where: { subjectType: principal.user.name, subjectId: person },
-        }),
-    ],
-});
-
-/** The spaces of an account a person relates to, which their home follows at the universe. */
-export const accountSpaceShape = defineShape({
-    name: "account-space",
-    parameters: schema.object({ account: schema.identifier("account") }),
-    objects: [space],
-    queries: ({ account }) => [space.query({ scopes: "every", where: { scope: account } })],
 });
 
 /** The shape replicating a person's activities from a space into their home, as the person. */

@@ -14,7 +14,7 @@ import type { NotificationServer } from "./server.ts";
 export function implementSummary(server: NotificationServer): typeof summary {
     return summary.implement({
         methods: {
-            create: async (context, next) => {
+            findOrCreate: async (context, next) => {
                 // answer the summary scheduled at the time, or schedule it
                 const [known] = await context
                     .read(summary)
@@ -120,7 +120,7 @@ async function send(
         );
 
         return [
-            summary.call("create", { ...summary.in(context.scope), at: nextAt }),
+            summary.call("findOrCreate", { ...summary.in(context.scope), at: nextAt }),
             notification.call("update", {
                 ...notification.target(entry.notification),
                 summaryAt: nextAt,

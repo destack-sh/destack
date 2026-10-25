@@ -5,6 +5,8 @@ import { nth, present } from "@destack/schema";
 import { Subject } from "@destack/sync";
 import { Activity, activity } from "../object/activity.ts";
 import { Notification, notification } from "../object/notification.ts";
+import { InboxEntry } from "../notification/inbox.ts";
+import { Subscription } from "../object/subscription.ts";
 import type { NotificationServer } from "./server.ts";
 
 /** Implement activities: notify their recipients, answer their actions, and plan a home's. */
@@ -35,7 +37,20 @@ export function implementActivity(server: NotificationServer): typeof activity {
                 return declared.act(call.input.action, call.input.text, call);
             },
             notify: async (call) => {
-                await server.notify(call, call.input, call.now);
+                // subscribe each principal a source addresses, as a mention subscribes on code forges
+                const { parent, recipients, reason } = call.input;
+                await call.mutate(
+                    call.caller,
+                    recipients.map((recipient) =>
+                        Subscription.subscribe(parent, recipient, reason),
+                    ),
+                );
+
+                // notify them as of now
+                await server.notify(call, call.input, {
+                    occurredAt: call.now,
+                    actor: call.caller.subject,
+                });
 
                 return {};
             },
@@ -63,7 +78,7 @@ async function plan(
     const planned = { plannedAt: reconciliation.now, deliveryAt: reconciliation.now };
     if (state === undefined) {
         await reconciliation.mutate([notification.call("create", { ...target, ...planned })]);
-    } else if (!Notification.isPlanned(state, row)) {
+    } else if (!new InboxEntry(state, row, reconciliation.now).isPlanned) {
         await reconciliation.mutate([
             notification.call("update", { ...target, ...planned, delivered: [] }),
         ]);

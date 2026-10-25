@@ -9,9 +9,14 @@ import { onTestFinished } from "@destack/test";
 import type { ViewContext } from "@destack/view/declare";
 import { activity, notification } from "../../src/index.ts";
 import notificationPackage from "../../src/package.ts";
-import { document } from "../fixture/document.ts";
-import { actors, serveSpace } from "../fixture/space.ts";
-import { Clock } from "@destack/environment";
+import { document } from "../../src/test/notes.ts";
+import { TestNotification } from "../../src/test/notification.ts";
+import type { Environment } from "@destack/environment";
+import type { Subject } from "@destack/sync";
+import {
+    BrowserSimulation,
+    type SimulatedBrowserEnvironment,
+} from "@destack/environment/browser/simulation";
 
 /** The longest a token the test server issues lives, in milliseconds. */
 const TOKEN_LIFETIME = 60_000;
@@ -24,33 +29,41 @@ export interface Home {
     readonly clients: Readonly<Record<string, ObjectClient>>;
     /** The failures the device reported while following and pushing. */
     readonly failures: readonly unknown[];
+    /** The browser bob's device renders in. */
+    readonly environment: SimulatedBrowserEnvironment;
 }
 
 /** Serve a space where alice mentions bob twice, and open bob's home on a device. */
 export async function openHome(): Promise<Home> {
-    // mention bob in two documents at the real time his device stamps its requests with
-    const scenario = await serveSpace("sqlite", { at: Date.now() });
+    // mention bob in two documents, the world's clock flowing for his device
+    const scenario = await TestNotification.open();
+    onTestFinished(() => scenario[Symbol.asyncDispose]());
+    scenario.clock.resume();
     const plan = await scenario.call(
+        "alice",
         document.call("create", { ...scenario.scope, title: "Launch plan" }),
     );
     const draft = await scenario.call(
+        "alice",
         document.call("create", { ...scenario.scope, title: "Draft" }),
     );
     for (const shared of [plan, draft]) {
         await scenario.call(
+            "alice",
             document.call("grant", {
                 ...scenario.scope,
                 id: shared.id,
                 relation: "editor",
-                subject: actors.bob,
+                subject: scenario.subject("bob"),
             }),
         );
         await scenario.call(
+            "alice",
             document.call("remark", {
                 ...scenario.scope,
                 id: shared.id,
                 text: "@bob, have a look",
-                mentions: [actors.bob],
+                mentions: [scenario.subject("bob")],
             }),
         );
     }
@@ -60,17 +73,24 @@ export async function openHome(): Promise<Home> {
     const home = await scenario.home("bob");
 
     // serve the home over HTTP to bob, then follow it from his device
-    const endpoint = serveHome(home.store, home.id);
+    const endpoint = serveHome(
+        home.served.store,
+        home.space.id,
+        scenario.subject("bob"),
+        scenario.environment,
+    );
     const objects = { notification, activity };
-    const storage = await TestDatabase.create("sqlite", ObjectClient.tables(objects), {
+    const storage = await TestDatabase.create(ObjectClient.tables(objects), {
+        dialect: "sqlite",
         isMigrated: true,
+        environment: scenario.environment,
     });
     const client = await ObjectClient.open({
-        clock: Clock.system,
+        environment: scenario.environment,
         database: storage.database,
         objects,
-        scope: home.id,
-        caller: actors.bob,
+        scope: home.space.id,
+        caller: scenario.subject("bob"),
         endpoint,
         reconnect: () => endpoint,
     });
@@ -88,35 +108,41 @@ export async function openHome(): Promise<Home> {
     return {
         context: {
             installation: "installation-notes",
-            space: scenario.spaceId,
+            space: scenario.scope.spaceId,
             account: "account-019f5530-8000-7000-8000-0000000000ac",
             view: "notes",
-            user: actors.bob,
-            home: home.id,
+            user: scenario.subject("bob"),
+            home: home.space.id,
         },
-        clients: { [home.id]: client },
+        clients: { [home.space.id]: client },
         failures,
+        environment: new BrowserSimulation(scenario.space.simulation).environment("bob"),
     };
 }
 
-/** Serve the home's inbox over HTTP as bob on the real clock, returning his endpoint. */
-function serveHome(objects: ObjectStore, homeId: string): ClientOptions {
+/** Serve the home's inbox over HTTP as bob in the scenario's world, returning his endpoint. */
+function serveHome(
+    objects: ObjectStore,
+    homeId: string,
+    person: Subject,
+    environment: Environment,
+): ClientOptions {
     const server = Server.start({
         ...objects.package(notificationPackage),
-        clock: Clock.system,
-        scope: homeId,
+        environment,
+        scopes: [homeId],
         resources: new ResourceContext(),
         health: new Health("notification"),
         drainTimeout: 1000,
         authorizeMachine: async () => {},
         authenticate: async () => {
-            const now = Date.now();
+            const now = environment.clock.now();
 
             return {
-                caller: Caller.of(actors.bob),
+                caller: Caller.of(person),
                 credential: {
                     kind: "session",
-                    id: actors.bob.id,
+                    id: person.id,
                     audience: notificationPackage.id,
                     scope: homeId,
                     verifiedAt: now,

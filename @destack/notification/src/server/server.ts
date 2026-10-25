@@ -1,10 +1,11 @@
 import { type CallInput, ListPage, type MethodContext } from "@destack/object";
 import type { ImplementationInput } from "@destack/object/server";
 import type { PackageId } from "@destack/package";
-import { CallError } from "@destack/object";
+import { NotificationError } from "../error/error.ts";
 import { Catalog, Localization, type LocaleTag } from "@destack/locale";
 import { type Duration, fromJsonSchema, type Identifier, schema } from "@destack/schema";
-import { catalog, installation, installationRevision, symbol } from "@destack/stack/object";
+import { installation } from "@destack/object";
+import { catalog, declaration, installationRevision, rollout } from "@destack/stack/object";
 import {
     NotificationDescription,
     NotificationType,
@@ -20,6 +21,7 @@ import { implementNotification } from "./notification.ts";
 import { implementSummary } from "./summary.ts";
 import type { NotificationOptions } from "./options.ts";
 import { implementSubscription } from "./subscription.ts";
+import type {} from "@destack/package/import-meta";
 
 /** How long a push service stores a message for an offline browser by default: one day. */
 const PUSH_TTL: Duration = { days: 1 };
@@ -32,6 +34,9 @@ const BATCH = 100;
 
 /** The keys reconciled at once by default. */
 const CONCURRENCY = 16;
+
+/** The builds a server caches, 64 of a few kilobytes of notifications and catalogs. */
+const BUILD_CACHE = 64;
 
 /** The notifications a build declares by name, and the catalogs it ships. */
 interface ReadBuild {
@@ -51,7 +56,7 @@ export class NotificationServer {
     readonly pushTtl: Duration;
     /** How long an email waits for the notification to be read elsewhere. */
     readonly emailDelay: Duration;
-    /** The notifications and translations of each build read so far. */
+    /** The notifications and translations of the builds read last, least recently used first. */
     readonly #builds = new Map<string, Promise<ReadBuild>>();
 
     /** Serve notifications with the given tuning, the defaults elsewhere. */
@@ -73,22 +78,27 @@ export class NotificationServer {
         const { notifications } = await this.#read(context, packageId);
         const declared = notifications.get(name);
         if (declared === undefined) {
-            throw new CallError("BAD_REQUEST", {
-                message: `${packageId} declares no notification ${name}`,
-            });
+            throw NotificationError.of(
+                "NOTIFICATION_UNKNOWN",
+                `${packageId} declares no notification ${name}`,
+            );
         }
 
         return declared;
     }
 
     /** Notify a notice's recipients of an occurrence, rendered in each person's locale. */
-    async notify(context: MethodContext, notice: NotifyInput, occurredAt: number): Promise<void> {
+    async notify(
+        context: MethodContext,
+        notice: NotifyInput,
+        at: { readonly occurredAt: number; readonly actor: Subject },
+    ): Promise<void> {
         // render with the declaring release's catalogs in each recipient's locale
         const { packageId, name } = notice;
         const declared = await this.notification(context, packageId, name);
         const localize = async (person: Subject) =>
             this.localization(context, packageId, await Recipient.locale(context, person));
-        await declared.notify(localize, context, notice, occurredAt);
+        await declared.notify(localize, context, notice, at);
     }
 
     /** Bind a locale to the translations of the release a call's space installs. */
@@ -112,25 +122,40 @@ export class NotificationServer {
         const [installed] = await context
             .read(installation)
             .findMany({ where: { scope, packageId } });
+        const followed =
+            installed === undefined
+                ? undefined
+                : await context.read(rollout).findFirst({ where: { id: installed.id } });
         const revision =
-            installed === undefined || installed.revisionId === null
+            followed === undefined || followed.revisionId === null
                 ? undefined
                 : await context
                       .read(installationRevision)
-                      .findFirst({ where: { id: installed.revisionId } });
+                      .findFirst({ where: { id: followed.revisionId } });
         if (revision === undefined) {
-            throw new CallError("NOT_FOUND", {
-                message: `no installation in ${context.scope} follows a build of ${packageId}`,
-            });
+            throw NotificationError.of(
+                "INSTALLATION_NOT_FOUND",
+                `no installation in ${context.scope} follows a build of ${packageId}`,
+            );
         }
 
-        // read its build's notifications and translations once per build, which never changes
-        const known = this.#builds.get(revision.buildId);
-        if (known !== undefined) {
-            return known;
+        // read its build's notifications and translations once, keeping the builds used last
+        const { buildId } = revision;
+        const known = this.#builds.get(buildId);
+        const reading = known ?? NotificationServer.#index(context, buildId);
+        this.#builds.delete(buildId);
+        this.#builds.set(buildId, reading);
+        const [oldest] = this.#builds.keys();
+        if (this.#builds.size > BUILD_CACHE && oldest !== undefined) {
+            this.#builds.delete(oldest);
         }
-        const reading = NotificationServer.#index(context, revision.buildId);
-        this.#builds.set(revision.buildId, reading);
+
+        // forget a failed read, so the next notification reads the build again
+        reading.catch(() => {
+            if (this.#builds.get(buildId) === reading) {
+                this.#builds.delete(buildId);
+            }
+        });
 
         return reading;
     }
@@ -145,8 +170,8 @@ export class NotificationServer {
         const [declared, shipped] = await Promise.all([
             Array.fromAsync(
                 ListPage.all(
-                    (input: CallInput<typeof symbol, "list">) =>
-                        context.query(context.self, symbol.call("list", input)),
+                    (input: CallInput<typeof declaration, "list">) =>
+                        context.query(context.self, declaration.call("list", input)),
                     { buildId, where },
                 ),
             ),

@@ -4,7 +4,17 @@ import { media } from "@destack/style/media.stylex";
 import { text } from "@destack/theme/text";
 import { color, radius, space, stroke, weight } from "@destack/theme/tokens.stylex";
 import { Badge } from "@destack/ui/badge";
-import { For, type JSX, omit, Show, useHome, useLocale, useQuery } from "@destack/view";
+import {
+    createMemo,
+    For,
+    type JSX,
+    omit,
+    Show,
+    useHome,
+    useLocale,
+    useNow,
+    useQuery,
+} from "@destack/view";
 import { Inbox, type InboxEntry } from "../notification/inbox.ts";
 import { activity } from "../object/activity.ts";
 import { notification } from "../object/notification.ts";
@@ -100,26 +110,35 @@ export interface NotificationBadgeProperties {
 /** Follow the person's inbox: their notifications joined with their activity replicas. */
 function useInbox(): {
     readonly read: (entry: InboxEntry) => void;
-    readonly inbox: () => Inbox;
+    readonly inbox: () => Inbox | undefined;
+    readonly now: () => number | undefined;
 } {
-    // follow the home's notifications and activity replicas
+    // follow the home's unarchived notifications and activity replicas at the view's time
     const home = useHome({ notification, activity });
-    const notifications = useQuery(() => home.query.notification.findMany({}));
+    const now = useNow();
+    const notifications = useQuery(() =>
+        home.query.notification.findMany({ where: { archivedAt: { isNull: true } } }),
+    );
     const activities = useQuery(() => home.query.activity.findMany({}));
 
     return {
         read: (entry) => home.mutate.notification.read({ id: entry.notification.id }),
-        inbox: () => new Inbox(notifications(), activities(), Date.now()),
+        inbox: createMemo(() => {
+            // decide snoozes once mounted, when the view knows the time
+            const time = now();
+
+            return time === undefined ? undefined : new Inbox(notifications(), activities(), time);
+        }),
+        now,
     };
 }
 
 /** Render the person's notifications latest first, marking one read when opened. */
 export function NotificationInbox(properties: NotificationInboxProperties): JSX.Element {
-    // follow the inbox's notifications neither archived nor snoozed, latest first
+    // follow the inbox's active notifications, latest first, and the view's time
     const locale = useLocale();
     const rest = omit(properties, "onOpen", "style");
-    const { read, inbox } = useInbox();
-    const listed = () => inbox().entries.filter((entry) => !entry.isArchived && !entry.isSnoozed);
+    const { read, inbox, now } = useInbox();
 
     // mark a notification read and hand it to the owner
     const open = (entry: InboxEntry) => {
@@ -136,14 +155,22 @@ export function NotificationInbox(properties: NotificationInboxProperties): JSX.
             {...rest}
             {...style.attrs(text.footnote, styles.inbox, properties.style)}
         >
-            <For
-                each={listed()}
-                fallback={
-                    <li {...style.attrs(styles.empty)}>{locale.render(t`No notifications`)}</li>
-                }
-            >
-                {(entry) => <NotificationRow entry={entry} onOpen={open} />}
-            </For>
+            {/* Entries, once the view knows the time */}
+            <Show when={inbox()}>
+                {(current) => (
+                    <For
+                        each={current().active()}
+                        keyed={(entry) => entry.notification.id}
+                        fallback={
+                            <li {...style.attrs(styles.empty)}>
+                                {locale.render(t`No notifications`)}
+                            </li>
+                        }
+                    >
+                        {(entry) => <NotificationRow entry={entry()} now={now} onOpen={open} />}
+                    </For>
+                )}
+            </Show>
         </ul>
     );
 }
@@ -151,8 +178,10 @@ export function NotificationInbox(properties: NotificationInboxProperties): JSX.
 /** Render one notification as a button showing its line, its time and whether it is unread. */
 function NotificationRow(properties: {
     readonly entry: InboxEntry;
+    readonly now: () => number | undefined;
     readonly onOpen: (entry: InboxEntry) => void;
 }): JSX.Element {
+    // read the locale and whether the entry is unread
     const locale = useLocale();
     const isUnread = (): boolean => properties.entry.isUnread;
 
@@ -176,7 +205,11 @@ function NotificationRow(properties: {
                         datetime={new Date(properties.entry.activity.occurredAt).toISOString()}
                         {...style.attrs(text.caption, styles.time)}
                     >
-                        {locale.relative(properties.entry.activity.occurredAt, Date.now())}
+                        <Show when={properties.now()}>
+                            {(time) =>
+                                locale.relative(properties.entry.activity.occurredAt, time())
+                            }
+                        </Show>
                     </time>
                 </span>
             </button>
@@ -186,28 +219,30 @@ function NotificationRow(properties: {
 
 /** Render the person's unread notifications as a count, for a space and app or all of them. */
 export function NotificationBadge(properties: NotificationBadgeProperties): JSX.Element {
-    // count the unread notifications the badge covers
+    // count the unread notifications the badge covers, showing none for no count or zero
     const locale = useLocale();
     const { inbox } = useInbox();
-    const unread = (): number =>
-        inbox().unread({
+    const unread = (): number | undefined =>
+        inbox()?.unread({
             ...(properties.space === undefined ? {} : { space: properties.space }),
             ...(properties.packageId === undefined ? {} : { packageId: properties.packageId }),
         });
 
     return (
-        <Show when={unread() > 0}>
-            <Badge data-slot="notification-badge">
-                {/* Count */}
-                <span aria-hidden="true">{locale.number(unread())}</span>
+        <Show when={unread()}>
+            {(count) => (
+                <Badge data-slot="notification-badge">
+                    {/* Count */}
+                    <span aria-hidden="true">{locale.number(count())}</span>
 
-                {/* Spoken count */}
-                <span {...style.attrs(styles.hidden)}>
-                    {locale.render(
-                        t`${plural(unread(), { one: "# unread notification", other: "# unread notifications" })}`,
-                    )}
-                </span>
-            </Badge>
+                    {/* Spoken count */}
+                    <span {...style.attrs(styles.hidden)}>
+                        {locale.render(
+                            t`${plural(count(), { one: "# unread notification", other: "# unread notifications" })}`,
+                        )}
+                    </span>
+                </Badge>
+            )}
         </Show>
     );
 }

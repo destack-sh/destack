@@ -3,7 +3,7 @@ import type { MethodContextOf, ResultOf } from "@destack/object";
 import { Duration, nth, present } from "@destack/schema";
 import { Recipient, Routing, Settings } from "../message/index.ts";
 import { InboxEntry } from "../notification/inbox.ts";
-import { Notification, notification } from "../object/notification.ts";
+import { notification } from "../object/notification.ts";
 import { summary } from "../object/summary.ts";
 import { compose, createMessage, readMessageKey } from "./message.ts";
 import type { NotificationServer } from "./server.ts";
@@ -48,7 +48,7 @@ async function deliver(
         return context.update({ deliveryAt: null });
     }
     // leave a newer occurrence to its planning, which starts its delivery afresh
-    else if (!Notification.isPlanned(row, entry.activity)) {
+    else if (!entry.isPlanned) {
         return row;
     }
 
@@ -77,16 +77,16 @@ async function deliver(
         decided.flatMap(({ decision }) => (decision.action === "summarize" ? [decision.at] : [])),
     );
     if (times.size > 1) {
-        throw new TypeError(`${row.id} waits for summaries at ${[...times].join(", ")}`);
+        throw new TypeError(`${row.id} has more than one summary time: ${[...times].join(", ")}`);
     }
     const [summarized] = times;
     if (summarized !== undefined) {
         await context.mutate(context.self, [
-            summary.call("create", { ...summary.in(context.scope), at: summarized }),
+            summary.call("findOrCreate", { ...summary.in(context.scope), at: summarized }),
         ]);
     }
 
-    // keep the deferred destinations for the earliest deferral, and finish once none remains
+    // look again at the earliest deferral, and finish once no destination waits
     const deferred = decided.flatMap(({ decision }) =>
         decision.action === "defer" ? [decision.until] : [],
     );
