@@ -10,7 +10,7 @@ import {
 import { found } from "@destack/schema";
 import type { ReconcileController } from "@destack/db";
 import { ObjectKey, ObjectType } from "../object/object.ts";
-import { type ClaimHome, Reservation } from "./reservation.ts";
+import { type ClaimPrimary, Reservation } from "./reservation.ts";
 import { Claimant, Claim } from "./claim.ts";
 import type { Environment } from "@destack/environment";
 
@@ -24,7 +24,7 @@ export class ClaimController implements ReconcileController {
     /** The indexed objects' tables. */
     readonly watches: readonly Table[];
     /** The claim type and the store serving it. */
-    readonly #claims: ClaimHome;
+    readonly #claims: ClaimPrimary;
     /** The database with the objects. */
     readonly #database: DatabaseConnection;
     /** The indexed object types. */
@@ -33,7 +33,7 @@ export class ClaimController implements ReconcileController {
     readonly #environment: Environment;
     /** Finish the reservations of some object types' indexes. */
     constructor(
-        claims: ClaimHome,
+        claims: ClaimPrimary,
         database: DatabaseConnection,
         objects: readonly ObjectType[],
         environment: Environment,

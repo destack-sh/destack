@@ -36,7 +36,7 @@ import {
 import type { DeclarationName, PackageId } from "@destack/package";
 import type { ManagedTable } from "../trait/record.ts";
 import { InputSchema } from "../method/input.ts";
-import { type ClaimHome, Reservation } from "../claim/reservation.ts";
+import { type ClaimPrimary, Reservation } from "../claim/reservation.ts";
 import type { ObjectStore } from "./store.ts";
 import type { Authorization } from "./authorization.ts";
 import { RecordedRow, type ResultsOf } from "../method/context.ts";
@@ -104,7 +104,7 @@ export interface StackOptions {
     /** Further policies of declared objects. */
     readonly policies?: readonly Policy[];
     /** The claim type recording the names of unique indexes, and the store serving it. */
-    readonly claims?: ClaimHome;
+    readonly claims?: ClaimPrimary;
     /** The object store running the declarations' calls, applying records where they live. */
     readonly store: Pick<
         ObjectStore,

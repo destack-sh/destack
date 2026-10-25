@@ -70,8 +70,8 @@ export const RemoteStore = {
     },
 };
 
-/** The claim type recording the names of indexed objects, and the store serving it, its home. */
-export interface ClaimHome {
+/** The claim type recording the names of indexed objects, and the store serving it, its primary. */
+export interface ClaimPrimary {
     /** The claim type, whose methods reserve, confirm, release and replace names. */
     readonly object: ClaimType;
     /** The store serving the claim type, absent when the claiming store serves it itself. */
@@ -102,7 +102,7 @@ interface ClaimRequest {
 export const Reservation = {
     /** Reserve written objects' names before the write commits, refusing taken names. */
     async reserve(
-        claims: ClaimHome,
+        claims: ClaimPrimary,
         claimants: readonly Claimant[],
         types: readonly ObjectType[],
         request: ClaimRequest,
@@ -115,7 +115,7 @@ export const Reservation = {
 
     /** Replace objects' names after unreserved writes, refusing taken names. */
     async replace(
-        claims: ClaimHome,
+        claims: ClaimPrimary,
         database: DatabaseConnection,
         claimants: readonly Claimant[],
         types: readonly ObjectType[],
@@ -140,7 +140,7 @@ export const Reservation = {
 
     /** List the expired reservations of some indexes. */
     async expired(
-        claims: ClaimHome,
+        claims: ClaimPrimary,
         database: DatabaseConnection,
         indexes: readonly string[],
         now: number,

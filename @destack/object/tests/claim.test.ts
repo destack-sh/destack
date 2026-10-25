@@ -9,7 +9,7 @@ import {
     type Row,
     type RelationalQueryBuilder,
 } from "@destack/db";
-import { ClaimController, type ClaimHome, implementPackage } from "../src/server/index.ts";
+import { ClaimController, type ClaimPrimary, implementPackage } from "../src/server/index.ts";
 import {
     Claim,
     type ClaimLookup,
@@ -112,7 +112,7 @@ test("reserve a write's names before it commits and confirm them once it committ
     const home = present(served.home, "the universe's claims");
     const seen: (readonly [string, number])[] = [];
     let spaceDatabase: DatabaseConnection | undefined;
-    const claims: ClaimHome = {
+    const claims: ClaimPrimary = {
         object: served.object,
         home: {
             mutate: async (mutation) => {
@@ -304,7 +304,7 @@ test("resolve a confirmed name to its object alone, and refuse it to others whil
 });
 
 /** Serve one space's profiles in a separate database, returning a client per user. */
-async function serveProfiles(world: Environment, claims: ClaimHome) {
+async function serveProfiles(world: Environment, claims: ClaimPrimary) {
     // store the space's profiles in a separate database
     const spaceId = schema.identifier("space").parse(`space-01996ab0-0000-7000-8000-00000000a006`);
     const storage = await TestDatabase.create(profilesDatabase, {

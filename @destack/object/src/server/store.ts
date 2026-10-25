@@ -103,7 +103,7 @@ import { ObjectController } from "../object/controller.ts";
 import { Chunk, CHUNKS } from "../text/chunk.ts";
 import { Authorization } from "./authorization.ts";
 import { ClaimController } from "../claim/controller.ts";
-import { type ClaimHome, Reservation } from "../claim/reservation.ts";
+import { type ClaimPrimary, Reservation } from "../claim/reservation.ts";
 import { EphemeralStorage } from "./ephemeral.ts";
 import { ExternalStorage } from "./external.ts";
 import { ObjectSource } from "./source.ts";
@@ -423,7 +423,7 @@ interface StoreComposition {
     /** The package recording the calls. */
     readonly origin: Omit<AuditOrigin, "scope">;
     /** The claim type recording the names of unique indexes, and the store serving it. */
-    readonly claims?: ClaimHome;
+    readonly claims?: ClaimPrimary;
     /** The installations serving objects and their projections, by type reference key. */
     readonly installed?: ReadonlyMap<string, ServerContext>;
     /** The memory store with the served ephemeral objects. */
@@ -478,7 +478,7 @@ export class ObjectStore {
     /** The feed serving every sync. */
     readonly feed: sync.Feed;
     /** The claim type recording the names of the served objects' unique indexes. */
-    readonly claims: ClaimHome | undefined;
+    readonly claims: ClaimPrimary | undefined;
     /** The memory store with the served ephemeral objects. */
     readonly ephemeral: EphemeralStorage | undefined;
     /** The files with the served external objects. */

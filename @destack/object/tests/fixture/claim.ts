@@ -4,7 +4,7 @@ import type { DatabaseConnection } from "@destack/db";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf, TestObjectStore } from "../../src/test/index.ts";
 import { Scope } from "@destack/sync";
-import { type ClaimHome, RemoteStore } from "../../src/server/index.ts";
+import { type ClaimPrimary, RemoteStore } from "../../src/server/index.ts";
 import { claimMethods, claimTable, defineObject } from "../../src/index.ts";
 import type { Environment } from "@destack/environment";
 
@@ -30,7 +30,7 @@ export const claim = defineObject(
 export async function serveClaims(
     database: DatabaseConnection,
     environment: Environment,
-): Promise<ClaimHome> {
+): Promise<ClaimPrimary> {
     // bind the universe as its owner
     const owner = universe.reference(Scope.universe.id, Scope.universe.id);
     await new AccessFixture(database, environment).replicateOwner(Scope.universe, owner);

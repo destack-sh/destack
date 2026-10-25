@@ -111,6 +111,38 @@ export const relationship = defineObject(
                 return Relationship.grant(request, store.authorization);
             },
         }),
+        touch: defineMethod<{
+            kind: "custom";
+            permission: "grant";
+            input: typeof RelationshipInput;
+            output: typeof access.Relationship.schema;
+            mutates: true;
+            target: "scope";
+            table: typeof accessRelationship;
+        }>({
+            kind: "custom",
+            permission: "grant",
+            input: RelationshipInput,
+            output: access.Relationship.schema,
+            mutates: true,
+            target: "scope",
+            result: "value",
+            isPredicted: false,
+            procedure: (_name, schemas) => ({
+                route: { method: "POST", path: "/touch" },
+                input: schemas.scope.extend({ ...schemas.replay, ...RelationshipInput.shape }),
+                output: access.Relationship.schema,
+            }),
+            handler: async (context, execution) => {
+                // create the relationship or keep the same one, as SpiceDB's touch writes it
+                const { object, ...granted } = RelationshipInput.parse(context.input);
+                const request = { ...readGrant(granted), object };
+                const store = Execution.store(execution, context);
+                await ObjectPolicy.requireScope(context, request, store);
+
+                return Relationship.touch(request, store.authorization);
+            },
+        }),
         delete: defineMethod<{
             kind: "custom";
             permission: "read";

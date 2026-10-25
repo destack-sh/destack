@@ -149,6 +149,42 @@ test("list an object's relationships to whoever may read them, and revoke one on
     });
 });
 
+test("touch a relationship into being once, keeping it on a second touch", async () => {
+    // relate carol to alice's space as a reader by touch, twice, as alice
+    const world = testSimulation().environment("test");
+    const { store, object } = await serveSpace(world, Scope.universe.id);
+    const touch = async () => {
+        const [touched] = await store.mutate(
+            subjectContext(alice, SPACE_ID, { environment: world }).access(),
+            {
+                id: RequestId.create(store.environment),
+                calls: [
+                    relationship.call("touch", {
+                        scope: Scope.universe.id,
+                        object,
+                        relation: "reader",
+                        subject: carol,
+                    }),
+                ],
+            },
+        );
+
+        return schema.looseObject({ id: schema.string() }).parse(touched).id;
+    };
+    const first = await touch();
+    const second = await touch();
+
+    // keep the one relationship the first touch created
+    const readers = await store.query(
+        subjectContext(alice, SPACE_ID, { environment: world }).access(),
+        relationship.call("list", {
+            scope: Scope.universe.id,
+            where: { objectId: SPACE_ID, relation: "reader", subjectId: carol.id },
+        }),
+    );
+    expect([second, readers.items.map((row) => row.id)]).toEqual([first, [first]]);
+});
+
 /** Serve a private space of alice, read by bob, with its relationships, as one partition. */
 async function serveSpace(world: Environment, partition?: string) {
     const storage = await TestDatabase.create(
