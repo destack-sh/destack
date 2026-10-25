@@ -37,7 +37,7 @@ test("read runtime overrides of a package's exports, and refuse one of an export
     const gone = await writePackage(["./gone"], files);
     expect(await refusal(readPackageJson(gone, files))).toEqual([
         "BAD_REQUEST",
-        "INVALID_DEFINITION",
+        "DEFINITION_INVALID",
         "destack.json overrides the runtimes of an export missing from package.json: ./gone",
     ]);
     expect(read.definition.exports).toEqual({ "./server": { runtimes: ["workerd"] } });

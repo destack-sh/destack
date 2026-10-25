@@ -187,7 +187,7 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
         const corrupted = join(directory, "corrupted");
         expect(await refusal(PackageBuild.write(build.reader, corrupted, files))).toEqual([
             "BAD_REQUEST",
-            "INVALID_FILE",
+            "FILE_INVALID",
             `file digest mismatch: ${changed.path}`,
         ]);
         await files.writeFile(join(build.directory, changed.path), original);

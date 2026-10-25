@@ -47,7 +47,7 @@ test.concurrent("relocate the library build and call its exports, refusing corru
     );
     expect(await refusal(corrupt.files())).toEqual([
         "BAD_REQUEST",
-        "INVALID_FILE",
+        "FILE_INVALID",
         `file digest mismatch: ${build.manifest.lists.files.path}`,
     ]);
 

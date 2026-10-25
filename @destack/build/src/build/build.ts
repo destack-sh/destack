@@ -104,7 +104,7 @@ export class PackageBuild implements AsyncDisposable {
         }
         for (const path of references) {
             if (!paths.has(path)) {
-                throw PackageError.of("INVALID_FILE", `missing build file: ${path}`);
+                throw PackageError.of("FILE_INVALID", `missing build file: ${path}`);
             }
         }
 
@@ -112,7 +112,7 @@ export class PackageBuild implements AsyncDisposable {
         for (const file of list) {
             const { digest, size } = await digestFile(resolve(directory, file.path), environment);
             if (size !== file.size || digest !== file.digest) {
-                throw PackageError.of("INVALID_FILE", `file contents differ: ${file.path}`);
+                throw PackageError.of("FILE_INVALID", `file contents differ: ${file.path}`);
             }
         }
 
@@ -143,10 +143,10 @@ function requireDistinctPaths(list: readonly PackageFile[]): Set<string> {
     const paths = new Set<string>();
     for (const file of list) {
         if (file.path === MANIFEST_PATH || file.path.startsWith(`${MANIFEST_PATH}/`)) {
-            throw PackageError.of("INVALID_FILE", `reserved build path: ${file.path}`);
+            throw PackageError.of("FILE_INVALID", `reserved build path: ${file.path}`);
         }
         if (paths.has(file.path)) {
-            throw PackageError.of("INVALID_FILE", `duplicate file: ${file.path}`);
+            throw PackageError.of("FILE_INVALID", `duplicate file: ${file.path}`);
         }
         paths.add(file.path);
     }
@@ -155,7 +155,7 @@ function requireDistinctPaths(list: readonly PackageFile[]): Set<string> {
     for (const path of paths) {
         for (const parent of parents(path)) {
             if (paths.has(parent)) {
-                throw PackageError.of("INVALID_FILE", `file is also a directory: ${parent}`);
+                throw PackageError.of("FILE_INVALID", `file is also a directory: ${parent}`);
             }
         }
     }
@@ -170,7 +170,7 @@ function requireSeparateOutputs(manifest: PackageManifest, paths: ReadonlySet<st
     for (const output of Object.values(manifest.outputs)) {
         if (directories.has(output.directory)) {
             throw PackageError.of(
-                "INVALID_FILE",
+                "FILE_INVALID",
                 `duplicate output directory: ${output.directory}`,
             );
         }
@@ -181,11 +181,11 @@ function requireSeparateOutputs(manifest: PackageManifest, paths: ReadonlySet<st
     for (const directory of directories) {
         for (const path of [...parents(directory), directory]) {
             if (paths.has(path)) {
-                throw PackageError.of("INVALID_FILE", `output directory is a file: ${path}`);
+                throw PackageError.of("FILE_INVALID", `output directory is a file: ${path}`);
             }
             if (path !== directory && directories.has(path)) {
                 throw PackageError.of(
-                    "INVALID_FILE",
+                    "FILE_INVALID",
                     `overlapping output directories: ${path}, ${directory}`,
                 );
             }
@@ -202,7 +202,7 @@ function exportedPaths(
     const exported = Object.values(output.exports);
     for (const path of exported) {
         if (!path.startsWith(`${output.directory}/`)) {
-            throw PackageError.of("INVALID_FILE", `export is outside its output: ${path}`);
+            throw PackageError.of("FILE_INVALID", `export is outside its output: ${path}`);
         }
     }
 

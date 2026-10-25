@@ -477,7 +477,7 @@ test("serve a stored build over HTTP after the host authorizes each read", async
                 environment.crypto,
             ),
         ),
-    ).toEqual(["BAD_REQUEST", "INVALID_FILE", "file digest mismatch: manifest.json"]);
+    ).toEqual(["BAD_REQUEST", "FILE_INVALID", "file digest mismatch: manifest.json"]);
 
     // authorize before serving partial bodies or answering cache conditions
     const path = `${url}files/src/answer.ts`;
