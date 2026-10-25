@@ -4,7 +4,7 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { TestDatabase } from "../test/database.ts";
 import { defineTable } from "../table/table.ts";
 import { integer, text } from "../table/column.ts";
-import { jsonElements, Statement } from "./statement.ts";
+import { jsonElements, Statement, textElements } from "./statement.ts";
 import { testSimulation } from "@destack/test/world";
 
 /** Write identifiers as the JSON rows a listed statement reads. */
@@ -66,4 +66,19 @@ test("run a statement rendered once with each run's values", async () => {
             { id: "c", rank: 3 },
         ],
     ]);
+});
+
+test("select a JSON array's strings in their order, on every dialect", async () => {
+    // keep one row with an array of strings
+    const world = testSimulation().environment("test");
+    const storage = await TestDatabase.create([item], { environment: world, isMigrated: true });
+    onTestFinished(() => storage.close());
+
+    // read the strings ordered by their position
+    const rows = await storage.database.execute(
+        sql`SELECT listed.value AS value FROM ${textElements(sql`${JSON.stringify(["c", "a", "b"])}`, "listed")} ORDER BY listed.key`,
+        schema.object({ value: schema.string() }),
+    );
+
+    expect(rows.map((row) => row.value)).toEqual(["c", "a", "b"]);
 });

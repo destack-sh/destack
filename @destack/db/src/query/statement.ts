@@ -79,6 +79,14 @@ export function jsonElements(array: SQLWrapper, name: string): SQL {
     });
 }
 
+/** Select a JSON array's strings as rows of a `value` column, ordered by a `key` column. */
+export function textElements(array: SQLWrapper, name: string): SQL {
+    return dialectSQL({
+        sqlite: sql`json_each(${array}) AS ${sql.identifier(name)}`,
+        postgresql: sql`jsonb_array_elements_text(${array}::jsonb) WITH ORDINALITY AS ${sql.identifier(name)}(value, key)`,
+    });
+}
+
 /** Read a JSON element's value at a position as a column's type, the element named `wanted`. */
 export function elementValue(column: Column, index: number, dialect: Dialect): SQL {
     // read a JSON column's element as JSON, a JSON null as SQL NULL, and any other or sealed element as its text
