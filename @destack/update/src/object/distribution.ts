@@ -1,4 +1,5 @@
 import type { Select } from "@destack/db";
+import { contained, principal } from "@destack/access";
 import { defineObject, device, field } from "@destack/object";
 import { schema, Version } from "@destack/schema";
 
@@ -29,7 +30,12 @@ export const distribution = defineObject(
             /** When the feed was last checked. */
             checkedAt: field.time().optional(),
         },
-        permissions: ["read", "update", "record"],
+        // let the device its owner acts as read, stage and record it
+        permissions: {
+            read: contained(principal.device),
+            update: contained(principal.device),
+            record: contained(principal.device),
+        },
     },
     (method) => ({
         create: method.create("record", { isInternal: true }),

@@ -1,3 +1,4 @@
+import { DownloadHTTPError } from "tuf-js/dist/error";
 import { Digest, Version } from "@destack/schema";
 import { UpdateError } from "../error/error.ts";
 import { join } from "node:path";
@@ -75,6 +76,21 @@ export class UpdateRepository {
         return new UpdateRepository(directory, url, environment);
     }
 
+    /** Refuse metadata the repository fails to serve or verify, keeping the update's refusals. */
+    static #refused(error: unknown): Error {
+        // keep a refusal of the update itself
+        if (UpdateError.is(error)) {
+            return error;
+        }
+
+        // refuse a failed download, else metadata that fails to verify, with TUF's reason
+        const message = error instanceof Error ? error.message : String(error);
+        const reason =
+            error instanceof DownloadHTTPError ? "DOWNLOAD_FAILED" : "VERIFICATION_FAILED";
+
+        return UpdateError.of(reason, `metadata refresh failed: ${message}`, { cause: error });
+    }
+
     /** Refresh trusted metadata and describe the current release for a target. */
     async latest(target: Target): Promise<Release> {
         // refresh from the persisted trusted metadata
@@ -82,7 +98,9 @@ export class UpdateRepository {
             ...this.locations,
             fetcher: new Fetcher({ kind: "metadata" }, this.environment),
         });
-        await updater.refresh();
+        await updater.refresh().catch((error: unknown) => {
+            throw UpdateRepository.#refused(error);
+        });
         const artifact = await updater.getTargetInfo(`${target}.tar.gz`);
         if (!artifact) {
             throw UpdateError.of("RELEASE_NOT_FOUND", `no published release for ${target}`);
