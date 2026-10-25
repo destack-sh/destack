@@ -106,7 +106,7 @@ export class Sandbox implements AsyncDisposable {
             gracePeriod > MAX_STOP_TIMEOUT_MILLISECONDS
         ) {
             throw SandboxError.of(
-                "INVALID_GRACE_PERIOD",
+                "GRACE_PERIOD_INVALID",
                 `grace period must be between 0 and ${MAX_STOP_TIMEOUT_MILLISECONDS} milliseconds`,
             );
         }

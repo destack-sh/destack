@@ -181,12 +181,7 @@ function quote(value: string): string {
 }
 
 /** Signal the workload process group, accepting an already terminated group. */
-function signalGroup(
-    child: Subprocess,
-    isExited: boolean,
-    signal: Signal,
-    process: Process,
-): void {
+function signalGroup(child: Subprocess, isExited: boolean, signal: Signal, process: Process): void {
     // leave exited workloads alone, since their process group id may already be reused
     if (isExited) {
         return;

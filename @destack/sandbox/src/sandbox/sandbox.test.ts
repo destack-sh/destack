@@ -235,7 +235,7 @@ test("stop a running workload and complete graceful shutdown", async () => {
     // refuse an invalid grace period, then share one stop
     expect(await refusal(() => sandbox.stop(-1))).toEqual([
         "BAD_REQUEST",
-        "INVALID_GRACE_PERIOD",
+        "GRACE_PERIOD_INVALID",
         "grace period must be between 0 and 300000 milliseconds",
     ]);
     const stopping = sandbox.stop(1000);
