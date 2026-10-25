@@ -9,6 +9,13 @@ import { key } from "../src/object/key.ts";
 import accountPackage from "../src/package.ts";
 import { TestAccountStore, STRANGER_EMAIL } from "../src/test/index.ts";
 
+/** The browser's public key of RFC 8291's example subscription. */
+const RFC_8291_KEY =
+    "BCVxsr7N_eNgVRqvHtD0zTZsEc6-VV-JvLexhqUzORcxaOzi6-AYWXvTBHm4bjyPjs7Vd8pZGH6SRpkNtoIAiw4";
+
+/** The authentication secret of RFC 8291's example subscription. */
+const RFC_8291_AUTH = "BTBZMqHH6r4Tts7J_aSIgg";
+
 /** One day in milliseconds. */
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -186,7 +193,7 @@ test("register clients with proven keys and revoke them with the sessions attach
     // store the browser's push subscription
     const push = {
         url: "https://push.example.com/subscription",
-        keys: { p256dh: "BNcR", auth: "tBHI" },
+        keys: { p256dh: RFC_8291_KEY, auth: RFC_8291_AUTH },
     };
     const stored = async () =>
         (

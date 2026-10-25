@@ -6,6 +6,12 @@ import type { User } from "./user.ts";
 /** The longest push service URL a browser hands out. */
 const PUSH_URL_LENGTH = 2048;
 
+/** A browser's uncompressed P-256 key: 65 bytes as 87 base64url characters, 0x04 reading as B. */
+const PUBLIC_KEY = /^B[A-Za-z0-9_-]{86}$/u;
+
+/** A browser's authentication secret: 16 bytes as 22 base64url characters (RFC 8291 3.2). */
+const AUTH_SECRET = /^[A-Za-z0-9_-]{22}$/u;
+
 /** A browser's Web Push subscription, as the Push API hands it out (RFC 8030, RFC 8291). */
 export const PushSubscription = schema.object({
     /** The push service URL the browser receives pushes at. */
@@ -13,9 +19,9 @@ export const PushSubscription = schema.object({
     /** The browser's keys encrypting each push, base64url encoded. */
     keys: schema.object({
         /** The browser's uncompressed P-256 public key. */
-        p256dh: schema.string().min(1),
+        p256dh: schema.string().regex(PUBLIC_KEY),
         /** The authentication secret. */
-        auth: schema.string().min(1),
+        auth: schema.string().regex(AUTH_SECRET),
     }),
 });
 /** A browser's Web Push subscription. */

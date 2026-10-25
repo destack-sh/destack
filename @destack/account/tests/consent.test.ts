@@ -8,6 +8,13 @@ import { client, session } from "../src/object/index.ts";
 import accountPackage from "../src/package.ts";
 import { TestAccountStore, TestJwt, OWNER_EMAIL } from "../src/test/index.ts";
 
+/** The browser's public key of RFC 8291's example subscription. */
+const RFC_8291_KEY =
+    "BCVxsr7N_eNgVRqvHtD0zTZsEc6-VV-JvLexhqUzORcxaOzi6-AYWXvTBHm4bjyPjs7Vd8pZGH6SRpkNtoIAiw4";
+
+/** The authentication secret of RFC 8291's example subscription. */
+const RFC_8291_AUTH = "BTBZMqHH6r4Tts7J_aSIgg";
+
 test("let an installation act for a person under the grant the person created, until they revoke it", async () => {
     // store the owner's browser with a push subscription, and an installation of their space with an identity
     await using fixture = await TestAccountStore.open();
@@ -24,7 +31,10 @@ test("let an installation act for a person under the grant the person created, u
         userId: owner.id,
         id: browser.id,
         requestId: RequestId.create(fixture.store.environment),
-        push: { url: "https://push.example.com/1", keys: { p256dh: "BNcR", auth: "tBHI" } },
+        push: {
+            url: "https://push.example.com/1",
+            keys: { p256dh: RFC_8291_KEY, auth: RFC_8291_AUTH },
+        },
     });
     const inbox = principal.installation.reference(
         spaceId,
