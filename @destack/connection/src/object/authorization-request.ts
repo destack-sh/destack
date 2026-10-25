@@ -89,6 +89,8 @@ export const authorizationRequest = defineObject(
                 },
             },
         }),
+        /** Record the seconds between polls the server asks for, as the connection package. */
+        update: method.update("record", { isInternal: true, fields: ["interval"] }),
         /** Use the authorization once, as the connection package. */
         delete: method.delete("record", { isInternal: true }),
     }),

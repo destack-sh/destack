@@ -63,9 +63,9 @@ export const IntegrationIssuer = Object.assign(
         /** Read the authorization server's issuer identifier, refusing an installation's issuer. */
         url(issuer: IntegrationIssuer): string {
             if (issuer.kind !== "server") {
-                throw new ConnectionError(
-                    "INVALID_AUTHORIZATION",
-                    `installation ${issuer.name} issues the integration's tokens, not a server`,
+                throw ConnectionError.of(
+                    "ISSUER_NOT_SERVER",
+                    `the integration's tokens come from installation ${issuer.name}, not a server`,
                 );
             }
 
@@ -99,7 +99,7 @@ export const integration = defineObject(
     {
         name: "integration",
         plural: "integrations",
-        // replicate the integrations of platforms and organisations into their scopes and the spaces connecting through them
+        // replicate the integrations of platforms and organizations into their scopes and the spaces connecting through them
         inherited: {},
         fields: {
             /** Who issues the integration's tokens. */
@@ -120,10 +120,17 @@ export const integration = defineObject(
         relations: {
             // every space a public integration serves, beside its owner's spaces and the spaces below them
             public: { subjects: [anyone.all()], grantedBy: null },
+            // the installation issuing its tokens, related as it is created
+            issuer: { subjects: [principal.installation], grantedBy: null },
         },
-        // let the spaces it serves replicate it, their connection installations request its tokens by possession, and its residency's servers replicate it
+        // let the spaces it serves, its issuing installation and its residency's servers replicate it, and its connection installations request its tokens by possession
         permissions: {
-            read: union(contained(principal.space), relation("public"), through("scope", "serve")),
+            read: union(
+                contained(principal.space),
+                relation("public"),
+                relation("issuer"),
+                through("scope", "serve"),
+            ),
             manage: none(),
             request: union(contained(principal.installation), relation("public")),
         },

@@ -1,5 +1,6 @@
-import { present, schema } from "@destack/schema";
-import { importJWK, importPKCS8, SignJWT } from "jose";
+import { present, Uuid } from "@destack/schema";
+import { type Environment } from "@destack/environment";
+import { Jwk, Jws, JwsAlgorithm, Jwt } from "@destack/identity";
 import { ConnectionError } from "../error/error.ts";
 
 /** How long an assertion stays valid: five minutes. */
@@ -10,21 +11,6 @@ const DRIFT_SECONDS = 60;
 
 /** The DER of a PKCS #8 RSA private key before its PKCS #1 key's length. */
 const PKCS8_RSA_HEADER = Uint8Array.fromHex("020100300d06092a864886f70d0101010500");
-
-/** The signature algorithm of each JWK key type and curve without an `alg`. */
-const ALGORITHMS: Readonly<Record<string, string>> = {
-    RSA: "RS256",
-    "EC P-256": "ES256",
-    "EC P-384": "ES384",
-    "OKP Ed25519": "EdDSA",
-};
-
-/** A private key as a JWK (RFC 7517), read for its type, curve and algorithm. */
-export const PrivateKeyJwk = schema.looseObject({
-    kty: schema.string().min(1),
-    crv: schema.string().min(1).exactOptional(),
-    alg: schema.string().min(1).exactOptional(),
-});
 
 /** JWT assertions a client or a service account signs for an authorization server (RFC 7523). */
 export const Assertion = {
@@ -39,62 +25,73 @@ export const Assertion = {
             readonly scope?: string;
         },
         now: number,
+        environment: Pick<Environment, "crypto" | "random">,
     ): Promise<string> {
         // import the key with its algorithm
-        const { key, algorithm } = await Assertion.importKey(claims.key, claims.algorithm);
+        const { crypto, random } = environment;
+        const { key, algorithm } = await Assertion.importKey(claims.key, claims.algorithm, crypto);
 
-        // write the short-lived claims with a fresh identifier
+        // write the short-lived claims an authorization server checks (RFC 7523 3)
         const seconds = Math.floor(now / 1000);
-        const jwt = new SignJWT(claims.scope === undefined ? {} : { scope: claims.scope })
-            .setProtectedHeader({ alg: algorithm })
-            .setIssuer(claims.issuer)
-            .setIssuedAt(seconds - DRIFT_SECONDS)
-            .setExpirationTime(seconds + LIFETIME_SECONDS)
-            .setJti(crypto.randomUUID());
+        const signed = {
+            ...(claims.scope === undefined ? {} : { scope: claims.scope }),
+            iss: claims.issuer,
+            ...(claims.subject === undefined ? {} : { sub: claims.subject }),
+            ...(claims.audience === undefined ? {} : { aud: claims.audience }),
+            iat: seconds - DRIFT_SECONDS,
+            exp: seconds + LIFETIME_SECONDS,
+            jti: Uuid.v4(random),
+        };
 
-        // set the subject and audience an authorization server checks (RFC 7523 3)
-        if (claims.subject !== undefined) {
-            jwt.setSubject(claims.subject);
-        }
-        if (claims.audience !== undefined) {
-            jwt.setAudience(claims.audience);
-        }
-
-        return jwt.sign(key);
+        return Jwt.sign(signed, { alg: algorithm }, key, crypto);
     },
 
     /** Import a JWK's JSON or PKCS #1 or PKCS #8 PEM private key, with its signing algorithm. */
     async importKey(
         text: string,
-        named?: string,
-    ): Promise<{ readonly key: CryptoKey; readonly algorithm: string }> {
+        named: string | undefined,
+        crypto: Environment["crypto"],
+    ): Promise<{ readonly key: CryptoKey; readonly algorithm: JwsAlgorithm }> {
         // import a PEM with the given algorithm, wrapping a PKCS #1 RSA key as GitHub issues them
         const pem = text.trimStart();
         if (pem.startsWith("-----BEGIN PRIVATE KEY-----")) {
-            const algorithm = named ?? "RS256";
+            const algorithm = Assertion.algorithm(named ?? "RS256");
 
-            return { key: await importPKCS8(pem, algorithm), algorithm };
+            return { key: await Jws.importPkcs8(pem, algorithm, crypto), algorithm };
         } else if (pem.startsWith("-----BEGIN RSA PRIVATE KEY-----")) {
-            const algorithm = named ?? "RS256";
+            const algorithm = Assertion.algorithm(named ?? "RS256");
 
-            return { key: await importPKCS8(pkcs8(pem), algorithm), algorithm };
+            return { key: await Jws.importPkcs8(pkcs8(pem), algorithm, crypto), algorithm };
         }
 
-        // import a JWK with its algorithm or its key type's
-        const jwk = PrivateKeyJwk.parse(JSON.parse(text));
-        const algorithm = named ?? jwk.alg ?? ALGORITHMS[`${jwk.kty} ${jwk.crv ?? ""}`.trim()];
+        // import a JWK with the given algorithm, else its own or its key type's
+        const jwk = Jwk.parse(JSON.parse(text));
+        const algorithm = named === undefined ? Jwk.algorithm(jwk) : Assertion.algorithm(named);
         if (algorithm === undefined) {
-            throw new ConnectionError(
-                "INVALID_AUTHORIZATION",
+            throw ConnectionError.of(
+                "SIGNING_KEY_INVALID",
                 `a ${jwk.kty} key has no signature algorithm`,
             );
         }
-        const key = await importJWK(jwk, algorithm);
-        if (!(key instanceof CryptoKey)) {
-            throw new ConnectionError("INVALID_AUTHORIZATION", "the signing key is no private key");
+        const key = await Jws.importJwk(jwk, algorithm, crypto);
+        if (key.type !== "private") {
+            throw ConnectionError.of("SIGNING_KEY_INVALID", "the signing key is not a private key");
         }
 
         return { key, algorithm };
+    },
+
+    /** Read a signature algorithm's name, refusing one no key signs with. */
+    algorithm(name: string): JwsAlgorithm {
+        const algorithm = JwsAlgorithm.safeParse(name).data;
+        if (algorithm === undefined) {
+            throw ConnectionError.of(
+                "SIGNING_KEY_INVALID",
+                `the algorithm ${name} is not supported`,
+            );
+        }
+
+        return algorithm;
     },
 };
 

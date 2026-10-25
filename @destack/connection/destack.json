@@ -13,14 +13,5 @@
         "./test": {
             "runtimes": ["bun"]
         }
-    },
-    "check": {
-        "expect": [
-            {
-                "files": ["src/test/fixture.ts"],
-                "rules": ["destack/valid-declaration"],
-                "reason": "the fixture composes one test database per topology from its callers' tables: a home keeping notices, or a space copying them beside another service's tables"
-            }
-        ]
     }
 }

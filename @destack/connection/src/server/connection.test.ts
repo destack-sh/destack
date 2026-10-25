@@ -1,8 +1,8 @@
 import type { CallInput } from "@destack/object";
-import { nth, present } from "@destack/schema";
+import { nth, present, schema } from "@destack/schema";
 import { RequestId, type ObjectReference, Subject } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { integration, authorizationRequest, connection } from "../object/index.ts";
+import { Connection, integration, authorizationRequest, connection } from "../object/index.ts";
 import { ConnectionFixture, RESOURCE, testIssuer } from "../test/index.ts";
 import { Runner } from "./token.ts";
 
@@ -24,7 +24,7 @@ async function create(
 ): Promise<ObjectReference> {
     const created = await fixture.objects
         .mutate(fixture.context().access(), {
-            id: RequestId.create(Date.now()),
+            id: RequestId.create(fixture.environment),
             calls: [
                 connection.call("create", {
                     scope: fixture.scope.id,
@@ -37,6 +37,11 @@ async function create(
 
     return connection.reference(fixture.scope.id, created.id);
 }
+
+/** A connection's identifier, which seeds its refreshes' jitter. */
+const FAILING = schema
+    .identifier("connection")
+    .parse("connection-019f5530-8000-7000-8000-0000000000c3");
 
 /** A space other than the fixture's. */
 const OTHER_SCOPE = "space-019f5530-8000-7000-8000-0000000000c1";
@@ -74,7 +79,7 @@ async function lease(
 function authorize(fixture: ConnectionFixture, reference: ObjectReference, session?: string) {
     return fixture.objects
         .mutate(fixture.context(session).access(), {
-            id: RequestId.create(Date.now()),
+            id: RequestId.create(fixture.environment),
             calls: [
                 connection.call("authorize", {
                     scope: fixture.scope.id,
@@ -95,7 +100,7 @@ function completeAuthorization(
 ) {
     return fixture.objects
         .mutate(fixture.context(session).access(), {
-            id: RequestId.create(Date.now()),
+            id: RequestId.create(fixture.environment),
             calls: [
                 connection.call("complete", {
                     scope: fixture.scope.id,
@@ -124,10 +129,12 @@ test("authorize a person's account with a code and PKCE in their session, once, 
     const complete = (parameters: Record<string, string>, session?: string) =>
         refusal(completeAuthorization(fixture, reference, parameters, session));
 
-    // refuse another session and issuer and a forged state before completing it once
+    // refuse foreign sessions, issuers, codes and states
+    const codeless = Object.fromEntries(Object.entries(redirect).filter(([key]) => key !== "code"));
     const refusals = [
         await complete(redirect, "session-two"),
         await complete({ ...redirect, iss: "https://evil.test" }),
+        await complete(codeless),
         await complete({ ...redirect, state: "forged" }),
     ];
     const pending = await authorized(fixture, reference);
@@ -150,18 +157,25 @@ test("authorize a person's account with a code and PKCE in their session, once, 
         page: ["https://auth.test/authorize", "S256", "items:read"],
         refusals: [
             [
-                "INVALID_AUTHORIZATION",
-                "only the session that started an authorization completes it",
+                "FORBIDDEN",
+                "SESSION_MISMATCH",
+                "only the session that started an authorization can complete it",
             ],
             [
-                "INVALID_AUTHORIZATION",
-                "the authorization response returns issuer https://evil.test instead of https://auth.test",
+                "BAD_REQUEST",
+                "AUTHORIZATION_INVALID",
+                "expected issuer https://auth.test in the authorization response, got https://evil.test",
             ],
-            ["INVALID_AUTHORIZATION", "no pending authorization has this state"],
+            ["BAD_REQUEST", "AUTHORIZATION_INVALID", "the authorization response has no code"],
+            ["NOT_FOUND", "AUTHORIZATION_NOT_FOUND", "no pending authorization has this state"],
         ],
         pending: ["false", "Pending", false],
         completed: "done",
-        replayed: ["INVALID_AUTHORIZATION", "no pending authorization has this state"],
+        replayed: [
+            "NOT_FOUND",
+            "AUTHORIZATION_NOT_FOUND",
+            "no pending authorization has this state",
+        ],
         authorized: ["true", "Authorized", true],
         leased: "Bearer access-1",
     });
@@ -180,13 +194,13 @@ test("acquire a client credentials token in the controller, refresh it before ex
     const first = await lease(fixture, reference);
 
     // lease a token near its expiry as it is, then refresh it once in the controller
-    await moveExpiry(fixture, Date.now() + 1000);
+    await moveExpiry(fixture, fixture.environment.clock.now() + 1000);
     const near = await Promise.all([1, 2, 3].map(() => lease(fixture, reference)));
     await fixture.control();
     const refreshed = await lease(fixture, reference);
 
     // refuse a lapsed token the controller has yet to refresh
-    await moveExpiry(fixture, Date.now() - 1000);
+    await moveExpiry(fixture, fixture.environment.clock.now() - 1000);
     const lapsed = await refusal(lease(fixture, reference));
     const tokenRequests = fixture.server.requests.filter(
         (request) => request.path === "https://auth.test/token",
@@ -206,7 +220,8 @@ test("acquire a client credentials token in the controller, refresh it before ex
         refreshed: "Bearer access-2",
         lapsed: [
             "SERVICE_UNAVAILABLE",
-            `connection ${reference.id} has a lapsed token, which its controller refreshes`,
+            "TOKEN_EXPIRED",
+            `connection ${reference.id} has an expired token, which its controller will refresh`,
         ],
         tokenRequests: ["client_credentials", "client_credentials"],
     });
@@ -214,7 +229,9 @@ test("acquire a client credentials token in the controller, refresh it before ex
 
 /** Move the fixture's one connection's token expiry, in its row and its vault. */
 async function moveExpiry(fixture: ConnectionFixture, expiresAt: number): Promise<void> {
-    await fixture.database.update(connection.table).set({ expiresAt });
+    await fixture.database.transaction(
+        async (transaction) => await transaction.update(connection.table).set({ expiresAt }),
+    );
     const row = present((await fixture.connections())[0], "the connection");
     const runner = Runner.of(fixture.objects);
     const credential = await fixture.tokens.read(runner, row);
@@ -223,6 +240,77 @@ async function moveExpiry(fixture: ConnectionFixture, expiresAt: number): Promis
         token: { ...present(credential.token, "the token"), expiresAt },
     });
 }
+
+test("back off a connection's failing refreshes by their count, and reset the count once a refresh succeeds", async () => {
+    // fail the first two token requests of a client credentials connection
+    const fixture = await open();
+    const registered = await fixture.staticIntegration();
+    fixture.server.failTokens([503, 503]);
+    const reference = await create(fixture, {
+        id: FAILING,
+        protocol: { kind: "client-credentials" },
+        integration: registered,
+    });
+
+    // refresh three times
+    const refresh = async () => {
+        const waits = await fixture.control();
+        const row = await readConnection(fixture, reference);
+
+        return { waits, failures: row.failures, reason: Connection.authorized(row) };
+    };
+    expect([await refresh(), await refresh(), await refresh()]).toEqual([
+        // wait the jittered refresh intervals
+        { waits: [688], failures: 1, reason: "Failing" },
+        { waits: [9737], failures: 2, reason: "Failing" },
+        { waits: [3_540_000], failures: 0, reason: "Authorized" },
+    ]);
+});
+
+test("keep a person's token leasable while its refresh fails, and refresh it again on the next pass", async () => {
+    // authorize a person's connection with a code
+    const fixture = await open();
+    const registered = await fixture.staticIntegration();
+    const reference = await create(fixture, {
+        protocol: { kind: "authorization-code" },
+        integration: registered,
+    });
+    const caller = fixture.context().access();
+    const [{ url }] = await fixture.objects.mutate(caller, {
+        id: RequestId.create(fixture.environment),
+        calls: [
+            connection.call("authorize", {
+                scope: fixture.scope.id,
+                id: reference.id,
+                redirectUri: REDIRECT,
+            }),
+        ],
+    });
+    await fixture.objects.mutate(caller, {
+        id: RequestId.create(fixture.environment),
+        calls: [
+            connection.call("complete", {
+                scope: fixture.scope.id,
+                id: reference.id,
+                parameters: await fixture.server.approve(url),
+            }),
+        ],
+    });
+
+    // fail the refresh due a second before expiry, leasing the same token meanwhile, then refresh on the next pass
+    const before = await lease(fixture, reference);
+    await moveExpiry(fixture, fixture.environment.clock.now() + 1000);
+    fixture.server.failTokens([503]);
+    await fixture.control();
+    const failing = await authorized(fixture, reference);
+    const during = await lease(fixture, reference);
+    await fixture.control();
+    expect([failing, during, await authorized(fixture, reference)]).toEqual([
+        ["true", "Failing", true],
+        before,
+        ["true", "Authorized", true],
+    ]);
+});
 
 test("register a client dynamically at a protected resource's authorization server and authorize through it", async () => {
     const fixture = await open();
@@ -234,7 +322,7 @@ test("register a client dynamically at a protected resource's authorization serv
     // discover the server, register a client and authorize with the resource indicator
     const { url } = await fixture.objects
         .mutate(fixture.context().access(), {
-            id: RequestId.create(Date.now()),
+            id: RequestId.create(fixture.environment),
             calls: [
                 connection.call("authorize", {
                     scope: fixture.scope.id,
@@ -246,7 +334,7 @@ test("register a client dynamically at a protected resource's authorization serv
         .then(([written]) => written);
     await fixture.objects
         .mutate(fixture.context().access(), {
-            id: RequestId.create(Date.now()),
+            id: RequestId.create(fixture.environment),
             calls: [
                 connection.call("complete", {
                     scope: fixture.scope.id,
@@ -285,7 +373,7 @@ test("poll a device authorization in the controller until the person approves it
     });
     const { url, userCode } = await fixture.objects
         .mutate(fixture.context().access(), {
-            id: RequestId.create(Date.now()),
+            id: RequestId.create(fixture.environment),
             calls: [connection.call("authorize", { scope: fixture.scope.id, id: reference.id })],
         })
         .then(([written]) => written);
@@ -310,6 +398,71 @@ test("poll a device authorization in the controller until the person approves it
     });
 });
 
+test("poll a slowed device authorization five seconds slower from then on, and record a denial, an expiry and other refusals apart", async () => {
+    // start two device authorizations
+    const fixture = await open();
+    const registered = await fixture.staticIntegration();
+    const start = async () => {
+        const reference = await create(fixture, {
+            protocol: { kind: "device-code" },
+            integration: registered,
+        });
+        const { userCode } = await fixture.objects
+            .mutate(fixture.context().access(), {
+                id: RequestId.create(fixture.environment),
+                calls: [
+                    connection.call("authorize", { scope: fixture.scope.id, id: reference.id }),
+                ],
+            })
+            .then(([written]) => written);
+
+        return { reference, userCode: present(userCode, "the user code") };
+    };
+    const slowed = await start();
+    const expired = await start();
+    const invalid = await start();
+    fixture.server.answerDevice(slowed.userCode, "slow_down");
+
+    // poll each at its interval
+    const waits = async () =>
+        (await fixture.control()).toSorted((left, right) => Number(left) - Number(right));
+    const first = await waits();
+    const later = await waits();
+    const rows = await fixture.objects.database.select().from(authorizationRequest.table);
+    const labels = new Map([
+        [slowed.reference.id, "slowed"],
+        [expired.reference.id, "expired"],
+        [invalid.reference.id, "invalid"],
+    ]);
+    const intervals = Object.fromEntries(
+        rows.map((row) => [
+            present(labels.get(row.parentId), "a started connection"),
+            row.interval,
+        ]),
+    );
+
+    // record each refusal
+    fixture.server.answerDevice(slowed.userCode, "access_denied");
+    fixture.server.answerDevice(expired.userCode, "expired_token");
+    fixture.server.answerDevice(invalid.userCode, "invalid_grant");
+    await fixture.control();
+    expect({
+        first,
+        later,
+        intervals,
+        denied: await authorized(fixture, slowed.reference),
+        expired: await authorized(fixture, expired.reference),
+        invalid: await authorized(fixture, invalid.reference),
+    }).toEqual({
+        first: [1000, 1000, 6000],
+        later: [1000, 1000, 6000],
+        intervals: { expired: 1, invalid: 1, slowed: 6 },
+        denied: ["false", "Denied", false],
+        expired: ["false", "Expired", false],
+        invalid: ["false", "Failing", false],
+    });
+});
+
 test("revoke a connection's refresh token at its server and destroy its credential", async () => {
     const fixture = await open();
     const registered = await fixture.staticIntegration();
@@ -319,7 +472,7 @@ test("revoke a connection's refresh token at its server and destroy its credenti
     });
     const { url } = await fixture.objects
         .mutate(fixture.context().access(), {
-            id: RequestId.create(Date.now()),
+            id: RequestId.create(fixture.environment),
             calls: [
                 connection.call("authorize", {
                     scope: fixture.scope.id,
@@ -331,7 +484,7 @@ test("revoke a connection's refresh token at its server and destroy its credenti
         .then(([written]) => written);
     await fixture.objects
         .mutate(fixture.context().access(), {
-            id: RequestId.create(Date.now()),
+            id: RequestId.create(fixture.environment),
             calls: [
                 connection.call("complete", {
                     scope: fixture.scope.id,
@@ -342,29 +495,29 @@ test("revoke a connection's refresh token at its server and destroy its credenti
         })
         .then(([written]) => written);
 
-    // revoke it and refuse to lease it
+    // revoke it, let its controller withdraw the credential, and refuse to lease it
     await fixture.objects
         .mutate(fixture.context().access(), {
-            id: RequestId.create(Date.now()),
+            id: RequestId.create(fixture.environment),
             calls: [connection.call("revoke", { scope: fixture.scope.id, id: reference.id })],
         })
         .then(([written]) => written);
+    await fixture.control();
 
     expect({
         revoked: fixture.server.revoked,
         authorized: await authorized(fixture, reference),
-        credential: await refusal(
-            fixture.tokens.read(
-                Runner.of(fixture.objects),
-                await readConnection(fixture, reference),
-            ),
-        ),
+        storedAt: (await readConnection(fixture, reference)).storedAt,
         leased: await refusal(lease(fixture, reference)),
     }).toEqual({
         revoked: ["refresh-1"],
         authorized: ["false", "Revoked", false],
-        credential: ["UNAUTHORIZED", `connection ${reference.id} has no credential`],
-        leased: ["PRECONDITION_FAILED", `connection ${reference.id} is unauthorized`],
+        storedAt: null,
+        leased: [
+            "CONFLICT",
+            "CONNECTION_NOT_AUTHORIZED",
+            `connection ${reference.id} is not authorized`,
+        ],
     });
 });
 
@@ -418,7 +571,7 @@ test("install an app through the installation issuing its tokens, lease an insta
     const register = (input: CallInput<typeof integration, "create">) =>
         fixture.objects
             .mutate(fixture.context().access(), {
-                id: RequestId.create(Date.now()),
+                id: RequestId.create(fixture.environment),
                 calls: [integration.call("create", input)],
             })
             .then(([written]) => written);
@@ -438,7 +591,7 @@ test("install an app through the installation issuing its tokens, lease an insta
     // install it from the installation page, completing with the installation the redirect returns
     const { url } = await fixture.objects
         .mutate(fixture.context().access(), {
-            id: RequestId.create(Date.now()),
+            id: RequestId.create(fixture.environment),
             calls: [
                 connection.call("authorize", {
                     scope: fixture.scope.id,
@@ -451,7 +604,7 @@ test("install an app through the installation issuing its tokens, lease an insta
     const state = present(new URL(url).searchParams.get("state"), "the state");
     await fixture.objects
         .mutate(fixture.context().access(), {
-            id: RequestId.create(Date.now()),
+            id: RequestId.create(fixture.environment),
             calls: [
                 connection.call("complete", {
                     scope: fixture.scope.id,
@@ -462,15 +615,16 @@ test("install an app through the installation issuing its tokens, lease an insta
         })
         .then(([written]) => written);
 
-    // obtain the installation token in the controller, lease it, then revoke the connection
+    // obtain the installation token in the controller, lease it, then revoke the connection for the controller to uninstall
     await fixture.control();
     const leased = await lease(fixture, reference);
     await fixture.objects
         .mutate(fixture.context().access(), {
-            id: RequestId.create(Date.now()),
+            id: RequestId.create(fixture.environment),
             calls: [connection.call("revoke", { scope: fixture.scope.id, id: reference.id })],
         })
         .then(([written]) => written);
+    await fixture.control();
     const row = await readConnection(fixture, reference);
 
     // ask the issuer as the connection installation for the token and the uninstallation
@@ -484,7 +638,8 @@ test("install an app through the installation issuing its tokens, lease an insta
     }).toEqual({
         keyed: [
             "BAD_REQUEST",
-            "an installed app's issuer holds its key, so its integration has no secret",
+            "SECRET_UNSUPPORTED",
+            "an installed app's integration takes no client secret",
         ],
         page: "https://github.test/apps/destack-test/installations/new",
         subject: "4242",
@@ -537,9 +692,17 @@ test("refresh a person's token with its rotating refresh token, and mark the con
         await fixture.tokens.write(
             Runner.of(fixture.objects),
             { id: reference.id, vault: fixture.vaultReference },
-            { ...credential, token: { ...token, refreshToken, expiresAt: Date.now() } },
+            {
+                ...credential,
+                token: { ...token, refreshToken, expiresAt: fixture.environment.clock.now() },
+            },
         );
-        await fixture.database.update(connection.table).set({ expiresAt: Date.now() });
+        await fixture.database.transaction(
+            async (transaction) =>
+                await transaction
+                    .update(connection.table)
+                    .set({ expiresAt: fixture.environment.clock.now() }),
+        );
     };
     await expire("refresh-1");
     await fixture.control();
@@ -561,7 +724,7 @@ test("answer no credential from any procedure: connections, integrations and aut
     const reference = await authorizeCode(fixture, registered);
     await fixture.objects
         .mutate(fixture.context().access(), {
-            id: RequestId.create(Date.now()),
+            id: RequestId.create(fixture.environment),
             calls: [
                 connection.call("authorize", {
                     scope: fixture.scope.id,
@@ -611,7 +774,7 @@ async function authorizeCode(
     });
     const { url } = await fixture.objects
         .mutate(fixture.context().access(), {
-            id: RequestId.create(Date.now()),
+            id: RequestId.create(fixture.environment),
             calls: [
                 connection.call("authorize", {
                     scope: fixture.scope.id,
@@ -623,7 +786,7 @@ async function authorizeCode(
         .then(([written]) => written);
     await fixture.objects
         .mutate(fixture.context().access(), {
-            id: RequestId.create(Date.now()),
+            id: RequestId.create(fixture.environment),
             calls: [
                 connection.call("complete", {
                     scope: fixture.scope.id,
@@ -648,9 +811,14 @@ test("refuse a connection lacking the client its kind authorizes through", async
     ]).toEqual([
         [
             "BAD_REQUEST",
+            "INTEGRATION_REQUIRED",
             "an authorization-code connection needs an integration, or a resource whose server registers its client",
         ],
-        ["BAD_REQUEST", "a client-credentials connection needs its integration"],
+        [
+            "BAD_REQUEST",
+            "INTEGRATION_REQUIRED",
+            "a client-credentials connection needs its integration",
+        ],
     ]);
 });
 
@@ -669,8 +837,12 @@ test("exchange the token of a connection its creator manages, refusing another s
     const elsewhere = connection.reference(OTHER_SCOPE, OTHER_CONNECTION);
     const unmanaged = connection.reference(fixture.scope.id, OTHER_CONNECTION);
     expect([await exchange(elsewhere), await exchange(unmanaged)]).toEqual([
-        ["FORBIDDEN", `a token exchange's source must be a connection of ${fixture.scope.id}`],
-        ["FORBIDDEN", "permission denied: manage"],
+        [
+            "FORBIDDEN",
+            "EXCHANGE_SOURCE_FOREIGN",
+            `a token exchange's source must be a connection of ${fixture.scope.id}`,
+        ],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: manage"],
     ]);
 
     // exchange the token of a connection the caller manages

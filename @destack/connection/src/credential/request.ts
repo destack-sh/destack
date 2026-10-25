@@ -1,4 +1,4 @@
-import type { FetchOptions } from "@destack/environment";
+import type { Crypto, FetchOptions } from "@destack/environment";
 import { AwsSigner, EMPTY_HASH } from "@destack/identity/aws";
 import type { Credential, Material, Token } from "../credential/credential.ts";
 import { ConnectionError } from "../error/error.ts";
@@ -23,6 +23,7 @@ export const ConnectionRequest = {
         credential: Credential,
         request: Request,
         now: number,
+        crypto: Crypto,
     ): Promise<ConnectionRequest> {
         const headers = new Headers(request.headers);
 
@@ -41,11 +42,13 @@ export const ConnectionRequest = {
             const { key } = material(credential, "signature");
             const signer = { algorithm: protocol.algorithm, keyId: protocol.keyId, key };
 
-            return { request: await MessageSignature.sign(request, signer, now) };
+            return { request: await MessageSignature.sign(request, signer, now, crypto) };
         }
         // sign with AWS Signature Version 4
         else if (protocol.kind === "sigv4") {
-            return { request: await sigv4(protocol, material(credential, "sigv4"), request, now) };
+            return {
+                request: await sigv4(protocol, material(credential, "sigv4"), request, now, crypto),
+            };
         }
         // present the client certificate
         else if (protocol.kind === "mtls") {
@@ -57,26 +60,30 @@ export const ConnectionRequest = {
         else {
             const token = credential.token;
             if (token === undefined) {
-                throw new ConnectionError("UNAUTHORIZED", "the connection lacks an access token");
+                throw ConnectionError.of(
+                    "CREDENTIAL_MISSING",
+                    "the connection has no access token",
+                );
             }
 
             return ConnectionRequest.token(token, request);
         }
     },
 
-    /** Lease a connection's credential at its home as the consumer, applied to its request. */
+    /** Lease a connection's credential at its primary as the consumer, applied to its request. */
     async lease(
-        home: ClientOf<typeof connectionPackage>,
+        primary: ClientOf<typeof connectionPackage>,
         reference: ObjectReference,
         request: Request,
         now: number,
+        crypto: Crypto,
     ): Promise<ConnectionRequest> {
-        const { protocol, credential } = await home.connection.lease({
+        const { protocol, credential } = await primary.connection.lease({
             scope: reference.scope,
             id: schema.identifier("connection").parse(reference.id),
         });
 
-        return ConnectionRequest.of(protocol, credential, request, now);
+        return ConnectionRequest.of(protocol, credential, request, now, crypto);
     },
 
     /** Send an access token in the Authorization header under its type's scheme (RFC 6750 2.1). */
@@ -95,7 +102,7 @@ function material<const Kind extends Material["kind"]>(
 ): Extract<Material, { kind: Kind }> {
     const held = credential.material;
     if (held === undefined || !isKind(held, kind)) {
-        throw new ConnectionError("UNAUTHORIZED", `the connection lacks ${kind} material`);
+        throw ConnectionError.of("CREDENTIAL_MISSING", `the connection has no ${kind} material`);
     }
 
     return held;
@@ -115,12 +122,13 @@ async function sigv4(
     held: Extract<Material, { kind: "sigv4" }>,
     request: Request,
     now: number,
+    crypto: Crypto,
 ): Promise<Request> {
     // hash the body and sign the request's headers with its Host header
     const url = new URL(request.url);
     const body = request.body === null ? undefined : await request.arrayBuffer();
     const payloadHash =
-        body === undefined ? EMPTY_HASH : await AwsSigner.payloadHash(new Uint8Array(body));
+        body === undefined ? EMPTY_HASH : await AwsSigner.payloadHash(new Uint8Array(body), crypto);
     const isS3 = protocol.service === "s3";
     const headers: Record<string, string> = {
         ...Object.fromEntries(request.headers),
@@ -133,6 +141,7 @@ async function sigv4(
         region: protocol.region,
         service: protocol.service,
         credentials: held,
+        crypto,
     });
     const signed = await signer.authorize(
         {

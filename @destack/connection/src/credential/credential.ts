@@ -1,5 +1,5 @@
 import { schema } from "@destack/schema";
-import { CallError } from "@destack/object";
+import { ConnectionError } from "../error/error.ts";
 import type { ObjectReference } from "@destack/sync";
 
 /** A token an authorization server issued (RFC 6749 5.1), as its connection's vault stores it. */
@@ -83,9 +83,10 @@ export const Credential = Object.assign(credential, {
     /** Require a vault of the scope itself. */
     requireVault(vault: ObjectReference, scope: string): void {
         if (vault.scope !== scope) {
-            throw new CallError("BAD_REQUEST", {
-                message: `a credential of ${scope} lives in a vault of ${scope}, not of ${vault.scope}`,
-            });
+            throw ConnectionError.of(
+                "VAULT_FOREIGN",
+                `a credential of ${scope} must be in a vault of ${scope}, not ${vault.scope}`,
+            );
         }
     },
 });

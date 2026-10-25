@@ -1,7 +1,7 @@
 import { type Select } from "@destack/db";
+import { ConnectionError } from "../error/error.ts";
 import { none, relation, through, union } from "@destack/access";
 import { type MethodContextOf, CONSUMER, defineObject, field } from "@destack/object";
-import { CallError } from "@destack/object";
 import { schema } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
 import { Credential, Material } from "../credential/credential.ts";
@@ -142,24 +142,6 @@ export const AuthorizationGrant = schema.object({
 /** What a completed authorization granted. */
 export type AuthorizationGrant = schema.Infer<typeof AuthorizationGrant>;
 
-/** A revoked connection's credential, withdrawn at its server and destroyed after commit. */
-export const Withdrawal = schema.object({
-    /** The connection. */
-    id: schema.identifier("connection"),
-    /** How the connection authenticated. */
-    protocol: ConnectionProtocol,
-    /** The integration whose client the tokens were issued to. */
-    integration: ObjectReference.nullable(),
-    /** The external account, the installation of an installed integration. */
-    subject: schema.string().min(1).nullable(),
-    /** The vault storing the credential. */
-    vault: ObjectReference,
-    /** When the vault last stored the credential, null while it stores none. */
-    storedAt: schema.number().int().nullable(),
-});
-/** A revoked connection's credential. */
-export type Withdrawal = schema.Infer<typeof Withdrawal>;
-
 /** Credentials for one external account, stored in a vault and leased to outbound calls. */
 export const connection = defineObject(
     {
@@ -168,7 +150,7 @@ export const connection = defineObject(
         controlled: true,
         // relate the installations a person binds the connection to as its consumers
         bindable: { by: "manage" },
-        // replicate the connections of accounts and organisations into their scopes
+        // replicate the connections of accounts and organizations into their scopes
         inherited: {},
         fields: {
             /** How the connection authenticates. */
@@ -189,12 +171,16 @@ export const connection = defineObject(
             expiresAt: field.time().optional(),
             /** When the vault last stored the credential, absent while it stores none. */
             storedAt: field.time().optional(),
+            /** The refreshes that failed in a row since the last one that succeeded. */
+            failures: field.integer().default(0),
         },
         // let its consumers and the servers of its scope read it, and its consumers use it
         permissions: {
             read: union(relation(CONSUMER), through("scope", "serve")),
             manage: none(),
             use: relation(CONSUMER),
+            // let the installations of an account's primary control the account's connections
+            control: through("scope", "provision"),
         },
         reserved: ["use"],
     },
@@ -240,16 +226,52 @@ export const connection = defineObject(
             }),
             prepared: AuthorizationGrant,
         }),
-        /** Revoke the credential at the authorization server and destroy it. */
-        revoke: method.mutation({ permission: "manage", prepared: Withdrawal }),
+        /** Revoke the connection, whose controller then withdraws and destroys its credential. */
+        revoke: method.mutation({ permission: "manage" }),
         delete: method.delete("manage"),
     }),
 );
 /** A persisted connection. */
 export type Connection = Select<typeof connection.table>;
 
+/** Why a connection is or is not authorized, as its Authorized condition records it. */
+export const AUTHORIZED_REASONS = [
+    "Authorized",
+    "Supplied",
+    "Pending",
+    "Denied",
+    "Expired",
+    "Failing",
+    "Revoked",
+] as const;
+
+/** Why a connection is or is not authorized. */
+export const AuthorizedReason = schema.enum(AUTHORIZED_REASONS);
+/** Why a connection is or is not authorized. */
+export type AuthorizedReason = schema.Infer<typeof AuthorizedReason>;
+
+/** A connection's Authorized condition as its verbs and controller write it. */
+export interface Authorized {
+    /** Whether the connection is authorized, true, false or unknown. */
+    readonly status: "true" | "false" | "unknown";
+    /** Why. */
+    readonly reason: AuthorizedReason;
+    /** What a person reads about it. */
+    readonly message: string;
+}
+
+/** The Authorized condition of a revoked connection. */
+export const REVOKED: Authorized = { status: "false", reason: "Revoked", message: "revoked" };
+
 /** Connections: the checks their creation runs, and the installation an authorized one holds. */
 export const Connection = {
+    /** Read why a connection is or is not authorized, absent before its controller reports it. */
+    authorized(row: Pick<Connection, "conditions">): AuthorizedReason | undefined {
+        const condition = row.conditions["Authorized"];
+
+        return condition === undefined ? undefined : AuthorizedReason.parse(condition.reason);
+    },
+
     /** Read the installation an authorized connection holds of an integration, null otherwise. */
     installation(
         row: Pick<Connection, "protocol" | "conditions" | "subject">,
@@ -277,9 +299,10 @@ export const Connection = {
         // refuse a source outside the connection's scope, then one the caller does not manage
         const { source } = protocol;
         if (!connection.is(source) || source.scope !== context.scope) {
-            throw new CallError("FORBIDDEN", {
-                message: `a token exchange's source must be a connection of ${context.scope}`,
-            });
+            throw ConnectionError.of(
+                "EXCHANGE_SOURCE_FOREIGN",
+                `a token exchange's source must be a connection of ${context.scope}`,
+            );
         }
         await context.require(connection.permission("manage"), source);
     },

@@ -1,4 +1,5 @@
-import { PrivateKeyJwk } from "../oauth/assertion.ts";
+import type { Crypto } from "@destack/environment";
+import { Jwk, Jws } from "@destack/identity";
 
 /** The label of the one signature a request sends (RFC 9421 4.1). */
 const LABEL = "sig1";
@@ -14,6 +15,7 @@ export const MessageSignature = {
             readonly key: string;
         },
         now: number,
+        crypto: Crypto,
     ): Promise<Request> {
         // cover the method and the target, and a body's digest (RFC 9530 2)
         const headers = new Headers(request.headers);
@@ -23,7 +25,7 @@ export const MessageSignature = {
             ["@target-uri", request.url],
         ]);
         if (body !== undefined) {
-            const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", body)).toBase64();
+            const digest = new Uint8Array(await crypto.digest("SHA-256", body)).toBase64();
             const value = `sha-256=:${digest}:`;
             headers.set("content-digest", value);
             covered.set("content-digest", value);
@@ -39,7 +41,7 @@ export const MessageSignature = {
         ].join("\n");
 
         // sign the base and attach the signature with its parameters
-        const signature = await signBase(base, signer);
+        const signature = await signBase(base, signer, crypto);
         headers.set("signature-input", `${LABEL}=${parameters}`);
         headers.set("signature", `${LABEL}=:${signature}:`);
 
@@ -55,12 +57,13 @@ export const MessageSignature = {
 async function signBase(
     base: string,
     signer: { readonly algorithm: "hmac-sha256" | "ed25519"; readonly key: string },
+    crypto: Crypto,
 ): Promise<string> {
     // sign with an HMAC secret
     const bytes = new TextEncoder().encode(base);
     if (signer.algorithm === "hmac-sha256") {
         const secret = Uint8Array.fromBase64(signer.key, { alphabet: "base64url" });
-        const key = await crypto.subtle.importKey(
+        const key = await crypto.importKey(
             "raw",
             secret,
             { name: "HMAC", hash: "SHA-256" },
@@ -68,12 +71,11 @@ async function signBase(
             ["sign"],
         );
 
-        return new Uint8Array(await crypto.subtle.sign("HMAC", key, bytes)).toBase64();
+        return new Uint8Array(await crypto.sign("HMAC", key, bytes)).toBase64();
     }
 
     // sign with an Ed25519 private key
-    const jwk = PrivateKeyJwk.parse(JSON.parse(signer.key));
-    const key = await crypto.subtle.importKey("jwk", jwk, { name: "Ed25519" }, false, ["sign"]);
+    const key = await Jws.importJwk(Jwk.parse(JSON.parse(signer.key)), "Ed25519", crypto);
 
-    return new Uint8Array(await crypto.subtle.sign("Ed25519", key, bytes)).toBase64();
+    return new Uint8Array(await crypto.sign("Ed25519", key, bytes)).toBase64();
 }

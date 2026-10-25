@@ -14,7 +14,7 @@ await client.integration.create({
     redirectUris,
     vault,
     secret,
-    visibility: "private",
+    isPublic: false,
 });
 // a Nango connection
 await client.connection.create({
@@ -26,7 +26,7 @@ await client.connection.create({
 });
 // Nango's auth flow
 const { url } = await client.connection.authorize({ scope, id, requestId, redirectUri });
-const leased = await ConnectionRequest.lease(home, reference, request, Date.now()); // Nango's proxy
+const leased = await ConnectionRequest.lease(primary, reference, request, clock.now(), crypto); // Nango's proxy
 await client.connection.revoke({ scope, id, requestId }); // RFC 7009 revocation
 ```
 
@@ -37,7 +37,7 @@ A `connection` keeps the credential of one external account in a vault of its sc
 ```ts
 const { id } = await client.connection.create({
     scope: spaceId,
-    requestId: RequestId.create(),
+    requestId: RequestId.create(environment),
     // or signature, sigv4, jwt, authorization-code, client-credentials, device-code,
     // token-exchange, mtls
     protocol: { kind: "key", header: "x-api-key" },
@@ -67,19 +67,20 @@ await client.connection.create({
 ```ts
 import server from "@destack/connection/server";
 
-const extension = server(context); // tokens through the host's network, the home through its egress
+const extension = server(context); // tokens through the host's network, the primary through its egress
 ```
 
 ## Leasing
 
-`ConnectionRequest.lease` applies a connection's current credential, leased at its home, to a bound installation's outbound request.
+`ConnectionRequest.lease` applies a connection's current credential, leased at its primary, to a bound installation's outbound request.
 
 ```ts
 const { request, certificate } = await ConnectionRequest.lease(
-    home,
+    primary,
     reference,
     outbound,
-    Date.now(),
+    clock.now(),
+    crypto,
 );
 ```
 
@@ -91,7 +92,7 @@ An app installed on external accounts gets its tokens from an installation of th
 import { Issuer } from "@destack/connection/object";
 
 // the issuing package, such as the forge with its GitHub App
-export const issuer = defineObject(Issuer.definition()).methods(Issuer.methods);
+export const issuer = defineObject(Issuer.definition(access), Issuer.methods); // access: who reads, manages and calls it
 
 // the integration records the installation and its issuer, whose consumer the connection installation is
 await client.integration.create({

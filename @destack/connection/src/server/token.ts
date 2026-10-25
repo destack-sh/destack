@@ -1,33 +1,35 @@
+import type { Environment } from "@destack/environment";
 import type { Call } from "@destack/sync";
 import { type ClientOf, createClient } from "@destack/object/client";
 import { Egress, PackageMount } from "@destack/object";
-import type { ServerContext } from "@destack/object/workload";
+import type { InstalledServerContext } from "@destack/object/workload";
 import { Account, account } from "@destack/account/object";
 import connectionPackage, { CONNECTION_INSTALLATION } from "../package.ts";
 import { Snapshot } from "@destack/db";
-import type { MethodContext, Condition, ResultsOf } from "@destack/object";
-import { type Identifier, type JsonValue, present, schema } from "@destack/schema";
+import type { MethodContext, ResultsOf } from "@destack/object";
+import { Identifier, type JsonValue, present, schema } from "@destack/schema";
 import { RequestId, type ObjectReference, Replica, type Subject } from "@destack/sync";
 import { Credential, Token } from "../credential/credential.ts";
-import { ConnectionError } from "../error/error.ts";
+import { ConnectionError, OAuthRefusal } from "../error/error.ts";
 import type { AuthorizationClient } from "../oauth/server.ts";
-import { HomeClient } from "./home.ts";
+import { AuthorizationProxy } from "./proxy.ts";
 import { type Integration, integration, IntegrationIssuer } from "../object/integration.ts";
 import { IssuedInstallation, Issuer } from "../object/issuer.ts";
 import {
     ACCESS_TOKEN_TYPE,
-    type Connection,
+    type Authorized,
+    Connection,
     type ConnectionKind,
     connection,
+    REVOKED,
 } from "../object/connection.ts";
 import { Assertion } from "../oauth/assertion.ts";
 import type { Fetch } from "@destack/object";
 import { AuthorizationServer, JWT_BEARER, TOKEN_EXCHANGE } from "../oauth/server.ts";
-import { Secret, SecretReading } from "@destack/vault";
+import { SecretReading } from "@destack/vault";
 import { secret, vault } from "@destack/vault/object";
 import type { ObjectStore } from "@destack/object/server";
 import { AccessContext, Caller } from "@destack/access";
-import { Clock } from "@destack/environment";
 
 /** How long before expiry an access token is refreshed: a minute. */
 export const REFRESH_MARGIN = 60_000;
@@ -54,19 +56,21 @@ export interface TokenSourceOptions {
     /** Send requests to authorization servers. */
     readonly fetch: Fetch;
     /** Call the packages at an address through the host's egress as the installation. */
-    readonly at: ServerContext["at"];
+    readonly at: InstalledServerContext["at"];
+    /** The environment the installation runs in. */
+    readonly environment: Environment;
 }
 
-/** An integration as its connections' client: here with the secret, or through its home. */
+/** An integration as its connections' client: here with the secret, or through its primary. */
 export interface IntegrationClient {
     /** The integration. */
     readonly integration: Integration;
-    /** The authorization server as the client: here with the secret, or through the home. */
+    /** The authorization server as the client: here with the secret, or through the primary. */
     readonly server: AuthorizationClient;
 }
 
 /** What runs a token source's reads and vault calls: a call, a settlement, or the store. */
-export type Runner = Pick<MethodContext, "now" | "self"> &
+export type Runner = Pick<MethodContext, "now" | "self" | "environment"> &
     Pick<Snapshot, "read"> & {
         /** Read through a method as a caller. */
         readonly query: <Result>(caller: AccessContext, call: Call<Result>) => Promise<Result>;
@@ -80,38 +84,45 @@ export type Runner = Pick<MethodContext, "now" | "self"> &
 /** The runners of a token source's work outside calls. */
 export const Runner = {
     /** Run as a store's principal now, each call batch its own request. */
-    of(store: Pick<ObjectStore, "clock" | "principal" | "database" | "query" | "mutate">): Runner {
-        const now = store.clock.now();
+    of(
+        store: Pick<ObjectStore, "environment" | "principal" | "database" | "query" | "mutate">,
+    ): Runner {
+        const now = store.environment.clock.now();
         const live = Snapshot.live(store.database);
 
         return {
             now,
+            environment: store.environment,
             self: AccessContext.of(Caller.of(store.principal), now),
             read: (table) => live.read(table),
             query: (caller, call) => store.query(caller, call),
-            mutate: (caller, calls) => store.mutate(caller, { id: RequestId.create(now), calls }),
+            mutate: (caller, calls) =>
+                store.mutate(caller, { id: RequestId.create(store.environment), calls }),
         };
-    },
-
-    /** Read the runner's time as a clock that waits on the system's. */
-    clock(runner: Pick<Runner, "now">): Clock {
-        return { ...Clock.system, now: () => runner.now };
     },
 };
 
+/** The owner of a vault secret: a connection, or an integration with its client secret. */
+const SecretOwner = schema.union([
+    schema.identifier("connection"),
+    schema.identifier("integration"),
+]);
+
 /** The tokens of connections: obtained and refreshed by the controller, read by leases. */
 export class TokenSource {
-    /** The consumer, fetch and home the tokens come through. */
+    /** The consumer, fetch and primary the tokens come through. */
     readonly options: TokenSourceOptions;
 
-    /** Source tokens with the consumer, fetch and home. */
+    /** Source tokens with the consumer, fetch and primary. */
     constructor(options: TokenSourceOptions) {
         this.options = options;
     }
 
     /** Derive the vault secret of a connection or integration from its identifier. */
     static secret(id: string): Identifier<"secret"> {
-        return schema.identifier("secret").parse(`secret-${id.slice(id.indexOf("-") + 1)}`);
+        const owner = SecretOwner.parse(id);
+
+        return Identifier.derive("secret", Identifier.uuid(owner));
     }
 
     /** Store a connection's or integration's secret in a vault, bound to the consumer. */
@@ -127,7 +138,6 @@ export class TokenSource {
                 secret: TokenSource.secret(id),
                 name: id,
                 value: { encoding: "text", value },
-                consumer: this.options.consumer,
             }),
         ]);
     }
@@ -141,7 +151,7 @@ export class TokenSource {
             await runner.query(caller, secret.call("read", target)),
         );
 
-        return Secret.text({ read: async () => reading });
+        return SecretReading.text(reading);
     }
 
     /** Remove a connection's or integration's secret from its vault. */
@@ -150,7 +160,6 @@ export class TokenSource {
             vault.call("remove", {
                 ...TokenSource.#vault(reference),
                 secret: TokenSource.secret(id),
-                consumer: this.options.consumer,
             }),
         ]);
     }
@@ -164,9 +173,9 @@ export class TokenSource {
     async current(runner: Runner, row: Connection, now: number): Promise<Credential> {
         // refuse a connection whose controller has yet to obtain its first token
         if (row.storedAt === null) {
-            throw new ConnectionError(
-                "UNAVAILABLE",
-                `connection ${row.id} has no token yet, which its controller obtains`,
+            throw ConnectionError.of(
+                "TOKEN_PENDING",
+                `connection ${row.id} has no token yet, which its controller will obtain`,
             );
         }
 
@@ -174,49 +183,44 @@ export class TokenSource {
         const credential = await this.read(runner, row);
         const expiresAt = credential.token?.expiresAt;
         if (expiresAt !== undefined && expiresAt <= now) {
-            throw new ConnectionError(
-                "UNAVAILABLE",
-                `connection ${row.id} has a lapsed token, which its controller refreshes`,
+            throw ConnectionError.of(
+                "TOKEN_EXPIRED",
+                `connection ${row.id} has an expired token, which its controller will refresh`,
             );
         }
 
         return credential;
     }
 
-    /** Read a connection's credential from its vault, refusing a connection that has none. */
+    /** Read a connection's stored credential from its vault. */
     async read(
         runner: Runner,
         row: {
             readonly id: string;
             readonly vault: ObjectReference;
-            readonly storedAt: number | null;
         },
     ): Promise<Credential> {
-        // refuse a connection whose vault has no credential
-        if (row.storedAt === null) {
-            throw new ConnectionError("UNAUTHORIZED", `connection ${row.id} has no credential`);
-        }
-
         return Credential.read(await this.readSecret(runner, row.vault, row.id));
     }
 
-    /** Read an integration as client: here with its vault's secret, or through its home. */
+    /** Read an integration as client: here with its vault's secret, or through its primary. */
     async integration(
         runner: Runner,
         reference: ObjectReference | null,
     ): Promise<IntegrationClient> {
-        // request a replica's tokens through its home, which alone reads its secret
+        // request a replica's tokens through its primary, which alone reads its secret
         const row = await TokenSource.find(runner, reference);
         if (await Replica.isReplicated(runner, row.scope, integration.table)) {
-            const home = await this.#home(runner, row.scope);
+            const primary = await this.#primary(runner, row.scope);
             return {
                 integration: row,
-                server: new HomeClient(
+                server: new AuthorizationProxy(
                     row,
                     integration.reference(row.scope, row.id),
-                    present(home, `the home of ${row.scope}`),
+                    present(primary, `the primary of ${row.scope}`),
                     this.options.fetch,
-                    Runner.clock(runner),
+                    runner.now,
+                    this.options.environment,
                 ),
             };
         }
@@ -231,9 +235,9 @@ export class TokenSource {
         const row = await TokenSource.find(runner, reference);
         const issued = row.issuer;
         if (issued.kind !== "installation") {
-            throw new ConnectionError(
-                "INVALID_AUTHORIZATION",
-                `integration ${row.clientId} has its tokens from ${issued.url}, not an installation`,
+            throw ConnectionError.of(
+                "ISSUER_NOT_INSTALLATION",
+                `integration ${row.clientId} gets its tokens from ${issued.url}, not an installation`,
             );
         }
 
@@ -246,6 +250,7 @@ export class TokenSource {
                 url: `${at.url}${PackageMount.path(issued.package.id)}`,
                 fetch: (request) => at.fetch(request),
             },
+            this.options.environment,
         );
         const target = { spaceId: issued.issuer.scope, id: issued.issuer.id };
         const call = (method: string, input: object) =>
@@ -256,10 +261,18 @@ export class TokenSource {
             issue: async (installation: string) =>
                 Token.parse(await call("issue", { installation })),
             uninstall: async (installation: string) => {
-                await call("uninstall", { installation });
+                await call("uninstall", {
+                    installation,
+                    requestId: RequestId.create(runner.environment),
+                });
             },
             installation: async (parameters: Readonly<Record<string, string>>) =>
-                IssuedInstallation.parse(await call("installation", { parameters })).installation,
+                IssuedInstallation.parse(
+                    await call("installation", {
+                        parameters,
+                        requestId: RequestId.create(runner.environment),
+                    }),
+                ).installation,
         };
     }
 
@@ -270,10 +283,7 @@ export class TokenSource {
     ): Promise<Integration> {
         // require the integration
         if (reference === null) {
-            throw new ConnectionError(
-                "INVALID_AUTHORIZATION",
-                "the connection lacks an integration",
-            );
+            throw ConnectionError.of("INTEGRATION_REQUIRED", "the connection has no integration");
         }
         const row = await runner.read(integration.table).findFirst({
             where: {
@@ -281,9 +291,9 @@ export class TokenSource {
             },
         });
         if (row === undefined || row.scope !== reference.scope) {
-            throw new ConnectionError(
-                "INVALID_AUTHORIZATION",
-                `no integration ${reference.id} in ${reference.scope}`,
+            throw ConnectionError.of(
+                "INTEGRATION_NOT_FOUND",
+                `integration ${reference.id} not found in ${reference.scope}`,
             );
         }
 
@@ -292,7 +302,7 @@ export class TokenSource {
 
     /** Address a stored integration's server as its client, with its vault's secret. */
     async local(runner: Runner, row: Integration): Promise<AuthorizationServer> {
-        return this.server(row, await this.#secret(runner, row), Runner.clock(runner));
+        return this.server(row, await this.#secret(runner, row), runner.now);
     }
 
     /** Register a client in a scope at a resource's authorization server. */
@@ -305,12 +315,12 @@ export class TokenSource {
         },
         runner: Runner,
     ): Promise<Integration> {
-        // register at the scope's home, else here
-        const home = await this.#home(runner, scope);
-        if (home !== undefined) {
-            return home.integration.register({
+        // register at the scope's primary, else here
+        const primary = await this.#primary(runner, scope);
+        if (primary !== undefined) {
+            return primary.integration.register({
                 scope,
-                requestId: RequestId.create(runner.now),
+                requestId: RequestId.create(runner.environment),
                 ...request,
             });
         }
@@ -339,31 +349,33 @@ export class TokenSource {
     async observe(
         runner: Runner,
         row: Connection,
-        authorized: Condition,
+        authorized: Authorized,
         fields: Readonly<Record<string, JsonValue>>,
     ): Promise<void> {
         // read the connection at its current revision
         const current = await runner.read(connection.table).findFirst({ where: { id: row.id } });
         if (current === undefined) {
-            throw new ConnectionError("UNAUTHORIZED", `connection ${row.id} is gone`);
+            throw ConnectionError.of("CONNECTION_NOT_FOUND", `connection ${row.id} is gone`);
         }
 
-        // observe it at that revision
+        // observe it at that revision, never over a revocation, which its controller then withdraws
+        const isRevoked = Connection.authorized(current) === "Revoked";
+        const condition = isRevoked ? REVOKED : authorized;
         await runner.mutate(runner.self, [
             connection.call("observe", {
                 ...connection.target(current),
                 observedGeneration: current.generation,
-                conditions: { Authorized: authorized },
+                conditions: { Authorized: condition },
                 fields,
             }),
         ]);
     }
 
-    /** Address an integration's server as its client, with its secret or public, on a clock. */
+    /** Address an integration's server as its client, with its secret or public, at a time. */
     server(
         row: Pick<Integration, "issuer" | "endpoints" | "clientId" | "authentication">,
         clientSecret: string | undefined,
-        clock: Clock,
+        now: number,
     ): AuthorizationServer {
         return new AuthorizationServer({
             issuer: IntegrationIssuer.url(row.issuer),
@@ -374,41 +386,54 @@ export class TokenSource {
                 ...(clientSecret === undefined ? {} : { secret: clientSecret }),
             },
             fetch: this.options.fetch,
-            clock,
+            now,
+            environment: this.options.environment,
         });
     }
 
-    /** Decide whether this space stores the integrations of a scope's account, as its home. */
-    isHome(chain: readonly string[]): boolean {
+    /** Decide whether this space stores the integrations of a scope's account, as its primary. */
+    isPrimary(chain: readonly string[]): boolean {
         const [scope, enclosing] = chain;
         const accountId = scope !== undefined && account.identifies(scope) ? scope : enclosing;
 
         return accountId !== undefined && Account.home(accountId) === this.options.consumer.scope;
     }
 
-    /** Connect to the connections at a scope's home, absent where this space is the home. */
-    async #home(
+    /** Connect to the connections at a scope's primary, absent where this space is the primary. */
+    async #primary(
         view: Pick<Snapshot, "read">,
         scope: string,
     ): Promise<ClientOf<typeof connectionPackage> | undefined> {
         // store this space's own integrations here
-        const home = await Account.homeOf(view, scope);
-        if (home === this.options.consumer.scope) {
+        const primary = await Account.homeOf(view, scope);
+        if (primary === this.options.consumer.scope) {
             return undefined;
         }
 
-        // call the connection installation at the home through the egress
-        const at = this.options.at(Egress.address(CONNECTION_INSTALLATION, home));
+        // call the connection installation at the primary through the egress
+        const at = this.options.at(Egress.address(CONNECTION_INSTALLATION, primary));
 
-        return createClient(connectionPackage, {
-            url: `${at.url}${PackageMount.path(connectionPackage.id)}`,
-            fetch: (request) => at.fetch(request),
-        });
+        return createClient(
+            connectionPackage,
+            {
+                url: `${at.url}${PackageMount.path(connectionPackage.id)}`,
+                fetch: (request) => at.fetch(request),
+            },
+            this.options.environment,
+        );
     }
 
     /** Read a stored integration's secret from its vault, absent for a public client. */
     async #secret(runner: Runner, row: Integration): Promise<string | undefined> {
         return row.vault === null ? undefined : this.readSecret(runner, row.vault, row.id);
+    }
+
+    /** Report whether a failure ends a person's grant, refused or without a refresh token. */
+    static isGrantExpired(error: unknown): boolean {
+        return (
+            OAuthRefusal.code(error) === "invalid_grant" ||
+            ConnectionError.is(error, "REFRESH_TOKEN_MISSING")
+        );
     }
 
     /** Obtain and store a new token, marking the connection authorized or its grant expired. */
@@ -419,7 +444,7 @@ export class TokenSource {
         try {
             token = await this.#obtain(runner, row, credential, now);
         } catch (error) {
-            if (error instanceof ConnectionError && error.error === "invalid_grant") {
+            if (TokenSource.isGrantExpired(error)) {
                 const message = "the authorization server refused the grant; authorize again";
                 await this.observe(
                     runner,
@@ -448,6 +473,7 @@ export class TokenSource {
                 expiresAt: token.expiresAt ?? null,
                 scopes: token.scopes ?? row.scopes,
                 storedAt: now,
+                failures: 0,
             },
         );
 
@@ -511,7 +537,7 @@ export class TokenSource {
         // sign an assertion with the connection's key and present it
         const material = credential.material;
         if (material?.kind !== "jwt") {
-            throw new ConnectionError("UNAUTHORIZED", "the connection lacks a signing key");
+            throw ConnectionError.of("CREDENTIAL_MISSING", "the connection has no signing key");
         }
         const assertion = await Assertion.sign(
             {
@@ -522,6 +548,7 @@ export class TokenSource {
                 ...scopeParameter(row),
             },
             now,
+            this.options.environment,
         );
 
         return server.token({ grant_type: JWT_BEARER, assertion, ...scopeParameter(row) });
@@ -540,9 +567,9 @@ export class TokenSource {
         );
         const token = (await this.current(runner, row, now)).token;
         if (token === undefined) {
-            throw new ConnectionError(
-                "UNAUTHORIZED",
-                `connection ${reference.id} lacks an access token`,
+            throw ConnectionError.of(
+                "CREDENTIAL_MISSING",
+                `connection ${reference.id} has no access token`,
             );
         }
 
@@ -559,10 +586,9 @@ function refreshGrant(
     // require the refresh token, asking a person to authorize again without one
     const refreshToken = credential.token?.refreshToken;
     if (refreshToken === undefined) {
-        throw new ConnectionError(
-            "REFUSED",
-            "the connection holds no refresh token; authorize again",
-            { error: "invalid_grant" },
+        throw ConnectionError.of(
+            "REFRESH_TOKEN_MISSING",
+            "the connection has no refresh token: authorize again",
         );
     }
 
@@ -581,7 +607,10 @@ function scopeParameter(row: Connection): { readonly scope?: string } {
 /** Require the installation a connection authorized. */
 function requireSubject(row: Connection): string {
     if (row.subject === null) {
-        throw new ConnectionError("UNAUTHORIZED", `connection ${row.id} is installed nowhere yet`);
+        throw ConnectionError.of(
+            "CONNECTION_NOT_INSTALLED",
+            `connection ${row.id} is not installed yet`,
+        );
     }
 
     return row.subject;

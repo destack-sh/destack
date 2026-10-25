@@ -5,8 +5,8 @@ import {
     type ResultOf,
     StatusCondition,
 } from "@destack/object";
+import { RetryPolicy } from "@destack/environment";
 import { nth, present } from "@destack/schema";
-import { CallError } from "@destack/object";
 import { ConnectionError } from "../error/error.ts";
 import { authorizationRequest } from "../object/authorization-request.ts";
 import { Credential } from "../credential/credential.ts";
@@ -14,23 +14,30 @@ import {
     Connection,
     type ConnectionKind,
     connection,
+    type AuthorizedReason,
     type Lease,
-    Withdrawal,
+    REVOKED,
 } from "../object/connection.ts";
 import { PERSON_KINDS, REFRESH_MARGIN, SUPPLIED_KINDS, TokenSource, Runner } from "./token.ts";
 import { ConnectionAuthorization } from "./authorization.ts";
 
-/** How long a connection waits to try again after its server failed to answer: a minute. */
-const RETRY_MILLISECONDS = 60_000;
+/** How failed refreshes retry: 5 s doubling to 15 min with full jitter, as message's sends do. */
+const RETRY = RetryPolicy.of({
+    initialInterval: 5_000,
+    maximumInterval: 15 * 60_000,
+    jitter: "full",
+});
 
 /** Implement connections. */
 export function implementConnection(tokens: TokenSource): typeof connection {
+    const authorization = new ConnectionAuthorization(tokens);
+
     return connection.implement({
         methods: {
             create: {
                 authorize: async (context) => {
-                    // require the home, client, vault and exchange source the connection's kind needs
-                    requireHome(context.input.protocol.kind, context.chain, tokens);
+                    // require the space, client, vault and exchange source the connection's kind needs
+                    requireInstallable(context.input.protocol.kind, context.chain, tokens);
                     requireClient(context.input);
                     Credential.requireVault(context.input.vault, context.scope);
                     await Connection.requireSource(context);
@@ -52,28 +59,21 @@ export function implementConnection(tokens: TokenSource): typeof connection {
             },
             authorize: {
                 authorize: async (context) => requireOpen(context.target),
-                prepare: (context) => ConnectionAuthorization.start(context, tokens),
-                handle: (context) => ConnectionAuthorization.started(context),
+                prepare: (context) => authorization.start(context),
+                handle: (context) => authorization.started(context),
             },
             complete: {
-                prepare: (context) => ConnectionAuthorization.exchange(context, tokens),
-                handle: (context) => ConnectionAuthorization.complete(context),
+                prepare: (context) => authorization.exchange(context),
+                handle: (context) => authorization.complete(context),
             },
             revoke: {
                 authorize: async (context) => requireOpen(context.target),
-                prepare: async (context) => withdrawal(context.target),
                 handle: (context) => revoke(context),
-                settle: async (context, settled) => {
-                    // withdraw the tokens once the revocation committed
-                    if (settled.status === "committed") {
-                        await withdraw(context, settled.prepared, tokens);
-                    }
-                },
             },
         },
         controller: {
             pending: {},
-            reconcile: (reconciliation) => reconcile(reconciliation, tokens),
+            reconcile: (reconciliation) => reconcile(reconciliation, tokens, authorization),
         },
     });
 }
@@ -90,11 +90,12 @@ async function storeMaterial(
         isSupplied !== (material !== undefined) ||
         (material !== undefined && material.kind !== protocol.kind)
     ) {
-        throw new CallError("BAD_REQUEST", {
-            message: isSupplied
+        throw ConnectionError.of(
+            "MATERIAL_MISMATCH",
+            isSupplied
                 ? `a ${protocol.kind} connection is created with its ${protocol.kind} material`
                 : `a ${protocol.kind} connection is authorized, never created with material`,
-        });
+        );
     }
 
     // store the material
@@ -110,26 +111,17 @@ async function storeMaterial(
 async function lease(row: Connection, tokens: TokenSource, runner: Runner): Promise<Lease> {
     // require an authorized connection
     if (row.conditions["Authorized"]?.status !== "true") {
-        throw new ConnectionError("UNAUTHORIZED", `connection ${row.id} is unauthorized`);
+        throw ConnectionError.of(
+            "CONNECTION_NOT_AUTHORIZED",
+            `connection ${row.id} is not authorized`,
+        );
     }
     const credential = await tokens.current(runner, row, runner.now);
 
     return { protocol: row.protocol, credential };
 }
 
-/** Describe the credential a revocation withdraws, without the credential itself. */
-function withdrawal(target: Connection): Withdrawal {
-    return {
-        id: target.id,
-        protocol: target.protocol,
-        vault: target.vault,
-        integration: target.integration,
-        subject: target.subject,
-        storedAt: target.storedAt,
-    };
-}
-
-/** Mark a connection revoked. */
+/** Mark a connection revoked, leaving its credential for its controller to withdraw. */
 async function revoke(
     context: MethodContextOf<typeof connection, "revoke">,
 ): Promise<ResultOf<typeof connection, "revoke">> {
@@ -137,25 +129,19 @@ async function revoke(
 
     return context.updateStatus({
         expiresAt: null,
-        storedAt: null,
         conditions: {
             ...target.conditions,
             Authorized: StatusCondition.observe(
                 target.conditions["Authorized"],
-                {
-                    status: "false",
-                    reason: "Revoked",
-                    message: "revoked",
-                    observedGeneration: target.generation,
-                },
+                { ...REVOKED, observedGeneration: target.generation },
                 context.now,
             ),
         },
     });
 }
 
-/** Revoke a revocation's tokens at their server or uninstall its integration, then destroy it. */
-async function withdraw(runner: Runner, withdrawn: Withdrawal, tokens: TokenSource): Promise<void> {
+/** Revoke a connection's tokens at their server or uninstall its integration, then destroy them. */
+async function withdraw(runner: Runner, withdrawn: Connection, tokens: TokenSource): Promise<void> {
     // read the credential the vault stores, none before the first was stored
     const isRetained = withdrawn.storedAt !== null;
     const token = isRetained ? (await tokens.read(runner, withdrawn)).token : undefined;
@@ -174,28 +160,27 @@ async function withdraw(runner: Runner, withdrawn: Withdrawal, tokens: TokenSour
     }
 
     // remove the stored credential
-    if (isRetained) {
-        await tokens.remove(runner, withdrawn.vault, withdrawn.id);
-    }
+    await tokens.remove(runner, withdrawn.vault, withdrawn.id);
 }
 
 /** Renew a connection's credential before it lapses. */
 async function reconcile(
     reconciliation: ObjectReconciliation<typeof connection>,
     tokens: TokenSource,
+    authorization: ConnectionAuthorization,
 ): Promise<number | undefined> {
     // read the key's one connection at its current revision
     const { now } = reconciliation;
     const runner = Runner.of(reconciliation.store);
-    const [read] = await reconciliation.database
+    const [current] = await reconciliation.database
         .select()
         .from(connection.table)
         .where(eq(connection.table.id, nth(reconciliation.rows, 0).id));
-    if (read === undefined) {
+    if (current === undefined) {
         return undefined;
     }
-    const current = read;
-    const authorized = current.conditions["Authorized"];
+    const reason = Connection.authorized(current);
+    const isAuthorized = current.conditions["Authorized"]?.status === "true";
     const kind = current.protocol.kind;
 
     // destroy a deleted connection's credential before it goes
@@ -204,25 +189,34 @@ async function reconcile(
 
         return undefined;
     }
-    // leave a revoked connection
-    else if (authorized?.reason === "Revoked") {
+    // withdraw a revoked connection's credential once, then leave it
+    else if (reason === "Revoked") {
+        if (current.storedAt !== null) {
+            await withdraw(runner, current, tokens);
+            await tokens.observe(runner, current, REVOKED, { storedAt: null });
+        }
+
         return undefined;
     }
     // mark supplied material authorized
     else if (SUPPLIED_KINDS.has(kind)) {
-        if (authorized?.status !== "true") {
-            const supplied = { status: "true" as const, reason: "Supplied", message: "" };
-            await tokens.observe(runner, current, supplied, {});
+        if (!isAuthorized) {
+            await tokens.observe(
+                runner,
+                current,
+                { status: "true", reason: "Supplied", message: "" },
+                {},
+            );
         }
 
         return undefined;
     }
     // poll a device authorization or wait for a person to authorize the others
-    else if (PERSON_KINDS.has(kind) && authorized?.status !== "true") {
-        return awaitPerson(reconciliation, current, tokens);
+    else if (PERSON_KINDS.has(kind) && isAwaitingPerson(reason)) {
+        return awaitPerson(reconciliation, current, tokens, authorization);
     }
     // obtain or refresh a token before it expires
-    else if (authorized?.reason !== "Expired") {
+    else if (reason !== "Expired") {
         return renewToken(runner, current, tokens, now);
     }
     // leave an expired grant for a person to authorize again
@@ -231,14 +225,13 @@ async function reconcile(
     }
 }
 
-/** Destroy a deleted connection's credential, then let it go. */
+/** Withdraw a deleted connection's credential as a revocation does, then let it go. */
 async function finalize(
     reconciliation: ObjectReconciliation<typeof connection>,
     current: Connection,
     tokens: TokenSource,
 ): Promise<void> {
-    // remove the credential, then let the connection go
-    await tokens.remove(Runner.of(reconciliation.store), current.vault, current.id);
+    await withdraw(Runner.of(reconciliation.store), current, tokens);
     await reconciliation.mutate([connection.call("finalize", connection.target(current))]);
 }
 
@@ -247,6 +240,7 @@ async function awaitPerson(
     reconciliation: ObjectReconciliation<typeof connection>,
     current: Connection,
     tokens: TokenSource,
+    authorization: ConnectionAuthorization,
 ): Promise<number | undefined> {
     // poll a pending device authorization
     const [request] = await reconciliation.database
@@ -259,13 +253,13 @@ async function awaitPerson(
             ),
         );
     if (request !== undefined) {
-        return ConnectionAuthorization.poll(reconciliation, current, request, tokens);
+        return authorization.poll(reconciliation, current, request);
     }
 
     // mark the connection pending until a person authorizes it
     if (current.conditions["Authorized"] === undefined) {
         const message = "waiting for a person to authorize the connection";
-        const pending = { status: "false" as const, reason: "Pending", message };
+        const pending = { status: "false", reason: "Pending", message } as const;
         await tokens.observe(Runner.of(reconciliation.store), current, pending, {});
     }
 
@@ -308,30 +302,45 @@ async function refresh(
 
         return expiresAt === undefined ? undefined : Math.max(0, expiresAt - REFRESH_MARGIN - now);
     } catch (error) {
-        // leave an expired grant for a person and retry other failures
-        if (!(error instanceof ConnectionError)) {
+        // pass on a failure that is no connection refusal
+        if (!ConnectionError.is(error)) {
             throw error;
-        } else if (error.error !== "invalid_grant") {
-            await tokens.observe(
-                runner,
-                row,
-                { status: "false", reason: "Failing", message: error.message },
-                {},
-            );
-
-            return RETRY_MILLISECONDS;
         }
+        // retry a failure besides a refused grant, keeping a token that has not lapsed leasable
+        else if (!TokenSource.isGrantExpired(error)) {
+            const failures = row.failures + 1;
+            const isLive = row.storedAt !== null && row.expiresAt !== null && row.expiresAt > now;
+            const status = isLive ? "true" : "false";
+            const failing = { status, reason: "Failing", message: error.message } as const;
+            await tokens.observe(runner, row, failing, { failures });
 
-        return undefined;
+            const drawn = RetryPolicy.draw(`${row.id} ${failures}`);
+
+            return Math.ceil(RetryPolicy.interval(RETRY, failures, () => drawn));
+        }
+        // leave a refused grant expired, for a person to authorize again
+        else {
+            return undefined;
+        }
     }
 }
 
-/** Refuse an installation connection outside its account's home, where its integration lives. */
-function requireHome(kind: ConnectionKind, chain: readonly string[], tokens: TokenSource): void {
-    if (kind === "installation" && !tokens.isHome(chain)) {
-        throw new CallError("BAD_REQUEST", {
-            message: "installation connections live at their integration's home",
-        });
+/** Report whether a connection waits for a person: never authorized, pending, or denied. */
+function isAwaitingPerson(reason: AuthorizedReason | undefined): boolean {
+    return reason === undefined || reason === "Pending" || reason === "Denied";
+}
+
+/** Refuse an installation connection outside its integration's primary. */
+function requireInstallable(
+    kind: ConnectionKind,
+    chain: readonly string[],
+    tokens: TokenSource,
+): void {
+    if (kind === "installation" && !tokens.isPrimary(chain)) {
+        throw ConnectionError.of(
+            "PRIMARY_REQUIRED",
+            "installation connections belong to their integration's primary",
+        );
     }
 }
 
@@ -345,18 +354,18 @@ function requireClient(input: MethodContextOf<typeof connection, "create">["inpu
 
     // refuse a missing client
     if (!SUPPLIED_KINDS.has(protocol.kind) && !hasClient) {
-        throw new CallError("BAD_REQUEST", {
-            message:
-                protocol.kind === "authorization-code"
-                    ? "an authorization-code connection needs an integration, or a resource whose server registers its client"
-                    : `a ${protocol.kind} connection needs its integration`,
-        });
+        throw ConnectionError.of(
+            "INTEGRATION_REQUIRED",
+            protocol.kind === "authorization-code"
+                ? "an authorization-code connection needs an integration, or a resource whose server registers its client"
+                : `a ${protocol.kind} connection needs its integration`,
+        );
     }
 }
 
 /** Refuse to authorize or revoke a revoked connection. */
 function requireOpen(target: Connection): void {
-    if (target.conditions["Authorized"]?.reason === "Revoked") {
-        throw new CallError("CONFLICT", { message: `connection ${target.id} is revoked` });
+    if (Connection.authorized(target) === "Revoked") {
+        throw ConnectionError.of("CONNECTION_REVOKED", `connection ${target.id} is revoked`);
     }
 }

@@ -1,41 +1,72 @@
-import type { DomainError, CallErrorCode, Failure } from "@destack/error";
+import { defineErrorFamily, type ReasonOf } from "@destack/error";
+import { schema } from "@destack/schema";
+import type {} from "@destack/package/import-meta";
 
-/** The call error code of each connection failure. */
-const CALL_CODES = {
-    REFUSED: "BAD_GATEWAY",
-    INVALID_RESPONSE: "BAD_GATEWAY",
-    UNREACHABLE: "BAD_GATEWAY",
-    INVALID_AUTHORIZATION: "BAD_REQUEST",
-    UNAUTHORIZED: "PRECONDITION_FAILED",
-    UNSUPPORTED: "PRECONDITION_FAILED",
-    UNAVAILABLE: "SERVICE_UNAVAILABLE",
-} as const satisfies Readonly<Record<string, CallErrorCode>>;
+/** An authorization server's refusal: its OAuth error code (RFC 6749 5.2). */
+const oauthRefusal = schema.object({
+    /** The OAuth error code, such as invalid_grant or authorization_pending. */
+    error: schema.string(),
+});
 
-/** A failure code of connections. */
-export type ConnectionErrorCode = keyof typeof CALL_CODES;
+/** An authorization server's refusal, and the code a failure carries of one. */
+export const OAuthRefusal = Object.assign(oauthRefusal, {
+    /** Read the OAuth error code a server refused with, absent for other failures. */
+    code(error: unknown): string | undefined {
+        return ConnectionError.is(error, "AUTHORIZATION_REFUSED") ? error.data.error : undefined;
+    },
+});
+/** An authorization server's refusal. */
+export type OAuthRefusal = schema.Infer<typeof oauthRefusal>;
 
-/** A failure of a connection or its authorization server, which never includes a credential. */
-export class ConnectionError extends Error implements DomainError {
-    /** The stable failure code. */
-    readonly code: ConnectionErrorCode;
-    /** The authorization server's OAuth error code (RFC 6749 5.2), absent for other failures. */
-    readonly error: string | undefined;
+/** The connection package's failures, each reason with the call error code it answers. */
+export const ConnectionError = defineErrorFamily(import.meta.destack.package, {
+    // bad request
+    AUTHORIZATION_INVALID: { code: "BAD_REQUEST" },
+    AUTHORIZATION_UNSUPPORTED: { code: "BAD_REQUEST" },
+    INTEGRATION_REQUIRED: { code: "BAD_REQUEST" },
+    MATERIAL_MISMATCH: { code: "BAD_REQUEST" },
+    REDIRECT_URI_REQUIRED: { code: "BAD_REQUEST" },
+    REDIRECT_URI_UNREGISTERED: { code: "BAD_REQUEST" },
+    SECRET_UNSUPPORTED: { code: "BAD_REQUEST" },
+    SECRET_VAULT_MISMATCH: { code: "BAD_REQUEST" },
+    SIGNING_KEY_INVALID: { code: "BAD_REQUEST" },
+    VAULT_FOREIGN: { code: "BAD_REQUEST" },
 
-    /** Report a failure and its cause, with the server's OAuth error code for a refusal. */
-    constructor(
-        code: ConnectionErrorCode,
-        message: string,
-        options: { readonly error?: string; readonly cause?: unknown } = {},
-    ) {
-        // take the code, the authorization server's error and the cause
-        super(message, "cause" in options ? { cause: options.cause } : {});
-        this.name = "ConnectionError";
-        this.code = code;
-        this.error = options.error;
-    }
+    // forbidden
+    EXCHANGE_SOURCE_FOREIGN: { code: "FORBIDDEN" },
+    PRIMARY_REQUIRED: { code: "FORBIDDEN" },
+    SESSION_MISMATCH: { code: "FORBIDDEN" },
+    SESSION_REQUIRED: { code: "FORBIDDEN" },
 
-    /** Convert the failure to the call error a caller receives. */
-    toCallError(): Failure {
-        return { code: CALL_CODES[this.code], message: this.message };
-    }
-}
+    // not found
+    AUTHORIZATION_NOT_FOUND: { code: "NOT_FOUND" },
+    CONNECTION_NOT_FOUND: { code: "NOT_FOUND" },
+    INTEGRATION_NOT_FOUND: { code: "NOT_FOUND" },
+
+    // conflict
+    CLIENT_SECRET_MISSING: { code: "CONFLICT" },
+    CONNECTION_NOT_AUTHORIZED: { code: "CONFLICT" },
+    CONNECTION_NOT_INSTALLED: { code: "CONFLICT" },
+    CONNECTION_REVOKED: { code: "CONFLICT" },
+    CREDENTIAL_MISSING: { code: "CONFLICT" },
+    ENDPOINT_MISSING: { code: "CONFLICT" },
+    INSTALLATION_PAGE_MISSING: { code: "CONFLICT" },
+    ISSUER_NOT_INSTALLATION: { code: "CONFLICT" },
+    ISSUER_NOT_SERVER: { code: "CONFLICT" },
+    REFRESH_TOKEN_MISSING: { code: "CONFLICT" },
+    REGISTRATION_UNSUPPORTED: { code: "CONFLICT" },
+    VAULT_REQUIRED: { code: "CONFLICT" },
+
+    // bad gateway
+    AUTHORIZATION_REFUSED: { code: "BAD_GATEWAY", data: OAuthRefusal },
+    RESPONSE_INVALID: { code: "BAD_GATEWAY" },
+    SERVER_FAILED: { code: "BAD_GATEWAY" },
+    SERVER_UNREACHABLE: { code: "BAD_GATEWAY" },
+
+    // service unavailable
+    TOKEN_EXPIRED: { code: "SERVICE_UNAVAILABLE" },
+    TOKEN_PENDING: { code: "SERVICE_UNAVAILABLE" },
+});
+
+/** A stable cause of connection failures. */
+export type ConnectionReason = ReasonOf<typeof ConnectionError>;

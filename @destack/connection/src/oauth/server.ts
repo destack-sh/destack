@@ -1,10 +1,11 @@
 import { nth, Duration, schema } from "@destack/schema";
 import type { Fetch } from "@destack/object";
+import type { Environment } from "@destack/environment";
 import type { Token } from "../credential/credential.ts";
+import type { FamilyError } from "@destack/error";
 import { ConnectionError } from "../error/error.ts";
 import type { AuthorizationEndpoints, ClientAuthentication } from "../object/integration.ts";
 import { Assertion } from "./assertion.ts";
-import { Clock } from "@destack/environment";
 
 /** The grant type of a JWT assertion presented for a token (RFC 7523 2.1). */
 export const JWT_BEARER = "urn:ietf:params:oauth:grant-type:jwt-bearer";
@@ -48,7 +49,7 @@ const DeviceResponse = schema.looseObject({
 /** Protected resource metadata (RFC 9728 2). */
 const ResourceMetadata = schema.looseObject({
     resource: schema.string().min(1),
-    authorization_servers: schema.array(schema.string().min(1)).min(1),
+    authorization_servers: schema.array(schema.url({ protocol: /^https$/u })).min(1),
 });
 
 /** Authorization server metadata (RFC 8414 2). */
@@ -138,23 +139,27 @@ export class AuthorizationServer implements AuthorizationClient {
     readonly client: Client;
     /** Send requests to the server. */
     readonly #fetch: Fetch;
-    /** The clock assertions are issued and tokens expire by. */
-    readonly #clock: Clock;
+    /** The time the work calling the server runs at, which dates assertions and token expiries. */
+    readonly #now: number;
+    /** The WebCrypto and randomness signing client assertions. */
+    readonly #environment: Pick<Environment, "crypto" | "random">;
 
-    /** Call a server as a client, on the system clock unless given another. */
+    /** Call a server as a client at the time of the work calling it. */
     constructor(options: {
         readonly issuer: string;
         readonly endpoints: AuthorizationEndpoints;
         readonly client: Client;
         readonly fetch: Fetch;
-        readonly clock: Clock;
+        readonly now: number;
+        readonly environment: Pick<Environment, "crypto" | "random">;
     }) {
-        // take the server, the client, the fetch and the clock
+        // take the server, the client, the fetch and the time
         this.issuer = options.issuer;
         this.endpoints = options.endpoints;
         this.client = options.client;
         this.#fetch = options.fetch;
-        this.#clock = options.clock;
+        this.#now = options.now;
+        this.#environment = options.environment;
     }
 
     /** Find a resource's authorization server (RFC 9728 3) and read its metadata (RFC 8414 3). */
@@ -172,9 +177,9 @@ export class AuthorizationServer implements AuthorizationClient {
             await readJson(fetch, new Request(metadataUrl.href)),
         );
         if (described.resource !== resource) {
-            throw new ConnectionError(
-                "INVALID_RESPONSE",
-                `${metadataUrl.origin} describes resource ${described.resource} for ${resource}`,
+            throw ConnectionError.of(
+                "RESPONSE_INVALID",
+                `expected resource ${resource} from ${metadataUrl.origin}, got ${described.resource}`,
             );
         }
 
@@ -187,9 +192,9 @@ export class AuthorizationServer implements AuthorizationClient {
         );
         const server = ServerMetadata.parse(await readJson(fetch, new Request(serverUrl.href)));
         if (server.issuer !== issuer) {
-            throw new ConnectionError(
-                "INVALID_RESPONSE",
-                `${serverUrl.origin} gives issuer ${server.issuer} instead of ${issuer}`,
+            throw ConnectionError.of(
+                "RESPONSE_INVALID",
+                `expected issuer ${issuer} from ${serverUrl.origin}, got ${server.issuer}`,
             );
         }
 
@@ -285,7 +290,7 @@ export class AuthorizationServer implements AuthorizationClient {
             ...(expiresIn === undefined
                 ? {}
                 : {
-                      expiresAt: this.#clock.now() + Duration.milliseconds({ seconds: expiresIn }),
+                      expiresAt: this.#now + Duration.milliseconds({ seconds: expiresIn }),
                   }),
             ...(answered.scope === undefined ? {} : { scopes: answered.scope.split(" ") }),
         };
@@ -359,7 +364,8 @@ export class AuthorizationServer implements AuthorizationClient {
                         audience: endpoint,
                         key: this.#secret(),
                     },
-                    this.#clock.now(),
+                    this.#now,
+                    this.#environment,
                 ),
             );
         } else {
@@ -373,9 +379,9 @@ export class AuthorizationServer implements AuthorizationClient {
     #secret(): string {
         const secret = this.client.secret;
         if (secret === undefined) {
-            throw new ConnectionError(
-                "INVALID_AUTHORIZATION",
-                `client ${this.client.clientId} authenticates with a secret it does not hold`,
+            throw ConnectionError.of(
+                "CLIENT_SECRET_MISSING",
+                `client ${this.client.clientId} has no secret to authenticate with`,
             );
         }
 
@@ -386,8 +392,8 @@ export class AuthorizationServer implements AuthorizationClient {
     #require(name: "authorization" | "token" | "deviceAuthorization"): string {
         const endpoint = this.endpoints[name];
         if (endpoint === undefined) {
-            throw new ConnectionError(
-                "INVALID_AUTHORIZATION",
+            throw ConnectionError.of(
+                "ENDPOINT_MISSING",
                 `authorization server ${this.issuer} has no ${name} endpoint`,
             );
         }
@@ -401,9 +407,13 @@ async function send(fetch: Fetch, request: Request): Promise<Response> {
     try {
         return await fetch(request);
     } catch (cause) {
-        throw new ConnectionError("UNREACHABLE", `${new URL(request.url).origin} did not answer`, {
-            cause,
-        });
+        throw ConnectionError.of(
+            "SERVER_UNREACHABLE",
+            `${new URL(request.url).origin} did not respond`,
+            {
+                cause,
+            },
+        );
     }
 }
 
@@ -419,22 +429,24 @@ async function readJson(fetch: Fetch, request: Request): Promise<unknown> {
     const origin = new URL(request.url).origin;
 
     return response.json().catch(() => {
-        throw new ConnectionError("INVALID_RESPONSE", `${origin} answered no JSON`);
+        throw ConnectionError.of("RESPONSE_INVALID", `${origin} answered with no JSON`);
     });
 }
 
 /** Read a request's error answer as the authorization server's OAuth error, or its status. */
-async function refusal(request: Request, response: Response): Promise<ConnectionError> {
+async function refusal(request: Request, response: Response): Promise<FamilyError> {
     // read the OAuth error of the body or else the status
     const body: unknown = await response.json().catch(() => undefined);
     const parsed = ErrorResponse.safeParse(body);
     const origin = new URL(request.url).origin;
 
     return parsed.success
-        ? new ConnectionError("REFUSED", parsed.data.error_description ?? parsed.data.error, {
-              error: parsed.data.error,
-          })
-        : new ConnectionError("REFUSED", `${origin} answered ${response.status}`);
+        ? ConnectionError.of(
+              "AUTHORIZATION_REFUSED",
+              parsed.data.error_description ?? parsed.data.error,
+              { data: { error: parsed.data.error } },
+          )
+        : ConnectionError.of("SERVER_FAILED", `${origin} responded with ${response.status}`);
 }
 
 /** Write a well-known suffix's path: the given path without a trailing slash, empty at the root. */

@@ -1,3 +1,4 @@
+import { none, principal, relation } from "@destack/access";
 import { defineObject } from "@destack/object";
 import { Package, PackageId } from "@destack/package";
 import { Issuer } from "../object/issuer.ts";
@@ -11,4 +12,14 @@ export const ISSUING: Package = {
 };
 
 /** The issuing package's issuers. */
-export const testIssuer = defineObject(Issuer.definition(), Issuer.methods, { package: ISSUING });
+export const testIssuer = defineObject(
+    Issuer.definition({
+        relations: {
+            // the connection installations that mint the app's tokens
+            consumer: { subjects: [principal.installation] },
+        },
+        permissions: { read: relation("consumer"), manage: none(), issue: relation("consumer") },
+    }),
+    Issuer.methods,
+    { package: ISSUING },
+);

@@ -11,6 +11,7 @@
         "./object": "./src/object/index.ts",
         "./server": "./src/server.ts",
         "./package": "./src/package.ts",
+        "./error": "./src/error/index.ts",
         "./signature": "./src/signature/index.ts",
         "./stack": "./src/stack/index.ts",
         "./test": "./src/test/index.ts"
@@ -30,15 +31,33 @@
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/sync": "workspace:*",
-        "@destack/vault": "workspace:*",
-        "jose": "6.2.12"
+        "@destack/vault": "workspace:*"
+    },
+    "peerDependencies": {
+        "@destack/event": "workspace:*",
+        "@destack/resource": "workspace:*",
+        "@destack/stack": "workspace:*",
+        "@destack/test": "workspace:*"
+    },
+    "peerDependenciesMeta": {
+        "@destack/event": {
+            "optional": true
+        },
+        "@destack/resource": {
+            "optional": true
+        },
+        "@destack/stack": {
+            "optional": true
+        },
+        "@destack/test": {
+            "optional": true
+        }
     },
     "devDependencies": {
         "@destack/event": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.2",
         "@destack/stack": "workspace:*",
-        "@destack/resource": "workspace:*",
-        "uuid": "14.0.2"
+        "@destack/resource": "workspace:*"
     }
 }

@@ -29,7 +29,7 @@ export const integrationShape = defineShape({
     queries: ({ id }) => [integration.query({ where: { id } })],
 });
 
-/** Follow each integration of another scope a live connection refers to, from its home. */
+/** Follow each integration of another scope a live connection refers to, from its primary. */
 export const integrationFollow = connection.follow(integrationShape, {
     where: { deletedAt: { isNull: true } },
     key: async (row) => {

@@ -1,3 +1,4 @@
+import type { Environment } from "@destack/environment";
 import type { ClientOf } from "@destack/object/client";
 import type { Token } from "../credential/credential.ts";
 import { ConnectionError } from "../error/error.ts";
@@ -13,10 +14,9 @@ import type connectionPackage from "../package.ts";
 import { schema } from "@destack/schema";
 import type { Fetch } from "@destack/object";
 import type { ObjectReference } from "@destack/sync";
-import type { Clock } from "@destack/environment";
 
-/** A replicated integration's client, which writes its authorization pages here. */
-export class HomeClient implements AuthorizationClient {
+/** The authorization server of a replicated integration, reached through its primary. */
+export class AuthorizationProxy implements AuthorizationClient {
     /** The issuer identifier. */
     readonly issuer: string;
     /** The endpoints. */
@@ -24,23 +24,24 @@ export class HomeClient implements AuthorizationClient {
     /** The integration. */
     readonly #reference: ObjectReference;
     /** The connections of the space storing the integration. */
-    readonly #home: ClientOf<typeof connectionPackage>;
+    readonly #primary: ClientOf<typeof connectionPackage>;
     /** The server as the public client writes its pages. */
     readonly #pages: AuthorizationServer;
 
-    /** Call a replicated integration's server through its home, on the store's clock. */
+    /** Call a replicated integration's server through its primary, at the time of the work. */
     constructor(
         row: Integration,
         reference: ObjectReference,
-        home: ClientOf<typeof connectionPackage>,
+        primary: ClientOf<typeof connectionPackage>,
         fetch: Fetch,
-        clock: Clock,
+        now: number,
+        environment: Pick<Environment, "crypto" | "random">,
     ) {
-        // take the server, the integration and its home
+        // take the server, the integration and its primary
         this.issuer = IntegrationIssuer.url(row.issuer);
         this.endpoints = row.endpoints;
         this.#reference = reference;
-        this.#home = home;
+        this.#primary = primary;
 
         // write pages as the public client, which needs no secret
         this.#pages = new AuthorizationServer({
@@ -48,7 +49,8 @@ export class HomeClient implements AuthorizationClient {
             endpoints: row.endpoints,
             client: { clientId: row.clientId, authentication: row.authentication },
             fetch,
-            clock,
+            now,
+            environment,
         });
     }
 
@@ -57,33 +59,33 @@ export class HomeClient implements AuthorizationClient {
         return this.#pages.authorizationUrl(request);
     }
 
-    /** Request a token through the home, refusing grants without possession. */
+    /** Request a token through the primary, refusing grants without possession. */
     async token(grant: Readonly<Record<string, string>>): Promise<Token> {
         const parsed = TokenGrant.safeParse(grant);
         if (!parsed.success) {
-            throw new ConnectionError(
-                "INVALID_AUTHORIZATION",
-                `a ${grant["grant_type"] ?? "missing"} grant proves no possession, so only the home of integration ${this.#reference.id} requests it`,
+            throw ConnectionError.of(
+                "PRIMARY_REQUIRED",
+                `only the primary of integration ${this.#reference.id} requests a ${grant["grant_type"] ?? "missing"} grant`,
             );
         }
 
-        return this.#home.integration.requestToken({ ...this.#target(), grant: parsed.data });
+        return this.#primary.integration.requestToken({ ...this.#target(), grant: parsed.data });
     }
 
-    /** Start a device authorization through the home. */
+    /** Start a device authorization through the primary. */
     authorizeDevice(
         scopes: readonly string[],
         resource: string | undefined,
     ): Promise<DeviceAuthorization> {
-        return this.#home.integration.authorizeDevice({
+        return this.#primary.integration.authorizeDevice({
             ...this.#target(),
             request: { scopes: [...scopes], ...(resource === undefined ? {} : { resource }) },
         });
     }
 
-    /** Revoke a token through the home. */
+    /** Revoke a token through the primary. */
     async revoke(token: string, hint: "refresh_token" | "access_token"): Promise<void> {
-        await this.#home.integration.revokeToken({
+        await this.#primary.integration.revokeToken({
             ...this.#target(),
             revocation: { token, hint },
         });

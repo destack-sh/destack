@@ -19,7 +19,7 @@ async function createKey(
 ) {
     const created = await fixture.objects
         .mutate(fixture.context().access(), {
-            id: RequestId.create(Date.now()),
+            id: RequestId.create(fixture.environment),
             calls: [
                 connection.call("create", {
                     scope: fixture.scope.id,
@@ -50,7 +50,7 @@ test("lease a connection to an installation's calls only while it is bound to th
         );
     const change = (name: "bindConsumer" | "releaseConsumer") =>
         fixture.objects.mutate(fixture.context().access(), {
-            id: RequestId.create(Date.now()),
+            id: RequestId.create(fixture.environment),
             calls: [
                 connection.call(name, {
                     ...connection.target({ scope: fixture.scope.id, id }),
@@ -64,7 +64,7 @@ test("lease a connection to an installation's calls only while it is bound to th
     await change("bindConsumer");
     const leased = [await lease(bridge), await lease(other)];
     await change("releaseConsumer");
-    const hidden = ["NOT_FOUND", `no scope ${fixture.scope.id}`];
+    const hidden = ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${fixture.scope.id} not found`];
 
     expect({ before, leased, reclaimed: await lease(bridge) }).toEqual({
         before: hidden,

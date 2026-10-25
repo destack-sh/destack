@@ -9,13 +9,14 @@ import { TokenSource } from "./server/token.ts";
 
 export * from "./server/index.ts";
 
-/** The connection package's server: connections, integrations and other homes' integrations. */
+/** The connection package's server: connections, integrations and other primaries' integrations. */
 export default implementPackage(connectionPackage, (context) => {
     // source tokens as the installation, through the host's network and egress
     const tokens = new TokenSource({
-        consumer: principal.installation.reference(context.space, context.installation),
+        consumer: principal.installation.reference(context.scope, context.installation),
         fetch: (request) => context.fetch(request),
         at: (address) => context.at(address),
+        environment: context.environment,
     });
 
     return {

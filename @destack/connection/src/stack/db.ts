@@ -7,5 +7,5 @@ export const connectionTables: readonly Table[] = [
     ...authorizationRequest.tables,
 ];
 
-/** The integration tables, which the owner's home space stores and the spaces below replicate. */
+/** The integration tables, stored at their primary and replicated by the spaces below. */
 export const integrationTables: readonly Table[] = [...integration.tables];

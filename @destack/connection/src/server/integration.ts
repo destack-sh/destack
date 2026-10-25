@@ -1,7 +1,6 @@
-import { anyone } from "@destack/access";
+import { anyone, type Creation, InstallationId, principal } from "@destack/access";
 import type { MethodContextOf, ResultOf } from "@destack/object";
 import { present } from "@destack/schema";
-import { CallError } from "@destack/object";
 import { Credential } from "../credential/credential.ts";
 import { ConnectionError } from "../error/error.ts";
 import { integration, type Registration } from "../object/integration.ts";
@@ -15,15 +14,8 @@ export function implementIntegration(tokens: TokenSource): typeof integration {
     return integration.implement({
         methods: {
             create: {
-                // relate anyone to a public integration as it is created
-                creation: (context) =>
-                    context.input.isPublic === true
-                        ? {
-                              relationships: [
-                                  { relation: "public", subject: anyone.reference("*", "*") },
-                              ],
-                          }
-                        : {},
+                // relate anyone to a public integration, and the installation issuing its tokens
+                creation: (context) => relate(context),
                 authorize: async (context) => requireSecretVault(context),
                 prepare: (context) => keepSecret(context, tokens),
                 handle: (_call, next) => next(),
@@ -76,20 +68,55 @@ export function implementIntegration(tokens: TokenSource): typeof integration {
     });
 }
 
+/** Relate anyone to a public integration, and the installation issuing its tokens. */
+async function relate(
+    context: MethodContextOf<typeof integration, "create", unknown>,
+): Promise<Creation> {
+    // relate anyone to a public one
+    const { input } = context;
+    const everyone =
+        input.isPublic === true
+            ? [{ relation: "public", subject: anyone.reference("*", "*") }]
+            : [];
+
+    // relate the installation an installation issuer declares in its space
+    const { issuer } = input;
+    const issuing =
+        issuer.kind === "installation"
+            ? [
+                  {
+                      relation: "issuer",
+                      subject: principal.installation.reference(
+                          issuer.issuer.scope,
+                          await InstallationId.declared(
+                              { id: issuer.issuer.scope },
+                              issuer.name,
+                              context.environment.crypto,
+                          ),
+                      ),
+                  },
+              ]
+            : [];
+
+    return { relationships: [...everyone, ...issuing] };
+}
+
 /** Require a confidential client's vault in the integration's scope, and a secret with a vault. */
 function requireSecretVault(context: MethodContextOf<typeof integration, "create", unknown>): void {
-    // refuse a secret of an installed app, whose issuer holds its key
+    // refuse a secret for an installed app
     const vault = context.input.vault ?? undefined;
     if (context.input.issuer.kind === "installation" && vault !== undefined) {
-        throw new CallError("BAD_REQUEST", {
-            message: "an installed app's issuer holds its key, so its integration has no secret",
-        });
+        throw ConnectionError.of(
+            "SECRET_UNSUPPORTED",
+            "an installed app's integration takes no client secret",
+        );
     }
     // require a vault exactly with a secret
     else if ((vault === undefined) !== (context.input.secret === undefined)) {
-        throw new CallError("BAD_REQUEST", {
-            message: "an integration stores its secret in a vault, and a vault only with a secret",
-        });
+        throw ConnectionError.of(
+            "SECRET_VAULT_MISMATCH",
+            "an integration needs a vault exactly when it has a secret",
+        );
     }
     // require the vault in the integration's scope
     else if (vault !== undefined) {
@@ -129,9 +156,9 @@ async function register(
     const { fetch } = tokens.options;
     const { issuer, endpoints } = await AuthorizationServer.discover(request.resource, fetch);
     if (endpoints.registration === undefined) {
-        throw new ConnectionError(
-            "INVALID_AUTHORIZATION",
-            `${issuer} registers no clients dynamically`,
+        throw ConnectionError.of(
+            "REGISTRATION_UNSUPPORTED",
+            `${issuer} does not register clients dynamically`,
         );
     }
 
@@ -155,9 +182,9 @@ async function register(
     // store the issued secret in the registration's vault
     const vault = request.vault;
     if (vault === null) {
-        throw new ConnectionError(
-            "INVALID_AUTHORIZATION",
-            `${issuer} issued a client secret, which ${scope} has no vault for`,
+        throw ConnectionError.of(
+            "VAULT_REQUIRED",
+            `${issuer} issued a client secret, but ${scope} has no vault`,
         );
     }
     await tokens.put(runner, vault, id, issued.secret);
@@ -181,7 +208,7 @@ async function destroy(
     return deleted;
 }
 
-/** Call the target integration's server as its client, with its home vault's secret. */
+/** Call the target integration's server as its client, with its primary vault's secret. */
 async function client(
     context: MethodContextOf<
         typeof integration,
