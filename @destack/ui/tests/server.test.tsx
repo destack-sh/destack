@@ -1,5 +1,5 @@
+import { testSimulation } from "@destack/test/world";
 import { expect, test } from "@destack/test";
-import { Simulation } from "@destack/environment/simulation";
 import { BrowserEnvironment } from "@destack/environment/browser";
 import { EnvironmentContext, type JSX, renderToString } from "@destack/view";
 import type { Example } from "@destack/package/declare";
@@ -24,9 +24,6 @@ const STATE = new Set([
     "virtualizer",
 ]);
 
-/** The start of every test's world: 2026-10-24 at midnight UTC. */
-const START = Date.UTC(2026, 9, 24);
-
 /** The components the package exports, its wrapped chart entry points and state units left out. */
 const COMPONENTS = Object.keys(manifest.exports)
     .filter((path) => !path.includes("*"))
@@ -42,7 +39,7 @@ const EXAMPLES: readonly (readonly [string, object])[] = await Promise.all(
 
 test("render a sidebar and a toaster to a string without a browser, open and with no toasts", async () => {
     // render on a server's environment in a world of its own
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const server = BrowserEnvironment.server(simulation.environment("server"));
     const html = renderToString(() => (
         <EnvironmentContext value={server}>
@@ -70,7 +67,7 @@ test("render a sidebar and a toaster to a string without a browser, open and wit
 
 test("render every exported component's examples to strings without a browser", async () => {
     // render the examples of each component the package exports on a server's environment
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const server = BrowserEnvironment.server(simulation.environment("server"));
     const rendered = new Set<string>();
     const failures: string[] = [];

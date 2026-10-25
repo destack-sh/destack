@@ -1,6 +1,6 @@
+import { testSimulation } from "@destack/test/world";
 import type { BrowserEnvironment } from "@destack/environment/browser";
 import { BrowserSimulation } from "@destack/environment/browser/simulation";
-import { Simulation } from "@destack/environment/simulation";
 import { expect, onTestFinished, test } from "@destack/test";
 import {
     Sidebar,
@@ -18,12 +18,9 @@ import {
 import { flush } from "@destack/view";
 import { classes, render, stubPopovers } from "@destack/view/test";
 
-/** The start of every test's world: 2026-10-24 at midnight UTC. */
-const START = Date.UTC(2026, 9, 24);
-
 /** Open a tab whose storage starts empty, removing its world once the test ends. */
 function openTab(): BrowserEnvironment {
-    const simulation = new Simulation({ seed: 1, start: START });
+    const simulation = testSimulation();
     onTestFinished(() => simulation[Symbol.asyncDispose]());
 
     return new BrowserSimulation(simulation).environment("tab");
@@ -148,7 +145,7 @@ test("show placeholder rows through the shared skeleton while entries load", () 
 
 test("keep a sidebar that cannot collapse as a column on narrow screens, where others turn into sheets", async () => {
     // render in a tab whose display matches the phone's narrow screen query
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const browsers = new BrowserSimulation(simulation, {
         media: { "(max-width: 47.999rem)": true },
     });
