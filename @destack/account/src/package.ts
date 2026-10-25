@@ -1,4 +1,5 @@
-import { defineAdapter, definePackage } from "@destack/object";
+import { role, universe } from "@destack/access";
+import { defineAdapter, definePackage, proof } from "@destack/object";
 import { AccountError } from "./error/error.ts";
 import {
     account,
@@ -8,33 +9,31 @@ import {
     client,
     domain,
     endpoint,
-    environment,
+    stage,
     group,
     hostname,
     identity,
     key,
     machine,
-    oauthClient,
+    application,
     oauthConsent,
+    authorizationRequest,
+    authorizationCode,
+    refreshToken,
+    deviceAuthorization,
     operation,
-    organisation,
+    organization,
     passkey,
     placement,
     residency,
     session,
     space,
-    twoFactor,
+    challenge,
+    factor,
     user,
     userLogin,
 } from "./object/index.ts";
-import {
-    deviceAuthorization,
-    oauthAccessToken,
-    oauthClientAssertion,
-    oauthRefreshToken,
-    rateLimit,
-    verification,
-} from "./authentication/table.ts";
+import { rateLimit, verification } from "./authentication/table.ts";
 import { identityKey } from "./identity/key.ts";
 
 /** The path the oauth adapter answers below the account package's mount. */
@@ -48,18 +47,25 @@ export default definePackage({
         session,
         userLogin,
         passkey,
-        twoFactor,
+        challenge,
+        factor,
         client,
         key,
-        oauthClient,
+        application,
         oauthConsent,
 
-        // organisations
-        organisation,
+        // the authorization server's requests, codes, refresh tokens and device sign-ins
+        authorizationRequest,
+        authorizationCode,
+        refreshToken,
+        deviceAuthorization,
+
+        // organizations
+        organization,
 
         // accounts, their access, domains and machines
         account,
-        environment,
+        stage,
         group,
         domain,
         hostname,
@@ -80,14 +86,31 @@ export default definePackage({
         // the authentication protocols' records
         verification,
         rateLimit,
-        deviceAuthorization,
-        oauthClientAssertion,
-        oauthRefreshToken,
-        oauthAccessToken,
 
         // the universe's identity keys
         identityKey,
     ],
     adapters: { oauth: defineAdapter("oauth", { path: OAUTH_PATH }) },
     errors: AccountError,
+    // request what the platform's code does in the universe
+    permissions: {
+        installation: {
+            universe: [
+                role.permission("create"),
+                role.permission("update"),
+                role.permission("share"),
+                universe.permission("grant"),
+                proof.permission("spend"),
+                user.permission("suspend"),
+                account.permission("place"),
+                organization.permission("place"),
+                residency.permission("place"),
+                organization.permission("administer"),
+                machine.permission("rotate"),
+                machine.permission("publish"),
+                space.permission("upgrade"),
+                space.permission("receive"),
+            ],
+        },
+    },
 });

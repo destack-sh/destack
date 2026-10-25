@@ -1,3 +1,4 @@
+import type { Crypto } from "@destack/environment";
 import type { MethodContextOf, NextOf, ResultOf } from "@destack/object";
 import { IdentityOperation, type PublicKey } from "@destack/identity";
 import { Identity, operation, type Operation } from "../object/identity.ts";
@@ -39,6 +40,7 @@ async function create(
         log.length === 0 && claims.previous === null
             ? claims.rotationKeys
             : following(previous, subject).rotationKeys,
+        context.environment.crypto,
     );
 
     // nullify the operations after the one it follows, within their recovery window
@@ -47,7 +49,7 @@ async function create(
     const [first] = later;
     if (first !== undefined && !isRecoverable(first, priority, context.now)) {
         throw AccountError.of(
-            "NULLIFY_REFUSED",
+            "OPERATIONS_UNRECOVERABLE",
             `the operation cannot nullify the later operations of ${subject}`,
         );
     }
@@ -64,7 +66,7 @@ async function create(
             input: {
                 ...context.input,
                 sequence: log.length,
-                digest: await IdentityOperation.digest(signed),
+                digest: await IdentityOperation.digest(signed, context.environment.crypto),
                 priority,
                 appliedAt: context.now,
                 isNullified: false,
@@ -77,7 +79,7 @@ async function create(
 function following(previous: Operation | undefined, subject: string) {
     if (previous === undefined) {
         throw AccountError.of(
-            "NO_CURRENT_OPERATION",
+            "CURRENT_OPERATION_MISSING",
             `the operation does not follow a current operation of ${subject}`,
         );
     }
@@ -86,11 +88,15 @@ function following(previous: Operation | undefined, subject: string) {
 }
 
 /** Find the priority of the rotation key that signed an operation, refusing any other signer. */
-async function signer(signed: string, rotationKeys: readonly PublicKey[]): Promise<number> {
-    const priority = await IdentityOperation.verify(signed, rotationKeys);
+async function signer(
+    signed: string,
+    rotationKeys: readonly PublicKey[],
+    crypto: Crypto,
+): Promise<number> {
+    const priority = await IdentityOperation.verify(signed, rotationKeys, crypto);
     if (priority === undefined) {
         throw AccountError.of(
-            "UNSIGNED_OPERATION",
+            "OPERATION_UNSIGNED",
             "the operation is not signed by a rotation key of the identity",
         );
     }

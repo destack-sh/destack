@@ -1,3 +1,4 @@
+import type { Crypto, Environment } from "@destack/environment";
 import {
     accessGrant,
     type Authentication,
@@ -32,6 +33,8 @@ export const AccountAuthentication = {
             readonly audience: PackageId;
             /** The time of the verification. */
             readonly now: number;
+            /** The clock, WebCrypto and network verifying the token. */
+            readonly environment: Pick<Environment, "clock" | "crypto" | "network">;
         },
     ): Promise<Authentication | undefined> {
         // leave a request without a bearer token to the protocol it speaks, such as a client's credentials
@@ -41,12 +44,17 @@ export const AccountAuthentication = {
         }
 
         // verify the access token by the universe's current keys
-        const keys = await Identity.keys(Snapshot.live(verifier.database), Scope.universe.id);
+        const keys = await Identity.keys(
+            Snapshot.live(verifier.database),
+            Scope.universe.id,
+            verifier.environment.crypto,
+        );
         const tokens = new TokenVerifier({
             authority: { kind: "universe" },
             issuer: verifier.issuer,
             audience: verifier.audience,
             keys,
+            environment: verifier.environment,
         });
 
         return tokens.verify(Bearer.require(request.headers), verifier.now);
@@ -72,12 +80,55 @@ export const AccountAuthentication = {
         };
     },
 
+    /** Authenticate a person a client acts for through their live session, lapsing with it. */
+    async person(
+        database: DatabaseConnection,
+        acting: {
+            /** The person. */
+            readonly userId: string;
+            /** The client acting for them. */
+            readonly clientId: string;
+            /** The session they signed in with. */
+            readonly sessionId: string;
+        },
+        audience: PackageId,
+        now: number,
+    ): Promise<Authentication> {
+        const session = await ActiveSession.read(acting.sessionId, database, now);
+
+        return withClient(
+            AccountAuthentication.activeSession(session, audience, now),
+            acting.clientId,
+        );
+    },
+
+    /** Authenticate a person a client acts for by the client alone, until a lapse. */
+    client(
+        acting: {
+            /** The person. */
+            readonly userId: string;
+            /** The client acting for them. */
+            readonly clientId: string;
+        },
+        lapse: number,
+        audience: PackageId,
+        now: number,
+    ): Authentication {
+        const { userId, clientId } = acting;
+
+        return withClient(
+            authenticationOf("client", clientId, userId, lapse, audience, now),
+            clientId,
+        );
+    },
+
     /** Verify a token client of an active user under the user's live grant to it. */
     async personalToken(
         secret: string,
         database: DatabaseConnection,
         audience: PackageId,
         now: number,
+        crypto: Crypto,
     ): Promise<Authentication> {
         // read the unrevoked token client of an active user by its secret's digest
         const table = client.table;
@@ -87,14 +138,14 @@ export const AccountAuthentication = {
             .innerJoin(user.table, eq(user.table.id, table.scope))
             .where(
                 and(
-                    eq(table.digest, await Digest.of(secret)),
+                    eq(table.digest, await Digest.of(secret, crypto)),
                     isNull(table.revokedAt),
                     User.isActive(),
                 ),
             )
             .limit(1);
         if (row === undefined) {
-            throw AccountError.of("INVALID_PERSONAL_TOKEN", "invalid personal access token");
+            throw AccountError.of("PERSONAL_TOKEN_INVALID", "invalid personal access token");
         }
 
         // read the user's unexpired grant to it
@@ -109,7 +160,7 @@ export const AccountAuthentication = {
                 },
             });
         if (grant === undefined) {
-            throw AccountError.of("INVALID_PERSONAL_TOKEN", "invalid personal access token");
+            throw AccountError.of("PERSONAL_TOKEN_INVALID", "invalid personal access token");
         }
 
         // act as the user through the token, under the grant until it lapses
@@ -129,6 +180,15 @@ export const AccountAuthentication = {
         };
     },
 };
+
+/** Mark a device's client on a person's credential, as its tokens act as the person. */
+function withClient(authentication: Authentication, clientId: string): Authentication {
+    const { caller, credential } = authentication;
+
+    return client.identifies(clientId)
+        ? { caller, credential: { ...credential, client: client.identifier(clientId) } }
+        : { caller, credential };
+}
 
 /** Authenticate the person of a credential for an audience, until the credential lapses. */
 function authenticationOf(

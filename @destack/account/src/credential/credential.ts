@@ -1,12 +1,24 @@
+import type { Environment } from "@destack/environment";
 import { Digest } from "@destack/schema";
 
-/** The kinds of secret. */
-const CREDENTIAL_KINDS = ["personal-access-token", "oauth-client"] as const;
+/** The kinds of secret: presented credentials, and one-time codes and tokens of sign-ins. */
+const CREDENTIAL_KINDS = [
+    "personal-access-token",
+    "client-secret",
+    "refresh-token",
+    "authorization-code",
+    "device-code",
+    "challenge",
+] as const;
 
-/** The prefix of each kind of secret. */
+/** The prefix of each kind of secret, which secret scanners recognize, as GitHub's tokens have. */
 const PREFIXES: { readonly [Kind in CredentialKind]: string } = {
     "personal-access-token": "dst_pat_",
-    "oauth-client": "dst_ocs_",
+    "client-secret": "dst_ocs_",
+    "refresh-token": "dst_rt_",
+    "authorization-code": "dst_ac_",
+    "device-code": "dst_dc_",
+    challenge: "dst_ch_",
 };
 
 /** The random bytes of a secret, 256 bits. */
@@ -31,14 +43,17 @@ export class Credential {
         this.digest = digest;
     }
 
-    /** Create a new secret of a kind with its digest. */
-    static async create(kind: CredentialKind): Promise<Credential> {
+    /** Create a new secret of a kind with its digest, drawn from an environment's randomness. */
+    static async create(
+        kind: CredentialKind,
+        environment: Pick<Environment, "random" | "crypto">,
+    ): Promise<Credential> {
         // draw the secret's bytes after its kind's prefix
-        const bytes = crypto.getRandomValues(new Uint8Array(SECRET_BYTES));
+        const bytes = environment.random.bytes(SECRET_BYTES);
         const encoded = bytes.toBase64({ alphabet: "base64url", omitPadding: true });
         const secret = `${PREFIXES[kind]}${encoded}`;
 
-        return new Credential(kind, secret, await Digest.of(secret));
+        return new Credential(kind, secret, await Digest.of(secret, environment.crypto));
     }
 
     /** Read the kind of a presented secret, absent for other credentials such as sessions. */

@@ -4,9 +4,9 @@ import { DeclarationName, ModuleMetadata, type Package } from "@destack/package"
 import { Instant, schema } from "@destack/schema";
 import { PackageError } from "@destack/package/error";
 
-/** An environment an account defines. */
-export const EnvironmentDefinition = schema.object({
-    /** The environment's metadata tags. */
+/** A stage an account defines. */
+export const StageDefinition = schema.object({
+    /** The stage's metadata tags. */
     tags: TagMap.exactOptional(),
 });
 
@@ -43,8 +43,8 @@ export const AccountRoleBinding = schema.object({
 
 /** The account records a repository export declares. */
 export const AccountDefinition = schema.object({
-    /** The account's environments by name. */
-    environments: schema.record(DeclarationName, EnvironmentDefinition).exactOptional(),
+    /** The account's stages by name. */
+    stages: schema.record(DeclarationName, StageDefinition).exactOptional(),
     /** The account roles that bindings refer to. */
     roles: schema.record(DeclarationName, AccountRole).exactOptional(),
     /** The role bindings, applied with the caller's existing authority. */
@@ -74,7 +74,7 @@ export function defineAccount(
     // require each role a binding refers to by name in the same declaration
     for (const binding of Object.values(account.bindings ?? {})) {
         if (typeof binding.role === "string" && !Object.hasOwn(account.roles ?? {}, binding.role)) {
-            throw PackageError.of("INVALID_DEFINITION", `unknown role: ${binding.role}`);
+            throw PackageError.of("DEFINITION_INVALID", `unknown role: ${binding.role}`);
         }
     }
 

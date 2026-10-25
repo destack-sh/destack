@@ -25,7 +25,6 @@
         "./test": "./src/test/index.ts"
     },
     "dependencies": {
-        "@better-auth/oauth-provider": "1.7.6",
         "@better-auth/passkey": "1.7.6",
         "@destack/access": "workspace:*",
         "@destack/bucket": "workspace:*",
@@ -42,9 +41,7 @@
         "@destack/setting": "workspace:*",
         "@destack/sync": "workspace:*",
         "@destack/telemetry": "workspace:*",
-        "better-auth": "1.7.6",
-        "jose": "6.2.12",
-        "uuid": "14.0.2"
+        "better-auth": "1.7.6"
     },
     "peerDependencies": {
         "@destack/test": "workspace:*"

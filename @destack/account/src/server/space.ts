@@ -68,7 +68,7 @@ async function create(
 
 /** Read the machine a new space of an account runs on. */
 async function pickMachine(
-    context: Pick<MethodContext, "read">,
+    context: Pick<MethodContext, "read" | "environment">,
     accountId: Identifier<"account">,
     spaceId: Identifier<"space">,
     machineId: Identifier<"machine"> | undefined,
@@ -95,10 +95,11 @@ async function pickMachine(
     const picked = await Placement.pick(
         spaceId,
         shared.map((row) => row.id),
+        context.environment.crypto,
     );
     if (picked === undefined) {
         throw AccountError.of(
-            "NO_CLOUD_MACHINE",
+            "CLOUD_MACHINE_MISSING",
             `residency ${owner.residencyId} has no cloud machine`,
         );
     }

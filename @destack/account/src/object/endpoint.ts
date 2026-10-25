@@ -1,7 +1,7 @@
 import { none, through } from "@destack/access";
 import type { Select } from "@destack/db";
-import { defineObject, field } from "@destack/object";
-import { schema } from "@destack/schema";
+import { defineObject, field, type MethodContext } from "@destack/object";
+import { type Identifier, schema } from "@destack/schema";
 import { account } from "./account.ts";
 import { EndpointRelay, machine } from "./machine.ts";
 
@@ -52,5 +52,20 @@ export const Endpoint = {
     /** Report whether an endpoint answers at a time: directly, or through an unlapsed tunnel. */
     isAnswering(row: Pick<Endpoint, "relay">, now: number): boolean {
         return row.relay === null || row.relay.lapsesAt > now;
+    },
+
+    /** Create or replace a machine's endpoint as the universe, its calling method gating it. */
+    async upsert(
+        context: Pick<MethodContext, "read" | "mutate" | "self" | "scope">,
+        machineId: Identifier<"machine">,
+        published: Pick<Endpoint, "url" | "relay">,
+    ): Promise<void> {
+        const target = endpoint.target({ scope: context.scope, id: machineId });
+        const existing = await context.read(endpoint).findFirst({ where: { id: machineId } });
+        await context.mutate(context.self, [
+            existing === undefined
+                ? endpoint.call("create", { ...target, parentId: machineId, ...published })
+                : endpoint.call("update", { ...target, ...published }),
+        ]);
     },
 };

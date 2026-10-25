@@ -183,7 +183,7 @@ export const Client = {
 
     /** Register a device's client for a person once, refusing another person's client. */
     async register(
-        objects: Pick<ObjectStore, "mutate" | "database">,
+        objects: Pick<ObjectStore, "mutate" | "database" | "environment">,
         clientId: string,
         userId: string,
         now: number,
@@ -194,7 +194,7 @@ export const Client = {
             .read(client.table)
             .findFirst({ where: { id } });
         if (row !== undefined && row.scope !== userId) {
-            throw AccountError.of("FOREIGN_CLIENT", `client ${id} belongs to another person`);
+            throw AccountError.of("CLIENT_FOREIGN", `client ${id} belongs to another person`);
         } else if (row !== undefined) {
             return;
         }
@@ -202,7 +202,7 @@ export const Client = {
         // register it as the person
         const person = principal.user.reference(Scope.universe.id, userId);
         await objects.mutate(AccessContext.of(Caller.of(person), now), {
-            id: RequestId.create(now),
+            id: RequestId.create(objects.environment),
             calls: [
                 client.call("create", {
                     ...client.target({ scope: user.identifier(userId), id }),

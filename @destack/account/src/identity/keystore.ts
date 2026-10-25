@@ -10,6 +10,8 @@ import {
     type Keyring,
     type Label,
     LocalKeyring,
+    Jwt,
+    type JwtClaims,
     MAX_SIGNING_KEYS,
     PublicKey,
 } from "@destack/identity";
@@ -19,8 +21,7 @@ import { present } from "@destack/schema";
 import { Scope, type Subject } from "@destack/sync";
 import type { Rewrapper } from "@destack/resource";
 import type { Digest } from "@destack/schema";
-import { SignJWT, type JWTPayload } from "jose";
-import type { Clock } from "@destack/environment";
+import type { Environment } from "@destack/environment";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
 
@@ -36,6 +37,9 @@ const LABEL = "@destack/account/identity-key";
 /** The bytes of an identity's root secret: 256 bits, the HKDF-SHA256 output length. */
 const ROOT_BYTES = 32;
 
+/** The clock, WebCrypto and randomness a keystore works with. */
+export type KeystoreEnvironment = Pick<Environment, "clock" | "crypto" | "random">;
+
 /** The uses of an identity's secrets: its private keys and its root. */
 type KeyUse = "signing" | "rotation" | "root";
 
@@ -50,19 +54,19 @@ export class IdentityKeystore {
     readonly registry: IdentityRegistry;
     /** The sealing of the keys to the machine a space moves to. */
     readonly rewrap: Rewrapper<typeof identityKey, IdentityKey>;
-    /** The clock keys are published and tokens signed by. */
-    readonly clock: Clock;
+    /** The clock tokens are signed by, and the WebCrypto and randomness keys come from. */
+    readonly environment: KeystoreEnvironment;
     /** The decrypted signing keys, non-extractable, by subject and thumbprint. */
     readonly #signers = new Map<string, Promise<CryptoKey>>();
     /** The derivations of the identities' decrypted root secrets, non-extractable, by subject. */
     readonly #roots = new Map<string, Promise<Deriver>>();
 
     /** Store identities' keys under a keyring, publishing the identities in a registry. */
-    constructor(keyring: Keyring, registry: IdentityRegistry, clock: Clock) {
-        // store the keyring, registry and clock, and seal keys with them
+    constructor(keyring: Keyring, registry: IdentityRegistry, environment: KeystoreEnvironment) {
+        // store the keyring, registry and environment, and seal keys with them
         this.keyring = keyring;
         this.registry = registry;
-        this.clock = clock;
+        this.environment = environment;
         this.rewrap = {
             table: identityKey,
             seal: (row, recipient) =>
@@ -87,10 +91,10 @@ export class IdentityKeystore {
         keyring: Keyring,
         database: DatabaseConnection,
         registry: IdentityRegistry,
-        clock: Clock,
+        environment: KeystoreEnvironment,
     ): Promise<IdentityKeystore> {
         // publish identities in the universe's registry
-        const keystore = new IdentityKeystore(keyring, registry, clock);
+        const keystore = new IdentityKeystore(keyring, registry, environment);
 
         // generate the universe's identity on the first start
         if (!(await keystore.hasKeys(database, Scope.universe.id))) {
@@ -104,18 +108,17 @@ export class IdentityKeystore {
     async generate(database: DatabaseConnection, subject: string): Promise<void> {
         // generate and store the keys and the root secret
         const signing = await this.#generateSigningKey(subject);
-        const rotation = await crypto.subtle.generateKey(ALGORITHM, true, ["sign", "verify"]);
-        const rotationKey = await PublicKey.of(rotation.publicKey);
+        const rotation = await this.environment.crypto.generateKey(ALGORITHM, true, [
+            "sign",
+            "verify",
+        ]);
+        const rotationKey = await PublicKey.of(rotation.publicKey, this.environment.crypto);
         const row = {
             scope: subject,
             signingKeys: [signing],
             rotation: await this.#encryptKey(subject, "rotation", rotation.privateKey),
             rotationKey,
-            root: await this.#encrypt(
-                subject,
-                "root",
-                crypto.getRandomValues(new Uint8Array(ROOT_BYTES)),
-            ),
+            root: await this.#encrypt(subject, "root", this.environment.random.bytes(ROOT_BYTES)),
         };
         await database
             .insert(identityKey)
@@ -131,6 +134,7 @@ export class IdentityKeystore {
                 rotationKeys: [rotationKey],
             },
             rotation.privateKey,
+            this.environment.crypto,
         );
         await this.registry.start(operation);
     }
@@ -147,7 +151,11 @@ export class IdentityKeystore {
     source(
         database: DatabaseConnection,
         subject: Subject,
-        network: { readonly issuer: string; readonly send: Fetch },
+        network: {
+            readonly issuer: string;
+            readonly send: Fetch;
+            readonly environment: Environment;
+        },
     ): TokenSource {
         return new TokenSource(this, database, subject, network);
     }
@@ -165,16 +173,16 @@ export class IdentityKeystore {
     async sign(
         database: DatabaseConnection,
         subject: string,
-        claims: JWTPayload,
+        claims: JwtClaims,
         header?: { readonly typ?: string; readonly cty?: string },
     ): Promise<string> {
         // sign with the active key, identified by its thumbprint
+        const { crypto } = this.environment;
         const active = this.#active((await this.#require(database, subject)).signingKeys);
-        const kid = await PublicKey.thumbprint(active.publicKey);
+        const kid = await PublicKey.thumbprint(active.publicKey, crypto);
+        const signer = await this.#signer(subject, kid, active.privateKey);
 
-        return new SignJWT(claims)
-            .setProtectedHeader({ typ: "JWT", ...header, alg: "ES256", kid })
-            .sign(await this.#signer(subject, kid, active.privateKey));
+        return Jwt.sign(claims, { typ: "JWT", ...header, alg: "ES256", kid }, signer, crypto);
     }
 
     /** Report whether this process has an identity's keys. */
@@ -213,7 +221,7 @@ export class IdentityKeystore {
 
         // derive the column key from the root of the identity this process stores
         const root = present(await this.deriver(database, subject), `the keys of ${subject}`);
-        database.key(await ColumnCipher.derive(root));
+        database.key(await ColumnCipher.derive(root, database.state.environment.random));
     }
 
     /** Rotate an identity's signing keys, and return the published operation's digest. */
@@ -238,6 +246,7 @@ export class IdentityKeystore {
                     owners === undefined ? identity.rotationKeys : [...owners, row.rotationKey],
             },
             await this.#privateKey(subject, "rotation", row.rotation),
+            this.environment.crypto,
         );
         await this.registry.extend(operation);
 
@@ -247,7 +256,7 @@ export class IdentityKeystore {
             .set({ signingKeys })
             .where(eq(identityKey.scope, subject));
 
-        return IdentityOperation.digest(operation);
+        return IdentityOperation.digest(operation, this.environment.crypto);
     }
 
     /** Replace every key of an identity this process stores. */
@@ -255,15 +264,20 @@ export class IdentityKeystore {
         // read the identity the operation follows
         const row = await this.#require(database, subject);
         const identity = await this.#identity(subject);
-        const replaced = await PublicKey.thumbprint(row.rotationKey);
+        const replaced = await PublicKey.thumbprint(row.rotationKey, this.environment.crypto);
 
         // publish a fresh signing key alone and this process's fresh rotation key, signed with the replaced one
         const signing = await this.#generateSigningKey(subject);
-        const rotation = await crypto.subtle.generateKey(ALGORITHM, true, ["sign", "verify"]);
-        const rotationKey = await PublicKey.of(rotation.publicKey);
+        const rotation = await this.environment.crypto.generateKey(ALGORITHM, true, [
+            "sign",
+            "verify",
+        ]);
+        const rotationKey = await PublicKey.of(rotation.publicKey, this.environment.crypto);
         const rotationKeys = await Promise.all(
             identity.rotationKeys.map(async (key) =>
-                (await PublicKey.thumbprint(key)) === replaced ? rotationKey : key,
+                (await PublicKey.thumbprint(key, this.environment.crypto)) === replaced
+                    ? rotationKey
+                    : key,
             ),
         );
         const operation = await IdentityOperation.sign(
@@ -274,6 +288,7 @@ export class IdentityKeystore {
                 rotationKeys,
             },
             await this.#privateKey(subject, "rotation", row.rotation),
+            this.environment.crypto,
         );
         await this.registry.extend(operation);
 
@@ -285,7 +300,7 @@ export class IdentityKeystore {
             .where(eq(identityKey.scope, subject));
         this.#forgetSigners(subject);
 
-        return IdentityOperation.digest(operation);
+        return IdentityOperation.digest(operation, this.environment.crypto);
     }
 
     /** Encrypt every secret of a root key version under the keyring's active version. */
@@ -320,12 +335,12 @@ export class IdentityKeystore {
 
     /** Generate a signing key with its private half encrypted under the keyring, published now. */
     async #generateSigningKey(subject: string): Promise<SigningKey> {
-        const pair = await crypto.subtle.generateKey(ALGORITHM, true, ["sign", "verify"]);
+        const pair = await this.environment.crypto.generateKey(ALGORITHM, true, ["sign", "verify"]);
 
         return {
-            publicKey: await PublicKey.of(pair.publicKey),
+            publicKey: await PublicKey.of(pair.publicKey, this.environment.crypto),
             privateKey: await this.#encryptKey(subject, "signing", pair.privateKey),
-            publishedAt: this.clock.now(),
+            publishedAt: this.environment.clock.now(),
         };
     }
 
@@ -334,7 +349,7 @@ export class IdentityKeystore {
         return this.#encrypt(
             subject,
             use,
-            new Uint8Array(await crypto.subtle.exportKey("pkcs8", key)),
+            new Uint8Array(await this.environment.crypto.exportKey("pkcs8", key)),
         );
     }
 
@@ -363,12 +378,12 @@ export class IdentityKeystore {
     /** Choose the signing key that signs now. */
     #active(signingKeys: readonly SigningKey[]): SigningKey {
         // take the newest key published past the verifiers' key set age, else the oldest
-        const now = this.clock.now();
+        const now = this.environment.clock.now();
         const active =
             signingKeys.find((key) => key.publishedAt + KEY_SET_MILLISECONDS <= now) ??
             signingKeys.at(-1);
         if (active === undefined) {
-            throw AccountError.of("NO_SIGNING_KEY", "no signing key is stored");
+            throw AccountError.of("SIGNING_KEY_MISSING", "no signing key is stored");
         }
 
         return active;
@@ -378,7 +393,7 @@ export class IdentityKeystore {
     async #require(database: DatabaseConnection, subject: string): Promise<IdentityKey> {
         const row = await this.#find(database, subject);
         if (row === undefined) {
-            throw AccountError.of("NO_LOCAL_KEYS", `this process has no keys for ${subject}`);
+            throw AccountError.of("LOCAL_KEYS_MISSING", `this process has no keys for ${subject}`);
         }
 
         return row;
@@ -414,7 +429,7 @@ export class IdentityKeystore {
     /** Decrypt a private key under the keyring as a non-extractable key that signs. */
     #privateKey(subject: string, use: KeyUse, ciphertext: Ciphertext): Promise<CryptoKey> {
         return this.#decrypt(subject, use, ciphertext, (bytes) =>
-            crypto.subtle.importKey("pkcs8", bytes, ALGORITHM, false, ["sign"]),
+            this.environment.crypto.importKey("pkcs8", bytes, ALGORITHM, false, ["sign"]),
         );
     }
 
@@ -436,7 +451,10 @@ export class IdentityKeystore {
     /** Decrypt an identity's root secret as a non-extractable key that derives. */
     #decryptRoot(subject: string, ciphertext: Ciphertext): Promise<Deriver> {
         return this.#decrypt(subject, "root", ciphertext, async (bytes) =>
-            Derivation.of(await Derivation.root(bytes)),
+            Derivation.of(
+                await Derivation.root(bytes, this.environment.crypto),
+                this.environment.crypto,
+            ),
         );
     }
 

@@ -1,13 +1,12 @@
 import { Failure } from "@destack/error";
 import { AuditCaller, JournalEntry, journal } from "@destack/object";
 import { ObjectReference, Subject, RequestId } from "@destack/sync";
-import { Account, account, passkey, session, twoFactor, userLogin } from "../src/object/index.ts";
+import { Account, account, factor, passkey, session, userLogin } from "../src/object/index.ts";
 import { user } from "../src/object/user.ts";
-import { expect, onTestFinished, single, test } from "@destack/test";
-import { eq, gte } from "@destack/db";
-import { Simulation } from "@destack/environment/simulation";
+import { expect, single, test } from "@destack/test";
+import { eq, inArray } from "@destack/db";
 import { Identifier, type JsonObject, type JsonValue, present, schema } from "@destack/schema";
-import { parseEnvelope } from "better-auth/crypto";
+import { Ciphertext } from "@destack/identity";
 import { ActiveSession } from "../src/better-auth/active-session.ts";
 import { verification } from "../src/authentication/index.ts";
 import {
@@ -25,6 +24,9 @@ import { DeviceGrant, Redirect, Tokens } from "./fixture.ts";
 import { principal } from "@destack/access";
 import { PackageId } from "@destack/package";
 import accountPackage from "../src/package.ts";
+
+/** The most journal changes a test reads at once, beyond any test's calls. */
+const JOURNAL_LIMIT = 10_000;
 
 /** The port HTTPS origins listen on. */
 const HTTPS_PORT = 443;
@@ -72,11 +74,6 @@ async function answered(response: Response): Promise<readonly [number, JsonValue
     return [response.status, await response.json()];
 }
 
-/** Read the version of the root key that encrypted a stored secret. */
-function envelope(encrypted: string): number {
-    return present(parseEnvelope(encrypted), "the secret's envelope").version;
-}
-
 /** Read the session a browser's cookie holds. */
 async function current(browser: TestBrowser) {
     return CurrentSession.parse(await (await browser.fetch("/get-session")).json());
@@ -96,11 +93,11 @@ async function enroll(fixture: TestAccountStore, browser: TestBrowser) {
     await browser.fetch("/email-otp/send-verification-otp", { email: EMAIL, type: "sign-in" });
     await browser.fetch("/sign-in/email-otp", { email: EMAIL, otp: await fixture.code() });
 
-    // enable an authenticator and verify its first code
+    // enable an authenticator and verify the code it showed a step ago
     const enrollment = await browser.fetch("/two-factor/enable", { method: "totp" });
     const enrolled = Enrollment.parse(await enrollment.json());
     await browser.fetch("/two-factor/verify-totp", {
-        code: authenticatorCode(enrolled.totpURI, fixture.clock.now()),
+        code: await authenticatorCode(enrolled.totpURI, fixture.environment, -1),
     });
     await browser.fetch("/sign-out", {});
 
@@ -144,11 +141,11 @@ function answerProviders(fixture: TestAccountStore): void {
         },
     };
 
-    // serve each provider's host on a simulated network the library's global fetch reaches while installed
-    const simulation = new Simulation({ seed: 1, start: fixture.clock.now() });
+    // serve each provider's host on the network of the fixture's world
+    const { simulation } = fixture;
     const hosts = new Set(Object.keys(answers).map((url) => new URL(url).hostname));
     for (const hostname of hosts) {
-        simulation.network.of(hostname).serve({
+        simulation.network.server(hostname).http({
             hostname,
             port: HTTPS_PORT,
             fetch: (request) => {
@@ -158,14 +155,12 @@ function answerProviders(fixture: TestAccountStore): void {
             },
         });
     }
-    simulation.install();
-    onTestFinished(() => simulation.uninstall());
 }
 
 test("sign a person up by a mailed link once, and end the browser's session from the command line and by signing out", async () => {
     await using fixture = await TestAccountStore.open();
     const { database, authenticator } = fixture;
-    const started = fixture.clock.now();
+    const { sequence: started } = await database.log.position();
 
     // request a sign-in link through the HTTP route a browser calls
     const requested = await fixture.fetch(
@@ -195,7 +190,10 @@ test("sign a person up by a mailed link once, and end the browser's session from
     ]);
 
     // store the SHA-256 digest of the link token in base64url alone
-    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+    const digest = await fixture.environment.crypto.digest(
+        "SHA-256",
+        new TextEncoder().encode(token),
+    );
     expect(single(await database.select().from(verification)).identifier).toBe(
         new Uint8Array(digest).toBase64({ alphabet: "base64url", omitPadding: true }),
     );
@@ -244,17 +242,20 @@ test("sign a person up by a mailed link once, and end the browser's session from
     ]);
 
     // revoke the browser's session from the person's command line, without waiting for the cookie to expire
-    const revoking = fixture.clock.now();
+    const { sequence: revoking } = await database.log.position();
     const commandLine = await fixture.signIn(EMAIL);
     await commandLine.client(accountPackage).session.revoke({
         userId: commandLine.id,
         id: login.id,
-        requestId: RequestId.create(fixture.clock.now()),
+        requestId: RequestId.create(fixture.environment),
     });
     const revoked = await fixture.fetch(
         new Request(`${ISSUER}/get-session`, { headers: { cookie: cookies } }),
     );
-    expect(await answered(revoked)).toEqual([401, { message: "session is no longer authorized" }]);
+    expect(await answered(revoked)).toEqual([
+        401,
+        { code: "SESSION_ENDED", message: "session is no longer authorized" },
+    ]);
 
     // sign out through the browser protocol and reject the previously valid cookie
     const signedOut = await fixture.fetch(
@@ -270,15 +271,34 @@ test("sign a person up by a mailed link once, and end the browser's session from
     ]).toEqual([[200, { success: true }], null, []]);
 
     // retain each authentication request and its outcome without credential contents
-    const rows = await database
+    const { changes } = await database.log.read({
+        tables: [journal],
+        after: started,
+        limit: JOURNAL_LIMIT,
+    });
+    const inserted = changes.flatMap((change) =>
+        change.operation === "insert" ? [{ id: change.after.id, sequence: change.sequence }] : [],
+    );
+    const stored = await database
         .select()
         .from(journal)
-        .where(gte(journal.startedAt, started))
-        .orderBy(journal.startedAt, journal.position);
-    const calls = rows.map((row) => JournalEntry.parse(row.call));
-    const browsing = rows
-        .filter((row) => row.startedAt < revoking)
-        .map((row) => JournalEntry.parse(row.call));
+        .where(
+            inArray(
+                journal.id,
+                inserted.map((entry) => entry.id),
+            ),
+        );
+    const rows = inserted.map((entry) => ({
+        ...entry,
+        call: JournalEntry.parse(
+            present(
+                stored.find((row) => row.id === entry.id),
+                `call ${entry.id}`,
+            ).call,
+        ),
+    }));
+    const calls = rows.map((row) => row.call);
+    const browsing = rows.filter((row) => row.sequence <= revoking).map((row) => row.call);
     expect(
         calls
             .filter((call) => call.method === "authentication.request")
@@ -348,15 +368,18 @@ test("sign a person with an unproven email in with a mailed code, proving the em
     const browser = fixture.browser();
     const id = schema.identifier("user").parse("user-01996ab0-0000-7000-8000-0000000000e1");
     const email = "ada@example.com";
-    await fixture.database.insert(user.table).values({
-        id,
-        name: "Ada",
-        email,
-        ...SIGN_UP,
-        homeId: Account.home(Account.personal(id)),
-        createdAt: fixture.clock.now(),
-        updatedAt: fixture.clock.now(),
-    });
+    await fixture.database.transaction(
+        async (transaction) =>
+            await transaction.insert(user.table).values({
+                id,
+                name: "Ada",
+                email,
+                ...SIGN_UP,
+                homeId: Account.home(Account.personal(id)),
+                createdAt: fixture.clock.now(),
+                updatedAt: fixture.clock.now(),
+            }),
+    );
 
     // send a code and sign in with it
     const sent = await browser.fetch("/email-otp/send-verification-otp", {
@@ -395,7 +418,9 @@ test("sign a person in with the latest of two mailed codes", async () => {
             email: person.email,
             type: "sign-in",
         });
-    const sent = [await answered(await send()), await answered(await send())];
+    const first = await answered(await send());
+    fixture.clock.advance(1);
+    const sent = [first, await answered(await send())];
 
     // sign in with the second code
     await browser.fetch("/sign-in/email-otp", { email: person.email, otp: await fixture.code() });
@@ -409,38 +434,38 @@ test("sign a person in with the latest of two mailed codes", async () => {
 });
 
 test("stop a passwordless sign-in at the second factor, and complete it with a recovery code once", async () => {
-    // enroll an authenticator, storing its secret and recovery codes encrypted
+    // enroll an authenticator, storing its secret sealed and its recovery codes digested
     await using fixture = await TestAccountStore.open();
     const { backupCodes, userId } = await enroll(fixture, fixture.browser());
     const factorOf = async () =>
         single(
             await fixture.database
                 .select()
-                .from(twoFactor.table)
-                .where(eq(twoFactor.table.userId, userId)),
+                .from(factor.table)
+                .where(eq(factor.table.userId, userId)),
         );
-    const factor = await factorOf();
+    const enrolled = await factorOf();
 
-    // stop a magic link at the second factor on a sign-in over a rotated root key
-    const browser = fixture.browser(SIGN_UP.locale, await fixture.rotate());
+    // stop a magic link at the second factor
+    const browser = fixture.browser();
     const challenge = await signInByLink(fixture, browser);
     const stopped = new URL(TestBrowser.location(challenge), ORIGIN);
     const unfinished: unknown = await (await browser.fetch("/get-session")).json();
 
-    // complete the sign-in with a recovery code, rewriting the remaining codes
+    // complete the sign-in with a recovery code, spending it
     await browser.fetch("/two-factor/verify-backup-code", { code: backupCodes[0] });
     const consumed = await factorOf();
     expect({
-        encrypted: [envelope(factor.secret), envelope(factor.backupCodes)],
+        sealed: Ciphertext.safeParse(enrolled.secret).success,
+        codes: [enrolled.recoveryCodes.length, consumed.recoveryCodes.length],
         challenge: [challenge.status, `${stopped.origin}${stopped.pathname}`],
         unfinished,
-        consumed: envelope(consumed.backupCodes),
         session: (await current(browser)).user.email,
     }).toEqual({
-        encrypted: [1, 1],
+        sealed: true,
+        codes: [10, 9],
         challenge: [302, `${ISSUER}/sign-in/two-factor`],
         unfinished: null,
-        consumed: 2,
         session: EMAIL,
     });
 });
@@ -461,7 +486,114 @@ test("refuse a spent recovery code in a later sign-in", async () => {
         spent.status,
         await answered(replay),
         await (await second.fetch("/get-session")).json(),
-    ]).toEqual([200, [401, { code: "INVALID_BACKUP_CODE", message: "Invalid backup code" }], null]);
+    ]).toEqual([
+        200,
+        [401, { code: "CODE_INVALID", message: "the recovery code is wrong or used" }],
+        null,
+    ]);
+});
+
+test("lock a factor after five wrong codes across sign-ins, and accept its codes again fifteen minutes later", async () => {
+    // try three wrong codes in one sign-in and two in another
+    await using fixture = await TestAccountStore.open();
+    const { totpURI } = await enroll(fixture, fixture.browser());
+    const wrong = async (browser: TestBrowser) =>
+        answered(await browser.fetch("/two-factor/verify-totp", { code: "000000" }));
+    const first = fixture.browser();
+    await signInByLink(fixture, first);
+    const tried = [await wrong(first), await wrong(first), await wrong(first)];
+    const second = fixture.browser();
+    await signInByLink(fixture, second);
+    tried.push(await wrong(second), await wrong(second));
+
+    // refuse the sixth code and then a right one while locked
+    const locked = await wrong(second);
+    const right = async (browser: TestBrowser) =>
+        answered(
+            await browser.fetch("/two-factor/verify-totp", {
+                code: await authenticatorCode(totpURI, fixture.environment, 0),
+            }),
+        );
+    const refused = await right(second);
+
+    // accept a right code in a new sign-in once the lock lifted
+    await fixture.simulation.jump(fixture.clock.now() + 15 * 60_000);
+    const third = fixture.browser();
+    await signInByLink(fixture, third);
+    const [status] = await right(third);
+    const wrongCode = [401, { code: "CODE_INVALID", message: "the code is wrong or expired" }];
+    const lockedOut = [
+        429,
+        { code: "FACTOR_LOCKED", message: "too many wrong codes: try again later" },
+    ];
+    expect({ tried, locked, refused, status }).toEqual({
+        tried: Array.from({ length: 5 }, () => wrongCode),
+        locked: lockedOut,
+        refused: lockedOut,
+        status: 200,
+    });
+});
+
+test("accept one of two codes checked at once, refusing the other", async () => {
+    // answer one sign-in's challenge with two right codes at once
+    await using fixture = await TestAccountStore.open();
+    const { totpURI, userId } = await enroll(fixture, fixture.browser());
+    const sessionsOf = async () =>
+        fixture.database
+            .select({ id: session.table.id })
+            .from(session.table)
+            .where(eq(session.table.userId, userId));
+    const before = await sessionsOf();
+    const browser = fixture.browser();
+    await signInByLink(fixture, browser);
+    const code = await authenticatorCode(totpURI, fixture.environment, 0);
+    const answers = await Promise.all(
+        [0, 1].map(async () => answered(await browser.fetch("/two-factor/verify-totp", { code }))),
+    );
+
+    // sign in through one alone, refusing the other however it interleaves
+    const accepted = answers.filter(([status]) => status === 200).length;
+    const created = (await sessionsOf()).length - before.length;
+    expect([accepted, created]).toEqual([1, 1]);
+});
+
+test("refuse enrolling an authenticator over a verified one", async () => {
+    // enroll, sign in through the factor, and enroll again
+    await using fixture = await TestAccountStore.open();
+    const { totpURI } = await enroll(fixture, fixture.browser());
+    const browser = fixture.browser();
+    await signInByLink(fixture, browser);
+    await browser.fetch("/two-factor/verify-totp", {
+        code: await authenticatorCode(totpURI, fixture.environment, 0),
+    });
+    expect(await answered(await browser.fetch("/two-factor/enable", { method: "totp" }))).toEqual([
+        409,
+        { code: "FACTOR_ENROLLED", message: "the person has an authenticator: disable it first" },
+    ]);
+});
+
+test("disable an authenticator only with a current code", async () => {
+    // sign in through the factor
+    await using fixture = await TestAccountStore.open();
+    const { totpURI, userId } = await enroll(fixture, fixture.browser());
+    const browser = fixture.browser();
+    await signInByLink(fixture, browser);
+    const code = async (offset: number) => authenticatorCode(totpURI, fixture.environment, offset);
+    await browser.fetch("/two-factor/verify-totp", { code: await code(0) });
+
+    // refuse a wrong code, then disable with the next one
+    await fixture.simulation.jump(fixture.clock.now() + 30_000);
+    const wrong = await answered(await browser.fetch("/two-factor/disable", { code: "000000" }));
+    const disabled = await browser.fetch("/two-factor/disable", { code: await code(0) });
+    const left = await fixture.database
+        .select({ id: factor.table.id })
+        .from(factor.table)
+        .where(eq(factor.table.userId, userId));
+    expect([wrong, disabled.status, left]).toEqual([
+        [401, { code: "CODE_INVALID", message: "the code is wrong or expired" }],
+        200,
+        [],
+    ]);
 });
 
 test("approve a device's new client in a signed-in session, and redeem its code once as the client", async () => {
@@ -469,9 +601,9 @@ test("approve a device's new client in a signed-in session, and redeem its code 
     await using fixture = await TestAccountStore.open();
     const { browser } = await fixture.signInWithLink(EMAIL);
     const device = fixture.browser();
-    const clientId = Identifier.create("client");
+    const clientId = Identifier.create("client", fixture.environment);
     const offered = await device.fetch(
-        "/device/code",
+        "/oauth2/device_authorization",
         new URLSearchParams({
             client_id: clientId,
             scope: "openid offline_access",
@@ -503,7 +635,7 @@ test("approve a device's new client in a signed-in session, and redeem its code 
     }).toEqual({
         approved: 200,
         credential: "client",
-        reused: [400, { error: "invalid_grant", error_description: "Invalid device code" }],
+        reused: [400, { error: "invalid_grant", error_description: "invalid device code" }],
     });
 });
 
@@ -512,9 +644,9 @@ test("refuse refreshing a device's tokens once the person revokes its client", a
     await using fixture = await TestAccountStore.open();
     const { person, browser } = await fixture.signInWithLink(EMAIL);
     const device = fixture.browser();
-    const clientId = Identifier.create("client");
+    const clientId = Identifier.create("client", fixture.environment);
     const offered = await device.fetch(
-        "/device/code",
+        "/oauth2/device_authorization",
         new URLSearchParams({
             client_id: clientId,
             scope: "openid offline_access",
@@ -540,7 +672,7 @@ test("refuse refreshing a device's tokens once the person revokes its client", a
     await person.client(accountPackage).client.revoke({
         userId: person.id,
         id: clientId,
-        requestId: RequestId.create(fixture.clock.now()),
+        requestId: RequestId.create(fixture.environment),
     });
     const refreshed = await device.fetch(
         "/oauth2/token",
@@ -551,8 +683,8 @@ test("refuse refreshing a device's tokens once the person revokes its client", a
         }),
     );
     expect(await answered(refreshed)).toEqual([
-        400,
-        { error: "invalid_client", error_description: "missing client" },
+        401,
+        { error: "invalid_client", error_description: `client ${clientId} was revoked` },
     ]);
 });
 
@@ -583,7 +715,7 @@ test("list and revoke a session over the account package", async () => {
     const revoked = await sessions.revoke({
         userId: owner.id,
         id: other,
-        requestId: RequestId.create(fixture.clock.now()),
+        requestId: RequestId.create(fixture.environment),
     });
     expect([revoked, await answered(await otherBrowser.fetch("/get-session"))]).toEqual([
         {
@@ -593,7 +725,7 @@ test("list and revoke a session over the account package", async () => {
             updatedAt: fixture.clock.now(),
             revision: before.revision + 1,
         },
-        [401, { message: "session is no longer authorized" }],
+        [401, { code: "SESSION_ENDED", message: "session is no longer authorized" }],
     ]);
 
     // revoke every other session of the user except the calling one
@@ -602,12 +734,15 @@ test("list and revoke a session over the account package", async () => {
     await sessions.revokeOthers({
         userId: owner.id,
         id: calling,
-        requestId: RequestId.create(fixture.clock.now()),
+        requestId: RequestId.create(fixture.environment),
     });
     expect([
         (await current(ownerBrowser)).session.id,
         await answered(await thirdBrowser.fetch("/get-session")),
-    ]).toEqual([calling, [401, { message: "session is no longer authorized" }]]);
+    ]).toEqual([
+        calling,
+        [401, { code: "SESSION_ENDED", message: "session is no longer authorized" }],
+    ]);
 
     // close Better Auth's endpoints the session objects replace
     const closed = await Promise.all([
@@ -622,7 +757,7 @@ test("register a passkey and sign in with it", async () => {
     // register the passkey through the browser ceremony
     await using fixture = await TestAccountStore.open();
     const { person: owner, browser: ownerBrowser } = await fixture.signInWithLink(EMAIL);
-    const authenticator = await PasskeyAuthenticator.generate(ORIGIN);
+    const authenticator = await PasskeyAuthenticator.generate(ORIGIN, fixture.environment);
     const creation = await ownerBrowser.fetch("/passkey/generate-register-options");
     const registered = await ownerBrowser.fetch("/passkey/verify-registration", {
         response: await authenticator.register(CeremonyOptions.parse(await creation.json())),

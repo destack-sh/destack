@@ -1,50 +1,14 @@
 import { PackageId } from "@destack/package";
+import accountPackage from "../package.ts";
+import { OAuthError } from "../authentication/token.ts";
 import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/access/token";
-
-/** The milliseconds in a second, as OAuth counts expiries in seconds. */
-const SECOND_MILLISECONDS = 1000;
-
-/** The model Better Auth reads protected resources from, which packages answer. */
-export const RESOURCE_MODEL = "oauthResource";
-
-/** The model Better Auth reads client-resource links from, which no row fills. */
-export const CLIENT_RESOURCE_MODEL = "oauthClientResource";
-
-/** A package as the OAuth resource its access tokens are for (RFC 8707). */
-export interface PackageResource {
-    /** The resource's identifier, `urn:destack:package:<packageId>`. */
-    readonly id: string;
-    /** The identifier its tokens include as `aud`. */
-    readonly identifier: string;
-    /** The name, the package's identifier. */
-    readonly name: string;
-    /** The access-token lifetime in seconds. */
-    readonly accessTokenTtl: number;
-    /** The refresh-token lifetime in seconds, the provider's default. */
-    readonly refreshTokenTtl: null;
-    /** The signing algorithm, the provider's. */
-    readonly signingAlgorithm: null;
-    /** The signing key, the active one. */
-    readonly signingKeyId: null;
-    /** The scopes, any the client asks. */
-    readonly allowedScopes: null;
-    /** The claims a resource adds, none. */
-    readonly customClaims: null;
-    /** Whether tokens must be bound to a proof-of-possession key, never. */
-    readonly dpopBoundAccessTokensRequired: false;
-    /** Whether issuance is disabled, never. */
-    readonly disabled: false;
-}
 
 /** How long each package's access tokens live, a minute unless the universe sets the package's. */
 export class TokenLifetime {
-    /** The lifetime of a token for no package, in seconds: the default minute. */
-    static readonly DEFAULT_SECONDS = TOKEN_LIFETIME_MILLISECONDS / SECOND_MILLISECONDS;
-
     /** The lifetimes the universe sets, in milliseconds, by package. */
     readonly #byPackage: ReadonlyMap<PackageId, number>;
 
-    /** Keep the lifetimes the universe sets. */
+    /** Store the lifetimes the universe sets. */
     constructor(byPackage: ReadonlyMap<PackageId, number>) {
         this.#byPackage = byPackage;
     }
@@ -55,7 +19,7 @@ export class TokenLifetime {
     }
 }
 
-/** The packages as the resources Better Auth issues tokens for. */
+/** The packages as the resources the token endpoint issues tokens for (RFC 8707). */
 export const PackageResource = {
     /** Read the package of a resource identifier, absent for any other identifier. */
     package(identifier: string): PackageId | undefined {
@@ -65,29 +29,19 @@ export const PackageResource = {
         return id.success && PackageId.resource(id.data) === identifier ? id.data : undefined;
     },
 
-    /** Answer a resource identifier as its package's resource, absent for any other identifier. */
-    of(identifier: string, lifetime: TokenLifetime): PackageResource | undefined {
-        // refuse anything but a package
-        const id = PackageResource.package(identifier);
-        if (id === undefined) {
-            return undefined;
+    /** Read the package a resource asks tokens for, the account package without one. */
+    audience(identifier: string | undefined): PackageId {
+        // ask for the account package without a resource
+        if (identifier === undefined) {
+            return accountPackage.id;
         }
 
-        // live as long as the package's verifiers accept
-        const seconds = lifetime.of(id) / SECOND_MILLISECONDS;
+        // refuse a resource of no package
+        const audience = PackageResource.package(identifier);
+        if (audience === undefined) {
+            throw OAuthError.of("INVALID_TARGET", `${identifier} names no package`);
+        }
 
-        return {
-            id: identifier,
-            identifier,
-            name: id,
-            accessTokenTtl: seconds,
-            refreshTokenTtl: null,
-            signingAlgorithm: null,
-            signingKeyId: null,
-            allowedScopes: null,
-            customClaims: null,
-            dpopBoundAccessTokensRequired: false,
-            disabled: false,
-        };
+        return audience;
     },
 };

@@ -1,10 +1,8 @@
-import type { OAuthExtensionGrantHandler } from "@better-auth/oauth-provider";
-import type { JWTPayload } from "jose";
 import { CONTAINED, principal } from "@destack/access";
 import { Scope, type Subject, RequestId } from "@destack/sync";
 import { type DatabaseConnection, Snapshot } from "@destack/db";
 import { schema } from "@destack/schema";
-import { type AssertionKey, AssertionVerifier } from "@destack/access/token";
+import { type AssertionKey, AssertionVerifier, PartitionId } from "@destack/access/token";
 import { Identity } from "../object/identity.ts";
 import { Machine, machine } from "../object/machine.ts";
 import { space } from "../object/space.ts";
@@ -12,23 +10,27 @@ import { account } from "../object/account.ts";
 import { user } from "../object/user.ts";
 import { Placement } from "../object/placement.ts";
 import accountPackage from "../package.ts";
-import { Issuance } from "./issuance.ts";
-import { PackageResource, type TokenLifetime } from "./resource.ts";
+import { OAuthError } from "../authentication/token.ts";
+import { AccessToken, type TokenGrant } from "./token.ts";
+import { PackageResource } from "./resource.ts";
 import { proof } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
-import type { Clock } from "@destack/environment";
+import type { Crypto, Environment } from "@destack/environment";
 
 /** The grant type of a key-signed assertion exchanged for an access token (RFC 7523 2.1). */
 export const JWT_BEARER = "urn:ietf:params:oauth:grant-type:jwt-bearer";
 
-/** A jwt-bearer request: the assertion, the package and the space the token acts in. */
+/** The identifier schema of spaces, the partitions a machine works in beside its own. */
+const SPACE_IDENTIFIER = schema.identifier("space");
+
+/** A jwt-bearer request: the assertion, the package and the partition the token acts in. */
 const BearerRequest = schema.looseObject({
     /** The key-signed assertion. */
     assertion: schema.string().min(1),
     /** The package the token is for, as its resource (RFC 8707). */
     resource: schema.string().min(1),
-    /** The space the machine serves, receives or works in, absent for a call outside spaces. */
-    space: schema.identifier("space").exactOptional(),
+    /** The partition the call goes to: a space the machine serves, its own partition, or none. */
+    partition: PartitionId.exactOptional(),
 });
 
 /** What the jwt-bearer grant verifies assertions with. */
@@ -36,30 +38,26 @@ export interface BearerOptions {
     /** The account database with the machines' keys and the placements. */
     readonly database: DatabaseConnection;
     /** The account objects, which store the spent proofs. */
-    readonly objects: Pick<ObjectStore, "mutate" | "serving">;
+    readonly objects: Pick<ObjectStore, "mutate" | "as" | "environment">;
     /** The token endpoint's URL, every assertion's audience. */
     readonly endpoint: string;
-    /** The clock assertions are verified at. */
-    readonly clock: Clock;
-    /** How long the packages' tokens live. */
-    readonly lifetime: TokenLifetime;
-    /** The universe's issuer, which its tokens include. */
-    readonly issuer: string;
-    /** Sign claims with the universe's active key, as the provider signs its tokens. */
-    readonly sign: (claims: JWTPayload, header: { readonly typ: string }) => Promise<string>;
+    /** The clock assertions are verified at, and the WebCrypto verifying them. */
+    readonly environment: Environment;
 }
 
 /** Exchange a machine's or installation's assertion for a package's access token (RFC 7523). */
-export function bearerGrant(options: BearerOptions): OAuthExtensionGrantHandler {
+export function bearerGrant(options: BearerOptions): TokenGrant {
     // verify assertions by the machines' keys that authenticate, spending each once
     const { database } = options;
     const assertions = new AssertionVerifier({
         endpoint: options.endpoint,
         audience: accountPackage.id,
-        keys: (thumbprint, issuer, now) => assertionKey(database, thumbprint, issuer, now),
-        spend: async (digest, expiresAt, now) => {
-            await options.objects.mutate(options.objects.serving(proof), {
-                id: RequestId.create(now),
+        keys: (thumbprint, issuer, now) =>
+            assertionKey(database, thumbprint, issuer, now, options.environment.crypto),
+        crypto: options.environment.crypto,
+        spend: async (digest, expiresAt) => {
+            await options.objects.mutate(options.objects.as(proof), {
+                id: RequestId.create(options.objects.environment),
                 calls: [
                     proof.call("create", { ...proof.in(Scope.universe.id), id: digest, expiresAt }),
                 ],
@@ -67,58 +65,63 @@ export function bearerGrant(options: BearerOptions): OAuthExtensionGrantHandler 
         },
     });
 
-    return async (input) => {
+    return async ({ body }) => {
         // read the request and the package it asks a token for
-        const request = BearerRequest.safeParse(input.ctx.body);
+        const request = BearerRequest.safeParse(body);
         if (!request.success) {
-            throw Issuance.refusal("invalid_request", "invalid jwt-bearer request");
+            throw OAuthError.of("INVALID_REQUEST", "invalid jwt-bearer request");
         }
-        const { assertion, resource, space: spaceId } = request.data;
+        const { assertion, resource, partition } = request.data;
         const audience = PackageResource.package(resource);
         if (audience === undefined) {
-            throw Issuance.refusal("invalid_target", `${resource} names no package`);
+            throw OAuthError.of("INVALID_TARGET", `${resource} names no package`);
         }
 
         // verify the assertion, refusing it as an invalid grant
-        const now = options.clock.now();
-        const { caller: asserted, credential } = await assertions
-            .verify(assertion, now)
-            .catch(refuse);
+        const now = options.environment.clock.now();
+        const { caller: asserted, credential } = await assertions.verify(assertion, now);
+
+        // take the universe or a machine's own partition as they are
+        const isMachine = principal.machine.is(asserted.subject);
+        const isOpen = partition === undefined || (isMachine && partition === asserted.subject.id);
+        const spaceId = SPACE_IDENTIFIER.safeParse(partition);
 
         // bind a machine to a space it serves, receives or works in
-        if (spaceId !== undefined && principal.machine.is(asserted.subject)) {
+        if (!isOpen && isMachine && spaceId.success) {
             const machineId = schema.identifier("machine").parse(asserted.subject.id);
-            await Placement.requireWorker(Snapshot.live(database), spaceId, machineId).catch(
-                refuse,
+            await Placement.requireWorker(Snapshot.live(database), spaceId.data, machineId);
+        }
+        // refuse a machine any other partition
+        else if (!isOpen && isMachine) {
+            throw OAuthError.of(
+                "INVALID_GRANT",
+                `${asserted.subject.id} acts in its own partition and its spaces alone`,
             );
         }
         // bind an installation to its space alone
-        else if (spaceId !== undefined && asserted.subject.scope !== spaceId) {
-            throw Issuance.refusal(
-                "invalid_grant",
-                `${asserted.subject.id} acts in its space alone`,
-            );
+        else if (!isOpen && asserted.subject.scope !== partition) {
+            throw OAuthError.of("INVALID_GRANT", `${asserted.subject.id} acts in its space alone`);
         }
 
-        // issue the token toward the package, in the space when asked, with a space's containment in its account
+        // issue the token for the partition the call goes to, else the universe
+        const { scope: _asserted, ...unscoped } = credential;
         const scoped = {
-            ...credential,
+            ...unscoped,
             audience,
-            ...(spaceId === undefined ? {} : { scope: spaceId }),
+            ...(partition === undefined ? {} : { scope: partition }),
         };
+
+        // add a space's containment to the caller's groups
         const groups = [...asserted.groups, ...(await containment(database, asserted.subject))];
+        const authentication = { caller: { ...asserted, groups }, credential: scoped };
 
-        return Issuance.sign(
-            input,
-            { caller: { ...asserted, groups }, credential: scoped },
-            { now, lifetime: options.lifetime, issuer: options.issuer, sign: options.sign },
-        );
+        return {
+            authentication,
+            clientId: AccessToken.client(authentication),
+            scopes: [],
+            resource,
+        };
     };
-}
-
-/** Refuse a failed verification as an invalid grant (RFC 6749 5.2). */
-function refuse(error: unknown): never {
-    throw Issuance.grantRefusal(error);
 }
 
 /** Read the key an assertion's issuer signs with: a machine's key, or a space's identity key. */
@@ -127,13 +130,14 @@ function assertionKey(
     thumbprint: string,
     issuer: string,
     now: number,
+    crypto: Crypto,
 ): Promise<AssertionKey | undefined> {
     // read a machine's authenticating key, or the space's current signing key for its installations
     const snapshot = Snapshot.live(database);
     if (machine.identifies(issuer)) {
         return Machine.assertionKey(snapshot, thumbprint, now);
     } else if (space.identifies(issuer)) {
-        return Identity.assertionKey(snapshot, thumbprint, issuer);
+        return Identity.assertionKey(snapshot, thumbprint, issuer, crypto);
     }
 
     return Promise.resolve(undefined);
@@ -156,7 +160,7 @@ async function containment(database: DatabaseConnection, subject: Subject): Prom
                   .read(account.table)
                   .findFirst({ where: { id: account.identifier(row.scope) } });
     if (row === undefined || owner === undefined) {
-        throw Issuance.refusal("invalid_grant", `the account of space ${subject.id} is unknown`);
+        throw OAuthError.of("INVALID_GRANT", `the account of space ${subject.id} is unknown`);
     }
 
     // state the people whose home the space is, as the universe stores them

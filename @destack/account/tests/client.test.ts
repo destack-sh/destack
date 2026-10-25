@@ -1,3 +1,4 @@
+import type { Environment } from "@destack/environment";
 import { eq } from "@destack/db";
 import { ObjectReference, RequestId } from "@destack/sync";
 import { expect, refusal, test } from "@destack/test";
@@ -16,9 +17,14 @@ function sortIds(ids: readonly string[]): string[] {
     return ids.toSorted((left, right) => left.localeCompare(right));
 }
 
-/** Sign a proof for a client or machine by a key pair at a time. */
-function prove(pair: KeyPair, subject: string, now: number): Promise<string> {
-    return Proof.sign(pair.privateKey, pair.publicKey, subject, now);
+/** Sign a proof for a client or machine by a key pair at a time, in a world. */
+function prove(
+    pair: KeyPair,
+    subject: string,
+    now: number,
+    world: Pick<Environment, "crypto" | "random">,
+): Promise<string> {
+    return Proof.sign(pair.privateKey, pair.publicKey, subject, now, world);
 }
 
 test("register clients with proven keys and revoke them with the sessions attached to them", async () => {
@@ -31,7 +37,7 @@ test("register clients with proven keys and revoke them with the sessions attach
     // register a computer, the first session staying on the client it signed in on
     const laptop = await owner.client(accountPackage).client.create({
         userId: owner.id,
-        requestId: RequestId.create(fixture.store.clock.now()),
+        requestId: RequestId.create(fixture.store.environment),
         name: "laptop",
         kind: "native",
         platform: "macOS",
@@ -74,26 +80,26 @@ test("register clients with proven keys and revoke them with the sessions attach
     // register a browser profile
     const browser = await owner.client(accountPackage).client.create({
         userId: owner.id,
-        requestId: RequestId.create(fixture.store.clock.now()),
+        requestId: RequestId.create(fixture.store.environment),
         name: "Firefox",
         kind: "browser",
     });
     expect(await attached()).toEqual(sortIds([owner.clientId, again.clientId]));
 
     // register a key the client proves it has
-    const pair = (await KeyPair.generate()).pair;
+    const pair = (await KeyPair.generate(fixture.environment.crypto)).pair;
     const parent = { ...client.typeReference, id: laptop.id };
     const register = async (publicKey: PublicKey, proof: string) =>
         owner.client(accountPackage).key.create({
             scope: owner.id,
-            requestId: RequestId.create(fixture.store.clock.now()),
+            requestId: RequestId.create(fixture.store.environment),
             parent,
             publicKey,
             proof,
         });
     const registered = await register(
         pair.publicKey,
-        await prove(pair, laptop.id, fixture.store.clock.now()),
+        await prove(pair, laptop.id, fixture.store.clock.now(), fixture.environment),
     );
     expect(registered).toEqual({
         id: registered.id,
@@ -112,7 +118,7 @@ test("register clients with proven keys and revoke them with the sessions attach
         parentType: "client",
         parentId: laptop.id,
         publicKey: pair.publicKey,
-        thumbprint: await PublicKey.thumbprint(pair.publicKey),
+        thumbprint: await PublicKey.thumbprint(pair.publicKey, fixture.environment.crypto),
         verifiedAt: registered.createdAt,
         expiresAt: registered.createdAt + 365 * DAY,
         revokedAt: null,
@@ -120,16 +126,24 @@ test("register clients with proven keys and revoke them with the sessions attach
     });
     expect(
         await refusal(
-            register(pair.publicKey, await prove(pair, laptop.id, fixture.store.clock.now())),
+            register(
+                pair.publicKey,
+                await prove(pair, laptop.id, fixture.store.clock.now(), fixture.environment),
+            ),
         ),
     ).toEqual(["CONFLICT", "DUPLICATE", "another key has the same thumbprint"]);
 
     // refuse a proof for another client
-    const other = (await KeyPair.generate()).pair;
-    const elsewhere = await prove(other, "client-elsewhere", fixture.store.clock.now());
+    const other = (await KeyPair.generate(fixture.environment.crypto)).pair;
+    const elsewhere = await prove(
+        other,
+        "client-elsewhere",
+        fixture.store.clock.now(),
+        fixture.environment,
+    );
     expect(await refusal(register(other.publicKey, elsewhere))).toEqual([
         "BAD_REQUEST",
-        "INVALID_PROOF",
+        "PROOF_INVALID",
         "key proof is for another subject or time",
     ]);
 
@@ -138,20 +152,26 @@ test("register clients with proven keys and revoke them with the sessions attach
         again.client(accountPackage).client.attach({
             userId: owner.id,
             id: laptop.id,
-            requestId: RequestId.create(fixture.store.clock.now()),
+            requestId: RequestId.create(fixture.store.environment),
             proof,
         });
-    expect(await refusal(attach(await prove(other, laptop.id, fixture.store.clock.now())))).toEqual(
-        ["FORBIDDEN", "KEY_PROOF_REFUSED", "key proof does not match an active key of the client"],
-    );
-    const proof = await prove(pair, laptop.id, fixture.store.clock.now());
+    expect(
+        await refusal(
+            attach(await prove(other, laptop.id, fixture.store.clock.now(), fixture.environment)),
+        ),
+    ).toEqual([
+        "FORBIDDEN",
+        "KEY_PROOF_REFUSED",
+        "key proof does not match an active key of the client",
+    ]);
+    const proof = await prove(pair, laptop.id, fixture.store.clock.now(), fixture.environment);
     await attach(proof);
     expect(await attached()).toEqual(sortIds([owner.clientId, laptop.id]));
 
     // refuse the same proof a second time
     expect(await refusal(attach(proof))).toEqual([
         "BAD_REQUEST",
-        "INVALID_PROOF",
+        "PROOF_INVALID",
         "key proof was already used",
     ]);
 
@@ -178,14 +198,14 @@ test("register clients with proven keys and revoke them with the sessions attach
     const subscribed = await owner.client(accountPackage).client.subscribe({
         userId: owner.id,
         id: browser.id,
-        requestId: RequestId.create(fixture.store.clock.now()),
+        requestId: RequestId.create(fixture.store.environment),
         push,
     });
     const refusedPush = await refusal(
         owner.client(accountPackage).client.subscribe({
             userId: owner.id,
             id: laptop.id,
-            requestId: RequestId.create(fixture.store.clock.now()),
+            requestId: RequestId.create(fixture.store.environment),
             push,
         }),
     );
@@ -193,11 +213,11 @@ test("register clients with proven keys and revoke them with the sessions attach
     await owner.client(accountPackage).client.unsubscribe({
         userId: owner.id,
         id: browser.id,
-        requestId: RequestId.create(fixture.store.clock.now()),
+        requestId: RequestId.create(fixture.store.environment),
     });
     expect([subscribed, refusedPush, await stored()]).toEqual([
         { ...browser, revision: browser.revision + 1 },
-        ["BAD_REQUEST", "PUSH_BROWSER_ONLY", "only browsers can subscribe to push"],
+        ["BAD_REQUEST", "PUSH_BROWSER_REQUIRED", "only browsers can subscribe to push"],
         [null],
     ]);
 
@@ -209,7 +229,7 @@ test("register clients with proven keys and revoke them with the sessions attach
     const revoked = await owner.client(accountPackage).client.revoke({
         userId: owner.id,
         id: laptop.id,
-        requestId: RequestId.create(fixture.store.clock.now()),
+        requestId: RequestId.create(fixture.store.environment),
     });
     const ended = await fixture.storage.database
         .select({ revokedAt: key.table.revokedAt })
@@ -218,7 +238,9 @@ test("register clients with proven keys and revoke them with the sessions attach
     expect({
         revoked,
         ended,
-        exchanged: await refusal(fixture.issuer.exchange(again.token, accountPackage.id, {})),
+        exchanged: await refusal(
+            fixture.issuer.exchange(await again.token(), accountPackage.id, {}),
+        ),
     }).toEqual({
         revoked: {
             ...attachedLaptop,
@@ -232,5 +254,33 @@ test("register clients with proven keys and revoke them with the sessions attach
             "INVALID_GRANT",
             "the token endpoint refused the request: invalid_grant: the person's session ended",
         ],
+    });
+});
+
+test("refresh a person's access token once it expires, and keep calling as the person", async () => {
+    await using fixture = await TestAccountStore.open();
+    const person = await fixture.signIn("person@example.com");
+    fixture.clock.pause();
+
+    // read the person's account, then again past the access token's expiry
+    const read = () =>
+        person.client(accountPackage).account.get({ scope: person.id, id: person.account });
+    const issued = await person.tokens();
+    const before = await read();
+    fixture.clock.set(issued.expiresAt + 1);
+    const after = await read();
+    const refreshed = await person.tokens();
+
+    // call with a new access token and refresh token, reading the same account
+    expect({
+        account: after,
+        isAccessTokenNew: refreshed.accessToken !== issued.accessToken,
+        isRefreshTokenNew: refreshed.refreshToken !== issued.refreshToken,
+        isCurrent: refreshed.expiresAt > fixture.clock.now(),
+    }).toEqual({
+        account: before,
+        isAccessTokenNew: true,
+        isRefreshTokenNew: true,
+        isCurrent: true,
     });
 });

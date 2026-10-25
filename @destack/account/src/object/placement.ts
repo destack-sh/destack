@@ -1,12 +1,40 @@
 import { contained, none, principal, relation, through, union } from "@destack/access";
 import type { Snapshot } from "@destack/db";
-import { defineObject, field } from "@destack/object";
-import { Digest, Identifier, present, schema } from "@destack/schema";
+import { Condition, defineObject, field } from "@destack/object";
+import { Digest, type DigestCrypto, Identifier, present, schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { account } from "./account.ts";
 import { machine } from "./machine.ts";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
+
+/** Where a space's work runs: shared or dedicated cloud machines, or its people's computers. */
+export const Tenancy = schema.enum(["shared", "dedicated", "local"]);
+/** Where a space's work runs. */
+export type Tenancy = schema.Infer<typeof Tenancy>;
+
+/** Where a space's tenancy comes from: set by a person, or the tenancy setting's default. */
+export const TenancySource = schema.enum(["set", "default"]);
+/** Where a space's tenancy comes from. */
+export type TenancySource = schema.Infer<typeof TenancySource>;
+
+/** Where a space's tenancy places it: on its machine with the reason, or moving. */
+export const Schedule = schema.discriminatedUnion("kind", [
+    schema.object({
+        /** The space stays on its machine. */
+        kind: schema.literal("stay"),
+        /** Why it stays: placed, unset, unentitled or without a machine to move to. */
+        condition: Condition,
+    }),
+    schema.object({
+        /** The space moves. */
+        kind: schema.literal("move"),
+        /** The machine it moves to. */
+        machine: schema.identifier("machine"),
+    }),
+]);
+/** Where a space's tenancy places it. */
+export type Schedule = schema.Infer<typeof Schedule>;
 
 /** Where a space runs: the machine serving its databases at an epoch. */
 const PlacementSchema = schema.object({
@@ -25,11 +53,12 @@ export const Placement = Object.assign(PlacementSchema, {
     async pick(
         spaceId: Identifier<"space">,
         machines: readonly Identifier<"machine">[],
+        crypto: DigestCrypto,
     ): Promise<Identifier<"machine"> | undefined> {
         // choose the machine whose digest with the space scores highest
         let best: { readonly machine: Identifier<"machine">; readonly score: string } | undefined;
         for (const candidate of machines) {
-            const score = await Digest.of(`${spaceId}:${candidate}`);
+            const score = await Digest.of(`${spaceId}:${candidate}`, crypto);
             if (best === undefined || score > best.score) {
                 best = { machine: candidate, score };
             }
@@ -78,7 +107,7 @@ export const Placement = Object.assign(PlacementSchema, {
                 ).residencyId;
         if (!isAccountMachine && !isShared) {
             throw AccountError.of(
-                "UNKNOWN_MACHINE",
+                "MACHINE_UNKNOWN",
                 `${target} is not a standing machine of the space's account or residency`,
             );
         }
@@ -104,14 +133,17 @@ export const Placement = Object.assign(PlacementSchema, {
         // refuse a machine neither serving nor receiving the space, nor working in it
         const isPlaced = machineId === placed?.machineId || machineId === placed?.targetId;
         if (!isPlaced && assigned === undefined) {
-            throw AccountError.of("PLACED_ELSEWHERE", `${spaceId} is placed on other machines`);
+            throw AccountError.of(
+                "SPACE_PLACED_ELSEWHERE",
+                `${spaceId} is placed on other machines`,
+            );
         }
     },
 
     /** Refuse a call at an epoch other than the space's current epoch. */
     requireServed(row: Pick<Placement, "id" | "epoch">, epoch: number): void {
         if (row.epoch !== epoch) {
-            throw AccountError.of("STALE_EPOCH", `${row.id} is no longer placed at epoch ${epoch}`);
+            throw AccountError.of("EPOCH_STALE", `${row.id} is no longer placed at epoch ${epoch}`);
         }
     },
 });
@@ -173,6 +205,8 @@ export const placement = defineObject(
             create: none(),
             place: union(relation("machine"), relation("target")),
             move: relation("machine"),
+            // the space and the machine serving it decide where its tenancy places it
+            schedule: union(relation("self"), relation("machine")),
             // the machine serving the space alone, which owners' roles leave out
             serve: relation("machine"),
         },
@@ -212,6 +246,18 @@ export const placement = defineObject(
                 /** The transfer moving it, which hands the target its identifier. */
                 transferId: schema.identifier("transfer"),
             }),
+        }),
+
+        /** Decide where a space's tenancy places it at its epoch: on its machine, or on another. */
+        schedule: method.query({
+            permission: "schedule",
+            input: Serving.extend({
+                /** The tenancy the space asks for. */
+                tenancy: Tenancy,
+                /** Where the tenancy comes from: set by a person, or the default. */
+                source: TenancySource,
+            }),
+            output: Schedule,
         }),
 
         /** End a space's placement, as the machine serving it at its epoch. */

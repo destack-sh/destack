@@ -1,4 +1,6 @@
-import type { VirtualClock } from "@destack/environment/simulation";
+import { Uuid } from "@destack/schema";
+import { type Environment } from "@destack/environment";
+import type { SimulatedClock } from "@destack/environment/simulation";
 import type { Identifier } from "@destack/schema";
 import { STRANGER_EMAIL, TestAccountStore, TestDns, type TestPerson } from "../src/test/index.ts";
 
@@ -19,7 +21,7 @@ export class DomainFixture implements AsyncDisposable {
     /** The second account. */
     readonly otherId: Identifier<"account">;
     /** A domain of the scenario. */
-    readonly name = `acme-${crypto.randomUUID().slice(0, 8)}.example.com`;
+    readonly name: string;
 
     /** Keep the scenario's people and accounts. */
     private constructor(
@@ -29,6 +31,7 @@ export class DomainFixture implements AsyncDisposable {
     ) {
         this.accounts = accounts;
         this.dns = dns;
+        this.name = `acme-${Uuid.v4(accounts.environment.random).slice(0, 8)}.example.com`;
         this.owner = people.owner;
         this.rival = people.rival;
         this.stranger = people.stranger;
@@ -37,8 +40,13 @@ export class DomainFixture implements AsyncDisposable {
     }
 
     /** The clock the scenario runs at, standing still unless moved. */
-    get clock(): VirtualClock {
+    get clock(): SimulatedClock {
         return this.accounts.clock;
+    }
+
+    /** The world the scenario runs in, its accounts'. */
+    get environment(): Environment {
+        return this.accounts.environment;
     }
 
     /** Sign the people up, each owner creating a shared account. */

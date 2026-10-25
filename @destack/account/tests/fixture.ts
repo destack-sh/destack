@@ -1,5 +1,5 @@
 import type { DatabaseConnection } from "@destack/db";
-import type { Clock } from "@destack/environment";
+import type { Environment } from "@destack/environment";
 import { type Claimant, defineObject, field } from "@destack/object";
 import { RemoteStore, Reservation } from "@destack/object/server";
 import { RequestId, type Page, Scope } from "@destack/sync";
@@ -68,19 +68,18 @@ export async function firstPage(pages: AsyncIterable<Page>): Promise<Page> {
     return next.value;
 }
 
-/** Reserve and confirm a place's names at the universe as a caller, at a clock's time. */
+/** Reserve and confirm a place's names at the universe as a caller, in an environment. */
 export async function claimNames(
     caller: Pick<TestCaller, "client">,
     database: DatabaseConnection,
     claimant: Claimant,
-    clock: Clock,
+    environment: Environment,
 ): Promise<void> {
     const service = {
         object: claim,
         home: RemoteStore.of(caller.client(accountPackage).store, Scope.universe.id),
     };
-    const now = clock.now();
-    const request = { id: RequestId.create(now), now };
+    const request = { id: RequestId.create(environment), environment };
     const reservation = await Reservation.reserve(service, [claimant], [place], request);
     await reservation.commit(database);
     await reservation.confirm();

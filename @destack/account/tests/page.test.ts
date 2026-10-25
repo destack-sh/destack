@@ -1,5 +1,6 @@
 import accountPackage from "../src/package.ts";
 import { inArray } from "@destack/db";
+import { PackageId } from "@destack/package";
 import { Identifier, present } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { expect, test } from "@destack/test";
@@ -15,6 +16,9 @@ import { DeviceGrant, Tokens } from "./fixture.ts";
 
 /** The path of the issuer's pages, which their forms post to. */
 const PAGES = new URL(ISSUER).pathname;
+
+/** A second in milliseconds, the age of a session older than a request. */
+const SECOND = 1000;
 
 /** The session cookie Better Auth sets. */
 const SESSION_COOKIE = "better-auth.session_token";
@@ -119,7 +123,7 @@ test("sign in on the sign-in page by link and by code", async () => {
     const browser = fixture.browser();
     const authorize = `/oauth2/authorize?${new URLSearchParams({
         response_type: "code",
-        client_id: Identifier.create("client"),
+        client_id: Identifier.create("client", fixture.environment),
         redirect_uri: "http://127.0.0.1:53682/callback",
         state: "state-1",
         code_challenge: "c".repeat(43),
@@ -132,23 +136,7 @@ test("sign in on the sign-in page by link and by code", async () => {
         away.status,
         `${page.origin}${page.pathname}`,
         [...new Set(query.keys())].toSorted((left, right) => left.localeCompare(right)),
-    ]).toEqual([
-        302,
-        `${ISSUER}/sign-in`,
-        [
-            "ba_iat",
-            "ba_param",
-            "client_id",
-            "code_challenge",
-            "code_challenge_method",
-            "exp",
-            "redirect_uri",
-            "response_type",
-            "scope",
-            "sig",
-            "state",
-        ],
-    ]);
+    ]).toEqual([302, `${ISSUER}/sign-in`, ["client_id", "request_uri"]]);
 
     // render the email form running only the time zone script
     const form = await browser.fetch(`/sign-in${page.search}`);
@@ -406,9 +394,9 @@ test("approve an application on the consent page", async () => {
 
     // register and authorize an application and send the user to the consent page
     const redirect = "https://notes.test/callback";
-    const client = await owner.client(accountPackage).oauthClient.create({
+    const client = await owner.client(accountPackage).application.create({
         scope: owner.id,
-        requestId: RequestId.create(fixture.store.clock.now()),
+        requestId: RequestId.create(fixture.store.environment),
         name: "Notes <&>",
         redirectUris: [redirect],
         tokenEndpointAuthMethod: "none",
@@ -462,9 +450,15 @@ test("approve a device code on the verification page", async () => {
     const browser = fixture.browser();
     await fixture.signIn("ada@example.com");
 
-    // request a device code as a device's new client
-    const deviceClient = Identifier.create("client");
-    const offered = await native.fetch("/device/code", { client_id: deviceClient });
+    // request a device code for the account package as a device's new client
+    const deviceClient = Identifier.create("client", fixture.environment);
+    const offered = await native.fetch(
+        "/oauth2/device_authorization",
+        new URLSearchParams({
+            client_id: deviceClient,
+            resource: PackageId.resource(accountPackage.id),
+        }),
+    );
     const grant = DeviceGrant.parse(await offered.json());
     const complete = new URL(grant.verification_uri_complete);
     expect(`${complete.origin}${complete.pathname}`).toBe(`${ISSUER}/device`);
@@ -529,11 +523,11 @@ test("verify an authenticator code on the second-factor page", async () => {
     await using fixture = await TestAccountStore.open();
     const { browser: ownerBrowser } = await fixture.signInWithLink("ada@example.com");
 
-    // enroll an authenticator
+    // enroll an authenticator with the code it showed a step ago
     const enrollment = await ownerBrowser.fetch("/two-factor/enable", {});
     const { totpURI } = Enrollment.parse(await enrollment.json());
     await ownerBrowser.fetch("/two-factor/verify-totp", {
-        code: authenticatorCode(totpURI, fixture.store.clock.now()),
+        code: await authenticatorCode(totpURI, fixture.environment, -1),
     });
 
     // stop a link's sign-in at the second-factor page
@@ -567,7 +561,7 @@ test("verify an authenticator code on the second-factor page", async () => {
         page.href,
         new URLSearchParams({
             action: "totp",
-            code: authenticatorCode(totpURI, fixture.store.clock.now()),
+            code: await authenticatorCode(totpURI, fixture.environment),
         }),
     );
     expect([verified.status, TestBrowser.location(verified), [...browser.cookies.keys()]]).toEqual([
@@ -577,14 +571,15 @@ test("verify an authenticator code on the second-factor page", async () => {
     ]);
 });
 
-test("send a person asked to sign in again back to sign in until they do, and refuse a forged request", async () => {
+test("ask a person asked to sign in again to sign in until they do, and refuse an unknown request", async () => {
     await using fixture = await TestAccountStore.open();
     const { browser } = await fixture.signInWithLink("ada@example.com");
+    fixture.clock.advance(SECOND);
 
-    // ask the signed-in browser to sign in again for a new client
+    // ask the browser signed in a second ago to sign in again for a new client
     const authorize = `/oauth2/authorize?${new URLSearchParams({
         response_type: "code",
-        client_id: Identifier.create("client"),
+        client_id: Identifier.create("client", fixture.environment),
         redirect_uri: "http://127.0.0.1:53682/callback",
         state: "state-1",
         code_challenge: "c".repeat(43),
@@ -594,16 +589,22 @@ test("send a person asked to sign in again back to sign in until they do, and re
     })}`;
     const asked = new URL(TestBrowser.location(await browser.fetch(authorize)));
 
-    // continue with the older session, and with a forged request time
-    const stale = await browser.fetch(asked.href, new URLSearchParams({ action: "continue" }));
-    const forged = new URL(asked);
-    forged.searchParams.set("ba_iat", "1");
-    const refused = await browser.fetch(forged.href, new URLSearchParams({ action: "continue" }));
+    // ask the older session to sign in, and refuse a request the issuer does not store
+    const stale = await browser.fetch(asked.href);
+    const unknown = new URL(asked);
+    unknown.searchParams.set(
+        "request_uri",
+        `urn:ietf:params:oauth:request_uri:${Identifier.create("authorization-request", fixture.environment)}`,
+    );
+    const refused = await browser.fetch(unknown.href);
     expect({
-        stale: [stale.status, new URL(TestBrowser.location(stale)).pathname],
+        stale: [stale.status, stale.headers.get("location")],
         refused: [refused.status, await main(refused)],
     }).toEqual({
-        stale: [303, `${PAGES}/sign-in`],
-        refused: [400, '<main><h1>Sign-in failed</h1><p role="alert">invalid_signature</p></main>'],
+        stale: [200, null],
+        refused: [
+            400,
+            '<main><h1>Sign-in failed</h1><p role="alert">the authorization request lapsed</p></main>',
+        ],
     });
 });

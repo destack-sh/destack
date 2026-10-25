@@ -1,4 +1,5 @@
 import { Digest } from "@destack/schema";
+import { testSimulation } from "@destack/object/test";
 import { expect, test } from "@destack/test";
 import { Credential } from "./credential.ts";
 
@@ -7,9 +8,11 @@ const PREFIX_LENGTH = 8;
 
 test("create each kind of secret as its prefix before 32 random bytes in canonical base64url, beside its digest", async () => {
     // create a secret of each kind
+    await using simulation = testSimulation();
+    const environment = simulation.environment("credential");
     const credentials = [
-        await Credential.create("personal-access-token"),
-        await Credential.create("oauth-client"),
+        await Credential.create("personal-access-token", environment),
+        await Credential.create("client-secret", environment),
     ];
 
     // read each secret back as its kind, prefix and bytes, encoded again, and digest it again
@@ -25,7 +28,7 @@ test("create each kind of secret as its prefix before 32 random bytes in canonic
                 prefix: secret.slice(0, PREFIX_LENGTH),
                 length: bytes.length,
                 secret: `${secret.slice(0, PREFIX_LENGTH)}${encoded}`,
-                digest: await Digest.of(secret),
+                digest: await Digest.of(secret, environment.crypto),
             };
         }),
     );

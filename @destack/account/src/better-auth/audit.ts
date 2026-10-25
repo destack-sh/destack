@@ -7,11 +7,11 @@ import {
     SpanKind,
     SpanStatusCode,
     SeverityNumber,
-    telemetry,
-    context,
+    TelemetryScope,
     extractContext,
     isSpanContextValid,
     type Span,
+    trace,
 } from "@destack/telemetry";
 import type { BetterAuthPlugin } from "better-auth";
 import { createAuthMiddleware } from "better-auth/api";
@@ -20,6 +20,7 @@ import type { Fetch } from "@destack/object";
 import { sessionCreate } from "../object/session.ts";
 import { Package } from "@destack/package";
 import accountPackage from "../package.ts";
+import { METADATA_PATHS } from "../authentication/path.ts";
 
 /** The authentication reads, which leave credentials and challenges unchanged. */
 const READS = new Set([
@@ -27,7 +28,7 @@ const READS = new Set([
     "/list-accounts",
     "/passkey/list-user-passkeys",
     "/oauth2/userinfo",
-    "/oauth2/public-client",
+    ...METADATA_PATHS,
     "/ok",
 ]);
 
@@ -73,10 +74,12 @@ export class BetterAuthAudit {
 
     /** Report protocol diagnostics with fixed messages and standard severity. */
     log(level: keyof typeof SEVERITIES): void {
-        telemetry.scope(Package.of(accountPackage)).logger.emit({
+        const { telemetry } = this.journal.environment;
+        TelemetryScope.of(Package.of(accountPackage), telemetry).logger.emit({
             severityNumber: SEVERITIES[level],
             severityText: level.toUpperCase(),
             body: "authentication protocol diagnostic",
+            context: telemetry.context.active(),
         });
     }
 
@@ -149,26 +152,29 @@ export class BetterAuthAudit {
             return handler(request);
         }
 
-        // propagate trace context without credentials
-        return context.with(extractContext(request.headers), () =>
-            telemetry.scope(Package.of(accountPackage)).tracer.startActiveSpan(
-                `authentication ${route}`,
-                {
-                    kind: SpanKind.SERVER,
-                    attributes: {
-                        "http.route": `${this.basePath}${route}`,
-                        "http.request.method": request.method,
-                    },
+        // propagate trace context without credentials, the request's span active while it runs
+        const { telemetry } = this.journal.environment;
+        const parent = extractContext(request.headers, telemetry);
+        const { tracer } = TelemetryScope.of(Package.of(accountPackage), telemetry);
+        const span = tracer.startSpan(
+            `authentication ${route}`,
+            {
+                kind: SpanKind.SERVER,
+                attributes: {
+                    "http.route": `${this.basePath}${route}`,
+                    "http.request.method": request.method,
                 },
-                async (span) => {
-                    try {
-                        return await this.#record(request, route, caller, handler, span);
-                    } finally {
-                        span.end();
-                    }
-                },
-            ),
+            },
+            parent,
         );
+
+        return telemetry.context.with(trace.setSpan(parent, span), async () => {
+            try {
+                return await this.#record(request, route, caller, handler, span);
+            } finally {
+                span.end();
+            }
+        });
     }
 
     /** Persist a request attempt before dispatch and its outcome before returning. */
@@ -180,13 +186,13 @@ export class BetterAuthAudit {
         span: Span,
     ): Promise<Response> {
         // associate durable records with the verified caller and active trace
-        const trace = span.spanContext();
+        const traced = span.spanContext();
         const recorder = new AuditRecorder(
             {
                 caller,
                 package: Package.of(accountPackage),
                 scope: principal.user.is(caller.subject) ? caller.subject.id : Scope.universe.id,
-                ...(isSpanContextValid(trace) ? { traceId: trace.traceId } : {}),
+                ...(isSpanContextValid(traced) ? { traceId: traced.traceId } : {}),
             },
             this.journal,
         );

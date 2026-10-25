@@ -15,7 +15,7 @@ export const StackSource = schema.object({
 /** Where a space's stack comes from. */
 export type StackSource = schema.Infer<typeof StackSource>;
 
-/** The kind of a space, which decides its stack: a residency home, a person's home, or other. */
-export const SpaceKind = schema.enum(["residency", "person", "space"]);
+/** The kind of a space, which decides its stack: a residency, person or account home, or other. */
+export const SpaceKind = schema.enum(["residency", "person", "account", "space"]);
 /** The kind of a space. */
 export type SpaceKind = schema.Infer<typeof SpaceKind>;

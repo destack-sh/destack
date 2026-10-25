@@ -6,7 +6,7 @@ import {
     through,
 } from "@destack/access";
 import { type Select } from "@destack/db";
-import type { Clock } from "@destack/environment";
+import type { Environment } from "@destack/environment";
 import { defineObject, device, field, ListPage } from "@destack/object";
 import type { PackageId } from "@destack/package";
 import { type Fetch, PACKAGE_PATH, PackageMount, type PackageHandle } from "@destack/object";
@@ -19,6 +19,7 @@ import objectPackage from "@destack/object/package";
 import accountPackage from "../package.ts";
 import { Issuer, type TokenBinding } from "./issuer.ts";
 import type { SessionStore } from "./session.ts";
+import type { PartitionId } from "@destack/access/token";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
 import { ACCESS_TOKEN_TYPE } from "../oauth/exchange.ts";
@@ -60,22 +61,22 @@ export class Login {
     readonly #sessions: SessionStore;
     /** The fetch calling the issuer and the machines. */
     readonly #fetch: Fetch;
-    /** The clock the tokens are reused by. */
-    readonly #clock: Clock;
+    /** The environment the calls run in, whose clock the tokens are reused by. */
+    readonly #environment: Environment;
 
     /** Act as the person of a login through the refresh token a keychain stores for them. */
-    constructor(row: LoginRow, sessions: SessionStore, fetch: Fetch, clock: Clock) {
+    constructor(row: LoginRow, sessions: SessionStore, fetch: Fetch, environment: Environment) {
         // require a person still signed in
         if (row.status !== "authenticated") {
-            throw AccountError.of("NOT_SIGNED_IN", "the person is not signed in");
+            throw AccountError.of("SIGN_IN_REQUIRED", "the person is not signed in");
         }
 
-        // store the login, its issuer, the keychain, the fetch and the clock
+        // store the login, its issuer, the keychain, the fetch and the environment
         this.row = row;
-        this.issuer = new Issuer(row.issuer, fetch);
+        this.issuer = new Issuer(row.issuer, fetch, environment);
         this.#sessions = sessions;
         this.#fetch = fetch;
-        this.#clock = clock;
+        this.#environment = environment;
     }
 
     /** The signed-in person. */
@@ -85,12 +86,12 @@ export class Login {
 
     /** Connect to the account package at the person's issuer. */
     accounts() {
-        return createClient(accountPackage, this.universe(accountPackage.id));
+        return createClient(accountPackage, this.universe(accountPackage.id), this.#environment);
     }
 
     /** Connect to the object package at the person's issuer, which serves their grants. */
     objects() {
-        return createClient(objectPackage, this.universe(objectPackage.id));
+        return createClient(objectPackage, this.universe(objectPackage.id), this.#environment);
     }
 
     /** Connect to a package the universe serves at the person's issuer, such as settings. */
@@ -110,7 +111,7 @@ export class Login {
         });
         const [personal] = items;
         if (personal === undefined) {
-            throw AccountError.of("NO_PERSONAL_ACCOUNT", "the person has no personal account");
+            throw AccountError.of("PERSONAL_ACCOUNT_MISSING", "the person has no personal account");
         }
 
         return personal.id;
@@ -121,23 +122,27 @@ export class Login {
         return Account.home(await this.account());
     }
 
-    /** Connect to a package a machine mounts in a space, with the person's token bound to it. */
+    /** Connect to a package a machine mounts in a partition, with the person's bound token. */
     package<Handle extends PackageHandle>(
         handle: Handle,
         endpoint: string,
-        spaceId: Identifier<"space">,
+        partition: PartitionId,
     ) {
-        return createClient<Handle["router"]>(handle, {
-            url: PackageMount.url(endpoint, handle.id),
-            fetch: (request) => this.send(request, handle.id, { spaceId }),
-        });
+        return createClient<Handle["router"]>(
+            handle,
+            {
+                url: PackageMount.url(endpoint, handle.id),
+                fetch: (request) => this.send(request, handle.id, { partition }),
+            },
+            this.#environment,
+        );
     }
 
     /** Connect to the package of an installation of a space through its origin's proxy. */
     installation(origin: string, audience: PackageId, spaceId: Identifier<"space">): ClientOptions {
         return {
             url: `${origin}${PACKAGE_PATH}`,
-            fetch: (request) => this.send(request, audience, { spaceId }),
+            fetch: (request) => this.send(request, audience, { partition: spaceId }),
         };
     }
 
@@ -152,7 +157,7 @@ export class Login {
         // exchange it for the package's token, cached per package and binding
         return this.#sessions.accessTokens(this.row).token(
             canonicalize([audience, bound]),
-            this.#clock.now(),
+            this.#environment.clock.now(),
             async () => {
                 const token = await this.#accountToken(stepUp);
 
@@ -193,7 +198,7 @@ export class Login {
         // grant them otherwise
         const created = await this.objects().grant.create({
             scope: this.subject.id,
-            requestId: RequestId.create(this.#clock.now()),
+            requestId: RequestId.create(this.#environment),
             delegate,
             permissions: [...permissions],
         });
@@ -214,7 +219,7 @@ export class Login {
     #accountToken(stepUp?: StepUp): Promise<string> {
         return this.#sessions.accessTokens(this.row).token(
             accountPackage.id,
-            this.#clock.now(),
+            this.#environment.clock.now(),
             async () => {
                 // read the refresh token the keychain stores, refusing a signed-out person
                 const refreshToken = await this.#sessions.load(this.row);

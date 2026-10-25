@@ -6,13 +6,13 @@ import { endpoint } from "./endpoint.ts";
 import { identity, operation } from "./identity.ts";
 import { key } from "./key.ts";
 import { machine } from "./machine.ts";
-import { organisation } from "./organisation.ts";
+import { organization } from "./organization.ts";
 import { assignment, placement } from "./placement.ts";
-import { ResidencyCode } from "./residency.ts";
+import { residency, ResidencyCode } from "./residency.ts";
 import { space } from "./space.ts";
 import { user } from "./user.ts";
 
-/** One space's rows as a machine serves it: its row, placement, assignments and the machine. */
+/** A space's rows as its machine serves it: row, placement, assignments, machine and residency. */
 export const spaceShape = defineShape({
     name: "space",
     parameters: schema.object({
@@ -21,13 +21,26 @@ export const spaceShape = defineShape({
         /** The machine serving it. */
         machine: schema.identifier("machine"),
     }),
-    objects: [space, placement, assignment, machine],
+    objects: [space, placement, assignment, machine, residency],
     queries: ({ space: id, machine: machineId }) => [
         space.query({ scopes: "every", where: { id } }),
         placement.query({ scopes: "every", where: { id } }),
         assignment.query({ scopes: "every", where: { placementId: id } }),
         machine.query({ scopes: "every", where: { id: machineId } }),
+        // the residencies, showing a home its own, which its residents follow keys on
+        residency.query({ scopes: "every" }),
     ],
+});
+
+/** The rows of one space alone, which a store reads to decide for that space as a caller. */
+export const spaceRecordShape = defineShape({
+    name: "space-record",
+    parameters: schema.object({
+        /** The space. */
+        space: schema.identifier("space"),
+    }),
+    objects: [space],
+    queries: ({ space: id }) => [space.query({ scopes: "every", where: { id } })],
 });
 
 /** One account's rows: its row and its machines. */
@@ -41,12 +54,12 @@ export const accountShape = defineShape({
     ],
 });
 
-/** One organisation's row, which has its payer. */
-export const organisationShape = defineShape({
-    name: "organisation",
-    parameters: schema.object({ organisation: schema.identifier("organisation") }),
-    objects: [organisation],
-    queries: ({ organisation: id }) => [organisation.query({ scopes: "every", where: { id } })],
+/** One organization's row, which has its payer. */
+export const organizationShape = defineShape({
+    name: "organization",
+    parameters: schema.object({ organization: schema.identifier("organization") }),
+    objects: [organization],
+    queries: ({ organization: id }) => [organization.query({ scopes: "every", where: { id } })],
 });
 
 /** One machine's rows beside the directory: the work the spaces assign it. */

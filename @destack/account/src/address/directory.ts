@@ -1,3 +1,4 @@
+import type { Environment } from "@destack/environment";
 import type { Snapshot } from "@destack/db";
 import { Claim, claimTable, type ObjectType } from "@destack/object";
 import { nth, schema, type Identifier } from "@destack/schema";
@@ -22,7 +23,7 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
         this.snapshot = snapshot;
     }
 
-    /** Find the account claiming a handle, none for a handle the platform organisation reserves. */
+    /** Find the account claiming a handle, none for a handle the platform organization reserves. */
     async account(handle: string): Promise<Identifier<"account"> | undefined> {
         const owner = await Claim.owner(
             this.snapshot.read(claimTable),
@@ -110,14 +111,14 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
     }
 
     /** Stream follows of a space's rows from its object package, where its machine answers. */
-    publisher(scope: string, fetch: Fetch, now: () => number): Publisher {
+    publisher(scope: string, fetch: Fetch, environment: Environment): Publisher {
         const space = schema.identifier("space").parse(scope);
         const connect = async () => {
             // connect to the space's object package where its machine answers now
-            const located = await this.locate(space, now());
+            const located = await this.locate(space, environment.clock.now());
             const url = `${SpaceMount.url(located.url, space)}${PackageMount.path(objectPackage.id)}`;
 
-            return createClient(objectPackage, { url, fetch });
+            return createClient(objectPackage, { url, fetch }, environment);
         };
 
         return {

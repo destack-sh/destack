@@ -1,8 +1,25 @@
+import type { Environment, HostCapability } from "@destack/environment";
 import { eq, type DatabaseConnection, type Dialect, Snapshot } from "@destack/db";
 import { type ImageIndex, TestDatabase, TestTemplate } from "@destack/db/test";
 import { Scope, Subject, RequestId } from "@destack/sync";
-import { AccessContext, Caller, type Policy, principal, type Relationship } from "@destack/access";
-import { type Keychain, type Keyring, LocalKeyring, MemoryKeychain } from "@destack/identity";
+import {
+    AccessContext,
+    Authorization,
+    Caller,
+    InstallationId,
+    type Policy,
+    principal,
+    type Relationship,
+} from "@destack/access";
+import {
+    Jwks,
+    Jwt,
+    type JwtClaims,
+    type Keychain,
+    type Keyring,
+    LocalKeyring,
+    MemoryKeychain,
+} from "@destack/identity";
 import { claim } from "../object/claim.ts";
 import { placement } from "../object/placement.ts";
 import objectPackage from "@destack/object/package";
@@ -15,11 +32,19 @@ import {
     type TestSigner,
 } from "@destack/object/test";
 import { Package, PackageId } from "@destack/package";
+import { ENTITLED_PACKAGE } from "./entitlement.ts";
 import type { BuildReader } from "@destack/package/manifest";
 import { Digest, found, Identifier, type JsonValue, present, schema } from "@destack/schema";
-import { PackageMount, CallError, type FeatureReference, type Fetch } from "@destack/object";
+import {
+    CallError,
+    type FeatureReference,
+    type Fetch,
+    Installation,
+    PackageMount,
+} from "@destack/object";
 import { Setting } from "@destack/setting";
 import { settingServer } from "@destack/setting/server";
+import settingPackage from "@destack/setting/package";
 import {
     AccountAuthentication,
     BetterAuthAuthenticator,
@@ -37,8 +62,9 @@ import {
     type EntitlementResource,
     machine,
     type Membership,
-    organisation,
+    organization,
     ProviderCode,
+    RESIDENCY_RELAY,
     Residency,
     type ResidencyCode,
     type ResidencyDefinition,
@@ -56,9 +82,8 @@ import { freshHandle, TestPerson, type TestSignIn } from "./person.ts";
 import { authenticatorCode, Enrollment } from "./authenticator.ts";
 import { sudo } from "../authentication/sudo.ts";
 import type { Mail, MailOutcome, MailTransport } from "../better-auth/index.ts";
-import { VirtualClock } from "@destack/environment/simulation";
+import { Simulation, type SimulatedClock } from "@destack/environment/simulation";
 import { Pkce } from "@destack/access/token";
-import { createLocalJWKSet, type JWTPayload, jwtVerify } from "jose";
 
 /** The universe's origin. */
 export const ORIGIN = "http://localhost:3210";
@@ -69,11 +94,20 @@ const STEP_UP_REDIRECT = "http://127.0.0.1:53682/callback";
 /** The redirects a browser follows at most, the Fetch standard's limit. */
 const FETCH_REDIRECTS = 20;
 
+/** The seed of the simulated world a fixture runs in. */
+const WORLD_SEED = 1;
+
+/** The moment a fixture's world starts at, paused: 2026-10-01T00:00:00Z. */
+const WORLD_START = Date.UTC(2026, 9, 1);
+
+/** The node the universe's calls run as in the fixture's world. */
+const WORLD_NODE = "universe";
+
+/** The packages the fixture's universe serves, each with its base installation. */
+const UNIVERSE_PACKAGES = [objectPackage, accountPackage, settingPackage];
+
 /** The button a person presses on each page a step-up passes. */
-const STEP_UP_ACTIONS = [
-    ["/sign-in", "continue"],
-    ["/consent", "approve"],
-] as const;
+const STEP_UP_ACTIONS = [["/consent", "approve"]] as const;
 
 /** The URL the fixture's users, machines and installations call the account package at. */
 const ACCOUNTS_URL = PackageMount.url(ORIGIN, accountPackage.id);
@@ -144,6 +178,16 @@ export const STACKS: Readonly<Record<SpaceKind, StackSource>> = {
         export: "HOME",
         settings: {},
     },
+    account: {
+        package: Package.parse({
+            id: "package-01996ab0-0000-7000-8000-0000000000b4",
+            name: "@example/account",
+            version: "2026.9.0",
+        }),
+        manifest: Digest.parse("e".repeat(64)),
+        export: "ACCOUNT",
+        settings: {},
+    },
     space: {
         package: Package.parse({
             id: "package-01996ab0-0000-7000-8000-0000000000b3",
@@ -169,9 +213,6 @@ const PERSONAL_MACHINE = {
     architecture: "arm64",
     model: "Mac14,2",
 } as const;
-
-/** The package declaring the features a test entitles accounts to by resource. */
-const ENTITLED_PACKAGE = PackageId.parse("package-019f5530-8000-7000-8000-0000000000f9");
 
 /** The residencies of the universe, as the platform's bootstrap declares them. */
 const RESIDENCIES: readonly ResidencyDefinition[] = [
@@ -275,10 +316,10 @@ export interface TestAccountStoreOptions {
     readonly dialect?: Dialect;
 }
 
-/** How a test serves the account package over its template's stacks and homes, at its clock. */
+/** How a test serves the account package over its template's stacks and homes, in its world. */
 type ServeOptions = TestAccountStoreOptions & {
-    /** The clock the store runs at. */
-    readonly clock: VirtualClock;
+    /** The world the store runs in. */
+    readonly simulation: Simulation;
     /** The stacks spaces are born with. */
     readonly stacks: Readonly<Record<SpaceKind, StackSource>>;
     /** Who serves the residencies' homes. */
@@ -354,8 +395,8 @@ export class TestAccountStore implements AsyncDisposable {
     readonly served: TestObjectStore;
     /** The universe's object store. */
     readonly store: ObjectStore;
-    /** The clock the store runs at, flowing from the system's time until a test pauses it. */
-    readonly clock: VirtualClock;
+    /** The world the store runs in, its clock flowing from the system's time until paused. */
+    readonly simulation: Simulation;
     /** The keys of the universe and of the residencies' home spaces, signing their tokens. */
     readonly keystore: IdentityKeystore;
     /** The issuer as native clients call it: sign-in, refresh and token exchange. */
@@ -392,8 +433,8 @@ export class TestAccountStore implements AsyncDisposable {
             readonly platform: Identifier<"account">;
             /** Who serves the residencies' homes. */
             readonly homes: HomeServer;
-            /** The clock the store runs at. */
-            readonly clock: VirtualClock;
+            /** The world the store runs in. */
+            readonly simulation: Simulation;
             /** The keychains storing the keys of the declared cloud machines, by machine. */
             readonly cloudKeychains: ReadonlyMap<Identifier<"machine">, Keychain>;
             /** The keychain of the universe's keyring. */
@@ -415,7 +456,7 @@ export class TestAccountStore implements AsyncDisposable {
         this.releases = served.releases;
         this.platform = state.platform;
         this.homes = state.homes;
-        this.clock = state.clock;
+        this.simulation = state.simulation;
         this.#mail = served.mail;
         this.#machines = served.machines;
         this.#cloudKeychains = state.cloudKeychains;
@@ -428,10 +469,20 @@ export class TestAccountStore implements AsyncDisposable {
         this.#fetch = served.fetch;
     }
 
+    /** The clock the store runs at, its world's. */
+    get clock(): SimulatedClock {
+        return this.simulation.clock;
+    }
+
+    /** The world the store's calls run in, as the universe's node. */
+    get environment(): Environment<HostCapability> {
+        return this.simulation.environment(WORLD_NODE);
+    }
+
     /** Define a template of the fixture's rows, and of a world a further write puts on them. */
     static template<World extends JsonValue>(
         options: AccountTemplateOptions<World>,
-    ): TestTemplate<AccountTemplateValue<World>> {
+    ): TestTemplate<AccountTemplateValue<World>, AccountTemplateDatabases> {
         // write the fixture's rows with the template's stacks and homes
         const stacks = options.stacks ?? STACKS;
         const homes = options.homes ?? "fixture";
@@ -439,7 +490,7 @@ export class TestAccountStore implements AsyncDisposable {
 
         return new TestTemplate({
             name: options.name,
-            tables: accountDatabase,
+            databases: { universe: accountDatabase },
             ...(options.dialects === undefined ? {} : { dialects: options.dialects }),
             value: schema.object({
                 keys: AccountKeys.schema,
@@ -448,10 +499,15 @@ export class TestAccountStore implements AsyncDisposable {
                 homes: schema.enum(["fixture", "machine"]),
                 world: world.value,
             }),
-            write: async (storage, directory) => {
+            world: { seed: WORLD_SEED, start: WORLD_START },
+            write: async ({ universe: storage }, directory, simulation) => {
                 // write and serve the fixture's rows, then the world over them
-                const clock = new VirtualClock(Date.now()).resume();
-                const served = { ...options.serve, stacks, homes, clock };
+                const served = {
+                    ...options.serve,
+                    stacks,
+                    homes,
+                    simulation,
+                };
                 const { keys, sessions } = await TestAccountStore.#write(storage, served);
                 const accounts = await TestAccountStore.#over(
                     storage,
@@ -473,10 +529,13 @@ export class TestAccountStore implements AsyncDisposable {
             Partial<Pick<AccountTemplateOptions<null>, "stacks" | "homes">> = {},
     ): Promise<TestAccountStore> {
         // write the fixture's rows with the given stacks and homes, the defaults when absent
-        const storage = await TestDatabase.create(accountDatabase, { isMigrated: true });
+        const simulation = TestAccountStore.#world();
+        const storage = await TestDatabase.create(accountDatabase, {
+            environment: simulation.environment(WORLD_NODE),
+            isMigrated: true,
+        });
         const { stacks = STACKS, homes = "fixture", ...rest } = options;
-        const clock = new VirtualClock(Date.now()).resume();
-        const served = { ...rest, stacks, homes, clock };
+        const served = { ...rest, stacks, homes, simulation };
         const { keys, sessions } = await TestAccountStore.#write(storage, served);
 
         // serve them
@@ -488,26 +547,28 @@ export class TestAccountStore implements AsyncDisposable {
         );
     }
 
-    /** Serve the account package with the owner's accounts and the platform's organisation. */
+    /** Serve the account package with the owner's accounts and the platform's organization. */
     static async open(options: TestAccountStoreOptions = {}): Promise<TestAccountStore> {
         return (await TestAccountStore.copy(ACCOUNT_TEMPLATE, options)).accounts;
     }
 
     /** Serve a copy of a template's rows, with the world its write put on them. */
     static async copy<World extends JsonValue>(
-        template: TestTemplate<AccountTemplateValue<World>>,
+        template: TestTemplate<AccountTemplateValue<World>, AccountTemplateDatabases>,
         options: TestAccountStoreOptions = {},
     ): Promise<{ readonly accounts: TestAccountStore; readonly world: World }> {
-        // copy the template
-        const { storage, value } = await TestDatabase.copy(template, {
+        // copy the template into a fork of its world
+        const { simulation, databases, value } = await TestDatabase.copy(template, {
+            label: "copy",
             ...(options.images === undefined ? {} : { images: options.images }),
             ...(options.dialect === undefined ? {} : { dialect: options.dialect }),
         });
 
-        // serve it with the keys, stacks and homes the template's write ended with, on a new clock
+        // serve it with the keys, stacks and homes the template's write ended with
         const keys = AccountKeys.of(value.keys);
         const { stacks, homes, sessions } = value;
-        const serving = { ...options, stacks, homes, clock: new VirtualClock(Date.now()).resume() };
+        const serving = { ...options, stacks, homes, simulation };
+        const storage = databases.universe;
         const served = await TestAccountStore.#serve(storage, keys, serving);
 
         return {
@@ -516,9 +577,9 @@ export class TestAccountStore implements AsyncDisposable {
         };
     }
 
-    /** Read a residency's home space, the home of the platform's account in it. */
-    async home(residencyId: ResidencyCode): Promise<Identifier<"space">> {
-        return Residency.home(Snapshot.live(this.database), residencyId);
+    /** Read a residency's space, the home of the platform's account in it. */
+    async residencySpace(residencyId: ResidencyCode): Promise<Identifier<"space">> {
+        return Residency.space(Snapshot.live(this.database), residencyId);
     }
 
     /** Route a request of the universe's origin to the package mounted at its path. */
@@ -526,9 +587,9 @@ export class TestAccountStore implements AsyncDisposable {
         return this.#fetch(request);
     }
 
-    /** Sign a person in on their kept client, else up or in with a mailed code on a new one. */
+    /** Sign a person in on their stored client, else up or in with a mailed code on a new one. */
     async signIn(email: string): Promise<TestPerson> {
-        // read the kept client of a person with an authenticator
+        // read the stored client of a person with an authenticator
         const session = this.#sessions.get(email);
 
         // sign a person without an authenticator up or in with a mailed code, as the CLI does
@@ -552,7 +613,7 @@ export class TestAccountStore implements AsyncDisposable {
     /** Sign a person up with an eu personal account through a mailed link in a new browser. */
     async signInWithLink(
         email: string,
-        handle: string = freshHandle(),
+        handle: string = freshHandle(this.environment),
     ): Promise<{ readonly person: TestPerson; readonly browser: TestBrowser }> {
         // follow the mailed link
         const browser = this.browser();
@@ -569,14 +630,15 @@ export class TestAccountStore implements AsyncDisposable {
 
     /** Start a space's identity as the machine serving it, its keys in the fixture's keystore. */
     async startIdentity(spaceId: Identifier<"space">, serving: TestCaller): Promise<void> {
-        const registry = IdentityRegistry.client(serving.client(accountPackage), this.store.clock);
-        const keystore = new IdentityKeystore(this.keystore.keyring, registry, this.store.clock);
+        const registry = IdentityRegistry.client(serving.client(accountPackage), this.environment);
+        const keystore = new IdentityKeystore(this.keystore.keyring, registry, this.environment);
         await keystore.generate(this.database, spaceId);
     }
 
     /** Call out as a space or installation by its space's key, as the machine serving it does. */
     source(subject: Subject): TokenSource {
         return this.keystore.source(this.database, subject, {
+            environment: this.environment,
             issuer: ISSUER,
             send: (request) => this.fetch(request),
         });
@@ -589,7 +651,7 @@ export class TestAccountStore implements AsyncDisposable {
             this.#authenticators.get(person.id) ?? (await this.#enroll(person, this.browser()));
 
         // ask the issuer to sign the person in again with their second factor, as a step-up does
-        const clientId = Identifier.create("client");
+        const clientId = Identifier.create("client", this.environment);
         const authorization = await this.issuer.authorize(
             clientId,
             STEP_UP_REDIRECT,
@@ -610,7 +672,7 @@ export class TestAccountStore implements AsyncDisposable {
             challenge,
             new URLSearchParams({
                 action: "totp",
-                code: authenticatorCode(enrolled, this.store.clock.now()),
+                code: await authenticatorCode(enrolled, this.environment),
             }),
         );
 
@@ -655,12 +717,12 @@ export class TestAccountStore implements AsyncDisposable {
         await browser.fetch("/sign-in/magic-link", { email: person.email, callbackURL: "/" });
         await browser.fetch(await this.link());
 
-        // enable an authenticator and verify its first code
+        // enable an authenticator and verify the code it showed a step ago, leaving the current code to sign in with
         const enabled = Enrollment.parse(
             await (await browser.fetch("/two-factor/enable", {})).json(),
         );
         await browser.fetch("/two-factor/verify-totp", {
-            code: authenticatorCode(enabled.totpURI, this.store.clock.now()),
+            code: await authenticatorCode(enabled.totpURI, this.environment, -1),
         });
         this.#authenticators.set(person.id, enabled.totpURI);
 
@@ -670,7 +732,7 @@ export class TestAccountStore implements AsyncDisposable {
     /** Open another sign-in over the database, the universe's root key rotated, for browsers. */
     async rotate(): Promise<Fetch> {
         // open the sign-in on the rotated root key
-        const keyring = await LocalKeyring.rotate(this.#keychain, "account");
+        const keyring = await LocalKeyring.rotate(this.#keychain, "account", this.environment);
         const authenticator = await this.#authenticate(keyring);
 
         // send each request with its path below the issuer's, as the oauth adapter mounts it
@@ -719,7 +781,7 @@ export class TestAccountStore implements AsyncDisposable {
     /** Authorize a client with PKCE in a signed-in browser, approve it, and redeem its code. */
     async authorize(browser: TestBrowser, client: TestAuthorization): Promise<Response> {
         // authorize with a fresh verifier, which sends the signed-in browser to the consent page
-        const verifier = Pkce.verifier();
+        const verifier = Pkce.verifier(this.environment.random);
         const resource = client.resource === null ? {} : { resource: client.resource };
         const query = new URLSearchParams({
             response_type: "code",
@@ -727,7 +789,7 @@ export class TestAccountStore implements AsyncDisposable {
             redirect_uri: client.redirectUri,
             scope: client.scope,
             state: client.state,
-            code_challenge: await Pkce.challenge(verifier),
+            code_challenge: await Pkce.challenge(verifier, this.environment.crypto),
             code_challenge_method: "S256",
             ...resource,
         });
@@ -752,10 +814,13 @@ export class TestAccountStore implements AsyncDisposable {
     }
 
     /** Verify an ID token with the keys the issuer publishes, returning its claims. */
-    async verifyIdToken(token: string): Promise<JWTPayload> {
-        const keys = createLocalJWKSet(await this.authenticator.keys());
+    async verifyIdToken(token: string): Promise<JwtClaims> {
+        // verify it by the issuer's keys at the store's time
+        const { crypto } = this.environment;
+        const keys = Jwks.local(await this.authenticator.keys(), crypto);
+        const options = { algorithms: ["ES256"], issuer: ISSUER, now: this.clock.now() } as const;
 
-        return (await jwtVerify(token, keys, { issuer: ISSUER })).payload;
+        return (await Jwt.verify(token, keys, options, crypto)).claims;
     }
 
     /** Create a new shared account of a person in a residency. */
@@ -763,8 +828,8 @@ export class TestAccountStore implements AsyncDisposable {
         return person.client(accountPackage).account.create({
             kind: "shared",
             scope: person.id,
-            requestId: RequestId.create(this.store.clock.now()),
-            handle: freshHandle(),
+            requestId: RequestId.create(this.store.environment),
+            handle: freshHandle(this.environment),
             name: "Account",
             residencyId,
         });
@@ -774,7 +839,7 @@ export class TestAccountStore implements AsyncDisposable {
     async createSpace(person: TestPerson, residencyId: ResidencyCode = "eu") {
         const created = await this.createAccount(person, residencyId);
 
-        return this.#place(person, created, Identifier.create("space"));
+        return this.#place(person, created, Identifier.create("space", this.environment));
     }
 
     /** Read a person's home, placed at sign-up, with the cloud machine serving it as a caller. */
@@ -784,7 +849,7 @@ export class TestAccountStore implements AsyncDisposable {
         return {
             accountId: person.account,
             spaceId,
-            machine: this.as(await this.serving(spaceId)),
+            machine: this.as(await this.machine(spaceId)),
         };
     }
 
@@ -794,7 +859,7 @@ export class TestAccountStore implements AsyncDisposable {
         granted: EntitlementResource | { readonly feature: FeatureReference },
         terms: Pick<Entitlement, "kind"> & Partial<Pick<Entitlement, "value" | "limit" | "state">>,
     ): Promise<void> {
-        // name a resource's entitlement by a test feature of its name
+        // key a resource's entitlement by a test feature of its name
         const feature =
             typeof granted === "string"
                 ? { packageId: ENTITLED_PACKAGE, name: granted, resource: granted }
@@ -819,7 +884,7 @@ export class TestAccountStore implements AsyncDisposable {
             ...terms,
         });
         await this.store.mutate(AccessContext.of(Caller.of(provider), now), {
-            id: RequestId.create(now),
+            id: RequestId.create(this.environment),
             calls: [
                 ...(existing === undefined
                     ? []
@@ -830,7 +895,7 @@ export class TestAccountStore implements AsyncDisposable {
     }
 
     /** Act as the cloud machine a space is placed on. */
-    async serving(spaceId: Identifier<"space">): Promise<MachineIdentity> {
+    async machine(spaceId: Identifier<"space">): Promise<MachineIdentity> {
         const placed = present(
             await Snapshot.live(this.database)
                 .read(placement.table)
@@ -839,6 +904,16 @@ export class TestAccountStore implements AsyncDisposable {
         );
 
         return this.cloud(placed.machineId);
+    }
+
+    /** Read the relay a residency's home declares, which the universe relates to the residency. */
+    async relay(residencyId: ResidencyCode): Promise<Subject> {
+        // derive the installation the home's stack declares under the relay's name
+        const snapshot = Snapshot.live(this.database);
+        const home = await Scope.object(snapshot, await this.residencySpace(residencyId));
+        const id = await InstallationId.declared(home, RESIDENCY_RELAY, this.environment.crypto);
+
+        return principal.installation.reference(home.id, id);
     }
 
     /** Act as a cloud machine the platform declares, such as a residency's shared machine. */
@@ -851,25 +926,25 @@ export class TestAccountStore implements AsyncDisposable {
         return found(this.#cloudKeychains, machineId);
     }
 
-    /** Add a person to an organisation through an accepted invitation, returning the membership. */
+    /** Add a person to an organization through an accepted invitation, returning the membership. */
     async join(
         inviter: TestPerson,
         person: TestPerson,
-        organisationId: string,
+        organizationId: string,
         relation: Membership,
     ): Promise<Relationship> {
-        // invite the person to the relation on the organisation, and accept as them
-        const object = organisation.reference(Scope.universe.id, organisationId);
+        // invite the person to the relation on the organization, and accept as them
+        const object = organization.reference(Scope.universe.id, organizationId);
         const invitation = await inviter.client(objectPackage).invitation.create({
             scope: Scope.universe.id,
-            requestId: RequestId.create(this.store.clock.now()),
+            requestId: RequestId.create(this.store.environment),
             object,
             relationship: { relation, subject: person.subject },
         });
 
         return await person.client(objectPackage).invitation.accept({
             scope: Scope.universe.id,
-            requestId: RequestId.create(this.store.clock.now()),
+            requestId: RequestId.create(this.store.environment),
             object,
             invitationId: invitation.id,
         });
@@ -883,13 +958,13 @@ export class TestAccountStore implements AsyncDisposable {
     ): Promise<MachineIdentity> {
         // enroll a new identity, acting as it from then on
         const identity = new MachineIdentity(
-            Identifier.create("machine"),
+            Identifier.create("machine", this.environment),
             new MemoryKeychain(),
-            this.store.clock,
+            this.environment,
         );
         await identity.enroll(person.client(accountPackage), {
             scope: accountId,
-            requestId: RequestId.create(this.store.clock.now()),
+            requestId: RequestId.create(this.store.environment),
             name: options.name ?? `machine-${identity.machineId.slice(-12)}`,
             ...(options.residencyId === undefined
                 ? PERSONAL_MACHINE
@@ -905,20 +980,26 @@ export class TestAccountStore implements AsyncDisposable {
         return identity;
     }
 
-    /** Declare a cloud machine of an account serving a residency, and answer its identity. */
+    /** Declare an account's dedicated cloud machine under its plan, answering its identity. */
     async declareCloudMachine(
         accountId: Identifier<"account">,
         residencyId: ResidencyCode,
     ): Promise<MachineIdentity> {
+        // entitle the account to dedicated tenancy, which the platform requires to declare its machine
+        await this.entitle(accountId, "tenancy", {
+            kind: "static",
+            value: ["shared", "dedicated", "local"],
+        });
+
         // store a new identity's machine as the universe with its key
         const identity = new MachineIdentity(
-            Identifier.create("machine"),
+            Identifier.create("machine", this.environment),
             new MemoryKeychain(),
-            this.store.clock,
+            this.environment,
         );
         const { publicKey } = await identity.generate();
-        await this.store.mutate(this.store.serving(machine), {
-            id: RequestId.create(this.store.clock.now()),
+        await this.store.mutate(this.store.as(machine), {
+            id: RequestId.create(this.store.environment),
             calls: [
                 machine.call("declare", {
                     ...machine.target({ scope: accountId, id: identity.machineId }),
@@ -956,7 +1037,7 @@ export class TestAccountStore implements AsyncDisposable {
         storage: TestDatabase,
         served: Served,
         keys: AccountKeys,
-        options: Pick<ServeOptions, "homes" | "clock"> & {
+        options: Pick<ServeOptions, "homes" | "simulation"> & {
             /** The sessions of the people with an authenticator, by email. */
             readonly sessions: Readonly<Record<string, TestSession>>;
         },
@@ -964,7 +1045,7 @@ export class TestAccountStore implements AsyncDisposable {
         return new TestAccountStore(storage, served, {
             platform: await TestAccountStore.#platform(storage.database),
             homes: options.homes,
-            clock: options.clock,
+            simulation: options.simulation,
             cloudKeychains: keys.cloud,
             keychain: keys.universe,
             sessions: options.sessions,
@@ -981,7 +1062,10 @@ export class TestAccountStore implements AsyncDisposable {
     }> {
         // serve the account package with new keys, storing the platform before the universe's identity
         const keys = AccountKeys.create();
-        const definition = await TestAccountStore.#platformDefinition(keys.cloud, options.clock);
+        const definition = await TestAccountStore.#platformDefinition(
+            keys.cloud,
+            options.simulation.environment(WORLD_NODE),
+        );
         const served = await TestAccountStore.#serve(storage, keys, options, definition);
         const fixture = await TestAccountStore.#over(storage, served, keys, {
             ...options,
@@ -1026,7 +1110,7 @@ export class TestAccountStore implements AsyncDisposable {
                 userId: person.id,
                 handle: person.handle,
                 clientId: person.clientId,
-                refreshToken: person.refreshToken,
+                refreshToken: (await person.tokens()).refreshToken,
                 authenticator,
             };
         }
@@ -1037,7 +1121,7 @@ export class TestAccountStore implements AsyncDisposable {
     /** Declare the platform with a cloud machine per residency. */
     static async #platformDefinition(
         cloudKeychains: Map<Identifier<"machine">, MemoryKeychain>,
-        clock: VirtualClock,
+        environment: Environment,
     ): Promise<PlatformDefinition> {
         return {
             name: "Destack",
@@ -1047,8 +1131,8 @@ export class TestAccountStore implements AsyncDisposable {
             publishers: [],
             handle: PLATFORM_HANDLE,
             machines: [
-                await cloudMachine(cloudKeychains, clock, ids.machine, "eu-central", "eu"),
-                await cloudMachine(cloudKeychains, clock, ids.usMachine, "us-east", "us"),
+                await cloudMachine(cloudKeychains, environment, ids.machine, "eu-central", "eu"),
+                await cloudMachine(cloudKeychains, environment, ids.usMachine, "us-east", "us"),
             ],
         };
     }
@@ -1062,19 +1146,23 @@ export class TestAccountStore implements AsyncDisposable {
     ): Promise<Served> {
         // compose the universe's store of the account and setting packages, signing in once it exists
         const { database } = storage;
-        const { clock } = options;
+        const { clock } = options.simulation;
+        const environment = options.simulation.environment(WORLD_NODE);
         const releases = new Map<string, Promise<BuildReader>>();
         const signIn = Promise.withResolvers<BetterAuthAuthenticator>();
-        const events = await testEvents(database, [], clock);
+        const events = await testEvents(database, environment);
         const opening = options.openRelease ?? TestAccountStore.#opening(releases);
+        const base = (handle: (typeof UNIVERSE_PACKAGES)[number]) =>
+            Installation.base(Scope.universe, handle, environment.crypto);
         const store = new ObjectStore({
             servers: [
-                objectServer,
+                objectServer.at(await base(objectPackage)),
                 accountServer({
                     resolver: options.resolver ?? new TestDns(),
                     stacks: options.stacks,
                     signIn: signIn.promise,
-                }),
+                    releases: { open: opening },
+                }).at(await base(accountPackage)),
                 settingServer({
                     declared: Setting.declared((value) =>
                         opening(
@@ -1083,24 +1171,37 @@ export class TestAccountStore implements AsyncDisposable {
                         ),
                     ),
                     after: [],
-                }),
+                }).at(await base(settingPackage)),
             ],
             chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
             principal: Scope.universe,
-            partition: Scope.universe.id,
+            partitions: [Scope.universe.id],
             policies: options.policies ?? [],
             database,
             claims: { object: claim },
-            clock,
+            environment,
             callKey: testCallKey,
             events,
             origin: { package: Package.of(accountPackage) },
         });
 
-        // bind the universe as its owner and store the platform before its identity, once at the write
+        // receive the universe with its base installations and store the platform before its identity
         if (platform !== undefined) {
-            await UniverseRole.trust(store, clock.now());
-            await Residency.apply(store, RESIDENCIES, clock.now());
+            await Authorization.run(
+                store.authorizer,
+                store.database,
+                () => AccessContext.of(Caller.of(Scope.universe), clock.now()),
+                store.environment,
+                (authorization) =>
+                    Installation.receive(
+                        authorization,
+                        Scope.universe,
+                        [],
+                        UNIVERSE_PACKAGES,
+                        store,
+                    ),
+            );
+            await Residency.apply(store, RESIDENCIES);
             await new Platform(store, platform, options.stacks.residency).apply(clock.now());
         }
 
@@ -1112,7 +1213,7 @@ export class TestAccountStore implements AsyncDisposable {
                     keyring,
                     database,
                     IdentityRegistry.of(store),
-                    clock,
+                    environment,
                 ),
                 database,
                 callKey: testCallKey,
@@ -1124,20 +1225,24 @@ export class TestAccountStore implements AsyncDisposable {
                 events,
                 lifetime: new TokenLifetime(new Map()),
                 mail,
-                clock,
                 ...options.signIn,
             });
-        const authenticator = await authenticate(await LocalKeyring.open(keys.universe, "account"));
+        const authenticator = await authenticate(
+            await LocalKeyring.open(keys.universe, "account", environment),
+        );
         signIn.resolve(authenticator);
 
         // act as the declared cloud machines with their keys
         const machines = new Map(
-            [...keys.cloud].map(([id, keychain]) => [id, new MachineIdentity(id, keychain, clock)]),
+            [...keys.cloud].map(([id, keychain]) => [
+                id,
+                new MachineIdentity(id, keychain, environment),
+            ]),
         );
 
         // serve each package to bearers, signing machines by their keys and spaces by their space's
         const fetch = (request: Request) => TestAccountStore.#route(store, served, request);
-        const issuer = new Issuer(ISSUER, fetch);
+        const issuer = new Issuer(ISSUER, fetch, environment);
         const sources = new Map<string, TokenSource>();
         const served: TestObjectStore = TestObjectStore.serve(store, {
             credential: {
@@ -1148,6 +1253,7 @@ export class TestAccountStore implements AsyncDisposable {
                         sources,
                         keystore: authenticator.keystore,
                         database,
+                        environment,
                         send: fetch,
                     });
                     const headers = new Headers(request.headers);
@@ -1161,10 +1267,11 @@ export class TestAccountStore implements AsyncDisposable {
                         issuer: ISSUER,
                         audience,
                         now: clock.now(),
+                        environment,
                     }),
             },
         });
-        await served.serving();
+        await served.ready();
 
         return {
             store,
@@ -1209,6 +1316,8 @@ export class TestAccountStore implements AsyncDisposable {
             readonly keystore: IdentityKeystore;
             /** The account database. */
             readonly database: DatabaseConnection;
+            /** The world the calls run in. */
+            readonly environment: Environment;
             /** Send a request to the universe's packages. */
             readonly send: (request: Request) => Promise<Response>;
         },
@@ -1230,7 +1339,11 @@ export class TestAccountStore implements AsyncDisposable {
         const key = Subject.key(subject);
         const source =
             keys.sources.get(key) ??
-            keys.keystore.source(keys.database, subject, { issuer: ISSUER, send: keys.send });
+            keys.keystore.source(keys.database, subject, {
+                environment: keys.environment,
+                issuer: ISSUER,
+                send: keys.send,
+            });
         keys.sources.set(key, source);
 
         return source.grantedToken(audience);
@@ -1273,7 +1386,7 @@ export class TestAccountStore implements AsyncDisposable {
         await person.client(accountPackage).space.create({
             accountId: target.id,
             id: spaceId,
-            requestId: RequestId.create(this.store.clock.now()),
+            requestId: RequestId.create(this.store.environment),
             name: `space-${spaceId.slice(-12)}`,
             machine: enrolled.machineId,
         });
@@ -1293,7 +1406,7 @@ export class TestAccountStore implements AsyncDisposable {
             await owner.account.create({
                 scope: ids.owner,
                 id: declared.id,
-                requestId: RequestId.create(this.store.clock.now()),
+                requestId: RequestId.create(this.store.environment),
                 handle: declared.handle,
                 name: declared.handle,
                 kind: declared.kind,
@@ -1302,13 +1415,13 @@ export class TestAccountStore implements AsyncDisposable {
         }
     }
 
-    /** Add the operator as the platform organisation's owner through the invitation it stores. */
+    /** Add the operator as the platform organization's owner through the invitation it stores. */
     async #joinOperator(): Promise<void> {
-        // sign the operator in and find the platform organisation
+        // sign the operator in and find the platform organization
         const operator = await this.signIn(OPERATOR_EMAIL);
-        const organisationId = present(
+        const organizationId = present(
             await UniverseRole.operating(Snapshot.live(this.database)),
-            "the platform organisation",
+            "the platform organization",
         );
 
         // accept the invitation the platform stores for the operator
@@ -1316,30 +1429,35 @@ export class TestAccountStore implements AsyncDisposable {
             .items;
         await operator.client(objectPackage).invitation.accept({
             scope: Scope.universe.id,
-            object: organisation.reference(Scope.universe.id, organisationId),
+            object: organization.reference(Scope.universe.id, organizationId),
             invitationId: present(invited, "the invitation to operate").id,
-            requestId: RequestId.create(this.store.clock.now()),
+            requestId: RequestId.create(this.store.environment),
         });
     }
 
     /** Start the identities of the residencies' homes as the cloud machines serving them. */
     async #serveHomes(): Promise<void> {
         for (const entry of await Residency.list(this.database)) {
-            const home = await this.home(entry.id);
-            await this.startIdentity(home, this.as(await this.serving(home)));
+            const home = await this.residencySpace(entry.id);
+            await this.startIdentity(home, this.as(await this.machine(home)));
         }
     }
 
-    /** Read where people sign in: the issuer, its mail, the origin, the clock and the residency. */
+    /** Read where people sign in: the issuer, its mail, the origin, the world and the residency. */
     #signIn(): TestSignIn {
         return {
             issuer: this.issuer,
             mail: this.#mail,
             origin: ORIGIN,
             fetch: (request) => this.fetch(request),
-            clock: this.store.clock,
+            environment: this.environment,
             residencyId: "eu",
         };
+    }
+
+    /** Open the simulated world a fixture runs in, paused at its start. */
+    static #world(): Simulation {
+        return new Simulation({ seed: WORLD_SEED, start: WORLD_START });
     }
 
     /** Stop serving the packages, then close the database. */
@@ -1407,14 +1525,14 @@ export class TestMail implements MailTransport {
 /** Declare a cloud machine of the universe serving a residency, storing its keychain. */
 async function cloudMachine(
     keychains: Map<Identifier<"machine">, MemoryKeychain>,
-    clock: VirtualClock,
+    environment: Environment,
     id: Identifier<"machine">,
     name: string,
     residencyId: ResidencyCode,
 ): Promise<PlatformDefinition["machines"][number]> {
     // generate its key, storing its keychain for tests to act as it and run it
     const keychain = new MemoryKeychain();
-    const { publicKey } = await new MachineIdentity(id, keychain, clock).generate();
+    const { publicKey } = await new MachineIdentity(id, keychain, environment).generate();
     keychains.set(id, keychain);
 
     return {
@@ -1490,6 +1608,9 @@ class AccountKeys {
         return keychain;
     }
 }
+
+/** The one database an account template writes: the universe's. */
+type AccountTemplateDatabases = { readonly universe: typeof accountDatabase };
 
 /** The keychains' secrets, as an account template's value stores them. */
 type AccountKeysValue = schema.Infer<typeof AccountKeys.schema>;

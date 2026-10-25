@@ -8,19 +8,19 @@ import { residency, ResidencyCode } from "./residency.ts";
 import { sudo } from "../authentication/sudo.ts";
 import { DisplayName } from "./display-name.ts";
 
-/** A membership in an organisation: a relation to its users, granted by its managers. */
+/** A membership in an organization: a relation to its users, granted by its managers. */
 const MEMBERSHIP = { subjects: [principal.user], grantedBy: "manage" };
 
-/** The relations of an organisation's members. */
+/** The relations of an organization's members. */
 export const MEMBERSHIPS = ["owner", "admin", "billing", "member", "guest"] as const;
-/** A relation of an organisation's members. */
+/** A relation of an organization's members. */
 export type Membership = (typeof MEMBERSHIPS)[number];
 
-/** An organisation with accounts, and the people who are its members. */
-export const organisation = defineObject(
+/** An organization with accounts, and the people who are its members. */
+export const organization = defineObject(
     {
-        name: "organisation",
-        plural: "organisations",
+        name: "organization",
+        plural: "organizations",
         scope: "universe",
         isScope: true,
         fields: {
@@ -28,9 +28,9 @@ export const organisation = defineObject(
             name: field.string(DisplayName),
             /** The logo image URL. */
             image: field.string(schema.url()).optional(),
-            /** What the organisation is: a business, a family, a community or a school. */
+            /** What the organization is: a business, a family, a community or a school. */
             kind: field.enum(["business", "family", "community", "education"]).default("business"),
-            /** The account the charges of the organisation's accounts consolidate to. */
+            /** The account the charges of the organization's accounts consolidate to. */
             payer: field.string(schema.identifier("account")).guardWrite("bill"),
         },
         recoverable: { within: { days: 30 }, by: "delete" },
@@ -64,8 +64,10 @@ export const organisation = defineObject(
             update: permission("manage"),
             delete: permission("administer"),
             place: none(),
+            // leave the organization's resources undeclared, as no space is its home
+            provision: none(),
         },
-        reserved: ["administer", "replicate", "place"],
+        reserved: ["administer", "replicate", "place", "provision"],
         elevated: { delete: sudo, administer: sudo },
     },
     (method) => ({
@@ -73,11 +75,11 @@ export const organisation = defineObject(
         create: method.create("update", {
             fields: ["name", "image", "kind"],
             input: schema.object({
-                /** The handle the organisation's account claims. */
+                /** The handle the organization's account claims. */
                 handle: AccountHandle,
-                /** The jurisdiction the organisation's account stores data in. */
+                /** The jurisdiction the organization's account stores data in. */
                 residencyId: ResidencyCode,
-                /** The stack the home of the organisation's account runs, none when absent. */
+                /** The stack the home of the organization's account runs, none when absent. */
                 stack: StackSource.exactOptional(),
             }),
             isPredicted: false,
@@ -85,5 +87,5 @@ export const organisation = defineObject(
         update: method.update("update", { fields: ["name", "image", "kind", "payer"] }),
     }),
 );
-/** A persisted organisation. */
-export type Organisation = Select<typeof organisation.table>;
+/** A persisted organization. */
+export type Organization = Select<typeof organization.table>;

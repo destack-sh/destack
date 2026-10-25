@@ -15,13 +15,13 @@ test("suggest the first free number of a person's email stem past the handles ac
     await owner.client(accountPackage).account.update({
         scope: owner.id,
         id: owner.account,
-        requestId: RequestId.create(fixture.clock.now()),
+        requestId: RequestId.create(fixture.environment),
         revision: personal.revision,
         handle: "crowded",
     });
     await owner.client(accountPackage).account.create({
         scope: owner.id,
-        requestId: RequestId.create(fixture.clock.now()),
+        requestId: RequestId.create(fixture.environment),
         handle: "crowded-2",
         name: "Crowded",
         kind: "shared",

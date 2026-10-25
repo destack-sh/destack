@@ -1,11 +1,12 @@
+import { AccessContext, Caller } from "@destack/access";
 import { Snapshot } from "@destack/db";
 import { IdentityOperation } from "@destack/identity";
 import type { ObjectStore } from "@destack/object/server";
-import { RequestId, Scope } from "@destack/sync";
+import { RequestId, Scope, type Subject } from "@destack/sync";
 import type { ClientOf } from "@destack/object/client";
 import type accountPackage from "../package.ts";
 import { identity, Identity, operation } from "../object/identity.ts";
-import type { Clock } from "@destack/environment";
+import type { Environment } from "@destack/environment";
 
 /** The most operations one read of an identity's log takes: a page, far above a log's length. */
 const LOG_PAGE = 1000;
@@ -22,13 +23,20 @@ export interface IdentityRegistry {
 
 /** The registries of identities. */
 export const IdentityRegistry = {
-    /** Store identities in the universe's store, calling as the store's principal. */
-    of(store: Pick<ObjectStore, "mutate" | "database" | "serving" | "clock">): IdentityRegistry {
-        // call identity methods as the store's principal
+    /** Store identities in the universe's store, as its account installation or a caller. */
+    of(
+        store: Pick<ObjectStore, "mutate" | "database" | "as" | "environment">,
+        caller?: Subject,
+    ): IdentityRegistry {
+        // call identity methods as the caller, else as the installation serving identities
         const call = async (calls: Parameters<ObjectStore["mutate"]>[1]["calls"]) => {
-            const now = store.clock.now();
-            await store.mutate(store.serving(identity), {
-                id: RequestId.create(now),
+            const now = store.environment.clock.now();
+            const acting =
+                caller === undefined
+                    ? store.as(identity, now)
+                    : AccessContext.of(Caller.of(caller), now);
+            await store.mutate(acting, {
+                id: RequestId.create(store.environment),
                 calls,
             });
         };
@@ -60,20 +68,20 @@ export const IdentityRegistry = {
     /** Store identities at the universe through a client of the account package. */
     client(
         accounts: Pick<ClientOf<typeof accountPackage>, "identity" | "operation">,
-        clock: Clock,
+        environment: Environment,
     ): IdentityRegistry {
         return {
             start: async (signed) => {
                 await accounts.identity.create({
                     id: IdentityOperation.read(signed).subject,
-                    requestId: RequestId.create(clock.now()),
+                    requestId: RequestId.create(environment),
                     operation: signed,
                 });
             },
             extend: async (signed) => {
                 await accounts.operation.create({
                     parentId: IdentityOperation.read(signed).subject,
-                    requestId: RequestId.create(clock.now()),
+                    requestId: RequestId.create(environment),
                     operation: signed,
                 });
             },

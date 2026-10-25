@@ -1,7 +1,7 @@
 import { type Authentication, none, principal, through } from "@destack/access";
-import { type AssertionKey, Bearer, TokenVerifier } from "@destack/access/token";
+import { type AssertionKey, Bearer, type PartitionId, TokenVerifier } from "@destack/access/token";
 import type { PackageId } from "@destack/package";
-import { createLocalJWKSet } from "jose";
+import type { Crypto, Environment } from "@destack/environment";
 import { Scope } from "@destack/sync";
 import type { Select, Snapshot } from "@destack/db";
 import { defineObject, field } from "@destack/object";
@@ -100,10 +100,12 @@ export interface Verification {
     readonly audience: PackageId;
     /** The universe's issuer, which its tokens include. */
     readonly universe: string;
-    /** The space the call targets, absent for a call outside any one space. */
-    readonly scope?: string;
+    /** The partition the call targets, absent for a call outside any one partition. */
+    readonly partition?: PartitionId;
     /** The time the token is verified at. */
     readonly now: number;
+    /** The clock, WebCrypto and network verifying the token. */
+    readonly environment: Pick<Environment, "clock" | "crypto" | "network">;
 }
 
 /** The reads of identities from their logs. */
@@ -133,13 +135,14 @@ export const Identity = {
         snapshot: Snapshot,
         thumbprint: string,
         spaceId: string,
+        crypto: Crypto,
     ): Promise<AssertionKey | undefined> {
         // find the key among the space's current signing keys
         const current = Identity.current(await Identity.log(snapshot, spaceId));
         const thumbprints = await Promise.all(
             (current?.signingKeys ?? []).map(async (key) => ({
                 key,
-                thumbprint: await PublicKey.thumbprint(key),
+                thumbprint: await PublicKey.thumbprint(key, crypto),
             })),
         );
         const found = thumbprints.find((entry) => entry.thumbprint === thumbprint);
@@ -154,13 +157,13 @@ export const Identity = {
     },
 
     /** Read the key set verifying what an identity signs, refusing one without operations. */
-    async keys(reader: Pick<Snapshot, "read">, subject: string): Promise<KeySet> {
+    async keys(reader: Pick<Snapshot, "read">, subject: string, crypto: Crypto): Promise<KeySet> {
         const found = Identity.current(await Identity.log(reader, subject));
         if (found === undefined) {
             throw AccountError.of("IDENTITY_NOT_FOUND", `${subject} has no identity`);
         }
 
-        return PublicKey.keySet(found.signingKeys);
+        return PublicKey.keySet(found.signingKeys, crypto);
     },
 
     /** Verify a request's bearer token and a machine token's key, absent without a token. */
@@ -201,7 +204,7 @@ export const Identity = {
                     }
                   : undefined;
         if (!issuer.success || signer === undefined) {
-            throw AccountError.of("INVALID_TOKEN", "invalid access token");
+            throw AccountError.of("TOKEN_INVALID", "invalid access token");
         }
 
         // verify the token by the signer's keys
@@ -209,9 +212,10 @@ export const Identity = {
             authority: signer.authority,
             issuer: issuer.data,
             audience: options.audience,
-            keys: createLocalJWKSet(await Identity.keys(snapshot, signer.subject)),
+            keys: await Identity.keys(snapshot, signer.subject, options.environment.crypto),
+            environment: options.environment,
         });
 
-        return verifier.verify(token, options.now, options.scope);
+        return verifier.verify(token, options.now, options.partition);
     },
 };

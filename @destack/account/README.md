@@ -1,12 +1,26 @@
 # @destack/account
 
-`@destack/account` has Destack's people, accounts, organisations, spaces and machines, and signs them in.
+`@destack/account` has Destack's people, accounts, organizations, spaces and machines, and signs them in.
 
 ```ts
-// Better Auth with its magic link, email OTP, two-factor, passkey and OAuth provider plugins
+// Better Auth signs people in by magic link, email code, passkey or provider, with the account's own second factor
 await auth.signIn.magicLink({ email: "ada@example.com", metadata: signUp });
-await fetch(new URL("/.well-known/openid-configuration", issuer)); // an OpenID Connect provider
-new URL("/auth/native/authorize", issuer); // RFC 8252 sign-in for the CLI and the desktop
+await fetch(new URL("/two-factor/verify-totp", issuer), { method: "POST", body }); // RFC 6238 TOTP, locked for fifteen minutes after five wrong codes
+```
+
+## Authorization server
+
+The account package is the universe's OAuth 2.1 and OpenID Connect authorization server below the issuer's URL.
+
+```ts
+const metadata = await fetch(`${issuer}/.well-known/openid-configuration`); // the endpoints below
+const sent = `${issuer}/oauth2/authorize?${query}`; // PKCE S256, continued after sign-in by request_uri (RFC 9126)
+await fetch(`${issuer}/oauth2/token`, { method: "POST", body: form }); // code, refresh, device, jwt-bearer, token exchange, email code
+await fetch(`${issuer}/oauth2/device_authorization`, { method: "POST", body: form }); // RFC 8628, approved on the device page
+await fetch(`${issuer}/oauth2/revoke`, { method: "POST", body: form }); // ends a refresh token's family
+await fetch(`${issuer}/oauth2/introspect`, { method: "POST", body: form }); // describes the asking client's own tokens (RFC 7662)
+await fetch(`${issuer}/oauth2/userinfo`, { headers: { authorization: `Bearer ${accessToken}` } });
+// access tokens are RFC 9068 JWTs that live out their lifetime; refresh tokens rotate and rest on the person's consent
 ```
 
 ## Objects
@@ -17,32 +31,52 @@ Clients call the account objects through the package client.
 import accountPackage from "@destack/account/package";
 import { createClient } from "@destack/object/client";
 
-const accounts = createClient(accountPackage, { url, fetch });
-await accounts.account.create({ scope: userId, requestId, handle, name, kind: "shared", residencyId: "eu" });
+const accounts = createClient(accountPackage, { url, fetch, environment });
+await accounts.account.create({
+    scope: userId,
+    requestId,
+    handle,
+    name,
+    kind: "shared",
+    residencyId: "eu",
+});
 await accounts.space.create({ accountId, requestId, name: "work" });
-await accounts.domain.verify({ scope: organisationId, id, requestId }); // after the TXT record _destack.acme.com
-await accounts.residency.locate({ account: accountId }); // the home serving the account's residency
+await accounts.domain.verify({ scope: organizationId, id, requestId }); // after the TXT record _destack.acme.com
+await accounts.residency.locate({ account: accountId }); // the space serving the account's residency
 await accounts.user.suspend({ id: userId, requestId }); // the platform's operators alone
 ```
 
-## Organisations
+## Organizations
 
-An organisation has members through its relations `owner`, `admin`, `billing`, `member` and `guest`, invited and accepted like any relationship, and always keeps an owner.
+An organization has members through its relations `owner`, `admin`, `billing`, `member` and `guest`, invited and accepted like any relationship, and always keeps an owner.
 
 ```ts
 import objectPackage from "@destack/object/package";
 
-const objects = createClient(objectPackage, { url, fetch });
-const acme = organisation.reference("universe", organisationId);
-const invited = await objects.invitation.create({ scope: "universe", requestId, object: acme, relationship: { relation: "member", subject } });
-await objects.invitation.accept({ scope: "universe", requestId, object: acme, invitationId: invited.id }); // as the invitee
-await objects.relationship.list({ scope: "universe", where: { objectId: organisationId, relation: { in: ["owner", "admin"] } } });
+const objects = createClient(objectPackage, { url, fetch, environment });
+const acme = organization.reference("universe", organizationId);
+const invited = await objects.invitation.create({
+    scope: "universe",
+    requestId,
+    object: acme,
+    relationship: { relation: "member", subject },
+});
+await objects.invitation.accept({
+    scope: "universe",
+    requestId,
+    object: acme,
+    invitationId: invited.id,
+}); // as the invitee
+await objects.relationship.list({
+    scope: "universe",
+    where: { objectId: organizationId, relation: { in: ["owner", "admin"] } },
+});
 await objects.relationship.delete({ scope: "universe", id, requestId }); // refused for the last owner
 ```
 
 ## Universe
 
-`accountServer` serves the account package in the universe's store, and `Platform` applies the organisation operating the universe as the universe declares it, each step again without effect once applied.
+`accountServer` serves the account package in the universe's store, and `Platform` applies the organization operating the universe as the universe declares it, each step again without effect once applied.
 
 ```ts
 import { Residency } from "@destack/account/object";
@@ -52,9 +86,9 @@ const server = accountServer({ resolver: new DnsOverHttps(send), stacks, signIn 
 await UniverseRole.trust(store, now); // the universe owns itself with its inherent role
 await Residency.apply(store, declaration.residencies, now);
 for (const step of new Platform(store, declaration.platform, stacks.residency).steps()) {
-    await step.apply(now); // machines, organisation, roles, names, homes, invitation
+    await step.apply(now); // machines, organization, roles, names, residency spaces, invitation
 }
-await UniverseRole.operating(snapshot); // the organisation holding the operator role
+await UniverseRole.operating(snapshot); // the organization holding the operator role
 ```
 
 ## Sign-in on a computer
@@ -115,7 +149,7 @@ const { machine, url } = await resolver.resolve(space, "work--acme", now); // sp
 ```ts
 import { AccountError } from "@destack/account/error";
 
-throw new AccountError("NO_RESIDENCY_HOME", "no home serves the residency eu"); // NOT_FOUND
+throw AccountError.of("RESIDENCY_SPACE_MISSING", "residency eu has no space"); // NOT_FOUND
 ```
 
 ## Tests
@@ -128,6 +162,6 @@ import { OWNER_EMAIL, TestAccountStore } from "@destack/account/test";
 await using accounts = await TestAccountStore.open({ clock });
 const owner = await accounts.signIn(OWNER_EMAIL); // the CLI's email code
 const { accountId, spaceId } = await accounts.createSpace(owner);
-await accounts.join(owner, member, organisationId, "member"); // through an accepted invitation
+await accounts.join(owner, member, organizationId, "member"); // through an accepted invitation
 await accounts.as(machineId).client(accountPackage).machine.list({ accountId }); // signed with its key
 ```

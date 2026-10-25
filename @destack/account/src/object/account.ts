@@ -1,4 +1,5 @@
 import {
+    CONTAINED,
     contained,
     none,
     permission,
@@ -15,7 +16,7 @@ import { Claim, claimTable, defineObject, field, type MethodContext } from "@des
 import { Identifier, schema } from "@destack/schema";
 import { Label } from "../address/label.ts";
 import { AccountHandle, HANDLE_LENGTH, type HandleAvailability } from "../address/handle.ts";
-import { organisation } from "./organisation.ts";
+import { organization } from "./organization.ts";
 import { Residency, residency, ResidencyCode } from "./residency.ts";
 import { StackSource } from "./stack-source.ts";
 import { user } from "./user.ts";
@@ -31,7 +32,7 @@ export const account = defineObject(
     {
         name: "account",
         plural: "accounts",
-        scope: [user, organisation],
+        scope: [user, organization],
         isScope: true,
         fields: {
             /** The globally unique handle scoping the account's package names. */
@@ -49,37 +50,53 @@ export const account = defineObject(
         relations: {
             resident: { subjects: [residency.members("server")], grantedBy: "place" },
             claimant: { subjects: [residency.members("claim")], grantedBy: "place" },
-            home: { subjects: [principal.space] },
+            relay: { subjects: [residency.members("relaying")], grantedBy: "place" },
+            installed: { subjects: [residency.members("installed")], grantedBy: "place" },
+            // the account's home space, and the installations living in it
+            home: { subjects: [principal.space, principal.space.members(CONTAINED)] },
+            // the people the account's managers let publish packages under its name
+            publisher: { subjects: [principal.user], grantedBy: "manage" },
         },
         permissions: {
-            // inherit from the organisation: its members view and its administrators manage
-            member: through("organisation", "view"),
+            // inherit from the organization: its members view and its administrators manage
+            member: through("organization", "view"),
             read: union(
                 through("user", "self"),
                 contained(principal.space, principal.machine),
-                through("organisation", "view"),
+                through("organization", "view"),
             ),
-            comment: through("organisation", "manage"),
-            edit: through("organisation", "manage"),
-            manage: through("organisation", "manage"),
-            bill: union(permission("manage"), through("organisation", "bill")),
+            comment: through("organization", "manage"),
+            edit: through("organization", "manage"),
+            manage: through("organization", "manage"),
+            bill: union(permission("manage"), through("organization", "bill")),
             list: union(permission("read"), permission("serve")),
             replicate: union(contained(principal.space), relation("resident")),
-            // let the residency's servers, the account's home and the account's machines serve it
-            serve: union(relation("resident"), relation("home"), contained(principal.machine)),
+            // let the residency's servers and installations, the account's home and its machines serve it
+            serve: union(
+                relation("resident"),
+                relation("home"),
+                contained(principal.machine),
+                relation("installed"),
+            ),
             // let the residency's machines and home claim names in the account
             claim: relation("claimant"),
-            // let the person or the organisation's managers found accounts in their scope
-            create: union(through("user", "self"), through("organisation", "manage")),
+            // let the residency's relay publish the tunnels of the account's machines
+            relaying: relation("relay"),
+            // let the person or the organization's managers found accounts in their scope
+            create: union(through("user", "self"), through("organization", "manage")),
             update: permission("manage"),
             delete: permission("manage"),
+            // let the account's managers and its publishers publish packages under the account's name
+            publish: union(permission("manage"), relation("publisher")),
             administer: permission("manage"),
             impersonate: permission("manage"),
             verify: permission("manage"),
             place: none(),
+            // let the account's home declare and provision the account's own resources
+            provision: relation("home"),
         },
         shareable: {},
-        reserved: ["administer", "replicate", "serve", "claim", "place"],
+        reserved: ["administer", "replicate", "serve", "claim", "place", "provision"],
         elevated: { delete: sudo, administer: sudo, impersonate: sudo },
         constraints: {
             handle: { kind: "index", on: ["handle"] },
@@ -110,7 +127,7 @@ export type Account = Select<typeof account.table>;
 
 /** The residency, relations and payers of accounts. */
 export const Account = {
-    /** Read the account of a scope: a person's personal one, an organisation's payer, or itself. */
+    /** Read the account of a scope: a person's personal one, an organization's payer, or itself. */
     async of(reader: Pick<Snapshot, "read">, scope: string): Promise<Account> {
         // refuse a scope without an account
         const found = await findAccount(reader, scope);
@@ -121,10 +138,10 @@ export const Account = {
         return found;
     },
 
-    /** Read the account paying for a scope: an organisation's account is paid by its payer. */
+    /** Read the account paying for a scope: an organization's account is paid by its payer. */
     async payer(reader: Pick<Snapshot, "read">, scope: string): Promise<Identifier<"account">> {
         const owned = await Account.of(reader, scope);
-        const payer = organisation.identifies(owned.scope)
+        const payer = organization.identifies(owned.scope)
             ? await Account.of(reader, owned.scope)
             : owned;
 
@@ -188,9 +205,18 @@ export const Account = {
         return Account.home((await Account.of(reader, scope)).id);
     },
 
-    /** Locate the home of the residency the account a scope belongs to stores its data in. */
+    /** Locate the space of the residency the account a scope belongs to stores its data in. */
     async locate(reader: Pick<Snapshot, "read">, scope: string): Promise<Identifier<"space">> {
-        return Residency.home(reader, (await Account.of(reader, scope)).residencyId);
+        return Residency.space(reader, (await Account.of(reader, scope)).residencyId);
+    },
+
+    /** Read an account's installations' relationship to its residency as residents. */
+    resident(row: Pick<Account, "id" | "scope" | "residencyId">) {
+        return {
+            object: residency.reference(Scope.universe.id, row.residencyId),
+            relation: "resident",
+            subject: { ...account.reference(row.scope, row.id), relation: CONTAINED },
+        };
     },
 
     /** Relate a new account's owner, home and residency servers. */
@@ -198,18 +224,19 @@ export const Account = {
         // read the residency the account stores data in
         const residencyId = ResidencyCode.parse(context.input["residencyId"]);
 
-        // relate the residency's servers and claimants, and the account's home
+        // relate the residency's servers, claimants, relay and installations, and the account's home
         const resident = { relation: "resident", subject: Residency.servers(residencyId) };
         const claimant = { relation: "claimant", subject: Residency.claimants(residencyId) };
-        const home = {
-            relation: "home",
-            subject: principal.space.reference(Scope.universe.id, Account.home(object.id)),
-        };
+        const relay = { relation: "relay", subject: Residency.relays(residencyId) };
+        const installed = { relation: "installed", subject: Residency.installations(residencyId) };
+        const homed = principal.space.reference(Scope.universe.id, Account.home(object.id));
+        const home = { relation: "home", subject: homed };
+        const inside = { relation: "home", subject: { ...homed, relation: CONTAINED } };
 
-        // leave an organisation's account to the organisation's members
+        // leave an organization's account to the organization's members
         const scope = await Scope.object(context, context.scope);
-        if (organisation.is(scope)) {
-            return { relationships: [resident, claimant, home] };
+        if (organization.is(scope)) {
+            return { relationships: [resident, claimant, relay, installed, home, inside] };
         }
 
         // require a creator of a user's account
@@ -219,7 +246,15 @@ export const Account = {
         }
 
         return {
-            relationships: [{ relation: "owner", subject: creator }, resident, claimant, home],
+            relationships: [
+                { relation: "owner", subject: creator },
+                resident,
+                claimant,
+                relay,
+                installed,
+                home,
+                inside,
+            ],
             owner: { ...object, relation: "owner" },
         };
     },
@@ -234,11 +269,11 @@ async function findAccount(
     if (account.identifies(scope)) {
         return reader.read(account.table).findFirst({ where: { id: account.identifier(scope) } });
     }
-    // read an organisation's payer
-    else if (organisation.identifies(scope)) {
+    // read an organization's payer
+    else if (organization.identifies(scope)) {
         const owner = await reader
-            .read(organisation.table)
-            .findFirst({ where: { id: organisation.identifier(scope) } });
+            .read(organization.table)
+            .findFirst({ where: { id: organization.identifier(scope) } });
 
         return owner === undefined
             ? undefined

@@ -11,6 +11,8 @@ import { key, Key } from "./key.ts";
 import { account } from "./account.ts";
 import { residency, ResidencyCode } from "./residency.ts";
 import { Platform, PLATFORMS } from "./platform.ts";
+import { AccountError } from "../error/error.ts";
+import type { Tenancy } from "./placement.ts";
 
 /** The longest machine name, so `<machine>--<handle>` fits one DNS label: see `HANDLE_LENGTH`. */
 const MACHINE_NAME_LENGTH = 37;
@@ -95,6 +97,23 @@ export const MachineVariant = schema.discriminatedUnion("kind", [PersonalMachine
 /** A machine's kind with the fields only that kind has. */
 export type MachineVariant = schema.Infer<typeof MachineVariant>;
 
+/** The Destack update state a machine's device reports, as its distribution records it. */
+export const MachineUpdate = schema.object({
+    /** The installed release's version. */
+    installed: schema.string().min(1),
+    /** The version of the release staged for activation, null while none newer is. */
+    staged: schema.string().min(1).nullable(),
+    /** Whether the installed release is current, a newer one is staged, or the restart runs. */
+    status: schema.enum(["current", "staged", "activating"]),
+});
+/** The Destack update state a machine's device reports. */
+export type MachineUpdate = schema.Infer<typeof MachineUpdate>;
+
+/** The platform and architecture a personal machine reports each time, so later changes show. */
+export const MachinePlatform = PersonalMachine.pick({ platform: true, architecture: true });
+/** The platform and architecture a personal machine reports. */
+export type MachinePlatform = schema.Infer<typeof MachinePlatform>;
+
 /** A runner identity spaces are placed on. */
 export const machine = defineObject(
     {
@@ -134,6 +153,12 @@ export const machine = defineObject(
             version: field.string().optional(),
             /** The runtimes the machine can execute. */
             runtimes: field.json(schema.array(ServerRuntime)).default([]),
+            /** The operating system version the machine last reported. */
+            osVersion: field.string().optional(),
+            /** When the machine's running process started, in UTC epoch milliseconds. */
+            startedAt: field.time().optional(),
+            /** The Destack update state the machine last reported, absent for one updating none. */
+            update: field.json(MachineUpdate).optional(),
             /** The machine's last proven contact, in UTC epoch milliseconds. */
             lastSeenAt: field.time().optional(),
             /** The time the account withdrew the machine and its keys. */
@@ -144,7 +169,7 @@ export const machine = defineObject(
             self: { subjects: [principal.machine], grantedBy: null },
         },
         permissions: {
-            read: union(relation("tenant"), relation("self")),
+            read: union(relation("tenant"), relation("self"), permission("relay")),
             list: union(permission("read"), through("account", "serve")),
             verify: union(relation("tenant"), relation("self"), through("account", "serve")),
             enroll: none(),
@@ -152,19 +177,27 @@ export const machine = defineObject(
             rename: relation("self"),
             operate: union(relation("tenant"), relation("self")),
             publish: relation("self"),
+            // let the account's residency's relay publish the tunnel it accepted
+            relay: through("account", "relaying"),
 
             // let the account's members read the machine's telemetry, its managers unmasked, and the machine forward it
             observe: relation("tenant"),
             analyze: relation("tenant"),
             unmask: through("account", "manage"),
             serve: relation("self"),
+            // let whoever replicates the account replicate its machines' chains, and its machines each other's
+            replicate: union(
+                relation("self"),
+                through("account", "replicate"),
+                through("account", "serve"),
+            ),
             revoke: relation("self"),
             update: none(),
             // let the account's managers share the machine with another account's members as tenants
             share: through("account", "manage"),
             declare: none(),
         },
-        reserved: ["rotate", "publish", "serve"],
+        reserved: ["rotate", "publish", "serve", "relay", "replicate"],
         constraints: {
             scopeId: { kind: "unique", on: ["scope", "id"] },
             scopeName: {
@@ -216,20 +249,20 @@ export const machine = defineObject(
             input: KeyProof.pick({ publicKey: true }),
         }),
         revoke: method.mutation({ permission: "revoke" }),
-        /** Publish where the machine answers, replacing what it published before. */
+        /** Publish where a cloud machine answers, replacing what it published before. */
         publish: method.mutation({
             permission: "publish",
             input: schema.object({
                 /** The URL the machine's packages answer at. */
                 url: schema.url(),
-                /** The relay serving its tunnel, null for a machine answering at its URL. */
-                relay: EndpointRelay.nullable(),
             }),
         }),
+        /** Publish the tunnel a relay accepted from a personal machine, at its derived name. */
+        relay: method.mutation({ permission: "relay", input: EndpointRelay }),
         enable: method.mutation({ permission: "operate" }),
         drain: method.mutation({ permission: "operate" }),
         disable: method.mutation({ permission: "operate" }),
-        /** Record the machine's proven contact and what it runs now. */
+        /** Record the machine's proven contact and what it runs now, replacing the last report. */
         report: method.mutation({
             permission: "rotate",
             input: schema.object({
@@ -237,6 +270,14 @@ export const machine = defineObject(
                 version: schema.string().min(1).nullable(),
                 /** The runtimes the machine can execute. */
                 runtimes: schema.array(ServerRuntime),
+                /** The operating system version, null where none is known. */
+                osVersion: schema.string().min(1).nullable(),
+                /** When the running process started, in epoch milliseconds, null when unknown. */
+                startedAt: schema.number().int().nonnegative().nullable(),
+                /** The Destack update state, null for a machine updating none. */
+                update: MachineUpdate.nullable(),
+                /** A personal machine's platform and architecture, null for a cloud machine. */
+                host: MachinePlatform.nullable(),
             }),
         }),
         rename: method.mutation({
@@ -249,12 +290,26 @@ export const machine = defineObject(
     }),
 ).implement({
     methods: {
-        report: (call) =>
-            call.update({
+        report: (call) => {
+            // refuse a host for a cloud machine, which has no platform of its own
+            const { input } = call;
+            const isPersonal = call.target.kind === "personal";
+            if (input.host !== null && !isPersonal) {
+                throw AccountError.of("CLOUD_HOST_REPORTED", "a cloud machine reports no host");
+            } else if (input.host === null && isPersonal) {
+                throw AccountError.of("HOST_REQUIRED", "a personal machine reports its host");
+            }
+
+            return call.update({
                 lastSeenAt: call.now,
-                version: call.input.version,
-                runtimes: call.input.runtimes,
-            }),
+                version: input.version,
+                runtimes: input.runtimes,
+                osVersion: input.osVersion,
+                startedAt: input.startedAt,
+                update: input.update,
+                ...(input.host === null ? {} : input.host),
+            });
+        },
     },
 });
 /** A persisted machine record with the fields of its kind. */
@@ -273,6 +328,15 @@ export type Machine = Omit<
 
 /** The checks and reads of machines that methods and the token endpoint route by. */
 export const Machine = {
+    /** Read the tenancy a machine runs its spaces at: shared, dedicated or local. */
+    tenancy(row: Pick<Select<typeof machine.table>, "kind" | "scope">): Tenancy {
+        return row.kind === "personal"
+            ? "local"
+            : row.scope === Scope.universe.id
+              ? "shared"
+              : "dedicated";
+    },
+
     /** Read a machine record as its kind's variant. */
     of(row: Select<typeof machine.table>): Machine {
         // parse the columns of the row's kind apart from the shared ones

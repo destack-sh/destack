@@ -4,6 +4,7 @@ import {
     accessRelationship,
     accessRole,
     Contact,
+    InstallationId,
     INVITATION_LIFETIME_MILLISECONDS,
     principal,
     Relationship,
@@ -12,7 +13,7 @@ import { eq, inArray, Snapshot } from "@destack/db";
 import { RequestId, Scope } from "@destack/sync";
 import { expect, test, refusal, type Refusal } from "@destack/test";
 import { MachineIdentity } from "../src/client/machine-identity.ts";
-import { account, endpoint, key, machine, organisation, space } from "../src/object/index.ts";
+import { account, endpoint, key, machine, organization, space } from "../src/object/index.ts";
 import { Platform, PlatformDefinition, UniverseRole } from "../src/server/index.ts";
 import { LocalKeyring } from "@destack/identity";
 import { Digest, Identifier, nth, present } from "@destack/schema";
@@ -25,9 +26,9 @@ import {
     STRANGER_EMAIL,
 } from "../src/test/index.ts";
 import { Directory } from "../src/address/index.ts";
-import type { Clock } from "@destack/environment";
+import type { Environment } from "@destack/environment";
 
-/** The platform organisation of the fixture's universe, declaring no cloud machines. */
+/** The platform organization of the fixture's universe, declaring no cloud machines. */
 const PLATFORM: PlatformDefinition = {
     name: "Destack",
     residencyId: "eu",
@@ -38,7 +39,7 @@ const PLATFORM: PlatformDefinition = {
     machines: [],
 };
 
-/** The email of an operator joining the platform's organisation after the first. */
+/** The email of an operator joining the platform's organization after the first. */
 const SUCCESSOR_EMAIL = "successor@example.com";
 
 /** The provider running the declared cloud machines. */
@@ -49,7 +50,7 @@ function claim(fixture: TestAccountStore, person: TestPerson, handle: string): P
     return refusal(
         person.client(accountPackage).account.create({
             scope: person.id,
-            requestId: RequestId.create(fixture.clock.now()),
+            requestId: RequestId.create(fixture.environment),
             handle,
             name: handle,
             kind: "shared",
@@ -65,15 +66,15 @@ async function availability(person: TestPerson, handle: string): Promise<string>
 }
 
 /** Derive a cloud machine's identity from a new keyring, as the universe declares it. */
-async function declare(clock: Clock): Promise<MachineIdentity> {
+async function declare(environment: Environment): Promise<MachineIdentity> {
     return MachineIdentity.derive(
-        Identifier.create("machine"),
-        await LocalKeyring.read(LocalKeyring.generate()),
-        clock,
+        Identifier.create("machine", environment),
+        await LocalKeyring.read(LocalKeyring.generate(environment), environment),
+        environment,
     );
 }
 
-test("apply the platform organisation once, with its publishers as accounts and its reserved handles as names without accounts", async () => {
+test("apply the platform organization once, with its publishers as accounts and its reserved handles as names without accounts", async () => {
     // apply the platform twice
     await using fixture = await TestAccountStore.open();
     const first = await new Platform(fixture.store, PLATFORM, STACKS.residency).apply(
@@ -83,7 +84,7 @@ test("apply the platform organisation once, with its publishers as accounts and 
         fixture.clock.now(),
     );
 
-    // store the organisation's accounts once, and the publisher's account alone in the directory
+    // store the organization's accounts once, and the publisher's account alone in the directory
     const accounts = await fixture.database
         .select({ id: account.table.id, handle: account.table.handle })
         .from(account.table)
@@ -120,7 +121,7 @@ test("answer a person the platform's reserved and taken handles as taken", async
             person.client(accountPackage).account.update({
                 scope: person.id,
                 id: owned.id,
-                requestId: RequestId.create(fixture.clock.now()),
+                requestId: RequestId.create(fixture.environment),
                 revision: owned.revision,
                 handle: "security",
             }),
@@ -151,9 +152,12 @@ test("revoke the bindings of a universe role its definition no longer declares",
             .map((row) => `${row.subjectId}#${row.relation}`)
             .toSorted();
     const declared = await bindings();
-    const stale = principal.machine.reference(Scope.universe.id, Identifier.create("machine"));
+    const stale = principal.machine.reference(
+        Scope.universe.id,
+        Identifier.create("machine", fixture.environment),
+    );
     await Relationship.insert(database, {
-        id: Identifier.create("relationship"),
+        id: Identifier.create("relationship", fixture.environment),
         object: Scope.universe,
         role,
         subject: stale,
@@ -166,7 +170,7 @@ test("revoke the bindings of a universe role its definition no longer declares",
     expect(await bindings()).toEqual(declared);
 });
 
-test("make the platform organisation's owners operators when an apply created it without the operator role", async () => {
+test("make the platform organization's owners operators when an apply created it without the operator role", async () => {
     // apply the platform, then drop the operator role with its bindings, as an apply failing after the creation leaves it
     await using fixture = await TestAccountStore.open();
     const first = await new Platform(fixture.store, PLATFORM, STACKS.residency).apply(
@@ -178,10 +182,18 @@ test("make the platform organisation's owners operators when an apply created it
         .from(accessRole)
         .where(eq(accessRole.name, "operator"));
     const roleId = present(operator, "the operator role").id;
-    await database.delete(accessRelationship).where(eq(accessRelationship.roleId, roleId));
-    await database.delete(accessRole).where(eq(accessRole.id, roleId));
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .delete(accessRelationship)
+                .where(eq(accessRelationship.roleId, roleId)),
+    );
+    await database.transaction(
+        async (transaction) =>
+            await transaction.delete(accessRole).where(eq(accessRole.id, roleId)),
+    );
 
-    // apply it again, binding the organisation with its handle
+    // apply it again, binding the organization with its handle
     const second = await new Platform(fixture.store, PLATFORM, STACKS.residency).apply(
         fixture.store.clock.now(),
     );
@@ -221,8 +233,8 @@ test("apply the declared cloud machines with their keys in the universe once, an
     // declare a cloud machine for each residency
     await using fixture = await TestAccountStore.open();
     const [europe, america] = [
-        await declare(fixture.store.clock),
-        await declare(fixture.store.clock),
+        await declare(fixture.store.environment),
+        await declare(fixture.store.environment),
     ];
     const definition: PlatformDefinition = {
         ...PLATFORM,
@@ -249,7 +261,7 @@ test("apply the declared cloud machines with their keys in the universe once, an
     };
 
     // apply the platform twice
-    const organisationId = await new Platform(fixture.store, definition, STACKS.residency).apply(
+    const organizationId = await new Platform(fixture.store, definition, STACKS.residency).apply(
         fixture.store.clock.now(),
     );
     await new Platform(fixture.store, definition, STACKS.residency).apply(
@@ -284,7 +296,7 @@ test("apply the declared cloud machines with their keys in the universe once, an
         .orderBy(endpoint.table.url);
     const administrators = await Relationship.readOn(
         Snapshot.live(database),
-        organisation.reference(Scope.universe.id, organisationId),
+        organization.reference(Scope.universe.id, organizationId),
         { relation: "admin" },
     );
     expect([
@@ -331,14 +343,18 @@ test("invite a new operator as the platform's owner beside the first", async () 
     );
     const stranger = await fixture.signIn(STRANGER_EMAIL);
     const operator = await fixture.signIn(SUCCESSOR_EMAIL);
+    const inviter = principal.installation.reference(
+        Scope.universe.id,
+        await InstallationId.base(Scope.universe, accountPackage.id, fixture.environment.crypto),
+    );
 
-    // list the invitation to the new operator alone, and accept it as them
+    // list the invitation to the new operator alone, from account's base installation, and accept it
     const invited = (await operator.client(accountPackage).user.invited({ id: operator.id })).items;
     const { id } = nth(invited, 0);
     await operator.client(objectPackage).invitation.accept({
         scope: Scope.universe.id,
-        requestId: RequestId.create(fixture.clock.now()),
-        object: organisation.reference(Scope.universe.id, platformId),
+        requestId: RequestId.create(fixture.environment),
+        object: organization.reference(Scope.universe.id, platformId),
         invitationId: id,
     });
 
@@ -360,12 +376,12 @@ test("invite a new operator as the platform's owner beside the first", async () 
             {
                 id,
                 relationship: {
-                    object: { ...organisation.reference(Scope.universe.id, platformId) },
+                    object: { ...organization.reference(Scope.universe.id, platformId) },
                     relation: "owner",
                     subject: Contact.subject(Contact.email(SUCCESSOR_EMAIL)),
                     expiresAt: null,
                 },
-                inviter: { ...Scope.universe },
+                inviter,
                 status: "pending",
                 createdAt: fixture.clock.now(),
                 expiresAt: fixture.clock.now() + INVITATION_LIFETIME_MILLISECONDS,
@@ -380,7 +396,7 @@ test("invite a new operator as the platform's owner beside the first", async () 
     ]);
 });
 
-test("enroll a cloud machine serving a residency as an owner of the platform organisation, and refuse anyone else", async () => {
+test("enroll a cloud machine serving a residency as an owner of the platform organization, and refuse anyone else", async () => {
     // give a stranger an account beside the platform of the operator
     await using fixture = await TestAccountStore.open();
     const stranger = await fixture.signIn(STRANGER_EMAIL);

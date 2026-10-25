@@ -1,3 +1,4 @@
+import type { Crypto } from "@destack/environment";
 import { Scope } from "@destack/sync";
 import { type Credential, none, permission, through, union } from "@destack/access";
 import { Condition, type Select, type Snapshot } from "@destack/db";
@@ -98,10 +99,10 @@ export type Key = Select<typeof key.table>;
 /** The key columns and reads that proofs, assertions and tokens authenticate with. */
 export const Key = {
     /** Describe the columns of a key proven now. */
-    async columns(publicKey: PublicKey, now: number) {
+    async columns(publicKey: PublicKey, now: number, crypto: Crypto) {
         return {
             publicKey,
-            thumbprint: await PublicKey.thumbprint(publicKey),
+            thumbprint: await PublicKey.thumbprint(publicKey, crypto),
             verifiedAt: now,
             expiresAt: now + LIFETIME_MILLISECONDS,
         };
@@ -150,8 +151,12 @@ export const Key = {
     },
 
     /** Spend a verified proof once in the call's mutation, refusing a proof its key used before. */
-    async spend(context: Pick<MethodContext, "mutate" | "self">, presented: Proof): Promise<void> {
-        const digest = await Digest.of(JSON.stringify([presented.thumbprint, presented.id]));
+    async spend(
+        context: Pick<MethodContext, "mutate" | "self" | "environment">,
+        presented: Proof,
+    ): Promise<void> {
+        const spent = JSON.stringify([presented.thumbprint, presented.id]);
+        const digest = await Digest.of(spent, context.environment.crypto);
         await context
             .mutate(context.self, [
                 proof.call("create", {
@@ -162,7 +167,7 @@ export const Key = {
             ])
             .catch((error: unknown) => {
                 throw CallError.of(error)?.code === "CONFLICT"
-                    ? IdentityError.of("INVALID_PROOF", "key proof was already used")
+                    ? IdentityError.of("PROOF_INVALID", "key proof was already used")
                     : error;
             });
     },

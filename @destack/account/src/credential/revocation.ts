@@ -9,7 +9,7 @@ export const Revocation = {
         noun: string,
     ): Target {
         if (target.revokedAt !== null) {
-            throw AccountError.of("REVOKED", `${noun} is revoked`);
+            throw AccountError.of("CREDENTIAL_REVOKED", `${noun} is revoked`);
         }
 
         return target;

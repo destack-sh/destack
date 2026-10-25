@@ -1,3 +1,4 @@
+import { testSimulation } from "@destack/object/test";
 import { MemoryKeychain } from "@destack/identity";
 import { Identifier, present } from "@destack/schema";
 import { expect, test } from "@destack/test";
@@ -7,12 +8,16 @@ import { SessionStore } from "./session.ts";
 const NOW = 1_767_225_600_000;
 
 test("save the first of two racing sign-ins' sessions for both, and replace it on a later sign-in", async () => {
+    // run in a world of its own
+    await using simulation = testSimulation();
+    const world = simulation.environment("test");
+
     // store two sessions of one person at once and a third after both settled
     const keychain = new MemoryKeychain();
     const sessions = new SessionStore(keychain);
     const person = {
         issuer: "https://accounts.destack.test",
-        subjectId: Identifier.create("user"),
+        subjectId: Identifier.create("user", world),
     };
     const raced = await Promise.all([
         sessions.replace(person, "session-a"),
@@ -29,11 +34,15 @@ test("save the first of two racing sign-ins' sessions for both, and replace it o
 });
 
 test("keep the session a racing sign-in saves after sign-out reads the old one, and forget it once signed out", async () => {
+    // run in a world of its own
+    await using simulation = testSimulation();
+    const world = simulation.environment("test");
+
     // read the session as sign-out does and store a new one as a racing sign-in does
     const sessions = new SessionStore(new MemoryKeychain());
     const person = {
         issuer: "https://accounts.destack.test",
-        subjectId: Identifier.create("user"),
+        subjectId: Identifier.create("user", world),
     };
     await sessions.replace(person, "session-a");
     const signedOut = present(await sessions.load(person), "the session sign-out read");
@@ -53,11 +62,15 @@ test("keep the session a racing sign-in saves after sign-out reads the old one, 
 });
 
 test("refresh a session's access token once for every caller at once, and anew once the person signs out", async () => {
+    // run in a world of its own
+    await using simulation = testSimulation();
+    const world = simulation.environment("test");
+
     // ask for the account token twice at once, as two requests of one person do, then once more
     const sessions = new SessionStore(new MemoryKeychain());
     const person = {
         issuer: "https://accounts.destack.test",
-        subjectId: Identifier.create("user"),
+        subjectId: Identifier.create("user", world),
     };
     await sessions.replace(person, "session-a");
     let refreshed = 0;

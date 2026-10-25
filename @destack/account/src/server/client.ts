@@ -11,7 +11,7 @@ import { Identifier, schema } from "@destack/schema";
 import { ObjectReference, Scope } from "@destack/sync";
 import { Placement } from "../object/placement.ts";
 import { account } from "../object/account.ts";
-import { organisation } from "../object/organisation.ts";
+import { organization } from "../object/organization.ts";
 import { OAuthConsent } from "../object/oauth-consent.ts";
 import { Revocation } from "../credential/revocation.ts";
 import { Proof } from "@destack/identity";
@@ -106,7 +106,7 @@ async function attach(
     }
 
     // verify the proof and attach the calling session
-    await proof.verify(found.publicKey, target.id, context.now);
+    await proof.verify(found.publicKey, target.id, context.now, context.environment.crypto);
     await Key.spend(context, proof);
     await context.mutate(context.self, [
         session.call("attach", { id: callingSession(context), clientId: target.id }),
@@ -123,7 +123,7 @@ async function subscribe(
     const { target } = context;
     Revocation.requireUnrevoked(target, "client");
     if (target.kind !== "browser") {
-        throw AccountError.of("PUSH_BROWSER_ONLY", "only browsers can subscribe to push");
+        throw AccountError.of("PUSH_BROWSER_REQUIRED", "only browsers can subscribe to push");
     }
 
     return context.update({ push: context.input.push });
@@ -175,7 +175,7 @@ async function requireIssuable(context: MethodContextOf<typeof client, "issue">)
     const issued = context.input;
     if (issued.expiresAt <= context.now || issued.expiresAt > context.now + LIFETIME_MILLISECONDS) {
         throw AccountError.of(
-            "INVALID_TOKEN_EXPIRY",
+            "TOKEN_EXPIRY_INVALID",
             "token expiry must be within 366 days from now",
         );
     }
@@ -184,7 +184,7 @@ async function requireIssuable(context: MethodContextOf<typeof client, "issue">)
     for (const permission of issued.permissions) {
         if (permission.scope === undefined) {
             throw AccountError.of(
-                "PERMISSION_WITHOUT_SCOPE",
+                "PERMISSION_SCOPE_MISSING",
                 `token permission ${permission.type}.${permission.name} has no scope`,
             );
         }
@@ -207,7 +207,7 @@ async function requireIssuable(context: MethodContextOf<typeof client, "issue">)
                 ));
         if (served.length > 0 && !isDeclared) {
             throw AccountError.of(
-                "UNKNOWN_PERMISSION",
+                "PERMISSION_UNKNOWN",
                 `unknown permission ${permission.type}.${permission.name}`,
             );
         }
@@ -218,24 +218,24 @@ async function requireIssuable(context: MethodContextOf<typeof client, "issue">)
     const usable = await userScopes(context, scopes);
     const unusable = scopes.find((scope) => !usable.includes(scope));
     if (unusable !== undefined) {
-        throw AccountError.of("UNUSABLE_SCOPE", `token cannot act in ${unusable}`);
+        throw AccountError.of("SCOPE_UNUSABLE", `token cannot act in ${unusable}`);
     }
 }
 
 /** List the scopes a user's token may act in. */
 async function userScopes(context: MethodContext, scopes: readonly string[]): Promise<string[]> {
-    // find the named accounts, organisations and spaces
+    // find the named accounts, organizations and spaces
     const accounts = await context
         .read(account)
         .findMany({ where: { id: { in: Identifier.filter("account", scopes) } } });
-    const organisations = await context
-        .read(organisation)
-        .findMany({ where: { id: { in: Identifier.filter("organisation", scopes) } } });
+    const organizations = await context
+        .read(organization)
+        .findMany({ where: { id: { in: Identifier.filter("organization", scopes) } } });
     const spaces = await Placement.find(context, Identifier.filter("space", scopes));
 
     return [
         context.scope,
-        ...[...accounts, ...organisations].map((row) => row.id),
+        ...[...accounts, ...organizations].map((row) => row.id),
         ...spaces.map((row) => row.id),
     ];
 }

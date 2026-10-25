@@ -26,7 +26,7 @@ async function create(
     // verify and spend the proof
     const publicKey = PublicKey.parse(context.input.publicKey);
     const proof = Proof.read(context.input.proof);
-    await proof.verify(publicKey, parent.id, context.now);
+    await proof.verify(publicKey, parent.id, context.now, context.environment.crypto);
     await Key.spend(context, proof);
     await holder.report();
 
@@ -39,7 +39,10 @@ async function create(
 
     return next(
         context.with({
-            input: { ...context.input, ...(await Key.columns(publicKey, context.now)) },
+            input: {
+                ...context.input,
+                ...(await Key.columns(publicKey, context.now, context.environment.crypto)),
+            },
         }),
     );
 }
@@ -64,20 +67,34 @@ async function holderOf(context: MethodContext, parent: ObjectReference) {
     else if (machine.is(parent)) {
         const id = schema.identifier("machine").parse(parent.id);
         const row = await context.read(machine).findFirst({ where: { id } });
-        const { version, runtimes } = Revocation.requireUnrevoked(
+        const found = Revocation.requireUnrevoked(
             requireFound(row?.scope === context.scope ? row : undefined, parent),
             "machine",
         );
 
+        // report the contact, keeping the last report's contents
+        const host =
+            found.platform === null || found.architecture === null
+                ? null
+                : { platform: found.platform, architecture: found.architecture };
+        const kept = {
+            id,
+            version: found.version,
+            runtimes: found.runtimes,
+            osVersion: found.osVersion,
+            startedAt: found.startedAt,
+            update: found.update,
+            host,
+        };
+
         return {
             type: machine,
-            report: () =>
-                context.mutate(context.self, [machine.call("report", { id, version, runtimes })]),
+            report: () => context.mutate(context.self, [machine.call("report", kept)]),
         };
     }
     // refuse any other parent
     else {
-        throw AccountError.of("NO_KEYS", `a ${parent.type} has no keys`);
+        throw AccountError.of("KEYS_MISSING", `a ${parent.type} has no keys`);
     }
 }
 

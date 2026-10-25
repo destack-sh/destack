@@ -1,15 +1,22 @@
+import { testSimulation } from "@destack/object/test";
 import type { ClientOf } from "@destack/object/client";
 import accountPackage from "../src/package.ts";
 import { defineDatabase, Snapshot } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { Identifier, schema } from "@destack/schema";
+import { Identifier, present, schema } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { expect, onTestFinished, test, refusal } from "@destack/test";
-import { Directory } from "../src/address/index.ts";
-import { Account, endpoint, placement } from "../src/object/index.ts";
+import { Directory, DOMAINS, MachineAddress } from "../src/address/index.ts";
+import { Account, endpoint, machine, placement } from "../src/object/index.ts";
 import { TestAccountStore, ids, STRANGER_EMAIL, OWNER_EMAIL } from "../src/test/index.ts";
 import { claimNames, place } from "./fixture.ts";
 import { Claimant } from "@destack/object";
+
+/** The origin of the residency's relay serving the machine's tunnel. */
+const RELAY_ORIGIN = "https://eu.relay.test";
+
+/** How long the machine's tunnel stands before its token lapses: one minute. */
+const TUNNEL_MILLISECONDS = 60_000;
 
 /** The spaces the stress test places, enough to tell reads per space from reads per call. */
 const STRESS_SPACES = 20;
@@ -40,34 +47,52 @@ async function addressOf(
     return (await client.space.address({ accountId: space.scope, id: space.id })).address;
 }
 
-/** Serve the owner's account with a place called notes on a machine publishing its URL. */
+/** Serve the owner's account with a place called notes on a machine its relay publishes. */
 async function openNotes() {
     // claim the place's name as its machine
     const fixture = await TestAccountStore.open();
     const owner = await fixture.signIn(OWNER_EMAIL);
-    const { accountId, handle, spaceId, machine } = await fixture.createSpace(owner);
+    const { accountId, handle, spaceId, machine: computer } = await fixture.createSpace(owner);
     const row = { id: spaceId, scope: accountId, name: "notes" };
     const object = { objectId: spaceId, owner: accountId };
     const claimant = await Claimant.of(place, object, row, Snapshot.live(fixture.database));
-    await claimNames(machine, fixture.database, claimant, fixture.clock);
+    await claimNames(computer, fixture.database, claimant, fixture.environment);
 
-    // publish the machine's URL
-    await machine.client(accountPackage).machine.publish({
+    // publish the machine's tunnel as the residency's relay
+    const relay = fixture.as(await fixture.relay("eu"));
+    await relay.client(accountPackage).machine.relay({
         scope: accountId,
-        id: machine.subject.id,
-        url: "https://machine.test/",
-        relay: null,
-        requestId: RequestId.create(fixture.clock.now()),
+        id: computer.subject.id,
+        url: RELAY_ORIGIN,
+        lapsesAt: fixture.clock.now() + TUNNEL_MILLISECONDS,
+        requestId: RequestId.create(fixture.environment),
     });
 
-    return { fixture, owner, accountId, handle, spaceId, machine };
+    // address the machine below its account's handle, as the relay publishes it
+    const named = await Snapshot.live(fixture.database)
+        .read(machine.table)
+        .findFirst({ where: { id: schema.identifier("machine").parse(computer.subject.id) } });
+    const address = MachineAddress.format(
+        { machine: present(named, "the machine").name, handle },
+        DOMAINS.machine,
+    );
+
+    return {
+        fixture,
+        owner,
+        accountId,
+        handle,
+        spaceId,
+        machine: computer,
+        url: `https://${address}`,
+    };
 }
 
-test("find and resolve a place's address over the directory's rows, to the URL its machine publishes", async () => {
-    // store a place called notes on a machine that publishes its URL
+test("find and resolve a place's address over the directory's rows, to the URL its relay publishes", async () => {
+    // store a place called notes on a machine its relay publishes
     const opened = await openNotes();
     await using fixture = opened.fixture;
-    const { accountId, handle, spaceId, machine } = opened;
+    const { accountId, handle, spaceId, machine: computer, url } = opened;
     const resolver = new Directory(Snapshot.live(fixture.database));
 
     // find the place and resolve its machine, and nothing at another name
@@ -81,8 +106,8 @@ test("find and resolve a place's address over the directory's rows, to the URL i
         undefined,
         {
             id: spaceId,
-            placement: { id: spaceId, scope: accountId, machine: machine.subject.id, epoch: 1 },
-            url: "https://machine.test/",
+            placement: { id: spaceId, scope: accountId, machine: computer.subject.id, epoch: 1 },
+            url,
         },
         ["NOT_FOUND", "ADDRESS_NOT_FOUND", `nothing responds at other--${handle}`],
     ]);
@@ -92,7 +117,7 @@ test("list an account's placements to those reading it and to its machines, and 
     // store a space of an account, and an outsider with a machine of their own account
     await using fixture = await TestAccountStore.open();
     const owner = await fixture.signIn(OWNER_EMAIL);
-    const { accountId, spaceId, machine } = await fixture.createSpace(owner);
+    const { accountId, spaceId, machine: computer } = await fixture.createSpace(owner);
     const outsider = await fixture.signIn(STRANGER_EMAIL);
     const foreign = fixture.as(await fixture.enroll(Account.personal(ids.stranger), outsider));
     const unknown = schema
@@ -101,10 +126,10 @@ test("list an account's placements to those reading it and to its machines, and 
 
     // list the account's home, placed with the account on the residency's cloud machine, beside the space
     const home = { id: Account.home(accountId), scope: accountId, machine: ids.machine, epoch: 1 };
-    const placed = { id: spaceId, scope: accountId, machine: machine.subject.id, epoch: 1 };
+    const placed = { id: spaceId, scope: accountId, machine: computer.subject.id, epoch: 1 };
     expect([
         await placements(owner.client(accountPackage), accountId),
-        await placements(machine.client(accountPackage), accountId),
+        await placements(computer.client(accountPackage), accountId),
         await refusal(placements(outsider.client(accountPackage), accountId)),
         await refusal(placements(foreign.client(accountPackage), accountId)),
         await refusal(placements(owner.client(accountPackage), unknown)),
@@ -126,7 +151,7 @@ test("find no account or place at an address once the account's deletion was req
     await owner.client(accountPackage).account.delete({
         id: accountId,
         scope: owner.id,
-        requestId: RequestId.create(fixture.clock.now()),
+        requestId: RequestId.create(fixture.environment),
     });
 
     // find neither the account nor its place
@@ -137,32 +162,32 @@ test("find no account or place at an address once the account's deletion was req
     ]).toEqual([undefined, undefined]);
 });
 
-test("read a space's address in its account for those reading the account, an organisation account's members among them, and for nobody else", async () => {
-    // create a space in a person's and an organisation's account
+test("read a space's address in its account for those reading the account, an organization account's members among them, and for nobody else", async () => {
+    // create a space in a person's and an organization's account
     await using fixture = await TestAccountStore.open();
     const owner = await fixture.signIn(OWNER_EMAIL);
     const personal = await fixture.createAccount(owner);
     const notes = await owner.client(accountPackage).space.create({
         accountId: personal.id,
-        requestId: RequestId.create(fixture.store.clock.now()),
+        requestId: RequestId.create(fixture.store.environment),
         name: "notes",
     });
     const founder = await fixture.signIn("founder@example.com");
-    const organisation = await founder.client(accountPackage).organisation.create({
-        requestId: RequestId.create(fixture.store.clock.now()),
+    const organization = await founder.client(accountPackage).organization.create({
+        requestId: RequestId.create(fixture.store.environment),
         name: "Acme",
         handle: "initech",
         residencyId: "eu",
     });
     const board = await founder.client(accountPackage).space.create({
-        accountId: organisation.payer,
-        requestId: RequestId.create(fixture.store.clock.now()),
+        accountId: organization.payer,
+        requestId: RequestId.create(fixture.store.environment),
         name: "board",
     });
 
-    // add a member to the organisation
+    // add a member to the organization
     const member = await fixture.signIn("member@example.com");
-    await fixture.join(founder, member, organisation.id, "member");
+    await fixture.join(founder, member, organization.id, "member");
 
     // read each address as the owner and the member
     const outsider = await fixture.signIn(STRANGER_EMAIL);
@@ -175,40 +200,50 @@ test("read a space's address in its account for those reading the account, an or
         `notes--${personal.handle}`,
         "board--initech",
         ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${personal.id} not found`],
-        ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${organisation.payer} not found`],
+        ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${organization.payer} not found`],
     ]);
 });
 
 test("locate each of many spaces placed on a machine in two statements, its placement and its machine's endpoint", async () => {
+    // run in a world of its own
+    await using simulation = testSimulation();
+    const world = simulation.environment("test");
+
     // open a database of placements and endpoints
     const storage = await TestDatabase.create(
         defineDatabase({ name: "directory", tables: [...placement.tables, ...endpoint.tables] }),
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
     const { database } = storage;
 
     // publish a machine's endpoint at its URL
-    await database.insert(endpoint.table).values({
-        id: ids.machine,
-        scope: ids.account,
-        parentId: ids.machine,
-        url: "https://machine.test/",
-        relay: null,
-        createdAt: NOW,
-        updatedAt: NOW,
-    });
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(endpoint.table).values({
+                id: ids.machine,
+                scope: ids.account,
+                parentId: ids.machine,
+                url: "https://machine.test/",
+                relay: null,
+                createdAt: NOW,
+                updatedAt: NOW,
+            }),
+    );
 
     // place many spaces on the machine
-    const spaces = Array.from({ length: STRESS_SPACES }, () => Identifier.create("space"));
+    const spaces = Array.from({ length: STRESS_SPACES }, () => Identifier.create("space", world));
     const placed = spaces.map((id) => ({ id, scope: ids.account, machine: ids.machine, epoch: 1 }));
-    await database.insert(placement.table).values(
-        placed.map(({ machine, ...rest }) => ({
-            ...rest,
-            machineId: machine,
-            createdAt: NOW,
-            updatedAt: NOW,
-        })),
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(placement.table).values(
+                placed.map(({ machine: machineId, ...rest }) => ({
+                    ...rest,
+                    machineId,
+                    createdAt: NOW,
+                    updatedAt: NOW,
+                })),
+            ),
     );
 
     // locate each through a connection counting its statements

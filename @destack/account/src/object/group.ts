@@ -2,7 +2,7 @@ import { principal, through } from "@destack/access";
 import { type Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { account } from "./account.ts";
-import { organisation } from "./organisation.ts";
+import { organization } from "./organization.ts";
 import { user } from "./user.ts";
 import { DisplayName } from "./display-name.ts";
 
@@ -11,7 +11,7 @@ export const group = defineObject(
     {
         name: "group",
         plural: "groups",
-        scope: [account, organisation],
+        scope: [account, organization],
         nested: {
             in: "self",
             optional: true,
@@ -32,11 +32,11 @@ export const group = defineObject(
             },
         },
         permissions: {
-            create: through("organisation", "manage"),
-            read: through("organisation", "read"),
-            update: through("organisation", "manage"),
-            delete: through("organisation", "manage"),
-            share: through("organisation", "manage"),
+            create: through("organization", "manage"),
+            read: through("organization", "read"),
+            update: through("organization", "manage"),
+            delete: through("organization", "manage"),
+            share: through("organization", "manage"),
         },
         shareable: { by: "share" },
         constraints: {
@@ -50,5 +50,5 @@ export const group = defineObject(
         delete: method.delete("delete"),
     }),
 );
-/** A group of an account or an organisation. */
+/** A group of an account or an organization. */
 export type Group = Select<typeof group.table>;

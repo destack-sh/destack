@@ -2,14 +2,14 @@ import { type Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { account } from "./account.ts";
 
-/** An account-defined classification its spaces share, declared by the account's stack. */
-export const environment = defineObject(
+/** A deployment stage an account's spaces share, such as dev, declared by its stack. */
+export const stage = defineObject(
     {
-        name: "environment",
-        plural: "environments",
+        name: "stage",
+        plural: "stages",
         scope: account,
         fields: {
-            /** The account-local environment name. */
+            /** The account-local stage name. */
             name: field.string(),
         },
         permissions: ["read", "write"],
@@ -43,5 +43,5 @@ export const environment = defineObject(
         delete: method.delete("write", { isInternal: true }),
     }),
 );
-/** A persisted account environment. */
-export type Environment = Select<typeof environment.table>;
+/** A persisted account stage. */
+export type Stage = Select<typeof stage.table>;

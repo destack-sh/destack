@@ -1,5 +1,12 @@
-import { createHmac } from "node:crypto";
+import type { Environment } from "@destack/environment";
+import { Totp } from "../authentication/totp.ts";
 import { present, schema } from "@destack/schema";
+
+/** The RFC 4648 base32 alphabet otpauth URIs encode secrets in. */
+const BASE32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+
+/** The bytes of a passkey's credential identifier, WebAuthn's least of 16. */
+const CREDENTIAL_BYTES = 16;
 
 /** An authenticator enrollment: its TOTP URI and backup codes. */
 export const Enrollment = schema.looseObject({
@@ -9,26 +16,26 @@ export const Enrollment = schema.looseObject({
     backupCodes: schema.array(schema.string()),
 });
 
-/** Generate the RFC 6238 code an authenticator would display for an enrollment URI at a time. */
-export function authenticatorCode(uri: string, now: number): string {
+/** Generate the RFC 6238 code an authenticator shows some steps from now on a clock. */
+export async function authenticatorCode(
+    uri: string,
+    environment: Pick<Environment, "clock" | "crypto">,
+    steps = 0,
+): Promise<string> {
     // decode the enrolled base32 secret into bytes
     const secret = present(new URL(uri).searchParams.get("secret"), "the enrollment secret");
-    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
     const bits = Array.from(secret)
-        .map((character) => alphabet.indexOf(character).toString(2).padStart(5, "0"))
+        .map((character) => BASE32.indexOf(character).toString(2).padStart(5, "0"))
         .join("");
-    const bytes = Array.from({ length: Math.floor(bits.length / 8) }, (_, index) =>
+    const bytes = Uint8Array.from({ length: Math.floor(bits.length / 8) }, (_, index) =>
         Number.parseInt(bits.slice(index * 8, index * 8 + 8), 2),
     );
 
-    // sign the time's thirty-second counter with the enrolled secret
-    const counter = Buffer.alloc(8);
-    counter.writeBigUInt64BE(BigInt(Math.floor(now / 30_000)));
-    const signature = createHmac("sha1", Buffer.from(bytes)).update(counter).digest();
-    const offset = signature.readUInt8(signature.length - 1) & 15;
-    const code = (signature.readUInt32BE(offset) & 0x7fffffff) % 1_000_000;
+    // compute the code of the step
+    const { clock, crypto } = environment;
+    const totp = await Totp.of(bytes, crypto);
 
-    return String(code).padStart(6, "0");
+    return totp.code(Totp.step(clock.now()) + steps, crypto);
 }
 
 /** A platform authenticator with one P-256 passkey, answering WebAuthn ceremonies. */
@@ -39,30 +46,42 @@ export class PasskeyAuthenticator {
     readonly id: Uint8Array<ArrayBuffer>;
     /** The origin the browser reports. */
     readonly origin: string;
+    /** The crypto the passkey signs and hashes with. */
+    readonly crypto: Environment["crypto"];
     /** The signature counter, advanced by every assertion. */
     #counter = 0;
 
     /** Store a generated passkey for an origin. */
-    private constructor(keys: CryptoKeyPair, origin: string) {
+    private constructor(
+        keys: CryptoKeyPair,
+        origin: string,
+        environment: Pick<Environment, "crypto" | "random">,
+    ) {
+        // store the keys, a fresh credential identifier, the origin and the WebCrypto
         this.keys = keys;
-        this.id = crypto.getRandomValues(new Uint8Array(16));
+        this.id = environment.random.bytes(CREDENTIAL_BYTES);
         this.origin = origin;
+        this.crypto = environment.crypto;
     }
 
     /** Generate a passkey for an origin. */
-    static async generate(origin: string): Promise<PasskeyAuthenticator> {
-        const keys = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, [
-            "sign",
-            "verify",
-        ]);
+    static async generate(
+        origin: string,
+        environment: Pick<Environment, "crypto" | "random">,
+    ): Promise<PasskeyAuthenticator> {
+        const keys = await environment.crypto.generateKey(
+            { name: "ECDSA", namedCurve: "P-256" },
+            true,
+            ["sign", "verify"],
+        );
 
-        return new PasskeyAuthenticator(keys, origin);
+        return new PasskeyAuthenticator(keys, origin, environment);
     }
 
     /** Answer registration options with a none attestation of the passkey, verified by the user. */
     async register(options: { challenge: string }): Promise<object> {
         // encode the public key as a COSE EC2 ES256 key
-        const jwk = await crypto.subtle.exportKey("jwk", this.keys.publicKey);
+        const jwk = await this.crypto.exportKey("jwk", this.keys.publicKey);
         const key = cbor(
             new Map<number, unknown>([
                 [1, 2],
@@ -123,11 +142,11 @@ export class PasskeyAuthenticator {
         new DataView(counter.buffer).setUint32(0, this.#counter);
         const data = concat(await this.#rpHash(), new Uint8Array([0x05]), counter);
         const client = this.#clientData("webauthn.get", options.challenge);
-        const hash = await crypto.subtle.digest(
+        const hash = await this.crypto.digest(
             "SHA-256",
             Uint8Array.fromBase64(client, { alphabet: "base64url" }),
         );
-        const signature = await crypto.subtle.sign(
+        const signature = await this.crypto.sign(
             { name: "ECDSA", hash: "SHA-256" },
             this.keys.privateKey,
             concat(data, new Uint8Array(hash)),
@@ -151,7 +170,7 @@ export class PasskeyAuthenticator {
     async #rpHash(): Promise<Uint8Array<ArrayBuffer>> {
         const host = new TextEncoder().encode(new URL(this.origin).hostname);
 
-        return new Uint8Array(await crypto.subtle.digest("SHA-256", host));
+        return new Uint8Array(await this.crypto.digest("SHA-256", host));
     }
 
     /** Encode the client data a browser collects for a ceremony. */

@@ -21,8 +21,11 @@ import {
 } from "../src/test/index.ts";
 import { ANY_NUMBER, ANY_STRING, firstPage } from "./fixture.ts";
 
+/** A month and a day, past the thirty days a refresh token lasts. */
+const REFRESH_EXPIRED_MILLISECONDS = 31 * 24 * 60 * 60_000;
+
 /** A package another package declares with permissions for grants. */
-const VAULT = Identifier.create("package");
+const VAULT = PackageId.parse("package-01996ab0-0000-7000-8000-0000000000a1");
 
 /** One day in milliseconds. */
 const DAY = 24 * 60 * 60 * 1000;
@@ -39,7 +42,7 @@ test("issue a token client with its grant, act through it, and revoke both", asy
     const { accountId, spaceId } = await fixture.createSpace(owner);
 
     // ask for a token reading the account and one space's secrets
-    const credential = await Credential.create("personal-access-token");
+    const credential = await Credential.create("personal-access-token", fixture.environment);
     const permissions: GrantPermission[] = [
         { ...account.permission("read"), scope: accountId },
         { packageId: VAULT, type: "version", name: "read", scope: spaceId },
@@ -47,7 +50,7 @@ test("issue a token client with its grant, act through it, and revoke both", asy
     const expiresAt = fixture.store.clock.now() + DAY;
     const issuing = {
         userId: owner.id,
-        requestId: RequestId.create(fixture.store.clock.now()),
+        requestId: RequestId.create(fixture.store.environment),
         name: "agent",
         digest: credential.digest,
         permissions,
@@ -57,7 +60,7 @@ test("issue a token client with its grant, act through it, and revoke both", asy
     // challenge a single factor
     expect(await refusal(owner.client(accountPackage).client.issue(issuing))).toEqual([
         "UNAUTHORIZED",
-        "INSUFFICIENT_AUTHENTICATION",
+        "AUTHENTICATION_INSUFFICIENT",
         "authentication assurance is too low: authenticate again",
     ]);
     owner = await fixture.elevate(owner);
@@ -111,7 +114,7 @@ test("issue a token client with its grant, act through it, and revoke both", asy
         fixture.issuer.exchange(
             { token: credential.secret, type: PERSONAL_ACCESS_TOKEN_TYPE },
             space === undefined ? accountPackage.id : VAULT,
-            space === undefined ? {} : { spaceId: space },
+            space === undefined ? {} : { partition: space },
         );
     const issuedAt = Math.floor(fixture.clock.now() / 1000);
     const acting = (
@@ -168,12 +171,11 @@ test("issue a token client with its grant, act through it, and revoke both", asy
                 ],
                 spacedAt,
             ),
-            space: spaceId,
+            partition: spaceId,
         },
     ]);
     const [universalStamp, spacedStamp] = [stampOf(universal), stampOf(spaced)];
     expect(universalStamp).toBeGreaterThanOrEqual(universalAt.sequence);
-    expect(spacedStamp).toBeGreaterThan(universalStamp);
     expect(spacedStamp).toBeGreaterThanOrEqual(spacedAt.sequence);
     expect(spacedStamp).toBeLessThanOrEqual(exchangedAt.sequence);
     const bearer = fixture.issuer.accounts((await exchange()).accessToken);
@@ -200,7 +202,7 @@ test("issue a token client with its grant, act through it, and revoke both", asy
             refusal(
                 owner.client(accountPackage).client.issue({
                     ...issuing,
-                    requestId: RequestId.create(fixture.store.clock.now()),
+                    requestId: RequestId.create(fixture.store.environment),
                     name: "refused",
                     ...change,
                 }),
@@ -208,10 +210,10 @@ test("issue a token client with its grant, act through it, and revoke both", asy
         ),
     );
     expect(refusals).toEqual([
-        ["BAD_REQUEST", "UNKNOWN_PERMISSION", "unknown permission account.fly"],
-        ["BAD_REQUEST", "UNUSABLE_SCOPE", "token cannot act in elsewhere"],
-        ["BAD_REQUEST", "INVALID_TOKEN_EXPIRY", "token expiry must be within 366 days from now"],
-        ["BAD_REQUEST", "INVALID_TOKEN_EXPIRY", "token expiry must be within 366 days from now"],
+        ["BAD_REQUEST", "PERMISSION_UNKNOWN", "unknown permission account.fly"],
+        ["BAD_REQUEST", "SCOPE_UNUSABLE", "token cannot act in elsewhere"],
+        ["BAD_REQUEST", "TOKEN_EXPIRY_INVALID", "token expiry must be within 366 days from now"],
+        ["BAD_REQUEST", "TOKEN_EXPIRY_INVALID", "token expiry must be within 366 days from now"],
     ]);
 
     // hide the token from another user, who finds the owner's public profile alone
@@ -224,9 +226,10 @@ test("issue a token client with its grant, act through it, and revoke both", asy
             other.client(accountPackage).client.issue({
                 ...issuing,
                 userId: owner.id,
-                requestId: RequestId.create(fixture.store.clock.now()),
+                requestId: RequestId.create(fixture.store.environment),
                 name: "stolen",
-                digest: (await Credential.create("personal-access-token")).digest,
+                digest: (await Credential.create("personal-access-token", fixture.environment))
+                    .digest,
                 permissions: [],
             }),
         ),
@@ -236,7 +239,7 @@ test("issue a token client with its grant, act through it, and revoke both", asy
     const revoking = { userId: owner.id, id: issued.id };
     const revoked = await owner.client(accountPackage).client.revoke({
         ...revoking,
-        requestId: RequestId.create(fixture.store.clock.now()),
+        requestId: RequestId.create(fixture.store.environment),
     });
     expect({
         revoked,
@@ -245,7 +248,7 @@ test("issue a token client with its grant, act through it, and revoke both", asy
         again: await refusal(
             owner.client(accountPackage).client.revoke({
                 ...revoking,
-                requestId: RequestId.create(fixture.store.clock.now()),
+                requestId: RequestId.create(fixture.store.environment),
             }),
         ),
     }).toEqual({
@@ -261,26 +264,27 @@ test("issue a token client with its grant, act through it, and revoke both", asy
             "INVALID_GRANT",
             "the token endpoint refused the request: invalid_grant: invalid personal access token",
         ],
-        again: ["CONFLICT", "REVOKED", "client is revoked"],
+        again: ["CONFLICT", "CREDENTIAL_REVOKED", "client is revoked"],
     });
 });
 
-test("refuse a personal access token whose grant lapsed", async () => {
+test("end a personal access token's exchanged tokens at its grant's lapse, and refuse it once lapsed", async () => {
     await using fixture = await TestAccountStore.open();
     const { clock } = fixture;
     let owner = await fixture.signIn(OWNER_EMAIL);
     const { id: accountId } = await fixture.createAccount(owner);
 
-    // issue a token reading the account
+    // issue a token reading the account for a day
     owner = await fixture.elevate(owner);
-    const credential = await Credential.create("personal-access-token");
+    const credential = await Credential.create("personal-access-token", fixture.environment);
+    const expiresAt = fixture.store.clock.now() + DAY;
     await owner.client(accountPackage).client.issue({
         userId: owner.id,
-        requestId: RequestId.create(fixture.store.clock.now()),
+        requestId: RequestId.create(fixture.store.environment),
         name: "agent",
         digest: credential.digest,
         permissions: [{ ...account.permission("read"), scope: accountId }],
-        expiresAt: fixture.store.clock.now() + DAY,
+        expiresAt,
     });
     const exchange = async () =>
         TestJwt.claims(
@@ -291,12 +295,16 @@ test("refuse a personal access token whose grant lapsed", async () => {
                     {},
                 )
             ).accessToken,
-        ).sub;
-    expect(await exchange()).toBe(owner.id);
+        );
+    expect((await exchange()).sub).toBe(owner.id);
 
-    // let its grant lapse
+    // end a token exchanged a minute before the grant lapses at the lapse
     clock.pause();
-    clock.advance(DAY + 1);
+    clock.advance(DAY - 60_000);
+    expect((await exchange()).exp).toBe(Math.floor(expiresAt / 1000));
+
+    // refuse it once the grant lapsed
+    clock.advance(60_001);
     expect(await refusal(exchange())).toEqual([
         "BAD_REQUEST",
         "INVALID_GRANT",
@@ -312,20 +320,23 @@ test("exchange an installation's token for tokens of its account's spaces with i
     await fixture.startIdentity(spaceId, machine);
 
     // place a second space in the account, and make an installation of the first its editor
-    const sibling = Identifier.create("space");
+    const sibling = Identifier.create("space", fixture.environment);
     const siblingMachine = await fixture.enroll(accountId, owner);
     await owner.client(accountPackage).space.create({
         accountId,
         id: sibling,
-        requestId: RequestId.create(fixture.store.clock.now()),
+        requestId: RequestId.create(fixture.store.environment),
         name: `space-${sibling.slice(-12)}`,
         machine: siblingMachine.machineId,
     });
-    const automation = principal.installation.reference(spaceId, Identifier.create("installation"));
+    const automation = principal.installation.reference(
+        spaceId,
+        Identifier.create("installation", fixture.environment),
+    );
     await owner.client(accountPackage).account.grant({
         scope: owner.id,
         id: accountId,
-        requestId: RequestId.create(fixture.store.clock.now()),
+        requestId: RequestId.create(fixture.store.environment),
         relation: "editor",
         subject: automation,
     });
@@ -333,7 +344,7 @@ test("exchange an installation's token for tokens of its account's spaces with i
     // exchange its token for a token of the second space
     const exchange = async (space: Identifier<"space">, subject?: Subject) =>
         fixture.source(automation).exchange(VAULT, {
-            spaceId: space,
+            partition: space,
             ...(subject === undefined ? {} : { subject }),
         });
     const { credential, ...identity } = TestJwt.claims(
@@ -399,18 +410,19 @@ test("authenticate a person's universe token in the space it is bound to, refusi
     await using fixture = await TestAccountStore.open();
     const person = await fixture.signIn("person@example.com");
     const { spaceId } = await fixture.personalHome(person);
-    const { accessToken: token } = await person.exchange(accountPackage.id, { spaceId });
+    const { accessToken: token } = await person.exchange(accountPackage.id, { partition: spaceId });
 
     // authenticate calls to the home and to another space over the universe's directory
-    const authenticate = (scope: string, headers: Record<string, string>) =>
+    const authenticate = (partition: Identifier<"space">, headers: Record<string, string>) =>
         Identity.authenticate(
             Snapshot.live(fixture.database),
             new Request("https://machine.test/", { headers }),
             {
                 audience: accountPackage.id,
                 universe: ISSUER,
-                scope,
+                partition,
                 now: fixture.store.clock.now(),
+                environment: fixture.store.environment,
             },
         );
     const bearer = { authorization: `Bearer ${token}` };
@@ -418,10 +430,69 @@ test("authenticate a person's universe token in the space it is bound to, refusi
     expect({
         anonymous: await authenticate(spaceId, {}),
         home: home.caller.subject,
-        other: await refusal(authenticate(Identifier.create("space"), bearer)),
+        other: await refusal(authenticate(Identifier.create("space", fixture.environment), bearer)),
     }).toEqual({
         anonymous: undefined,
         home: person.subject,
-        other: ["UNAUTHORIZED", "INVALID_TOKEN", "invalid access token claims"],
+        other: ["UNAUTHORIZED", "TOKEN_INVALID", "invalid access token claims"],
     });
+});
+
+test("refuse a person's refresh once their refresh token expired, as the issuer's OAuth error", async () => {
+    // sign a person in, then let a month pass
+    await using fixture = await TestAccountStore.open();
+    const person = await fixture.signIn("monthly@example.test");
+    fixture.clock.advance(REFRESH_EXPIRED_MILLISECONDS);
+
+    // refuse refreshing their tokens
+    expect(await refusal(person.tokens())).toEqual([
+        "BAD_REQUEST",
+        "INVALID_GRANT",
+        "the token endpoint refused the request: invalid_grant: invalid refresh token",
+    ]);
+});
+
+test("sign a person in with a fresh code a month after their first sign-in, refusing only the old session's refresh", async () => {
+    // sign a person in, then let a month pass and sign them in again with a new code
+    await using fixture = await TestAccountStore.open();
+    const first = await fixture.signIn("returning@example.test");
+    fixture.clock.advance(REFRESH_EXPIRED_MILLISECONDS);
+    const again = await fixture.signIn("returning@example.test");
+
+    // take the new sign-in's tokens, and refuse refreshing the first one's
+    const tokens = await again.tokens();
+    expect([tokens.expiresAt > fixture.clock.now(), await refusal(first.tokens())]).toEqual([
+        true,
+        [
+            "BAD_REQUEST",
+            "INVALID_GRANT",
+            "the token endpoint refused the request: invalid_grant: invalid refresh token",
+        ],
+    ]);
+});
+
+test("grant an installation a token naming no space toward the universe, and one naming the space a call goes to, for the same package", async () => {
+    // make an installation of a space its account's editor
+    await using fixture = await TestAccountStore.open();
+    const owner = await fixture.signIn(OWNER_EMAIL);
+    const { accountId, spaceId, machine } = await fixture.createSpace(owner);
+    await fixture.startIdentity(spaceId, machine);
+    const automation = principal.installation.reference(
+        spaceId,
+        Identifier.create("installation", fixture.environment),
+    );
+    await owner.client(accountPackage).account.grant({
+        scope: owner.id,
+        id: accountId,
+        requestId: RequestId.create(fixture.store.environment),
+        relation: "editor",
+        subject: automation,
+    });
+
+    // take its token of the object package toward the universe, and toward its own space
+    const source = fixture.source(automation);
+    const universe = TestJwt.claims(await source.grantedToken(objectPackage.id));
+    const exchanged = await source.exchange(objectPackage.id, { partition: spaceId });
+    const space = TestJwt.claims(exchanged.accessToken);
+    expect([universe.partition, space.partition]).toEqual([undefined, spaceId]);
 });

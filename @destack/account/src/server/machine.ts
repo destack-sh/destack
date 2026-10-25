@@ -1,17 +1,20 @@
-import { principal, Relationship } from "@destack/access";
-import { present } from "@destack/schema";
+import { principal } from "@destack/access";
+import { present, schema } from "@destack/schema";
+import { Entitlement, entitlement } from "../object/entitlement.ts";
 import type { MethodContext, MethodContextOf, NextOf, ResultOf } from "@destack/object";
 import { Scope } from "@destack/sync";
 import { Revocation } from "../credential/revocation.ts";
 import { Proof, type PublicKey } from "@destack/identity";
 import type { Select } from "@destack/db";
-import { endpoint } from "../object/endpoint.ts";
+import { Endpoint, endpoint } from "../object/endpoint.ts";
+import { account } from "../object/account.ts";
+import { DOMAINS, MachineAddress } from "../address/address.ts";
 import { key, Key } from "../object/key.ts";
 import { machine, Machine } from "../object/machine.ts";
-import { relationship } from "@destack/object";
 import { residency } from "../object/residency.ts";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
+import { StoreRelationship } from "./relationship.ts";
 
 /** Implement machines. */
 export function implementMachine(): typeof machine {
@@ -21,6 +24,7 @@ export function implementMachine(): typeof machine {
             declare,
             revoke,
             publish,
+            relay,
             enable: (call) => transition(call, "enabled"),
             drain: (call) => transition(call, "draining"),
             disable: (call) => transition(call, "disabled"),
@@ -49,7 +53,7 @@ async function enroll(
         );
     }
     const proof = Proof.read(input.proof);
-    await proof.verify(input.publicKey, context.id, context.now);
+    await proof.verify(input.publicKey, context.id, context.now, context.environment.crypto);
     await Key.spend(context, proof);
 
     // create the machine with its first key under the first free variant of its name
@@ -60,11 +64,24 @@ async function enroll(
     return row;
 }
 
-/** Store a machine the universe declares with its key, as the universe trusting the declaration. */
+/** Store a machine the universe declares with its key, as the store trusting the declaration. */
 async function declare(
     context: MethodContextOf<typeof machine, "declare">,
     next: NextOf<typeof machine, "declare">,
 ): Promise<ResultOf<typeof machine, "declare">> {
+    // require an account's dedicated machine to be one its plan unlocks
+    if (context.scope !== Scope.universe.id) {
+        const accountId = schema.identifier("account").parse(context.scope);
+        const entitled = await context.read(entitlement).findMany({ where: { scope: accountId } });
+        const allowed = Entitlement.decide(entitled, { tenancy: "dedicated" });
+        if (allowed.status !== "true") {
+            throw AccountError.of(
+                "DEDICATED_TENANCY_UNENTITLED",
+                `${accountId} has no dedicated tenancy: ${allowed.message}`,
+            );
+        }
+    }
+
     // create the machine with its key
     const row = await next();
     await provision(context, row, context.input.publicKey);
@@ -76,18 +93,51 @@ async function declare(
 async function publish(
     context: MethodContextOf<typeof machine, "publish">,
 ): Promise<ResultOf<typeof machine, "publish">> {
-    // require a standing machine
+    // require a standing cloud machine, as a personal one answers only through a relay
     Revocation.requireUnrevoked(context.target, "machine");
+    if (context.target.kind === "personal") {
+        throw AccountError.of(
+            "MACHINE_PERSONAL",
+            `machine ${context.target.id} is personal: it answers only through a relay`,
+        );
+    }
 
     // replace the published endpoint, or publish the first one
-    const target = endpoint.target({ scope: context.scope, id: context.target.id });
-    const published = await context.read(endpoint).findFirst({ where: { id: context.target.id } });
-    const { url, relay } = context.input;
-    await context.mutate(context.caller, [
-        published === undefined
-            ? endpoint.call("create", { ...target, parentId: context.target.id, url, relay })
-            : endpoint.call("update", { ...target, url, relay }),
-    ]);
+    await Endpoint.upsert(context, context.target.id, { url: context.input.url, relay: null });
+
+    return context.target;
+}
+
+/** Publish the tunnel a relay accepted from a standing personal machine, at its derived name. */
+async function relay(
+    context: MethodContextOf<typeof machine, "relay">,
+): Promise<ResultOf<typeof machine, "relay">> {
+    // require a standing personal machine, as a cloud one answers at its URL
+    Revocation.requireUnrevoked(context.target, "machine");
+    if (context.target.kind === "cloud") {
+        throw AccountError.of(
+            "MACHINE_CLOUD",
+            `machine ${context.target.id} is a cloud machine: it answers at its URL`,
+        );
+    }
+
+    // address the machine below its account's handle
+    const owner = present(
+        await context
+            .read(account)
+            .findFirst({ where: { id: account.identifier(context.target.scope) } }),
+        `the account of machine ${context.target.id}`,
+    );
+    const name = MachineAddress.format(
+        { machine: context.target.name, handle: owner.handle },
+        DOMAINS.machine,
+    );
+
+    // replace the published endpoint, or publish the first one
+    await Endpoint.upsert(context, context.target.id, {
+        url: `https://${name}`,
+        relay: context.input,
+    });
 
     return context.target;
 }
@@ -145,40 +195,27 @@ async function provision(
     created: Select<typeof machine.table>,
     publicKey: PublicKey,
 ): Promise<void> {
-    // enroll the key as the universe
+    // enroll the key as the store
     await context.mutate(context.self, [
         key.call("enroll", {
             parent: { ...machine.typeReference, id: created.id },
-            ...(await Key.columns(publicKey, context.now)),
+            ...(await Key.columns(publicKey, context.now, context.environment.crypto)),
         }),
     ]);
 
     // relate a cloud machine to its residency
     const row = Machine.of(created);
     if (row.kind === "cloud") {
-        await context.mutate(context.self, [
-            relationship.call("create", {
-                ...relationship.in(Scope.universe.id),
-                ...residencyServer(row),
-            }),
-        ]);
+        await StoreRelationship.touch(context, residencyServer(row));
     }
 }
 
 /** Revoke a cloud machine's place among its residency's servers. */
 async function leaveResidency(context: MethodContext, row: Machine): Promise<void> {
-    // find a cloud machine's relationship to its residency
-    if (row.kind !== "cloud") {
-        return;
+    // revoke a cloud machine's relationship to its residency
+    if (row.kind === "cloud") {
+        await StoreRelationship.delete(context, residencyServer(row));
     }
-    const { object, relation, subject } = residencyServer(row);
-    const [related] = await Relationship.readOn(context, object, { relation, subject });
-    const server = present(related, `the server relationship of ${row.id}`);
-
-    // revoke it as the store
-    await context.mutate(context.self, [
-        relationship.call("delete", { ...relationship.in(server.scope), id: server.id }),
-    ]);
 }
 
 /** Read a cloud machine's relationship to the residency it serves. */
@@ -190,7 +227,7 @@ function residencyServer(row: Extract<Machine, { kind: "cloud" }>) {
     };
 }
 
-/** Invoke a method on each of a machine's unrevoked keys as the universe. */
+/** Invoke a method on each of a machine's unrevoked keys as the store. */
 async function invokeKeys(
     context: MethodContext,
     machineId: Machine["id"],

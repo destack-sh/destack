@@ -1,3 +1,4 @@
+import { TEST_START, testSimulation } from "@destack/object/test";
 import type { Fetch } from "@destack/object";
 import { expect, refusal, test } from "@destack/test";
 import { schema } from "@destack/schema";
@@ -19,7 +20,7 @@ function answer(error: string | undefined): Fetch {
             ? Response.json({
                   access_token: "access",
                   token_type: "Bearer",
-                  expires_at: 1_767_225_660,
+                  expires_in: 3600,
                   refresh_token: "refresh",
                   id_token: ID_TOKEN,
               })
@@ -28,8 +29,10 @@ function answer(error: string | undefined): Fetch {
 
 test("poll a device code into a grant, a wait, a slow down, a refusal, or a loud failure", async () => {
     // poll once per answer the device flow defines and once with an error it does not
+    await using simulation = testSimulation();
+    const environment = simulation.environment("issuer");
     const poll = (error: string | undefined) =>
-        new Issuer("https://accounts.destack.test/oauth", answer(error)).poll(
+        new Issuer("https://accounts.destack.test/oauth", answer(error), environment).poll(
             CLIENT,
             "device-code",
         );
@@ -50,7 +53,7 @@ test("poll a device code into a grant, a wait, a slow down, a refusal, or a loud
                 signedIn: {
                     tokens: {
                         accessToken: "access",
-                        expiresAt: 1_767_225_660_000,
+                        expiresAt: TEST_START + 3_600_000,
                         refreshToken: "refresh",
                     },
                     userId: USER,
@@ -61,6 +64,10 @@ test("poll a device code into a grant, a wait, a slow down, a refusal, or a loud
             { status: "refused" },
             { status: "refused" },
         ],
-        failed: ["BAD_REQUEST", "INVALID_CLIENT", "the token endpoint refused the request: invalid_client"],
+        failed: [
+            "UNAUTHORIZED",
+            "INVALID_CLIENT",
+            "the token endpoint refused the request: invalid_client",
+        ],
     });
 });

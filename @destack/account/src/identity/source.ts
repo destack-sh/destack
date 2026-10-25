@@ -1,3 +1,5 @@
+import { Uuid } from "@destack/schema";
+import { type Environment } from "@destack/environment";
 import { type Authentication, Caller, principal, universe } from "@destack/access";
 import type { DatabaseConnection } from "@destack/db";
 import { PackageId } from "@destack/package";
@@ -14,14 +16,11 @@ import { Issuer, type TokenBinding } from "../native/issuer.ts";
 import accountPackage from "../package.ts";
 import type { Subject } from "@destack/sync";
 import { TOKEN_PATH } from "../authentication/path.ts";
-import { TokenResponse } from "../authentication/token.ts";
+import { TokenResponse, SECOND_MILLISECONDS } from "../authentication/token.ts";
 import { JWT_BEARER } from "../oauth/bearer.ts";
 import { ACCESS_TOKEN_TYPE } from "../oauth/exchange.ts";
 import type { IdentityKeystore } from "./keystore.ts";
 import { AccountError } from "../error/error.ts";
-
-/** The milliseconds in a second, as JWTs count times in seconds. */
-const SECOND_MILLISECONDS = 1000;
 
 /** How long an assertion a space signs lives: a minute, one token request and its retries. */
 const ASSERTION_SECONDS = 60;
@@ -43,6 +42,8 @@ export class TokenSource {
     readonly issuer: string;
     /** The fetch sending the calls. */
     readonly send: Fetch;
+    /** The environment the calls run in. */
+    readonly environment: Environment;
     /** The issuer of the subject's tokens, signed with its identity's key. */
     readonly #signing: TokenIssuer;
     /** The tokens the universe's issuer granted for the subject's assertions, by package. */
@@ -53,7 +54,11 @@ export class TokenSource {
         keystore: IdentityKeystore,
         database: DatabaseConnection,
         subject: Subject,
-        network: { readonly issuer: string; readonly send: Fetch },
+        network: {
+            readonly issuer: string;
+            readonly send: Fetch;
+            readonly environment: Environment;
+        },
     ) {
         // store the subject, its identity's keys and its network
         this.keystore = keystore;
@@ -62,6 +67,7 @@ export class TokenSource {
         this.identity = TokenSource.#identity(subject);
         this.issuer = network.issuer;
         this.send = network.send;
+        this.environment = network.environment;
 
         // sign as the universe under its issuer, or as the space
         this.#signing = universe.is(subject)
@@ -75,7 +81,7 @@ export class TokenSource {
 
     /** Authenticate the subject calling a package in a space now, by its identity's key. */
     authentication(audience: PackageId, scope: string): Authentication {
-        const now = this.keystore.clock.now();
+        const now = this.keystore.environment.clock.now();
 
         return {
             caller: Caller.of(this.subject),
@@ -90,11 +96,11 @@ export class TokenSource {
         };
     }
 
-    /** Create a fetch calling a package with tokens the subject signs for each target space. */
-    fetchSigned(audience: PackageId): Fetch {
+    /** Create a fetch calling a package with tokens the subject signs. */
+    fetchSigned(audience: PackageId, partition?: string): Fetch {
         return async (request) => {
-            // bind the token to the space below the request's mount, refusing a request to no space
-            const scope = SpaceMount.parse(new URL(request.url).pathname)?.spaceId;
+            // bind the token to the partition, else to the space below the request's mount, refusing a request to no space
+            const scope = partition ?? SpaceMount.parse(new URL(request.url).pathname)?.spaceId;
             if (scope === undefined) {
                 throw AccountError.of(
                     "SPACE_REQUIRED",
@@ -105,7 +111,8 @@ export class TokenSource {
             // send the request with a short token of only the subject for the package there
             const { accessToken } = await this.#signing.issue(
                 this.authentication(audience, scope),
-                this.keystore.clock.now(),
+                this.keystore.environment.clock.now(),
+                this.keystore.environment,
             );
 
             return this.send(TokenSource.#bearer(request, accessToken));
@@ -120,7 +127,7 @@ export class TokenSource {
 
     /** Read the subject's token of a package the universe's issuer granted, reused a while. */
     grantedToken(audience: PackageId): Promise<string> {
-        return this.#granted.token(audience, this.keystore.clock.now(), () =>
+        return this.#granted.token(audience, this.keystore.environment.clock.now(), () =>
             this.#grant(audience),
         );
     }
@@ -129,7 +136,7 @@ export class TokenSource {
     async exchange(audience: PackageId, bound: TokenBinding): Promise<ExchangedToken> {
         const accountToken = await this.grantedToken(accountPackage.id);
 
-        return new Issuer(this.issuer, this.send).exchange(
+        return new Issuer(this.issuer, this.send, this.environment).exchange(
             { token: accountToken, type: ACCESS_TOKEN_TYPE },
             audience,
             bound,
@@ -139,14 +146,14 @@ export class TokenSource {
     /** Sign an assertion of the subject for a token endpoint (RFC 7523). */
     assertion(endpoint: string): Promise<string> {
         // sign a short assertion as the identity, for itself or its installation
-        const issuedAt = Math.floor(this.keystore.clock.now() / SECOND_MILLISECONDS);
+        const issuedAt = Math.floor(this.keystore.environment.clock.now() / SECOND_MILLISECONDS);
         const claims = {
             iss: this.identity,
             sub: this.subject.id,
             aud: endpoint,
             iat: issuedAt,
             exp: issuedAt + ASSERTION_SECONDS,
-            jti: crypto.randomUUID(),
+            jti: Uuid.v4(this.keystore.environment.random),
         };
 
         return this.keystore.sign(this.database, this.identity, claims, { typ: ASSERTION_TYPE });
@@ -154,20 +161,22 @@ export class TokenSource {
 
     /** Ask the universe's issuer for the subject's token of a package with its assertion. */
     async #grant(audience: PackageId) {
-        // post an assertion of the subject for the package, an installation's bound to its space
+        // post an assertion of the subject for the package at the universe, where its relations decide
         const endpoint = `${this.issuer}${TOKEN_PATH}`;
         const body = new URLSearchParams({
             grant_type: JWT_BEARER,
             assertion: await this.assertion(endpoint),
             resource: PackageId.resource(audience),
-            ...(principal.installation.is(this.subject) ? { space: this.subject.scope } : {}),
         });
         const response = await this.send(new Request(endpoint, { method: "POST", body }));
         if (!response.ok) {
             throw await TokenResponse.refusal(response);
         }
 
-        return TokenResponse.granted(TokenResponse.parse(await response.json()));
+        return TokenResponse.granted(
+            TokenResponse.parse(await response.json()),
+            this.environment.clock.now(),
+        );
     }
 
     /** Copy a request with a bearer token. */
@@ -191,7 +200,7 @@ export class TokenSource {
         // refuse anyone else
         else {
             throw AccountError.of(
-                "NOT_A_SIGNER",
+                "SIGNER_REQUIRED",
                 `${subject.type} ${subject.id} is not a universe or space signer`,
             );
         }

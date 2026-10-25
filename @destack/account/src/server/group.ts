@@ -1,7 +1,6 @@
-import { Relationship } from "@destack/access";
 import type { MethodContext } from "@destack/object";
 import { type Group, group } from "../object/group.ts";
-import { relationship } from "@destack/object";
+import { type RelatedFields, StoreRelationship } from "./relationship.ts";
 
 /** Implement groups. */
 export function implementGroup(): typeof group {
@@ -36,39 +35,28 @@ export function implementGroup(): typeof group {
 const Nesting = {
     /** Make a group's members members of its parent, if it has one. */
     async relate(context: MethodContext, row: Group): Promise<void> {
-        if (row.parentId === null) {
-            return;
+        const nesting = Nesting.of(row);
+        if (nesting !== undefined) {
+            await StoreRelationship.touch(context, nesting);
         }
-
-        // relate the group's members to the parent as the store
-        await context.mutate(context.self, [
-            relationship.call("create", {
-                ...relationship.in(row.scope),
-                object: group.reference(row.scope, row.parentId),
-                relation: "member",
-                subject: { ...group.reference(row.scope, row.id), relation: "member" },
-            }),
-        ]);
     },
 
-    /** Revoke the relationship of a group's parent to the group's members. */
+    /** Revoke the relationship of a group's parent to the group's members, if it has a parent. */
     async release(context: MethodContext, row: Group): Promise<void> {
-        // find the parent's relationship to the group's members
-        if (row.parentId === null) {
-            return;
+        const nesting = Nesting.of(row);
+        if (nesting !== undefined) {
+            await StoreRelationship.delete(context, nesting);
         }
-        const parent = group.reference(row.scope, row.parentId);
-        const rows = await Relationship.readOn(context, parent, {
-            relation: "member",
-            subject: { ...group.reference(row.scope, row.id), relation: "member" },
-        });
+    },
 
-        // revoke each as the store
-        await context.mutate(
-            context.self,
-            rows.map((related) =>
-                relationship.call("delete", { ...relationship.in(related.scope), id: related.id }),
-            ),
-        );
+    /** Read the relationship of a group's parent to its members, absent for a top-level group. */
+    of(row: Group): RelatedFields | undefined {
+        return row.parentId === null
+            ? undefined
+            : {
+                  object: group.reference(row.scope, row.parentId),
+                  relation: "member",
+                  subject: { ...group.reference(row.scope, row.id), relation: "member" },
+              };
     },
 };

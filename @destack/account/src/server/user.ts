@@ -59,7 +59,7 @@ async function update(
     // refuse an unknown time zone
     const timeZone = context.input.timeZone;
     if (typeof timeZone === "string" && !TimeZone.isKnown(timeZone)) {
-        throw AccountError.of("UNKNOWN_TIME_ZONE", `unknown time zone ${timeZone}`);
+        throw AccountError.of("TIME_ZONE_UNKNOWN", `unknown time zone ${timeZone}`);
     }
 
     return next();

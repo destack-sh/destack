@@ -15,7 +15,7 @@ import { ClientKey } from "./client-key.ts";
 import { SessionStore } from "./session.ts";
 import { login, Login } from "./login.ts";
 import { NativeSignIn } from "./sign-in.ts";
-import { Simulation, VirtualClock } from "@destack/environment/simulation";
+import { SimulatedClock } from "@destack/environment/simulation";
 
 /** The time the native device's clock reads, in UTC epoch milliseconds: 2026-01-01. */
 const NOW = 1_767_225_600_000;
@@ -70,14 +70,16 @@ async function nativeClients(accounts: TestAccountStore, person: TestPerson) {
 
 /** Sign people in on a native device against the fixture's issuer. */
 async function native(accounts: TestAccountStore) {
-    // store the device's logins in a local database
-    const database = await connectBunSqlite(":memory:");
+    // store the laptop's logins in a local database on its own clock, in the accounts' world
+    const laptop = accounts.simulation.environment("laptop");
+    const device = { ...laptop, clock: new SimulatedClock(NOW) };
+    const database = await connectBunSqlite(":memory:", [], { environment: device });
     onTestFinished(() => database.close());
     const subject = principal.device.reference(Scope.universe.id, DEVICE);
     const logins = await ObjectClient.open({
         database,
         objects: { login },
-        clock: new VirtualClock(NOW),
+        environment: device,
         scope: DEVICE,
         caller: subject,
         device: subject,
@@ -94,17 +96,17 @@ async function native(accounts: TestAccountStore) {
     onTestFinished(() => logins.close());
 
     // reach the laptop's own loopback through its simulated network
-    const network = new Simulation({ seed: 1, start: NOW }).network.of("laptop");
+    const { network } = laptop;
 
     // sign people in with the keychain's refresh tokens
-    const issuer = new Issuer(ISSUER, (request) => accounts.fetch(request));
+    const issuer = new Issuer(ISSUER, (request) => accounts.fetch(request), laptop);
     const sessions = new SessionStore(new MemoryKeychain());
     const signIn = new NativeSignIn({
         issuer,
         sessions,
-        keys: new ClientKey(new MemoryKeychain(), accounts.store.clock),
+        keys: new ClientKey(new MemoryKeychain(), laptop),
         logins,
-        environment: { clock: accounts.store.clock, network },
+        environment: laptop,
         client: {
             name: "laptop",
             platform: "macOS",
@@ -113,7 +115,7 @@ async function native(accounts: TestAccountStore) {
         },
     });
 
-    return { signIn, issuer, logins, sessions, network };
+    return { signIn, issuer, logins, sessions, network, laptop };
 }
 
 test("ask the issuer for a fresh sign-in within the challenged age in a step-up, which takes every factor the person enrolled", async () => {
@@ -188,7 +190,11 @@ test("sign a person in through a browser redirect with PKCE as a new client, and
     }).toEqual({
         rows: [],
         session: undefined,
-        refreshed: ["BAD_REQUEST", "INVALID_GRANT", "the token endpoint refused the request: invalid_grant: invalid refresh token"],
+        refreshed: [
+            "BAD_REQUEST",
+            "INVALID_GRANT",
+            "the token endpoint refused the request: invalid_grant: invalid refresh token",
+        ],
     });
 });
 
@@ -277,7 +283,11 @@ test("sign a person in with a mailed code as a new client, refusing a wrong code
         rows: await logins.query.login.findMany(),
         clients: await nativeClients(accounts, owner),
     }).toEqual({
-        wrong: ["BAD_REQUEST", "INVALID_GRANT", "the token endpoint refused the request: invalid_grant: the code is wrong or expired"],
+        wrong: [
+            "BAD_REQUEST",
+            "INVALID_GRANT",
+            "the token endpoint refused the request: invalid_grant: the code is wrong or expired",
+        ],
         rows: [loginRow(signedIn, owner)],
         clients: [...before, { id: signedIn.clientId, isRevoked: false }],
     });
@@ -318,16 +328,11 @@ test("sign a new person up with a mailed code and their handle, refusing a new e
 test("read a person's account through tokens refreshed after a mailed code signed them in, without a browser session", async () => {
     await using accounts = await TestAccountStore.open();
     const owner = await accounts.signIn(EMAIL);
-    const { signIn, sessions } = await native(accounts);
+    const { signIn, sessions, laptop } = await native(accounts);
 
     // sign in with the mailed code and read the person's account through a refreshed token
     const started = await signIn.startEmail(EMAIL);
     const signedIn = await started.verify(await accounts.code());
-    const person = new Login(
-        signedIn,
-        sessions,
-        (request) => accounts.fetch(request),
-        accounts.store.clock,
-    );
+    const person = new Login(signedIn, sessions, (request) => accounts.fetch(request), laptop);
     expect(await person.account()).toBe(owner.account);
 });

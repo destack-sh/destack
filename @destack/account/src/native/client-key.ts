@@ -1,6 +1,6 @@
 import { type Keychain, KeyPair, Proof } from "@destack/identity";
 import { type Identifier, schema } from "@destack/schema";
-import type { Clock } from "@destack/environment";
+import type { Environment } from "@destack/environment";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
 
@@ -11,18 +11,18 @@ export const CLIENT_KEYS = "app.destack.client";
 export class ClientKey {
     /** The keychain storing the private keys, by client. */
     readonly #keys: Keychain;
-    /** The clock proofs are signed and verified at. */
-    readonly #clock: Clock;
+    /** The clock proofs are signed and verified at, and the WebCrypto and randomness of keys. */
+    readonly #environment: Pick<Environment, "clock" | "crypto" | "random">;
 
     /** Store client keys in a keychain. */
-    constructor(keys: Keychain, clock: Clock) {
+    constructor(keys: Keychain, environment: Pick<Environment, "clock" | "crypto" | "random">) {
         this.#keys = keys;
-        this.#clock = clock;
+        this.#environment = environment;
     }
 
     /** Generate and store a key for a client a sign-in registered. */
     async generate(client: Identifier<"client">): Promise<void> {
-        const { secret } = await KeyPair.generate();
+        const { secret } = await KeyPair.generate(this.#environment.crypto);
         await this.#keys.save(client, secret);
     }
 
@@ -30,7 +30,13 @@ export class ClientKey {
     async prove(client: Identifier<"client">): Promise<string> {
         const { privateKey, publicKey } = await this.#load(client);
 
-        return Proof.sign(privateKey, publicKey, client, this.#clock.now());
+        return Proof.sign(
+            privateKey,
+            publicKey,
+            client,
+            this.#environment.clock.now(),
+            this.#environment,
+        );
     }
 
     /** Verify a client's proof with the key this keychain stores, answering the client. */
@@ -39,12 +45,17 @@ export class ClientKey {
         const read = Proof.read(proof);
         const client = schema.identifier("client").safeParse(read.subject);
         if (!client.success || (await this.#keys.load(client.data)) === undefined) {
-            throw AccountError.of("UNKNOWN_CLIENT_KEY", "no client of this computer signed it");
+            throw AccountError.of("CLIENT_KEY_UNKNOWN", "no client of this computer signed it");
         }
 
         // verify it with the client's key now
         const { publicKey } = await this.#load(client.data);
-        await read.verify(publicKey, client.data, this.#clock.now());
+        await read.verify(
+            publicKey,
+            client.data,
+            this.#environment.clock.now(),
+            this.#environment.crypto,
+        );
 
         return client.data;
     }
@@ -58,9 +69,12 @@ export class ClientKey {
     async #load(client: Identifier<"client">): Promise<KeyPair> {
         const secret = await this.#keys.load(client);
         if (secret === undefined) {
-            throw AccountError.of("NO_CLIENT_KEY", `client ${client} has no key on this computer`);
+            throw AccountError.of(
+                "CLIENT_KEY_MISSING",
+                `client ${client} has no key on this computer`,
+            );
         }
 
-        return KeyPair.read(secret);
+        return KeyPair.read(secret, this.#environment.crypto);
     }
 }

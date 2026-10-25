@@ -1,6 +1,6 @@
 import type { Fetch, OmitEach } from "@destack/object";
 import { PackageId } from "@destack/package";
-import { copyRequest, Clock } from "@destack/environment";
+import { copyRequest, type Environment } from "@destack/environment";
 import { RequestId, Scope } from "@destack/sync";
 import { type Identifier, schema } from "@destack/schema";
 import type { ClientOf } from "@destack/object/client";
@@ -17,7 +17,7 @@ import {
     Proof,
     PublicKey,
 } from "@destack/identity";
-import { Assertion, TokenCache } from "@destack/access/token";
+import { Assertion, type PartitionId, TokenCache } from "@destack/access/token";
 import { principal } from "@destack/access";
 import { AccountError } from "../error/error.ts";
 
@@ -30,10 +30,10 @@ export type Enrollment = OmitEach<
     "id" | "publicKey" | "proof"
 >;
 
-/** The space a machine's token acts in, none for a call outside spaces. */
+/** The partition a machine's token acts in, none for a call outside partitions. */
 export interface TokenScope {
-    /** The space the machine serves, receives or works in. */
-    readonly space?: Identifier<"space">;
+    /** The partition the machine serves, receives or works in. */
+    readonly partition?: PartitionId;
 }
 
 /** The issuer a machine asks for tokens. */
@@ -52,21 +52,21 @@ export class MachineIdentity {
     #pair: KeyPair | undefined;
     /** The access tokens granted to this machine, by audience and binding. */
     readonly #tokens = new TokenCache();
-    /** The clock proofs are signed and tokens refreshed at. */
-    readonly #clock: Clock;
+    /** The environment proofs are signed and tokens refreshed at, and requests drawn from. */
+    readonly #environment: Environment;
 
-    /** Prove a machine's identity with the key in its keychain, on a clock. */
-    constructor(machineId: Identifier<"machine">, keys: Keychain, clock: Clock) {
+    /** Prove a machine's identity with the key in its keychain, in an environment. */
+    constructor(machineId: Identifier<"machine">, keys: Keychain, environment: Environment) {
         this.machineId = machineId;
         this.#keys = keys;
-        this.#clock = clock;
+        this.#environment = environment;
     }
 
     /** Generate and store a key pair, and return its public half with a proof of possession. */
     async generate(): Promise<{ publicKey: PublicKey; proof: string }> {
         // replace the stored pair and prove possession of the pair stored
         const stored = await this.#keys.load(this.machineId);
-        const pair = await this.#replace(stored, await KeyPair.generate());
+        const pair = await this.#replace(stored, await KeyPair.generate(this.#environment.crypto));
 
         return { publicKey: pair.publicKey, proof: await this.prove() };
     }
@@ -75,12 +75,12 @@ export class MachineIdentity {
     static async derive(
         machineId: Identifier<"machine">,
         keyring: Pick<Keyring, "derivePrivateKey">,
-        clock: Clock,
+        environment: Environment,
     ): Promise<MachineIdentity> {
         const keychain = new MemoryKeychain();
         await MachineIdentity.save(machineId, keyring, keychain);
 
-        return new MachineIdentity(machineId, keychain, clock);
+        return new MachineIdentity(machineId, keychain, environment);
     }
 
     /** Save the key a keyring derives for a machine in a keychain. */
@@ -145,10 +145,16 @@ export class MachineIdentity {
     async prove(): Promise<string> {
         const pair = await this.#load();
 
-        return Proof.sign(pair.privateKey, pair.publicKey, this.machineId, this.#clock.now());
+        return Proof.sign(
+            pair.privateKey,
+            pair.publicKey,
+            this.machineId,
+            this.#environment.clock.now(),
+            this.#environment,
+        );
     }
 
-    /** Wrap a fetch to call a package with this machine's access tokens, in a space when given. */
+    /** Wrap a fetch to call a package with this machine's tokens, in a partition when given. */
     fetch(send: Fetch, audience: PackageId, issuer: MachineIssuer, scope: TokenScope = {}): Fetch {
         return async (request) => {
             // replace the request's credential with the token for the audience
@@ -160,7 +166,7 @@ export class MachineIdentity {
         };
     }
 
-    /** Read this machine's access token for a package, in a space when given (RFC 7523). */
+    /** Read this machine's access token for a package, in a partition when given (RFC 7523). */
     async token(
         audience: PackageId,
         issuer: MachineIssuer,
@@ -168,9 +174,9 @@ export class MachineIdentity {
         scope: TokenScope = {},
     ): Promise<string> {
         // reuse a pending or fresh token, else ask the token endpoint with an assertion the machine's key signs
-        const key = JSON.stringify([audience, scope.space ?? null]);
+        const key = JSON.stringify([audience, scope.partition ?? null]);
 
-        return this.#tokens.token(key, this.#clock.now(), () =>
+        return this.#tokens.token(key, this.#environment.clock.now(), () =>
             this.#grant(audience, issuer, fetch, scope),
         );
     }
@@ -179,12 +185,18 @@ export class MachineIdentity {
     async assert(endpoint: string): Promise<string> {
         const pair = await this.#load();
         const key = {
-            id: await PublicKey.thumbprint(pair.publicKey),
+            id: await PublicKey.thumbprint(pair.publicKey, this.#environment.crypto),
             subject: principal.machine.reference(Scope.universe.id, this.machineId),
             publicKey: pair.publicKey,
         };
 
-        return Assertion.sign(pair.privateKey, key, endpoint, this.#clock.now());
+        return Assertion.sign(
+            pair.privateKey,
+            key,
+            endpoint,
+            this.#environment.clock.now(),
+            this.#environment,
+        );
     }
 
     /** Forget the machine's private key. */
@@ -210,7 +222,7 @@ export class MachineIdentity {
         }
 
         // adopt the key the other writer stored
-        this.#pair = await KeyPair.read(current);
+        this.#pair = await KeyPair.read(current, this.#environment.crypto);
 
         return this.#pair;
     }
@@ -219,20 +231,21 @@ export class MachineIdentity {
     async #rotate(client: ClientOf<typeof accountPackage>, accountId: string): Promise<void> {
         // generate a new pair beside the stored one
         const stored = await this.#keys.load(this.machineId);
-        const generated = await KeyPair.generate();
+        const generated = await KeyPair.generate(this.#environment.crypto);
         const { pair } = generated;
 
         // register the new pair with a proof by its private half
         await client.key.create({
             scope: schema.identifier("account").parse(accountId),
-            requestId: RequestId.create(this.#clock.now()),
+            requestId: RequestId.create(this.#environment),
             parent: { ...machine.typeReference, id: this.machineId },
             publicKey: pair.publicKey,
             proof: await Proof.sign(
                 pair.privateKey,
                 pair.publicKey,
                 this.machineId,
-                this.#clock.now(),
+                this.#environment.clock.now(),
+                this.#environment,
             ),
         });
 
@@ -250,9 +263,9 @@ export class MachineIdentity {
         // read the private half from the store
         const stored = await this.#keys.load(this.machineId);
         if (stored === undefined) {
-            throw AccountError.of("NO_MACHINE_KEY", `machine ${this.machineId} has no key`);
+            throw AccountError.of("MACHINE_KEY_MISSING", `machine ${this.machineId} has no key`);
         }
-        this.#pair = await KeyPair.read(stored);
+        this.#pair = await KeyPair.read(stored, this.#environment.crypto);
 
         return this.#pair;
     }
@@ -270,7 +283,7 @@ export class MachineIdentity {
             grant_type: JWT_BEARER,
             assertion: await this.assert(endpoint),
             resource: PackageId.resource(audience),
-            ...(scope.space === undefined ? {} : { space: scope.space }),
+            ...(scope.partition === undefined ? {} : { partition: scope.partition }),
         });
         const response = await fetch(new Request(endpoint, { method: "POST", body }));
 
@@ -279,6 +292,9 @@ export class MachineIdentity {
             throw await TokenResponse.refusal(response);
         }
 
-        return TokenResponse.granted(TokenResponse.parse(await response.json()));
+        return TokenResponse.granted(
+            TokenResponse.parse(await response.json()),
+            this.#environment.clock.now(),
+        );
     }
 }

@@ -1,6 +1,6 @@
 import type { StepUp } from "@destack/access";
 import type { ObjectClient } from "@destack/object/client";
-import { Identifier, schema } from "@destack/schema";
+import { Identifier, schema, Uuid } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { until } from "@destack/environment";
 import { client, type ClientRegistration } from "../object/client.ts";
@@ -10,7 +10,7 @@ import { type LoginRow, login } from "./login.ts";
 import type { ClientKey } from "./client-key.ts";
 import type { SessionStore } from "./session.ts";
 import type { SignUp } from "../better-auth/sign-up.ts";
-import type { Environment, Listener, Network } from "@destack/environment";
+import type { Environment, Listener, Server } from "@destack/environment";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
 
@@ -36,8 +36,8 @@ export interface NativeSignInOptions {
     readonly keys: ClientKey;
     /** The native device's local logins. */
     readonly logins: LoginClient;
-    /** The clock sign-ins are timed by and the network their redirects listen on. */
-    readonly environment: Environment;
+    /** The clock sign-ins are timed by and the server their redirects listen on. */
+    readonly environment: Environment<"server">;
     /** What the client a sign-in registers in the person's account reports about itself. */
     readonly client: Omit<ClientRegistration, "id"> & {
         /** The processor architecture, such as arm64. */
@@ -84,11 +84,11 @@ export class NativeSignIn {
         // listen for the redirect on a free loopback port
         const { issuer, environment } = this.#options;
         const { clock } = environment;
-        await using redirect = LoopbackRedirect.listen(environment.network);
+        await using redirect = LoopbackRedirect.listen(environment.server);
 
         // send the person to the issuer as a new client, and fail once the browser cannot open
-        const clientId = Identifier.create("client");
-        const state = crypto.randomUUID();
+        const clientId = Identifier.create("client", environment);
+        const state = Uuid.v4(environment.random);
         const authorization = await issuer.authorize(
             clientId,
             redirect.url,
@@ -160,7 +160,7 @@ export class NativeSignIn {
     /** Start a device sign-in of a new client, polled once at a time. */
     async startDevice(): Promise<DeviceSignIn> {
         // ask the issuer for the codes
-        const clientId = Identifier.create("client");
+        const clientId = Identifier.create("client", this.#options.environment);
         const authorization = await this.#options.issuer.device(
             clientId,
             this.#options.environment.clock.now(),
@@ -211,7 +211,7 @@ export class NativeSignIn {
         await issuer.sendCode(email);
 
         // redeem the code as a new client and sign the person in
-        const clientId = Identifier.create("client");
+        const clientId = Identifier.create("client", this.#options.environment);
         const verify = async (code: string) =>
             this.#complete(clientId, await issuer.redeemCode(clientId, email, code, signUp));
 
@@ -292,11 +292,10 @@ export class NativeSignIn {
         clientId: Identifier<"client">,
     ): Promise<void> {
         const { client: described, environment } = this.#options;
-        const { clock } = environment;
         await accounts.client.update({
             userId,
             id: clientId,
-            requestId: RequestId.create(clock.now()),
+            requestId: RequestId.create(environment),
             name: described.name,
             ...(described.platform === undefined ? {} : { platform: described.platform }),
             architecture: described.architecture,
@@ -315,7 +314,7 @@ export class NativeSignIn {
             await accounts.client.revoke({
                 userId,
                 id: clientId,
-                requestId: RequestId.create(this.#options.environment.clock.now()),
+                requestId: RequestId.create(this.#options.environment),
             });
         }
     }
@@ -357,16 +356,16 @@ interface Callback {
 class LoopbackRedirect implements AsyncDisposable {
     /** The redirect URL the issuer returns the browser to. */
     readonly url: string;
-    /** The listener the network serves. */
+    /** The listener the server opened. */
     readonly #listener: Listener<never>;
     /** The returned browsers that wait to be taken. */
     readonly #callbacks: Callback[] = [];
     /** Wake a waiting receive once a browser returns. */
     #wake: (() => void) | undefined;
 
-    /** Listen on a free loopback port of a network, taking each request to the redirect. */
-    private constructor(network: Network) {
-        this.#listener = network.serve<never>({
+    /** Listen on a free loopback port, taking each request to the redirect. */
+    private constructor(server: Server) {
+        this.#listener = server.http<never>({
             hostname: LOOPBACK,
             port: 0,
             fetch: (request) => this.#take(request),
@@ -374,9 +373,9 @@ class LoopbackRedirect implements AsyncDisposable {
         this.url = `http://${LOOPBACK}:${this.#listener.url.port}${REDIRECT_PATH}`;
     }
 
-    /** Listen on a free loopback port of a network. */
-    static listen(network: Network): LoopbackRedirect {
-        return new LoopbackRedirect(network);
+    /** Listen on a free loopback port. */
+    static listen(server: Server): LoopbackRedirect {
+        return new LoopbackRedirect(server);
     }
 
     /** Wait for the browser with a sign-in's state until a signal aborts, and turn others away. */

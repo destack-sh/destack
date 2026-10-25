@@ -2,7 +2,7 @@ import { principal } from "@destack/access";
 import { Proof, PROOF_HEADER, PublicKey } from "@destack/identity";
 import { Identifier, schema } from "@destack/schema";
 import { Scope, type Subject } from "@destack/sync";
-import { Environment } from "@destack/environment";
+import type { Environment } from "@destack/environment";
 import type { ClientRegistration } from "../object/client.ts";
 import { KeyRegistration } from "../object/key.ts";
 import { Platform } from "../object/platform.ts";
@@ -91,16 +91,16 @@ export class BrowserClient {
         readonly path: string;
         /** Where the client is stored, IndexedDB by default. */
         readonly store?: ClientStore;
-        /** The origin whose host registers and binds the client, the page's by default. */
-        readonly origin?: string;
-        /** The clock and network that time proofs and call the host, the page's by default. */
-        readonly environment?: Environment;
+        /** The origin whose host registers and binds the client. */
+        readonly origin: string;
+        /** The clock and network that time proofs and call the host. */
+        readonly environment: Environment;
     }) {
         // set the store, the host's path and origin, and the environment that calls it
         this.#path = options.path;
         this.#store = options.store ?? BrowserClient.indexedStore();
-        this.#origin = options.origin ?? location.origin;
-        this.#environment = options.environment ?? Environment.system;
+        this.#origin = options.origin;
+        this.#environment = options.environment;
     }
 
     /** Describe a browser by its User-Agent Client Hints, else its user agent. */
@@ -204,16 +204,16 @@ export class BrowserClient {
         }
 
         // generate a key pair whose private half stays in WebCrypto, stored unless another tab stored one
-        const keys = await crypto.subtle.generateKey(
+        const keys = await this.#environment.crypto.generateKey(
             { name: "ECDSA", namedCurve: "P-256" },
             false,
             ["sign", "verify"],
         );
-        const publicKey = await PublicKey.of(keys.publicKey);
+        const publicKey = await PublicKey.of(keys.publicKey, this.#environment.crypto);
 
         return this.#store.createIfAbsent({
-            id: Identifier.create("client"),
-            device: Identifier.create("device"),
+            id: Identifier.create("client", this.#environment),
+            device: Identifier.create("device", this.#environment),
             keys,
             publicKey,
             isRegistered: false,
@@ -243,6 +243,7 @@ export class BrowserClient {
             record.publicKey,
             record.id,
             this.#environment.clock.now(),
+            this.#environment,
         );
         await this.#post(`${this.#path}/key`, { client, publicKey: record.publicKey, proof }, OK);
         const registered = { ...record, isRegistered: true };
@@ -260,6 +261,7 @@ export class BrowserClient {
             record.publicKey,
             record.id,
             this.#environment.clock.now(),
+            this.#environment,
             {
                 method: "POST",
                 url,

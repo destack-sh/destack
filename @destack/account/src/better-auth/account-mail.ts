@@ -23,7 +23,7 @@ export type Mail = MailContent & {
 /** What a transport made of one email: sent, or refused for now or for good. */
 export type MailOutcome =
     | { readonly kind: "sent" }
-    | { readonly kind: "retry" | "failed"; readonly error: { readonly message: string } };
+    | { readonly kind: "retry" | "failed"; readonly refusal: { readonly message: string } };
 
 /** A way to send account email, as message's mail transports do. */
 export interface MailTransport {

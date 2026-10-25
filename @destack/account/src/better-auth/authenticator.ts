@@ -1,45 +1,34 @@
-import type { JWTPayload } from "jose";
 import { betterAuth, type BetterAuthOptions } from "better-auth/minimal";
 import { Journal } from "@destack/object/server";
-import type { BetterAuthPlugin } from "better-auth";
 import type { CallKey } from "@destack/object";
 import type { Fetch } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
-import { and, eq, type DatabaseConnection, Snapshot } from "@destack/db";
+import { type DatabaseConnection, Snapshot } from "@destack/db";
 import type { EventStore } from "@destack/event";
-import { magicLink, emailOTP, jwt } from "better-auth/plugins";
+import { magicLink, emailOTP } from "better-auth/plugins";
 import { passkey } from "@better-auth/passkey";
-import { oauthDeviceAuthorization, oauthProvider } from "@better-auth/oauth-provider";
 import type { IdentityKeystore } from "../identity/index.ts";
-import type { Keyring } from "@destack/identity";
+import type { Keyring, KeySet } from "@destack/identity";
 import { Scope } from "@destack/sync";
 import { betterAuthAdapter } from "./adapter.ts";
 import { betterAuthSessionPolicy } from "./session-policy.ts";
 import { betterAuthSecondFactor } from "./second-factor.ts";
-import { APIError, getOAuthState, isAPIError } from "better-auth/api";
+import { APIError, isAPIError } from "better-auth/api";
 import { BetterAuthAudit } from "./audit.ts";
 import { SignInPage } from "./sign-in-page.ts";
 import { AccountMail, type MailContent, type MailTransport } from "./account-mail.ts";
-import { JWKS_PATH, TOKEN_PATH } from "../authentication/path.ts";
-import { Client } from "../object/client.ts";
+import { JWKS_PATH } from "../authentication/path.ts";
 import { Identity } from "../object/identity.ts";
-import type { CodeCheck } from "../oauth/code.ts";
-import { oauthExtension } from "../oauth/oauth.ts";
-import { TokenLifetime } from "../oauth/resource.ts";
+import type { CodeCheck } from "../oauth/email.ts";
+import type { TokenLifetime } from "../oauth/resource.ts";
+import { AuthorizationServer } from "../oauth/server.ts";
 import { User } from "../object/user.ts";
-import { account } from "../object/account.ts";
 import { SignUp } from "./sign-up.ts";
-import { Digest, Identifier, present, schema } from "@destack/schema";
-import type { KeySet } from "@destack/identity";
-import type { Clock } from "@destack/environment";
+import { type ProviderClient, type ProviderId, SignInProvider } from "./provider.ts";
+import { Identifier, type UuidEnvironment, Uuid } from "@destack/schema";
+import { type Clock, type Environment } from "@destack/environment";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
-
-/** The lifetime of a person's access token, in seconds: ten minutes, as RFC 9068 practice. */
-const PERSON_TOKEN_SECONDS = 10 * 60;
-
-/** The milliseconds in a second, converting the store's time to a token's seconds. */
-const SECOND_MILLISECONDS = 1000;
 
 /** The sign-in pages below the issuer's URL. */
 const SIGN_IN_PATHS = {
@@ -59,49 +48,13 @@ const SIGN_IN_CODE = "sign-in-otp-";
 /** The code Better Auth refuses a valid sign-in code of an email no person has with. */
 const USER_NOT_FOUND = "USER_NOT_FOUND";
 
-/** How long a Better Auth JWT lives, a minute: one exchange with clock skew to spare. */
-const JWT_LIFETIME = "60s";
-
-/** The provider's discovery documents at the issuer's root. */
-const DISCOVERY = new Set([
-    "/.well-known/openid-configuration",
-    "/.well-known/oauth-authorization-server",
-]);
-
 /** The Better Auth routes the account package serves as objects. */
 const OBJECT_ROUTES = [
-    "/device/token",
-    "/token",
     "/update-user",
     "/list-sessions",
     "/revoke-session",
     "/revoke-sessions",
     "/revoke-other-sessions",
-    "/oauth2/get-consent",
-    "/oauth2/get-consents",
-    "/oauth2/update-consent",
-    "/oauth2/delete-consent",
-];
-
-/** The claims the provider supplies, per OpenID Connect Core 5.1. */
-const CLAIMS = [
-    "sub",
-    "iss",
-    "aud",
-    "exp",
-    "iat",
-    "sid",
-    "scope",
-    "azp",
-    "name",
-    "picture",
-    "given_name",
-    "family_name",
-    "email",
-    "email_verified",
-    "preferred_username",
-    "locale",
-    "zoneinfo",
 ];
 
 /** The identifier prefixes of Better Auth's models. */
@@ -111,15 +64,9 @@ const MODEL_PREFIXES: Readonly<Record<string, string>> = {
     session: "session",
     verification: "verification",
     rateLimit: "rate-limit",
-    deviceCode: "device-authorization",
     passkey: "passkey",
-    twoFactor: "two-factor",
-    oauthClient: "oauth-client",
-    oauthConsent: "oauth-consent",
-    oauthResource: "oauth-resource",
-    oauthClientResource: "oauth-client-resource",
-    oauthRefreshToken: "oauth-refresh-token",
-    oauthAccessToken: "oauth-access-token",
+    factor: "factor",
+    challenge: "challenge",
 };
 
 /** Better Auth's models mapped onto the account tables. */
@@ -171,22 +118,20 @@ export interface BetterAuthAuthenticatorOptions {
     database: DatabaseConnection;
     /** Read the deployment's key that sensitive call inputs are fingerprinted under. */
     callKey: CallKey;
-    /** The sign-in applications the deployment configures, such as GitHub, Google or Microsoft. */
-    providers: NonNullable<BetterAuthOptions["socialProviders"]>;
+    /** The deployment's applications at the providers people sign in with. */
+    providers: Readonly<Partial<Record<ProviderId, ProviderClient>>>;
     /** The account objects, which create a new person's personal account and decide access. */
-    objects: Pick<ObjectStore, "mutate" | "claims" | "authorizer" | "database" | "serving">;
+    objects: Pick<
+        ObjectStore,
+        "mutate" | "claims" | "authorizer" | "database" | "as" | "environment"
+    >;
     /** The event log the journal stores audited calls in. */
     events: EventStore;
     /** How long the packages' access tokens live. */
     lifetime: TokenLifetime;
-    /** The clock sign-in reads time at. */
-    clock: Clock;
     /** The transport mailing sign-in links and codes. */
     mail: MailTransport;
 }
-
-/** The sign-in applications a deployment configures. */
-type Providers = BetterAuthAuthenticatorOptions["providers"];
 
 /** The universe's sign-in through Better Auth, answering below the issuer's URL. */
 export class BetterAuthAuthenticator {
@@ -194,33 +139,46 @@ export class BetterAuthAuthenticator {
     readonly auth: BetterAuth;
     /** The authoritative database for sessions and account permissions. */
     readonly database: DatabaseConnection;
-    /** The clock sign-in reads time at. */
-    readonly clock: Clock;
+    /** The environment sign-in reads time at and draws identifiers from, its objects'. */
+    readonly environment: Environment;
     /** The keys of the universe's identity, which sign its tokens. */
     readonly keystore: IdentityKeystore;
     /** The issuer's URL, below which every request is answered. */
     readonly issuer: string;
     /** The sign-in pages, answered before the protocol. */
     readonly #pages: SignInPage;
+    /** The authorization server, whose endpoints answer before Better Auth's protocol. */
+    readonly #server: AuthorizationServer;
+    /** The audited authorization server. */
+    readonly #authorization: Fetch;
     /** The audited Better Auth protocol. */
     readonly #protocol: Fetch;
+
+    /** The clock sign-in reads time at, its environment's. */
+    get clock(): Clock {
+        return this.environment.clock;
+    }
 
     /** Answer sign-in through a Better Auth instance, its pages and its audited protocol. */
     private constructor(
         options: BetterAuthAuthenticatorOptions,
         auth: BetterAuth,
         pages: SignInPage,
+        server: AuthorizationServer,
+        authorization: Fetch,
         protocol: Fetch,
     ) {
         // store the deployment's database, clock, keys and issuer
         this.database = options.database;
-        this.clock = options.clock;
+        this.environment = options.objects.environment;
         this.keystore = options.keystore;
         this.issuer = options.issuer;
 
         // answer through the instance, its pages and its protocol
         this.auth = auth;
         this.#pages = pages;
+        this.#server = server;
+        this.#authorization = authorization;
         this.#protocol = protocol;
     }
 
@@ -233,7 +191,7 @@ export class BetterAuthAuthenticator {
         const audit = new BetterAuthAudit(
             new Journal(options.database, options.callKey, {
                 events: options.events,
-                clock: options.clock,
+                environment: options.objects.environment,
             }),
             issuer.pathname,
         );
@@ -259,41 +217,66 @@ export class BetterAuthAuthenticator {
 
         // configure Better Auth with audited sessions over the account tables
         const secrets = await sessionSecrets(keystore.keyring);
-        const auth = configure(options, audit, pages, secrets, codes);
+        const auth = configure(options, audit, pages, secrets);
 
-        // serve the sign-in pages over the audited protocol
-        const protocol = auditedProtocol(auth, audit, issuer.pathname);
+        // serve the authorization server, reading browsers' sessions without refreshing them
+        const { environment } = options.objects;
+        const server = new AuthorizationServer({
+            issuer: options.issuer,
+            database: options.database,
+            objects: options.objects,
+            environment,
+            authorizer: options.objects.authorizer,
+            lifetime: options.lifetime,
+            sign: (claims, header) =>
+                keystore.sign(options.database, Scope.universe.id, claims, header),
+            keys: () =>
+                Identity.keys(
+                    Snapshot.live(options.database),
+                    Scope.universe.id,
+                    environment.crypto,
+                ),
+            session: async (headers) =>
+                (await readBrowserSession(auth, headers, environment.clock))?.session.id,
+            codes,
+            context: auth.$context,
+            pages: {
+                signIn: pages.signIn,
+                consent: pages.consent,
+                verification: pages.verification,
+            },
+        });
+
+        // serve the sign-in pages over the audited protocol and the audited authorization server
+        const protocol = auditedProtocol(auth, audit, environment.clock);
+        const authorization = audited(
+            audit,
+            server.paths,
+            (headers) => readBrowserSession(auth, headers, environment.clock),
+            (request) => environment.clock.track(server.answer(request)),
+        );
         const signIn = new SignInPage({
             ...pages,
             endpoint: options.issuer,
             context: auth.$context,
             send: protocol,
             database: options.database,
-            register: async (request, clientId) => {
-                // read the person the request's session signs in
-                const current = await auth.api.getSession({ headers: request.headers });
-                if (current === null) {
-                    throw AccountError.of("NOT_SIGNED_IN", "the person is not signed in");
-                }
-
-                await Client.register(
-                    options.objects,
-                    clientId,
-                    current.user.id,
-                    options.clock.now(),
-                );
-            },
+            server,
         });
 
-        return new BetterAuthAuthenticator(options, auth, signIn, protocol);
+        return new BetterAuthAuthenticator(options, auth, signIn, server, authorization, protocol);
     }
 
     /** Read the key set the universe's tokens verify against: its identity's signing keys. */
     keys(): Promise<KeySet> {
-        return Identity.keys(Snapshot.live(this.database), Scope.universe.id);
+        return Identity.keys(
+            Snapshot.live(this.database),
+            Scope.universe.id,
+            this.environment.crypto,
+        );
     }
 
-    /** Answer a request below the issuer: its key set, a sign-in page or a protocol request. */
+    /** Answer a request below the issuer: its key set, a page, or an endpoint. */
     async handler(request: Request): Promise<Response> {
         // place the request below the issuer's URL, as Better Auth routes it
         const issuer = new URL(this.issuer);
@@ -308,6 +291,10 @@ export class BetterAuthAuthenticator {
         // answer a sign-in page
         else if (this.#pages.handles(url.pathname)) {
             return this.#pages.serve(placed);
+        }
+        // answer an endpoint of the authorization server
+        else if (this.#server.handles(below.pathname)) {
+            return this.#authorization(placed);
         }
         // answer a protocol request
         else {
@@ -325,12 +312,11 @@ function configure(
     audit: BetterAuthAudit,
     pages: Pick<SignInPage, keyof typeof SIGN_IN_PATHS>,
     secrets: Awaited<ReturnType<typeof sessionSecrets>>,
-    codes: CodeCheck,
 ) {
     return betterAuth({
         ...settings(options, audit, secrets),
         ...MODELS,
-        plugins: plugins(options, audit, pages, codes),
+        plugins: plugins(options, audit, pages),
     });
 }
 
@@ -338,33 +324,47 @@ function configure(
 function auditedProtocol(
     authentication: Pick<ReturnType<typeof betterAuth<typeof MODELS>>, "api" | "handler">,
     audit: BetterAuthAudit,
-    basePath: string,
+    clock: Clock,
 ): Fetch {
     // list the protocol's routes once
     const routes = Object.values(authentication.api)
         .map((endpoint) => endpoint.path)
         .filter((path): path is string => typeof path === "string");
 
-    // read a session without refreshing it
-    const session = (headers: Headers) =>
-        authentication.api.getSession({ headers, query: { disableRefresh: true } });
+    // answer requests on the clock's tracked work, as the user of the presented session
+    return audited(
+        audit,
+        routes,
+        (headers) => readBrowserSession(authentication, headers, clock),
+        (request) => clock.track(authentication.handler(request)),
+    );
+}
 
+/** Answer requests through the audit as the user of the session each presents. */
+function audited(
+    audit: BetterAuthAudit,
+    routes: readonly string[],
+    session: (headers: Headers) => Promise<{ readonly user: { readonly id: string } } | null>,
+    handler: Fetch,
+): Fetch {
     return async (request) => {
-        // answer the public discovery documents
-        if (DISCOVERY.has(new URL(request.url).pathname.slice(basePath.length))) {
-            return authentication.handler(request);
-        }
+        const current = await session(request.headers);
 
-        // answer as the user of the presented session
-        const current = await readSession(request, session);
-
-        return audit.invoke(
-            request,
-            BetterAuthAudit.caller(current),
-            routes,
-            authentication.handler,
-        );
+        return audit.invoke(request, BetterAuthAudit.caller(current), routes, handler);
     };
+}
+
+/** Read the session a browser's request presents, without refreshing it. */
+function readBrowserSession(
+    authentication: Pick<ReturnType<typeof betterAuth<typeof MODELS>>, "api">,
+    headers: Headers,
+    clock: Clock,
+) {
+    return readSession(headers, (presented) =>
+        clock.track(
+            authentication.api.getSession({ headers: presented, query: { disableRefresh: true } }),
+        ),
+    );
 }
 
 /** Derive the session secrets of every keyring version, newest first. */
@@ -399,14 +399,8 @@ function settings(
         baseURL: new URL(options.issuer).origin,
         basePath: new URL(options.issuer).pathname,
         secrets,
-        database: betterAuthAdapter(
-            options.database,
-            options.objects,
-            options.lifetime,
-            options.clock,
-        ),
+        database: betterAuthAdapter(options.database, options.objects),
         trustedOrigins: options.trustedOrigins,
-        socialProviders: withProfiles(options.providers),
         telemetry: { enabled: false },
         disabledPaths: OBJECT_ROUTES,
         logger: { log: (level) => audit.log(level) },
@@ -448,7 +442,9 @@ function settings(
         advanced: {
             disableOriginCheck: false,
             disableCSRFCheck: false,
-            database: { generateId: ({ model }) => generateIdentifier(model) },
+            database: {
+                generateId: ({ model }) => generateIdentifier(model, options.objects.environment),
+            },
             crossSubDomainCookies: { enabled: false },
             ipAddress: options.ipAddress,
         },
@@ -461,40 +457,15 @@ function plugins(
     options: BetterAuthAuthenticatorOptions,
     audit: BetterAuthAudit,
     pages: Pick<SignInPage, keyof typeof SIGN_IN_PATHS>,
-    codes: CodeCheck,
 ) {
     return [
-        jwtPlugin(options),
-        provider({
-            loginPage: pages.signIn.href,
-            consentPage: pages.consent.href,
-            grantTypes: ["authorization_code", "refresh_token"],
-            // let the packages be the resources and Destack's access decide who calls them
-            enforcePerClientResources: false,
-            extensions: [
-                oauthExtension({
-                    database: options.database,
-                    objects: options.objects,
-                    codes,
-                    authorizer: options.objects.authorizer,
-                    issuer: options.issuer,
-                    endpoint: `${options.issuer}${TOKEN_PATH}`,
-                    clock: options.clock,
-                    lifetime: options.lifetime,
-                    sign: (claims, header) =>
-                        options.keystore.sign(options.database, Scope.universe.id, claims, header),
-                }),
-            ],
-            accessTokenExpiresIn: PERSON_TOKEN_SECONDS,
-            storeClientSecret: { hash: (secret) => Digest.of(secret) },
-            clientPrivileges: () => false,
-            resourcePrivileges: () => false,
-            advertisedMetadata: { claims_supported: CLAIMS },
-            customUserInfoClaims: ({ user: person, scopes }) =>
-                scopes.includes("profile") ? profileClaims(person, options.database) : {},
-        }),
         passkeys(options),
-        betterAuthSecondFactor(pages.secondFactor.href),
+        SignInProvider.plugin(options.providers, options.objects.environment),
+        betterAuthSecondFactor({
+            challengeUri: pages.secondFactor.href,
+            keyring: options.keystore.keyring,
+            environment: options.objects.environment,
+        }),
         emailOTP({
             storeOTP: "hashed",
             sendVerificationOTP: ({ email, otp, type }) =>
@@ -509,50 +480,9 @@ function plugins(
                     AccountMail.link(metadata === undefined ? url : SignUp.link(url, metadata)),
                 ),
         }),
-        oauthDeviceAuthorization({
-            schema: { deviceCode: { modelName: "deviceAuthorization" } },
-            verificationUri: pages.verification.href,
-            validateClient: (clientId) => Client.isAdmissible(options.database, clientId),
-        }),
-        betterAuthSessionPolicy(options.database, options.clock),
+        betterAuthSessionPolicy(options.database, options.objects.environment.clock),
         audit.plugin(),
     ];
-}
-
-/** Build the JWT plugin that signs with the universe's identity and publishes its key set. */
-function jwtPlugin(options: BetterAuthAuthenticatorOptions) {
-    return jwt({
-        disableSettingJwtHeader: true,
-        jwks: {
-            keyPairConfig: { alg: "ES256" },
-            remoteUrl: `${options.issuer}${JWKS_PATH}`,
-        },
-        jwt: {
-            issuer: options.issuer,
-            expirationTime: JWT_LIFETIME,
-            sign: (payload, header) =>
-                options.keystore.sign(
-                    options.database,
-                    Scope.universe.id,
-                    restamp(payload, options.clock.now()),
-                    header,
-                ),
-        },
-    });
-}
-
-/** Restamp a token Better Auth timed on the wall clock at the store's time. */
-function restamp(payload: JWTPayload, now: number): JWTPayload {
-    // leave a token without both times as Better Auth built it
-    const { iat, exp } = payload;
-    if (iat === undefined || exp === undefined) {
-        return payload;
-    }
-
-    // issue it now for as long as Better Auth meant
-    const issuedAt = Math.floor(now / SECOND_MILLISECONDS);
-
-    return { ...payload, iat: issuedAt, exp: issuedAt + (exp - iat) };
 }
 
 /** Build the passkey plugin for the platform origin. */
@@ -587,17 +517,17 @@ function passkeys(options: BetterAuthAuthenticatorOptions) {
 
 /** Read the session a request presents, none without credentials or for a revoked one. */
 async function readSession<Session>(
-    request: Request,
+    headers: Headers,
     read: (headers: Headers) => Promise<Session | null>,
 ): Promise<Session | null> {
     // read no session without credentials
-    if (!request.headers.has("cookie") && !request.headers.has("authorization")) {
+    if (!headers.has("cookie") && !headers.has("authorization")) {
         return null;
     }
 
     // treat a revoked credential as no actor
     try {
-        return await read(request.headers);
+        return await read(headers);
     } catch (error) {
         // rethrow any other failure
         if (!isAPIError(error) || error.statusCode !== 401) {
@@ -608,101 +538,23 @@ async function readSession<Session>(
     }
 }
 
-/** Map every provider's profile onto a new user. */
-function withProfiles(providers: Providers): Providers;
-/**
- * Map every provider's profile onto a new user, its type stated by the signature above.
- *
- * NOTE #Architecture: Better Auth types providers by a map over its provider list.
- */
-function withProfiles(providers: Providers): unknown {
-    return Object.fromEntries(
-        Object.entries(providers).map(([id, provider]) => [
-            id,
-            async () =>
-                withProfile(id, typeof provider === "function" ? await provider() : provider),
-        ]),
-    );
-}
-
-/** Map a provider's profile onto a new user. */
-function withProfile<Options extends { readonly mapProfileToUser?: unknown }>(
-    id: string,
-    options: Options,
-) {
-    // refuse a profile mapping the deployment declares
-    if (options.mapProfileToUser !== undefined) {
-        throw AccountError.of(
-            "UNMAPPED_PROVIDER",
-            `provider ${id} declares a profile mapping, but the authenticator maps its profiles`,
-        );
-    }
-
-    return {
-        ...options,
-        mapProfileToUser: async (profile: object) => {
-            // read the callback's sign-up state and GitHub's login
-            const state = present(await getOAuthState(), "the OAuth state of the callback");
-            const login = id === "github" && "login" in profile ? { login: profile.login } : {};
-
-            return { ...login, ...SignUp.claimed(profile, state) };
-        },
-    };
-}
-
-/** Build the OAuth provider plugin as a plain plugin. */
-function provider(options: Parameters<typeof oauthProvider>[0]): BetterAuthPlugin;
-/**
- * Build the OAuth provider plugin, its type stated by the signature above.
- *
- * NOTE #Architecture: the plugin declares absent items as `items?: undefined`.
- */
-function provider(options: Parameters<typeof oauthProvider>[0]): unknown {
-    return oauthProvider(options);
-}
-
-/** Read a user's handle, locale and time zone claims. */
-async function profileClaims(
-    person: { readonly id: string; readonly timeZone?: unknown; readonly locale?: unknown },
-    database: DatabaseConnection,
-): Promise<Record<string, string | undefined>> {
-    // read the time zone and locale of every user
-    const scope = schema.identifier("user").parse(person.id);
-    const { timeZone, locale } = SignUp.person.parse({
-        timeZone: person.timeZone,
-        locale: person.locale,
-    });
-
-    // read the handle of the user's personal account
-    const [personal] = await database
-        .select({ handle: account.table.handle })
-        .from(account.table)
-        .where(and(eq(account.table.scope, scope), eq(account.table.kind, "personal")));
-
-    return {
-        preferred_username: present(personal, `the personal account of ${scope}`).handle,
-        locale,
-        zoneinfo: timeZone,
-    };
-}
-
 /** Generate the identifier required by the shared authentication model. */
-function generateIdentifier(model: string): string {
+function generateIdentifier(model: string, environment: UuidEnvironment): string {
     // refuse an unknown model
     const prefix = Object.hasOwn(MODEL_PREFIXES, model) ? MODEL_PREFIXES[model] : undefined;
     if (prefix === undefined) {
         throw AccountError.of(
-            "UNKNOWN_AUTHENTICATION_MODEL",
+            "AUTHENTICATION_MODEL_UNKNOWN",
             `unknown authentication model: ${model}`,
         );
     }
 
-    return Identifier.create(prefix);
+    return Identifier.create(prefix, environment);
 }
 
 /** Mail a sign-in link or code to an address, refusing a message the transport did not send. */
 async function mail(
-    options: Pick<BetterAuthAuthenticatorOptions, "mail" | "clock">,
+    options: Pick<BetterAuthAuthenticatorOptions, "mail" | "objects">,
     address: string,
     content: MailContent,
 ): Promise<void> {
@@ -710,15 +562,15 @@ async function mail(
     const outcome = await options.mail.send({
         ...content,
         to: address,
-        key: crypto.randomUUID(),
-        date: options.clock.now(),
+        key: Uuid.v4(options.objects.environment.random),
+        date: options.objects.environment.clock.now(),
     });
 
     // refuse a message the transport retried or failed
     if (outcome.kind !== "sent") {
         throw AccountError.of(
             "MAIL_UNSENT",
-            `sign-in mail to ${address} was not sent: ${outcome.error.message}`,
+            `sign-in mail to ${address} was not sent: ${outcome.refusal.message}`,
         );
     }
 }

@@ -1,3 +1,4 @@
+import type { Environment } from "@destack/environment";
 import { type Fetch, PackageMount } from "@destack/object";
 import { ListPage } from "@destack/object";
 import type { StepUp } from "@destack/access";
@@ -5,20 +6,21 @@ import { PackageId } from "@destack/package";
 import { type Identifier, schema } from "@destack/schema";
 import { Subject } from "@destack/sync";
 import { createClient } from "@destack/object/client";
-import { Pkce } from "@destack/access/token";
-import { DEVICE_CODE_GRANT_TYPE } from "@better-auth/oauth-provider";
-import { TOKEN_PATH } from "../authentication/path.ts";
-import { ErrorResponse, TokenResponse } from "../authentication/token.ts";
-import { EMAIL_CODE } from "../oauth/code.ts";
+import { type PartitionId, Pkce } from "@destack/access/token";
+import {
+    AUTHORIZATION_PATH,
+    DEVICE_AUTHORIZATION_PATH,
+    REVOCATION_PATH,
+    TOKEN_PATH,
+} from "../authentication/path.ts";
+import { ErrorResponse, TokenResponse, SECOND_MILLISECONDS } from "../authentication/token.ts";
+import { DEVICE_CODE, EMAIL_CODE } from "../oauth/party.ts";
 import { type SubjectToken, TOKEN_EXCHANGE } from "../oauth/exchange.ts";
 import accountPackage from "../package.ts";
 import type { Residency } from "../object/residency.ts";
 import type { SignUp } from "../better-auth/sign-up.ts";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
-
-/** The milliseconds in a second, as OAuth counts expiries and ages in seconds. */
-const SECOND_MILLISECONDS = 1000;
 
 /** The default wait between device polls, in seconds (RFC 8628 3.2). */
 const DEVICE_INTERVAL_SECONDS = 5;
@@ -104,10 +106,10 @@ export type DevicePoll =
     | { readonly status: "granted"; readonly signedIn: SignedIn }
     | { readonly status: "pending" | "slow" | "refused" };
 
-/** What a person's package token acts in: a space, a grant to a delegate, both, or the universe. */
+/** What a person's package token acts in: a partition, a delegate's grant, both, or neither. */
 export interface TokenBinding {
-    /** The space the token acts in, absent toward a universe package. */
-    readonly spaceId?: Identifier<"space">;
+    /** The partition the token acts in, absent toward a universe package. */
+    readonly partition?: PartitionId;
     /** The person the token acts as, or for under their grants to the caller. */
     readonly subject?: Subject;
     /** The chain of grants the token acts under. */
@@ -122,11 +124,14 @@ export class Issuer {
     readonly url: string;
     /** The fetch calling the issuer. */
     readonly #fetch: Fetch;
+    /** The environment the calls run in. */
+    readonly #environment: Environment;
 
-    /** Call an issuer through a fetch. */
-    constructor(url: string, fetch: Fetch) {
+    /** Call an issuer through a fetch, in an environment. */
+    constructor(url: string, fetch: Fetch, environment: Environment) {
         this.url = url.replace(/\/$/u, "");
         this.#fetch = fetch;
+        this.#environment = environment;
     }
 
     /** Start a browser sign-in returning to a loopback redirect, fresh for a step-up. */
@@ -138,8 +143,8 @@ export class Issuer {
         stepUp?: StepUp,
     ): Promise<BrowserAuthorization> {
         // prove the flow with a verifier its S256 challenge commits to
-        const verifier = Pkce.verifier();
-        const url = new URL(`${this.url}/oauth2/authorize`);
+        const verifier = Pkce.verifier(this.#environment.random);
+        const url = new URL(`${this.url}${AUTHORIZATION_PATH}`);
         url.search = new URLSearchParams({
             response_type: "code",
             client_id: clientId,
@@ -147,7 +152,7 @@ export class Issuer {
             state,
             scope: SIGN_IN_SCOPES,
             resource: PackageId.resource(accountPackage.id),
-            code_challenge: await Pkce.challenge(verifier),
+            code_challenge: await Pkce.challenge(verifier, this.#environment.crypto),
             code_challenge_method: "S256",
             ...(stepUp?.maxAge === undefined
                 ? {}
@@ -179,7 +184,7 @@ export class Issuer {
             throw await TokenResponse.refusal(response);
         }
 
-        return Issuer.#signedIn(await Issuer.#read(response, TokenResponse));
+        return this.#signedIn(await Issuer.#read(response, TokenResponse));
     }
 
     /** Mail a person a sign-in code. */
@@ -231,13 +236,13 @@ export class Issuer {
             throw await TokenResponse.refusal(response);
         }
 
-        return Issuer.#signedIn(await Issuer.#read(response, TokenResponse));
+        return this.#signedIn(await Issuer.#read(response, TokenResponse));
     }
 
     /** Start a device sign-in of a client. */
     async device(clientId: Identifier<"client">, now: number): Promise<DeviceAuthorization> {
         // ask the issuer for the codes
-        const response = await this.#post("/device/code", {
+        const response = await this.#post(DEVICE_AUTHORIZATION_PATH, {
             client_id: clientId,
             scope: SIGN_IN_SCOPES,
             resource: PackageId.resource(accountPackage.id),
@@ -265,14 +270,14 @@ export class Issuer {
     async poll(clientId: Identifier<"client">, deviceCode: string): Promise<DevicePoll> {
         // take the granted tokens
         const response = await this.#post(TOKEN_PATH, {
-            grant_type: DEVICE_CODE_GRANT_TYPE,
+            grant_type: DEVICE_CODE,
             device_code: deviceCode,
             client_id: clientId,
         });
         if (response.ok) {
             return {
                 status: "granted",
-                signedIn: Issuer.#signedIn(await Issuer.#read(response, TokenResponse)),
+                signedIn: this.#signedIn(await Issuer.#read(response, TokenResponse)),
             };
         }
 
@@ -317,7 +322,7 @@ export class Issuer {
             subject_token: subject.token,
             subject_token_type: subject.type,
             resource: PackageId.resource(audience),
-            ...(bound.spaceId === undefined ? {} : { space: bound.spaceId }),
+            ...(bound.partition === undefined ? {} : { partition: bound.partition }),
             ...(bound.subject === undefined ? {} : { subject: Subject.key(bound.subject) }),
             ...(bound.grants === undefined ? {} : { grants: bound.grants.join(" ") }),
             ...(bound.session === undefined ? {} : { session: bound.session }),
@@ -326,13 +331,16 @@ export class Issuer {
             throw await TokenResponse.refusal(response);
         }
 
-        return TokenResponse.granted(await Issuer.#read(response, TokenResponse));
+        return TokenResponse.granted(
+            await Issuer.#read(response, TokenResponse),
+            this.#environment.clock.now(),
+        );
     }
 
     /** Revoke a client's refresh token at the issuer (RFC 7009). */
     async revoke(clientId: Identifier<"client">, refreshToken: string): Promise<void> {
         // post the refresh token
-        const response = await this.#post("/oauth2/revoke", {
+        const response = await this.#post(REVOCATION_PATH, {
             token: refreshToken,
             token_type_hint: "refresh_token",
             client_id: clientId,
@@ -357,13 +365,17 @@ export class Issuer {
 
     /** Connect to the account package at the issuer, with an access token when given. */
     accounts(accessToken?: string) {
-        return createClient(accountPackage, {
-            url: PackageMount.url(new URL(this.url).origin, accountPackage.id),
-            ...(accessToken === undefined
-                ? {}
-                : { headers: { authorization: `Bearer ${accessToken}` } }),
-            fetch: this.#fetch,
-        });
+        return createClient(
+            accountPackage,
+            {
+                url: PackageMount.url(new URL(this.url).origin, accountPackage.id),
+                ...(accessToken === undefined
+                    ? {}
+                    : { headers: { authorization: `Bearer ${accessToken}` } }),
+                fetch: this.#fetch,
+            },
+            this.#environment,
+        );
     }
 
     /** Post a token request, refusing a refused one as the issuer refused it. */
@@ -373,29 +385,31 @@ export class Issuer {
             throw await TokenResponse.refusal(response);
         }
 
-        return Issuer.#granted(await Issuer.#read(response, TokenResponse));
+        return this.#granted(await Issuer.#read(response, TokenResponse));
     }
 
     /** Read granted tokens, refusing a grant without a refresh token. */
-    static #granted(tokens: TokenResponse): Tokens {
+    #granted(tokens: TokenResponse): Tokens {
         if (tokens.refresh_token === undefined) {
-            throw AccountError.of("NO_REFRESH_TOKEN", "the issuer returned no refresh token");
+            throw AccountError.of("REFRESH_TOKEN_MISSING", "the issuer returned no refresh token");
         }
 
-        return { ...TokenResponse.granted(tokens), refreshToken: tokens.refresh_token };
+        const now = this.#environment.clock.now();
+
+        return { ...TokenResponse.granted(tokens, now), refreshToken: tokens.refresh_token };
     }
 
     /** Read a sign-in's tokens and the person of its ID token. */
-    static #signedIn(granted: TokenResponse): SignedIn {
+    #signedIn(granted: TokenResponse): SignedIn {
         // refuse a sign-in without an ID token
         if (granted.id_token === undefined) {
-            throw AccountError.of("NO_ID_TOKEN", "the issuer returned no ID token");
+            throw AccountError.of("ID_TOKEN_MISSING", "the issuer returned no ID token");
         }
 
         // refuse an ID token without a payload
         const [, payload] = granted.id_token.split(".");
         if (payload === undefined) {
-            throw AccountError.of("MALFORMED_ID_TOKEN", "the issuer returned a malformed ID token");
+            throw AccountError.of("ID_TOKEN_MALFORMED", "the issuer returned a malformed ID token");
         }
 
         // read the person from its claims, trusted as the token endpoint's answer (OIDC Core 3.1.3.7)
@@ -404,7 +418,7 @@ export class Issuer {
         );
         const { sub } = IdClaims.parse(JSON.parse(claims));
 
-        return { tokens: Issuer.#granted(granted), userId: sub };
+        return { tokens: this.#granted(granted), userId: sub };
     }
 
     /** Post a form to one of the issuer's endpoints. */
@@ -438,7 +452,7 @@ export class Issuer {
         const parsed = definition.safeParse(value);
         if (!parsed.success) {
             throw AccountError.of(
-                "UNREADABLE_ANSWER",
+                "ANSWER_UNREADABLE",
                 `the issuer responded with ${response.status} and an unreadable body`,
             );
         }

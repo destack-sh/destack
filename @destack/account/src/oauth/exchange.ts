@@ -10,22 +10,26 @@ import {
     Grant,
     principal,
 } from "@destack/access";
-import type { OAuthExtensionGrantHandler } from "@better-auth/oauth-provider";
 import { and, type DatabaseConnection, eq, isNull, Snapshot, Transaction } from "@destack/db";
 import { PackageId } from "@destack/package";
 import { type Identifier, nth, schema } from "@destack/schema";
-import { TOKEN_LIFETIME_MILLISECONDS, TokenVerifier } from "@destack/access/token";
+import { PartitionId, TOKEN_LIFETIME_MILLISECONDS, TokenVerifier } from "@destack/access/token";
 import { ObjectReference, Scope, Subject } from "@destack/sync";
 import { AccountAuthentication } from "../better-auth/authentication.ts";
 import { account, type Account } from "../object/account.ts";
 import { Identity } from "../object/identity.ts";
 import { session } from "../object/session.ts";
+import { client } from "../object/client.ts";
+import { Revocation } from "../credential/revocation.ts";
 import { user } from "../object/user.ts";
 import { Placement } from "../object/placement.ts";
+import { machine } from "../object/machine.ts";
+import { space } from "../object/space.ts";
 import accountPackage from "../package.ts";
-import { Issuance } from "./issuance.ts";
-import { PackageResource, type TokenLifetime } from "./resource.ts";
-import type { Clock } from "@destack/environment";
+import { OAuthError } from "../authentication/token.ts";
+import { AccessToken, type TokenGrant } from "./token.ts";
+import { PackageResource } from "./resource.ts";
+import type { Environment } from "@destack/environment";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
 
@@ -36,7 +40,8 @@ export const TOKEN_EXCHANGE = "urn:ietf:params:oauth:grant-type:token-exchange";
 export const ACCESS_TOKEN_TYPE = "urn:ietf:params:oauth:token-type:access_token";
 
 /** The type of a subject token that is a person's personal access token. */
-export const PERSONAL_ACCESS_TOKEN_TYPE = "urn:destack:token-type:personal-access-token";
+export const PERSONAL_ACCESS_TOKEN_TYPE =
+    "urn:destack:params:oauth:token-type:personal-access-token";
 
 /** The kinds of token a person's client exchanges for a package's (RFC 8693 3). */
 export const SubjectTokenType = schema.enum([ACCESS_TOKEN_TYPE, PERSONAL_ACCESS_TOKEN_TYPE]);
@@ -51,7 +56,7 @@ export interface SubjectToken {
     readonly type: SubjectTokenType;
 }
 
-/** A token exchange request: the subject token, the package and space, and whom to act for. */
+/** A token exchange request: the subject token, the package and partition, and whom to act for. */
 const ExchangeRequest = schema.looseObject({
     /** The token exchanged. */
     subject_token: schema.string().min(1),
@@ -59,8 +64,8 @@ const ExchangeRequest = schema.looseObject({
     subject_token_type: SubjectTokenType,
     /** The package the token is for, as its resource (RFC 8707). */
     resource: schema.string().min(1),
-    /** The space the token acts in, absent under a grant toward a universe package. */
-    space: schema.identifier("space").exactOptional(),
+    /** The partition the token acts in, absent toward a universe package. */
+    partition: PartitionId.exactOptional(),
     /** The person to act as, or for under their grant to the caller, as a subject key. */
     subject: schema.string().min(1).exactOptional(),
     /** The person's session the token lives within, refused once it ends. */
@@ -82,42 +87,45 @@ export interface ExchangeOptions {
     readonly authorizer: Authorizer;
     /** The universe's issuer, which the exchanged access tokens include. */
     readonly issuer: string;
-    /** The clock tokens are verified at. */
-    readonly clock: Clock;
-    /** How long the packages' tokens live. */
-    readonly lifetime: TokenLifetime;
+    /** The clock tokens are verified at, and the WebCrypto and network verifying them. */
+    readonly environment: Environment;
 }
 
 /** Exchange a person's, machine's or installation's token for a token of a package (RFC 8693). */
-export function exchangeGrant(options: ExchangeOptions): OAuthExtensionGrantHandler {
-    return async (input) => {
+export function exchangeGrant(options: ExchangeOptions): TokenGrant {
+    return async ({ body }) => {
         // read the request and the package it asks a token for
-        const request = ExchangeRequest.safeParse(input.ctx.body);
+        const request = ExchangeRequest.safeParse(body);
         if (!request.success) {
-            throw Issuance.refusal("invalid_request", "invalid token exchange request");
+            throw OAuthError.of("INVALID_REQUEST", "invalid token exchange request");
         }
         const asked = request.data;
         const audience = PackageResource.package(asked.resource);
         if (audience === undefined) {
-            throw Issuance.refusal("invalid_target", `${asked.resource} names no package`);
+            throw OAuthError.of("INVALID_TARGET", `${asked.resource} names no package`);
         }
 
         // describe the subject token's caller toward the package, refusing an invalid token
-        const now = options.clock.now();
-        const { authentication, lapse } = await describe(options, asked, audience, now).catch(
-            (error: unknown) => {
-                throw Issuance.grantRefusal(error);
-            },
-        );
+        const now = options.environment.clock.now();
+        const { authentication, lapse } = await describe(options, asked, audience, now);
+
+        // end the credential at its session's or grants' lapse
+        const credential = {
+            ...authentication.credential,
+            expiresAt: Math.min(
+                authentication.credential.expiresAt,
+                lapse ?? Number.POSITIVE_INFINITY,
+            ),
+        };
 
         // stamp a token acting under grants with the universe's position, which its readers wait for (Zanzibar's zookie)
         const stamped =
             authentication.caller.grants.length === 0
-                ? authentication
+                ? { ...authentication, credential }
                 : {
                       ...authentication,
                       credential: {
-                          ...authentication.credential,
+                          ...credential,
                           watermarks: [
                               {
                                   scope: Scope.universe.id,
@@ -127,12 +135,12 @@ export function exchangeGrant(options: ExchangeOptions): OAuthExtensionGrantHand
                       },
                   };
 
-        return Issuance.issue(input, stamped, {
-            now,
-            lifetime: options.lifetime,
+        return {
+            authentication: stamped,
+            clientId: AccessToken.client(stamped),
             scopes: [],
-            ...(lapse === undefined ? {} : { lapse }),
-        });
+            resource: asked.resource,
+        };
     };
 }
 
@@ -175,8 +183,13 @@ async function describe(
                       ),
                   ];
 
-        // end the token with the session it was issued in
+        // refuse a token whose device client was revoked, as offline renewals rest on it
         const presented = verified.credential;
+        if (presented.client !== undefined) {
+            await requireClient(transaction, presented.client);
+        }
+
+        // end the token with the session it was issued in
         const issuedEnds =
             presented.kind === "session"
                 ? [
@@ -191,18 +204,18 @@ async function describe(
         const ending = [...boundEnds, ...issuedEnds];
         const lapse = Math.min(...lapses, ...expiries, ...ending);
         const lapsing = Number.isFinite(lapse) ? { lapse } : {};
-        if (granted.length > 0 && asked.space === undefined) {
+        if (granted.length > 0 && asked.partition === undefined) {
             return {
                 authentication: describeDelegation(verified, granted, audience, now),
                 ...lapsing,
             };
         }
         // describe the caller toward a universe package, outside any space
-        else if (asked.space === undefined) {
+        else if (asked.partition === undefined) {
             if (subject !== undefined) {
                 throw AccountError.of(
-                    "ACTING_OUTSIDE_SPACE",
-                    "a token acting as another person must act in a space",
+                    "ACTOR_OUTSIDE_SPACE",
+                    "a token acting as another person must act in a partition",
                 );
             }
             const { scope: _scope, ...credential } = verified.credential;
@@ -216,8 +229,14 @@ async function describe(
             };
         }
 
-        // describe the caller in the space, a person it impersonates, or a person acting through a delegate
-        const verification = new SpaceVerification(asked.space, audience, transaction, now);
+        // describe the caller in the partition, a person it impersonates, or a person acting through a delegate
+        const verification = new PartitionVerification(
+            asked.partition,
+            audience,
+            transaction,
+            now,
+            options.environment,
+        );
         if (granted.length > 0) {
             return {
                 authentication: await verification.delegation(
@@ -254,16 +273,27 @@ async function subjectOf(
     // verify a personal access token against the account's records
     const { subject_token: token, subject_token_type: type } = asked;
     if (type === PERSONAL_ACCESS_TOKEN_TYPE) {
-        return AccountAuthentication.personalToken(token, options.database, accountPackage.id, now);
+        return AccountAuthentication.personalToken(
+            token,
+            options.database,
+            accountPackage.id,
+            now,
+            options.environment.crypto,
+        );
     }
 
     // verify an access token for the account package by the universe's current keys, refusing a machine's
-    const keys = await Identity.keys(Snapshot.live(options.database), Scope.universe.id);
+    const keys = await Identity.keys(
+        Snapshot.live(options.database),
+        Scope.universe.id,
+        options.environment.crypto,
+    );
     const verifier = new TokenVerifier({
         authority: { kind: "universe" },
         issuer: options.issuer,
         audience: accountPackage.id,
         keys,
+        environment: options.environment,
     });
 
     // refuse a token for the machine itself, which it asks with its assertion
@@ -278,31 +308,35 @@ async function subjectOf(
     return verified;
 }
 
-/** A description of callers for one space and receiving package, under one transaction. */
-class SpaceVerification {
-    /** The space the caller acts in. */
-    readonly spaceId: Identifier<"space">;
+/** A description of callers for one partition and receiving package, under one transaction. */
+class PartitionVerification {
+    /** The partition the caller acts in: a space or a machine. */
+    readonly partition: PartitionId;
     /** The receiving package. */
     readonly audience: PackageId;
     /** The transaction reading the callers' standing. */
     readonly transaction: DatabaseConnection;
     /** The time of the verification, in UTC epoch milliseconds. */
     readonly now: number;
-    /** The account the space belongs to, read on first use. */
+    /** The clock and randomness of the authorizations it decides with. */
+    readonly environment: Environment;
+    /** The account the partition belongs to, read on first use. */
     #owner: Promise<Account["id"]> | undefined;
 
-    /** Describe callers for a space and receiving package at a time. */
+    /** Describe callers for a partition and receiving package at a time. */
     constructor(
-        spaceId: Identifier<"space">,
+        partition: PartitionId,
         audience: PackageId,
         transaction: DatabaseConnection,
         now: number,
+        environment: Environment,
     ) {
-        // store the space, the audience, the transaction and the time
-        this.spaceId = spaceId;
+        // store the partition, the audience, the transaction, the time and the environment
+        this.partition = partition;
         this.audience = audience;
         this.transaction = transaction;
         this.now = now;
+        this.environment = environment;
     }
 
     /** Describe a user or an installation of the account's spaces in the space. */
@@ -341,7 +375,7 @@ class SpaceVerification {
                 id: credential.id,
                 ...(credential.client === undefined ? {} : { client: credential.client }),
                 audience: this.audience,
-                scope: this.spaceId,
+                scope: this.partition,
                 verifiedAt,
                 expiresAt: Math.min(credential.expiresAt, verifiedAt + TOKEN_LIFETIME_MILLISECONDS),
                 ...(credential.assurance === undefined ? {} : { assurance: credential.assurance }),
@@ -389,7 +423,7 @@ class SpaceVerification {
             !principal.user.is(subject) ||
             Subject.same(acting, subject)
         ) {
-            throw AccountError.of("ACTOR_NOT_USER", "only a user can act as another user");
+            throw AccountError.of("ACTOR_INVALID", "only a user can act as another user");
         }
 
         // describe the represented user within the space's account
@@ -407,8 +441,11 @@ class SpaceVerification {
         const { now } = this;
         Credential.requireCurrent(verified.credential, accountPackage.id, now);
         const reading = Transaction.reading(this.transaction);
-        const authorization = new Authorization(authorizer, reading, () =>
-            AccessContext.of(verified.caller, now, { credential: verified.credential }),
+        const authorization = new Authorization(
+            authorizer,
+            reading,
+            () => AccessContext.of(verified.caller, now, { credential: verified.credential }),
+            this.environment,
         );
         const lent = await authorization.check(
             user.permission("impersonate"),
@@ -424,7 +461,7 @@ class SpaceVerification {
                 )
             ).isAllowed;
         if (!isLent && !isAdministered) {
-            throw AccountError.of("ACTING_REFUSED", "acting as another user is not allowed");
+            throw AccountError.of("IMPERSONATION_REFUSED", "acting as another user is not allowed");
         }
 
         return { ...represented, caller: { ...represented.caller, actors: [acting] } };
@@ -471,46 +508,87 @@ class SpaceVerification {
         ]);
         if (placement?.scope !== accountId) {
             throw AccountError.of(
-                "FOREIGN_INSTALLATION",
+                "INSTALLATION_FOREIGN",
                 "the installation belongs to another account",
             );
         }
     }
 
-    /** Read the live account the space belongs to, once per verification. */
+    /** Read the live account the partition belongs to, once per verification. */
     #account(): Promise<Account["id"]> {
         this.#owner ??= this.#readAccount();
 
         return this.#owner;
     }
 
-    /** Read the live account the space belongs to. */
+    /** Read the live account of the partition: a space's placement, else a machine's row. */
     async #readAccount(): Promise<Account["id"]> {
-        // locate the space's placement and require its account
-        const [placement] = await Placement.find(Snapshot.live(this.transaction), [this.spaceId]);
-        const selected =
-            placement === undefined
-                ? undefined
-                : await this.transaction
-                      .select({ accountId: account.table.id })
-                      .from(account.table)
-                      .innerJoin(Scope.table, eq(Scope.table.scope, account.table.id))
-                      .where(
-                          and(
-                              eq(
-                                  account.table.id,
-                                  schema.identifier("account").parse(placement.scope),
-                              ),
-                              isNull(Scope.table.suspendedAt),
-                              isNull(account.table.deletedAt),
-                          ),
-                      )
-                      .get();
+        // locate the partition's account
+        const owning = await this.#owning();
+        const selected = await this.transaction
+            .select({ accountId: account.table.id })
+            .from(account.table)
+            .innerJoin(Scope.table, eq(Scope.table.scope, account.table.id))
+            .where(
+                and(
+                    eq(account.table.id, schema.identifier("account").parse(owning)),
+                    isNull(Scope.table.suspendedAt),
+                    isNull(account.table.deletedAt),
+                ),
+            )
+            .get();
         if (selected === undefined) {
-            throw AccountError.of("NO_ACTIVE_ACCOUNT", "the space has no active account");
+            throw AccountError.of(
+                "ACTIVE_ACCOUNT_MISSING",
+                `partition ${this.partition} has no active account`,
+            );
         }
 
         return selected.accountId;
+    }
+
+    /** Read the account a partition belongs to: a space's placement's, or a machine's row's. */
+    async #owning(): Promise<string> {
+        const snapshot = Snapshot.live(this.transaction);
+        const { partition } = this;
+        // read a space's placement, refusing an unplaced space
+        if (space.identifies(partition)) {
+            const [placed] = await Placement.find(snapshot, [space.identifier(partition)]);
+            if (placed === undefined) {
+                throw AccountError.of("SPACE_NOT_PLACED", `space ${partition} is not placed`);
+            }
+
+            return placed.scope;
+        }
+        // take a live account itself, refusing an unknown one
+        else if (account.identifies(partition)) {
+            const row = await snapshot
+                .read(account.table)
+                .findFirst({ where: { id: account.identifier(partition) } });
+            if (row === undefined) {
+                throw AccountError.of("ACCOUNT_NOT_FOUND", `account ${partition} not found`);
+            }
+
+            return row.id;
+        }
+        // read a machine's row, refusing an unknown machine
+        else if (machine.identifies(partition)) {
+            const row = await snapshot
+                .read(machine.table)
+                .findFirst({ where: { id: machine.identifier(partition) } });
+            if (row === undefined) {
+                throw AccountError.of("MACHINE_NOT_FOUND", `machine ${partition} not found`);
+            }
+
+            return row.scope;
+        }
+        // refuse a partition no account owns, such as a device's
+        else {
+            throw AccountError.of(
+                "PARTITION_UNOWNED",
+                `partition ${partition} belongs to no account`,
+            );
+        }
     }
 }
 
@@ -576,7 +654,7 @@ async function readGrants(
         // refuse none or several
         if (only === undefined || others.length > 0) {
             throw AccountError.of(
-                "NO_LIVE_GRANT",
+                "LIVE_GRANT_MISSING",
                 live.length === 0
                     ? `${parties.delegator.id} has no grant to ${caller.subject.id}`
                     : `${parties.delegator.id} has ${live.length} grants to ${caller.subject.id}, name one`,
@@ -620,6 +698,17 @@ async function requireChain(
     }
 
     return chain;
+}
+
+/** Refuse a device's client that was revoked or never registered. */
+async function requireClient(transaction: DatabaseConnection, clientId: string): Promise<void> {
+    const found = await Transaction.reading(transaction)
+        .read(client.table)
+        .findFirst({ where: { id: client.identifier(clientId) } });
+    if (found === undefined) {
+        throw AccountError.of("CREDENTIAL_REVOKED", "client is revoked");
+    }
+    Revocation.requireUnrevoked(found, "client");
 }
 
 /** Read when a person's session ends, refusing one that ended or is another person's. */

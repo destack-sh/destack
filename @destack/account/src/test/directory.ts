@@ -1,8 +1,9 @@
-import { principal, Role, universe } from "@destack/access";
-import { type DatabaseConnection, eq, Transaction } from "@destack/db";
-import { type ClaimHome, ObjectStore, RemoteStore } from "@destack/object/server";
+import { principal, universe } from "@destack/access";
+import { AccessFixture } from "@destack/access/test";
+import { type DatabaseConnection, eq } from "@destack/db";
+import { type ClaimPrimary, RemoteStore } from "@destack/object/server";
 import type { Identifier } from "@destack/schema";
-import { testCallKey, testEvents, serversOf } from "@destack/object/test";
+import { serversOf, testCallKey, testEvents, TestObjectStore } from "@destack/object/test";
 import { Scope, type Uplink } from "@destack/sync";
 import { account } from "../object/account.ts";
 import { residency } from "../object/residency.ts";
@@ -15,29 +16,29 @@ import { Package } from "@destack/package";
 import { endpoint } from "../object/endpoint.ts";
 import accountPackage from "../package.ts";
 import { STACKS } from "./account.ts";
-import type { Clock } from "@destack/environment";
+import type { Clock, Environment } from "@destack/environment";
 
 /** The universe's claims, placements and machines as a test writes them. */
 export const TestDirectory = {
     /** Serve the universe's claims over a test's account database, claimed as the universe. */
-    async claims(database: DatabaseConnection, clock: Clock): Promise<ClaimHome> {
+    async claims(database: DatabaseConnection, environment: Environment): Promise<ClaimPrimary> {
         // bind the universe as its owner once
+        const { clock } = environment;
         const owner = universe.reference(Scope.universe.id, Scope.universe.id);
-        await Transaction.run(database, (transaction) =>
-            Role.bindOwner(transaction, Scope.universe, owner, clock.now()),
-        );
+        const access = new AccessFixture(database, environment, Scope.universe.id);
+        await access.bindOwner(Scope.universe, owner, clock.now());
 
-        // serve the claims over their table
-        const store = new ObjectStore({
+        // serve the claims over their table, at the account package's base installation in the universe
+        const store = await TestObjectStore.at(Scope.universe, {
             chain: async () => undefined,
-            clock,
+            environment,
             principal: owner,
             servers: serversOf([claim]),
             policies: [placement, account, residency],
             database,
             claims: { object: claim },
             callKey: testCallKey,
-            events: await testEvents(database, [], clock),
+            events: await testEvents(database, environment),
             origin: { package: Package.of(accountPackage) },
         });
 
@@ -48,26 +49,26 @@ export const TestDirectory = {
     async uplink(
         database: DatabaseConnection,
         sender: Identifier<"machine">,
-        clock: Clock,
+        environment: Environment,
     ): Promise<Uplink> {
-        // serve placements, assignments and spaces as the universe
-        const store = new ObjectStore({
+        // serve placements, assignments and spaces as the universe, at the account package's base installation
+        const { clock } = environment;
+        const store = await TestObjectStore.at(Scope.universe, {
             chain: async () => undefined,
-            clock,
+            environment,
             principal: universe.reference(Scope.universe.id, Scope.universe.id),
             servers: serversOf([implementPlacement(), assignment, implementSpace(STACKS)]),
             claims: { object: claim },
             database,
             callKey: testCallKey,
-            events: await testEvents(database, [], clock),
+            events: await testEvents(database, environment),
             origin: { package: Package.of(accountPackage) },
         });
 
         // bind the universe as its owner, as the platform does, which relates runners to spaces
         const universal = universe.reference(Scope.universe.id, Scope.universe.id);
-        await Transaction.run(database, (transaction) =>
-            Role.bindOwner(transaction, Scope.universe, universal, clock.now()),
-        );
+        const access = new AccessFixture(database, environment, Scope.universe.id);
+        await access.bindOwner(Scope.universe, universal, clock.now());
 
         // receive each mutation as the sending machine
         const signer = principal.machine.reference(Scope.universe.id, sender);
@@ -96,10 +97,13 @@ export const TestDirectory = {
             targetId: move?.target ?? null,
             transferId: move?.transferId ?? null,
         };
-        await database
-            .insert(placement.table)
-            .values({ id: placed.id, ...fields, createdAt: now, updatedAt: now })
-            .onConflictDoUpdate({ target: placement.table.id, set: fields });
+        await database.transaction(
+            async (transaction) =>
+                await transaction
+                    .insert(placement.table)
+                    .values({ id: placed.id, ...fields, createdAt: now, updatedAt: now })
+                    .onConflictDoUpdate({ target: placement.table.id, set: fields }),
+        );
     },
 
     /** Store a machine answering at a URL, or answering nowhere. */
@@ -113,22 +117,28 @@ export const TestDirectory = {
         // store a personal machine
         const now = clock.now();
         const times = { createdAt: now, updatedAt: now };
-        await database
-            .insert(machine.table)
-            .values({
-                id,
-                scope,
-                ...times,
-                name: id.slice(-8),
-                kind: "personal",
-                platform: "macOS",
-                architecture: "arm64",
-                model: "Mac",
-            })
-            .onConflictDoNothing();
+        await database.transaction(
+            async (transaction) =>
+                await transaction
+                    .insert(machine.table)
+                    .values({
+                        id,
+                        scope,
+                        ...times,
+                        name: id.slice(-8),
+                        kind: "personal",
+                        platform: "macOS",
+                        architecture: "arm64",
+                        model: "Mac",
+                    })
+                    .onConflictDoNothing(),
+        );
 
         // replace its endpoint, or withdraw it
-        await database.delete(endpoint.table).where(eq(endpoint.table.id, id));
+        await database.transaction(
+            async (transaction) =>
+                await transaction.delete(endpoint.table).where(eq(endpoint.table.id, id)),
+        );
         if (url !== null) {
             await database
                 .insert(endpoint.table)

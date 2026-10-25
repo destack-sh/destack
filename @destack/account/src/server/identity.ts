@@ -13,12 +13,12 @@ export function implementIdentity(): typeof identity {
     return identity.implement({
         methods: {
             create,
-            keys: (call) => Identity.keys(call, call.target.id),
+            keys: (call) => Identity.keys(call, call.target.id, call.environment.crypto),
         },
     });
 }
 
-/** Start an identity as the machine serving its space, or as the universe for itself. */
+/** Start an identity as the machine serving its space, or as the store for the universe. */
 async function create(
     context: MethodContextOf<typeof identity, "create">,
     next: NextOf<typeof identity, "create">,
@@ -48,7 +48,7 @@ async function create(
         sender.id === served.machineId;
     if (!isUniverse && !isServing) {
         throw AccountError.of(
-            "FOREIGN_IDENTITY_START",
+            "IDENTITY_START_FOREIGN",
             `only the machine serving ${subject} can start its identity`,
         );
     }

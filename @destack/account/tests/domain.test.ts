@@ -2,7 +2,7 @@ import type { ClientOf } from "@destack/object/client";
 import { ObjectReference, RequestId } from "@destack/sync";
 import { expect, test, refusal } from "@destack/test";
 import accountPackage from "../src/package.ts";
-import type { VirtualClock } from "@destack/environment/simulation";
+import type { Environment } from "@destack/environment";
 import { DomainFixture } from "./domain.ts";
 
 /** Serve a hostname in an account as a client of the account package. */
@@ -10,9 +10,13 @@ function serve(
     client: ClientOf<typeof accountPackage>,
     accountId: string,
     name: string,
-    clock: VirtualClock,
+    environment: Environment,
 ) {
-    return client.hostname.create({ accountId, requestId: RequestId.create(clock.now()), name });
+    return client.hostname.create({
+        accountId,
+        requestId: RequestId.create(environment),
+        name,
+    });
 }
 
 /** Write the row of a domain the fixture's owner claimed now, unverified. */
@@ -45,14 +49,14 @@ test("claim and verify a domain once through its TXT record", async () => {
         owner.domain.verify({
             scope: accountId,
             id,
-            requestId: RequestId.create(fixture.clock.now()),
+            requestId: RequestId.create(fixture.environment),
         });
 
     // claim the domain for the account on a plan with custom domains
     await fixture.accounts.entitle(accountId, "domain", { kind: "boolean" });
     const claimed = await owner.domain.create({
         scope: accountId,
-        requestId: RequestId.create(fixture.clock.now()),
+        requestId: RequestId.create(fixture.environment),
         name,
     });
     const record = claimedDomain(fixture, claimed.id);
@@ -88,25 +92,25 @@ test("refuse IP literals and wildcards as domain claims", async () => {
     const claim = (name: string) =>
         owner.domain.create({
             scope: accountId,
-            requestId: RequestId.create(fixture.clock.now()),
+            requestId: RequestId.create(fixture.environment),
             name,
         });
 
     // refuse IP literals and wildcards
     const malformed = [
         "BAD_REQUEST",
-        "INVALID_INPUT",
+        "INPUT_INVALID",
         "invalid input: name: hostnames are lowercase ASCII labels, punycode for others",
     ];
     expect(await refusal(claim("*.acme.com"))).toEqual(malformed);
     expect(await refusal(claim("192.168.0.1"))).toEqual([
         "BAD_REQUEST",
-        "INVALID_INPUT",
+        "INPUT_INVALID",
         "invalid input: name: top-level labels have a letter",
     ]);
     expect(await refusal(claim("[::1]"))).toEqual([
         "BAD_REQUEST",
-        "INVALID_INPUT",
+        "INPUT_INVALID",
         "invalid input: name: hostnames are lowercase ASCII labels, punycode for others; name: top-level labels have a letter",
     ]);
     expect(await owner.domain.list({ scope: accountId })).toEqual({ items: [], cursor: null });
@@ -123,12 +127,12 @@ test("let a second account claim a domain and refuse its verification once anoth
     await fixture.accounts.entitle(otherId, "domain", { kind: "boolean" });
     const first = await owner.domain.create({
         scope: accountId,
-        requestId: RequestId.create(fixture.clock.now()),
+        requestId: RequestId.create(fixture.environment),
         name,
     });
     const second = await rival.domain.create({
         scope: otherId,
-        requestId: RequestId.create(fixture.clock.now()),
+        requestId: RequestId.create(fixture.environment),
         name,
     });
 
@@ -138,7 +142,7 @@ test("let a second account claim a domain and refuse its verification once anoth
     await owner.domain.verify({
         scope: accountId,
         id: first.id,
-        requestId: RequestId.create(fixture.clock.now()),
+        requestId: RequestId.create(fixture.environment),
     });
 
     // refuse the second although its record exists too
@@ -147,7 +151,7 @@ test("let a second account claim a domain and refuse its verification once anoth
             rival.domain.verify({
                 scope: otherId,
                 id: second.id,
-                requestId: RequestId.create(fixture.clock.now()),
+                requestId: RequestId.create(fixture.environment),
             }),
         ),
     ).toEqual(["CONFLICT", "DOMAIN_TAKEN", `another owner verified ${name}`]);
@@ -165,10 +169,10 @@ test("serve hostnames below a verified domain alone, and refuse to remove the do
     await fixture.accounts.entitle(accountId, "domain", { kind: "boolean" });
     const claimed = await owner.domain.create({
         scope: accountId,
-        requestId: RequestId.create(fixture.clock.now()),
+        requestId: RequestId.create(fixture.environment),
         name,
     });
-    expect(await refusal(serve(owner, accountId, notes, fixture.clock))).toEqual([
+    expect(await refusal(serve(owner, accountId, notes, fixture.environment))).toEqual([
         "PRECONDITION_FAILED",
         "DOMAIN_UNVERIFIED",
         `verify a domain of ${notes} first`,
@@ -177,14 +181,14 @@ test("serve hostnames below a verified domain alone, and refuse to remove the do
     await owner.domain.verify({
         scope: accountId,
         id: claimed.id,
-        requestId: RequestId.create(fixture.clock.now()),
+        requestId: RequestId.create(fixture.environment),
     });
-    await serve(owner, accountId, notes, fixture.clock);
-    await serve(owner, accountId, name, fixture.clock);
-    await serve(owner, accountId, `*.${name}`, fixture.clock);
+    await serve(owner, accountId, notes, fixture.environment);
+    await serve(owner, accountId, name, fixture.environment);
+    await serve(owner, accountId, `*.${name}`, fixture.environment);
 
     // refuse the rival a hostname below the domain
-    expect(await refusal(serve(rival, otherId, `blog.${name}`, fixture.clock))).toEqual([
+    expect(await refusal(serve(rival, otherId, `blog.${name}`, fixture.environment))).toEqual([
         "PRECONDITION_FAILED",
         "DOMAIN_UNVERIFIED",
         `verify a domain of blog.${name} first`,
@@ -193,7 +197,7 @@ test("serve hostnames below a verified domain alone, and refuse to remove the do
         owner.domain.delete({
             scope: accountId,
             id: claimed.id,
-            requestId: RequestId.create(fixture.clock.now()),
+            requestId: RequestId.create(fixture.environment),
         });
     const covered = [name, notes, `*.${name}`].toSorted().join(", ");
     expect(await refusal(remove())).toEqual([
@@ -214,7 +218,7 @@ test("hide an account's domains from a stranger to every domain method", async (
     await fixture.accounts.entitle(accountId, "domain", { kind: "boolean" });
     const claimed = await owner.domain.create({
         scope: accountId,
-        requestId: RequestId.create(fixture.clock.now()),
+        requestId: RequestId.create(fixture.environment),
         name,
     });
     fixture.dns.publish(claimed);
@@ -229,19 +233,19 @@ test("hide an account's domains from a stranger to every domain method", async (
         await refusal(
             stranger.domain.create({
                 scope,
-                requestId: RequestId.create(fixture.clock.now()),
+                requestId: RequestId.create(fixture.environment),
                 name,
             }),
         ),
     ).toEqual(hidden);
     expect(
         await refusal(
-            stranger.domain.verify({ scope, id, requestId: RequestId.create(fixture.clock.now()) }),
+            stranger.domain.verify({ scope, id, requestId: RequestId.create(fixture.environment) }),
         ),
     ).toEqual(hidden);
     expect(
         await refusal(
-            stranger.domain.delete({ scope, id, requestId: RequestId.create(fixture.clock.now()) }),
+            stranger.domain.delete({ scope, id, requestId: RequestId.create(fixture.environment) }),
         ),
     ).toEqual(hidden);
 
@@ -257,7 +261,7 @@ test("refuse a domain claim until the account's plan allows custom domains", asy
     const claim = () =>
         owner.domain.create({
             scope: fixture.accountId,
-            requestId: RequestId.create(fixture.clock.now()),
+            requestId: RequestId.create(fixture.environment),
             name: fixture.name,
         });
 

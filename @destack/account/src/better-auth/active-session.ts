@@ -1,15 +1,13 @@
 import { user, User } from "../object/user.ts";
 import { client } from "../object/client.ts";
-import { APIError } from "better-auth/api";
 import { and, eq, gt, isNull, isNotNull, or, type DatabaseConnection } from "@destack/db";
 import type { AuthenticationAssurance } from "@destack/access";
 import { schema } from "@destack/schema";
+import { factor } from "../object/factor.ts";
 import { passkey } from "../object/passkey.ts";
-import { AUTHENTICATION_METHODS, session, type Session } from "../object/session.ts";
+import { session, type Session } from "../object/session.ts";
 import { AccountError } from "../error/error.ts";
-
-/** The maximum age of a ceremony used to change authentication credentials. */
-const FRESHNESS_MILLISECONDS = 5 * 60 * 1000;
+import { SUDO_MILLISECONDS } from "../authentication/sudo.ts";
 
 /** The assurance level each verified method proves. */
 const ASSURANCE_LEVELS: Readonly<Record<NonNullable<Session["authenticationMethod"]>, 1 | 2 | 3>> =
@@ -21,22 +19,6 @@ const ASSURANCE_LEVELS: Readonly<Record<NonNullable<Session["authenticationMetho
         recovery: 2,
         webauthn: 3,
     };
-
-/** The session and user Better Auth resolves, with the columns an active session has. */
-const BetterAuthSession = schema.looseObject({
-    session: schema.looseObject({
-        id: schema.identifier("session"),
-        expiresAt: schema.date(),
-        authenticatedAt: schema.number().nullable(),
-        authenticationMethod: schema.enum(AUTHENTICATION_METHODS).nullable(),
-    }),
-    user: schema.looseObject({
-        id: schema.identifier("user"),
-        twoFactorEnabled: schema.boolean(),
-        email: schema.string(),
-        emailVerified: schema.boolean(),
-    }),
-});
 
 /** A live session of an active user on an active client. */
 export class ActiveSession {
@@ -50,8 +32,6 @@ export class ActiveSession {
     readonly authenticatedAt: number | null;
     /** The verified method of the last ceremony. */
     readonly authenticationMethod: Session["authenticationMethod"];
-    /** Whether the user enrolled TOTP. */
-    readonly twoFactorEnabled: boolean;
     /** The user's email address. */
     readonly email: string;
     /** Whether the user verified the email address. */
@@ -65,25 +45,8 @@ export class ActiveSession {
         this.expiresAt = row.expiresAt;
         this.authenticatedAt = row.authenticatedAt;
         this.authenticationMethod = row.authenticationMethod;
-        this.twoFactorEnabled = row.twoFactorEnabled;
         this.email = row.email;
         this.emailVerified = row.emailVerified;
-    }
-
-    /** Read a session Better Auth resolved after the session guard found it active. */
-    static of(resolved: unknown): ActiveSession {
-        const { session: row, user: person } = BetterAuthSession.parse(resolved);
-
-        return new ActiveSession({
-            id: row.id,
-            userId: person.id,
-            expiresAt: row.expiresAt.getTime(),
-            authenticatedAt: row.authenticatedAt,
-            authenticationMethod: row.authenticationMethod,
-            twoFactorEnabled: person.twoFactorEnabled,
-            email: person.email,
-            emailVerified: person.emailVerified,
-        });
     }
 
     /** Read an active session with its user's standing. */
@@ -100,7 +63,6 @@ export class ActiveSession {
                 expiresAt: session.table.expiresAt,
                 authenticatedAt: session.table.authenticatedAt,
                 authenticationMethod: session.table.authenticationMethod,
-                twoFactorEnabled: user.table.twoFactorEnabled,
                 email: user.table.email,
                 emailVerified: user.table.emailVerified,
             })
@@ -121,19 +83,19 @@ export class ActiveSession {
             )
             .limit(1);
         if (active === undefined) {
-            throw new APIError("UNAUTHORIZED", { message: "session is no longer authorized" });
+            throw AccountError.of("SESSION_ENDED", "session is no longer authorized");
         }
 
         // require the user's private fields
-        const { twoFactorEnabled, email, emailVerified } = active;
-        if (twoFactorEnabled === null || email === null || emailVerified === null) {
+        const { email, emailVerified } = active;
+        if (email === null || emailVerified === null) {
             throw AccountError.of(
                 "PRIVATE_FIELDS_CONCEALED",
                 `user ${active.userId} has its private fields concealed`,
             );
         }
 
-        return new ActiveSession({ ...active, twoFactorEnabled, email, emailVerified });
+        return new ActiveSession({ ...active, email, emailVerified });
     }
 
     /** Rate the last ceremony from 1 to 3, none before one completed. */
@@ -157,11 +119,8 @@ export class ActiveSession {
         // require a completed ceremony within the sensitive-operation window
         const method = this.authenticationMethod;
         const time = this.authenticatedAt;
-        if (method === null || time === null || time > now || now - time > FRESHNESS_MILLISECONDS) {
-            throw new APIError("FORBIDDEN", {
-                code: "REAUTHENTICATION_REQUIRED",
-                message: "recent authentication is required",
-            });
+        if (method === null || time === null || time > now || now - time > SUDO_MILLISECONDS) {
+            throw AccountError.of("REAUTHENTICATION_REQUIRED", "recent authentication is required");
         }
 
         // require an enrolled factor
@@ -170,12 +129,17 @@ export class ActiveSession {
             .from(passkey.table)
             .where(eq(passkey.table.userId, this.userId))
             .limit(1);
-        const isEnrolled = this.twoFactorEnabled || credential !== undefined;
+        const [verified] = await database
+            .select({ id: factor.table.id })
+            .from(factor.table)
+            .where(and(eq(factor.table.userId, this.userId), eq(factor.table.status, "verified")))
+            .limit(1);
+        const isEnrolled = verified !== undefined || credential !== undefined;
         if (isEnrolled && !ActiveSession.isEnrolledFactor(method)) {
-            throw new APIError("FORBIDDEN", {
-                code: "REAUTHENTICATION_REQUIRED",
-                message: "recent authentication with an enrolled factor is required",
-            });
+            throw AccountError.of(
+                "REAUTHENTICATION_REQUIRED",
+                "recent authentication with an enrolled factor is required",
+            );
         }
     }
 }

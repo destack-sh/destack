@@ -3,7 +3,7 @@ import type { BetterAuthAuthenticator } from "../better-auth/authenticator.ts";
 import type { DnsResolver } from "./dns-resolver.ts";
 import type { SpaceKind, StackSource } from "../object/stack-source.ts";
 import { claim } from "../object/claim.ts";
-import { environment } from "../object/environment.ts";
+import { stage } from "../object/stage.ts";
 import accountPackage from "../package.ts";
 import { implementAccount } from "./account.ts";
 import { implementClient } from "./client.ts";
@@ -14,11 +14,12 @@ import { implementIdentity } from "./identity.ts";
 import { implementOperation } from "./operation.ts";
 import { implementKey } from "./key.ts";
 import { implementMachine } from "./machine.ts";
-import { implementOAuthClient } from "./oauth-client.ts";
-import { implementOAuthConsent } from "./oauth-consent.ts";
-import { implementOrganisation } from "./organisation.ts";
+import { implementApplication } from "./application.ts";
+import { implementOrganization } from "./organization.ts";
 import { implementPlacement } from "./placement.ts";
 import { implementResidency } from "./residency.ts";
+import type { PackageId } from "@destack/package";
+import type { BuildReader } from "@destack/package/manifest";
 import { implementSpace } from "./space.ts";
 import { implementUser } from "./user.ts";
 
@@ -30,6 +31,14 @@ export interface AccountOptions {
     readonly stacks: Readonly<Record<SpaceKind, StackSource>>;
     /** The universe's sign-in, which answers the oauth adapter once the store exists. */
     readonly signIn: Promise<BetterAuthAuthenticator>;
+    /** The registry of the releases the residencies' homes install. */
+    readonly releases: ReleaseRegistry;
+}
+
+/** A registry of package releases, opened by version. */
+export interface ReleaseRegistry {
+    /** Open a package's release. */
+    readonly open: (packageId: PackageId, release: string) => Promise<BuildReader>;
 }
 
 /** Serve the account package in the universe's store, its oauth adapter answering sign-in. */
@@ -38,22 +47,21 @@ export function accountServer(options: AccountOptions): PackageImplementation {
         objects: [
             implementUser(),
             implementAccount(options.stacks),
-            implementOrganisation(),
+            implementOrganization(),
             implementGroup(),
             implementClient(),
             implementKey(),
-            implementOAuthClient(),
-            implementOAuthConsent(),
+            implementApplication(),
             implementSpace(options.stacks),
             implementDomain({ resolver: options.resolver }),
             implementHostname(),
             implementMachine(),
             implementIdentity(),
             implementOperation(),
-            implementResidency(),
+            implementResidency(options.releases),
             implementPlacement(),
-            // apply the environments an account's stack declares
-            environment.implement({ declaration: {} }),
+            // apply the stages an account's stack declares
+            stage.implement({ declaration: {} }),
             claim,
         ],
         adapters: { oauth: async (request) => (await options.signIn).handler(request) },

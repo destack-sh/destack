@@ -13,7 +13,7 @@ import { RISKS } from "@destack/resource";
 import { type Identifier, present, schema } from "@destack/schema";
 import { replica, Scope } from "@destack/sync";
 import { account } from "./account.ts";
-import { organisation } from "./organisation.ts";
+import { organization } from "./organization.ts";
 import { StackSource } from "./stack-source.ts";
 import { sudo } from "../authentication/sudo.ts";
 import {
@@ -42,7 +42,6 @@ export const space = defineObject(
         scope: account,
         represents: principal.space,
         isScope: true,
-        partition: true,
         controlled: true,
         fields: {
             /** The unique address within the account. */
@@ -58,6 +57,8 @@ export const space = defineObject(
         relations: {
             // the outsiders who find the space without reading it
             guest: { subjects: [principal.user, anyone.all()], grantedBy: "manage" },
+            // the machine the space moves to, which its placement relates while the move runs
+            receiver: { subjects: [principal.machine], grantedBy: "receive" },
         },
         permissions: {
             // let the machines serving the account and each space itself read the space's row, which their replicas follow
@@ -70,8 +71,12 @@ export const space = defineObject(
             rotate: permission("manage"),
             // let the platform move a space it declares to another stack
             upgrade: none(),
-            // let the installations in the space store replicas of its chain
-            replicate: contained(),
+            // leave the space's resources to its own stack, which its base installations declare
+            provision: none(),
+            // let the platform relate the machine a move targets
+            receive: none(),
+            // let the space and its installations, the machine it moves to and the account's servers replicate its chain
+            replicate: union(contained(), relation("receiver"), through("account", "serve")),
 
             // let the space's readers read its operational telemetry and product analytics, its managers unmasked
             observe: permission("read"),
@@ -80,7 +85,7 @@ export const space = defineObject(
             // let the machines serving the account forward the space's telemetry
             serve: through("account", "serve"),
         },
-        reserved: ["replicate", "upgrade", "serve"],
+        reserved: ["replicate", "upgrade", "receive", "serve", "provision"],
         shareable: { isPublic: true },
         suspendable: { by: "update" },
         elevated: { delete: sudo, rotate: sudo },
@@ -146,10 +151,10 @@ export const Space = {
         return { owner: principal.space.reference(Scope.universe.id, row.id) };
     },
 
-    /** List the spaces of the accounts a payer pays for: its accounts and its organisations'. */
+    /** List the spaces of the accounts a payer pays for: its accounts and its organizations'. */
     async paidBy(snapshot: Snapshot, payer: Identifier<"account">): Promise<Identifier<"space">[]> {
-        // take the payer itself, and the accounts of the organisations it pays for
-        const paid = await snapshot.read(organisation.table).findMany({ where: { payer } });
+        // take the payer itself, and the accounts of the organizations it pays for
+        const paid = await snapshot.read(organization.table).findMany({ where: { payer } });
         const accounts =
             paid.length === 0
                 ? []

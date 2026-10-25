@@ -46,7 +46,6 @@ export const user = defineObject(
             /** The language and region the user reads, public so spaces write to them in it. */
             locale: field.string(LocaleTag),
             /** Whether sign-in requires a second factor. */
-            twoFactorEnabled: field.boolean().default(false).guard({ read: "self" }),
             /** When the platform suspended the user, in UTC epoch milliseconds. */
             suspendedAt: field.time().optional().guard({ read: "self" }),
             /** The home space of the person's personal account, acting for them. */
@@ -155,7 +154,7 @@ export const User = {
     identify(key: string): Identifier<"user"> {
         const subject = Subject.read(key);
         if (!principal.user.is(subject)) {
-            throw AccountError.of("NOT_A_PERSON", `${key} is not a person`);
+            throw AccountError.of("PERSON_REQUIRED", `${key} is not a person`);
         }
 
         return schema.identifier("user").parse(subject.id);

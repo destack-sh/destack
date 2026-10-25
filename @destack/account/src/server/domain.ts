@@ -71,7 +71,7 @@ async function remove(
     context: MethodContextOf<typeof domain, "delete">,
     next: NextOf<typeof domain, "delete">,
 ): Promise<ResultOf<typeof domain, "delete">> {
-    // read the hostnames of the domain's account or its organisation's accounts
+    // read the hostnames of the domain's account or its organization's accounts
     const { name, scope } = context.target;
     const owner = schema.identifier("account").safeParse(scope);
     const accounts = owner.success

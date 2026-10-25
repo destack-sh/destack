@@ -17,7 +17,7 @@ function create(
 ) {
     return person.client(accountPackage).space.create({
         accountId: person.account,
-        requestId: RequestId.create(fixture.clock.now()),
+        requestId: RequestId.create(fixture.environment),
         name,
         ...(machine === undefined ? {} : { machine }),
     });
@@ -43,9 +43,11 @@ test("place a new space on its account's residency cloud machine, on a machine o
     const person = await fixture.signIn("person@example.com");
     const laptop = await fixture.enroll(person.account, person);
 
-    // place one on the residency's cloud machine, one on the person's machine and one on the named cloud machine
+    // place one on the residency's cloud machine, one on the person's machine and one on the named cloud machine, a millisecond apart so they order as created
     const cloud = await create(fixture, person, "work");
+    fixture.clock.advance(1);
     const local = await create(fixture, person, "notes", laptop.machineId);
+    fixture.clock.advance(1);
     const shared = await create(fixture, person, "shared", ids.machine);
 
     // store each placement beside the home's, and claim each name for its space
@@ -89,7 +91,7 @@ test("refuse a space under a taken name or on another account's machine, placing
         taken: ["CONFLICT", "NAME_TAKEN", "name is taken"],
         foreign: [
             "BAD_REQUEST",
-            "UNKNOWN_MACHINE",
+            "MACHINE_UNKNOWN",
             `${elsewhere.machineId} is not a standing machine of the space's account or residency`,
         ],
         placements: [Account.home(person.account), work.id],
@@ -106,7 +108,7 @@ test("rename a space to a free address in its account, releasing the old one, an
         const renamed = owner.client(accountPackage).space.rename({
             accountId: owner.account,
             id,
-            requestId: RequestId.create(fixture.clock.now()),
+            requestId: RequestId.create(fixture.environment),
             name,
         });
         const settled = await refusal(renamed);
@@ -130,7 +132,7 @@ test("rename a space to a free address in its account, releasing the old one, an
     // refuse each by the address pattern
     const refused = [
         "BAD_REQUEST",
-        "INVALID_INPUT",
+        "INPUT_INVALID",
         "invalid input: name: labels are lowercase letters, digits and single inner hyphens",
     ];
     expect({ moved, taken, away, released, malformed }).toEqual({

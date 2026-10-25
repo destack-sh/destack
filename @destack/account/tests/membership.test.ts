@@ -23,7 +23,7 @@ test("let a space's account owner and its viewers read it, its guests find it al
     const grant = (relation: "viewer" | "guest", subject: Subject) =>
         owner.client(objectPackage).relationship.create({
             scope: accountId,
-            requestId: RequestId.create(accounts.store.clock.now()),
+            requestId: RequestId.create(accounts.store.environment),
             object: space.reference(accountId, spaceId),
             relation,
             subject,

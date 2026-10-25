@@ -1,17 +1,19 @@
 import type { Fetch } from "@destack/object";
 import type { AuthContext } from "better-auth";
 import { type DatabaseConnection, Snapshot } from "@destack/db";
-import { claimTable } from "@destack/object";
+import { CallError, claimTable } from "@destack/object";
 import { present, schema } from "@destack/schema";
 import { alert, html, type Markup, redirect, render, timeZoneField } from "./markup.ts";
 import { SignUp } from "./sign-up.ts";
 import { Account } from "../object/account.ts";
-import { client } from "../object/client.ts";
 import { HANDLE_LENGTH, type HandleAvailability } from "../address/handle.ts";
 import { DisplayName, NAME_LENGTH } from "../object/display-name.ts";
 import { Residency, type ResidencyCode } from "../object/residency.ts";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
+import { AUTHORIZATION_PATH } from "../authentication/path.ts";
+import type { AuthorizationServer } from "../oauth/server.ts";
+import { Decision } from "../oauth/authorization.ts";
 
 /** The query parameters Better Auth adds to the sign-in page after a failed sign-in. */
 const ERROR_PARAMETERS = ["error", "error_description"];
@@ -40,16 +42,6 @@ const Failure = schema.looseObject({
     error: schema.string().exactOptional(),
 });
 
-/** A Better Auth answer describing an OAuth client. */
-const PublicClient = schema.looseObject({ client_name: schema.string() });
-
-/** A Better Auth answer describing a device code's sign-in. */
-const DeviceReview = schema.looseObject({
-    status: schema.enum(["pending", "approved", "denied"]),
-    client_id: schema.string(),
-    scope: schema.string().nullable(),
-});
-
 /** A Better Auth answer to a first-factor sign-in. */
 const SignedIn = schema.looseObject({ twoFactorRedirect: schema.boolean().exactOptional() });
 
@@ -60,9 +52,6 @@ const Session = schema
         session: schema.looseObject({ createdAt: schema.string() }),
     })
     .nullable();
-
-/** The parameters Better Auth signs an authorization request it sends to a sign-in page with. */
-const SIGNED_PARAMETERS = ["sig", "exp", "ba_iat", "ba_param", "ba_pl"];
 
 /** An emailed sign-in: the address, the form that asked for it and the sign-up it includes. */
 interface EmailSignIn {
@@ -108,8 +97,8 @@ export class SignInPage {
     readonly send: Fetch;
     /** The account database with the residencies and the handles accounts claim. */
     readonly database: DatabaseConnection;
-    /** Register a device's client for the person a request's session signs in. */
-    readonly register: (request: Request, clientId: string) => Promise<void>;
+    /** The authorization server, whose requests and device sign-ins the pages decide. */
+    readonly server: AuthorizationServer;
 
     /** Serve the pages at their URLs over the Better Auth routes. */
     constructor(
@@ -124,7 +113,7 @@ export class SignInPage {
             | "context"
             | "send"
             | "database"
-            | "register"
+            | "server"
         >,
     ) {
         // store the routes and the database the pages read
@@ -132,7 +121,7 @@ export class SignInPage {
         this.context = options.context;
         this.send = options.send;
         this.database = options.database;
-        this.register = options.register;
+        this.server = options.server;
 
         // store the page URLs
         this.signIn = options.signIn;
@@ -174,9 +163,11 @@ export class SignInPage {
 
         // sign in
         if (url.pathname === this.signIn.pathname) {
-            return isSubmit
+            const answered = isSubmit
                 ? this.#submitSignIn(request, query)
                 : this.#showSignIn(request, query, error);
+
+            return answered.catch((refused: unknown) => refusal("Sign-in failed", refused));
         }
         // sign up
         else if (url.pathname === this.signUp.pathname) {
@@ -192,15 +183,19 @@ export class SignInPage {
         }
         // consent to an application
         else if (url.pathname === this.consent.pathname) {
-            return isSubmit
+            const answered = isSubmit
                 ? this.#submitConsent(request, query)
                 : this.#showConsent(request, query);
+
+            return answered.catch((refused: unknown) => refusal("Authorization failed", refused));
         }
         // approve a device
         else {
-            return isSubmit
+            const answered = isSubmit
                 ? this.#submitVerification(request, query)
                 : this.#showVerification(request, query);
+
+            return answered.catch((refused: unknown) => refusal("Approval failed", refused));
         }
     }
 
@@ -210,24 +205,23 @@ export class SignInPage {
         query: URLSearchParams,
         error: string | null,
     ): Promise<Response> {
-        // ask a signed-out person for their email
+        // ask for the email of a signed-out person, and of one an authorization asks to sign in again
         const session = await this.#session(request);
-        if (session === null) {
+        const requestUri = query.get("request_uri");
+        const review =
+            requestUri === null
+                ? undefined
+                : await this.server.authorization.review(requestUri, request.headers);
+        if (session === null || review?.isLoginDue === true) {
             const notice = error === null ? html`` : alert(`Sign-in failed: ${error}.`);
 
             return this.#signInForm(query, notice, 200);
         }
 
-        // continue the provider's authorization as the signed-in person
+        // continue an authorization as the signed-in person
         const greeting = html`<p>Signed in as <strong>${session.user.email}</strong>.</p>`;
-        if (query.has("sig")) {
-            return render(
-                "Continue",
-                html`${greeting}
-                    <form method="post" action="${target(this.signIn, query)}">
-                        <button name="action" value="continue">Continue</button>
-                    </form>`,
-            );
+        if (review !== undefined) {
+            return redirect(this.#continuation(query), []);
         }
         // return a signed-in person to the callback
         else if (query.has("callbackURL")) {
@@ -239,7 +233,7 @@ export class SignInPage {
         }
     }
 
-    /** Submit an email, a code, a provider or the continuation of a sign-in. */
+    /** Submit an email, a code or a provider of a sign-in. */
     async #submitSignIn(request: Request, query: URLSearchParams): Promise<Response> {
         // read the chosen action
         const form = await request.formData();
@@ -250,12 +244,8 @@ export class SignInPage {
             refuse: (notice, status) => this.#signInForm(query, notice, status),
         });
 
-        // continue a provider's authorization
-        if (action === "continue") {
-            return this.#continueAuthorization(request, query);
-        }
         // email a sign-in link returning to the continuation
-        else if (action === "link") {
+        if (action === "link") {
             return this.#sendLink(request, query, emailed());
         }
         // email a one-use code
@@ -272,7 +262,7 @@ export class SignInPage {
         }
         // refuse an action the form does not offer
         else {
-            throw AccountError.of("UNKNOWN_ACTION", `unknown sign-in action: ${action}`);
+            throw AccountError.of("ACTION_UNKNOWN", `unknown sign-in action: ${action}`);
         }
     }
 
@@ -440,68 +430,8 @@ export class SignInPage {
         }
         // refuse an action the form does not offer
         else {
-            throw AccountError.of("UNKNOWN_ACTION", `unknown sign-up action: ${action}`);
+            throw AccountError.of("ACTION_UNKNOWN", `unknown sign-up action: ${action}`);
         }
-    }
-
-    /** Continue the provider's authorization as the signed-in person. */
-    async #continueAuthorization(request: Request, query: URLSearchParams): Promise<Response> {
-        // continue through Better Auth, which checks the request's signature first
-        const response = await this.#forward(request, "/oauth2/continue", {
-            selected: true,
-            oauth_query: query.toString(),
-        });
-        if (!response.ok) {
-            return render("Sign-in failed", alert(await failure(response)), response.status);
-        }
-        const { url } = Redirection.parse(await response.json());
-
-        // answer a login prompt that sends the person back to sign in, by a newer session
-        const answered = await this.#answerLogin(request, query, new URL(url, this.signIn));
-
-        return redirect(answered ?? url, response.headers.getSetCookie());
-    }
-
-    /** Clear a signed request's login prompt once a session newer than the request answers it. */
-    async #answerLogin(
-        request: Request,
-        query: URLSearchParams,
-        next: URL,
-    ): Promise<string | undefined> {
-        // leave every other continuation to Better Auth
-        const prompts = (query.get("prompt") ?? "").split(" ").filter((prompt) => prompt !== "");
-        const asked = Number(query.get("ba_iat"));
-        if (
-            next.pathname !== this.signIn.pathname ||
-            !prompts.includes("login") ||
-            !Number.isSafeInteger(asked) ||
-            asked <= 0
-        ) {
-            return undefined;
-        }
-
-        // require a session newer than the request, as Better Auth's consent does
-        const session = await this.#session(request);
-        if (session === null || Date.parse(session.session.createdAt) < asked) {
-            return undefined;
-        }
-
-        // authorize again without the login prompt and its age limit, which the session meets
-        const answered = new URLSearchParams(query);
-        for (const name of [...SIGNED_PARAMETERS, "max_age"]) {
-            answered.delete(name);
-        }
-        const others = prompts.filter((prompt) => prompt !== "login");
-        // drop a prompt that asked for the login alone
-        if (others.length === 0) {
-            answered.delete("prompt");
-        }
-        // keep the prompts beside it
-        else {
-            answered.set("prompt", others.join(" "));
-        }
-
-        return `${this.endpoint}/oauth2/authorize?${answered}`;
     }
 
     /** Submit a code of the enrolled authenticator or a backup code. */
@@ -520,7 +450,7 @@ export class SignInPage {
         }
         // refuse an action the form does not offer
         else {
-            throw AccountError.of("UNKNOWN_ACTION", `unknown second-factor action: ${action}`);
+            throw AccountError.of("ACTION_UNKNOWN", `unknown second-factor action: ${action}`);
         }
 
         // verify the code and return to the continuation
@@ -532,28 +462,36 @@ export class SignInPage {
         return redirect(parameter(query, "callbackURL"), response.headers.getSetCookie());
     }
 
-    /** Read a client's public name and details from the provider. */
-    #publicClient(request: Request, clientId: string): Promise<Response> {
-        return this.#forward(
-            request,
-            `/oauth2/public-client?${new URLSearchParams({ client_id: clientId })}`,
-        );
+    /** Address the authorization a page's query continues. */
+    #continuation(query: URLSearchParams): string {
+        const continued = new URLSearchParams({
+            client_id: parameter(query, "client_id"),
+            request_uri: parameter(query, "request_uri"),
+        });
+
+        return `${this.endpoint}${AUTHORIZATION_PATH}?${continued}`;
     }
 
-    /** Show the application and the scopes it asks for. */
+    /** Show the application and the scopes it asks for, or send a person to sign in first. */
     async #showConsent(request: Request, query: URLSearchParams): Promise<Response> {
-        // read the application's public name
-        const answer = await this.#publicClient(request, parameter(query, "client_id"));
-        if (!answer.ok) {
-            return render("Authorization failed", alert(await failure(answer)), answer.status);
+        // send a person who must sign in to the sign-in page
+        const {
+            party,
+            request: asked,
+            isLoginDue,
+        } = await this.server.authorization.review(
+            parameter(query, "request_uri"),
+            request.headers,
+        );
+        if (isLoginDue) {
+            return redirect(target(this.signIn, query), []);
         }
-        const { client_name: name } = PublicClient.parse(await answer.json());
 
         // ask to approve or deny the scopes
         return render(
             "Authorize",
-            html`<p><strong>${name}</strong> asks to:</p>
-                ${list(parameter(query, "scope"))}
+            html`<p><strong>${party.name}</strong> asks to:</p>
+                ${list(asked.scopes)}
                 <form method="post" action="${target(this.consent, query)}">
                     <button name="action" value="approve">Allow</button>
                     <button name="action" value="deny">Deny</button>
@@ -561,26 +499,19 @@ export class SignInPage {
         );
     }
 
-    /** Approve or deny the scopes, registering a device's client on approval, and return to it. */
+    /** Approve or deny the scopes, and return to the application with the decision. */
     async #submitConsent(request: Request, query: URLSearchParams): Promise<Response> {
-        // read the decision, and register a device's client the person approves
+        // decide on the stored request as the signed-in person
+        await this.#requireOrigin(request);
         const form = await request.formData();
-        const isAccepted = isApproval(field(form, "action"));
-        const clientId = parameter(query, "client_id");
-        if (isAccepted && client.identifies(clientId)) {
-            await this.register(request, clientId);
-        }
+        const decision = parseDecision(field(form, "action"));
+        const location = await this.server.authorization.decide(
+            parameter(query, "request_uri"),
+            request.headers,
+            decision,
+        );
 
-        // decide on the signed query's scopes
-        const response = await this.#forward(request, "/oauth2/consent", {
-            accept: isAccepted,
-            oauth_query: query.toString(),
-        });
-        if (!response.ok) {
-            return render("Authorization failed", alert(await failure(response)), response.status);
-        }
-
-        return follow(response);
+        return redirect(location, []);
     }
 
     /** Ask for a device's code, then show the sign-in it requests. */
@@ -608,33 +539,16 @@ export class SignInPage {
             return redirect(target(this.signIn, continuation), []);
         }
 
-        // read the sign-in the code requests
-        const response = await this.#forward(
-            request,
-            `/device?${new URLSearchParams({ user_code: code })}`,
-        );
-        if (!response.ok) {
-            return render("Approval failed", alert(await failure(response)), response.status);
-        }
-
-        // parse the device's sign-in
-        const device = DeviceReview.parse(await response.json());
-
-        // ask to approve a pending sign-in by the client's public name
-        if (device.status === "pending") {
-            const answer = await this.#publicClient(request, device.client_id);
-            if (!answer.ok) {
-                return render("Approval failed", alert(await failure(answer)), answer.status);
-            }
-            const { client_name: name } = PublicClient.parse(await answer.json());
-            const scopes = device.scope === null ? html`` : list(device.scope);
-
+        // ask to approve a pending sign-in by the client's name
+        const { party, row, decision } = await this.server.device.review(code);
+        if (decision.status === "pending") {
             return render(
                 "Approve a device",
                 html`<p>
-                        Sign in to <strong>${name}</strong> with the code <strong>${code}</strong>?
+                        Sign in to <strong>${party.name}</strong> with the code
+                        <strong>${code}</strong>?
                     </p>
-                    ${scopes}
+                    ${row.scopes.length === 0 ? html`` : list(row.scopes)}
                     <form method="post" action="${target(this.verification, query)}">
                         <button name="action" value="approve">Approve</button>
                         <button name="action" value="deny">Deny</button>
@@ -642,40 +556,30 @@ export class SignInPage {
             );
         }
 
-        return renderDevice(device.status);
+        return renderDevice(decision.status);
     }
 
     /** Approve or deny a device's sign-in. */
     async #submitVerification(request: Request, query: URLSearchParams): Promise<Response> {
-        // read the decision, and register the device's client the person approves
+        // decide on the sign-in of the code as the signed-in person
+        await this.#requireOrigin(request);
         const form = await request.formData();
-        const isApproved = isApproval(field(form, "action"));
-        const code = parameter(query, "user_code");
-        if (isApproved) {
-            const review = await this.#forward(
-                request,
-                `/device?${new URLSearchParams({ user_code: code })}`,
+        const decision = parseDecision(field(form, "action"));
+        await this.server.device.decide(parameter(query, "user_code"), request.headers, decision);
+
+        return renderDevice(decision === "approve" ? "approved" : "denied");
+    }
+
+    /** Refuse a form posted from outside the trusted origins, as a forged request. */
+    async #requireOrigin(request: Request): Promise<void> {
+        const origin = request.headers.get("origin");
+        const context = await this.context;
+        if (origin === null || !context.isTrustedOrigin(origin)) {
+            throw AccountError.of(
+                "ORIGIN_UNTRUSTED",
+                `the form was posted from ${origin ?? "nowhere"}`,
             );
-            if (!review.ok) {
-                return render("Approval failed", alert(await failure(review)), review.status);
-            }
-            const device = DeviceReview.parse(await review.json());
-            if (client.identifies(device.client_id)) {
-                await this.register(request, device.client_id);
-            }
         }
-
-        // decide on the sign-in of the code
-        const response = await this.#forward(
-            request,
-            isApproved ? "/device/approve" : "/device/deny",
-            { userCode: code },
-        );
-        if (!response.ok) {
-            return render("Approval failed", alert(await failure(response)), response.status);
-        }
-
-        return renderDevice(isApproved ? "approved" : "denied");
     }
 
     /** Answer the sign-in form. */
@@ -888,6 +792,17 @@ async function follow(response: Response): Promise<Response> {
     return redirect(url, response.headers.getSetCookie());
 }
 
+/** Answer a refusal as a page with its message, passing on any other failure. */
+function refusal(title: string, error: unknown): Promise<Response> {
+    // pass on a failure that is no refusal
+    const refused = CallError.refusal(error);
+    if (refused === undefined) {
+        throw error;
+    }
+
+    return render(title, alert(refused.message), refused.status);
+}
+
 /** Answer the outcome of a device sign-in. */
 function renderDevice(status: "approved" | "denied"): Promise<Response> {
     return status === "approved"
@@ -895,10 +810,10 @@ function renderDevice(status: "approved" | "denied"): Promise<Response> {
         : render("Device denied", html`<p>The device was not signed in.</p>`);
 }
 
-/** List the space-separated scopes of a request. */
-function list(scope: string): Markup {
+/** List the scopes of a request. */
+function list(scopes: readonly string[]): Markup {
     return html`<ul>
-        ${scope.split(" ").map((name) => html`<li><code>${name}</code></li>`)}
+        ${scopes.map((name) => html`<li><code>${name}</code></li>`)}
     </ul>`;
 }
 
@@ -930,26 +845,20 @@ function parseResidency(
     // refuse an unknown residency
     const residency = residencies.find((known) => known.id === value);
     if (residency === undefined) {
-        throw AccountError.of("UNKNOWN_RESIDENCY", `unknown residency: ${value}`);
+        throw AccountError.of("RESIDENCY_UNKNOWN", `unknown residency: ${value}`);
     }
 
     return residency.id;
 }
 
-/** Read whether a form approves or denies. */
-function isApproval(action: string): boolean {
-    // approve
-    if (action === "approve") {
-        return true;
+/** Read whether a form approves or denies, refusing any other action. */
+function parseDecision(action: string): Decision {
+    const decision = Decision.safeParse(action);
+    if (!decision.success) {
+        throw AccountError.of("ACTION_UNKNOWN", `unknown approval action: ${action}`);
     }
-    // deny
-    else if (action === "deny") {
-        return false;
-    }
-    // refuse any other action
-    else {
-        throw AccountError.of("UNKNOWN_ACTION", `unknown approval action: ${action}`);
-    }
+
+    return decision.data;
 }
 
 /** Read a text field of a submitted form. */
@@ -957,7 +866,7 @@ function field(form: { readonly get: (name: string) => unknown }, name: string):
     // refuse a missing field
     const value = form.get(name);
     if (typeof value !== "string") {
-        throw AccountError.of("MISSING_FORM_FIELD", `missing form field: ${name}`);
+        throw AccountError.of("FORM_FIELD_MISSING", `missing form field: ${name}`);
     }
 
     return value;
@@ -968,7 +877,7 @@ function parameter(query: URLSearchParams, name: string): string {
     // refuse a missing parameter
     const value = query.get(name);
     if (value === null) {
-        throw AccountError.of("MISSING_QUERY_PARAMETER", `missing query parameter: ${name}`);
+        throw AccountError.of("QUERY_PARAMETER_MISSING", `missing query parameter: ${name}`);
     }
 
     return value;

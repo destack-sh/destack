@@ -14,6 +14,7 @@ import { type Identifier, present, schema } from "@destack/schema";
 import { Replica, Scope } from "@destack/sync";
 import { Account, account } from "./account.ts";
 import { space, Space, type SpaceResource } from "./space.ts";
+import { Tenancy } from "./placement.ts";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
 
@@ -32,11 +33,6 @@ export type EntitlementResource = (typeof ENTITLEMENT_RESOURCES)[number];
 
 /** What a feature grants: access alone, a fixed value, or usage of meters up to a limit. */
 export const FEATURE_KINDS = ["boolean", "static", "metered"] as const;
-
-/** Where a space's work runs: shared or dedicated cloud machines, or its people's computers. */
-export const Tenancy = schema.enum(["shared", "dedicated", "local"]);
-/** Where a space's work runs. */
-export type Tenancy = schema.Infer<typeof Tenancy>;
 
 /** Where a metered usage stands against its limit and its subscription's budget. */
 export const USAGE_STATES = ["within", "near", "over", "blocked"] as const;
@@ -314,7 +310,7 @@ export const Entitlement = {
         return conditions;
     },
 
-    /** Refuse a domain claim in an account or organisation whose payer's plan allows no domains. */
+    /** Refuse a domain claim in an account or organization whose payer's plan allows no domains. */
     async requireCustomDomains(context: MethodContext): Promise<void> {
         // refuse a payer whose plan has no domain entitlement
         const row = await Entitlement.read(

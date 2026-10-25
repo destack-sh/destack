@@ -1,7 +1,7 @@
 import { through, union } from "@destack/access";
 import { type Select } from "@destack/db";
 import { account } from "./account.ts";
-import { organisation } from "./organisation.ts";
+import { organization } from "./organization.ts";
 import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
 
@@ -23,8 +23,8 @@ const TOP_LEVEL = /[a-z][a-z0-9-]*$/u;
 /** A hostname, or a wildcard label before one matching every name below it. */
 const HOSTNAME_PATTERN = new RegExp(`^(?:\\*\\.)?${HOSTNAME.source.slice(1)}`, "u");
 
-/** Who administers the domains of an account or an organisation. */
-const MANAGERS = union(through("account", "manage"), through("organisation", "manage"));
+/** Who administers the domains of an account or an organization. */
+const MANAGERS = union(through("account", "manage"), through("organization", "manage"));
 
 /** A DNS hostname in its canonical lowercase ASCII form. */
 export const Hostname = schema
@@ -61,12 +61,12 @@ export const DomainChallenge = Object.assign(
 /** The TXT record a domain claim's administrators publish. */
 export type DomainChallenge = schema.Infer<typeof DomainChallenge>;
 
-/** A DNS domain an account or an organisation proves it controls once, through a TXT record. */
+/** A DNS domain an account or an organization proves it controls once, through a TXT record. */
 export const domain = defineObject(
     {
         name: "domain",
         plural: "domains",
-        scope: [account, organisation],
+        scope: [account, organization],
         fields: {
             /** The canonical lowercase domain, such as acme.com. */
             name: field.string(Hostname),

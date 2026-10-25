@@ -1,5 +1,5 @@
 import { SOURCE_LOCALE } from "@destack/locale";
-import { nth, Digest, present } from "@destack/schema";
+import { nth, present } from "@destack/schema";
 
 /** The HTML escapes of the characters markup gives meaning to. */
 const ESCAPES: Readonly<Record<string, string>> = {
@@ -31,17 +31,15 @@ const TIME_ZONE_SCRIPT = `for (const field of document.querySelectorAll('input[n
 /** The time zones a person without scripts chooses from, the runtime's IANA zones. */
 const TIME_ZONES = Intl.supportedValuesOf("timeZone");
 
-/** The headers of every page: HTML that runs the time zone script alone and refuses framing. */
-const HEADERS = Digest.of(TIME_ZONE_SCRIPT).then((digest) => {
-    // allow the time zone script by its hash
-    const script = `'sha256-${Uint8Array.fromHex(digest).toBase64()}'`;
+/** The SHA-256 of the time zone script in base64, the hash its content security policy allows. */
+const TIME_ZONE_SCRIPT_HASH = "eZ9dPUSZvzZuzsdc+Rt5v76cmD+uc20qSM6f7h4EPAs=";
 
-    return {
-        "content-type": "text/html; charset=utf-8",
-        "content-security-policy": `default-src 'none'; script-src ${script}; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'`,
-        "referrer-policy": "same-origin",
-    };
-});
+/** The headers of every page: HTML that runs the time zone script alone and refuses framing. */
+const HEADERS = {
+    "content-type": "text/html; charset=utf-8",
+    "content-security-policy": `default-src 'none'; script-src 'sha256-${TIME_ZONE_SCRIPT_HASH}'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'`,
+    "referrer-policy": "same-origin",
+};
 
 /** HTML the pages wrote or escaped. */
 export class Markup {
@@ -141,7 +139,7 @@ export async function render(
         </html>`;
 
     // forward the cookies the routes set
-    const headers = new Headers(await HEADERS);
+    const headers = new Headers(HEADERS);
     for (const cookie of cookies) {
         headers.append("set-cookie", cookie);
     }

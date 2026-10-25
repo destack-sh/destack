@@ -16,22 +16,25 @@ test("let an installation act for a person under the grant the person created, u
     await fixture.startIdentity(spaceId, machine);
     const browser = await owner.client(accountPackage).client.create({
         userId: owner.id,
-        requestId: RequestId.create(fixture.store.clock.now()),
+        requestId: RequestId.create(fixture.store.environment),
         name: "Firefox",
         kind: "browser",
     });
     await owner.client(accountPackage).client.subscribe({
         userId: owner.id,
         id: browser.id,
-        requestId: RequestId.create(fixture.store.clock.now()),
+        requestId: RequestId.create(fixture.store.environment),
         push: { url: "https://push.example.com/1", keys: { p256dh: "BNcR", auth: "tBHI" } },
     });
-    const inbox = principal.installation.reference(spaceId, Identifier.create("installation"));
+    const inbox = principal.installation.reference(
+        spaceId,
+        Identifier.create("installation", fixture.environment),
+    );
 
     // consent as the owner: grant the installation forgetting push subscriptions
     const granted = await owner.client(objectPackage).grant.create({
         scope: owner.id,
-        requestId: RequestId.create(fixture.store.clock.now()),
+        requestId: RequestId.create(fixture.store.environment),
         delegate: inbox,
         permissions: [{ ...client.permission("unsubscribe"), scope: owner.id }],
     });
@@ -45,14 +48,14 @@ test("let an installation act for a person under the grant the person created, u
     const acting = fixture.issuer.accounts((await exchange([granted.id])).accessToken);
 
     // refuse a chain linking a grant the universe stores no record of
-    const unknown = Identifier.create("grant");
+    const unknown = Identifier.create("grant", fixture.environment);
     const unlinked = await refusal(exchange([granted.id, unknown]));
 
     // forget the push subscription for the owner
     await acting.client.unsubscribe({
         userId: owner.id,
         id: browser.id,
-        requestId: RequestId.create(fixture.store.clock.now()),
+        requestId: RequestId.create(fixture.store.environment),
     });
     const forgotten = await fixture.storage.database
         .select({ push: client.table.push })
@@ -65,7 +68,7 @@ test("let an installation act for a person under the grant the person created, u
     await owner.client(objectPackage).grant.revoke({
         scope: owner.id,
         id: grant.id,
-        requestId: RequestId.create(fixture.store.clock.now()),
+        requestId: RequestId.create(fixture.store.environment),
         revision: grant.revision,
     });
     expect({
@@ -99,10 +102,13 @@ test("stamp a token acting for a person under their grant with the universe's po
     const owner = await fixture.signIn(OWNER_EMAIL);
     const { spaceId, machine } = await fixture.createSpace(owner);
     await fixture.startIdentity(spaceId, machine);
-    const inbox = principal.installation.reference(spaceId, Identifier.create("installation"));
+    const inbox = principal.installation.reference(
+        spaceId,
+        Identifier.create("installation", fixture.environment),
+    );
     await owner.client(objectPackage).grant.create({
         scope: owner.id,
-        requestId: RequestId.create(fixture.store.clock.now()),
+        requestId: RequestId.create(fixture.store.environment),
         delegate: inbox,
         permissions: [{ ...client.permission("read"), scope: owner.id }],
     });
@@ -130,7 +136,7 @@ test("stamp a token acting for a person under their grant with the universe's po
     await owner.client(accountPackage).session.revoke({
         userId: owner.id,
         id: sessionId,
-        requestId: RequestId.create(fixture.store.clock.now()),
+        requestId: RequestId.create(fixture.store.environment),
     });
 
     // stamp the universe's position between the grant's write and the exchange

@@ -1,56 +1,101 @@
-import { type Select } from "@destack/db";
+import { type Select, Snapshot } from "@destack/db";
 import { type MethodContext, defineObject, field } from "@destack/object";
-import { schema } from "@destack/schema";
+import type { ObjectStore } from "@destack/object/server";
+import { present, schema } from "@destack/schema";
+import { RequestId } from "@destack/sync";
 import { user } from "./user.ts";
 
-/** A user's consent to an OAuth client's scopes and claims, its calls given by the user's grant. */
+/** A user's consent to a client's scopes, which every refresh token of the client rests on. */
 export const oauthConsent = defineObject(
     {
         name: "oauth-consent",
         plural: "oauthConsents",
         scope: user,
         fields: {
-            /** The authorized client: an OAuth client's public identifier or a device's. */
+            /** The authorized client: an application's public client identifier or a device's. */
             clientId: field.string(),
-            /** The consenting user. */
-            user: field.reference(user, { delete: "cascade" }),
-            /** The authorization provider's external subject reference. */
-            referenceId: field.string().optional(),
-            /** The approved OAuth audience URLs. */
-            resources: field.json(schema.array(schema.string())).optional(),
-            /** The approved OpenID user claims. */
-            requestedUserInfoClaims: field.json(schema.array(schema.string())).optional(),
             /** The approved OAuth scopes. */
             scopes: field.json(schema.array(schema.string())),
-            /** When the user last granted the consent, before which no token of it stands. */
+            /** When the user granted the consent, before which no refresh token of it stands. */
             grantedAt: field.time(),
-            /** When the user revoked the consent, which ends its tokens until granted again. */
-            revokedAt: field.time().optional(),
         },
-        permissions: ["read", "revoke"],
+        permissions: ["read", "revoke", "grant"],
         constraints: {
-            clientUser: { kind: "unique", on: ["clientId", "userId"] },
-            user: { kind: "index", on: ["userId"] },
+            clientUser: { kind: "unique", on: ["clientId", "scope"] },
+            user: { kind: "index", on: ["scope"] },
         },
     },
     (method) => ({
-        revoke: method.mutation({ permission: "revoke" }),
+        /** Grant a client the scopes a person approved. */
+        create: method.create("grant", {
+            fields: ["clientId", "scopes", "grantedAt"],
+            isInternal: true,
+            isPredicted: false,
+        }),
+        /** Widen a consent to the further scopes a person approved. */
+        widen: method.update("grant", { fields: ["scopes"], isInternal: true, isPredicted: false }),
+        /** Revoke a consent, ending the client's refresh tokens. */
+        revoke: method.delete("revoke"),
     }),
 );
-/** A persisted OAuth consent. */
+/** A stored OAuth consent. */
 export type OAuthConsent = Select<typeof oauthConsent.table>;
 
-/** The ends of the provider's grants to clients. */
+/** The consents people give clients, and their ends. */
 export const OAuthConsent = {
-    /** Revoke every user's consent to a deleted or revoked client, ending its tokens' use. */
+    /** Grant a client a person's scopes, widening a narrower consent, answering the consent. */
+    async grant(
+        objects: Pick<ObjectStore, "mutate" | "as" | "database" | "environment">,
+        terms: {
+            /** The client. */
+            readonly clientId: string;
+            /** The consenting person. */
+            readonly userId: string;
+            /** The scopes the person approved. */
+            readonly scopes: readonly string[];
+        },
+        now: number,
+    ): Promise<OAuthConsent> {
+        // read the person's consent to the client
+        const { clientId } = terms;
+        const userId = user.identifier(terms.userId);
+        const read = () =>
+            Snapshot.live(objects.database)
+                .read(oauthConsent.table)
+                .findFirst({ where: { clientId, scope: userId } });
+        const standing = await read();
+        const scopes = [...new Set([...(standing?.scopes ?? []), ...terms.scopes])];
+
+        // leave a consent covering the scopes as it is
+        if (standing !== undefined && scopes.length === standing.scopes.length) {
+            return standing;
+        }
+
+        // grant a new consent, or widen the standing one
+        const call =
+            standing === undefined
+                ? oauthConsent.call("create", {
+                      ...oauthConsent.in(userId),
+                      clientId,
+                      scopes,
+                      grantedAt: now,
+                  })
+                : oauthConsent.call("widen", { ...oauthConsent.target(standing), scopes });
+        await objects.mutate(objects.as(oauthConsent, now), {
+            id: RequestId.create(objects.environment),
+            calls: [call],
+        });
+
+        return present(await read(), `the consent of ${userId} to ${clientId}`);
+    },
+
+    /** Revoke every user's consent to a deleted or revoked client, ending its refresh tokens. */
     async withdraw(
         context: Pick<MethodContext, "read" | "mutate" | "self">,
         clientId: string,
     ): Promise<void> {
-        // revoke the standing consents in one mutation as the store
-        const consents = await context
-            .read(oauthConsent)
-            .findMany({ where: { clientId, revokedAt: { isNull: true } } });
+        // revoke the consents in one mutation as the store
+        const consents = await context.read(oauthConsent).findMany({ where: { clientId } });
         if (consents.length > 0) {
             await context.mutate(
                 context.self,
