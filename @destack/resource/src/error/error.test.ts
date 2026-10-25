@@ -9,10 +9,10 @@ test("refuse a plan no declaration change reaches as a conflict listing every pr
     const failure = unreachablePlan(problems);
 
     // list every problem in the message and the data
-    expect([failure.toCallError(), ResourceError.is(failure, "UNREACHABLE_PLAN")]).toEqual([
+    expect([failure.toCallError(), ResourceError.is(failure, "PLAN_UNREACHABLE")]).toEqual([
         {
             code: "CONFLICT",
-            reason: "UNREACHABLE_PLAN",
+            reason: "PLAN_UNREACHABLE",
             domain: "@destack/resource",
             message:
                 "table/note: declare a conversion to version 2; table/tag: declare the dropped column",

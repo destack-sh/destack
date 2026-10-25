@@ -23,7 +23,7 @@ export const ResourceRecord = {
     /** Read a provisioned resource's reference, refusing an unprovisioned one. */
     reference(record: Pick<ResourceRecord, "reference">): string {
         if (record.reference === null) {
-            throw ResourceError.of("NOT_PROVISIONED", "resource is not provisioned");
+            throw ResourceError.of("RESOURCE_UNPROVISIONED", "resource is not provisioned");
         }
 
         return record.reference;

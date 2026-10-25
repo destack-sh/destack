@@ -117,7 +117,7 @@ function join(plans: readonly (() => Plan)[]): Plan {
         try {
             steps.push(...plan().steps);
         } catch (error) {
-            if (!ResourceError.is(error, "UNREACHABLE_PLAN")) {
+            if (!ResourceError.is(error, "PLAN_UNREACHABLE")) {
                 throw error;
             }
             problems.push(...error.data.problems);

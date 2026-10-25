@@ -25,12 +25,12 @@ export const ResourceError = defineErrorFamily(
     import.meta.destack.package,
     {
         // conflict
-        UNREACHABLE_PLAN: { code: "CONFLICT", data: UnreachablePlan },
+        PLAN_UNREACHABLE: { code: "CONFLICT", data: UnreachablePlan },
 
         // internal server error
         ALREADY_BOUND: { code: "INTERNAL_SERVER_ERROR" },
-        NOT_BOUND: { code: "INTERNAL_SERVER_ERROR" },
-        NOT_PROVISIONED: { code: "INTERNAL_SERVER_ERROR" },
+        BINDING_MISSING: { code: "INTERNAL_SERVER_ERROR" },
+        RESOURCE_UNPROVISIONED: { code: "INTERNAL_SERVER_ERROR" },
     },
     { audience: "host" },
 );
@@ -39,8 +39,8 @@ export const ResourceError = defineErrorFamily(
 export type ResourceReason = ReasonOf<typeof ResourceError>;
 
 /** Refuse a desired state no plan reaches until its declarations change, listing every problem. */
-export function unreachablePlan(problems: readonly PlanProblem[]): FamilyError<"UNREACHABLE_PLAN"> {
+export function unreachablePlan(problems: readonly PlanProblem[]): FamilyError<"PLAN_UNREACHABLE"> {
     const message = problems.map((problem) => `${problem.target}: ${problem.detail}`).join("; ");
 
-    return ResourceError.of("UNREACHABLE_PLAN", message, { data: { problems: [...problems] } });
+    return ResourceError.of("PLAN_UNREACHABLE", message, { data: { problems: [...problems] } });
 }

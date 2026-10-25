@@ -29,7 +29,7 @@ export class ResourceContext {
     get(resource: ResourceHandle<unknown>): unknown {
         // require a bound client
         if (!this.#clients.has(resource)) {
-            throw ResourceError.of("NOT_BOUND", `resource is not bound: ${resource.name}`);
+            throw ResourceError.of("BINDING_MISSING", `resource is not bound: ${resource.name}`);
         }
 
         return this.#clients.get(resource);
