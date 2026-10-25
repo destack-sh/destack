@@ -1,4 +1,3 @@
-import { Simulation } from "@destack/environment/simulation";
 import { nth, present, schema } from "@destack/schema";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { asc, eq, sql } from "../sql/index.ts";
@@ -10,9 +9,6 @@ import { ChangeSet, Transaction, ReadSet } from "./commit.ts";
 import { LOG } from "./schema.ts";
 import { STATE } from "../migration/state.ts";
 import { testSimulation } from "@destack/test/world";
-
-/** The frozen moment a migration test applies at: 2026-10-01T00:00:00Z. */
-const START = Date.UTC(2026, 9, 1);
 
 /** The writers and readers the stress test interleaves: 500 each, about 75 ms on SQLite. */
 const STRESS_TRANSACTIONS = 500;
@@ -1125,7 +1121,7 @@ test("read a shared table's committed rows anew once compaction removed their lo
 test("read a shared table's predefined rows anew once a migration changes them", async () => {
     // share a read of the predefined unit, migrating at one frozen millisecond
     const before = unitTable("Metre");
-    const environment = new Simulation({ seed: 1, start: START }).environment("store");
+    const environment = testSimulation().environment("store");
     const storage = await TestDatabase.create([before], { environment });
     onTestFinished(() => storage.close());
     const { database } = storage;

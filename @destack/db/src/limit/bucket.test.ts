@@ -1,10 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { TestDatabase } from "../test/database.ts";
 import { bucket, Bucket, type BucketRequest } from "./bucket.ts";
-import { testSimulation } from "@destack/test/world";
-
-/** The time the scenarios start at, in UTC epoch milliseconds. */
-const START = 1_800_000_000_000;
+import { TEST_START, testSimulation } from "@destack/test/world";
 
 /** Ten tokens a second, three at once. */
 const LIMIT = { name: "note.create", key: "space-1", rate: { count: 10, every: 1000 }, burst: 3 };
@@ -23,7 +20,7 @@ async function open() {
 test("take a burst at once, refuse the next token until its interval passed, and take it then", async () => {
     const database = await open();
     const take = (at: number, request: Partial<BucketRequest> = {}) =>
-        Bucket.take(database, { ...LIMIT, now: START + at, ...request });
+        Bucket.take(database, { ...LIMIT, now: TEST_START + at, ...request });
 
     // take the burst of three, refuse a fourth, and take it 100 ms later
     const burst = [await take(0), await take(0), await take(0)];
@@ -40,7 +37,8 @@ test("take a burst at once, refuse the next token until its interval passed, and
 
 test("take two tokens at once once the bucket refilled, refusing them while one is missing", async () => {
     const database = await open();
-    const take = (at: number) => Bucket.take(database, { ...LIMIT, tokens: 2, now: START + at });
+    const take = (at: number) =>
+        Bucket.take(database, { ...LIMIT, tokens: 2, now: TEST_START + at });
 
     // take two of three, refuse two more at once, and take them 100 ms later
     const first = await take(0);
@@ -57,7 +55,7 @@ test("refuse more tokens at once than the burst allows", async () => {
     const database = await open();
 
     // ask for four tokens of a burst of three
-    await expect(Bucket.take(database, { ...LIMIT, tokens: 4, now: START })).rejects.toThrow(
+    await expect(Bucket.take(database, { ...LIMIT, tokens: 4, now: TEST_START })).rejects.toThrow(
         new RangeError("4 tokens exceed the burst of 3 of limit note.create"),
     );
 });

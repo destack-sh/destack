@@ -1,5 +1,4 @@
 import { yieldToEventLoop } from "@destack/environment";
-import { Simulation } from "@destack/environment/simulation";
 import postgres from "postgres";
 import { expect, onTestFinished, test } from "@destack/test";
 import { present, schema, Uuid } from "@destack/schema";
@@ -247,7 +246,7 @@ test("announce a schema's commits on its channel alone, never to a database of a
 
 test("count a commit in flight until a watching connection hears it, though its writer never listens", async () => {
     // write on one connection of a simulated world, and watch the log on another
-    const simulation = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 1) });
+    const simulation = testSimulation();
     const storage = await TestDatabase.create([note], {
         environment: simulation.environment("store"),
         isMigrated: true,
@@ -288,7 +287,7 @@ test("count a commit in flight until a watching connection hears it, though its 
 
 test("send a listening writer's commit token in its commit notification, counted in flight until heard, and none for a rolled back or unlogged transaction", async () => {
     // open a database on a simulated clock whose commit watch listens, and a second listener
-    const simulation = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 24) });
+    const simulation = testSimulation();
     const { clock } = simulation;
     const environment = simulation.environment("store");
     const storage = await TestDatabase.create([note], { environment, isMigrated: true });

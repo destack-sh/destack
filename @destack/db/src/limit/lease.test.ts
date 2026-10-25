@@ -1,10 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { TestDatabase } from "../test/database.ts";
 import { lease, Lease } from "./lease.ts";
-import { testSimulation } from "@destack/test/world";
-
-/** The time the scenarios start at, in UTC epoch milliseconds. */
-const START = 1_800_000_000_000;
+import { TEST_START, testSimulation } from "@destack/test/world";
 
 /** Open a database with the lease table. */
 async function open() {
@@ -25,7 +22,7 @@ test("take over a lease at the next epoch once it lapses, refusing the old holde
             key: "shared",
             holder,
             duration,
-            now: START + at,
+            now: TEST_START + at,
         });
 
     // take, refuse and renew a lease
@@ -37,11 +34,11 @@ test("take over a lease at the next epoch once it lapses, refusing the old holde
     const takenOver = await acquire("second", 1000, 20);
     const late = await acquire("first", 1000, 20);
     expect([taken, refused, renewed, takenOver, late]).toEqual([
-        { kind: "acquired", slot: 0, epoch: 1, expiresAt: START + 20 },
-        { kind: "busy", lapsesAt: START + 20 },
-        { kind: "acquired", slot: 0, epoch: 1, expiresAt: START + 20 },
-        { kind: "acquired", slot: 0, epoch: 2, expiresAt: START + 1020 },
-        { kind: "busy", lapsesAt: START + 1020 },
+        { kind: "acquired", slot: 0, epoch: 1, expiresAt: TEST_START + 20 },
+        { kind: "busy", lapsesAt: TEST_START + 20 },
+        { kind: "acquired", slot: 0, epoch: 1, expiresAt: TEST_START + 20 },
+        { kind: "acquired", slot: 0, epoch: 2, expiresAt: TEST_START + 1020 },
+        { kind: "busy", lapsesAt: TEST_START + 1020 },
     ]);
 });
 
@@ -53,14 +50,14 @@ test("reuse the holder's lease without writing while two thirds of it remain, an
             key: "shared",
             holder: "first",
             duration: 300,
-            now: START + at,
+            now: TEST_START + at,
         });
 
     // take the lease, then again at once and once a third of it passed
     expect([await acquire(0), await acquire(90), await acquire(120)]).toEqual([
-        { kind: "acquired", slot: 0, epoch: 1, expiresAt: START + 300 },
-        { kind: "acquired", slot: 0, epoch: 1, expiresAt: START + 300 },
-        { kind: "acquired", slot: 0, epoch: 1, expiresAt: START + 420 },
+        { kind: "acquired", slot: 0, epoch: 1, expiresAt: TEST_START + 300 },
+        { kind: "acquired", slot: 0, epoch: 1, expiresAt: TEST_START + 300 },
+        { kind: "acquired", slot: 0, epoch: 1, expiresAt: TEST_START + 420 },
     ]);
 });
 
@@ -72,7 +69,7 @@ test("lease a key to as many holders as it has slots, a released slot to the nex
             key: "space-1",
             holder,
             duration: 100,
-            now: START,
+            now: TEST_START,
             slots: 2,
         });
 
@@ -81,17 +78,17 @@ test("lease a key to as many holders as it has slots, a released slot to the nex
     await Lease.release(database, { holder: "a", name: "review", key: "space-1" });
     const reacquired = await acquire("c");
     expect([...filled, reacquired]).toEqual([
-        { kind: "acquired", slot: 0, epoch: 1, expiresAt: START + 100 },
-        { kind: "acquired", slot: 1, epoch: 1, expiresAt: START + 100 },
-        { kind: "busy", lapsesAt: START + 100 },
-        { kind: "acquired", slot: 0, epoch: 1, expiresAt: START + 100 },
+        { kind: "acquired", slot: 0, epoch: 1, expiresAt: TEST_START + 100 },
+        { kind: "acquired", slot: 1, epoch: 1, expiresAt: TEST_START + 100 },
+        { kind: "busy", lapsesAt: TEST_START + 100 },
+        { kind: "acquired", slot: 0, epoch: 1, expiresAt: TEST_START + 100 },
     ]);
 });
 
 test("release every key a holder has, leaving other holders'", async () => {
     const database = await open();
     const acquire = (holder: string, key: string) =>
-        Lease.acquire(database, { name: "job", key, holder, duration: 100, now: START });
+        Lease.acquire(database, { name: "job", key, holder, duration: 100, now: TEST_START });
 
     // take two keys as one holder and one as another, then release the first holder's
     await acquire("first", "a");
@@ -111,20 +108,20 @@ test("read when a key's taken slots lapse, the latest of them, and none once the
         ...request,
         holder: "first",
         duration: 20,
-        now: START,
+        now: TEST_START,
         slots: 2,
     });
     await Lease.acquire(database, {
         ...request,
         holder: "second",
         duration: 50,
-        now: START,
+        now: TEST_START,
         slots: 2,
     });
     expect([
-        await Lease.lapsesAt(database, { name: "job", key: "other", now: START }),
-        await Lease.lapsesAt(database, { ...request, now: START }),
-        await Lease.lapsesAt(database, { ...request, now: START + 20 }),
-        await Lease.lapsesAt(database, { ...request, now: START + 50 }),
-    ]).toEqual([undefined, START + 50, START + 50, undefined]);
+        await Lease.lapsesAt(database, { name: "job", key: "other", now: TEST_START }),
+        await Lease.lapsesAt(database, { ...request, now: TEST_START }),
+        await Lease.lapsesAt(database, { ...request, now: TEST_START + 20 }),
+        await Lease.lapsesAt(database, { ...request, now: TEST_START + 50 }),
+    ]).toEqual([undefined, TEST_START + 50, TEST_START + 50, undefined]);
 });

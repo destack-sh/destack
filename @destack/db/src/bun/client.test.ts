@@ -1,3 +1,4 @@
+import { TEST_START, testSimulation } from "@destack/test/world";
 import { join } from "node:path";
 import { Simulation } from "@destack/environment/simulation";
 import { expect, test } from "@destack/test";
@@ -5,9 +6,6 @@ import { text } from "../table/column.ts";
 import { defineTable } from "../table/table.ts";
 import { asc } from "../sql/index.ts";
 import { connectBunSqlite } from "./connection.ts";
-
-/** The start of the worlds' clocks. */
-const START = Date.UTC(2026, 9, 24);
 
 /** Notes by name, which both worlds write. */
 const note = defineTable("note", {
@@ -17,8 +15,8 @@ const note = defineTable("note", {
 
 test("serialize two worlds' writes to one file in the process, the second once the first commits", async () => {
     // open one file from two worlds, each on its own clock
-    await using first = new Simulation({ seed: 1, start: START });
-    await using second = new Simulation({ seed: 2, start: START });
+    await using first = testSimulation();
+    await using second = new Simulation({ seed: 2, start: TEST_START });
     const { files } = first.environment("first");
     const directory = await files.makeTemporaryDirectory("destack-sqlite-worlds-");
     const path = join(directory, "database.db");

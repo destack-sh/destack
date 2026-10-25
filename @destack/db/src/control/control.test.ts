@@ -304,7 +304,7 @@ test("leave a refused key quiet until its next change, reporting it once, and re
 
 test("fail the loop, its run and its idle waiters, once a controller throws a failure it declares no outcome for", async () => {
     // reconcile one key in a world, its controller throwing a TypeError
-    await using simulation = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 1) });
+    await using simulation = testSimulation();
     const environment = simulation.environment("controller");
     const storage = await TestDatabase.create([job], { environment, isMigrated: true });
     onTestFinished(() => storage.close());
@@ -342,7 +342,7 @@ test("fail the loop, its run and its idle waiters, once a controller throws a fa
 
 test("end a run whose loop fails, only after its running reconciliations ended", async () => {
     // reconcile a key held at a gate, its controller watching the log
-    await using simulation = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 1) });
+    await using simulation = testSimulation();
     const environment = simulation.environment("controller");
     const storage = await TestDatabase.create([job], { environment, isMigrated: true });
     onTestFinished(() => storage.close());

@@ -1,13 +1,11 @@
+import { TEST_START } from "@destack/test/world";
 import { expect, test, refusal } from "@destack/test";
 import { SimulatedClock } from "@destack/environment/simulation";
 import { SqliteWorkQueue } from "./client.ts";
 
-/** The moment the queues' clocks start at: 2026-10-01T00:00:00Z. */
-const START = Date.UTC(2026, 9, 1);
-
 test("run queued work in arrival order, one piece at a time", async () => {
     // queue three pieces, the first finishing last
-    const clock = new SimulatedClock(START);
+    const clock = new SimulatedClock(TEST_START);
     const queue = new SqliteWorkQueue();
     const order: string[] = [];
     const slow = Promise.withResolvers<void>();
@@ -26,7 +24,7 @@ test("run queued work in arrival order, one piece at a time", async () => {
 
 test("refuse work whose turn does not come within the wait", async () => {
     // occupy the connection, as a transaction does whose code queues a statement outside it
-    const clock = new SimulatedClock(START);
+    const clock = new SimulatedClock(TEST_START);
     const queue = new SqliteWorkQueue(1);
     const held = Promise.withResolvers<void>();
     const holding = queue.run(() => held.promise, clock);
