@@ -1,9 +1,8 @@
 import { space } from "@destack/account/object";
 import { intersection, relation, through } from "@destack/access";
-import { type Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 
-/** A principal's private mark that it read an object, as of its last update. */
+/** A principal's private mark that it read an object, as of its last update, as Matrix's m.read. */
 export const receipt = defineObject(
     {
         name: "receipt",
@@ -20,12 +19,11 @@ export const receipt = defineObject(
         },
     },
     (method) => ({
+        /** Mark the object read now, once per principal. */
         create: method.create("own"),
         list: method.list("own"),
-        update: method.update("own"),
+        /** Move the mark to now. */
+        update: method.update("own", { isInternal: true }),
         delete: method.delete("own"),
     }),
 );
-
-/** A receipt as its table stores it. */
-export type Receipt = Select<typeof receipt.table>;

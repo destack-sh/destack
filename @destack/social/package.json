@@ -8,9 +8,9 @@
     "exports": {
         ".": "./src/index.ts",
         "./server": "./src/server.ts",
+        "./error": "./src/error/index.ts",
         "./package": "./src/package.ts",
-        "./destack.json": "./destack.json",
-        "./stack": "./src/stack/index.ts"
+        "./destack.json": "./destack.json"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",
@@ -20,14 +20,14 @@
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
         "@destack/db": "workspace:*",
+        "@destack/error": "workspace:*",
         "@destack/locale": "workspace:*",
         "@destack/notification": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/stack": "workspace:*",
-        "@destack/sync": "workspace:*",
-        "uuid": "14.0.2"
+        "@destack/sync": "workspace:*"
     },
     "devDependencies": {
         "@destack/environment": "workspace:*",

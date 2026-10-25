@@ -9,9 +9,14 @@ import {
 } from "@destack/access";
 import { argument, plural, t } from "@destack/locale";
 import { ObjectReference, Subject } from "@destack/sync";
-import { CallError } from "@destack/object";
 import { type Select } from "@destack/db";
-import { activity, announcement, type Reason, subscription } from "@destack/notification";
+import {
+    activity,
+    announcement,
+    NOTIFY_RECIPIENTS,
+    Subscription,
+    subscription,
+} from "@destack/notification";
 import { defineNotification } from "@destack/notification/declare";
 import {
     MethodContext,
@@ -21,18 +26,15 @@ import {
     type ObjectOf,
     Selection,
 } from "@destack/object";
-import { schema } from "@destack/schema";
-
+import { present, schema } from "@destack/schema";
+import { SocialError } from "../error/index.ts";
 import { reaction } from "./reaction.ts";
 
 /** The longest comment text in UTF-16 code units, about four pages. */
 const TEXT_LENGTH = 10_000;
 
-/** The most principals one comment mentions, as many as one notify call names. */
-const MENTION_COUNT = 100;
-
 /** The longest excerpt a notification carries: at most 840 bytes, within a payload's 2048. */
-export const EXCERPT_LENGTH = 280;
+const EXCERPT_LENGTH = 280;
 
 /** A principal a comment mentions, at a span of its text. */
 export const Mention = schema.object({
@@ -54,10 +56,20 @@ export const Body = schema.object({
     /** The plain text. */
     text: schema.string().min(1).max(TEXT_LENGTH),
     /** The mentions, in order, never overlapping. */
-    mentions: schema.array(Mention).max(MENTION_COUNT),
+    mentions: schema.array(Mention).max(NOTIFY_RECIPIENTS),
 });
 /** A comment's text and mentions. */
 export type Body = schema.Infer<typeof Body>;
+
+/** A thread's resolution: when and by whom. */
+export const Resolution = schema.object({
+    /** When the thread was resolved. */
+    at: schema.number(),
+    /** Who resolved it. */
+    by: Subject,
+});
+/** A thread's resolution. */
+export type Resolution = schema.Infer<typeof Resolution>;
 
 /** A comment that starts or replies to a thread on any object. */
 export const comment = defineObject(
@@ -104,18 +116,25 @@ export const comment = defineObject(
         constraints: {
             // find a thread's replies
             thread: { kind: "index", on: ["threadId"] },
+            // resolve a thread at a time and by someone together
+            resolution: {
+                kind: "check",
+                condition: {
+                    OR: [
+                        { resolvedAt: { isNull: true }, resolvedById: { isNull: true } },
+                        { resolvedAt: { isNotNull: true }, resolvedById: { isNotNull: true } },
+                    ],
+                },
+            },
         },
     },
     (method) => ({
-        create: method.create("comment", { fields: ["body", "selection", "threadId"] }),
+        create: method.create("comment", { fields: ["body", "selection"] }),
         resolve: method.mutation({ permission: "resolve" }),
         reopen: method.mutation({ permission: "resolve" }),
         reply: method.mutation({
             permission: "comment",
-            input: schema.object({
-                /** The reply's plain text. */
-                text: schema.string().min(1).max(TEXT_LENGTH),
-            }),
+            input: Body.extend({ mentions: Body.shape.mentions.default([]) }),
         }),
         update: method.update("write", { fields: ["body"] }),
         delete: method.delete("delete"),
@@ -123,98 +142,135 @@ export const comment = defineObject(
 );
 
 /** A comment as its table stores it. */
-export type Comment = Select<typeof comment.table>;
+export type CommentRow = Select<typeof comment.table>;
 
-/** A comment's thread, where its notifications go, and its excerpt. */
-export const Comment = {
-    /** Reference a comment's thread: its first comment. */
-    thread(row: Comment): ObjectReference {
-        return comment.reference(row.scope, row.threadId ?? row.id);
-    },
+/** A comment: its thread, where its notifications go, its excerpt and its mentions. */
+export class Comment {
+    /** The comment's row. */
+    readonly row: CommentRow;
 
-    /** Reference where a comment's notifications go: its thread for a reply, else its host. */
-    source(row: Comment): ObjectReference {
-        return row.threadId === null ? ObjectReference.parent(row) : Comment.thread(row);
-    },
+    /** Read a comment from its row. */
+    constructor(row: CommentRow) {
+        this.row = row;
+    }
 
-    /** Build a comment's excerpt without splitting a surrogate pair. */
-    excerpt(row: Comment): Excerpt {
-        const text = row.body.text.slice(0, EXCERPT_LENGTH);
+    /** Reference the comment's thread: its first comment. */
+    get thread(): ObjectReference {
+        return comment.reference(this.row.scope, this.row.threadId ?? this.row.id);
+    }
+
+    /** Read the thread's resolution, absent while open. */
+    get resolution(): Resolution | undefined {
+        const { resolvedAt } = this.row;
+
+        return resolvedAt === null
+            ? undefined
+            : { at: resolvedAt, by: ObjectReference.at("resolvedBy", this.row) };
+    }
+
+    /** Reference where the comment's notifications go: its thread for a reply, else its host. */
+    get source(): ObjectReference {
+        return this.row.threadId === null ? ObjectReference.parent(this.row) : this.thread;
+    }
+
+    /** Build the comment's excerpt without splitting a surrogate pair. */
+    excerpt(): Excerpt {
+        const text = this.row.body.text.slice(0, EXCERPT_LENGTH);
         const isSplit = /[\uD800-\uDBFF]$/u.test(text);
 
         return {
-            author: ObjectReference.at("author", row),
-            comment: row.id,
-            thread: row.threadId ?? row.id,
+            author: ObjectReference.at("author", this.row),
+            comment: this.row.id,
+            thread: comment.identifier(this.thread.id),
             text: isSplit ? text.slice(0, -1) : text,
         };
-    },
+    }
+
+    /** Require the comment to be the first of its thread. */
+    requireFirst(): this {
+        if (this.row.threadId !== null) {
+            throw SocialError.of(
+                "FIRST_COMMENT_REQUIRED",
+                "only a thread's first comment takes replies and resolves it",
+            );
+        }
+
+        return this;
+    }
+
+    /** List the distinct principals the comment mentions. */
+    mentioned(): Subject[] {
+        const mentioned = this.row.body.mentions.map((mention) => mention.principal);
+
+        return [
+            ...new Map(mentioned.map((principal) => [Subject.key(principal), principal])).values(),
+        ];
+    }
+
+    /** Build the call notifying the principals the comment mentions, which subscribes them, if any. */
+    mention(mentioned: readonly Subject[]) {
+        return mentioned.length === 0
+            ? []
+            : [
+                  mention.call({
+                      source: this.source,
+                      recipients: mentioned,
+                      reason: "mention",
+                      thread: this.row.parentId,
+                      payload: this.excerpt(),
+                  }),
+              ];
+    }
+
+    /** Build the calls subscribing its author, notifying and announcing a new comment. */
+    announce() {
+        const isReply = this.row.threadId !== null;
+        const author = ObjectReference.at("author", this.row);
+        const mentioned = this.mentioned();
+
+        return [
+            Subscription.subscribe(this.thread, author, isReply ? "participating" : "author"),
+            ...this.mention(mentioned),
+            (isReply ? reply : thread).call({
+                source: this.source,
+                audience: { kind: "subscribers" },
+                thread: this.row.parentId,
+                payload: this.excerpt(),
+                excluded: mentioned,
+            }),
+        ];
+    }
 
     /** Require ordered, disjoint mention spans within a body's text. */
-    requireSpans(body: Body): void {
+    static requireSpans(body: Body): void {
         let end = 0;
-        for (const mention of body.mentions) {
-            if (mention.offset < end || mention.offset + mention.length > body.text.length) {
-                throw new CallError("BAD_REQUEST", {
-                    message: "mentions must be ordered, disjoint spans within the text",
-                });
+        for (const mentioned of body.mentions) {
+            if (mentioned.offset < end || mentioned.offset + mentioned.length > body.text.length) {
+                throw SocialError.of(
+                    "MENTIONS_INVALID",
+                    "mentions must be ordered, disjoint spans within the text",
+                );
             }
-            end = mention.offset + mention.length;
+            end = mentioned.offset + mentioned.length;
         }
-    },
-
-    /** Require a comment to be the first of its thread. */
-    requireFirst(row: Comment): Comment {
-        if (row.threadId !== null) {
-            throw new CallError("BAD_REQUEST", {
-                message: "a thread resolves through its first comment",
-            });
-        }
-
-        return row;
-    },
-
-    /** Require a reply to answer its thread's first comment on its host, without a selection. */
-    async requireThread(
-        context: MethodContext,
-        thread: Comment["id"],
-        selection: Selection | null | undefined,
-    ): Promise<void> {
-        // read the thread's first comment on the same host
-        const host = context.requireParent();
-        const [first] = await context.read(comment).findMany({
-            where: {
-                id: thread,
-                parentPackageId: host.packageId,
-                parentType: host.type,
-                parentId: host.id,
-            },
-        });
-
-        // refuse a missing thread, a nested reply and a reply's own selection
-        if (first === undefined) {
-            throw new CallError("NOT_FOUND", { message: "thread not found on the host" });
-        } else if (first.threadId !== null) {
-            throw new CallError("BAD_REQUEST", {
-                message: "a reply answers the first comment of its thread",
-            });
-        } else if (selection !== null && selection !== undefined) {
-            throw new CallError("BAD_REQUEST", { message: "a reply takes its thread's selection" });
-        }
-    },
+    }
 
     /** Require a selection within a text field of the comment's host. */
-    async requireSelection(context: MethodContext, selection: Selection): Promise<void> {
+    static async requireSelection(context: MethodContext, selection: Selection): Promise<void> {
         // find the host's type and the selected elements
         const host = context.requireParent();
-        const type = context.objects.find((object) => object.policy.is(host));
+        const type = present(
+            context.objects.find((object) => object.policy.is(host)),
+            `the type of ${host.type} ${host.id}`,
+        );
         const elements = [selection.anchor.element, selection.head.element];
 
         // refuse unknown fields
-        if (type === undefined || !type.text.includes(selection.field)) {
-            throw new CallError("BAD_REQUEST", {
-                message: `${host.type} has no text field ${selection.field}`,
-            });
+        if (!type.text.includes(selection.field)) {
+            throw SocialError.of(
+                "TEXT_FIELD_UNKNOWN",
+                `${host.type} has no text field ${selection.field}`,
+            );
         }
 
         // refuse elements the host's text lacks, as the caller reads it
@@ -225,46 +281,10 @@ export const Comment = {
         });
         const { isContained } = Containment.parse(await context.query(context.caller, asked));
         if (!isContained) {
-            throw new CallError("BAD_REQUEST", {
-                message: `${selection.field} has no such selection`,
-            });
+            throw SocialError.of("SELECTION_UNKNOWN", `${selection.field} has no such selection`);
         }
-    },
-
-    /** List the distinct principals a comment mentions. */
-    mentioned(row: Comment): Subject[] {
-        const mentioned = row.body.mentions.map((mention) => mention.principal);
-
-        return [
-            ...new Map(mentioned.map((principal) => [Subject.key(principal), principal])).values(),
-        ];
-    },
-
-    /** Build the call subscribing a principal to an object for a reason. */
-    subscribe(host: ObjectReference, principal: Subject, reason: Reason) {
-        return subscription.call("add", {
-            parent: { packageId: host.packageId, type: host.type, id: host.id },
-            ...ObjectReference.columns("owner", principal),
-            reason,
-        });
-    },
-
-    /** Build the calls subscribing and notifying the principals a comment mentions. */
-    mention(row: Comment, mentioned: readonly Subject[]) {
-        const source = Comment.source(row);
-
-        return [
-            ...mentioned.map((principal) => Comment.subscribe(source, principal, "mention")),
-            mention.call({
-                source,
-                recipients: mentioned,
-                reason: "mention",
-                thread: row.parentId,
-                payload: Comment.excerpt(row),
-            }),
-        ];
-    },
-};
+    }
+}
 
 /** A comment as its notifications carry it. */
 export const Excerpt = schema.object({

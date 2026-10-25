@@ -19,6 +19,7 @@ export const favourite = defineObject(
         },
     },
     (method) => ({
+        /** Star the object, once per principal. */
         create: method.create("own"),
         list: method.list("own"),
         delete: method.delete("own"),
