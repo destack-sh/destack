@@ -321,7 +321,7 @@ export class Authorization {
             .findMany({ where: Relationship.objectColumns(object), limit: 1 });
         if (related.length > 0) {
             throw AccessError.of(
-                "INVALID_RELATIONSHIP",
+                "RELATIONSHIP_INVALID",
                 "a relationship needs a grant after creation",
             );
         }

@@ -57,7 +57,7 @@ export const Assertion = {
         // claim the key's principal for the endpoint, living a minute, under a fresh identifier
         const [algorithm] = PublicKey.algorithms(key.publicKey);
         if (algorithm === undefined) {
-            throw AccessError.of("INSECURE_KEYS", "the assertion key has no signing algorithm");
+            throw AccessError.of("KEYS_INSECURE", "the assertion key has no signing algorithm");
         }
         const issuedAt = Math.floor(now / 1000);
         const claims = {
@@ -117,11 +117,11 @@ export class AssertionVerifier {
         const { claims } = await verifying.catch((error: unknown) => {
             throw IdentityError.is(error, "TOKEN_EXPIRED")
                 ? AccessError.of("ASSERTION_EXPIRED", "assertion expired", { cause: error })
-                : Bearer.refusal(error, "INVALID_ASSERTION", "invalid assertion");
+                : Bearer.refusal(error, "ASSERTION_INVALID", "invalid assertion");
         });
         const { sub, iat, exp, jti } = claims;
         if (sub === undefined || iat === undefined || exp === undefined || jti === undefined) {
-            throw AccessError.of("INVALID_ASSERTION", "invalid assertion");
+            throw AccessError.of("ASSERTION_INVALID", "invalid assertion");
         } else if ((exp - iat) * 1000 > ASSERTION_LIFETIME_MILLISECONDS) {
             throw AccessError.of("ASSERTION_TOO_LONG", "assertion lifetime exceeds five minutes");
         }
@@ -214,6 +214,6 @@ function refused<Value>(read: () => Value): Value {
         if (!IdentityError.is(error, "TOKEN_MALFORMED")) {
             throw error;
         }
-        throw AccessError.of("INVALID_ASSERTION", "invalid assertion", { cause: error });
+        throw AccessError.of("ASSERTION_INVALID", "invalid assertion", { cause: error });
     }
 }

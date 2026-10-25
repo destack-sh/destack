@@ -198,7 +198,7 @@ databaseTest("authorize notes, ranges and world entities", async ({ fixture }) =
     }
     expect(refusals).toEqual([
         [
-            "INSUFFICIENT_AUTHENTICATION",
+            "AUTHENTICATION_INSUFFICIENT",
             "authentication assurance is too low: authenticate again",
             { assurance: 2, maxAge: 15 * 60 * 1000 },
         ],
@@ -430,7 +430,7 @@ databaseTest(
                         ),
                 ),
             ),
-        ).toEqual(["BAD_REQUEST", "INVALID_PAGE", "invitation page limit must be 1 to 100"]);
+        ).toEqual(["BAD_REQUEST", "PAGE_INVALID", "invitation page limit must be 1 to 100"]);
         expect(
             await refusal(
                 Authorization.run(

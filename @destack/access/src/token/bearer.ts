@@ -29,7 +29,7 @@ export const Bearer = {
     require(headers: Headers): string {
         const token = Bearer.read(headers);
         if (token === undefined) {
-            throw AccessError.of("INVALID_BEARER", "invalid bearer credential");
+            throw AccessError.of("BEARER_INVALID", "invalid bearer credential");
         }
 
         return token;
@@ -49,7 +49,7 @@ export const Bearer = {
     },
 
     /** Answer a failed verification of a signed token. */
-    refusal(error: unknown, reason: "INVALID_ASSERTION" | "INVALID_TOKEN", message: string): Error {
+    refusal(error: unknown, reason: "ASSERTION_INVALID" | "TOKEN_INVALID", message: string): Error {
         // answer unavailable keys as such
         if (IdentityError.is(error, "KEY_SET_UNAVAILABLE")) {
             return AccessError.of("KEYS_UNAVAILABLE", "authentication keys are unavailable", {

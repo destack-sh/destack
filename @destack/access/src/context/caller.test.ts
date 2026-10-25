@@ -29,7 +29,7 @@ test("forward a caller with its credential to a runner and read them back, refus
     const absent = Caller.forwarded(new Request("http://runner.test"));
     const malformed = [
         "BAD_REQUEST",
-        "INVALID_FORWARDED_CALLER",
+        "FORWARDED_CALLER_INVALID",
         "the forwarded caller is malformed",
     ];
 
@@ -105,9 +105,9 @@ test("require a grant per actor or none, and actors to act for an identified sub
         "done",
         "done",
         "done",
-        ["UNAUTHORIZED", "INVALID_DELEGATION", "a delegation chain needs a grant per actor"],
-        ["UNAUTHORIZED", "INVALID_DELEGATION", "a delegation chain needs a grant per actor"],
-        ["UNAUTHORIZED", "INVALID_DELEGATION", "delegation chain is inconsistent"],
+        ["UNAUTHORIZED", "DELEGATION_INVALID", "a delegation chain needs a grant per actor"],
+        ["UNAUTHORIZED", "DELEGATION_INVALID", "a delegation chain needs a grant per actor"],
+        ["UNAUTHORIZED", "DELEGATION_INVALID", "delegation chain is inconsistent"],
     ]);
 });
 

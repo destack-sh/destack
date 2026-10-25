@@ -92,7 +92,7 @@ export const Invitation = {
         // require a bounded page
         if (!Number.isInteger(page.limit) || page.limit < 1 || page.limit > INVITATION_PAGE) {
             throw AccessError.of(
-                "INVALID_PAGE",
+                "PAGE_INVALID",
                 `invitation page limit must be 1 to ${INVITATION_PAGE}`,
             );
         }
@@ -259,7 +259,7 @@ export const Invitation = {
             const expiresAt = request.expiresAt ?? context.now + INVITATION_LIFETIME_MILLISECONDS;
             if (!Number.isFinite(expiresAt) || expiresAt <= context.now) {
                 throw AccessError.of(
-                    "INVALID_INVITATION_EXPIRY",
+                    "INVITATION_EXPIRY_INVALID",
                     "invitation must expire in the future",
                 );
             }
@@ -272,7 +272,7 @@ export const Invitation = {
                     invited.subject.scope === "*"
                 ) {
                     throw AccessError.of(
-                        "INVALID_INVITATION_SUBJECT",
+                        "INVITATION_SUBJECT_INVALID",
                         "invitation subject must be one principal",
                     );
                 }

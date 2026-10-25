@@ -100,7 +100,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
     ]) {
         expect(await refusal(impersonate(impersonator))).toEqual([
             "UNAUTHORIZED",
-            "INVALID_DELEGATION",
+            "DELEGATION_INVALID",
             "invalid token delegation",
         ]);
     }
@@ -142,8 +142,8 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         );
     }
     // refuse the issuer, the audiences and the issue time by verifying the token, the rest by its claims
-    const unverified = ["UNAUTHORIZED", "INVALID_TOKEN", "invalid access token"];
-    const unclaimed = ["UNAUTHORIZED", "INVALID_TOKEN", "invalid access token claims"];
+    const unverified = ["UNAUTHORIZED", "TOKEN_INVALID", "invalid access token"];
+    const unclaimed = ["UNAUTHORIZED", "TOKEN_INVALID", "invalid access token claims"];
     expect(changedRefusals).toEqual([
         unverified,
         unverified,
@@ -177,7 +177,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
     expect(several.credential.client).toBe(claims.client_id);
     expect(await refusal(typed(claims, "JWT"))).toEqual([
         "UNAUTHORIZED",
-        "INVALID_TOKEN",
+        "TOKEN_INVALID",
         "invalid access token",
     ]);
 
@@ -200,7 +200,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
                 spaceId,
             ),
         ),
-    ).toEqual(["UNAUTHORIZED", "INVALID_TOKEN", "invalid access token"]);
+    ).toEqual(["UNAUTHORIZED", "TOKEN_INVALID", "invalid access token"]);
     expect(await refusal(verifier.authenticate(request, (issuedAt + 60) * 1000, spaceId))).toEqual([
         "UNAUTHORIZED",
         "AUTHENTICATION_EXPIRED",
@@ -361,7 +361,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
                 world,
             ),
         ),
-    ).toEqual(["UNAUTHORIZED", "INVALID_WORKLOAD_IDENTITY", "invalid workload token identity"]);
+    ).toEqual(["UNAUTHORIZED", "WORKLOAD_IDENTITY_INVALID", "invalid workload token identity"]);
 
     // reject malformed chains signed outside TokenIssuer, and a delegate acting without a grant unless a person impersonates
     const chainRefusals = [];
@@ -400,14 +400,14 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         );
     }
     // refuse an empty chain by its claims, a repeated or self chain as a delegation, and an unexpected actor as identity
-    const delegation = ["UNAUTHORIZED", "INVALID_DELEGATION", "invalid token delegation"];
+    const delegation = ["UNAUTHORIZED", "DELEGATION_INVALID", "invalid token delegation"];
     const identity = [
         "UNAUTHORIZED",
-        "INVALID_WORKLOAD_IDENTITY",
+        "WORKLOAD_IDENTITY_INVALID",
         "unexpected workload token identity",
     ];
     expect(chainRefusals).toEqual([
-        ["UNAUTHORIZED", "INVALID_TOKEN", "invalid access token claims"],
+        ["UNAUTHORIZED", "TOKEN_INVALID", "invalid access token claims"],
         delegation,
         delegation,
         identity,
@@ -458,7 +458,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
     const withoutDeployments = { ...workload, credential: undeployed };
     expect(await refusal(local.issue(withoutDeployments, issuedAt * 1000, world))).toEqual([
         "UNAUTHORIZED",
-        "INVALID_WORKLOAD_IDENTITY",
+        "WORKLOAD_IDENTITY_INVALID",
         "invalid workload token identity",
     ]);
 
@@ -495,7 +495,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
                 world,
             ),
         ),
-    ).toEqual(["UNAUTHORIZED", "INVALID_WORKLOAD_IDENTITY", "unexpected workload token identity"]);
+    ).toEqual(["UNAUTHORIZED", "WORKLOAD_IDENTITY_INVALID", "unexpected workload token identity"]);
 
     // accept the installation its space's key authenticated without a deployment, as its host forwards its writes
     const spaceKeyed = {

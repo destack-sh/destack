@@ -336,7 +336,7 @@ test("keep an object's last relationship of a required relation through revoking
         refused: last,
         lapsing: [
             "BAD_REQUEST",
-            "INVALID_RELATIONSHIP_EXPIRY",
+            "RELATIONSHIP_EXPIRY_INVALID",
             "a required relationship cannot expire",
         ],
         emptied: last,

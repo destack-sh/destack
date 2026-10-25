@@ -1123,7 +1123,7 @@ export class Authorizer {
         }
         // refuse a type that is neither inherited, a scope nor replicated through its scopes
         else if (mapping.policy.definition.scope !== true) {
-            throw AccessError.of("NO_INHERITED_ROWS", `no inherited rows of ${type.type}`);
+            throw AccessError.of("INHERITED_ROWS_MISSING", `no inherited rows of ${type.type}`);
         }
         // replicate the scope objects' rows whose identifiers are of the scope type
         else {
@@ -1140,7 +1140,10 @@ export class Authorizer {
     #replicatedTable(type: ObjectTypeReference): Table {
         const mapping = this.#mappings.get(ObjectTypeReference.key(type));
         if (mapping === undefined || mapping.table === Scope.table) {
-            throw AccessError.of("NO_REPLICATED_TYPE", `no object type ${type.type} to replicate`);
+            throw AccessError.of(
+                "REPLICATED_TYPE_MISSING",
+                `no object type ${type.type} to replicate`,
+            );
         }
 
         return mapping.table;
@@ -1265,12 +1268,12 @@ export class Authorizer {
         // refuse an expiry on a relationship that must stay, and require a future one elsewhere
         else if (expiresAt !== null && this.isRequired(request)) {
             throw AccessError.of(
-                "INVALID_RELATIONSHIP_EXPIRY",
+                "RELATIONSHIP_EXPIRY_INVALID",
                 "a required relationship cannot expire",
             );
         } else if (expiresAt !== null && (!Number.isFinite(expiresAt) || expiresAt <= now)) {
             throw AccessError.of(
-                "INVALID_RELATIONSHIP_EXPIRY",
+                "RELATIONSHIP_EXPIRY_INVALID",
                 "a relationship must expire in the future",
             );
         }
@@ -1680,7 +1683,7 @@ export class Authorizer {
         );
         if (stepUp !== undefined) {
             throw AccessError.of(
-                "INSUFFICIENT_AUTHENTICATION",
+                "AUTHENTICATION_INSUFFICIENT",
                 "authentication assurance is too low: authenticate again",
                 { data: stepUp },
             );

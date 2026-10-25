@@ -146,7 +146,7 @@ export class Access {
     ): Promise<Access> {
         // reject invalid request time before reading expiring records
         if (!Number.isFinite(context.now)) {
-            throw AccessError.of("INVALID_REQUEST_TIME", "request time must be finite");
+            throw AccessError.of("REQUEST_TIME_INVALID", "request time must be finite");
         }
 
         // read the chain, unless the caller read it in the same snapshot already

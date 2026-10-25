@@ -258,11 +258,11 @@ export const Caller = {
     requireChain(caller: Caller): void {
         if (caller.grants.length > 0 && caller.grants.length !== caller.actors.length) {
             throw AccessError.of(
-                "INVALID_DELEGATION",
+                "DELEGATION_INVALID",
                 "a delegation chain needs a grant per actor",
             );
         } else if (caller.actors.length > 0 && Caller.isAnonymous(caller)) {
-            throw AccessError.of("INVALID_DELEGATION", "delegation chain is inconsistent");
+            throw AccessError.of("DELEGATION_INVALID", "delegation chain is inconsistent");
         }
     },
 
@@ -282,7 +282,7 @@ export const Caller = {
         // refuse a header that is not a JSON caller with its credential
         const parsed = Authentication.safeParse(JsonValue.parse(forwarded));
         if (!parsed.success) {
-            throw AccessError.of("INVALID_FORWARDED_CALLER", "the forwarded caller is malformed");
+            throw AccessError.of("FORWARDED_CALLER_INVALID", "the forwarded caller is malformed");
         }
 
         return parsed.data;
@@ -363,7 +363,7 @@ export const AccessContext = {
             : undefined;
         if (value === undefined || (typeof value === "number" && !Number.isFinite(value))) {
             throw AccessError.of(
-                "INVALID_ATTRIBUTE",
+                "ATTRIBUTE_INVALID",
                 `missing or invalid context attribute: ${name}`,
             );
         }

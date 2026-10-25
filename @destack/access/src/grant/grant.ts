@@ -171,7 +171,7 @@ export const Grant = {
                 "a grant needs one other principal as delegate",
             );
         } else if (request.expiresAt !== undefined && request.expiresAt <= context.now) {
-            throw AccessError.of("INVALID_GRANT_EXPIRY", "a grant must expire after its creation");
+            throw AccessError.of("GRANT_EXPIRY_INVALID", "a grant must expire after its creation");
         }
 
         // replace the delegator's earlier grant to the delegate, live or lapsed

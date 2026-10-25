@@ -42,7 +42,7 @@ export const Exchange = {
         // read the subject and its grants, refusing a malformed header
         const asked = ActingCaller.safeParse(JsonValue.parse(header));
         if (!asked.success) {
-            throw AccessError.of("INVALID_EXCHANGE", `invalid ${Exchange.header}`);
+            throw AccessError.of("EXCHANGE_INVALID", `invalid ${Exchange.header}`);
         }
 
         return asked.data;
