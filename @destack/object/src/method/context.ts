@@ -553,7 +553,7 @@ export class MethodContext<
         throw this.#unauthorized();
     }
 
-    /** Decide whether another subject has a permission on an object now, as Zanzibar's check does. */
+    /** Decide whether another subject has a permission on an object now, as Zanzibar checks. */
     async permits(
         subject: Subject,
         permission: PermissionReference,

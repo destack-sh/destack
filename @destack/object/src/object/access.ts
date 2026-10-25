@@ -3,10 +3,8 @@ import { ObjectError } from "../error/error.ts";
 
 import {
     ACCESS_MAPPINGS,
-    AccessContext,
     type AccessExpression,
     Authorizer,
-    Caller,
     Policy,
     principal,
     type RelationInput,
@@ -220,13 +218,8 @@ export const ObjectPolicy = {
                 `checking another subject's access to ${object.type} needs ${gate ?? "a grant permission"}`,
             );
         }
-        const checked = await authorizer.resolve(
-            snapshot,
-            scope,
-            AccessContext.of(Caller.of(subject), context.now),
-        );
 
-        return { isAllowed: (await authorizer.check(snapshot, asked, object, checked)).isAllowed };
+        return { isAllowed: await context.permits(subject, asked, object) };
     },
 
     /** Refuse a relationship or invitation outside the call's scope, the scope it lives in. */

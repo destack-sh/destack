@@ -367,11 +367,8 @@ export class ObjectSink {
                 parameters: {
                     scopes: chain,
                     local: [...this.store.authorizer.local],
-                    // leave out the types a scope the store serves beside its own hands down, which it originates
-                    types:
-                        isScoped && !this.store.partitions.slice(1).includes(scope)
-                            ? this.#inheritedTypes(scope)
-                            : [],
+                    // leave out the inherited rows of a scope the store serves beside its own, which it originates
+                    types: isScoped ? this.#handedDownTypes(scope) : [],
                     via: [],
                     between: [],
                 },
@@ -432,11 +429,17 @@ export class ObjectSink {
         ];
     }
 
-    /** List the replicated types a scope hands down to the store. */
-    #inheritedTypes(scope: string): ObjectTypeReference[] {
-        const { authorizer } = this.store;
+    /** List the replicated types a scope hands down to the store, less those it originates. */
+    #handedDownTypes(scope: string): ObjectTypeReference[] {
+        // originate the inherited rows of a scope served beside the store's own, as isReplica decides
+        const { authorizer, partitions } = this.store;
+        const isServed = partitions.slice(1).includes(scope);
 
-        return authorizer.replicated.filter((type) => authorizer.handsDown(type, scope));
+        return authorizer.replicated.filter(
+            (type) =>
+                authorizer.handsDown(type, scope) &&
+                !(isServed && authorizer.requireMapping(type).inherited !== undefined),
+        );
     }
 
     /** List the replicated types outside scopes store for the store: inherited and scoped ones. */
