@@ -1,15 +1,12 @@
-import { Simulation } from "@destack/environment/simulation";
+import { testSimulation } from "@destack/test/world";
 import { BrowserSimulation } from "@destack/environment/browser/simulation";
 import { expect, onTestFinished, test, vi } from "@destack/test";
 import { render } from "@destack/view/test";
 import { ShaderMount } from "../mount/mount.ts";
 import { Shader } from "./shader.tsx";
 
-/** The start of every test's world: 2026-10-24 at midnight UTC. */
-const START = Date.UTC(2026, 9, 24);
-
 test("show the fallback and report why where the browser draws no WebGL 2", async () => {
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const failures: (readonly [string, string, string])[] = [];
     const { container } = render(
         () => (
@@ -53,7 +50,7 @@ function stubContext(): object {
 
 test("hand each built mount to onMount and hold it still while the theme's motion scale reads zero", async () => {
     // draw on a stand-in context in a world, recording the speeds the mount takes
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const getContext = Object.getOwnPropertyDescriptor(HTMLCanvasElement.prototype, "getContext");
     Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
         configurable: true,

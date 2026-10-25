@@ -1,4 +1,4 @@
-import { Simulation } from "@destack/environment/simulation";
+import { testSimulation } from "@destack/test/world";
 import { expect, test } from "@destack/test";
 import { VERTEX_SHADER } from "./mount/vertex.ts";
 
@@ -29,7 +29,7 @@ function isMapping(
 
 test("declare every uniform an effect sets, and set every uniform its fragment shader reads", async () => {
     // list the effect directories in a world
-    await using simulation = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 24) });
+    await using simulation = testSimulation();
     const { files } = simulation.environment("test");
     const effects = (await files.readDirectory(import.meta.dirname))
         .filter((entry) => entry.kind === "directory" && !CORE.has(entry.name))
