@@ -1,4 +1,4 @@
-import { decodeJwt, errors } from "jose";
+import { IdentityError, Jwt } from "@destack/identity";
 import { DomainError } from "@destack/error";
 import { AccessError } from "../error/index.ts";
 
@@ -36,11 +36,11 @@ export const Bearer = {
     },
 
     /** Read a token's issuer without verifying it, absent for a token that is not a JWT. */
-    issuer(token: string): unknown {
+    issuer(token: string): string | undefined {
         try {
-            return decodeJwt(token).iss;
+            return Jwt.claims(token).iss;
         } catch (error) {
-            if (!(error instanceof errors.JWTInvalid)) {
+            if (!IdentityError.is(error, "TOKEN_MALFORMED")) {
                 throw error;
             }
 
@@ -50,22 +50,19 @@ export const Bearer = {
 
     /** Answer a failed verification of a signed token. */
     refusal(error: unknown, reason: "INVALID_ASSERTION" | "INVALID_TOKEN", message: string): Error {
-        // pass on a refusal the key source answered
-        if (DomainError.is(error) || (error instanceof Error && "status" in error)) {
-            return error;
+        // answer unavailable keys as such
+        if (IdentityError.is(error, "KEY_SET_UNAVAILABLE")) {
+            return AccessError.of("KEYS_UNAVAILABLE", "authentication keys are unavailable", {
+                cause: error,
+            });
         }
         // refuse a token that fails its checks
-        else if (
-            error instanceof errors.JWTClaimValidationFailed ||
-            error instanceof errors.JWTExpired ||
-            error instanceof errors.JWTInvalid ||
-            error instanceof errors.JWSInvalid ||
-            error instanceof errors.JWSSignatureVerificationFailed ||
-            error instanceof errors.JOSEAlgNotAllowed ||
-            error instanceof errors.JOSENotSupported ||
-            error instanceof errors.JWKSNoMatchingKey
-        ) {
+        else if (IdentityError.is(error)) {
             return AccessError.of(reason, message, { cause: error });
+        }
+        // pass on a refusal the key source answered
+        else if (DomainError.is(error) || (error instanceof Error && "status" in error)) {
+            return error;
         }
         // answer any other failure as unavailable keys
         else {

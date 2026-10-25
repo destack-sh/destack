@@ -1,4 +1,5 @@
-import type { JWTPayload } from "jose";
+import type { JwtClaims } from "@destack/identity";
+import { type UuidEnvironment, Uuid } from "@destack/schema";
 import { type Authentication, Caller, Credential } from "../context/index.ts";
 import { PackageId } from "@destack/package";
 import { ACCESS_TOKEN_TYPE, AccessToken, TokenIdentity, TokenIssuerAuthority } from "./token.ts";
@@ -15,7 +16,7 @@ export class TokenIssuer {
     }
 
     /** Sign an access token for a caller until the credential it presented lapses. */
-    async issue(authentication: Authentication, now: number) {
+    async issue(authentication: Authentication, now: number, environment: UuidEnvironment) {
         // require an identified caller, with the original verification and lapse
         const { caller, credential } = authentication;
         Credential.requireCurrent(credential, credential.audience, now, credential.scope);
@@ -46,7 +47,7 @@ export class TokenIssuer {
             client_id: client.data,
             iat: issuedAt,
             exp: expiresAt,
-            jti: crypto.randomUUID(),
+            jti: Uuid.v7(environment),
             ...TokenIdentity.claims(authentication),
         } satisfies AccessToken;
         const accessToken = await this.options.sign(claims, { typ: ACCESS_TOKEN_TYPE });
@@ -62,5 +63,5 @@ export interface TokenIssuerOptions {
     /** The identity authority of this signer. */
     readonly authority: TokenIssuerAuthority;
     /** Sign claims under a header's type with the authority's active ES256 key. */
-    readonly sign: (payload: JWTPayload, header: { readonly typ: string }) => Promise<string>;
+    readonly sign: (payload: JwtClaims, header: { readonly typ: string }) => Promise<string>;
 }

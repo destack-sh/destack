@@ -1,12 +1,13 @@
+import { TEST_START, testSimulation } from "@destack/test/world";
+import type { Crypto } from "@destack/environment";
 import { Failure } from "@destack/error";
 import { expect, refusal, test } from "@destack/test";
 import { Caller, KEY_ASSURANCE } from "../context/index.ts";
 import { principal } from "../declare/index.ts";
-import { PublicKey } from "@destack/identity";
 import { PackageId } from "@destack/package";
 import { Identifier } from "@destack/schema";
 import { Scope } from "@destack/sync";
-import { SignJWT } from "jose";
+import { Jwt, PublicKey } from "@destack/identity";
 import { Assertion, AssertionVerifier, type AssertionKey } from "./assertion.ts";
 import { MACHINE_KEY } from "./token.ts";
 
@@ -16,48 +17,52 @@ const audience = PackageId.parse("package-019f7480-0000-7000-8000-000000000031")
 const endpoint = "https://account.example/oauth2/token";
 
 /** Generate a P-256 key pair. */
-async function generate(): Promise<CryptoKeyPair> {
-    return crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, false, [
-        "sign",
-        "verify",
-    ]);
+async function generate(crypto: Crypto): Promise<CryptoKeyPair> {
+    return crypto.generateKey({ name: "ECDSA", namedCurve: "P-256" }, false, ["sign", "verify"]);
 }
 
 test("authenticate a machine by its assertion once, refusing replayed, expired, forged and foreign ones", async () => {
     // publish a machine's key, and verify assertions against it
-    const pair = await generate();
-    const forger = await generate();
+    await using simulation = testSimulation();
+    const world = simulation.environment("test");
+    const pair = await generate(world.crypto);
+    const forger = await generate(world.crypto);
     const key: AssertionKey = {
         id: "key-1",
         subject: principal.machine.reference(Scope.universe.id, "machine-1"),
-        publicKey: await PublicKey.of(pair.publicKey),
+        publicKey: await PublicKey.of(pair.publicKey, world.crypto),
     };
     const verifier = new AssertionVerifier({
+        crypto: world.crypto,
         endpoint,
         audience,
         keys: async (id) => (id === key.id ? key : undefined),
         spend: spending(),
     });
-    const now = Date.now();
-    const signed = await Assertion.sign(pair.privateKey, key, endpoint, now);
+    const now = TEST_START;
+    const signed = await Assertion.sign(pair.privateKey, key, endpoint, now, world);
 
     // sign a late, forged, unknown, foreign and untyped assertion
     const issuedAt = Math.floor(now / 1000);
     const foreign = "https://other.example/oauth2/token";
-    const untyped = new SignJWT({ jti: "untyped" })
-        .setProtectedHeader({ alg: "ES256", kid: key.id })
-        .setIssuer(key.subject.id)
-        .setSubject(key.subject.id)
-        .setAudience(endpoint)
-        .setIssuedAt(issuedAt)
-        .setExpirationTime(issuedAt + 60);
+    const untyped = {
+        jti: "untyped",
+        iss: key.subject.id,
+        sub: key.subject.id,
+        aud: endpoint,
+        iat: issuedAt,
+        exp: issuedAt + 60,
+    };
     const refused: [string, number][] = [
         [signed, now],
-        [await Assertion.sign(pair.privateKey, key, endpoint, now), now + 120_000],
-        [await Assertion.sign(forger.privateKey, key, endpoint, now), now],
-        [await Assertion.sign(pair.privateKey, { ...key, id: "key-2" }, endpoint, now), now],
-        [await Assertion.sign(pair.privateKey, key, foreign, now), now],
-        [await untyped.sign(pair.privateKey), now],
+        [await Assertion.sign(pair.privateKey, key, endpoint, now, world), now + 120_000],
+        [await Assertion.sign(forger.privateKey, key, endpoint, now, world), now],
+        [await Assertion.sign(pair.privateKey, { ...key, id: "key-2" }, endpoint, now, world), now],
+        [await Assertion.sign(pair.privateKey, key, foreign, now, world), now],
+        [
+            await Jwt.sign(untyped, { alg: "ES256", kid: key.id }, pair.privateKey, world.crypto),
+            now,
+        ],
     ];
 
     // verify the first once, then replay it and verify the others
@@ -93,21 +98,24 @@ test("authenticate a machine by its assertion once, refusing replayed, expired, 
 
 test("authenticate an installation within its space", async () => {
     // publish an installation's key and verify its assertion
-    const pair = await generate();
+    await using simulation = testSimulation();
+    const world = simulation.environment("test");
+    const pair = await generate(world.crypto);
     const key: AssertionKey = {
         id: "key-1",
         subject: principal.installation.reference("space-1", "installation-1"),
-        publicKey: await PublicKey.of(pair.publicKey),
+        publicKey: await PublicKey.of(pair.publicKey, world.crypto),
     };
     const verifier = new AssertionVerifier({
+        crypto: world.crypto,
         endpoint,
         audience,
         keys: async () => key,
         spend: spending(),
     });
-    const now = Date.now();
+    const now = TEST_START;
     const installation = await verifier.verify(
-        await Assertion.sign(pair.privateKey, key, endpoint, now),
+        await Assertion.sign(pair.privateKey, key, endpoint, now, world),
         now,
     );
 
@@ -121,14 +129,17 @@ test("authenticate an installation within its space", async () => {
 
 test("authenticate a space and its installation by the space's key, refusing a subject the key cannot assert", async () => {
     // publish a space's key, found under the issuer its assertions claim
-    const pair = await generate();
-    const spaceId = Identifier.create("space");
+    await using simulation = testSimulation();
+    const world = simulation.environment("test");
+    const pair = await generate(world.crypto);
+    const spaceId = Identifier.create("space", world);
     const key: AssertionKey = {
         id: "key-1",
         subject: principal.space.reference(Scope.universe.id, spaceId),
-        publicKey: await PublicKey.of(pair.publicKey),
+        publicKey: await PublicKey.of(pair.publicKey, world.crypto),
     };
     const verifier = new AssertionVerifier({
+        crypto: world.crypto,
         endpoint,
         audience,
         keys: async (id, issuer) => (id === key.id && issuer === spaceId ? key : undefined),
@@ -136,12 +147,15 @@ test("authenticate a space and its installation by the space's key, refusing a s
     });
 
     // assert an installation of the space, the space itself, and a machine
-    const now = Date.now();
-    const installationId = Identifier.create("installation");
-    const sign = (subject: string) => Assertion.sign(pair.privateKey, key, endpoint, now, subject);
+    const now = TEST_START;
+    const installationId = Identifier.create("installation", world);
+    const sign = (subject: string) =>
+        Assertion.sign(pair.privateKey, key, endpoint, now, world, subject);
     const installation = await verifier.verify(await sign(installationId), now);
     const itself = await verifier.verify(await sign(spaceId), now);
-    const refused = await refusal(verifier.verify(await sign(Identifier.create("machine")), now));
+    const refused = await refusal(
+        verifier.verify(await sign(Identifier.create("machine", world)), now),
+    );
 
     // bind the installation to the space and let the space act as itself, refusing what its key cannot assert
     expect({

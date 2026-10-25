@@ -1,6 +1,7 @@
+import { TEST_START, testSimulation } from "@destack/test/world";
 import { expect, refusal, test } from "@destack/test";
 import { Scope, type Subject } from "@destack/sync";
-import { exportJWK, generateKeyPair, SignJWT, type JWTPayload } from "jose";
+import { Jwk, Jwt, type JwtClaims } from "@destack/identity";
 import { ACCESS_TOKEN_TYPE, INSTALLATION_KEY, SPACE_KEY, TokenVerifier } from "./token.ts";
 import { TokenIssuer } from "./issuer.ts";
 import { universe } from "../index.ts";
@@ -9,15 +10,24 @@ import { principal } from "../declare/index.ts";
 import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
 
-/** Verify signed identity and reject cross-package, cross-space and stale authority. */
+/** Verify signed identity and reject cross-package, cross-partition and stale authority. */
 test("verify scoped tokens and reject invalid claims and signatures", async () => {
-    const keys = await generateKeyPair("ES256");
-    const publicKey = { ...(await exportJWK(keys.publicKey)), kid: "current", alg: "ES256" };
+    await using simulation = testSimulation();
+    const world = simulation.environment("test");
+    const keys = await world.crypto.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, [
+        "sign",
+        "verify",
+    ]);
+    const publicKey = {
+        ...(await Jwk.export(keys.publicKey, world.crypto)),
+        kid: "current",
+        alg: "ES256",
+    };
     const issuer = "https://account.example";
     const audience = PackageId.parse("package-019f7480-0000-7000-8000-000000000001");
-    const spaceId = "space-019f7480-0000-7000-8000-000000000002";
+    const spaceId = schema.identifier("space").parse("space-019f7480-0000-7000-8000-000000000002");
     const subject: Subject = principal.user.reference("universe", "user-example");
-    const issuedAt = Math.floor(Date.now() / 1000);
+    const issuedAt = Math.floor(TEST_START / 1000);
     const claims = {
         iss: issuer,
         aud: PackageId.resource(audience),
@@ -26,7 +36,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         exp: issuedAt + 60,
         jti: "token-example",
         client_id: "client-019f7480-0000-7000-8000-000000000009",
-        space: spaceId,
+        partition: spaceId,
         caller: {
             credential: { kind: "session", id: "session-example" },
             subject,
@@ -39,10 +49,14 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         issuer,
         audience,
         keys: { keys: [publicKey] },
+        environment: world,
     });
-    const signed = await new SignJWT(claims)
-        .setProtectedHeader({ alg: "ES256", kid: "current", typ: ACCESS_TOKEN_TYPE })
-        .sign(keys.privateKey);
+    const signed = await Jwt.sign(
+        claims,
+        { alg: "ES256", kid: "current", typ: ACCESS_TOKEN_TYPE },
+        keys.privateKey,
+        world.crypto,
+    );
     const request = new Request("https://notes.example", {
         headers: { authorization: `Bearer ${signed}` },
     });
@@ -58,13 +72,16 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         verifier.authenticate(
             new Request(request, {
                 headers: {
-                    authorization: `Bearer ${await new SignJWT({ ...claims, act: [impersonator] })
-                        .setProtectedHeader({
+                    authorization: `Bearer ${await Jwt.sign(
+                        { ...claims, act: [impersonator] },
+                        {
                             alg: "ES256",
                             kid: "current",
                             typ: ACCESS_TOKEN_TYPE,
-                        })
-                        .sign(keys.privateKey)}`,
+                        },
+                        keys.privateKey,
+                        world.crypto,
+                    )}`,
                 },
             }),
             issuedAt * 1000,
@@ -105,11 +122,15 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         { client_id: "user-example-client" },
         { client_id: "machine-019f7480-0000-7000-8000-000000000009" },
         { jti: "" },
-        { space: "space-019f7480-0000-7000-8000-000000000003" },
+        { partition: "space-019f7480-0000-7000-8000-000000000003" },
+        { space: "space-019f7480-0000-7000-8000-000000000002" },
     ]) {
-        const token = await new SignJWT({ ...claims, ...changed })
-            .setProtectedHeader({ alg: "ES256", kid: "current", typ: ACCESS_TOKEN_TYPE })
-            .sign(keys.privateKey);
+        const token = await Jwt.sign(
+            { ...claims, ...changed },
+            { alg: "ES256", kid: "current", typ: ACCESS_TOKEN_TYPE },
+            keys.privateKey,
+            world.crypto,
+        );
         changedRefusals.push(
             await refusal(
                 verifier.authenticate(
@@ -135,16 +156,15 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         unclaimed,
         unclaimed,
         unclaimed,
+        unclaimed,
     ]);
 
     // accept the audience among several, bound to the user's client, and refuse an untyped token
-    const typed = async (payload: JWTPayload, typ: string) =>
+    const typed = async (payload: JwtClaims, typ: string) =>
         verifier.authenticate(
             new Request(request, {
                 headers: {
-                    authorization: `Bearer ${await new SignJWT(payload)
-                        .setProtectedHeader({ alg: "ES256", kid: "current", typ })
-                        .sign(keys.privateKey)}`,
+                    authorization: `Bearer ${await Jwt.sign(payload, { alg: "ES256", kid: "current", typ }, keys.privateKey, world.crypto)}`,
                 },
             }),
             issuedAt * 1000,
@@ -162,15 +182,21 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
     ]);
 
     // reject a token signed by an untrusted key
-    const attacker = await generateKeyPair("ES256");
-    const forged = await new SignJWT(claims)
-        .setProtectedHeader({ alg: "ES256", kid: "current", typ: ACCESS_TOKEN_TYPE })
-        .sign(attacker.privateKey);
+    const attacker = await world.crypto.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, [
+        "sign",
+        "verify",
+    ]);
+    const forged = await Jwt.sign(
+        claims,
+        { alg: "ES256", kid: "current", typ: ACCESS_TOKEN_TYPE },
+        attacker.privateKey,
+        world.crypto,
+    );
     expect(
         await refusal(
             verifier.authenticate(
                 new Request(request, { headers: { authorization: `Bearer ${forged}` } }),
-                Date.now(),
+                TEST_START,
                 spaceId,
             ),
         ),
@@ -189,12 +215,18 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         issuer,
         audience,
         keys: new URL(`${issuer}/jwks`),
-        fetch: async () => {
-            reads++;
+        environment: {
+            ...world,
+            network: {
+                ...world.network,
+                fetch: async () => {
+                    reads++;
 
-            return isAvailable
-                ? Response.json({ keys: [publicKey] })
-                : new Response(null, { status: 503 });
+                    return isAvailable
+                        ? Response.json({ keys: [publicKey] })
+                        : new Response(null, { status: 503 });
+                },
+            },
         },
     });
     await remote.authenticate(request, issuedAt * 1000, spaceId);
@@ -213,7 +245,10 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         issuer,
         audience,
         keys: new URL(`${issuer}/jwks`),
-        fetch: async () => new Response(null, { status: 503 }),
+        environment: {
+            ...world,
+            network: { ...world.network, fetch: async () => new Response(null, { status: 503 }) },
+        },
     });
     expect(await refusal(disconnected.authenticate(request, issuedAt * 1000, spaceId))).toEqual([
         "SERVICE_UNAVAILABLE",
@@ -246,13 +281,16 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
     const signing = {
         authority: { kind: "universe" as const },
         issuer,
-        sign: async (payload: JWTPayload, header: { readonly typ: string }) =>
-            new SignJWT(payload)
-                .setProtectedHeader({ alg: "ES256", kid: "current", ...header })
-                .sign(keys.privateKey),
+        sign: async (payload: JwtClaims, header: { readonly typ: string }) =>
+            Jwt.sign(
+                payload,
+                { alg: "ES256", kid: "current", ...header },
+                keys.privateKey,
+                world.crypto,
+            ),
     };
     const authority = new TokenIssuer(signing);
-    const issued = await authority.issue(delegated, issuedAt * 1000);
+    const issued = await authority.issue(delegated, issuedAt * 1000, world);
     const represented = await verifier.authenticate(
         new Request(request, {
             headers: { authorization: `Bearer ${issued.accessToken}` },
@@ -292,7 +330,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
             ],
         },
     };
-    const chained = await authority.issue(chain, issuedAt * 1000);
+    const chained = await authority.issue(chain, issuedAt * 1000, world);
     const chainedCaller = await verifier.authenticate(
         new Request(request, {
             headers: { authorization: `Bearer ${chained.accessToken}` },
@@ -320,6 +358,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
                     },
                 },
                 issuedAt * 1000,
+                world,
             ),
         ),
     ).toEqual(["UNAUTHORIZED", "INVALID_WORKLOAD_IDENTITY", "invalid workload token identity"]);
@@ -377,7 +416,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
 
     // reject space authorities delegating for global users
     const local = new TokenIssuer({ ...signing, authority: { kind: "space", space: spaceId } });
-    expect(await refusal(local.issue(delegated, issuedAt * 1000))).toEqual([
+    expect(await refusal(local.issue(delegated, issuedAt * 1000, world))).toEqual([
         "UNAUTHORIZED",
         "TOKEN_OUTSIDE_AUTHORITY",
         "token exceeds issuer authority",
@@ -387,6 +426,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         issuer,
         audience,
         keys: { keys: [publicKey] },
+        environment: world,
     });
     expect(await refusal(localVerifier.authenticate(request, issuedAt * 1000, spaceId))).toEqual([
         "UNAUTHORIZED",
@@ -404,7 +444,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
             deployments: [{ subject: actor, id: deploymentId }],
         },
     };
-    const workloadToken = await local.issue(workload, issuedAt * 1000);
+    const workloadToken = await local.issue(workload, issuedAt * 1000, world);
     const received = await localVerifier.authenticate(
         new Request(request, {
             headers: { authorization: `Bearer ${workloadToken.accessToken}` },
@@ -416,7 +456,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
     expect(received.credential.deployments).toEqual([{ subject: actor, id: deploymentId }]);
     const { deployments: _deployments, ...undeployed } = workload.credential;
     const withoutDeployments = { ...workload, credential: undeployed };
-    expect(await refusal(local.issue(withoutDeployments, issuedAt * 1000))).toEqual([
+    expect(await refusal(local.issue(withoutDeployments, issuedAt * 1000, world))).toEqual([
         "UNAUTHORIZED",
         "INVALID_WORKLOAD_IDENTITY",
         "invalid workload token identity",
@@ -431,7 +471,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
             id: "installation-key-example",
         },
     };
-    const keyedToken = await local.issue(keyed, issuedAt * 1000);
+    const keyedToken = await local.issue(keyed, issuedAt * 1000, world);
     const keyedCaller = await localVerifier.authenticate(
         new Request(request, { headers: { authorization: `Bearer ${keyedToken.accessToken}` } }),
         issuedAt * 1000,
@@ -452,6 +492,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
                     },
                 },
                 issuedAt * 1000,
+                world,
             ),
         ),
     ).toEqual(["UNAUTHORIZED", "INVALID_WORKLOAD_IDENTITY", "unexpected workload token identity"]);
@@ -461,7 +502,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         ...withoutDeployments,
         credential: { ...undeployed, kind: SPACE_KEY, id: spaceId },
     };
-    const spaceKeyedToken = await local.issue(spaceKeyed, issuedAt * 1000);
+    const spaceKeyedToken = await local.issue(spaceKeyed, issuedAt * 1000, world);
     const spaceKeyedCaller = await localVerifier.authenticate(
         new Request(request, {
             headers: { authorization: `Bearer ${spaceKeyedToken.accessToken}` },
@@ -477,21 +518,33 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
 
 test("issue the universe a token of its key, verified without a separate client", async () => {
     // sign as the universe's authority
-    const keys = await generateKeyPair("ES256");
-    const publicKey = { ...(await exportJWK(keys.publicKey)), kid: "current", alg: "ES256" };
+    await using simulation = testSimulation();
+    const world = simulation.environment("test");
+    const keys = await world.crypto.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, [
+        "sign",
+        "verify",
+    ]);
+    const publicKey = {
+        ...(await Jwk.export(keys.publicKey, world.crypto)),
+        kid: "current",
+        alg: "ES256",
+    };
     const issuer = "https://account.example";
     const audience = PackageId.parse("package-019f7480-0000-7000-8000-000000000001");
     const authority = new TokenIssuer({
         authority: { kind: "universe" },
         issuer,
-        sign: async (payload: JWTPayload, header: { readonly typ: string }) =>
-            new SignJWT(payload)
-                .setProtectedHeader({ alg: "ES256", kid: "current", ...header })
-                .sign(keys.privateKey),
+        sign: async (payload: JwtClaims, header: { readonly typ: string }) =>
+            Jwt.sign(
+                payload,
+                { alg: "ES256", kid: "current", ...header },
+                keys.privateKey,
+                world.crypto,
+            ),
     });
 
     // issue a token to the universe calling a package as itself
-    const now = Date.now();
+    const now = TEST_START;
     const subject: Subject = universe.reference(Scope.universe.id, Scope.universe.id);
     const issued = await authority.issue(
         {
@@ -505,6 +558,7 @@ test("issue the universe a token of its key, verified without a separate client"
             },
         },
         now,
+        world,
     );
 
     // verify it as the universe with no separate client
@@ -513,6 +567,7 @@ test("issue the universe a token of its key, verified without a separate client"
         issuer,
         audience,
         keys: { keys: [publicKey] },
+        environment: world,
     });
     const verified = await verifier.verify(issued.accessToken, now);
     expect([verified.caller.subject, verified.credential.client]).toEqual([subject, undefined]);

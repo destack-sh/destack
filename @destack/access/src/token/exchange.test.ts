@@ -1,7 +1,7 @@
 import { expect, test } from "@destack/test";
 import { type Caller } from "../context/index.ts";
 import { principal } from "../declare/index.ts";
-import { Identifier } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { Exchange } from "./exchange.ts";
 
 /** A person the installation acts for. */
@@ -9,7 +9,10 @@ const person = principal.user.reference("universe", "user-ada");
 /** The installation acting for the person. */
 const installation = principal.installation.reference("space-home", "installation-notes");
 /** The grant the installation acts under. */
-const grant = { id: Identifier.create("grant"), scope: person.id };
+const grant = {
+    id: schema.identifier("grant").parse("grant-019a0000-0000-7000-8000-000000000001"),
+    scope: person.id,
+};
 
 test("ask the egress to act as a served person, or as a subject under the grants its delegates include, and as nothing else", () => {
     // read the contexts of a person's call, a delegated call, an installation's call and none

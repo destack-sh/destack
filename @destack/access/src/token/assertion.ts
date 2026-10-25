@@ -1,6 +1,7 @@
-import { PublicKey } from "@destack/identity";
+import type { Crypto, Environment } from "@destack/environment";
+import { IdentityError, Jws, Jwt, PublicKey } from "@destack/identity";
 import type { PackageId } from "@destack/package";
-import { Digest, schema } from "@destack/schema";
+import { Digest, schema, Uuid } from "@destack/schema";
 import type { Subject } from "@destack/sync";
 import {
     type Authentication,
@@ -9,7 +10,6 @@ import {
     KEY_ASSURANCE,
 } from "../context/index.ts";
 import { principal } from "../declare/index.ts";
-import { decodeJwt, decodeProtectedHeader, errors, jwtVerify, SignJWT } from "jose";
 import { Failure } from "@destack/error";
 import { AccessError } from "../error/index.ts";
 import { Bearer } from "./bearer.ts";
@@ -39,7 +39,7 @@ export const Assertion = {
     /** Report whether a bearer token is a key-signed assertion, by its JWT type. */
     is(token: string): boolean {
         try {
-            return decodeProtectedHeader(token).typ === ASSERTION_TYPE;
+            return Jws.header(token).typ === ASSERTION_TYPE;
         } catch {
             return false;
         }
@@ -51,19 +51,26 @@ export const Assertion = {
         key: AssertionKey,
         endpoint: string,
         now: number,
+        environment: Pick<Environment, "clock" | "random" | "crypto">,
         subject: string = key.subject.id,
     ): Promise<string> {
+        // claim the key's principal for the endpoint, living a minute, under a fresh identifier
         const [algorithm] = PublicKey.algorithms(key.publicKey);
+        if (algorithm === undefined) {
+            throw AccessError.of("INSECURE_KEYS", "the assertion key has no signing algorithm");
+        }
         const issuedAt = Math.floor(now / 1000);
+        const claims = {
+            jti: Uuid.v7(environment),
+            iss: key.subject.id,
+            sub: subject,
+            aud: endpoint,
+            iat: issuedAt,
+            exp: issuedAt + SIGNED_LIFETIME_MILLISECONDS / 1000,
+        };
+        const header = { alg: algorithm, typ: ASSERTION_TYPE, kid: key.id };
 
-        return new SignJWT({ jti: crypto.randomUUID() })
-            .setProtectedHeader({ alg: algorithm, typ: ASSERTION_TYPE, kid: key.id })
-            .setIssuer(key.subject.id)
-            .setSubject(subject)
-            .setAudience(endpoint)
-            .setIssuedAt(issuedAt)
-            .setExpirationTime(issuedAt + SIGNED_LIFETIME_MILLISECONDS / 1000)
-            .sign(privateKey);
+        return Jwt.sign(claims, header, privateKey, environment.crypto);
     },
 };
 
@@ -80,8 +87,8 @@ export class AssertionVerifier {
     /** Verify and spend an assertion at a time, answering its principal as the caller. */
     async verify(assertion: string, now: number): Promise<Authentication> {
         // find the standing key of the claimed issuer the header refers to
-        const { kid } = refused(() => decodeProtectedHeader(assertion));
-        const { iss } = refused(() => decodeJwt(assertion));
+        const { kid } = refused(() => Jws.header(assertion));
+        const { iss } = refused(() => Jwt.claims(assertion));
         const key =
             kid === undefined || iss === undefined
                 ? undefined
@@ -91,22 +98,28 @@ export class AssertionVerifier {
         }
 
         // verify the signature, the type, and the claims of the key's principal and this endpoint
-        const verifying = jwtVerify(assertion, await PublicKey.import(key.publicKey), {
-            algorithms: PublicKey.algorithms(key.publicKey),
-            typ: ASSERTION_TYPE,
-            issuer: key.subject.id,
-            audience: this.options.endpoint,
-            requiredClaims: ["iat", "exp", "jti"],
-            maxTokenAge: ASSERTION_LIFETIME_MILLISECONDS / 1000,
-            clockTolerance: CLOCK_TOLERANCE_MILLISECONDS / 1000,
-            currentDate: new Date(now),
-        });
-        const { payload } = await verifying.catch((error: unknown) => {
-            throw error instanceof errors.JWTExpired
+        const { crypto } = this.options;
+        const verifying = Jwt.verify(
+            assertion,
+            await PublicKey.import(key.publicKey, crypto),
+            {
+                algorithms: PublicKey.algorithms(key.publicKey),
+                typ: ASSERTION_TYPE,
+                issuer: key.subject.id,
+                audience: this.options.endpoint,
+                requiredClaims: ["iat", "exp", "jti"],
+                maxTokenAge: ASSERTION_LIFETIME_MILLISECONDS / 1000,
+                clockTolerance: CLOCK_TOLERANCE_MILLISECONDS / 1000,
+                now,
+            },
+            crypto,
+        );
+        const { claims } = await verifying.catch((error: unknown) => {
+            throw IdentityError.is(error, "TOKEN_EXPIRED")
                 ? AccessError.of("ASSERTION_EXPIRED", "assertion expired", { cause: error })
                 : Bearer.refusal(error, "INVALID_ASSERTION", "invalid assertion");
         });
-        const { sub, iat, exp, jti } = payload;
+        const { sub, iat, exp, jti } = claims;
         if (sub === undefined || iat === undefined || exp === undefined || jti === undefined) {
             throw AccessError.of("INVALID_ASSERTION", "invalid assertion");
         } else if ((exp - iat) * 1000 > ASSERTION_LIFETIME_MILLISECONDS) {
@@ -115,7 +128,7 @@ export class AssertionVerifier {
 
         // spend it once under its key, refusing one spent before, and answer the key's principal
         const expiresAt = exp * 1000;
-        const digest = await Digest.of(JSON.stringify([key.id, jti]));
+        const digest = await Digest.of(JSON.stringify([key.id, jti]), this.options.crypto);
         await this.options.spend(digest, expiresAt, now).catch((error: unknown) => {
             throw Failure.of(error).code === "CONFLICT"
                 ? AccessError.of("ASSERTION_REUSED", "assertion was already used", { cause: error })
@@ -136,6 +149,8 @@ export interface AssertionVerifierOptions {
     readonly keys: (id: string, issuer: string, now: number) => Promise<AssertionKey | undefined>;
     /** Spend an assertion's digest once until it expires, refusing a repeat as a conflict. */
     readonly spend: (digest: Digest, expiresAt: number, now: number) => Promise<void>;
+    /** The WebCrypto operations it verifies with. */
+    readonly crypto: Crypto;
 }
 
 /** Describe an assertion's principal as the caller it authenticated until it expires. */
@@ -196,7 +211,7 @@ function refused<Value>(read: () => Value): Value {
     try {
         return read();
     } catch (error) {
-        if (!(error instanceof errors.JOSEError || error instanceof TypeError)) {
+        if (!IdentityError.is(error, "TOKEN_MALFORMED")) {
             throw error;
         }
         throw AccessError.of("INVALID_ASSERTION", "invalid assertion", { cause: error });

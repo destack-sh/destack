@@ -1,13 +1,7 @@
 import { Bearer } from "./bearer.ts";
 import { PackageId } from "@destack/package";
-import {
-    createLocalJWKSet,
-    createRemoteJWKSet,
-    customFetch,
-    jwtVerify,
-    type JSONWebKeySet,
-    type JWTVerifyGetKey,
-} from "jose";
+import type { Environment } from "@destack/environment";
+import { Jwks, type JwkSet, Jwt, type KeyLookup } from "@destack/identity";
 import { type Identifier, schema } from "@destack/schema";
 import { Scope, Subject } from "@destack/sync";
 import {
@@ -30,8 +24,17 @@ export const TOKEN_LIFETIME_MILLISECONDS = 60000;
 export const MACHINE_KEY = "machine-key";
 /** The credential kind of an installation's key. */
 export const INSTALLATION_KEY = "installation-key";
-/** The credential kind of a token that a space's key signs. */
+/** The credential kind of a space's key. */
 export const SPACE_KEY = "space-key";
+/** A partition a token is bound to: a space, an account, a machine or a device. */
+export const PartitionId = schema.union([
+    schema.identifier("space"),
+    schema.identifier("account"),
+    schema.identifier("machine"),
+    schema.identifier("device"),
+]);
+/** A partition a token is bound to. */
+export type PartitionId = schema.Infer<typeof PartitionId>;
 
 /** The schema of the verified identity an access token signs. */
 const tokenIdentity = Caller.schema.pick({ subject: true, groups: true, contacts: true }).extend({
@@ -48,7 +51,7 @@ const tokenIdentity = Caller.schema.pick({ subject: true, groups: true, contacts
 
 /** The verified identity an access token signs: subject, its groups, and what it proved. */
 export const TokenIdentity = Object.assign(tokenIdentity, {
-    /** Write an authentication's Destack claims: identity, actors, grants and space. */
+    /** Write an authentication's Destack claims: identity, actors, grants and partition. */
     claims(authentication: Authentication) {
         const { caller, credential } = authentication;
         const identity = tokenIdentity.parse(
@@ -73,7 +76,7 @@ export const TokenIdentity = Object.assign(tokenIdentity, {
             ...(caller.grants.length === 0 ? {} : { grants: [...caller.grants] }),
             ...(credential.scope === undefined
                 ? {}
-                : { space: schema.identifier("space").parse(credential.scope) }),
+                : { partition: PartitionId.parse(credential.scope) }),
         };
     },
 });
@@ -113,8 +116,10 @@ export const AccessToken = schema
         act: schema.array(Subject).min(1).exactOptional(),
         /** The grants each actor acts under, from the one before it. */
         grants: schema.array(GrantClaim).min(1).exactOptional(),
-        /** The space the token is bound to, absent for a call to a universe package. */
-        space: schema.identifier("space").exactOptional(),
+        /** The partition the token is bound to, absent for a call to a universe package. */
+        partition: PartitionId.exactOptional(),
+        /** The space claim of older tokens, refused so none reads as unbound. */
+        space: schema.never().exactOptional(),
         /** The verified identity. */
         caller: TokenIdentity,
     })
@@ -122,15 +127,16 @@ export const AccessToken = schema
 /** An access token as RFC 9068 shapes it. */
 export type AccessToken = schema.Infer<typeof AccessToken>;
 
-/** Verify space-scoped access tokens. */
+/** Verify partition-bound access tokens. */
 export class TokenVerifier {
     /** The verifier configuration. */
     readonly options: TokenVerifierOptions;
     /** The cached public keys. */
-    readonly keys: JWTVerifyGetKey;
+    readonly keys: KeyLookup;
 
     /** Create the verifier. */
     constructor(options: TokenVerifierOptions) {
+        // store the options
         this.options = options;
 
         // fetch keys over plain HTTP only from loopback
@@ -149,37 +155,46 @@ export class TokenVerifier {
             }
         }
 
-        // cache keys through JOSE, or take a key set a directory stores
+        // cache a remote key set on the clock, or take a key set a directory stores
+        const { environment } = options;
         this.keys =
             typeof options.keys === "function"
                 ? options.keys
                 : options.keys instanceof URL
-                  ? createRemoteJWKSet(options.keys, {
-                        cacheMaxAge: KEY_CACHE_MILLISECONDS,
-                        cooldownDuration: KEY_TIMEOUT_MILLISECONDS,
-                        timeoutDuration: KEY_TIMEOUT_MILLISECONDS,
-                        ...(options.fetch === undefined ? {} : { [customFetch]: options.fetch }),
-                    })
-                  : createLocalJWKSet(options.keys);
+                  ? Jwks.remote(
+                        options.keys,
+                        {
+                            fetch: (request) => environment.network.fetch(request),
+                            maxAge: KEY_CACHE_MILLISECONDS,
+                            cooldown: KEY_TIMEOUT_MILLISECONDS,
+                            timeout: KEY_TIMEOUT_MILLISECONDS,
+                        },
+                        environment,
+                    )
+                  : Jwks.local(options.keys, environment.crypto);
     }
 
-    /** Verify a request's bearer token at a time, optionally for one space. */
-    async authenticate(request: Request, now: number, spaceId?: string): Promise<Authentication> {
-        return this.verify(Bearer.require(request.headers), now, spaceId);
+    /** Verify a request's bearer token at a time, optionally for one partition. */
+    async authenticate(
+        request: Request,
+        now: number,
+        partition?: PartitionId,
+    ): Promise<Authentication> {
+        return this.verify(Bearer.require(request.headers), now, partition);
     }
 
-    /** Verify an access token at a time, optionally for one space. */
-    async verify(token: string, now: number, spaceId?: string): Promise<Authentication> {
+    /** Verify an access token at a time, optionally for one partition. */
+    async verify(token: string, now: number, partition?: PartitionId): Promise<Authentication> {
         // verify the signature and registered claims
         const payload = await this.#verifySignature(token, now);
 
-        // parse the claims and check the space and the client
+        // parse the claims and check the partition and the client
         const result = AccessToken.safeParse(payload);
         const client = result.success ? clientOf(result.data) : undefined;
         if (
             !result.success ||
             client === undefined ||
-            (spaceId !== undefined && result.data.space !== spaceId) ||
+            (partition !== undefined && result.data.partition !== partition) ||
             result.data.sub !== result.data.caller.subject.id ||
             result.data.exp <= result.data.iat
         ) {
@@ -195,7 +210,7 @@ export class TokenVerifier {
             throw AccessError.of("INVALID_TOKEN", "invalid access token claims");
         }
 
-        // verify it for this audience in the space it calls
+        // verify it for this audience in the partition it calls
         const caller: Caller = {
             ...identity,
             actors: claims.act ?? [],
@@ -205,14 +220,14 @@ export class TokenVerifier {
             ...presented,
             ...client,
             audience: this.options.audience,
-            ...(claims.space === undefined ? {} : { scope: claims.space }),
+            ...(claims.partition === undefined ? {} : { scope: claims.partition }),
             verifiedAt,
             expiresAt: Math.min(claims.exp * 1000, verifiedAt + lifetime),
             tokenId: claims.jti,
         };
 
         // require it current and within its issuer's authority
-        Credential.requireCurrent(credential, this.options.audience, now, claims.space);
+        Credential.requireCurrent(credential, this.options.audience, now, claims.partition);
         TokenIssuerAuthority.require(this.options.authority, { caller, credential });
 
         return { caller, credential };
@@ -221,18 +236,23 @@ export class TokenVerifier {
     /** Verify a token's signature and registered claims, returning its payload. */
     async #verifySignature(token: string, now: number): Promise<unknown> {
         try {
-            const { payload } = await jwtVerify(token, this.keys, {
-                typ: ACCESS_TOKEN_TYPE,
-                issuer: this.options.issuer,
-                audience: PackageId.resource(this.options.audience),
-                algorithms: ["ES256"],
-                requiredClaims: ["iss", "aud", "sub", "client_id", "iat", "exp", "jti"],
-                maxTokenAge: (this.options.lifetime ?? TOKEN_LIFETIME_MILLISECONDS) / 1000,
-                clockTolerance: CLOCK_TOLERANCE_MILLISECONDS / 1000,
-                currentDate: new Date(now),
-            });
+            const { claims } = await Jwt.verify(
+                token,
+                this.keys,
+                {
+                    typ: ACCESS_TOKEN_TYPE,
+                    issuer: this.options.issuer,
+                    audience: PackageId.resource(this.options.audience),
+                    algorithms: ["ES256"],
+                    requiredClaims: ["iss", "aud", "sub", "client_id", "iat", "exp", "jti"],
+                    maxTokenAge: (this.options.lifetime ?? TOKEN_LIFETIME_MILLISECONDS) / 1000,
+                    clockTolerance: CLOCK_TOLERANCE_MILLISECONDS / 1000,
+                    now,
+                },
+                this.options.environment.crypto,
+            );
 
-            return payload;
+            return claims;
         } catch (error) {
             throw Bearer.refusal(error, "INVALID_TOKEN", "invalid access token");
         }
@@ -248,9 +268,9 @@ export interface TokenVerifierOptions {
     /** The receiving package. */
     readonly audience: PackageId;
     /** The public keys, an HTTPS JWKS endpoint, or a key set a directory stores. */
-    readonly keys: URL | JSONWebKeySet | JWTVerifyGetKey;
-    /** The fetch of key discovery. */
-    readonly fetch?: (...arguments_: Parameters<typeof globalThis.fetch>) => Promise<Response>;
+    readonly keys: URL | JwkSet | KeyLookup;
+    /** The clock caching remote keys, the network fetching them, and the WebCrypto verifying. */
+    readonly environment: Pick<Environment, "clock" | "crypto" | "network">;
     /** The longest lifetime of the tokens it accepts, a minute by default. */
     readonly lifetime?: number;
 }
