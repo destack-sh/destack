@@ -216,8 +216,8 @@ export class Simulation {
     readonly #crashListeners = new Set<(node: string) => void>();
     /** The runs and driven work waiting on the loop, each answered once met. */
     readonly #waits: SimulationWait[] = [];
-    /** Whether the loop moves time now, which every later run and drive joins. */
-    #isMoving = false;
+    /** The loop moving time now, which later runs and drives join, absent while it stands still. */
+    #moving: Promise<void> | undefined;
     /** Whether the trace records events. */
     readonly #isTracing: boolean;
     /** The events that happened, traced or not, which the loop reads as progress. */
@@ -347,10 +347,11 @@ export class Simulation {
 
     /** Jump to a later time at once, waking each due wait a single time. */
     async jump(to: number): Promise<void> {
-        // refuse a jump while the loop moves time timer by timer
-        if (this.#isMoving) {
+        // refuse a jump while a run or drive waits on the loop, else let a finishing loop stop
+        if (this.#waits.length > 0) {
             throw new Error("a simulation cannot jump while it runs");
         }
+        await this.#moving;
 
         // settle the work at the current time, then move straight to the later one
         await this.run({ to: this.clock.now() });
@@ -385,10 +386,7 @@ export class Simulation {
         this.#waits.push({ until, deadline, resolve, reject });
 
         // start the loop unless it moves time already
-        if (!this.#isMoving) {
-            this.#isMoving = true;
-            void this.#move();
-        }
+        this.#moving ??= this.#move();
 
         return promise;
     }
@@ -430,7 +428,7 @@ export class Simulation {
 
                 // end once none waits
                 if (this.#waits.length === 0) {
-                    this.#isMoving = false;
+                    this.#moving = undefined;
 
                     return;
                 }
@@ -450,7 +448,7 @@ export class Simulation {
             }
         } catch (error) {
             // fail every wait with the loop
-            this.#isMoving = false;
+            this.#moving = undefined;
             for (const wait of this.#waits.splice(0)) {
                 wait.reject(error);
             }
