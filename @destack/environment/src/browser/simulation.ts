@@ -1,19 +1,11 @@
 import { present } from "@destack/schema";
-import type { Capture } from "./capture/capture.ts";
-import type { Clipboard } from "./clipboard/clipboard.ts";
-import type { Connectivity } from "./connectivity/connectivity.ts";
 import type { Display } from "./display/display.ts";
-import type { Geolocation } from "./geolocation/geolocation.ts";
 import type { NavigateOptions, Navigation, NavigationEntry } from "./navigation/navigation.ts";
-import type { Permissions } from "./permission/permission.ts";
-import type { Share } from "./share/share.ts";
 import type { Broadcast, BroadcastPort } from "./broadcast/broadcast.ts";
 import type { HeldLock, LockMode, LockOptions, LockManager } from "./lock/lock.ts";
 import type { Storage } from "./storage/storage.ts";
-import type { Vibration } from "./vibration/vibration.ts";
 import type { Environment } from "../environment/environment.ts";
 import type { SimulatedClock } from "../clock/simulated.ts";
-import type { SimulatedNetwork } from "../network/simulated.ts";
 import type { Simulation } from "../simulation/simulation.ts";
 import type { BrowserCapability } from "./capability.ts";
 
@@ -22,9 +14,6 @@ const URL_START = "https://app.test/";
 
 /** The frames a simulated display shows each second. */
 const FRAMES_PER_SECOND = 60;
-
-/** The Geolocation API's code for a position the device cannot report. */
-const POSITION_UNAVAILABLE = 2;
 
 /** A node's storage, kept in memory. */
 export class SimulatedStorage implements Storage {
@@ -324,42 +313,14 @@ export class SimulatedNavigation implements Navigation {
     }
 }
 
-/** A node's clipboard, keeping what was last written. */
-export class SimulatedClipboard implements Clipboard {
-    /** What was last written: items, text, or nothing yet. */
-    written: { readonly items: ClipboardItem[] } | { readonly text: string } | undefined;
-
-    /** Read the clipboard's items, refusing written text, which a simulation holds as no item. */
-    async read(): Promise<ClipboardItem[]> {
-        // answer the written items, none before a write
-        const { written } = this;
-        if (written !== undefined && "text" in written) {
-            throw new DOMException(
-                "a simulated clipboard reads written text as no item",
-                "NotSupportedError",
-            );
-        }
-
-        return written?.items ?? [];
-    }
-
-    /** Write items to the clipboard. */
-    async write(items: ClipboardItem[]): Promise<void> {
-        this.written = { items };
-    }
-
-    /** Write text to the clipboard. */
-    async writeText(text: string): Promise<void> {
-        this.written = { text };
-    }
-}
-
-/** A node's display: frames at 60 Hz and idle periods on the simulated clock, and fixed media. */
+/** A node's display: 60 Hz frames and idle periods on the simulated clock, and emulated media. */
 export class SimulatedDisplay implements Display {
     /** The simulated time. */
     readonly #clock: SimulatedClock;
     /** Whether each media query matches, false for any other. */
-    readonly #media: Readonly<Record<string, boolean>>;
+    #media: Readonly<Record<string, boolean>>;
+    /** The list of each query asked, which hears of its changes. */
+    readonly #lists = new Map<string, SimulatedMediaQueryList>();
 
     /** Show frames on a clock, matching the given media queries. */
     constructor(clock: SimulatedClock, media: Readonly<Record<string, boolean>>) {
@@ -383,283 +344,98 @@ export class SimulatedDisplay implements Display {
         await this.#clock.sleep(0, signal);
     }
 
-    /** Follow a media query, matching as the options set it. */
+    /** Follow a media query, matching as the emulated media set it. */
     media(query: string): MediaQueryList {
-        return new SimulatedMediaQueryList(query, this.#media[query] ?? false);
-    }
-}
-
-/** A media query of fixed result. */
-class SimulatedMediaQueryList extends EventTarget implements MediaQueryList {
-    /** The query. */
-    readonly media: string;
-    /** Whether the query matches. */
-    readonly matches: boolean;
-    /** The change handler, never called as the result is fixed. */
-    onchange: ((this: MediaQueryList, event: MediaQueryListEvent) => unknown) | null = null;
-
-    /** Fix a query's result. */
-    constructor(media: string, matches: boolean) {
-        super();
-        this.media = media;
-        this.matches = matches;
-    }
-
-    /** Take changes the deprecated way, which never come. */
-    addListener(): void {}
-
-    /** Stop taking changes the deprecated way. */
-    removeListener(): void {}
-}
-
-/** A node's connectivity, online until a test sets it otherwise. */
-export class SimulatedConnectivity implements Connectivity {
-    /** The listeners of changes. */
-    readonly #listeners = new Set<(isOnline: boolean) => void>();
-    /** The network the node is cut off from while offline, which owns whether it is. */
-    readonly #network: SimulatedNetwork;
-    /** The node. */
-    readonly #node: string;
-
-    /** Start a node online or offline on a network, following its isolation there. */
-    constructor(isOnline: boolean, network: SimulatedNetwork, node: string) {
-        // follow the node's isolation on the network, however it changes
-        this.#network = network;
-        this.#node = node;
-        network.onIsolation((isolated, isIsolated) => {
-            if (isolated === node) {
-                for (const listener of this.#listeners) {
-                    listener(!isIsolated);
-                }
-            }
-        });
-
-        // cut a node starting offline off the network
-        if (!isOnline) {
-            network.isolate(node);
-        }
-    }
-
-    /** Report whether the node is online. */
-    isOnline(): boolean {
-        return !this.#network.isIsolated(this.#node);
-    }
-
-    /** Follow each change of whether the node is online, until disposed. */
-    on(listener: (isOnline: boolean) => void): Disposable {
-        this.#listeners.add(listener);
-
-        return { [Symbol.dispose]: () => this.#listeners.delete(listener) };
-    }
-
-    /** Go online or offline, joining or leaving the network. */
-    set(isOnline: boolean): void {
-        if (isOnline) {
-            this.#network.rejoin(this.#node);
-        } else {
-            this.#network.isolate(this.#node);
-        }
-    }
-}
-
-/** A node's media devices: none, so every capture finds no device. */
-export class SimulatedCapture implements Capture {
-    /** List no devices. */
-    async enumerateDevices(): Promise<MediaDeviceInfo[]> {
-        return [];
-    }
-
-    /** Refuse a camera or microphone capture, as a browser without devices does. */
-    async getUserMedia(_constraints?: MediaStreamConstraints): Promise<MediaStream> {
-        throw new DOMException("the simulation has no media devices", "NotFoundError");
-    }
-
-    /** Refuse a screen capture, as a browser without a display to share does. */
-    async getDisplayMedia(_options?: DisplayMediaStreamOptions): Promise<MediaStream> {
-        throw new DOMException("the simulation has no display to capture", "NotFoundError");
-    }
-
-    /** Follow device changes, which never come. */
-    on(): Disposable {
-        return { [Symbol.dispose]: () => undefined };
-    }
-}
-
-/** A position a simulated node reports, in degrees and meters. */
-export interface SimulatedPosition {
-    /** The latitude in degrees. */
-    readonly latitude: number;
-    /** The longitude in degrees. */
-    readonly longitude: number;
-    /** The accuracy radius in meters. */
-    readonly accuracy: number;
-}
-
-/** A node's geolocation: a fixed position stamped on the simulated clock, or none. */
-export class SimulatedGeolocation implements Geolocation {
-    /** The simulated time. */
-    readonly #clock: SimulatedClock;
-    /** The node's position, absent for a node that cannot locate itself. */
-    readonly #position: SimulatedPosition | undefined;
-
-    /** Report a position, or none, at the clock's time. */
-    constructor(clock: SimulatedClock, position: SimulatedPosition | undefined) {
-        this.#clock = clock;
-        this.#position = position;
-    }
-
-    /** Read the position, refusing as unavailable without one. */
-    async getCurrentPosition(): Promise<GeolocationPosition> {
-        const position = this.#read();
-        if (position === undefined) {
-            throw new SimulatedPositionError();
-        }
-
-        return position;
-    }
-
-    /** Report the position or its error once, until disposed. */
-    watchPosition(
-        listener: (position: GeolocationPosition) => void,
-        error: (error: GeolocationPositionError) => void,
-    ): Disposable {
-        // report on the next turn, as a browser's first watch callback does
-        let isWatching = true;
-        void this.#clock.sleep(0).then(() => {
-            const position = this.#read();
-            if (!isWatching) {
-                return;
-            } else if (position === undefined) {
-                error(new SimulatedPositionError());
-            } else {
-                listener(position);
-            }
-        });
-
-        return { [Symbol.dispose]: () => (isWatching = false) };
-    }
-
-    /** Read the position at the clock's time, absent for a node without one. */
-    #read(): GeolocationPosition | undefined {
-        // read no position for a node without one
-        const position = this.#position;
-        if (position === undefined) {
-            return undefined;
-        }
-
-        // stamp the fixed coordinates with the clock's time
-        const coords: GeolocationCoordinates = {
-            ...position,
-            altitude: null,
-            altitudeAccuracy: null,
-            heading: null,
-            speed: null,
-            toJSON: () => ({ ...position }),
-        };
-        const timestamp = this.#clock.now();
-
-        return { coords, timestamp, toJSON: () => ({ coords: { ...position }, timestamp }) };
-    }
-}
-
-/** A node's share sheet, keeping what was shared. */
-export class SimulatedShare implements Share {
-    /** The data shared so far, oldest first. */
-    readonly shared: ShareData[] = [];
-
-    /** Report that any data can be shared. */
-    canShare(): boolean {
-        return true;
-    }
-
-    /** Keep the shared data. */
-    async share(data: ShareData): Promise<void> {
-        this.shared.push(data);
-    }
-}
-
-/** A node's vibration motor, keeping each pattern. */
-export class SimulatedVibration implements Vibration {
-    /** The patterns vibrated so far, oldest first. */
-    readonly patterns: VibratePattern[] = [];
-
-    /** Keep the pattern and report that it started. */
-    vibrate(pattern: VibratePattern): boolean {
-        this.patterns.push(pattern);
-
-        return true;
-    }
-}
-
-/** A permission's status in a simulation, which a test changes. */
-export class SimulatedPermissionStatus extends EventTarget implements PermissionStatus {
-    /** The permission's name. */
-    readonly name: string;
-    /** The permission's state. */
-    state: PermissionState;
-    /** The listener of changes set as a property. */
-    onchange: ((this: PermissionStatus, event: Event) => unknown) | null = null;
-
-    /** Start a permission in a state. */
-    constructor(name: string, state: PermissionState) {
-        super();
-        this.name = name;
-        this.state = state;
-    }
-
-    /** Change the state, telling the listeners. */
-    set(state: PermissionState): void {
-        // change the state, then tell the property listener and the added ones
-        this.state = state;
-        const event = new Event("change");
-        this.onchange?.(event);
-        this.dispatchEvent(event);
-    }
-}
-
-/** A node's permissions: each in its given state, otherwise prompting. */
-export class SimulatedPermissions implements Permissions {
-    /** Each permission's status, created on first query. */
-    readonly #statuses = new Map<string, SimulatedPermissionStatus>();
-    /** Each permission's starting state, prompting for any other. */
-    readonly #states: Readonly<Record<string, PermissionState>>;
-
-    /** Start each permission in its given state. */
-    constructor(states: Readonly<Record<string, PermissionState>>) {
-        this.#states = states;
-    }
-
-    /** Read a permission's status, the same one on each query. */
-    async query(descriptor: PermissionDescriptor): Promise<SimulatedPermissionStatus> {
-        // answer the status of an earlier query
-        const { name } = descriptor;
-        const known = this.#statuses.get(name);
+        // answer the query's one list, which hears of its changes
+        const known = this.#lists.get(query);
         if (known !== undefined) {
             return known;
         }
+        const list = new SimulatedMediaQueryList(query, this.#media[query] ?? false);
+        this.#lists.set(query, list);
 
-        // start the status in its given state
-        const status = new SimulatedPermissionStatus(name, this.#states[name] ?? "prompt");
-        this.#statuses.set(name, status);
+        return list;
+    }
 
-        return status;
+    /** Change whether media queries match, as Playwright's `emulateMedia` does. */
+    emulate(media: Readonly<Record<string, boolean>>): void {
+        this.#media = { ...this.#media, ...media };
+        for (const [query, matches] of Object.entries(media)) {
+            this.#lists.get(query)?.change(matches);
+        }
     }
 }
 
-/** The error of a position a simulated node cannot report. */
-export class SimulatedPositionError extends Error implements GeolocationPositionError {
-    /** The Geolocation API's code for an unavailable position. */
-    readonly code = POSITION_UNAVAILABLE;
-    /** The code of a denied permission. */
-    readonly PERMISSION_DENIED = 1;
-    /** The code of an unavailable position. */
-    readonly POSITION_UNAVAILABLE = POSITION_UNAVAILABLE;
-    /** The code of a timeout. */
-    readonly TIMEOUT = 3;
+/** A media query whose result the simulated display sets. */
+class SimulatedMediaQueryList extends EventTarget implements MediaQueryList {
+    /** The query. */
+    readonly media: string;
+    /** The change handler. */
+    onchange: ((this: MediaQueryList, event: MediaQueryListEvent) => unknown) | null = null;
+    /** Whether the query matches now. */
+    #matches: boolean;
+    /** The event listener each deprecated listener added through. */
+    readonly #listeners = new WeakMap<(event: MediaQueryListEvent) => void, EventListener>();
 
-    /** Describe the missing position. */
-    constructor() {
-        super("the simulation has no position");
+    /** Answer a query with its current result. */
+    constructor(media: string, matches: boolean) {
+        super();
+        this.media = media;
+        this.#matches = matches;
+    }
+
+    /** Whether the query matches. */
+    get matches(): boolean {
+        return this.#matches;
+    }
+
+    /** Take changes the deprecated way. */
+    addListener(listener: ((event: MediaQueryListEvent) => void) | null): void {
+        // add the listener once, through a listener of change events
+        if (listener !== null && !this.#listeners.has(listener)) {
+            const added = (event: Event) => {
+                if (event instanceof SimulatedMediaQueryListEvent) {
+                    listener(event);
+                }
+            };
+            this.#listeners.set(listener, added);
+            this.addEventListener("change", added);
+        }
+    }
+
+    /** Stop taking changes the deprecated way. */
+    removeListener(listener: ((event: MediaQueryListEvent) => void) | null): void {
+        const added = listener === null ? undefined : this.#listeners.get(listener);
+        if (listener !== null && added !== undefined) {
+            this.#listeners.delete(listener);
+            this.removeEventListener("change", added);
+        }
+    }
+
+    /** Set whether the query matches, telling the handler and the listeners when it changes. */
+    change(matches: boolean): void {
+        // tell of a result that differs
+        if (matches !== this.#matches) {
+            this.#matches = matches;
+            const event = new SimulatedMediaQueryListEvent(this.media, matches);
+            this.onchange?.(event);
+            this.dispatchEvent(event);
+        }
+    }
+}
+
+/** The event a simulated media query fires once its result changes. */
+class SimulatedMediaQueryListEvent extends Event implements MediaQueryListEvent {
+    /** The query. */
+    readonly media: string;
+    /** Whether the query matches now. */
+    readonly matches: boolean;
+
+    /** Tell of a query's new result. */
+    constructor(media: string, matches: boolean) {
+        super("change");
+        this.media = media;
+        this.matches = matches;
     }
 }
 
@@ -673,22 +449,8 @@ export type SimulatedBrowserEnvironment = Omit<Environment<"workers">, BrowserCa
     readonly broadcast: Broadcast;
     /** The node's session history. */
     readonly navigation: SimulatedNavigation;
-    /** The node's clipboard. */
-    readonly clipboard: SimulatedClipboard;
     /** The node's display. */
     readonly display: SimulatedDisplay;
-    /** The node's connectivity. */
-    readonly connectivity: SimulatedConnectivity;
-    /** The node's media devices. */
-    readonly capture: SimulatedCapture;
-    /** The node's position. */
-    readonly geolocation: SimulatedGeolocation;
-    /** The node's share sheet. */
-    readonly share: SimulatedShare;
-    /** The node's vibration motor. */
-    readonly vibration: SimulatedVibration;
-    /** The node's permissions. */
-    readonly permissions: SimulatedPermissions;
 };
 
 /** What a browser simulation starts each node with. */
@@ -697,12 +459,6 @@ export interface BrowserSimulationOptions {
     readonly url?: string;
     /** Whether each media query matches on each node's display, false for any other. */
     readonly media?: Readonly<Record<string, boolean>>;
-    /** Whether each node starts online, true by default. */
-    readonly isOnline?: boolean;
-    /** The position each node reports, none by default. */
-    readonly position?: SimulatedPosition;
-    /** Each permission's starting state on each node, prompting for any other. */
-    readonly permissions?: Readonly<Record<string, PermissionState>>;
 }
 
 /** The browser half of a simulation: each node's environment with a browser's capabilities. */
@@ -742,7 +498,7 @@ export class BrowserSimulation {
 
         // give the node a browser's base and threads, and a browser on the node's clock
         const { files, process, server, host, ...base } = this.#simulation.environment(node);
-        const { clock, network } = this.#simulation;
+        const { clock } = this.#simulation;
         const options = this.#options;
         const environment = {
             ...base,
@@ -750,14 +506,7 @@ export class BrowserSimulation {
             locks: this.locks.of(node),
             broadcast: this.broadcast.of(node),
             navigation: new SimulatedNavigation(options.url ?? URL_START),
-            clipboard: new SimulatedClipboard(),
             display: new SimulatedDisplay(clock, options.media ?? {}),
-            connectivity: new SimulatedConnectivity(options.isOnline ?? true, network, node),
-            capture: new SimulatedCapture(),
-            geolocation: new SimulatedGeolocation(clock, options.position),
-            share: new SimulatedShare(),
-            vibration: new SimulatedVibration(),
-            permissions: new SimulatedPermissions(options.permissions ?? {}),
         };
         this.#environments.set(node, environment);
 

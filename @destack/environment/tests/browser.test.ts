@@ -39,13 +39,13 @@ test("store values and move through session history on a node, telling listeners
     });
 });
 
-test("show frames at 60 Hz on the simulated clock, idle periods, set media and a written clipboard", async () => {
+test("show frames at 60 Hz on the simulated clock, idle periods and set media", async () => {
     // wait for three frames and an idle period from a moment between frames
     await using simulation = new Simulation({ seed: 1, start: START + 5 });
     const browsers = new BrowserSimulation(simulation, {
         media: { "(prefers-color-scheme: dark)": true },
     });
-    const { display, clipboard } = browsers.environment("tab");
+    const { display } = browsers.environment("tab");
     const frames: number[] = [];
     const shown = (async () => {
         for (let count = 0; count < 3; count += 1) {
@@ -55,9 +55,6 @@ test("show frames at 60 Hz on the simulated clock, idle periods, set media and a
     })();
     await simulation.drive(shown);
 
-    // write text to the clipboard
-    await clipboard.writeText("copied");
-
     expect({
         frames: frames.map((time) => time - START),
         after: simulation.clock.now() - START,
@@ -65,77 +62,32 @@ test("show frames at 60 Hz on the simulated clock, idle periods, set media and a
             display.media("(prefers-color-scheme: dark)").matches,
             display.media("(max-width: 640px)").matches,
         ],
-        clipboard: clipboard.written,
     }).toEqual({
         frames: [17, 34, 50],
         after: 50,
         media: [true, false],
-        clipboard: { text: "copied" },
     });
 });
 
-test("go offline, refuse captures, locate, share, vibrate and follow permissions on a node", async () => {
-    // start a node at a position with the camera granted, and one without a position
+test("emulate media, telling each listener of a query once its result changes", async () => {
+    // follow one query with two listeners
     await using simulation = new Simulation({ seed: 1, start: START });
-    const browsers = new BrowserSimulation(simulation, {
-        position: { latitude: 48.2, longitude: 16.37, accuracy: 10 },
-        permissions: { camera: "granted" },
-    });
-    const unlocated = new BrowserSimulation(simulation);
-    const { connectivity, capture, geolocation, share, vibration, permissions } =
-        browsers.environment("tab");
+    const { display } = new BrowserSimulation(simulation).environment("tab");
+    const heard: string[] = [];
+    for (const name of ["first", "second"]) {
+        const list = display.media("(prefers-color-scheme: dark)");
+        list.addEventListener("change", () => heard.push(`${name} ${list.matches}`));
+    }
 
-    // follow connectivity while going offline and back
-    const changes: boolean[] = [];
-    using _followed = connectivity.on((isOnline) => changes.push(isOnline));
-    const online = connectivity.isOnline();
-    connectivity.set(false);
-    connectivity.set(false);
-    connectivity.set(true);
+    // turn dark on twice, then off, and leave another query alone
+    display.emulate({ "(prefers-color-scheme: dark)": true });
+    display.emulate({ "(prefers-color-scheme: dark)": true, "(max-width: 640px)": false });
+    display.emulate({ "(prefers-color-scheme: dark)": false });
 
-    // refuse captures, and read positions with and without one
-    const captured = await capture.getUserMedia({ video: true }).catch((error: unknown) => error);
-    const position = await geolocation.getCurrentPosition();
-    const missing = await unlocated
-        .environment("other")
-        .geolocation.getCurrentPosition()
-        .catch((error: unknown) => error);
-
-    // share, vibrate, and follow a permission's change
-    await share.share({ title: "Note", url: "https://notes.test/1" });
-    vibration.vibrate([100, 50, 100]);
-    const camera = await permissions.query({ name: "camera" });
-    const states = [camera.state, (await permissions.query({ name: "geolocation" })).state];
-    const changed: string[] = [];
-    camera.addEventListener("change", () => changed.push(camera.state));
-    (await permissions.query({ name: "camera" })).set("denied");
-
-    expect({
-        online,
-        changes,
-        devices: await capture.enumerateDevices(),
-        captured: captured instanceof DOMException ? [captured.name, captured.message] : captured,
-        position: [position.coords.latitude, position.coords.longitude, position.timestamp],
-        missing:
-            missing instanceof Error && "code" in missing
-                ? [missing.code, missing.message]
-                : missing,
-        shared: share.shared,
-        patterns: vibration.patterns,
-        states,
-        changed,
-    }).toEqual({
-        online: true,
-        changes: [false, true],
-        devices: [],
-        captured: ["NotFoundError", "the simulation has no media devices"],
-        position: [48.2, 16.37, START],
-        missing: [2, "the simulation has no position"],
-        shared: [{ title: "Note", url: "https://notes.test/1" }],
-        patterns: [[100, 50, 100]],
-        states: ["granted", "prompt"],
-        changed: ["denied"],
-    });
+    expect([heard, display.media("(prefers-color-scheme: dark)").matches]).toEqual([
+        ["first true", "second true", "first false", "second false"],
+        false,
+    ]);
 });
 
 test("grant one origin's locks across tabs in request order, shared holders together, and run without one when asked", async () => {
