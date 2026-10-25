@@ -10,7 +10,7 @@ export type PermissionScope = schema.Infer<typeof PermissionScope>;
 /** The schema of a permission set: permissions by the scope they apply in. */
 const permissionSetSchema = schema
     .object({
-        /** The permissions in the space the code runs in. */
+        /** The permissions in the partition the code runs in: its space, machine or device. */
         space: schema.array(Permission).exactOptional(),
         /** The permissions in the account of that space. */
         account: schema.array(Permission).exactOptional(),
