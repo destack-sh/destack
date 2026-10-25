@@ -51,10 +51,10 @@ export class UpdateRepository {
         // permit plaintext only for local release verification
         const isLoopback = ["127.0.0.1", "[::1]", "localhost"].includes(url.hostname);
         if (url.protocol !== "https:" && !(url.protocol === "http:" && isLoopback)) {
-            throw UpdateError.of("INVALID_REPOSITORY", "update repositories require HTTPS");
+            throw UpdateError.of("REPOSITORY_INVALID", "update repositories require HTTPS");
         }
         if (url.username || url.password || url.search || url.hash || !url.pathname.endsWith("/")) {
-            throw UpdateError.of("INVALID_REPOSITORY", "invalid update repository URL");
+            throw UpdateError.of("REPOSITORY_INVALID", "invalid update repository URL");
         }
 
         // keep verified metadata across processes, safe to check then write under the installation lock
@@ -109,14 +109,14 @@ export class UpdateRepository {
         // read the signed release identity
         const custom = TargetCustom.safeParse(artifact.custom);
         if (!custom.success) {
-            throw UpdateError.of("INVALID_RELEASE", "invalid release metadata");
+            throw UpdateError.of("RELEASE_INVALID", "invalid release metadata");
         }
 
         // refuse a dev build, which no feed publishes
         const release = new Release(custom.data.version, target);
         if (Version.isPrerelease(release.version)) {
             throw UpdateError.of(
-                "INVALID_RELEASE",
+                "RELEASE_INVALID",
                 `the feed publishes dev build ${release.version}`,
             );
         }
@@ -137,7 +137,7 @@ export class UpdateRepository {
         const artifact = this.selected.get(release.directory);
         const digest = Digest.safeParse(artifact?.hashes["sha256"]);
         if (!digest.success) {
-            throw UpdateError.of("INVALID_RELEASE", "invalid release archive digest");
+            throw UpdateError.of("RELEASE_INVALID", "invalid release archive digest");
         }
 
         return digest.data;
@@ -160,7 +160,7 @@ export class UpdateRepository {
             artifact.hashes["sha256"] === undefined ||
             !Digest.safeParse(artifact.hashes["sha256"]).success
         ) {
-            throw UpdateError.of("INVALID_RELEASE", "invalid release archive metadata");
+            throw UpdateError.of("RELEASE_INVALID", "invalid release archive metadata");
         }
 
         // authenticate an installer archive by its signed length and hashes

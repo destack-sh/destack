@@ -123,7 +123,7 @@ export class Installer {
         // validate persisted identifiers before constructing installation paths
         const record = StagedRecord.safeParse(JSON.parse(source));
         if (!record.success) {
-            throw UpdateError.of("INVALID_RECORD", "invalid staged release record");
+            throw UpdateError.of("RECORD_INVALID", "invalid staged release record");
         }
         const { version, target, ...digests } = record.data;
         const release = new Release(version, target);
@@ -142,7 +142,7 @@ export class Installer {
         // validate the persisted release before constructing its path
         const record = CurrentRecord.safeParse(JSON.parse(source));
         if (!record.success) {
-            throw UpdateError.of("INVALID_RECORD", "invalid installed release record");
+            throw UpdateError.of("RECORD_INVALID", "invalid installed release record");
         }
         const release = new Release(record.data.version, record.data.target);
 
@@ -229,7 +229,7 @@ export class Installer {
         const isIdentified = applicationIdentifier !== undefined && applicationIdentifier !== "";
         if (isMac !== (application !== undefined) || (isMac && !isIdentified)) {
             throw UpdateError.of(
-                "INVALID_OPTIONS",
+                "OPTIONS_INVALID",
                 "macOS releases require an application destination and identifier",
             );
         }
@@ -266,7 +266,7 @@ export class Installer {
         // verify the staged receipt before replacing the native application
         const parsed = ActivationRecord.safeParse(JSON.parse(source));
         if (!parsed.success) {
-            throw UpdateError.of("INVALID_RECORD", "invalid activation record");
+            throw UpdateError.of("RECORD_INVALID", "invalid activation record");
         }
         const record = parsed.data;
         const release = new Release(record.version, record.target);
@@ -290,7 +290,7 @@ export class Installer {
                 applicationIdentifier === ""
             ) {
                 throw UpdateError.of(
-                    "INVALID_RECORD",
+                    "RECORD_INVALID",
                     "missing absolute application destination or identifier",
                 );
             }

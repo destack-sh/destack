@@ -86,7 +86,7 @@ async function readRepository(
             next.verifyDelegate("root", next);
             if (!isDeepStrictEqual(next.signed.toJSON(), root.signed.toJSON())) {
                 throw UpdateError.of(
-                    "INVALID_METADATA",
+                    "METADATA_INVALID",
                     "published root differs from the trusted root",
                 );
             }
@@ -118,7 +118,7 @@ async function readRepository(
     root.verifyDelegate("snapshot", snapshot);
     const targetsReference = snapshot.signed.meta["targets.json"];
     if (!targetsReference || snapshot.signed.version !== snapshotReference.version) {
-        throw UpdateError.of("INVALID_METADATA", "snapshot does not match its signed reference");
+        throw UpdateError.of("METADATA_INVALID", "snapshot does not match its signed reference");
     }
     const targetsBytes = Buffer.from(
         await files.readFile(join(metadata, `${targetsReference.version}.targets.json`)),
@@ -132,10 +132,10 @@ async function readRepository(
     );
     root.verifyDelegate("targets", targets);
     if (targets.signed.version !== targetsReference.version) {
-        throw UpdateError.of("INVALID_METADATA", "targets do not match their signed reference");
+        throw UpdateError.of("METADATA_INVALID", "targets do not match their signed reference");
     }
     if ([root, timestamp, snapshot, targets].some((document) => document.signed.isExpired())) {
-        throw UpdateError.of("INVALID_METADATA", "cannot publish expired release metadata");
+        throw UpdateError.of("METADATA_INVALID", "cannot publish expired release metadata");
     }
 
     return { root, timestamp, snapshot, targets };
@@ -151,10 +151,10 @@ async function createRepository(
     environment: Environment<"files">,
 ): Promise<Metadata<Targets>> {
     if (!Number.isSafeInteger(revision) || revision < 1) {
-        throw UpdateError.of("INVALID_METADATA", "invalid metadata revision");
+        throw UpdateError.of("METADATA_INVALID", "invalid metadata revision");
     }
     if (distributions.length === 0) {
-        throw UpdateError.of("INVALID_METADATA", "no distributions selected");
+        throw UpdateError.of("METADATA_INVALID", "no distributions selected");
     }
     // prepare the signed repository directories
     const { clock, files } = environment;
@@ -175,7 +175,7 @@ async function createRepository(
     for (const distribution of distributions) {
         const path = `${distribution.target}.${distribution.format ?? "tar.gz"}`;
         if (Object.hasOwn(targets.signed.targets, path)) {
-            throw UpdateError.of("INVALID_METADATA", `duplicate target: ${path}`);
+            throw UpdateError.of("METADATA_INVALID", `duplicate target: ${path}`);
         }
         const hash = createHash("sha256");
         await using archive = await files.open(distribution.archive, { read: true });
@@ -248,12 +248,12 @@ async function renewMetadata(
     root.verifyDelegate("targets", targets);
     if (root.signed.isExpired() || targets.signed.isExpired()) {
         throw UpdateError.of(
-            "INVALID_METADATA",
+            "METADATA_INVALID",
             "root and targets must be renewed before freshness metadata",
         );
     }
     if (!Number.isSafeInteger(revision) || revision < 1) {
-        throw UpdateError.of("INVALID_METADATA", "invalid metadata revision");
+        throw UpdateError.of("METADATA_INVALID", "invalid metadata revision");
     }
 
     // retain the exact document authenticated by the previous repository

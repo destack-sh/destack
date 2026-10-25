@@ -115,17 +115,17 @@ test("refuse a Mac activation without its application's absolute destination and
         expect(refused).toEqual([
             [
                 "BAD_REQUEST",
-                "INVALID_OPTIONS",
+                "OPTIONS_INVALID",
                 "macOS releases require an application destination and identifier",
             ],
             [
                 "BAD_REQUEST",
-                "INVALID_OPTIONS",
+                "OPTIONS_INVALID",
                 "macOS releases require an application destination and identifier",
             ],
             [
                 "INTERNAL_SERVER_ERROR",
-                "INVALID_RECORD",
+                "RECORD_INVALID",
                 "missing absolute application destination or identifier",
             ],
         ]);

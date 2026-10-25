@@ -379,7 +379,7 @@ test("preserve the installed release when signed replacements contradict its ide
         await using updater = await Updater.open(options);
         expect(await refusal(updater.check())).toEqual([
             "BAD_GATEWAY",
-            "INVALID_RELEASE",
+            "RELEASE_INVALID",
             "the feed publishes dev build 2026.9.2-dev.1",
         ]);
         expect(await updater.current()).toEqual(installed);

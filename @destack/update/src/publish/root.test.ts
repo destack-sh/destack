@@ -51,7 +51,7 @@ test("require independent RSA root signatures and both quorums during rotation",
     TrustedRoot.verify(rotated, root);
     expect(await refusal(() => TrustedRoot.verify(rotated))).toEqual([
         "BAD_REQUEST",
-        "INVALID_METADATA",
+        "METADATA_INVALID",
         "expected root version 1",
     ]);
 
@@ -70,7 +70,7 @@ test("require independent RSA root signatures and both quorums during rotation",
         ),
     ).toEqual([
         "BAD_REQUEST",
-        "INVALID_METADATA",
+        "METADATA_INVALID",
         "root requires three independent keys and three distinct online keys",
     ]);
 }, 5000);

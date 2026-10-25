@@ -44,7 +44,7 @@ export class Updater implements AsyncDisposable {
     static async open(options: UpdaterOptions): Promise<Updater> {
         // reject inconsistent installation inputs before opening or recovering state
         if (!isAbsolute(options.directory)) {
-            throw UpdateError.of("INVALID_OPTIONS", "installation directory must be absolute");
+            throw UpdateError.of("OPTIONS_INVALID", "installation directory must be absolute");
         }
         const isMac = options.target.endsWith("apple-darwin");
         if (
@@ -55,7 +55,7 @@ export class Updater implements AsyncDisposable {
             (options.application !== undefined && !isAbsolute(options.application))
         ) {
             throw UpdateError.of(
-                "INVALID_OPTIONS",
+                "OPTIONS_INVALID",
                 "macOS releases require an absolute application destination and identifier",
             );
         }

@@ -12,7 +12,7 @@ export function parseObject(text: string): JSONObject {
     // require an object at the top of the document
     const value: unknown = JSON.parse(text);
     if (!isObject(value)) {
-        throw UpdateError.of("INVALID_METADATA", "expected a JSON object document");
+        throw UpdateError.of("METADATA_INVALID", "expected a JSON object document");
     }
 
     return value;

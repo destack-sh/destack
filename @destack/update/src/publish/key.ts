@@ -107,7 +107,7 @@ export class SigningKey {
 /** Read the signature scheme a public key declares. */
 function schemeOf(key: Key): SigningScheme {
     if (key.scheme !== "ed25519" && key.scheme !== "rsassa-pss-sha256") {
-        throw UpdateError.of("INVALID_SIGNING_KEY", `unsupported signing scheme ${key.scheme}`);
+        throw UpdateError.of("SIGNING_KEY_INVALID", `unsupported signing scheme ${key.scheme}`);
     }
 
     return key.scheme;
@@ -131,7 +131,7 @@ export function readPublicKey(document: string): Key {
     if (key.asymmetricKeyType === "ed25519") {
         const jwk = key.export({ format: "jwk" });
         if (jwk.x === undefined || jwk.x === "") {
-            throw UpdateError.of("INVALID_SIGNING_KEY", "missing Ed25519 public key");
+            throw UpdateError.of("SIGNING_KEY_INVALID", "missing Ed25519 public key");
         }
         const bytes = Buffer.from(jwk.x, "base64url");
 
@@ -147,7 +147,7 @@ export function readPublicKey(document: string): Key {
         const modulusLength = key.asymmetricKeyDetails?.modulusLength;
         if (modulusLength === undefined || modulusLength < 2048) {
             throw UpdateError.of(
-                "INVALID_SIGNING_KEY",
+                "SIGNING_KEY_INVALID",
                 "RSA signing keys must contain at least 2048 bits",
             );
         }
@@ -160,6 +160,6 @@ export function readPublicKey(document: string): Key {
             keyVal: { public: key.export({ format: "pem", type: "spki" }) },
         });
     } else {
-        throw UpdateError.of("INVALID_SIGNING_KEY", "unsupported signing key algorithm");
+        throw UpdateError.of("SIGNING_KEY_INVALID", "unsupported signing key algorithm");
     }
 }

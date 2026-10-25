@@ -71,7 +71,7 @@ export class Installation {
         // validate persisted registration before using it for installation operations
         const record = InstallationRecord.safeParse(value);
         if (!record.success || !isAbsolute(record.data.application)) {
-            throw UpdateError.of("INVALID_RECORD", "invalid application registration");
+            throw UpdateError.of("RECORD_INVALID", "invalid application registration");
         }
 
         return record.data;

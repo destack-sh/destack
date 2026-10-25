@@ -4,11 +4,11 @@ import type {} from "@destack/package/import-meta";
 /** The update package's failures, each reason with the call error code it answers. */
 export const UpdateError = defineErrorFamily(import.meta.destack.package, {
     // bad request
-    INVALID_METADATA: { code: "BAD_REQUEST" },
-    INVALID_OPTIONS: { code: "BAD_REQUEST" },
-    INVALID_REPOSITORY: { code: "BAD_REQUEST" },
-    INVALID_SIGNING_KEY: { code: "BAD_REQUEST" },
-    UNSUPPORTED_TARGET: { code: "BAD_REQUEST" },
+    METADATA_INVALID: { code: "BAD_REQUEST" },
+    OPTIONS_INVALID: { code: "BAD_REQUEST" },
+    REPOSITORY_INVALID: { code: "BAD_REQUEST" },
+    SIGNING_KEY_INVALID: { code: "BAD_REQUEST" },
+    TARGET_UNSUPPORTED: { code: "BAD_REQUEST" },
 
     // not found
     RELEASE_NOT_FOUND: { code: "NOT_FOUND" },
@@ -30,11 +30,11 @@ export const UpdateError = defineErrorFamily(import.meta.destack.package, {
     // internal server error
     ACTIVATION_FAILED: { code: "INTERNAL_SERVER_ERROR" },
     INSTALL_FAILED: { code: "INTERNAL_SERVER_ERROR" },
-    INVALID_RECORD: { code: "INTERNAL_SERVER_ERROR" },
+    RECORD_INVALID: { code: "INTERNAL_SERVER_ERROR" },
 
     // bad gateway
     DOWNLOAD_FAILED: { code: "BAD_GATEWAY" },
-    INVALID_RELEASE: { code: "BAD_GATEWAY" },
+    RELEASE_INVALID: { code: "BAD_GATEWAY" },
     UNSAFE_ARCHIVE: { code: "BAD_GATEWAY" },
     VERIFICATION_FAILED: { code: "BAD_GATEWAY" },
 
