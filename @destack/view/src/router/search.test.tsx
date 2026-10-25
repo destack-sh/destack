@@ -83,7 +83,7 @@ test("write links to values, leaving defaults out and keeping the base's other v
     // refuse to write a fraction as a whole number, a caller's mistake rounding would hide
     expect(await refusal(() => serialize({ page: 1.5 }))).toEqual([
         "BAD_REQUEST",
-        "INVALID_QUERY_VALUE",
+        "QUERY_VALUE_INVALID",
         "1.5 is not a whole number",
     ]);
 });

@@ -38,7 +38,7 @@ function frameworkPlugin(): Plugin {
                 const [path = id] = id.split("?");
                 const parsed = parseSync(path, code);
                 if (parsed.errors.length) {
-                    throw ViewError.of("INVALID_SOURCE", `invalid framework source: ${id}`);
+                    throw ViewError.of("SOURCE_INVALID", `invalid framework source: ${id}`);
                 }
                 new Visitor({
                     ExpressionStatement(node) {

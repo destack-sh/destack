@@ -107,7 +107,7 @@ function locate(compilation: Compilation): LocatedView[] {
 
         // refuse a name taken twice
         if (views.some((view) => view.name === declaration.name)) {
-            throw ViewError.of("DUPLICATE_VIEW", `duplicate view: ${declaration.name}`);
+            throw ViewError.of("VIEW_DUPLICATE", `duplicate view: ${declaration.name}`);
         }
 
         // keep the module exporting the view, the types it presents and the packages it calls

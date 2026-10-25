@@ -4,7 +4,7 @@ import type {} from "@destack/package/import-meta";
 /** The view package's failures, each reason with the call error code it answers. */
 export const ViewError = defineErrorFamily(import.meta.destack.package, {
     // bad request
-    INVALID_QUERY_VALUE: { code: "BAD_REQUEST" },
+    QUERY_VALUE_INVALID: { code: "BAD_REQUEST" },
 
     // forbidden
     NOTIFICATION_NOT_PERMITTED: { code: "FORBIDDEN" },
@@ -16,13 +16,13 @@ export const ViewError = defineErrorFamily(import.meta.destack.package, {
     SHARE_UNSUPPORTED: { code: "PRECONDITION_FAILED" },
 
     // unprocessable content
-    DUPLICATE_VIEW: { code: "UNPROCESSABLE_CONTENT" },
+    VIEW_DUPLICATE: { code: "UNPROCESSABLE_CONTENT" },
     EXAMPLE_EMPTY: { code: "UNPROCESSABLE_CONTENT" },
     FONT_FILE_MISSING: { code: "UNPROCESSABLE_CONTENT" },
     FONT_FORMAT_UNSUPPORTED: { code: "UNPROCESSABLE_CONTENT" },
     IMAGE_NOT_RASTER: { code: "UNPROCESSABLE_CONTENT" },
     INTERNAL_METHOD: { code: "UNPROCESSABLE_CONTENT" },
-    INVALID_SOURCE: { code: "UNPROCESSABLE_CONTENT" },
+    SOURCE_INVALID: { code: "UNPROCESSABLE_CONTENT" },
     MULTIPLE_THEMES: { code: "UNPROCESSABLE_CONTENT" },
     OBJECT_NOT_OPENED: { code: "UNPROCESSABLE_CONTENT" },
     PRESENTED_TYPE_NOT_OPENED: { code: "UNPROCESSABLE_CONTENT" },

@@ -180,7 +180,7 @@ export const parseAsInteger: ParserBuilder<number> = createParser({
     parse: (text) => (/^-?\d+$/u.test(text) ? Number(text) : null),
     serialize: (value) => {
         if (!Number.isInteger(value)) {
-            throw ViewError.of("INVALID_QUERY_VALUE", `${value} is not a whole number`);
+            throw ViewError.of("QUERY_VALUE_INVALID", `${value} is not a whole number`);
         }
 
         return String(value);
@@ -202,7 +202,7 @@ export const parseAsHex: ParserBuilder<number> = createParser({
     parse: (text) => (/^[0-9a-f]+$/iu.test(text) ? Number.parseInt(text, 16) : null),
     serialize: (value) => {
         if (!Number.isInteger(value)) {
-            throw ViewError.of("INVALID_QUERY_VALUE", `${value} is not a whole number`);
+            throw ViewError.of("QUERY_VALUE_INVALID", `${value} is not a whole number`);
         }
         const hex = value.toString(16);
 
