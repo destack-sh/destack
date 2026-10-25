@@ -1,4 +1,4 @@
-import { MimeError } from "./error.ts";
+import { MessageError } from "../error/error.ts";
 import type { Mailbox } from "./mailbox.ts";
 
 /** The line length folding aims for: RFC 2047 limits lines with encoded-words to 76 characters. */
@@ -99,8 +99,8 @@ export class Header {
 
         // refuse a word too long for any line
         if (lines.some((written) => written.length > MAX_LINE_LENGTH)) {
-            throw new MimeError(
-                "INVALID_HEADER",
+            throw MessageError.of(
+                "HEADER_INVALID",
                 `header ${this.name} has a line over ${MAX_LINE_LENGTH} characters`,
             );
         }

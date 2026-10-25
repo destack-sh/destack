@@ -1,17 +1,17 @@
-import { principal } from "@destack/access";
-import { client } from "@destack/account/object";
+import { AccessContext, Caller, Grant, principal } from "@destack/access";
+import { client, type Recipient, user } from "@destack/account/object";
 import { ObjectReference, Scope } from "@destack/sync";
-import { count, eq } from "@destack/db";
+import { count, eq, Snapshot } from "@destack/db";
 import type { Deriver } from "@destack/identity";
 import type { ObjectReconciliation } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
 import { nth, present, schema } from "@destack/schema";
-import { CallError } from "@destack/object";
 import { endpoint } from "../object/endpoint.ts";
 import { RetryPolicy } from "@destack/environment";
-import { GONE, type Message, message, messageAttempt, MessageKey, task } from "../object/index.ts";
-import type { MessageProvider, Outcome } from "../provider/index.ts";
+import { type Message, message, messageAttempt, MessageKey, task } from "../object/index.ts";
+import type { Delivery, MessageProvider, Outcome } from "../provider/index.ts";
 import type { PushProvider } from "../push/index.ts";
+import { MessageError } from "../error/error.ts";
 
 /** How refused sends retry by default: 5 s doubling to 15 min, 8 attempts over about an hour. */
 const RETRY = RetryPolicy.of({
@@ -26,7 +26,7 @@ const CONCURRENCY = 16;
 
 /** How an installation sends its messages: each channel's providers and its keys. */
 export interface MessageOptions {
-    /** The provider of each channel, failing a message on a channel without one. */
+    /** The provider of each channel served here, refusing a message on a channel without one. */
     readonly providers: {
         /** The provider of email messages. */
         readonly email?: MessageProvider;
@@ -48,11 +48,32 @@ export function implementMessage(options: MessageOptions) {
     return message.implement({
         methods: {
             create: async (call, next) => {
-                // let only an endpoint's managers post webhooks to it, with its secret
+                // refuse a message on a channel no provider here serves
                 const { to, ciphertext } = call.input;
+                if (to.channel !== "desktop" && options.providers[to.channel] === undefined) {
+                    throw MessageError.of(
+                        "CHANNEL_UNSERVED",
+                        `this machine does not send ${to.channel} messages`,
+                    );
+                }
+
+                // let only an endpoint's managers post webhooks to it, with its secret
                 if (to.channel === "webhook") {
                     const source = ObjectReference.at("source", call.input);
                     await call.require(endpoint.permission("manage"), source);
+                }
+                // push only from the person's home, to a browser of theirs subscribed to pushes
+                else if (to.channel === "push") {
+                    const recipient = await call.query(
+                        await call.delegated(),
+                        user.call("recipient", { id: to.user }),
+                    );
+                    if (findBrowser(recipient, to.client) === undefined) {
+                        throw MessageError.of(
+                            "RECIPIENT_GONE",
+                            `client ${to.client} receives no pushes`,
+                        );
+                    }
                 }
 
                 // show a desktop message at once, without content
@@ -65,9 +86,10 @@ export function implementMessage(options: MessageOptions) {
                 }
                 // refuse a provider's message without its content
                 else if (ciphertext === undefined) {
-                    throw new CallError("BAD_REQUEST", {
-                        message: `a message on ${to.channel} needs its sealed content`,
-                    });
+                    throw MessageError.of(
+                        "SEALED_CONTENT_MISSING",
+                        `a message on ${to.channel} is missing its encrypted content`,
+                    );
                 }
 
                 return next();
@@ -76,14 +98,17 @@ export function implementMessage(options: MessageOptions) {
                 // refuse pushes on a machine without a push provider
                 const push = options.providers.push;
                 if (push === undefined) {
-                    throw new CallError("NOT_FOUND", {
-                        message: "this machine does not send pushes",
-                    });
+                    throw MessageError.of(
+                        "CHANNEL_UNSERVED",
+                        "this machine does not send push messages",
+                    );
                 }
 
                 return { key: await push.applicationServerKey() };
             },
-            contentKey: async () => ({ key: (await MessageKey.derive(options.keys)).key }),
+            contentKey: async (context) => ({
+                key: (await MessageKey.derive(options.keys, context.environment)).key,
+            }),
         },
         controller: {
             // send pending messages
@@ -114,25 +139,29 @@ async function reconcile(
     if (whole.retryAt !== null && whole.retryAt > now) {
         return whole.retryAt - now;
     }
-    // send it and settle it as sent, retried after the policy's interval, or failed once the policy gives up
+    // send it and record the try, then look again once a later try is due
     else {
+        const attempts = (await countAttempts(reconciliation, whole)) + 1;
         const outcome = await attempt(options, whole, reconciliation.store);
-        const attempts = await recordAttempt(reconciliation, whole, outcome);
-        await observe(reconciliation, whole, settle(outcome, options.retry, attempts, now));
-    }
+        const drawn = RetryPolicy.draw(`${whole.id} ${attempts}`);
+        const settled = settle(outcome, options.retry, attempts, now, drawn);
+        await observe(reconciliation, whole, outcome, settled);
+        const { retryAt } = settled.fields;
 
-    return undefined;
+        return retryAt === null ? undefined : retryAt - now;
+    }
 }
 
-/** Record the controller's observation of a message: its written fields and Sent condition. */
+/** Record a try of a message with the controller's observation: its fields and Sent condition. */
 async function observe(
     reconciliation: ObjectReconciliation<typeof message>,
     row: Message,
+    outcome: Outcome,
     observed: ReturnType<typeof settle>,
 ): Promise<void> {
     // forget a browser its push service forgot, as the space its recipient lets read its clients
     const { to } = row;
-    const isGone = to.channel === "push" && observed.fields.reason === GONE;
+    const isGone = to.channel === "push" && observed.fields.reason === "RECIPIENT_GONE";
     const forget = isGone
         ? [
               task.start(
@@ -147,9 +176,14 @@ async function observe(
           ]
         : [];
 
-    // record the observation with it, starting the task in the message's space
+    // record the try and the observation with it, starting the task in the message's space
     await reconciliation.mutate(
         [
+            messageAttempt.call("create", {
+                ...messageAttempt.in(row.scope),
+                parentId: row.id,
+                outcome,
+            }),
             message.call("observe", {
                 ...message.target(row),
                 observedGeneration: row.generation,
@@ -162,49 +196,75 @@ async function observe(
     );
 }
 
+/** Find a person's browser subscribed to pushes, absent for a client that is none. */
+function findBrowser(recipient: Recipient, id: string): Recipient["browsers"][number] | undefined {
+    return recipient.browsers.find((each) => each.id === id);
+}
+
+/** Read where a message goes now, a browser with its subscription, absent once unsubscribed. */
+async function deliver(whole: Message, store: ObjectStore): Promise<Delivery | undefined> {
+    // pass every destination but a browser on
+    const { to } = whole;
+    if (to.channel !== "push") {
+        return to;
+    }
+
+    // read the browser's subscription for the person's home, the message's space
+    const now = store.clock.now();
+    const delegator = principal.space.reference(Scope.universe.id, whole.scope);
+    const delegate = Caller.principal(store.as(message, now));
+    const caller = await Grant.act(Snapshot.live(store.database), { delegator, delegate }, now);
+    const call = user.call("recipient", { id: to.user });
+    const recipient = await store.query(AccessContext.of(caller, now), call);
+    const browser = findBrowser(recipient, to.client);
+
+    return browser === undefined ? undefined : { ...to, url: browser.url, keys: browser.keys };
+}
+
 /** Open a message's content and send it through its channel's provider, if one exists here. */
 async function attempt(
     options: Pick<MessageOptions, "providers" | "keys">,
     whole: Message,
     store: ObjectStore,
 ): Promise<Outcome> {
-    // fail a message no provider here sends, a desktop message among them
+    // fail a message whose channel this machine stopped serving since its creation
     const { channel } = whole.to;
     const provider = channel === "desktop" ? undefined : options.providers[channel];
     if (provider === undefined) {
         return {
             kind: "failed",
-            error: {
-                code: "unprovided",
-                message: `no provider sends ${channel} messages here`,
+            refusal: {
+                reason: "CHANNEL_UNSERVED",
+                message: `this machine does not send ${channel} messages`,
             },
         };
     }
 
+    // fail a message to a browser no longer subscribed
+    const delivery = await deliver(whole, store);
+    if (delivery === undefined) {
+        const refusal = {
+            reason: "RECIPIENT_GONE" as const,
+            message: "the browser receives no pushes",
+        };
+
+        return { kind: "failed", refusal };
+    }
+
     // open the content right before the provider sends it
     const sealed = present(whole.ciphertext, "an unsettled message's ciphertext");
-    const key = await MessageKey.derive(options.keys);
+    const key = await MessageKey.derive(options.keys, store.environment);
     const content = await key.open(sealed, whole.scope);
+    const source = ObjectReference.at("source", whole);
 
-    return provider.send({ ...whole, source: ObjectReference.at("source", whole), content }, store);
+    return provider.send({ ...whole, to: delivery, source, content }, store);
 }
 
-/** Record a try of a message, returning how many tries it has. */
-async function recordAttempt(
+/** Count a message's recorded tries. */
+async function countAttempts(
     reconciliation: ObjectReconciliation<typeof message>,
-    whole: Pick<Message, "id" | "scope">,
-    outcome: Outcome,
+    whole: Pick<Message, "id">,
 ): Promise<number> {
-    // record the try
-    await reconciliation.mutate([
-        messageAttempt.call("create", {
-            ...messageAttempt.in(whole.scope),
-            parentId: whole.id,
-            outcome,
-        }),
-    ]);
-
-    // count the tries so far
     const [tried] = await reconciliation.database
         .select({ count: count() })
         .from(messageAttempt.table)
@@ -214,7 +274,13 @@ async function recordAttempt(
 }
 
 /** Decide a message's fields and Sent condition after a try. */
-function settle(outcome: Outcome, retry: RetryPolicy, attempts: number, now: number) {
+function settle(
+    outcome: Outcome,
+    retry: RetryPolicy,
+    attempts: number,
+    now: number,
+    drawn: number,
+) {
     // settle a sent message
     if (outcome.kind === "sent") {
         return {
@@ -222,16 +288,20 @@ function settle(outcome: Outcome, retry: RetryPolicy, attempts: number, now: num
             sent: { status: "true" as const, reason: "Sent", message: "" },
         };
     }
-    // retry after the provider's wait or the policy's interval while the policy retries
-    else if (outcome.kind === "retry" && RetryPolicy.isRetried(retry, attempts)) {
-        const retryAt = now + (outcome.after ?? RetryPolicy.interval(retry, attempts));
+    // try again after the provider's wait or the policy's interval, while the policy allows
+    else if (outcome.kind === "deferred" && RetryPolicy.isRetried(retry, attempts)) {
+        const wait =
+            outcome.after === undefined
+                ? RetryPolicy.interval(retry, attempts, () => drawn)
+                : Math.min(outcome.after, retry.maximumInterval);
+        const retryAt = now + Math.ceil(wait);
 
         return {
             fields: { retryAt },
             sent: {
                 status: "unknown" as const,
                 reason: "Retrying",
-                message: outcome.error.message,
+                message: outcome.refusal.message,
             },
         };
     }
@@ -240,15 +310,15 @@ function settle(outcome: Outcome, retry: RetryPolicy, attempts: number, now: num
         return {
             fields: {
                 status: "failed" as const,
-                reason: outcome.error.code,
+                reason: outcome.refusal.reason,
                 settledAt: now,
                 retryAt: null,
                 ciphertext: null,
             },
             sent: {
                 status: "false" as const,
-                reason: outcome.error.code,
-                message: outcome.error.message,
+                reason: "Failed",
+                message: `${outcome.refusal.reason}: ${outcome.refusal.message}`,
             },
         };
     }

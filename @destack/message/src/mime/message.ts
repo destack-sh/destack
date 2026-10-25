@@ -1,5 +1,5 @@
-import { Digest } from "@destack/schema";
-import { MimeError } from "./error.ts";
+import { Digest, type DigestCrypto } from "@destack/schema";
+import { MessageError } from "../error/error.ts";
 import { Header } from "./header.ts";
 import { Mailbox } from "./mailbox.ts";
 
@@ -65,17 +65,17 @@ export class MimeMessage {
     }
 
     /** Compose a draft: its headers, then its text body or both bodies as alternatives. */
-    static async compose(draft: Draft): Promise<MimeMessage> {
+    static async compose(draft: Draft, crypto: DigestCrypto): Promise<MimeMessage> {
         // refuse an empty key and an invalid date
         if (draft.key === "") {
-            throw new MimeError("INVALID_KEY", "message key is empty");
+            throw MessageError.of("KEY_INVALID", "message key is empty");
         } else if (Number.isNaN(draft.date.getTime())) {
-            throw new MimeError("INVALID_DATE", "message date is invalid");
+            throw MessageError.of("DATE_INVALID", "message date is invalid");
         }
 
         // derive the Message-ID and the boundary from the digest of the From address and the key
         const from = Mailbox.parse(draft.from);
-        const digest = await digestKey(from.address, draft.key);
+        const digest = await digestKey(from.address, draft.key, crypto);
         const messageId = `<${digest}@${from.domain}>`;
         const boundary = `=_${digest}`;
 
@@ -98,12 +98,12 @@ export class MimeMessage {
         // write the extra headers, refusing a malformed or structural field
         for (const [name, value] of Object.entries(draft.headers ?? {})) {
             if (!FIELD_NAME.test(name)) {
-                throw new MimeError(
-                    "INVALID_HEADER",
+                throw MessageError.of(
+                    "HEADER_INVALID",
                     `header name ${JSON.stringify(name)} contains a character outside printable ASCII or a colon`,
                 );
             } else if (STRUCTURAL_HEADERS.has(name.toLowerCase())) {
-                throw new MimeError("INVALID_HEADER", `header ${name} is written by the composer`);
+                throw MessageError.of("HEADER_INVALID", `header ${name} is set by the composer`);
             }
             headers.push(Header.unstructured(name, value));
         }
@@ -127,9 +127,9 @@ export class MimeMessage {
 }
 
 /** Digest a sender's address and a key with SHA-256 for a Message-ID and a boundary. */
-async function digestKey(address: string, key: string): Promise<string> {
+async function digestKey(address: string, key: string, crypto: DigestCrypto): Promise<string> {
     // join the two with a space, which no address contains
-    const digest = await Digest.of(`${address} ${key}`);
+    const digest = await Digest.of(`${address} ${key}`, crypto);
 
     return digest.slice(0, DIGEST_HEX_LENGTH);
 }

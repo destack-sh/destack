@@ -1,357 +1,54 @@
-import { AccessContext, Caller, Policy, principal } from "@destack/access";
-import { AccessFixture } from "@destack/access/test";
-import { CallEvent, call, defineAuditAction } from "@destack/object";
-import { AuditRecorder, Journal, implementPackage, ObjectStore } from "@destack/object/server";
-import { testEvents } from "@destack/object/test";
-import {
-    defineDatabase,
-    type DatabaseConnection,
-    eq,
-    type Controller,
-    ControlLoop,
-} from "@destack/db";
-import { TestDatabase } from "@destack/db/test";
-import { Derivation } from "@destack/identity";
-import { Package, PackageId } from "@destack/package";
-import type {} from "@destack/package/import-meta";
-import { Identifier, present, schema } from "@destack/schema";
-import { testCallKey } from "@destack/object/test";
-import { ObjectReference, Scope, RequestId } from "@destack/sync";
-import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { Endpoint, endpoint, mail, message, messageAttempt } from "../object/index.ts";
-import { mailProvider } from "../email/index.ts";
-import messagePackage from "../package.ts";
-import { messageTables } from "../stack/index.ts";
-import { WebhookSignature, webhookProvider } from "../webhook/index.ts";
-import { storeSecret } from "../test/index.ts";
-import { account, space } from "@destack/account/object";
-import vaultServer from "@destack/vault/server";
+import { principal } from "@destack/access";
+import { eq } from "@destack/db";
+import { StandardWebhook } from "@destack/object";
+import { schema } from "@destack/schema";
+import { RequestId } from "@destack/sync";
+import { expect, refusal, test } from "@destack/test";
 import { secret } from "@destack/vault/object";
-import { vaultDatabase } from "@destack/vault/test";
-import { implementEndpoint } from "./endpoint.ts";
-import { implementMessage } from "./message.ts";
-import { Clock } from "@destack/environment";
+import vaultPackage from "@destack/vault/package";
+import { endpoint, message } from "../object/index.ts";
+import messagePackage from "../package.ts";
+import { documentsPackage, TestMessage } from "../test/index.ts";
 
-/** The scope type of the endpoints and their messages, as an organisation is in the universe. */
-const place = new Policy(import.meta.destack.package, {
-    name: "place",
-    permissions: {},
-    scope: true,
-});
-
-/** A database with endpoints, their messages and the calls they deliver, as a space has them. */
-const endpointDatabase = defineDatabase({
-    name: "endpoint",
-    tables: [...messageTables, ...vaultDatabase.tables],
-});
-
-/** The fields of an endpoint posting each call as a signed event. */
-const EVENT_FIELDS = {
-    events: "all",
-    format: "event",
-    authentication: { kind: "signature" },
-} as const;
-
-/** A user other than the endpoint's creator. */
-const SENDER_ID = schema.identifier("user").parse("user-019f5530-8000-7000-8000-0000000000f9");
-
-/** The longest a test waits for an endpoint's delivery, far above three retries at 10 ms. */
-const SETTLE_MILLISECONDS = 5000;
-
-/** The root secret the scope's message key derives from. */
-const ROOT = Derivation.of(await Derivation.root(crypto.getRandomValues(new Uint8Array(32))));
-
-/** How refused sends retry here: twice at 10 ms. */
-const RETRY = {
-    initialInterval: 10,
-    maximumInterval: 10,
-    maximumAttempts: 2,
-    backoffCoefficient: 1,
-};
-
-/** The scope whose history the endpoint receives. */
-const SCOPE = place.reference(Scope.universe.id, "place-019f5530-8000-7000-8000-0000000000f1");
-
-/** The identifier of the user whose calls the endpoints receive. */
-const USER_ID = schema.identifier("user").parse("user-019f5530-8000-7000-8000-0000000000f2");
-
-/** The machine serving the space and its vaults. */
-const MACHINE = schema.identifier("machine").parse("machine-01996ab0-0000-7000-8000-0000000000a1");
-
-/** The user whose calls the endpoints receive. */
-const USER = principal.user.reference(Scope.universe.id, USER_ID);
-
-/** The account whose space has the endpoints' secret. */
-const ACCOUNT = schema.identifier("account").parse("account-019f5530-8000-7000-8000-0000000000f6");
-
-/** The message installation serving the endpoints, as which their messages go out. */
-const INSTALLATION = principal.installation.reference(
-    "space-019f5530-8000-7000-8000-0000000000f4",
-    "installation-019f5530-8000-7000-8000-0000000000f8",
-);
-
-/** Another installation of the space, which writes and consumes the second secret. */
-const WRITER = principal.installation.reference(
-    "space-019f5530-8000-7000-8000-0000000000f4",
-    "installation-019f5530-8000-7000-8000-0000000000fa",
-);
-
-/** The endpoint's secret, a secret of a vault in a space. */
-const SECRET: ObjectReference = {
-    packageId: PackageId.parse("package-019f5530-8000-7000-8000-0000000000f3"),
-    type: "secret",
-    scope: "space-019f5530-8000-7000-8000-0000000000f4",
-    id: "secret-019f5530-8000-7000-8000-0000000000f5",
-};
-
-/** The secret an endpoint rotates to, in the same vault. */
-const ROTATED: ObjectReference = { ...SECRET, id: "secret-019f5530-8000-7000-8000-0000000000f9" };
-
-/** The value of the endpoint's secret in the vault, the Standard Webhooks example secret. */
+/** The value of the endpoints' secret, the Standard Webhooks example secret. */
 const SECRET_VALUE = "whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw";
 
-/** The URL every endpoint posts to. */
-const URL = "https://hooks.example.com/destack";
-
-/** A person's rename of a document, the event endpoints subscribe to. */
-const documentRename = defineAuditAction(
-    {
-        name: "document.rename",
-        target: schema.object({ type: schema.literal("document"), id: schema.string() }),
-        details: schema.object({ name: schema.string() }),
-    },
-    { package: import.meta.destack.package },
-);
-
-/** A person's deletion of a document, an event no endpoint here subscribes to. */
-const documentDelete = defineAuditAction(
-    {
-        name: "document.delete",
-        target: schema.object({ type: schema.literal("document"), id: schema.string() }),
-        details: schema.object({}),
-    },
-    { package: import.meta.destack.package },
-);
+/** The fields of an endpoint posting each call as a signed event. */
+const EVENTS = { events: "all", format: "event", authentication: { kind: "signature" } } as const;
 
 /** The envelope of a posted event. */
 const Envelope = schema.looseObject({ type: schema.string(), data: schema.json() });
 
-/** Run some controllers over a database until the test ends, failing it on a reported failure. */
-function run(database: DatabaseConnection, controllers: readonly Controller[]): ControlLoop {
-    const stopping = new AbortController();
-    const loop = new ControlLoop(database, controllers, {
-        clock: Clock.system,
-        report: (_controller, _key, error) => {
-            throw error;
-        },
-    });
-    const running = loop.run(stopping.signal);
-    onTestFinished(async () => {
-        stopping.abort();
-        await running;
-    });
-
-    return loop;
-}
-
-/** Record a person's finished call in a scope. */
-function finished(
-    recording: Journal,
-    action: typeof documentRename | typeof documentDelete,
-    outcome: "success" | "failure" = "success",
-): CallEvent {
-    const recorder = new AuditRecorder(
-        { caller: { subject: USER }, package: import.meta.destack.package, scope: SCOPE.id },
-        recording,
-    );
-    const target = { type: "document" as const, id: "one" };
-    const running =
-        action === documentRename
-            ? recorder.begin(documentRename, { target, details: { name: "renamed" } })
-            : recorder.begin(documentDelete, { target, details: {} });
-
-    return recorder.finish(
-        running,
-        outcome === "success"
-            ? { kind: "success" }
-            : { kind: "failure", error: { code: "CONFLICT", message: "conflict" } },
-    );
-}
-
-test("refuse a webhook message to an endpoint from a sender who does not manage it", async () => {
-    // create an endpoint, and a sender who may send messages but not manage endpoints
-    const { database, objects } = await serveHistory([]);
-    const id = await subscribe(database, EVENT_FIELDS);
-    const sender = principal.user.reference(Scope.universe.id, SENDER_ID);
-    const role = {
-        name: "sender",
-        description: "Sends messages",
-        permissions: [message.permission("send")],
-    };
-    await new AccessFixture(database).replicateRole(SCOPE, role, sender, 0);
-
-    // refuse its webhook message posting to the endpoint with the endpoint's secret
-    const now = Date.now();
-    const created = objects.mutate(AccessContext.of(Caller.of(sender), Date.now()), {
-        id: RequestId.create(now),
-        calls: [
-            message.call("create", {
-                ...message.target({ scope: SCOPE.id, id: Identifier.create("message") }),
-                to: { channel: "webhook" },
-                ...ObjectReference.columns("source", endpoint.reference(SCOPE.id, id)),
-            }),
-        ],
-    });
-    expect(await refusal(created)).toEqual(["FORBIDDEN", "permission denied: manage"]);
+/** A record of a posted batch: a call's method as its type, with its scope, target and details. */
+const BatchRecord = schema.object({
+    type: schema.string(),
+    scope: schema.string(),
+    target: schema.json(),
+    details: schema.json(),
 });
 
-test("let the installation consume an endpoint's new secret as the manager who sets it, and release the old one", async () => {
-    // create an endpoint, a second secret, and a manager of endpoints
-    const { database, objects } = await serveHistory([]);
-    const id = await subscribe(database, EVENT_FIELDS);
-    await storeSecret(objects, ROTATED, SECRET_VALUE, WRITER);
-    const manager = principal.user.reference(Scope.universe.id, SENDER_ID);
-    const access = new AccessFixture(database);
-    const managing = {
-        name: "manager",
-        description: "Manages endpoints",
-        permissions: [endpoint.permission("manage")],
-    };
-    await access.replicateRole(SCOPE, managing, manager, 0);
-
-    // point the endpoint at the second secret as the manager
-    const rotate = () => {
-        const now = Date.now();
-
-        return objects.mutate(AccessContext.of(Caller.of(manager), Date.now()), {
-            id: RequestId.create(now),
-            calls: [
-                endpoint.call("update", {
-                    ...endpoint.target({ scope: SCOPE.id, id }),
-                    secret: ROTATED,
-                }),
-            ],
-        });
-    };
-
-    // refuse a manager who may not let software use the secret, then accept one who may
-    const refused = await refusal(rotate());
-    const binding = {
-        name: "binder",
-        description: "Lets software use the space's secrets",
-        permissions: [secret.permission("bind")],
-    };
-    await access.replicateRole(space.reference(ACCOUNT, SECRET.scope), binding, manager, 0);
-    await rotate();
-
-    // read each secret as the installation, which consumes only the second one
-    const read = (kept: ObjectReference) =>
-        objects.query(
-            AccessContext.of(Caller.of(INSTALLATION), Date.now()),
-            secret.call(
-                "read",
-                secret.target({ scope: kept.scope, id: secret.identifier(kept.id) }),
-            ),
-        );
-    expect({
-        refused,
-        old: await refusal(read(SECRET)),
-        rotated: await read(ROTATED),
-    }).toEqual({
-        refused: ["NOT_FOUND", `no secret ${ROTATED.id}`],
-        old: ["NOT_FOUND", `no secret ${SECRET.id}`],
-        rotated: { version: 1, value: { encoding: "text", value: SECRET_VALUE } },
-    });
-});
-
-/** Serve endpoints over an audit history and their messages. */
-async function serveHistory(statuses: readonly number[]) {
-    // post through the webhook provider and record the posts
-    const posts: { headers: Headers; body: string }[] = [];
-    const provider = webhookProvider(async (request) => {
-        posts.push({ headers: new Headers(request.headers), body: await request.text() });
-        const status = present(statuses[posts.length - 1], "a status for each post");
-
-        return new Response(null, { status, statusText: `answered ${status}` });
-    });
-
-    // serve the endpoints with their messages and the calls they read, which record their deliveries too
-    const storage = await TestDatabase.create("sqlite", endpointDatabase, { isMigrated: true });
-    onTestFinished(() => storage.close());
-    const store = await testEvents(storage.database);
-    const recording = new Journal(storage.database, testCallKey, {
-        clock: Clock.system,
-        events: store,
-    });
-    const objects = new ObjectStore({
-        chain: async () => undefined,
-        clock: Clock.system,
-        principal: INSTALLATION,
-        servers: [
-            implementPackage(messagePackage, {
-                objects: [
-                    implementMessage({
-                        providers: { webhook: provider },
-                        retry: RETRY,
-                        keys: ROOT,
-                    }),
-                    messageAttempt,
-                    implementEndpoint(ROOT),
-                ],
-                providers: [mailProvider("fixture", mail)],
-            }),
-            vaultServer,
-        ],
-        policies: [place, space],
-        database: storage.database,
-        callKey: testCallKey,
-        events: store,
-        origin: { package: Package.of(messagePackage) },
-        machine: MACHINE,
-    });
-    const access = new AccessFixture(storage.database);
-    await access.replicateScope({ ...SCOPE });
-    await access.bindOwner(SCOPE, INSTALLATION);
-
-    // store the endpoints' secret in the vault of its space, consumed by the installation
-    const vaulted = space.reference(ACCOUNT, SECRET.scope);
-    await access.replicateScope(account.reference(Scope.universe.id, ACCOUNT));
-    await access.replicateScope(vaulted);
-    await access.bindOwner(vaulted, principal.space.reference(Scope.universe.id, SECRET.scope));
-    await storeSecret(objects, SECRET, SECRET_VALUE, INSTALLATION);
+/** Create, rename and delete documents as the owner, the space's history the endpoints read. */
+function documents(kit: TestMessage) {
+    const client = kit.owner.client(documentsPackage);
+    const spaceId = kit.space.id;
+    const requestId = () => RequestId.create(kit.environment);
 
     return {
-        database: storage.database,
-        recording,
-        record: (calls: readonly CallEvent[]) =>
-            store.append(
-                call.eventKind(),
-                calls.map((ended) => Journal.event(ended)),
-            ),
-        objects,
-        posts,
-        read: (id: Identifier<"endpoint">) => readDelivery(storage.database, id),
-        until: (id: Identifier<"endpoint">, check: (delivery: Delivery) => boolean) =>
-            TestDatabase.settle(
-                storage.database,
-                async () => check(await readDelivery(storage.database, id)),
-                SETTLE_MILLISECONDS,
-            ),
-        start: () => run(storage.database, [...objects.controllers(), ...store.controllers]),
+        create: (name: string) => client.document.create({ spaceId, requestId: requestId(), name }),
+        rename: (id: string, name: string) =>
+            client.document.update({ spaceId, id, requestId: requestId(), name }),
+        delete: (id: string) => client.document.delete({ spaceId, id, requestId: requestId() }),
     };
 }
 
-/** An endpoint's messages and Delivered condition as a test reads them. */
-type Delivery = Awaited<ReturnType<typeof readDelivery>>;
-
-/** Read how many messages an endpoint has and its Delivered condition. */
-async function readDelivery(database: DatabaseConnection, id: Identifier<"endpoint">) {
-    const row = await readEndpoint(database, id);
-    const sent = await database
-        .select({ id: message.table.id })
-        .from(message.table)
-        .where(eq(message.table.sourceId, id));
-    const delivered = row.conditions["Delivered"];
+/** Read an endpoint's message count and Delivered condition. */
+async function delivery(kit: TestMessage, id: string) {
+    const [row] = await kit.served.database
+        .select({ conditions: endpoint.table.conditions })
+        .from(endpoint.table)
+        .where(eq(endpoint.table.id, endpoint.identifier(id)));
+    const sent = await kit.served.database.select({ id: message.table.id }).from(message.table);
+    const delivered = row?.conditions["Delivered"];
 
     return {
         messages: sent.length,
@@ -359,244 +56,284 @@ async function readDelivery(database: DatabaseConnection, id: Identifier<"endpoi
     };
 }
 
-/** Create an enabled endpoint delivering from before every call, as its creator wrote it. */
-async function subscribe(
-    database: DatabaseConnection,
-    fields: Pick<Endpoint, "events" | "format" | "authentication">,
-): Promise<Identifier<"endpoint">> {
-    const id = Identifier.create("endpoint");
-    await database.insert(endpoint.table).values({
-        id,
-        scope: SCOPE.id,
-        url: URL,
-        ...fields,
-        status: "enabled",
-        secret: SECRET,
-        createdAt: 1,
-        updatedAt: 1,
-    });
-    await endpoint.reader("endpoint").at(id).start(Date.now(), database);
+/** Read posted bodies' types, refusing a post the secret does not verify. */
+async function readPosts(kit: TestMessage) {
+    return Promise.all(
+        kit.hooks.requests.map(async (post) => {
+            const received = new Request(post.url, {
+                method: "POST",
+                headers: post.headers,
+                body: post.body,
+            });
+            const webhook = await StandardWebhook.of(SECRET_VALUE, kit.environment.crypto);
+            const { body } = await webhook.verify(received, kit.clock.now());
 
-    return id;
-}
-
-/** Read an endpoint as its table stores it. */
-async function readEndpoint(
-    database: DatabaseConnection,
-    id: Identifier<"endpoint">,
-): Promise<Endpoint> {
-    const [row] = await database.select().from(endpoint.table).where(eq(endpoint.table.id, id));
-
-    return present(row, "the endpoint");
-}
-
-/** Read posted events in data order: data, type, and whether the secret signed each. */
-async function readEvents(posts: readonly { readonly headers: Headers; readonly body: string }[]) {
-    // order the envelopes by their data
-    const bodies = posts
-        .map((post) => Envelope.parse(JSON.parse(post.body)))
-        .toSorted((left, right) =>
-            JSON.stringify(left.data).localeCompare(JSON.stringify(right.data)),
-        );
-
-    // check each post's signature over its identifier, time and body
-    const signatures = await Promise.all(
-        posts.map(
-            async (post) =>
-                post.headers.get("webhook-signature") ===
-                (await WebhookSignature.sign(
-                    SECRET_VALUE,
-                    String(post.headers.get("webhook-id")),
-                    String(post.headers.get("webhook-timestamp")),
-                    post.body,
-                )),
-        ),
+            return Envelope.parse(JSON.parse(body)).type;
+        }),
     );
-
-    return {
-        data: bodies.map((body) => body.data),
-        types: bodies.map((body) => body.type),
-        signatures,
-    };
 }
 
-test("send each subscribed succeeded call of the scope as one event signed with the secret read as the endpoint's user", async () => {
-    const served = await serveHistory([204, 204]);
-    const id = await subscribe(served.database, {
-        events: [documentRename.name],
-        format: "event",
-        authentication: { kind: "signature" },
-    });
+test("refuse a webhook message to an endpoint from a sender who does not manage it", async () => {
+    // create an endpoint, and a member who may send messages but not manage endpoints
+    const kit = await TestMessage.open();
+    const id = await kit.subscribe({ ...EVENTS, secret: await kit.secret(SECRET_VALUE) });
+    const member = await kit.member([message.permission("send")]);
 
-    // record two renames with a failed rename and an unsubscribed deletion
-    const first = finished(served.recording, documentRename);
-    const second = finished(served.recording, documentRename);
-    await served.record([
-        first,
-        finished(served.recording, documentRename, "failure"),
-        finished(served.recording, documentDelete),
-        second,
+    // refuse the member's webhook message posting to the endpoint with the endpoint's secret
+    const created = kit.space
+        .person(kit.served, member)
+        .client(messagePackage)
+        .message.create({
+            ...message.target({ scope: kit.space.id, id: message.generateId(kit.environment) }),
+            requestId: RequestId.create(kit.environment),
+            to: { channel: "webhook" },
+            sourcePackageId: endpoint.package.id,
+            sourceType: endpoint.name,
+            sourceScope: kit.space.id,
+            sourceId: id,
+            ciphertext: await kit.seal({
+                channel: "webhook",
+                type: "x",
+                format: "event",
+                data: {},
+            }),
+        });
+    expect(await refusal(created)).toEqual([
+        "FORBIDDEN",
+        "PERMISSION_DENIED",
+        "permission denied: manage",
     ]);
-    served.start();
+});
 
-    // post both renames once each in either order and mark the endpoint delivered
-    await served.until(
-        id,
-        (delivery) => delivery.messages === 2 && delivery.delivered?.[0] === "true",
-    );
-    expect(await served.read(id)).toEqual({ messages: 2, delivered: ["true", "Delivered", ""] });
-    expect(await readEvents(served.posts)).toEqual({
-        data: [first, second]
-            .map((delivered) => ({
-                scope: delivered.execution.context.scope,
-                target: delivered.execution.target,
-                details: delivered.execution.details,
-            }))
-            .toSorted((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right))),
-        types: [documentRename.name, documentRename.name],
-        signatures: [true, true],
+test("let the installation consume an endpoint's new secret as the manager who sets it, and release the old one", async () => {
+    // create an endpoint with a secret, a second secret, and a member managing endpoints
+    const kit = await TestMessage.open();
+    const first = await kit.secret(SECRET_VALUE);
+    const rotated = await kit.secret("whsec_cm90YXRlZA==");
+    const id = await kit.subscribe({ ...EVENTS, secret: first });
+    const person = await kit.member([endpoint.permission("manage")]);
+    const manager = kit.space.person(kit.served, person).client(messagePackage);
+    const rotate = () =>
+        manager.endpoint.update({
+            scope: kit.space.id,
+            id,
+            requestId: RequestId.create(kit.environment),
+            secret: rotated,
+        });
+
+    // refuse a manager who may not let software use the secret, then accept one who may
+    const refused = await refusal(rotate());
+    await kit.allow(person, [endpoint.permission("manage"), secret.permission("bind")]);
+    await rotate();
+
+    // read each secret as the installation, which consumes only the second one
+    const read = (kept: typeof first) =>
+        kit.served
+            .as(principal.installation.reference(kit.space.id, kit.installation))
+            .client(vaultPackage)
+            .secret.read({ scope: kit.space.id, id: secret.identifier(kept.id) });
+    expect({ refused, old: await refusal(read(first)), rotated: await read(rotated) }).toEqual({
+        refused: ["NOT_FOUND", "NOT_FOUND", `secret ${rotated.id} not found`],
+        old: ["NOT_FOUND", "NOT_FOUND", `secret ${first.id} not found`],
+        rotated: { version: 1, value: { encoding: "text", value: "whsec_cm90YXRlZA==" } },
     });
 });
 
-test("send a page of calls as one NDJSON batch carrying the secret in the endpoint's header", async () => {
-    const served = await serveHistory([204]);
-    const id = await subscribe(served.database, {
-        events: "all",
+test("send each subscribed succeeded call as one event signed with the secret the installation consumes", async () => {
+    // subscribe to renames, then create, rename twice, fail a rename and delete a document
+    const kit = await TestMessage.open();
+    const id = await kit.subscribe({
+        ...EVENTS,
+        events: ["document.update"],
+        secret: await kit.secret(SECRET_VALUE),
+    });
+    const history = documents(kit);
+    const created = await history.create("draft");
+    await history.rename(created.id, "first");
+    await history.rename(created.id, "second");
+    await refusal(history.rename("document-019f5530-8000-7000-8000-0000000000ff", "missing"));
+    await history.delete(created.id);
+    await kit.settle();
+
+    // post both renames once each, signed, and mark the endpoint delivered
+    expect({ delivery: await delivery(kit, id), posts: await readPosts(kit) }).toEqual({
+        delivery: { messages: 2, delivered: ["true", "Delivered", ""] },
+        posts: ["document.update", "document.update"],
+    });
+});
+
+test("send a page of calls as one NDJSON batch with the secret in the endpoint's header", async () => {
+    // subscribe in NDJSON with the secret in a header, then create and delete a document
+    const kit = await TestMessage.open();
+    await kit.subscribe({
+        events: ["document.create", "document.delete"],
         format: "ndjson",
         authentication: { kind: "header", name: "api-key" },
+        secret: await kit.secret(SECRET_VALUE),
     });
+    const history = documents(kit);
+    const created = await history.create("draft");
+    await history.delete(created.id);
+    await kit.settle();
 
-    // record a rename and a deletion
-    const calls = [
-        finished(served.recording, documentRename),
-        finished(served.recording, documentDelete),
-    ];
-    await served.record(calls);
-    served.start();
-
-    // post both calls as lines of JSON with the secret in the header and no signature
-    await served.until(
-        id,
-        (delivery) => delivery.messages === 1 && delivery.delivered?.[0] === "true",
-    );
-    expect(await served.read(id)).toEqual({ messages: 1, delivered: ["true", "Delivered", ""] });
-    const [post] = served.posts;
+    // post both calls as lines of JSON in the pages they landed in, with the secret in the header and no signature
+    const posts = kit.hooks.requests;
     expect({
-        posts: served.posts.length,
-        calls: post?.body
-            .trim()
-            .split("\n")
-            .map((line) => CallEvent.parse(JSON.parse(line)).execution.id),
-        key: post?.headers.get("api-key"),
-        signature: post?.headers.get("webhook-signature"),
-        type: post?.headers.get("content-type"),
+        methods: posts.flatMap((post) =>
+            post.body
+                .trim()
+                .split("\n")
+                .map((line) => BatchRecord.parse(JSON.parse(line)).type),
+        ),
+        headers: [
+            ...new Set(
+                posts.map((post) =>
+                    JSON.stringify([
+                        post.headers.get("api-key"),
+                        post.headers.get("webhook-signature"),
+                        post.headers.get("content-type"),
+                    ]),
+                ),
+            ),
+        ],
     }).toEqual({
-        posts: 1,
-        calls: calls.map((ended) => ended.execution.id),
-        key: SECRET_VALUE,
-        signature: null,
-        type: "application/x-ndjson",
+        methods: ["document.create", "document.delete"],
+        headers: [JSON.stringify([SECRET_VALUE, null, "application/x-ndjson"])],
     });
-});
-
-test("advance an endpoint past each page and create no message twice when a page repeats", async () => {
-    const served = await serveHistory([204, 204]);
-    const id = await subscribe(served.database, {
-        events: "all",
-        format: "event",
-        authentication: { kind: "signature" },
-    });
-    const position = () => served.database.log.slot(endpoint.reader("endpoint").at(id).name);
-    const before = await position();
-
-    // deliver one call and advance the endpoint past it
-    await served.record([finished(served.recording, documentRename)]);
-    served.start();
-    const isAdvanced = async () => (await position()) !== before;
-    await TestDatabase.settle(served.database, isAdvanced, SETTLE_MILLISECONDS);
-
-    // repeat the page as a reconcile that failed to advance the endpoint does
-    await served.database.log.advance(
-        endpoint.reader("endpoint").at(id).name,
-        before ?? 0,
-        Date.now() + 60_000,
-    );
-    await TestDatabase.settle(served.database, isAdvanced, SETTLE_MILLISECONDS);
-
-    // the first page created one message, delivered once its attempt lands
-    await served.until(id, (delivery) => delivery.delivered?.[0] === "true");
-    expect(await served.read(id)).toEqual({ messages: 1, delivered: ["true", "Delivered", ""] });
 });
 
 test("hold a disabled endpoint's position and deliver only the calls after it once enabled again", async () => {
-    const served = await serveHistory([204, 204]);
-    const id = await subscribe(served.database, {
-        events: "all",
-        format: "event",
-        authentication: { kind: "signature" },
-    });
-
     // deliver a first call
-    const first = finished(served.recording, documentRename);
-    await served.record([first]);
-    const loop = served.start();
-    await served.until(
-        id,
-        (delivery) => delivery.messages === 1 && delivery.delivered?.[0] === "true",
-    );
-    expect(await served.read(id)).toEqual({ messages: 1, delivered: ["true", "Delivered", ""] });
+    const kit = await TestMessage.open();
+    const id = await kit.subscribe({
+        ...EVENTS,
+        events: ["document.create", "document.delete"],
+        secret: await kit.secret(SECRET_VALUE),
+    });
+    const history = documents(kit);
+    const created = await history.create("draft");
+    await kit.settle();
+    const before = await delivery(kit, id);
 
-    // disable the endpoint through the space's own settings and record a second call while it rests
-    const update = async (status: "enabled" | "disabled") =>
-        served.objects.mutate(
-            AccessContext.of(Caller.of(INSTALLATION), Date.now()),
-            {
-                id: RequestId.create(Date.now()),
-                calls: [
-                    endpoint.call("update", {
-                        ...endpoint.target(await readEndpoint(served.database, id)),
-                        status,
-                    }),
-                ],
-            },
-            { component: "settings" },
-        );
-    const position = () => served.database.log.slot(endpoint.reader("endpoint").at(id).name);
+    // disable the endpoint, delete the document while it rests, and enable it again
+    const client = kit.owner.client(messagePackage);
+    const update = (status: "enabled" | "disabled") =>
+        client.endpoint.update({
+            scope: kit.space.id,
+            id,
+            requestId: RequestId.create(kit.environment),
+            status,
+        });
     await update("disabled");
-    await loop.idle();
-    const delivered = await position();
-    const second = finished(served.recording, documentDelete);
-    await served.record([second]);
-    await loop.idle();
-    expect(await position()).toBe(delivered);
-
-    // enable it and send only the second call
+    await history.delete(created.id);
+    await kit.settle();
+    const resting = kit.hooks.requests.length;
     await update("enabled");
-    await served.until(id, (delivery) => delivery.messages === 2 && served.posts.length === 2);
+    await kit.settle();
     expect({
-        ...(await served.read(id)),
-        types: served.posts.map((post) => Envelope.parse(JSON.parse(post.body)).type),
+        before,
+        resting,
+        after: await delivery(kit, id),
+        types: await readPosts(kit),
     }).toEqual({
-        messages: 2,
-        delivered: ["true", "Delivered", ""],
-        types: [documentRename.name, documentDelete.name],
+        before: { messages: 1, delivered: ["true", "Delivered", ""] },
+        resting: 1,
+        after: { messages: 2, delivered: ["true", "Delivered", ""] },
+        types: ["document.create", "document.delete"],
     });
 });
 
 test("mark an endpoint failing once the message controller gives up a message its URL refuses every time", async () => {
-    const served = await serveHistory([500, 500]);
-    const id = await subscribe(served.database, {
-        events: "all",
+    // refuse every post with a server failure
+    const kit = await TestMessage.open({ hooks: Array.from({ length: 8 }, () => 500) });
+    const id = await kit.subscribe({
+        ...EVENTS,
+        events: ["document.create"],
         format: "json",
-        authentication: { kind: "signature" },
+        secret: await kit.secret(SECRET_VALUE),
     });
+    await documents(kit).create("draft");
+    await kit.settle();
 
-    // give the batch up after the retries and flag the endpoint with the URL's answer
-    await served.record([finished(served.recording, documentRename)]);
-    served.start();
-    await served.until(id, (delivery) => delivery.delivered?.[1] === "Failing");
-    expect(await served.read(id)).toEqual({
+    // give the batch up after the retries, and flag the endpoint with the URL's answer
+    const [sent] = await kit.served.database.select({ id: message.table.id }).from(message.table);
+    for (let attempt = 1; attempt < 8; attempt++) {
+        await kit.retry(message.identifier(String(sent?.id)));
+    }
+    await kit.settle();
+    expect(await delivery(kit, id)).toEqual({
         messages: 1,
-        delivered: ["false", "Failing", "answered 500"],
+        delivered: ["false", "Failing", "PROVIDER_UNAVAILABLE: answered 500"],
     });
+});
+
+test("fail a webhook message once its endpoint is disabled or deleted, or answers with a redirect it never follows", async () => {
+    // subscribe three endpoints to one call each, the first two answered with a server failure
+    const kit = await TestMessage.open({ hooks: [500, 500, 302] });
+    const stored = await kit.secret(SECRET_VALUE);
+    const subscribe = (event: string) =>
+        kit.subscribe({ ...EVENTS, events: [event], secret: stored });
+    const disabled = await subscribe("document.create");
+    const deleted = await subscribe("document.update");
+    const redirected = await subscribe("document.delete");
+    const client = kit.owner.client(messagePackage);
+    const target = (id: string) => ({
+        scope: kit.space.id,
+        id,
+        requestId: RequestId.create(kit.environment),
+    });
+    const sentTo = async (id: string) => {
+        const [row] = await kit.served.database
+            .select({ id: message.table.id })
+            .from(message.table)
+            .where(eq(message.table.sourceId, id));
+
+        return message.identifier(String(row?.id));
+    };
+
+    // defer the first message, disable its endpoint, and try it again
+    const history = documents(kit);
+    const created = await history.create("draft");
+    await kit.settle();
+    await client.endpoint.update({ ...target(disabled), status: "disabled" });
+    await kit.retry(await sentTo(disabled));
+
+    // defer the second message, delete its endpoint, and try it again
+    await history.rename(created.id, "final");
+    await kit.settle();
+    await client.endpoint.delete(target(deleted));
+    await kit.retry(await sentTo(deleted));
+
+    // post the third message once, answered with a redirect
+    await history.delete(created.id);
+    await kit.settle();
+    const read = async (id: string) => {
+        const sending = await kit.sending(await sentTo(id));
+
+        return [sending.status, sending.reason, sending.attempts];
+    };
+    expect({
+        disabled: await read(disabled),
+        deleted: await read(deleted),
+        redirected: await read(redirected),
+        posts: kit.hooks.requests.length,
+    }).toEqual({
+        disabled: ["failed", "RECIPIENT_DISABLED", ["deferred", "failed"]],
+        deleted: ["failed", "RECIPIENT_GONE", ["deferred", "failed"]],
+        redirected: ["failed", "MESSAGE_REJECTED", ["failed"]],
+        posts: 3,
+    });
+});
+
+test("refuse an endpoint whose secret header is one every webhook post sets itself", async () => {
+    const kit = await TestMessage.open();
+    const stored = await kit.secret(SECRET_VALUE);
+    const subscribe = (name: string) =>
+        refusal(
+            kit.subscribe({ ...EVENTS, authentication: { kind: "header", name }, secret: stored }),
+        );
+    expect([await subscribe("Webhook-Signature"), await subscribe("Content-Type")]).toEqual([
+        ["BAD_REQUEST", "HEADER_RESERVED", "every webhook post sets Webhook-Signature itself"],
+        ["BAD_REQUEST", "HEADER_RESERVED", "every webhook post sets Content-Type itself"],
+    ]);
 });

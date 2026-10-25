@@ -1,78 +1,61 @@
-import { SignJWT } from "jose";
-import type { Deriver } from "@destack/identity";
-import { schema } from "@destack/schema";
+import type { Crypto } from "@destack/environment";
+import { type Deriver, Jwt, KeyPair, PublicKey } from "@destack/identity";
 
 /** How long a token stays valid, in seconds: half the day RFC 8292 allows. */
 const TOKEN_SECONDS = 12 * 60 * 60;
 
-/** The algorithm of VAPID keys: ECDSA over P-256 (RFC 8292 3.1). */
-const ALGORITHM = { name: "ECDSA", namedCurve: "P-256" } as const;
-
 /** The label of the installation's VAPID key, distinct from every other key its keys derive. */
 const LABEL = { label: "@destack/message/vapid", context: "" } as const;
-
-/** A VAPID private key as a JWK, its public point loose beside the scalar (RFC 7518 6.2). */
-const PrivateKey = schema.looseObject({
-    /** The key type. */
-    kty: schema.literal("EC"),
-    /** The curve. */
-    crv: schema.literal("P-256"),
-    /** The public point's x coordinate, base64url encoded. */
-    x: schema.string(),
-    /** The public point's y coordinate, base64url encoded. */
-    y: schema.string(),
-});
 
 /** A push sender's VAPID identity, as RFC 8292 defines it. */
 export class Vapid {
     /** The signing key pair. */
-    readonly keys: CryptoKeyPair;
+    readonly keys: KeyPair;
     /** The contact, a mailto: or https: URL. */
     readonly subject: string;
+    /** The WebCrypto the keys sign and export with. */
+    readonly crypto: Crypto;
 
-    /** Hold the sender's keys and contact. */
-    constructor(keys: CryptoKeyPair, subject: string) {
+    /** Create a sender from its keys and contact, refusing a contact push services cannot reach. */
+    constructor(keys: KeyPair, subject: string, crypto: Crypto) {
         if (!/^(?:mailto:|https:)/u.test(subject)) {
-            throw new TypeError("a push sender's contact must be a mailto: or https: URL");
+            throw new TypeError(`push sender contact ${subject} is not a mailto: or https: URL`);
         }
         this.keys = keys;
         this.subject = subject;
+        this.crypto = crypto;
     }
 
-    /** Derive a space's VAPID keys from its root secret, the same for every derivation. */
-    static async derive(root: Pick<Deriver, "derivePrivateKey">, subject: string): Promise<Vapid> {
+    /** Derive the installation's VAPID keys from its keys, the same for every derivation. */
+    static async derive(
+        root: Pick<Deriver, "derivePrivateKey">,
+        subject: string,
+        crypto: Crypto,
+    ): Promise<Vapid> {
         const jwk = await root.derivePrivateKey(LABEL);
 
-        return new Vapid(await Vapid.importKeys(jwk), subject);
-    }
-
-    /** Import the key pair of a private JWK, deriving the public key from its point. */
-    static async importKeys(jwk: unknown): Promise<CryptoKeyPair> {
-        // sign with the private key, and verify with only its public point
-        const key = PrivateKey.parse(jwk);
-        const point = { kty: key.kty, crv: key.crv, x: key.x, y: key.y };
-        const privateKey = await crypto.subtle.importKey("jwk", key, ALGORITHM, false, ["sign"]);
-        const publicKey = await crypto.subtle.importKey("jwk", point, ALGORITHM, true, ["verify"]);
-
-        return { privateKey, publicKey };
+        return new Vapid(await KeyPair.import(jwk, crypto), subject, crypto);
     }
 
     /** Read the public key browsers subscribe with, base64url encoded. */
-    async publicKey(): Promise<string> {
-        const raw = new Uint8Array(await crypto.subtle.exportKey("raw", this.keys.publicKey));
-
-        return raw.toBase64({ alphabet: "base64url", omitPadding: true });
+    publicKey(): string {
+        return PublicKey.raw(this.keys.publicKey).toBase64({
+            alphabet: "base64url",
+            omitPadding: true,
+        });
     }
 
     /** Sign the Authorization header for one push resource. */
     async authorization(url: string, now: number): Promise<string> {
         // claim the push service's origin until the token lapses
-        const token = await new SignJWT({ sub: this.subject })
-            .setProtectedHeader({ typ: "JWT", alg: "ES256" })
-            .setAudience(new URL(url).origin)
-            .setExpirationTime(Math.floor(now / 1000) + TOKEN_SECONDS)
-            .sign(this.keys.privateKey);
+        const claims = {
+            sub: this.subject,
+            aud: new URL(url).origin,
+            exp: Math.floor(now / 1000) + TOKEN_SECONDS,
+        };
+        const header = { typ: "JWT", alg: "ES256" } as const;
+        const token = await Jwt.sign(claims, header, this.keys.privateKey, this.crypto);
 
-        return `vapid t=${token}, k=${await this.publicKey()}`;
+        return `vapid t=${token}, k=${this.publicKey()}`;
     }
 }

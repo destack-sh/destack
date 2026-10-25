@@ -1,5 +1,5 @@
 import { nth } from "@destack/schema";
-import { MimeError } from "./error.ts";
+import { MessageError } from "../error/error.ts";
 import { Header } from "./header.ts";
 
 /** A dot-atom local part, which needs no quoting and no SMTPUTF8. */
@@ -40,8 +40,8 @@ export class Mailbox {
     constructor(address: string, name?: string) {
         // require an address fit for a path
         if (!Mailbox.isAddress(address)) {
-            throw new MimeError(
-                "INVALID_ADDRESS",
+            throw MessageError.of(
+                "ADDRESS_INVALID",
                 `address ${JSON.stringify(address)} is not a dot-atom addr-spec`,
             );
         }

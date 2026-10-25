@@ -1,14 +1,13 @@
-import type { Fetch } from "@destack/object";
+import type { Crypto } from "@destack/environment";
+import { CallError, type Fetch, type StandardMessage, StandardWebhook } from "@destack/object";
 import { ObjectReference } from "@destack/sync";
-import { Secret } from "@destack/vault";
+import { SecretReading } from "@destack/vault";
 import { secret } from "@destack/vault/object";
 import { Endpoint, endpoint } from "../object/endpoint.ts";
 import { encodeBody, type WebhookAuthentication } from "./message.ts";
 import { type MessageProvider, Outcome } from "../provider/index.ts";
 import type { ObjectStore } from "@destack/object/server";
-
-/** The prefix of a Standard Webhooks signing secret. */
-const SECRET_PREFIX = "whsec_";
+import type { MessageReason } from "../error/error.ts";
 
 /** How long a webhook endpoint may take before the send retries: Standard Webhooks' 15 seconds. */
 const TIMEOUT_MILLISECONDS = 15_000;
@@ -21,7 +20,7 @@ const MEDIA_TYPES = {
 } as const;
 
 /** Send webhook messages as HTTPS posts to their endpoints, authenticated with its vault secret. */
-export function webhookProvider(fetch: Fetch = globalThis.fetch): MessageProvider {
+export function webhookProvider(fetch: Fetch): MessageProvider {
     return {
         async send(message, store): Promise<Outcome> {
             // require a webhook message
@@ -30,107 +29,94 @@ export function webhookProvider(fetch: Fetch = globalThis.fetch): MessageProvide
                 throw new TypeError(`message ${message.id} is not a webhook message`);
             }
 
-            // read the endpoint the message's source names, and its secret as the installation consuming it
-            const target = await Endpoint.read(store, message.source);
-            const value = await readSecret(store, target.secret);
+            // fail a message whose endpoint is gone, in the trash, or disabled
+            const target = await Endpoint.read(store, message.source).catch(refused);
+            if (target === undefined || target.deletedAt !== null) {
+                return failed("RECIPIENT_GONE", `endpoint ${message.source.id} is gone`);
+            } else if (target.status === "disabled") {
+                return failed("RECIPIENT_DISABLED", `endpoint ${target.id} is disabled`);
+            }
+
+            // fail a message whose endpoint's secret is unreadable, as the installation consuming it
+            const value = await readSecret(store, target.secret).catch(refused);
+            if (value === undefined) {
+                return failed("SECRET_UNAVAILABLE", `endpoint ${target.id} has no readable secret`);
+            }
 
             // encode the body, then sign it with the secret or put the secret in the endpoint's header
-            const body = encodeBody(message.id, message.createdAt, content);
-            const timestamp = String(Math.floor(store.clock.now() / 1000));
-            const authentication = await authenticate(target.authentication, value, {
-                id: message.id,
-                timestamp,
-                body,
-            });
+            const body = encodeBody(message.createdAt, content);
+            const timestamp = Math.floor(store.environment.clock.now() / 1000);
+            const headers = await authenticate(
+                target.authentication,
+                value,
+                store.environment.crypto,
+                {
+                    id: message.id,
+                    timestamp,
+                    body,
+                },
+            );
+            headers.set("content-type", MEDIA_TYPES[content.format]);
 
-            // post it and read the answer as an outcome
+            // post it within the timeout without following redirects, and read the answer as an outcome
             const request = new Request(target.url, {
                 method: "POST",
-                headers: {
-                    ...authentication,
-                    "content-type": MEDIA_TYPES[content.format],
-                    "webhook-id": message.id,
-                    "webhook-timestamp": timestamp,
-                },
+                headers,
                 body,
-                signal: AbortSignal.timeout(TIMEOUT_MILLISECONDS),
+                redirect: "manual",
+                signal: store.environment.clock.timeout(TIMEOUT_MILLISECONDS),
             });
-            try {
-                return Outcome.read(await fetch(request), store.clock.now());
-            } catch (error) {
-                // retry an endpoint the network failed to connect to or that did not answer in time
-                if (isUnreachable(error)) {
-                    return {
-                        kind: "retry",
-                        error: { code: "unreachable", message: error.message },
-                    };
-                }
-                throw error;
-            }
+
+            return Outcome.post(fetch, request, store.environment.clock);
         },
     };
 }
 
-/** The signatures of webhook messages, after Standard Webhooks. */
-export const WebhookSignature = {
-    /** Sign a message's identifier, time and body with a secret, for `webhook-signature`. */
-    async sign(signing: string, id: string, timestamp: string, body: string): Promise<string> {
-        // key HMAC-SHA256 with the secret's bytes
-        const key = await crypto.subtle.importKey(
-            "raw",
-            Uint8Array.fromBase64(signing.slice(SECRET_PREFIX.length)),
-            { name: "HMAC", hash: "SHA-256" },
-            false,
-            ["sign"],
-        );
-
-        // sign the identifier and time and body joined by dots
-        const content = new TextEncoder().encode(`${id}.${timestamp}.${body}`);
-        const signed = await crypto.subtle.sign("HMAC", key, content);
-
-        return `v1,${new Uint8Array(signed).toBase64()}`;
-    },
-};
-
-/** Build the header authenticating a webhook post: a signature, or the secret in a header. */
+/** Build a webhook post's Standard Webhooks headers, signed, or with the secret in a header. */
 async function authenticate(
     authentication: WebhookAuthentication,
     value: string,
-    post: { readonly id: string; readonly timestamp: string; readonly body: string },
-): Promise<Record<string, string>> {
-    // put the secret in the endpoint's header
+    crypto: Crypto,
+    post: StandardMessage,
+): Promise<Headers> {
+    // put the secret in the endpoint's header beside the identifier and time
     if (authentication.kind === "header") {
-        return { [authentication.name]: value };
+        return new Headers({
+            [authentication.name]: value,
+            "webhook-id": post.id,
+            "webhook-timestamp": String(post.timestamp),
+        });
     }
 
     // sign the identifier, time and body
-    const signature = await WebhookSignature.sign(value, post.id, post.timestamp, post.body);
+    const webhook = await StandardWebhook.of(value, crypto);
 
-    return { "webhook-signature": signature };
+    return webhook.sign(post);
 }
 
-/** Decide whether a fetch failed on the network or ran out of time. */
-function isUnreachable(error: unknown): error is TypeError | DOMException {
-    return (
-        error instanceof TypeError ||
-        (error instanceof DOMException && error.name === "TimeoutError")
-    );
+/** Read a refusal as absent, passing on any failure a later try may get past. */
+function refused(error: unknown): undefined {
+    if (CallError.refusal(error) === undefined) {
+        throw error;
+    }
+
+    return undefined;
+}
+
+/** Fail a message for good with a reason. */
+function failed(reason: MessageReason, message: string): Outcome {
+    return { kind: "failed", refusal: { reason, message } };
 }
 
 /** Read a vault secret's text as the code serving the endpoints, which consumes it. */
 function readSecret(
-    store: Pick<ObjectStore, "query" | "serving">,
+    store: Pick<ObjectStore, "query" | "as">,
     reference: ObjectReference,
 ): Promise<string> {
-    return Secret.text({
-        read: () => {
-            const target = secret.target({
-                scope: reference.scope,
-                id: secret.identifier(reference.id),
-            });
+    const target = secret.target({ scope: reference.scope, id: secret.identifier(reference.id) });
 
-            // read as message's own code, never as the vault serving the secret
-            return store.query(store.serving(endpoint), secret.call("read", target));
-        },
-    });
+    // read as the installation serving the endpoints
+    return store
+        .query(store.as(endpoint), secret.call("read", target))
+        .then((read) => SecretReading.text(SecretReading.parse(read)));
 }

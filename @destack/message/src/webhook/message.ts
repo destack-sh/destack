@@ -1,5 +1,16 @@
 import { schema } from "@destack/schema";
 
+/** The headers every webhook post sets itself, which no endpoint's secret header may take. */
+export const RESERVED_HEADERS: ReadonlySet<string> = new Set([
+    "content-length",
+    "content-type",
+    "host",
+    "transfer-encoding",
+    "webhook-id",
+    "webhook-signature",
+    "webhook-timestamp",
+]);
+
 /** How a webhook message encodes its body. */
 export const WEBHOOK_FORMATS = ["event", "json", "ndjson"] as const;
 
@@ -20,26 +31,39 @@ export type WebhookAuthentication = schema.Infer<typeof WebhookAuthentication>;
 
 /** A webhook message's destination: the endpoint its source names, with its URL and secret. */
 export const WebhookDestination = schema.object({
+    /** The webhook channel. */
     channel: schema.literal("webhook"),
 });
+
+/** A webhook's event, or a batch of records as a JSON array or JSON lines. */
+export const WebhookContent = schema.discriminatedUnion("format", [
+    schema.object({
+        /** The webhook channel. */
+        channel: schema.literal("webhook"),
+        /** The event type, such as `issue.regressed`. */
+        type: schema.string().min(1),
+        /** How the body encodes the data: as an event's envelope. */
+        format: schema.literal("event"),
+        /** The event's data. */
+        data: schema.json(),
+    }),
+    schema.object({
+        /** The webhook channel. */
+        channel: schema.literal("webhook"),
+        /** The batch's record kind, like `call`. */
+        type: schema.string().min(1),
+        /** How the body encodes the records: a JSON array or JSON lines. */
+        format: schema.enum(["json", "ndjson"]),
+        /** The batch's records. */
+        data: schema.array(schema.json()),
+    }),
+]);
 
 /** A webhook's event, or a batch of records. */
-export const WebhookContent = schema.object({
-    channel: schema.literal("webhook"),
-    /** The event type, such as `issue.regressed`, or a batch's record kind, like `call`. */
-    type: schema.string().min(1),
-    /** How the body encodes the data. */
-    format: schema.enum(WEBHOOK_FORMATS),
-    /** The event's data, or the batch's records. */
-    data: schema.json(),
-});
+export type WebhookContent = schema.Infer<typeof WebhookContent>;
 
 /** Encode a webhook body: an event's envelope, or a batch as a JSON array or JSON lines. */
-export function encodeBody(
-    id: string,
-    createdAt: number,
-    content: schema.Infer<typeof WebhookContent>,
-): string {
+export function encodeBody(createdAt: number, content: WebhookContent): string {
     // wrap an event in its envelope
     if (content.format === "event") {
         return JSON.stringify({
@@ -49,13 +73,8 @@ export function encodeBody(
         });
     }
 
-    // list a batch's records, refusing a batch without records
-    const records = content.data;
-    if (!Array.isArray(records)) {
-        throw new TypeError(`batch ${id} has no records`);
-    }
-
+    // list a batch's records as a JSON array or JSON lines
     return content.format === "json"
-        ? JSON.stringify(records)
-        : records.map((record) => `${JSON.stringify(record)}\n`).join("");
+        ? JSON.stringify(content.data)
+        : content.data.map((record) => `${JSON.stringify(record)}\n`).join("");
 }

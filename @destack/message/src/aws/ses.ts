@@ -1,8 +1,8 @@
-import type { Outcome } from "../provider/index.ts";
-import type { Mail, MailTransport } from "../email/index.ts";
-import { Mailbox, MimeError, MimeMessage } from "../mime/index.ts";
+import { Outcome } from "../provider/index.ts";
+import { Mail, type MailTransport } from "../email/index.ts";
+import { MessageError, SesFailure } from "../error/error.ts";
+import { Mailbox } from "../mime/index.ts";
 import type { SesClient } from "./client.ts";
-import { SesError } from "./error.ts";
 
 /** Send email through Amazon SES from one sender. */
 export class SesTransport implements MailTransport {
@@ -23,30 +23,23 @@ export class SesTransport implements MailTransport {
     /** Compose one email under its key at its date and read SES's answer as an outcome. */
     async send(mail: Mail): Promise<Outcome> {
         try {
-            // compose the message, its Message-ID digesting the key
-            const date = new Date(mail.date);
-            const message = await MimeMessage.compose({
-                from: this.from,
-                to: [mail.to],
-                subject: mail.subject,
-                date,
-                key: mail.key,
-                text: mail.text,
-                ...(mail.html === undefined ? {} : { html: mail.html }),
-            });
-            await this.client.send({ sender: this.#sender, recipients: [mail.to] }, message, date);
+            // compose the message and send it to its one recipient
+            const { crypto } = this.client.options.environment;
+            const message = await Mail.compose(mail, this.from, crypto);
+            const envelope = { sender: this.#sender, recipients: [mail.to] };
+            await this.client.send(envelope, message, new Date(mail.date));
 
             return { kind: "sent" };
         } catch (error) {
-            // fail an address the message cannot contain, and retry what SES may take later
-            if (error instanceof MimeError) {
-                return { kind: "failed", error: { code: error.code, message: error.message } };
-            } else if (error instanceof SesError) {
-                const refusal = { code: error.awsCode ?? error.code, message: error.message };
+            // refuse a composition or SES's refusal with its AWS code
+            if (MessageError.is(error)) {
+                const awsCode = SesFailure.safeParse(error.data).data?.awsCode;
 
-                return error.isRetryable
-                    ? { kind: "retry", error: refusal }
-                    : { kind: "failed", error: refusal };
+                return Outcome.refuse({
+                    reason: error.reason,
+                    ...(awsCode === undefined ? {} : { code: awsCode }),
+                    message: error.message,
+                });
             }
             throw error;
         }

@@ -1,14 +1,12 @@
+import type { Environment } from "@destack/environment";
 import { type Select } from "@destack/db";
 import { ConditionSet, defineObject, field } from "@destack/object";
 import * as identity from "@destack/identity";
 import { schema } from "@destack/schema";
-import { CallError } from "@destack/object";
 import { EmailContent, EmailDestination } from "../email/message.ts";
 import { PushContent, PushDestination } from "../push/message.ts";
 import { WebhookContent, WebhookDestination } from "../webhook/message.ts";
-
-/** The code of a refusal for good from a recipient that forgot the endpoint (RFC 8030 7.3). */
-export const GONE = "gone";
+import { MessageError, MessageReason } from "../error/error.ts";
 
 /** The label the message key pair derives under from an identity's root secret. */
 const MESSAGE_LABEL = { label: "@destack/message/key", context: "" } as const;
@@ -18,6 +16,7 @@ export const MESSAGE_STATES = ["pending", "sent", "delivered", "failed"] as cons
 
 /** The desktop client a message shows on. */
 export const DesktopDestination = schema.object({
+    /** The desktop channel. */
     channel: schema.literal("desktop"),
     /** The signed-in native client. */
     client: schema.identifier("client"),
@@ -31,17 +30,17 @@ const DestinationSchema = schema.discriminatedUnion("channel", [
     DesktopDestination,
 ]);
 
-/** Where a message goes: an email address, a Web Push endpoint, a webhook or a desktop client. */
+/** Where a message goes: an email address, a browser, a webhook or a desktop client. */
 export const Destination = Object.assign(DestinationSchema, {
-    /** Key a destination by its channel and its address, endpoint or client. */
+    /** Key a destination by its channel and its address or client. */
     key(to: Destination): string {
-        // key a desktop by its client, an email by its address, a browser by its endpoint
+        // key a desktop or a browser by its client, and an email by its address
         if (to.channel === "desktop") {
             return `desktop:${to.client}`;
         } else if (to.channel === "email") {
             return `email:${to.address}`;
         } else if (to.channel === "push") {
-            return `push:${to.url}`;
+            return `push:${to.client}`;
         }
         // key a webhook by its channel alone
         else {
@@ -49,7 +48,7 @@ export const Destination = Object.assign(DestinationSchema, {
         }
     },
 
-    /** Report whether two destinations reach the same address, endpoint or client. */
+    /** Report whether two destinations reach the same address or client. */
     same(left: Destination, right: Destination): boolean {
         return Destination.key(left) === Destination.key(right);
     },
@@ -66,24 +65,27 @@ export const Content = schema.discriminatedUnion("channel", [
 /** What a message says on its channel. */
 export type Content = schema.Infer<typeof Content>;
 
-/** A home's message key, whose public half producers seal message content to. */
+/** The installation's message key, whose public half producers seal message content to. */
 export class MessageKey {
-    /** The key pair, its private half kept only on the home's machine. */
+    /** The key pair, its private half derived only where the installation serves. */
     readonly #recipient: identity.Recipient;
 
-    /** Hold a home's message key. */
+    /** Wrap a message key pair. */
     private constructor(recipient: identity.Recipient) {
         this.#recipient = recipient;
     }
 
-    /** Derive a home's message key from its identity's root secret, stable until it changes. */
-    static async derive(root: Pick<identity.Deriver, "derivePrivateKey">): Promise<MessageKey> {
-        return new MessageKey(await identity.Recipient.derive(root, MESSAGE_LABEL));
+    /** Derive the installation's message key from its keys, stable until they change. */
+    static async derive(
+        root: Pick<identity.Deriver, "derivePrivateKey">,
+        environment: Pick<Environment, "crypto" | "random">,
+    ): Promise<MessageKey> {
+        return new MessageKey(await identity.Recipient.derive(root, MESSAGE_LABEL, environment));
     }
 
-    /** Identify a home's message key by its public half, as a producer sealing to it does. */
-    static of(key: string): MessageKey {
-        return new MessageKey(identity.Recipient.of(key));
+    /** Identify a message key by its public half, as a producer sealing to it does. */
+    static of(key: string, environment: Pick<Environment, "crypto" | "random">): MessageKey {
+        return new MessageKey(identity.Recipient.of(key, environment));
     }
 
     /** The public half producers seal to. */
@@ -98,7 +100,7 @@ export class MessageKey {
         return this.#recipient.seal(plaintext, MessageKey.#context(scope));
     }
 
-    /** Open the content of a message of a scope, on the home's machine with the private half. */
+    /** Open the content of a message of a scope with the private half. */
     async open(sealed: identity.Ciphertext, scope: string): Promise<Content> {
         const plaintext = await this.#recipient.open(sealed, MessageKey.#context(scope));
 
@@ -111,15 +113,17 @@ export class MessageKey {
     }
 }
 
-/** Why a provider refused a message. */
-export const MessageError = schema.object({
-    /** The provider's code, such as a mail service's error type or an HTTP status. */
-    code: schema.string().min(1),
+/** Why a provider refused a message: the reason, with the provider's own code apart. */
+export const Refusal = schema.object({
+    /** The reason, such as RECIPIENT_GONE. */
+    reason: MessageReason,
+    /** The provider's own code, such as an HTTP status or an AWS error code, absent without one. */
+    code: schema.string().min(1).exactOptional(),
     /** The provider's message. */
     message: schema.string(),
 });
 /** Why a provider refused a message. */
-export type MessageError = schema.Infer<typeof MessageError>;
+export type Refusal = schema.Infer<typeof Refusal>;
 
 /** One message on one channel to one recipient, which the channel's provider sends at once. */
 export const message = defineObject(
@@ -136,9 +140,9 @@ export const message = defineObject(
             // sending
             /** Whether it is sending, went out, reached its client, or failed. */
             status: field.enum(MESSAGE_STATES).default("pending"),
-            /** Its provider's error code once it failed. */
-            reason: field.string().optional(),
-            /** The content its producer sealed to the home's message key, absent for a desktop. */
+            /** Why it failed, absent unless it failed. */
+            reason: field.string(MessageReason).optional(),
+            /** The content sealed to the installation's message key, absent for a desktop. */
             ciphertext: field.string(identity.Ciphertext).sensitive().optional(),
             /** When it settled, absent while it sends. */
             settledAt: field.time().optional(),
@@ -232,9 +236,17 @@ export const message = defineObject(
             }
             // refuse a message no desktop shows
             else if (target.to.channel !== "desktop" || target.status !== "sent") {
-                throw new CallError("CONFLICT", {
-                    message: `message ${target.id} is not a sent desktop message`,
-                });
+                throw MessageError.of(
+                    "DESKTOP_MESSAGE_REQUIRED",
+                    `message ${target.id} is not a sent desktop message`,
+                );
+            }
+            // refuse any caller but the client it shows on
+            else if (call.caller.credential?.client !== target.to.client) {
+                throw MessageError.of(
+                    "CLIENT_FOREIGN",
+                    `message ${target.id} shows on another client`,
+                );
             }
 
             return call.updateStatus({ status: "delivered" });

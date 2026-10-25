@@ -3,10 +3,10 @@ import { type MailDeclaration, MailKind } from "./kind.ts";
 import type { MailTransport } from "./mail.ts";
 
 /** Provide a host's mail resources under its provider code, which need nothing provisioned. */
-export function mailProvider<Object>(
+export function mailProvider<Client>(
     code: string,
-    object: Object,
-): Provider<typeof MailKind, Object> {
+    object: Client,
+): Provider<typeof MailKind, Client> {
     return {
         kind: MailKind,
         code,

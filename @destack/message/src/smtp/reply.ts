@@ -1,4 +1,4 @@
-import { SmtpError } from "./error.ts";
+import { MessageError, type SmtpReply } from "../error/error.ts";
 
 /** The longest reply line in octets, CRLF included, as RFC 5321 section 4.5.3.1.5 sets. */
 export const MAX_REPLY_LINE_OCTETS = 512;
@@ -39,9 +39,9 @@ export class Reply {
     static parseLine(bytes: Uint8Array): ReplyLine {
         // refuse a line over the limit
         if (bytes.length + 2 > MAX_REPLY_LINE_OCTETS) {
-            throw new SmtpError(
-                "PROTOCOL",
-                `server sent a reply line over ${MAX_REPLY_LINE_OCTETS} octets`,
+            throw MessageError.of(
+                "RESPONSE_INVALID",
+                `server sent a reply line longer than ${MAX_REPLY_LINE_OCTETS} octets`,
             );
         }
 
@@ -50,16 +50,20 @@ export class Reply {
         try {
             line = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes);
         } catch (error) {
-            throw new SmtpError("PROTOCOL", "server sent a reply line outside UTF-8", undefined, {
-                cause: error,
-            });
+            throw MessageError.of(
+                "RESPONSE_INVALID",
+                "server sent a reply line that is not UTF-8",
+                {
+                    cause: error,
+                },
+            );
         }
 
         // match the line's shape
         const parsed = REPLY_LINE.exec(line);
         if (parsed === null) {
-            throw new SmtpError(
-                "PROTOCOL",
+            throw MessageError.of(
+                "RESPONSE_INVALID",
                 `server sent ${JSON.stringify(line)}, which is not a reply line`,
             );
         }
@@ -98,13 +102,22 @@ export class Reply {
         return Math.floor(this.code / 100);
     }
 
+    /** Describe the reply as data a rejection records. */
+    data(): SmtpReply {
+        const data = { code: this.code, text: this.text };
+
+        return this.enhancedCode === undefined
+            ? data
+            : { ...data, enhancedCode: this.enhancedCode };
+    }
+
     /** Return the reply when it completes positively, and reject the step otherwise. */
     require(step: string): Reply {
         if (this.class !== 2) {
-            throw new SmtpError(
-                "REJECTED",
-                `server answered ${step} with ${this.code} ${this.text}`,
-                this,
+            throw MessageError.of(
+                "COMMAND_REJECTED",
+                `server responded to ${step} with ${this.code} ${this.text}`,
+                { data: this.data() },
             );
         }
 

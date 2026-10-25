@@ -3,14 +3,13 @@ import { type Select } from "@destack/db";
 import type { ObjectStore } from "@destack/object/server";
 import { ConditionSet, defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
-import { CallError } from "@destack/object";
 import { ObjectReference } from "@destack/sync";
 import { WEBHOOK_FORMATS, WebhookAuthentication } from "../webhook/message.ts";
 
 /** The most event types one endpoint subscribes to, a screen of event names. */
 const MAX_ENDPOINT_EVENTS = 100;
 
-/** A scope's webhook subscription to its audit history and the histories of scopes inside it. */
+/** A scope's webhook subscription to its audit history. */
 export const endpoint = defineObject(
     {
         name: "endpoint",
@@ -58,18 +57,18 @@ export type Endpoint = Select<typeof endpoint.table>;
 /** The endpoints webhook messages go to. */
 export const Endpoint = {
     /** Read the endpoint a webhook message's source names, as the code serving the endpoints. */
-    async read(store: Pick<ObjectStore, "query" | "serving">, source: ObjectReference) {
+    async read(store: Pick<ObjectStore, "query" | "as">, source: ObjectReference) {
         // require an endpoint as the source
         if (!endpoint.is(source)) {
-            throw new CallError("BAD_REQUEST", {
-                message: `a webhook message's source ${source.type} ${source.id} is not an endpoint`,
-            });
+            throw new TypeError(
+                `a webhook message's source ${source.type} ${source.id} is not an endpoint`,
+            );
         }
 
         // read it through the store, as the installation delivering it
         const target = endpoint.target({ scope: source.scope, id: endpoint.identifier(source.id) });
 
-        return store.query(store.serving(endpoint), endpoint.call("get", target));
+        return store.query(store.as(endpoint), endpoint.call("get", target));
     },
 };
 

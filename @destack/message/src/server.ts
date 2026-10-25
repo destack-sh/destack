@@ -21,7 +21,10 @@ export default implementPackage(messagePackage, (context) => {
     return serveMessages({
         providers: {
             email: emailProvider(mail),
-            push: pushProvider(() => Vapid.derive(keys, PUSH_CONTACT), fetch),
+            push: pushProvider(
+                () => Vapid.derive(keys, PUSH_CONTACT, context.environment.crypto),
+                fetch,
+            ),
             webhook: webhookProvider(fetch),
         },
         keys,

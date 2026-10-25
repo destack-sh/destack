@@ -1,8 +1,20 @@
+import { testSimulation } from "@destack/object/test";
 import { expect, test } from "@destack/test";
 import { MimeMessage, type Envelope } from "../mime/index.ts";
 import { AwsSigner } from "@destack/identity/aws";
 import type { Fetch } from "@destack/object";
-import { SesError, SesClient, type SesErrorCode } from "./index.ts";
+import { MessageError, type MessageReason, SesFailure } from "../error/index.ts";
+import { Outcome } from "../provider/index.ts";
+import { SesClient, type SesOptions } from "./index.ts";
+
+/** The WebCrypto the clients sign with, a world's. */
+/** The simulated node SES clients run on. */
+const node = testSimulation().environment("ses");
+
+/** The environment of a client sending through a fetch on the simulated node's clock. */
+function environment(fetch: Fetch): SesOptions["environment"] {
+    return { clock: node.clock, crypto: node.crypto, network: { ...node.network, fetch } };
+}
 
 /** The credentials every client signs with. */
 const CREDENTIALS = {
@@ -18,14 +30,17 @@ const SENT_AT = new Date("2026-10-03T10:00:00Z");
 const ENVELOPE: Envelope = { sender: "notices@destack.app", recipients: ["ada@example.com"] };
 
 /** The message every test sends. */
-const MESSAGE = await MimeMessage.compose({
-    from: "Destack <notices@destack.app>",
-    to: ["ada@example.com"],
-    subject: "Sign in to Destack",
-    date: new Date("2026-10-03T10:00:00Z"),
-    key: "sign-in-01",
-    text: "Sign in with this link.",
-});
+const MESSAGE = await MimeMessage.compose(
+    {
+        from: "Destack <notices@destack.app>",
+        to: ["ada@example.com"],
+        subject: "Sign in to Destack",
+        date: new Date("2026-10-03T10:00:00Z"),
+        key: "sign-in-01",
+        text: "Sign in with this link.",
+    },
+    node.crypto,
+);
 
 /** One request a fake SES received. */
 interface Received {
@@ -36,32 +51,32 @@ interface Received {
 }
 
 /** The refusals of SES: each case's answer, failure code, AWS code and whether a retry may pass. */
-const REFUSALS: [string, () => Response, SesErrorCode, string | undefined, boolean][] = [
+const REFUSALS: [string, () => Response, MessageReason, string | undefined, boolean][] = [
     [
         "throttling",
         () => refused(429, "TooManyRequestsException", "Maximum sending rate exceeded."),
-        "THROTTLED",
+        "PROVIDER_THROTTLED",
         "TooManyRequestsException",
         true,
     ],
     [
         "an exceeded quota",
         () => refused(400, "LimitExceededException", "Daily message quota exceeded."),
-        "THROTTLED",
+        "PROVIDER_THROTTLED",
         "LimitExceededException",
         true,
     ],
     [
         "an internal failure",
         () => refused(500, "InternalFailure", "Internal error."),
-        "UNAVAILABLE",
+        "PROVIDER_UNAVAILABLE",
         "InternalFailure",
         true,
     ],
     [
         "an unavailable service",
         () => new Response("Service Unavailable", { status: 503 }),
-        "UNAVAILABLE",
+        "PROVIDER_UNAVAILABLE",
         undefined,
         true,
     ],
@@ -73,14 +88,14 @@ const REFUSALS: [string, () => Response, SesErrorCode, string | undefined, boole
                 "ExpiredTokenException",
                 "The security token included in the request is expired",
             ),
-        "EXPIRED",
+        "CREDENTIALS_EXPIRED",
         "ExpiredTokenException",
         true,
     ],
     [
         "a rejected message",
         () => refused(400, "MessageRejected", "Email address is not verified."),
-        "REJECTED",
+        "MESSAGE_REJECTED",
         "MessageRejected",
         false,
     ],
@@ -88,35 +103,35 @@ const REFUSALS: [string, () => Response, SesErrorCode, string | undefined, boole
         "an unverified MAIL FROM domain",
         () =>
             refused(400, "MailFromDomainNotVerifiedException", "MAIL FROM domain is not verified."),
-        "UNVERIFIED",
+        "SENDER_UNVERIFIED",
         "MailFromDomainNotVerifiedException",
         false,
     ],
     [
         "a suspended account",
         () => refused(400, "AccountSuspendedException", "Account suspended."),
-        "SUSPENDED",
+        "SENDING_SUSPENDED",
         "AccountSuspendedException",
         false,
     ],
     [
         "paused sending",
         () => refused(400, "SendingPausedException", "Sending paused."),
-        "SUSPENDED",
+        "SENDING_SUSPENDED",
         "SendingPausedException",
         false,
     ],
     [
         "a bad signature",
         () => refused(403, "InvalidSignatureException", "Signature mismatch."),
-        "UNAUTHORIZED",
+        "CREDENTIALS_REFUSED",
         "InvalidSignatureException",
         false,
     ],
     [
         "an unknown configuration set",
         () => refused(404, "NotFoundException", "Configuration set does not exist."),
-        "INVALID_REQUEST",
+        "REQUEST_INVALID",
         "NotFoundException",
         false,
     ],
@@ -127,14 +142,14 @@ const REFUSALS: [string, () => Response, SesErrorCode, string | undefined, boole
                 { __type: "com.amazonaws.ses#BadRequestException", message: "Bad request." },
                 { status: 400 },
             ),
-        "INVALID_REQUEST",
+        "REQUEST_INVALID",
         "BadRequestException",
         false,
     ],
     [
         "an answer without a MessageId",
         () => Response.json({}),
-        "INVALID_RESPONSE",
+        "RESPONSE_INVALID",
         undefined,
         false,
     ],
@@ -187,7 +202,7 @@ test("post the raw message to the region's SESv2 endpoint, signed, and return th
         endpoint: SesClient.endpoint("eu-central-1"),
         credentials: async () => CREDENTIALS,
         configurationSet: "destack",
-        fetch: ses.fetch,
+        environment: environment(ses.fetch),
     });
 
     // send and read the MessageId
@@ -227,13 +242,14 @@ test("post the raw message to the region's SESv2 endpoint, signed, and return th
         service: "ses",
         region: "eu-central-1",
         credentials: CREDENTIALS,
+        crypto: node.crypto,
     }).authorize(
         {
             method: "POST",
             path: url.pathname,
             query: [],
             headers: { "content-type": "application/json", host: url.host },
-            payloadHash: await AwsSigner.payloadHash(body),
+            payloadHash: await AwsSigner.payloadHash(body, node.crypto),
         },
         SENT_AT,
     );
@@ -251,7 +267,7 @@ test("leave the configuration set out when none is set, and ask the credentials 
 
             return { accessKeyId: "AKIDEXAMPLE", secretAccessKey: "secret" };
         },
-        fetch: ses.fetch,
+        environment: environment(ses.fetch),
     });
     await client.send(ENVELOPE, MESSAGE, SENT_AT);
     await client.send(ENVELOPE, MESSAGE, SENT_AT);
@@ -274,15 +290,15 @@ test("leave the configuration set out when none is set, and ask the credentials 
     ]);
 });
 
-test("refuse a malformed region", () => {
-    expect(
-        () =>
-            new SesClient({
-                region: "eu central",
-                endpoint: SesClient.endpoint("eu central"),
-                credentials: async () => CREDENTIALS,
-            }),
-    ).toThrow(new SesError("INVALID_OPTIONS", 'region "eu central" is not an AWS region name'));
+test("refuse a malformed region", async () => {
+    const create = () =>
+        new SesClient({
+            region: "eu central",
+            endpoint: SesClient.endpoint("eu central"),
+            credentials: async () => CREDENTIALS,
+            environment: environment(async () => new Response(null, { status: 500 })),
+        });
+    expect(create).toThrow(new TypeError('region "eu central" is not an AWS region name'));
 });
 
 test.each(REFUSALS)(
@@ -292,20 +308,21 @@ test.each(REFUSALS)(
             region: "eu-central-1",
             endpoint: SesClient.endpoint("eu-central-1"),
             credentials: async () => CREDENTIALS,
-            fetch: fakeSes(answer).fetch,
+            environment: environment(fakeSes(answer).fetch),
         });
 
         const error = await client
             .send(ENVELOPE, MESSAGE, SENT_AT)
             .catch((caught: unknown) => caught);
-        if (!(error instanceof SesError)) {
-            throw new TypeError(`expected a SesError, got ${String(error)}`);
+        if (!MessageError.is(error)) {
+            throw new TypeError(`expected a MessageError, got ${String(error)}`);
         }
-        expect([error.code, error.awsCode, error.isRetryable]).toEqual([
-            code,
-            awsCode,
-            isRetryable,
-        ]);
+        const retried = Outcome.refuse({ reason: error.reason, message: error.message });
+        expect([
+            error.reason,
+            SesFailure.safeParse(error.data).data?.awsCode,
+            retried.kind === "deferred",
+        ]).toEqual([code, awsCode, isRetryable]);
     },
 );
 
@@ -315,14 +332,14 @@ test("map a failed connection to a retryable failure carrying its cause", async 
         region: "eu-central-1",
         endpoint: SesClient.endpoint("eu-central-1"),
         credentials: async () => CREDENTIALS,
-        fetch: async () => {
+        environment: environment(async () => {
             throw cause;
-        },
+        }),
     });
 
     const error = await client.send(ENVELOPE, MESSAGE, SENT_AT).catch((caught: unknown) => caught);
-    if (!(error instanceof SesError)) {
-        throw new TypeError(`expected a SesError, got ${String(error)}`);
+    if (!MessageError.is(error)) {
+        throw new TypeError(`expected a MessageError, got ${String(error)}`);
     }
-    expect([error.code, error.isRetryable, error.cause]).toEqual(["CONNECTION", true, cause]);
+    expect([error.reason, error.cause]).toEqual(["PROVIDER_UNREACHABLE", cause]);
 });

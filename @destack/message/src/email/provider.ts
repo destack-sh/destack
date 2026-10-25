@@ -4,7 +4,7 @@ import type { MailTransport } from "./mail.ts";
 /** Send email messages through a mail transport, keyed by each message's identifier. */
 export function emailProvider(transport: MailTransport): MessageProvider {
     return {
-        async send(message, store): Promise<Outcome> {
+        async send(message): Promise<Outcome> {
             // require an email message
             const { to, content } = message;
             if (to.channel !== "email" || content.channel !== "email") {
@@ -17,7 +17,7 @@ export function emailProvider(transport: MailTransport): MessageProvider {
                 text: content.text,
                 ...(content.html === undefined ? {} : { html: content.html }),
                 key: message.id,
-                date: store.clock.now(),
+                date: message.createdAt,
             });
         },
     };

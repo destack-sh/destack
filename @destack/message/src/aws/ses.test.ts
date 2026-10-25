@@ -1,9 +1,20 @@
 import { schema } from "@destack/schema";
+import { testSimulation } from "@destack/object/test";
 import { expect, test } from "@destack/test";
 import type { Mail } from "../email/index.ts";
 import { MimeMessage } from "../mime/index.ts";
-import { SesClient } from "./client.ts";
+import type { Fetch } from "@destack/object";
+import { SesClient, type SesOptions } from "./client.ts";
 import { SesTransport } from "./ses.ts";
+
+/** The WebCrypto the clients sign with, a world's. */
+/** The simulated node SES clients run on. */
+const node = testSimulation().environment("ses");
+
+/** The environment of a client sending through a fetch on the simulated node's clock. */
+function environment(fetch: Fetch): SesOptions["environment"] {
+    return { clock: node.clock, crypto: node.crypto, network: { ...node.network, fetch } };
+}
 
 /** The SESv2 SendEmail body the transport posts. */
 const SendEmail = schema.object({
@@ -31,11 +42,11 @@ function transport(answer: () => Response): {
         region: "eu-central-1",
         endpoint: SesClient.endpoint("eu-central-1"),
         credentials: async () => ({ accessKeyId: "AKIDEXAMPLE", secretAccessKey: "secret" }),
-        fetch: async (request) => {
+        environment: environment(async (request) => {
             bodies.push(await request.text());
 
             return answer();
-        },
+        }),
     });
 
     return { mail: new SesTransport(client, { from: "Destack <notices@destack.app>" }), bodies };
@@ -56,14 +67,17 @@ test("send the composed message from the sender to the address, its Message-ID d
     expect(await mail.send(MAIL)).toEqual({ kind: "sent" });
     const request = readSend(bodies[0]);
     const content = atob(request.data);
-    const expected = await MimeMessage.compose({
-        from: "Destack <notices@destack.app>",
-        to: ["ada@example.com"],
-        subject: MAIL.subject,
-        date: new Date(MAIL.date),
-        key: MAIL.key,
-        text: MAIL.text,
-    });
+    const expected = await MimeMessage.compose(
+        {
+            from: "Destack <notices@destack.app>",
+            to: ["ada@example.com"],
+            subject: MAIL.subject,
+            date: new Date(MAIL.date),
+            key: MAIL.key,
+            text: MAIL.text,
+        },
+        node.crypto,
+    );
     expect([request.from, request.to, content]).toEqual([
         "notices@destack.app",
         ["ada@example.com"],
@@ -76,30 +90,40 @@ test("send the composed message from the sender to the address, its Message-ID d
 });
 
 test.each([
-    ["throttling", 429, "TooManyRequestsException", "retry"],
-    ["an outage", 503, "ServiceUnavailable", "retry"],
-    ["a rejected message", 400, "MessageRejected", "failed"],
-    ["a suspended account", 400, "AccountSuspendedException", "failed"],
-    ["an unverified MAIL FROM domain", 400, "MailFromDomainNotVerifiedException", "failed"],
-] as const)("read %s as an outcome with its AWS code", async (_, status, code, kind) => {
-    const { mail } = transport(refused(status, code));
+    ["throttling", 429, "TooManyRequestsException", "deferred", "PROVIDER_THROTTLED"],
+    ["an outage", 503, "ServiceUnavailable", "deferred", "PROVIDER_UNAVAILABLE"],
+    ["a rejected message", 400, "MessageRejected", "failed", "MESSAGE_REJECTED"],
+    ["a suspended account", 400, "AccountSuspendedException", "failed", "SENDING_SUSPENDED"],
+    [
+        "an unverified MAIL FROM domain",
+        400,
+        "MailFromDomainNotVerifiedException",
+        "failed",
+        "SENDER_UNVERIFIED",
+    ],
+] as const)(
+    "read %s as an outcome with its reason and AWS code",
+    async (_, status, code, kind, reason) => {
+        const { mail } = transport(refused(status, code));
 
-    expect(await mail.send(MAIL)).toEqual({
-        kind,
-        error: {
-            code,
-            message: `SES refused the send with HTTP ${status} ${code}: refused with ${code}`,
-        },
-    });
-});
+        expect(await mail.send(MAIL)).toEqual({
+            kind,
+            refusal: {
+                reason,
+                code,
+                message: `SES refused the send with HTTP ${status} ${code}: refused with ${code}`,
+            },
+        });
+    },
+);
 
 test("fail an address the message cannot carry without asking SES", async () => {
     const { mail, bodies } = transport(() => Response.json({ MessageId: "0102018f-message" }));
 
     expect(await mail.send({ ...MAIL, to: "not an address" })).toEqual({
         kind: "failed",
-        error: {
-            code: "INVALID_ADDRESS",
+        refusal: {
+            reason: "ADDRESS_INVALID",
             message: 'address "not an address" is not a dot-atom addr-spec',
         },
     });

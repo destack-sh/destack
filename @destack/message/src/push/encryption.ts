@@ -1,13 +1,12 @@
-import type { PushKeys } from "./message.ts";
+import type { Crypto, Environment } from "@destack/environment";
+import type { PushSubscription } from "@destack/account/object";
+import { PUBLIC_KEY_BYTES, PUSH_DATA_BYTES } from "./message.ts";
 
 /** The record size, RFC 8188's default. */
 const RECORD_SIZE = 4096;
 
 /** The salt length, as RFC 8188 fixes it. */
 const SALT_BYTES = 16;
-
-/** The bytes of an uncompressed P-256 public key. */
-const PUBLIC_KEY_BYTES = 65;
 
 /** The delimiter ending the last record, as RFC 8188 fixes it. */
 const LAST_RECORD = 2;
@@ -19,39 +18,46 @@ const CURVE = { name: "ECDH", namedCurve: "P-256" } as const;
 export const PushEncryption = {
     /** Encrypt a message to a subscription's keys. */
     async encrypt(
-        keys: PushKeys,
+        keys: PushSubscription["keys"],
         message: Uint8Array<ArrayBuffer>,
+        environment: Pick<Environment, "crypto" | "random">,
         options: { readonly sender?: CryptoKeyPair; readonly salt?: Uint8Array<ArrayBuffer> } = {},
     ): Promise<Uint8Array<ArrayBuffer>> {
+        // refuse a payload past one record
+        if (message.length > PUSH_DATA_BYTES) {
+            throw new RangeError(
+                `a push carries at most ${PUSH_DATA_BYTES} bytes, not ${message.length}`,
+            );
+        }
+
         // agree on a shared secret
+        const { crypto, random } = environment;
         const receiver = decode(keys.p256dh);
         const secret = decode(keys.auth);
-        const sender =
-            options.sender ?? (await crypto.subtle.generateKey(CURVE, true, ["deriveBits"]));
-        const sent = new Uint8Array(await crypto.subtle.exportKey("raw", sender.publicKey));
-        const browser = await crypto.subtle.importKey("raw", receiver, CURVE, false, []);
+        const sender = options.sender ?? (await crypto.generateKey(CURVE, true, ["deriveBits"]));
+        const sent = new Uint8Array(await crypto.exportKey("raw", sender.publicKey));
+        const browser = await crypto.importKey("raw", receiver, CURVE, false, []);
         const shared = new Uint8Array(
-            await crypto.subtle.deriveBits(
-                { name: "ECDH", public: browser },
-                sender.privateKey,
-                256,
-            ),
+            await crypto.deriveBits({ name: "ECDH", public: browser }, sender.privateKey, 256),
         );
 
         // derive the content key and nonce
-        const salt = options.salt ?? crypto.getRandomValues(new Uint8Array(SALT_BYTES));
-        const { content, nonce } = await PushEncryption.deriveKeys({
-            auth: secret,
-            shared,
-            receiver,
-            sender: sent,
-            salt,
-        });
+        const salt = options.salt ?? random.bytes(SALT_BYTES);
+        const { content, nonce } = await PushEncryption.deriveKeys(
+            {
+                auth: secret,
+                shared,
+                receiver,
+                sender: sent,
+                salt,
+            },
+            crypto,
+        );
 
         // encrypt the message behind the header
-        const key = await crypto.subtle.importKey("raw", content, "AES-GCM", false, ["encrypt"]);
+        const key = await crypto.importKey("raw", content, "AES-GCM", false, ["encrypt"]);
         const sealed = new Uint8Array(
-            await crypto.subtle.encrypt(
+            await crypto.encrypt(
                 { name: "AES-GCM", iv: nonce },
                 key,
                 concat(message, Uint8Array.of(LAST_RECORD)),
@@ -67,29 +73,38 @@ export const PushEncryption = {
     },
 
     /** Derive a message's content key and nonce from the agreed secret, as RFC 8291 3.4 does. */
-    async deriveKeys(agreed: {
-        /** The browser's authentication secret. */
-        readonly auth: Uint8Array<ArrayBuffer>;
-        /** The ECDH secret of the sender's and the browser's keys. */
-        readonly shared: Uint8Array<ArrayBuffer>;
-        /** The browser's public key. */
-        readonly receiver: Uint8Array<ArrayBuffer>;
-        /** The sender's public key. */
-        readonly sender: Uint8Array<ArrayBuffer>;
-        /** The message's salt. */
-        readonly salt: Uint8Array<ArrayBuffer>;
-    }): Promise<{
+    async deriveKeys(
+        agreed: {
+            /** The browser's authentication secret. */
+            readonly auth: Uint8Array<ArrayBuffer>;
+            /** The ECDH secret of the sender's and the browser's keys. */
+            readonly shared: Uint8Array<ArrayBuffer>;
+            /** The browser's public key. */
+            readonly receiver: Uint8Array<ArrayBuffer>;
+            /** The sender's public key. */
+            readonly sender: Uint8Array<ArrayBuffer>;
+            /** The message's salt. */
+            readonly salt: Uint8Array<ArrayBuffer>;
+        },
+        crypto: Crypto,
+    ): Promise<{
         readonly content: Uint8Array<ArrayBuffer>;
         readonly nonce: Uint8Array<ArrayBuffer>;
     }> {
         // derive the input keying material from the authentication secret
         const info = concat(text("WebPush: info\0"), agreed.receiver, agreed.sender);
-        const input = await derive(agreed.auth, agreed.shared, info, 32);
+        const input = await derive(agreed.auth, agreed.shared, info, 32, crypto);
 
         // derive the content key and nonce from the salt
         const { salt } = agreed;
-        const content = await derive(salt, input, text("Content-Encoding: aes128gcm\0"), 16);
-        const nonce = await derive(salt, input, text("Content-Encoding: nonce\0"), 12);
+        const content = await derive(
+            salt,
+            input,
+            text("Content-Encoding: aes128gcm\0"),
+            16,
+            crypto,
+        );
+        const nonce = await derive(salt, input, text("Content-Encoding: nonce\0"), 12, crypto);
 
         return { content, nonce };
     },
@@ -101,9 +116,10 @@ async function derive(
     input: Uint8Array<ArrayBuffer>,
     info: Uint8Array<ArrayBuffer>,
     length: number,
+    crypto: Crypto,
 ): Promise<Uint8Array<ArrayBuffer>> {
-    const key = await crypto.subtle.importKey("raw", input, "HKDF", false, ["deriveBits"]);
-    const bits = await crypto.subtle.deriveBits(
+    const key = await crypto.importKey("raw", input, "HKDF", false, ["deriveBits"]);
+    const bits = await crypto.deriveBits(
         { name: "HKDF", hash: "SHA-256", salt, info },
         key,
         length * 8,

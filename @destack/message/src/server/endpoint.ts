@@ -1,7 +1,7 @@
 import type { Deriver } from "@destack/identity";
-import { ObjectReference, RequestId } from "@destack/sync";
+import { ObjectReference, RequestId, Subject } from "@destack/sync";
 import { Caller } from "@destack/access";
-import { and, type DatabaseConnection, desc, eq, inArray, ne } from "@destack/db";
+import { and, type DatabaseConnection, desc, eq, inArray, isNull, ne } from "@destack/db";
 import {
     CallEvent,
     call,
@@ -10,14 +10,19 @@ import {
     ObjectWatch,
 } from "@destack/object";
 import { secret } from "@destack/vault/object";
-import { nth, Identifier, type JsonValue, present } from "@destack/schema";
+import { type DigestCrypto, nth, Identifier, present } from "@destack/schema";
+import {
+    RESERVED_HEADERS,
+    type WebhookAuthentication,
+    type WebhookContent,
+} from "../webhook/message.ts";
+import { MessageError } from "../error/error.ts";
 import {
     type Endpoint,
     endpoint,
     endpointConditions,
     type Message,
     message,
-    messageAttempt,
     messageConditions,
     MessageKey,
 } from "../object/index.ts";
@@ -28,19 +33,13 @@ const PAGE_CALLS = 100;
 /** The record type of a batch of calls. */
 const RECORD_TYPE = "call";
 
-/** The object types whose controller calls deliver messages, which no endpoint receives. */
-const DELIVERY_TYPES: ReadonlySet<string> = new Set([
-    message.name,
-    messageAttempt.name,
-    endpoint.name,
-]);
-
 /** Implement endpoints: a controller delivers each enabled endpoint's calls as webhook messages. */
 export function implementEndpoint(keys: Pick<Deriver, "derivePrivateKey">) {
     return endpoint.implement({
         methods: {
             create: async (mutation, next) => {
                 // let the installation consume the secret, as its creator may let software use it
+                requireHeader(mutation.input.authentication);
                 const created = await next();
                 await consume(mutation, created.secret);
 
@@ -48,6 +47,9 @@ export function implementEndpoint(keys: Pick<Deriver, "derivePrivateKey">) {
             },
             update: async (mutation, next) => {
                 // let the installation consume a new secret, and release the replaced one once unused
+                if (mutation.input.authentication !== undefined) {
+                    requireHeader(mutation.input.authentication);
+                }
                 const replaced = mutation.target.secret;
                 const updated = await next();
                 const set = mutation.input.secret;
@@ -70,7 +72,7 @@ export function implementEndpoint(keys: Pick<Deriver, "derivePrivateKey">) {
             },
         },
         controller: {
-            pending: { status: "enabled" },
+            pending: { status: "enabled", deletedAt: { isNull: true } },
             watches: [
                 ObjectWatch.of(message.table, (row) => {
                     // wake the endpoint a sent message of it names
@@ -81,7 +83,7 @@ export function implementEndpoint(keys: Pick<Deriver, "derivePrivateKey">) {
                         : [];
                 }),
                 ObjectWatch.of(call.table, async (row, database) => {
-                    // wake the enabled endpoints of the scope with a succeeded call
+                    // wake the live enabled endpoints of the scope with a succeeded call
                     if (call.eventKind().event(row).keys.outcome !== "success") {
                         return [];
                     }
@@ -92,6 +94,7 @@ export function implementEndpoint(keys: Pick<Deriver, "derivePrivateKey">) {
                             and(
                                 eq(endpoint.table.scope, row.scope),
                                 eq(endpoint.table.status, "enabled"),
+                                isNull(endpoint.table.deletedAt),
                             ),
                         );
 
@@ -121,10 +124,22 @@ async function deliver(
     );
     const items = page.events.map((event) => CallEvent.parse(event.data));
 
-    // hand the subscribed calls to messages, each identified by its request, leaving those a repeated page already created
-    const calls = items.filter((item) => isSubscribed(row, item));
-    const { key } = await MessageKey.derive(keys);
-    const described = await describeMessages(row, calls, key, reconciliation.now);
+    // describe a message for each subscribed call, or one for the page
+    const deliverer = present(
+        Caller.principal(reconciliation.caller),
+        "the delivering installation",
+    );
+    const calls = items.filter((item) => isSubscribed(row, item, deliverer));
+    const key = await MessageKey.derive(keys, reconciliation.store.environment);
+    const described = await describeMessages(
+        row,
+        calls,
+        key,
+        reconciliation.now,
+        reconciliation.store.environment.crypto,
+    );
+
+    // create the messages a repeated page has yet to create
     const existing = await reconciliation.database
         .select({ id: message.table.id })
         .from(message.table)
@@ -182,25 +197,20 @@ async function mark(
     ]);
 }
 
-/** Report whether an endpoint receives a call: one of its events, and no message delivery. */
-function isSubscribed(row: Endpoint, ended: CallEvent): boolean {
-    return !isDelivery(ended) && (row.events === "all" || row.events.includes(ended.method));
-}
+/** Report whether an endpoint receives a call: one of its events, by anyone but its deliverer. */
+function isSubscribed(row: Endpoint, ended: CallEvent, deliverer: Subject): boolean {
+    const isDelivery = Subject.same(ended.execution.context.caller.subject, deliverer);
 
-/** Report whether a call is one of this package's controllers delivering endpoint messages. */
-function isDelivery(ended: CallEvent): boolean {
-    const { component, package: served } = ended.execution.context;
-    const type = ended.method.slice(0, ended.method.lastIndexOf("."));
-
-    return component !== undefined && served.id === message.package.id && DELIVERY_TYPES.has(type);
+    return !isDelivery && (row.events === "all" || row.events.includes(ended.method));
 }
 
 /** Describe the messages with a page's calls to an endpoint: an event per call, or one batch. */
 async function describeMessages(
     row: Endpoint,
     calls: readonly CallEvent[],
-    key: string,
+    key: MessageKey,
     now: number,
+    crypto: DigestCrypto,
 ): Promise<Awaited<ReturnType<typeof describeMessage>>[]> {
     // send nothing for a page without subscribed calls
     const [first] = calls;
@@ -219,12 +229,13 @@ async function describeMessages(
                     requestId: await RequestId.derive(
                         Math.max(row.updatedAt, execution.finishedAt ?? execution.startedAt),
                         `${row.id} ${row.generation} ${execution.id}`,
+                        crypto,
                     ),
-                    type: ended.method,
-                    data: {
-                        scope: execution.context.scope,
-                        target: execution.target,
-                        details: execution.details,
+                    content: {
+                        channel: "webhook",
+                        type: ended.method,
+                        format: "event",
+                        data: record(ended),
                     },
                 });
             }),
@@ -237,22 +248,33 @@ async function describeMessages(
             requestId: await RequestId.derive(
                 Math.max(row.updatedAt, first.execution.finishedAt ?? first.execution.startedAt),
                 `${row.id} ${row.generation} ${first.execution.id} ${last.execution.id}`,
+                crypto,
             ),
-            type: RECORD_TYPE,
-            data: [...calls],
+            content: {
+                channel: "webhook",
+                type: RECORD_TYPE,
+                format: row.format,
+                data: calls.map((ended) => ({ type: ended.method, ...record(ended) })),
+            },
         }),
     ];
 }
 
-/** Describe one message to an endpoint, sealed to its home's key and signed by its secret. */
+/** Describe a call as an endpoint receives it: its scope, target and details. */
+function record(ended: CallEvent) {
+    const { execution } = ended;
+
+    return { scope: execution.context.scope, target: execution.target, details: execution.details };
+}
+
+/** Describe one message to an endpoint, sealed to the installation's message key. */
 async function describeMessage(
     row: Endpoint,
-    key: string,
+    key: MessageKey,
     now: number,
     sent: {
         readonly requestId: string;
-        readonly type: string;
-        readonly data: JsonValue;
+        readonly content: WebhookContent;
     },
 ) {
     return {
@@ -261,10 +283,7 @@ async function describeMessage(
         id: Identifier.derive("message", sent.requestId),
         input: {
             to: { channel: "webhook" as const },
-            ciphertext: await MessageKey.of(key).seal(
-                { channel: "webhook", type: sent.type, format: row.format, data: sent.data },
-                row.scope,
-            ),
+            ciphertext: await key.seal(sent.content, row.scope),
             ...ObjectReference.columns("source", endpoint.reference(row.scope, row.id)),
         },
     };
@@ -275,13 +294,17 @@ async function lastSettled(
     database: DatabaseConnection,
     row: Endpoint,
 ): Promise<Pick<Message, "status" | "conditions"> | undefined> {
+    // read the newest settled message on the source index
+    const source = ObjectReference.columns("source", endpoint.reference(row.scope, row.id));
     const [last] = await database
         .select({ status: message.table.status, conditions: message.table.conditions })
         .from(message.table)
         .where(
             and(
-                eq(message.table.sourceType, endpoint.name),
-                eq(message.table.sourceId, row.id),
+                eq(message.table.sourcePackageId, source.sourcePackageId),
+                eq(message.table.sourceType, source.sourceType),
+                eq(message.table.sourceScope, source.sourceScope),
+                eq(message.table.sourceId, source.sourceId),
                 ne(message.table.status, "pending"),
             ),
         )
@@ -306,6 +329,19 @@ function deliveredCondition(last: Pick<Message, "status" | "conditions">) {
         reason: "Failing",
         message: present(sent, "a failed message's Sent condition").message,
     };
+}
+
+/** Refuse a secret header every webhook post sets itself. */
+function requireHeader(authentication: WebhookAuthentication): void {
+    if (
+        authentication.kind === "header" &&
+        RESERVED_HEADERS.has(authentication.name.toLowerCase())
+    ) {
+        throw MessageError.of(
+            "HEADER_RESERVED",
+            `every webhook post sets ${authentication.name} itself`,
+        );
+    }
 }
 
 /** Bind the installation as a consumer of an endpoint's secret, as the caller. */

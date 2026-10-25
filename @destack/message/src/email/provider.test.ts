@@ -1,14 +1,14 @@
 import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
-import { MailFixture, UNQUERIED } from "../test/index.ts";
+import { TestMailTransport, TestMessage } from "../test/index.ts";
 import { emailProvider } from "./provider.ts";
-import { VirtualClock } from "@destack/environment/simulation";
+import { testSimulation } from "@destack/object/test";
 
 /** The identifier of the message every test sends, which keys its email. */
 const ID = schema.identifier("message").parse("message-019f5530-8000-7000-8000-0000000000e1");
 
-/** The time every test sends at. */
+/** The time every test's message was created at. */
 const NOW = Date.UTC(2026, 9, 5);
 
 /** The space every test sends from. */
@@ -23,7 +23,7 @@ const SOURCE = {
 };
 
 test("send an email message through the transport, keyed by its identifier with its HTML body", async () => {
-    const transport = new MailFixture();
+    const transport = new TestMailTransport();
     const provider = emailProvider(transport);
 
     // send one email message on the email channel
@@ -31,7 +31,7 @@ test("send an email message through the transport, keyed by its identifier with 
         {
             id: ID,
             scope: SCOPE,
-            createdAt: 0,
+            createdAt: NOW,
             to: { channel: "email", address: "ada@example.com" },
             source: SOURCE,
             content: {
@@ -41,7 +41,7 @@ test("send an email message through the transport, keyed by its identifier with 
                 html: "<p>On it</p>",
             },
         },
-        { ...UNQUERIED, clock: new VirtualClock(NOW) },
+        TestMessage.store(testSimulation(NOW).environment("email")),
     );
     expect({ outcome, sent: transport.sent }).toEqual({
         outcome: { kind: "sent" },

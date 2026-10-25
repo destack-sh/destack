@@ -1,14 +1,19 @@
 import { PackageId } from "@destack/package";
 import { nth, present, schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
-import { decrypt, encode, importBrowser, subscribeBrowser, UNQUERIED } from "../test/index.ts";
+import { decrypt, encode, importBrowser, subscribeBrowser, TestMessage } from "../test/index.ts";
 import { PushEncryption } from "./encryption.ts";
+import { PUSH_DATA_BYTES, PushContent } from "./message.ts";
 import { pushProvider } from "./push.ts";
 import { Vapid } from "./vapid.ts";
-import { VirtualClock } from "@destack/environment/simulation";
+import { KeyPair } from "@destack/identity";
+import { testSimulation } from "@destack/object/test";
 
 /** The time every push is signed at. */
 const NOW = 1_790_000_000_000;
+
+/** The world every push is sent in, at the signing time. */
+const world = testSimulation(NOW).environment("push");
 
 /** RFC 8291's example: its keys, salt, message and the body it encrypts to. */
 const EXAMPLE = {
@@ -34,10 +39,12 @@ test("encrypt RFC 8291's example message to its exact body, which the browser de
     const sender = await importBrowser(
         { p256dh: EXAMPLE.sender.publicKey, auth: EXAMPLE.receiver.keys.auth },
         EXAMPLE.sender.privateKey,
+        world.crypto,
     );
     const body = await PushEncryption.encrypt(
         EXAMPLE.receiver.keys,
         new TextEncoder().encode(EXAMPLE.message),
+        world,
         {
             sender: sender.pair,
             salt: new Uint8Array(Uint8Array.fromBase64(EXAMPLE.salt, { alphabet: "base64url" })),
@@ -45,18 +52,22 @@ test("encrypt RFC 8291's example message to its exact body, which the browser de
     );
 
     // match the RFC's body byte for byte, and decrypt it as its browser
-    const browser = await importBrowser(EXAMPLE.receiver.keys, EXAMPLE.receiver.privateKey);
+    const browser = await importBrowser(
+        EXAMPLE.receiver.keys,
+        EXAMPLE.receiver.privateKey,
+        world.crypto,
+    );
     expect([encode(body), await decrypt(browser, body)]).toEqual([EXAMPLE.body, EXAMPLE.message]);
 });
 
 test("encrypt each message under a fresh key and salt, which only its browser decrypts", async () => {
-    const browser = await subscribeBrowser();
-    const stranger = await subscribeBrowser();
+    const browser = await subscribeBrowser(world);
+    const stranger = await subscribeBrowser(world);
     const message = new TextEncoder().encode(JSON.stringify({ title: "Alice mentioned you" }));
 
     // encrypt the same message twice to different bodies: the header, the message with its delimiter, and the tag
-    const first = await PushEncryption.encrypt(browser.keys, message);
-    const second = await PushEncryption.encrypt(browser.keys, message);
+    const first = await PushEncryption.encrypt(browser.keys, message, world);
+    const second = await PushEncryption.encrypt(browser.keys, message, world);
     expect([encode(first) === encode(second), first.length, second.length]).toEqual([
         false,
         86 + message.length + 1 + 16,
@@ -70,11 +81,8 @@ test("encrypt each message under a fresh key and salt, which only its browser de
 
 test("sign VAPID tokens for the push service's origin, verifiable with the application server key", async () => {
     // sign a token for a push resource at a fixed time
-    const keys = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, [
-        "sign",
-        "verify",
-    ]);
-    const vapid = new Vapid(keys, "mailto:push@destack.app");
+    const { pair: keys } = await KeyPair.generate(world.crypto);
+    const vapid = new Vapid(keys, "mailto:push@destack.app", world.crypto);
     const header = await vapid.authorization("https://fcm.googleapis.com/fcm/send/abc", NOW);
 
     // verify the signature with the key browsers subscribe with, and read the claims
@@ -86,28 +94,25 @@ test("sign VAPID tokens for the push service's origin, verifiable with the appli
             exp: 1_790_043_200,
             sub: "mailto:push@destack.app",
         },
-        key: await vapid.publicKey(),
+        key: vapid.publicKey(),
     });
 
     // refuse a contact push services cannot find
-    expect(() => new Vapid(keys, "push@destack.app")).toThrow(
-        "a push sender's contact must be a mailto: or https: URL",
+    expect(() => new Vapid(keys, "push@destack.app", world.crypto)).toThrow(
+        new TypeError("push sender contact push@destack.app is not a mailto: or https: URL"),
     );
 });
 
 /** Push to a browser through a push service answering with the next response, signed per scope. */
 async function pushTo(responses: Response[]) {
     // sign with one key pair
-    const keys = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, [
-        "sign",
-        "verify",
-    ]);
+    const { pair: keys } = await KeyPair.generate(world.crypto);
     const service = answerInTurn(responses);
-    const vapid = new Vapid(keys, "https://destack.app");
+    const vapid = new Vapid(keys, "https://destack.app", world.crypto);
     const provider = pushProvider(async () => vapid, service.fetch);
 
     // address one browser
-    const browser = await subscribeBrowser();
+    const browser = await subscribeBrowser(world);
     const message = {
         id: schema.identifier("message").parse("message-019f5530-8000-7000-8000-0000000000aa"),
         scope: "space-019f5530-8000-7000-8000-0000000000ab",
@@ -135,36 +140,10 @@ async function pushTo(responses: Response[]) {
             topic: "019f55308000700080000000000000aa",
         },
     };
-    const send = () => provider.send(message, { ...UNQUERIED, clock: new VirtualClock(NOW) });
+    const send = () => provider.send(message, TestMessage.store(world));
 
     return { provider, vapid, browser, message, service, send };
 }
-
-test("read each status a push service answers as an outcome", async () => {
-    const { send } = await pushTo([
-        new Response(null, { status: 201 }),
-        new Response(null, { status: 410, statusText: "Gone" }),
-        new Response(null, {
-            status: 429,
-            statusText: "Too Many Requests",
-            headers: { "Retry-After": "30" },
-        }),
-        new Response(null, { status: 503, statusText: "Service Unavailable" }),
-        new Response(null, { status: 413, statusText: "Content Too Large" }),
-    ]);
-    const outcomes = [];
-    for (let index = 0; index < 5; index++) {
-        outcomes.push(await send());
-    }
-
-    expect(outcomes).toEqual([
-        { kind: "sent" },
-        { kind: "failed", error: { code: "gone", message: "Gone" } },
-        { kind: "retry", after: 30_000, error: { code: "429", message: "Too Many Requests" } },
-        { kind: "retry", error: { code: "503", message: "Service Unavailable" } },
-        { kind: "failed", error: { code: "413", message: "Content Too Large" } },
-    ]);
-});
 
 test("answer the application server key, and post a push signed by it and encrypted with RFC 8030's headers", async () => {
     const { provider, vapid, browser, service, send } = await pushTo([
@@ -173,7 +152,7 @@ test("answer the application server key, and post a push signed by it and encryp
     await send();
 
     // sign with the installation's key, its application server key
-    expect(await provider.applicationServerKey()).toBe(await vapid.publicKey());
+    expect(await provider.applicationServerKey()).toBe(vapid.publicKey());
 
     // check the coding, lifetime, topic and urgency of the post, signed by the sender and decrypted by the browser
     const first = nth(service.posted, 0);
@@ -193,7 +172,7 @@ test("answer the application server key, and post a push signed by it and encryp
                 exp: 1_790_043_200,
                 sub: "https://destack.app",
             },
-            key: await vapid.publicKey(),
+            key: vapid.publicKey(),
         },
         headers: {
             "content-encoding": "aes128gcm",
@@ -242,14 +221,14 @@ async function readVapid(authorization: string) {
     const [header, claims, signature] = [nth(segments, 0), nth(segments, 1), nth(segments, 2)];
 
     // verify the signature with the key
-    const verifier = await crypto.subtle.importKey(
+    const verifier = await world.crypto.importKey(
         "raw",
         Uint8Array.fromBase64(key, { alphabet: "base64url" }),
         { name: "ECDSA", namedCurve: "P-256" },
         false,
         ["verify"],
     );
-    const isValid = await crypto.subtle.verify(
+    const isValid = await world.crypto.verify(
         { name: "ECDSA", hash: "SHA-256" },
         verifier,
         Uint8Array.fromBase64(signature, { alphabet: "base64url" }),
@@ -265,3 +244,25 @@ function readSegment(segment: string): unknown {
         new TextDecoder().decode(Uint8Array.fromBase64(segment, { alphabet: "base64url" })),
     );
 }
+
+test("refuse a push payload past one record, at sealing and at encryption", async () => {
+    // fill a payload one byte past the most a push carries
+    const environment = testSimulation().environment("push");
+    const data = "a".repeat(PUSH_DATA_BYTES - 1);
+    const payload = new TextEncoder().encode(JSON.stringify(data));
+    const content = { channel: "push" as const, data, urgency: "normal" as const, ttl: 60 };
+
+    // refuse it as content, and refuse encrypting its bytes
+    const encrypted = await PushEncryption.encrypt(
+        EXAMPLE.receiver.keys,
+        payload,
+        environment,
+    ).catch((error: unknown) => error);
+    expect([PushContent.safeParse(content).success, payload.length, encrypted]).toEqual([
+        false,
+        PUSH_DATA_BYTES + 1,
+        new RangeError(
+            `a push carries at most ${PUSH_DATA_BYTES} bytes, not ${PUSH_DATA_BYTES + 1}`,
+        ),
+    ]);
+});

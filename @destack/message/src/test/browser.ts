@@ -1,8 +1,12 @@
+import type { Crypto, Environment } from "@destack/environment";
 import { PushEncryption } from "../push/encryption.ts";
-import type { PushKeys } from "../push/message.ts";
+import type { PushSubscription } from "@destack/account/object";
 
 /** The JWK member with an elliptic-curve private key (RFC 7518 6.2.2.1). */
 const PRIVATE_KEY_MEMBER = "d";
+
+/** The length of a subscription's authentication secret, as RFC 8291 3.2 fixes it. */
+const AUTH_BYTES = 16;
 
 /** The elliptic curve of push subscriptions. */
 const CURVE = { name: "ECDH", namedCurve: "P-256" } as const;
@@ -10,30 +14,39 @@ const CURVE = { name: "ECDH", namedCurve: "P-256" } as const;
 /** A browser's push subscription: the keys it hands the sender, and the private key only it has. */
 export interface Browser {
     /** The public key and authentication secret, base64url encoded. */
-    readonly keys: PushKeys;
+    readonly keys: PushSubscription["keys"];
     /** The key pair decrypting messages. */
     readonly pair: CryptoKeyPair;
+    /** The WebCrypto the browser decrypts with. */
+    readonly crypto: Crypto;
 }
 
 /** Subscribe a browser to push with a fresh key pair and secret, as PushManager.subscribe does. */
-export async function subscribeBrowser(): Promise<Browser> {
+export async function subscribeBrowser(
+    environment: Pick<Environment, "crypto" | "random">,
+): Promise<Browser> {
     // draw the key pair and the authentication secret
-    const pair = await crypto.subtle.generateKey(CURVE, true, ["deriveBits"]);
-    const raw = new Uint8Array(await crypto.subtle.exportKey("raw", pair.publicKey));
-    const auth = crypto.getRandomValues(new Uint8Array(16));
+    const { crypto, random } = environment;
+    const pair = await crypto.generateKey(CURVE, true, ["deriveBits"]);
+    const raw = new Uint8Array(await crypto.exportKey("raw", pair.publicKey));
+    const auth = random.bytes(AUTH_BYTES);
 
-    return { keys: { p256dh: encode(raw), auth: encode(auth) }, pair };
+    return { keys: { p256dh: encode(raw), auth: encode(auth) }, pair, crypto };
 }
 
 /** Import a browser from RFC 8291's example keys, its private key as a JWK. */
-export async function importBrowser(keys: PushKeys, privateKey: string): Promise<Browser> {
+export async function importBrowser(
+    keys: PushSubscription["keys"],
+    privateKey: string,
+    crypto: Crypto,
+): Promise<Browser> {
     // import the public point and the private scalar as one key pair
     const raw = Uint8Array.fromBase64(keys.p256dh, { alphabet: "base64url" });
     const x = encode(raw.slice(1, 33));
     const y = encode(raw.slice(33, 65));
     const jwk = { kty: "EC", crv: "P-256", x, y };
-    const publicKey = await crypto.subtle.importKey("jwk", jwk, CURVE, true, []);
-    const secret = await crypto.subtle.importKey(
+    const publicKey = await crypto.importKey("jwk", jwk, CURVE, true, []);
+    const secret = await crypto.importKey(
         "jwk",
         { ...jwk, [PRIVATE_KEY_MEMBER]: privateKey },
         CURVE,
@@ -41,7 +54,7 @@ export async function importBrowser(keys: PushKeys, privateKey: string): Promise
         ["deriveBits"],
     );
 
-    return { keys, pair: { publicKey, privateKey: secret } };
+    return { keys, pair: { publicKey, privateKey: secret }, crypto };
 }
 
 /** Decrypt a push message as the browser's service worker does, returning its text. */
@@ -56,28 +69,28 @@ export async function decrypt(browser: Browser, body: Uint8Array<ArrayBuffer>): 
     const sealed = body.slice(21 + length);
 
     // agree on the secret, then derive the content key and nonce as the sender did
+    const { crypto } = browser;
     const receiver = Uint8Array.fromBase64(browser.keys.p256dh, { alphabet: "base64url" });
     const auth = Uint8Array.fromBase64(browser.keys.auth, { alphabet: "base64url" });
-    const origin = await crypto.subtle.importKey("raw", sender, CURVE, false, []);
+    const origin = await crypto.importKey("raw", sender, CURVE, false, []);
     const shared = new Uint8Array(
-        await crypto.subtle.deriveBits(
-            { name: "ECDH", public: origin },
-            browser.pair.privateKey,
-            256,
-        ),
+        await crypto.deriveBits({ name: "ECDH", public: origin }, browser.pair.privateKey, 256),
     );
-    const { content, nonce } = await PushEncryption.deriveKeys({
-        auth,
-        shared,
-        receiver,
-        sender,
-        salt,
-    });
+    const { content, nonce } = await PushEncryption.deriveKeys(
+        {
+            auth,
+            shared,
+            receiver,
+            sender,
+            salt,
+        },
+        crypto,
+    );
 
     // open the record, dropping the delimiter ending the last one
-    const key = await crypto.subtle.importKey("raw", content, "AES-GCM", false, ["decrypt"]);
+    const key = await crypto.importKey("raw", content, "AES-GCM", false, ["decrypt"]);
     const opened = new Uint8Array(
-        await crypto.subtle.decrypt({ name: "AES-GCM", iv: nonce }, key, sealed),
+        await crypto.decrypt({ name: "AES-GCM", iv: nonce }, key, sealed),
     );
 
     return new TextDecoder().decode(opened.slice(0, opened.lastIndexOf(2)));

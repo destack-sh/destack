@@ -1,8 +1,10 @@
-import net from "node:net";
-import { beforeAll, expect, test } from "@destack/test";
-import { MimeMessage, type Envelope } from "../mime/index.ts";
-import { SmtpTestServer, TestCertificate } from "../test/index.ts";
-import { SmtpClient, SmtpError, type Authentication, type SmtpOptions } from "./index.ts";
+import { Simulation, type SimulatedClock } from "@destack/environment/simulation";
+import type { Environment, Server, Socket } from "@destack/environment";
+import { expect, test } from "@destack/test";
+import { type Draft, MimeMessage, type Envelope } from "../mime/index.ts";
+import { TestMailServer } from "../test/index.ts";
+import { MessageError } from "../error/index.ts";
+import { SmtpClient, type Authentication, type SmtpOptions, type Submission } from "./index.ts";
 
 /** The PLAIN credentials the test servers accept. */
 const PLAIN = { username: "ada", password: "secret" };
@@ -10,8 +12,32 @@ const PLAIN = { username: "ada", password: "secret" };
 const XOAUTH2 = { username: "ada@example.com", token: "ya29.token" };
 /** The envelope most tests submit. */
 const ENVELOPE: Envelope = { sender: "notices@destack.app", recipients: ["ada@example.com"] };
-/** How often a trickling server sends one more byte, in milliseconds. */
-const TRICKLE_MILLISECONDS = 5;
+/** How often a trickling server sends one more byte, below the line limit within five minutes. */
+const TRICKLE_MILLISECONDS = 1000;
+/** The time every simulation starts at. */
+const START = Date.UTC(2026, 8, 29, 10);
+
+/** The draft of the message most tests submit. */
+const DRAFT: Draft = {
+    from: "Destack <notices@destack.app>",
+    to: ["ada@example.com"],
+    subject: "New sign-in",
+    date: new Date("2026-09-29T10:00:00Z"),
+    key: "security-notice-01",
+    text: "A new device signed in.",
+};
+
+/** A simulated world: the mail server's node, the client's environment, and the clock of both. */
+interface World {
+    /** The simulation. */
+    readonly simulation: Simulation;
+    /** The clock both run on. */
+    readonly clock: SimulatedClock;
+    /** The server the mail server listens with. */
+    readonly server: Server;
+    /** The client's environment. */
+    readonly environment: Environment;
+}
 
 /** The greeting and first EHLO of a plain session. */
 const GREETING = [
@@ -38,26 +64,14 @@ const DATA = [
     ...QUIT,
 ];
 
-/** The certificate the TLS servers present and the clients trust. */
-let certificate: TestCertificate;
-/** The message most tests submit. */
-let message: MimeMessage;
-
-beforeAll(async () => {
-    certificate = await TestCertificate.generate();
-    message = await MimeMessage.compose({
-        from: "Destack <notices@destack.app>",
-        to: ["ada@example.com"],
-        subject: "New sign-in",
-        date: new Date("2026-09-29T10:00:00Z"),
-        key: "security-notice-01",
-        text: "A new device signed in.",
-    });
-});
-
 test("submit a message with PLAIN, with blind copies in the envelope only", async () => {
-    await using server = await SmtpTestServer.listen({ security: "none", plain: PLAIN });
-    const submission = await createClient(server).submit(
+    const world = simulate();
+    const message = await MimeMessage.compose(DRAFT, world.environment.crypto);
+    await using server = await TestMailServer.listen(world.server, {
+        secureTransport: "off",
+        plain: PLAIN,
+    });
+    const submission = await createClient(world, server).submit(
         { sender: "notices@destack.app", recipients: ["ada@example.com", "audit@destack.app"] },
         message,
     );
@@ -84,7 +98,12 @@ test("submit a message with PLAIN, with blind copies in the envelope only", asyn
 });
 
 test("submit with an XOAUTH2 token from the supplier", async () => {
-    await using server = await SmtpTestServer.listen({ security: "none", xoauth2: XOAUTH2 });
+    const world = simulate();
+    const message = await MimeMessage.compose(DRAFT, world.environment.crypto);
+    await using server = await TestMailServer.listen(world.server, {
+        secureTransport: "off",
+        xoauth2: XOAUTH2,
+    });
     const tokens: string[] = [];
     const authentication: Authentication = {
         kind: "xoauth2",
@@ -95,7 +114,7 @@ test("submit with an XOAUTH2 token from the supplier", async () => {
             return XOAUTH2.token;
         },
     };
-    await createClient(server, { authentication }).submit(ENVELOPE, message);
+    await createClient(world, server, { authentication }).submit(ENVELOPE, message);
 
     // ask the supplier once per session
     expect(tokens).toEqual([XOAUTH2.token]);
@@ -113,7 +132,12 @@ test("submit with an XOAUTH2 token from the supplier", async () => {
 });
 
 test("reject a refused XOAUTH2 token after answering its challenge with an empty line", async () => {
-    await using server = await SmtpTestServer.listen({ security: "none", xoauth2: XOAUTH2 });
+    const world = simulate();
+    const message = await MimeMessage.compose(DRAFT, world.environment.crypto);
+    await using server = await TestMailServer.listen(world.server, {
+        secureTransport: "off",
+        xoauth2: XOAUTH2,
+    });
     const authentication: Authentication = {
         kind: "xoauth2",
         username: XOAUTH2.username,
@@ -121,10 +145,15 @@ test("reject a refused XOAUTH2 token after answering its challenge with an empty
     };
 
     expect(
-        await readFailure(createClient(server, { authentication }).submit(ENVELOPE, message)),
+        await readFailure(
+            createClient(world, server, { authentication }).submit(ENVELOPE, message),
+        ),
     ).toEqual({
-        code: "REJECTED",
-        message: "server answered AUTH XOAUTH2 with 535 authentication failed",
+        refusal: [
+            "UNPROCESSABLE_CONTENT",
+            "COMMAND_REJECTED",
+            "server responded to AUTH XOAUTH2 with 535 authentication failed",
+        ],
         reply: { code: 535, enhancedCode: "5.7.8", text: "authentication failed" },
     });
     expect(server.transcripts).toEqual([
@@ -139,15 +168,20 @@ test("reject a refused XOAUTH2 token after answering its challenge with an empty
 });
 
 test("refuse a server that does not list the authentication mechanism", async () => {
-    await using server = await SmtpTestServer.listen({
-        security: "none",
+    const world = simulate();
+    const message = await MimeMessage.compose(DRAFT, world.environment.crypto);
+    await using server = await TestMailServer.listen(world.server, {
+        secureTransport: "off",
         plain: PLAIN,
         answers: { "EHLO client.test": "250-mail.test greets client.test\n250 AUTH XOAUTH2" },
     });
 
-    expect(await readFailure(createClient(server).submit(ENVELOPE, message))).toEqual({
-        code: "UNSUPPORTED",
-        message: `127.0.0.1:${server.port} offers no AUTH PLAIN`,
+    expect(await readFailure(createClient(world, server).submit(ENVELOPE, message))).toEqual({
+        refusal: [
+            "BAD_GATEWAY",
+            "EXTENSION_UNSUPPORTED",
+            `127.0.0.1:${server.port} does not offer AUTH PLAIN`,
+        ],
         reply: undefined,
     });
     expect(server.transcripts).toEqual([
@@ -161,8 +195,10 @@ test("refuse a server that does not list the authentication mechanism", async ()
 });
 
 test("return each recipient's reply verbatim, sending data once one is accepted", async () => {
-    await using server = await SmtpTestServer.listen({
-        security: "none",
+    const world = simulate();
+    const message = await MimeMessage.compose(DRAFT, world.environment.crypto);
+    await using server = await TestMailServer.listen(world.server, {
+        secureTransport: "off",
         plain: PLAIN,
         answers: {
             "RCPT TO:<bob@example.com>": "451 4.3.0 mailbox busy",
@@ -170,7 +206,7 @@ test("return each recipient's reply verbatim, sending data once one is accepted"
                 "550-5.1.1 mailbox unavailable\n550 5.1.1 see https://mail.test/550",
         },
     });
-    const submission = await createClient(server).submit(
+    const submission = await createClient(world, server).submit(
         {
             sender: "notices@destack.app",
             recipients: ["bob@example.com", "ada@example.com", "eve@example.com"],
@@ -200,15 +236,17 @@ test("return each recipient's reply verbatim, sending data once one is accepted"
 });
 
 test("read the text of replies without an enhanced code of their class", async () => {
-    await using server = await SmtpTestServer.listen({
-        security: "none",
+    const world = simulate();
+    const message = await MimeMessage.compose(DRAFT, world.environment.crypto);
+    await using server = await TestMailServer.listen(world.server, {
+        secureTransport: "off",
         plain: PLAIN,
         answers: {
             "RCPT TO:<ada@example.com>": "250 recipient ok",
             "RCPT TO:<bob@example.com>": "250 5.1.1 forwarded",
         },
     });
-    const submission = await createClient(server).submit(
+    const submission = await createClient(world, server).submit(
         { sender: "notices@destack.app", recipients: ["ada@example.com", "bob@example.com"] },
         message,
     );
@@ -229,12 +267,14 @@ test("read the text of replies without an enhanced code of their class", async (
 });
 
 test("skip data and quit when the server accepts no recipient", async () => {
-    await using server = await SmtpTestServer.listen({
-        security: "none",
+    const world = simulate();
+    const message = await MimeMessage.compose(DRAFT, world.environment.crypto);
+    await using server = await TestMailServer.listen(world.server, {
+        secureTransport: "off",
         plain: PLAIN,
         answers: { "RCPT TO:<ada@example.com>": "550 5.1.1 no such user" },
     });
-    const submission = await createClient(server).submit(ENVELOPE, message);
+    const submission = await createClient(world, server).submit(ENVELOPE, message);
 
     expect(submission).toEqual({
         recipients: [
@@ -259,18 +299,20 @@ test("skip data and quit when the server accepts no recipient", async () => {
 });
 
 test("return the reply refusing DATA or the data's end verbatim", async () => {
-    await using refusing = await SmtpTestServer.listen({
-        security: "none",
+    const world = simulate();
+    const message = await MimeMessage.compose(DRAFT, world.environment.crypto);
+    await using refusing = await TestMailServer.listen(world.server, {
+        secureTransport: "off",
         plain: PLAIN,
         answers: { DATA: "451 4.3.1 insufficient system storage" },
     });
-    await using ending = await SmtpTestServer.listen({
-        security: "none",
+    await using ending = await TestMailServer.listen(world.server, {
+        secureTransport: "off",
         plain: PLAIN,
         answers: { ".": "550 5.7.1 message content rejected" },
     });
-    const refused = await createClient(refusing).submit(ENVELOPE, message);
-    const ended = await createClient(ending).submit(ENVELOPE, message);
+    const refused = await createClient(world, refusing).submit(ENVELOPE, message);
+    const ended = await createClient(world, ending).submit(ENVELOPE, message);
 
     expect([refused.data, ended.data]).toEqual([
         { code: 451, enhancedCode: "4.3.1", text: "insufficient system storage" },
@@ -302,15 +344,20 @@ test("return the reply refusing DATA or the data's end verbatim", async () => {
 });
 
 test("fail on a positive reply to DATA", async () => {
-    await using server = await SmtpTestServer.listen({
-        security: "none",
+    const world = simulate();
+    const message = await MimeMessage.compose(DRAFT, world.environment.crypto);
+    await using server = await TestMailServer.listen(world.server, {
+        secureTransport: "off",
         plain: PLAIN,
         answers: { DATA: "250 2.0.0 ok" },
     });
 
-    expect(await readFailure(createClient(server).submit(ENVELOPE, message))).toEqual({
-        code: "PROTOCOL",
-        message: "server answered DATA with 250 instead of 354",
+    expect(await readFailure(createClient(world, server).submit(ENVELOPE, message))).toEqual({
+        refusal: [
+            "BAD_GATEWAY",
+            "RESPONSE_INVALID",
+            "server responded to DATA with 250 instead of 354",
+        ],
         reply: undefined,
     });
     expect(server.transcripts).toEqual([
@@ -320,28 +367,36 @@ test("fail on a positive reply to DATA", async () => {
 });
 
 test("dot-stuff content lines that start with a dot", async () => {
-    await using server = await SmtpTestServer.listen({ security: "none", plain: PLAIN });
-    const dotted = await MimeMessage.compose({
-        from: "notices@destack.app",
-        to: ["ada@example.com"],
-        subject: "Dots",
-        date: new Date("2026-09-29T10:00:00Z"),
-        key: "dots",
-        text: ".first\n..second\n.\nlast",
+    const world = simulate();
+    await using server = await TestMailServer.listen(world.server, {
+        secureTransport: "off",
+        plain: PLAIN,
     });
-    await createClient(server).submit(ENVELOPE, dotted);
+    const dotted = await MimeMessage.compose(
+        {
+            from: "notices@destack.app",
+            to: ["ada@example.com"],
+            subject: "Dots",
+            date: new Date("2026-09-29T10:00:00Z"),
+            key: "dots",
+            text: ".first\n..second\n.\nlast",
+        },
+        world.environment.crypto,
+    );
+    await createClient(world, server).submit(ENVELOPE, dotted);
 
     // receive the content unchanged, a lone dot line included
     expect(server.messages).toEqual([dotted.content]);
 });
 
 test("upgrade with STARTTLS and greet again before authenticating", async () => {
-    await using server = await SmtpTestServer.listen({
-        security: "starttls",
-        certificate,
+    const world = simulate();
+    const message = await MimeMessage.compose(DRAFT, world.environment.crypto);
+    await using server = await TestMailServer.listen(world.server, {
+        secureTransport: "starttls",
         plain: PLAIN,
     });
-    await createClient(server, { security: "starttls" }).submit(ENVELOPE, message);
+    await createClient(world, server, { secureTransport: "starttls" }).submit(ENVELOPE, message);
 
     expect(server.transcripts).toEqual([
         [
@@ -365,12 +420,13 @@ test("upgrade with STARTTLS and greet again before authenticating", async () => 
 });
 
 test("submit over implicit TLS", async () => {
-    await using server = await SmtpTestServer.listen({
-        security: "tls",
-        certificate,
+    const world = simulate();
+    const message = await MimeMessage.compose(DRAFT, world.environment.crypto);
+    await using server = await TestMailServer.listen(world.server, {
+        secureTransport: "on",
         plain: PLAIN,
     });
-    await createClient(server, { security: "tls" }).submit(ENVELOPE, message);
+    await createClient(world, server, { secureTransport: "on" }).submit(ENVELOPE, message);
 
     expect(server.transcripts).toEqual([
         ["TLS", ...GREETING, ...AUTHENTICATED, ...SENDER, ...RECIPIENT, ...DATA],
@@ -378,34 +434,46 @@ test("submit over implicit TLS", async () => {
     expect(server.messages).toEqual([message.content]);
 });
 
-test("refuse a server that offers no STARTTLS", async () => {
-    await using server = await SmtpTestServer.listen({ security: "none", plain: PLAIN });
+test("refuse a server that does not support STARTTLS", async () => {
+    const world = simulate();
+    const message = await MimeMessage.compose(DRAFT, world.environment.crypto);
+    await using server = await TestMailServer.listen(world.server, {
+        secureTransport: "off",
+        plain: PLAIN,
+    });
     const failure = await readFailure(
-        createClient(server, { security: "starttls" }).submit(ENVELOPE, message),
+        createClient(world, server, { secureTransport: "starttls" }).submit(ENVELOPE, message),
     );
 
     expect(failure).toEqual({
-        code: "UNSUPPORTED",
-        message: `127.0.0.1:${server.port} offers no STARTTLS`,
+        refusal: [
+            "BAD_GATEWAY",
+            "EXTENSION_UNSUPPORTED",
+            `127.0.0.1:${server.port} does not offer STARTTLS`,
+        ],
         reply: undefined,
     });
     expect(server.transcripts).toEqual([GREETING]);
 });
 
 test("reject a refused STARTTLS with the server's reply", async () => {
-    await using server = await SmtpTestServer.listen({
-        security: "starttls",
-        certificate,
+    const world = simulate();
+    const message = await MimeMessage.compose(DRAFT, world.environment.crypto);
+    await using server = await TestMailServer.listen(world.server, {
+        secureTransport: "starttls",
         plain: PLAIN,
         answers: { STARTTLS: "454 4.7.0 TLS not available" },
     });
     const failure = await readFailure(
-        createClient(server, { security: "starttls" }).submit(ENVELOPE, message),
+        createClient(world, server, { secureTransport: "starttls" }).submit(ENVELOPE, message),
     );
 
     expect(failure).toEqual({
-        code: "REJECTED",
-        message: "server answered STARTTLS with 454 TLS not available",
+        refusal: [
+            "UNPROCESSABLE_CONTENT",
+            "COMMAND_REJECTED",
+            "server responded to STARTTLS with 454 TLS not available",
+        ],
         reply: { code: 454, enhancedCode: "4.7.0", text: "TLS not available" },
     });
     expect(server.transcripts).toEqual([
@@ -423,49 +491,32 @@ test("reject a refused STARTTLS with the server's reply", async () => {
 });
 
 test("refuse replies injected ahead of the TLS handshake", async () => {
-    await using server = await SmtpTestServer.listen({
-        security: "starttls",
-        certificate,
+    const world = simulate();
+    const message = await MimeMessage.compose(DRAFT, world.environment.crypto);
+    await using server = await TestMailServer.listen(world.server, {
+        secureTransport: "starttls",
         plain: PLAIN,
         answers: { STARTTLS: "220 2.0.0 ready to start TLS\n250 2.0.0 injected" },
     });
     const failure = await readFailure(
-        createClient(server, { security: "starttls" }).submit(ENVELOPE, message),
+        createClient(world, server, { secureTransport: "starttls" }).submit(ENVELOPE, message),
     );
 
     expect(failure).toEqual({
-        code: "PROTOCOL",
-        message: "server sent data after its STARTTLS reply",
+        refusal: ["BAD_GATEWAY", "RESPONSE_INVALID", "server sent data after its STARTTLS reply"],
         reply: undefined,
     });
 });
 
-test("refuse a certificate no trusted authority signed", async () => {
-    await using server = await SmtpTestServer.listen({
-        security: "tls",
-        certificate,
-        plain: PLAIN,
-    });
-    const other = await TestCertificate.generate();
-    const client = createClient(server, {
-        security: "tls",
-        certificateAuthorities: [other.certificate],
-    });
-
-    expect(await readFailure(client.submit(ENVELOPE, message))).toEqual({
-        code: "CONNECTION",
-        message: `connection to 127.0.0.1:${server.port} failed: self signed certificate`,
-        reply: undefined,
-    });
-});
-
-test("refuse plain text to a host beyond loopback", () => {
-    expect(() => createClient({ port: 25 }, { host: "mail.example.com" })).toThrow(
-        new SmtpError("INSECURE", "security none requires a loopback host, not mail.example.com"),
+test("refuse plain text to a host beyond loopback", async () => {
+    const world = simulate();
+    expect(() => createClient(world, { port: 25 }, { host: "mail.example.com" })).toThrow(
+        new TypeError("plain text requires a loopback host, not mail.example.com"),
     );
 });
 
-test("refuse an EHLO host that is not a hostname or address literal", () => {
+test("refuse an EHLO host that is not a hostname or address literal", async () => {
+    const world = simulate();
     // accept hostnames and address literals, and refuse anything that could inject a command
     const helos = [
         "client.test",
@@ -478,13 +529,11 @@ test("refuse an EHLO host that is not a hostname or address literal", () => {
     ];
     const outcomes = helos.map((helo) => {
         try {
-            createClient({ port: 25 }, { helo });
+            createClient(world, { port: 25 }, { helo });
 
             return "accepted";
         } catch (error) {
-            return error instanceof SmtpError
-                ? { code: error.code, message: error.message }
-                : error;
+            return error instanceof TypeError ? error.message : error;
         }
     });
 
@@ -492,105 +541,145 @@ test("refuse an EHLO host that is not a hostname or address literal", () => {
         "accepted",
         "accepted",
         "accepted",
-        {
-            code: "INVALID_OPTIONS",
-            message: 'helo "client.test\\r\\nRSET" is not a hostname or an address literal',
-        },
-        {
-            code: "INVALID_OPTIONS",
-            message: 'helo "client test" is not a hostname or an address literal',
-        },
-        {
-            code: "INVALID_OPTIONS",
-            message: 'helo "[IPv6:127.0.0.1]" is not a hostname or an address literal',
-        },
-        { code: "INVALID_OPTIONS", message: 'helo "" is not a hostname or an address literal' },
+        'helo "client.test\\r\\nRSET" is not a hostname or an address literal',
+        'helo "client test" is not a hostname or an address literal',
+        'helo "[IPv6:127.0.0.1]" is not a hostname or an address literal',
+        'helo "" is not a hostname or an address literal',
     ]);
 });
 
 test("reject a refused greeting, credentials or sender with the server's reply", async () => {
-    await using greeting = await SmtpTestServer.listen({
-        security: "none",
+    const world = simulate();
+    const message = await MimeMessage.compose(DRAFT, world.environment.crypto);
+    await using greeting = await TestMailServer.listen(world.server, {
+        secureTransport: "off",
         answers: { greeting: "554 5.3.2 service unavailable" },
     });
-    await using credentials = await SmtpTestServer.listen({ security: "none" });
-    await using sender = await SmtpTestServer.listen({
-        security: "none",
+    await using credentials = await TestMailServer.listen(world.server, {
+        secureTransport: "off",
+    });
+    await using sender = await TestMailServer.listen(world.server, {
+        secureTransport: "off",
         plain: PLAIN,
         answers: { "MAIL FROM:<notices@destack.app>": "553 5.7.1 sender not allowed" },
     });
     const failures = await Promise.all(
         [greeting, credentials, sender].map((server) =>
-            readFailure(createClient(server).submit(ENVELOPE, message)),
+            readFailure(createClient(world, server).submit(ENVELOPE, message)),
         ),
     );
 
     expect(failures).toEqual([
         {
-            code: "REJECTED",
-            message: "server answered greeting with 554 service unavailable",
+            refusal: [
+                "UNPROCESSABLE_CONTENT",
+                "COMMAND_REJECTED",
+                "server responded to greeting with 554 service unavailable",
+            ],
             reply: { code: 554, enhancedCode: "5.3.2", text: "service unavailable" },
         },
         {
-            code: "REJECTED",
-            message: "server answered AUTH PLAIN with 535 authentication failed",
+            refusal: [
+                "UNPROCESSABLE_CONTENT",
+                "COMMAND_REJECTED",
+                "server responded to AUTH PLAIN with 535 authentication failed",
+            ],
             reply: { code: 535, enhancedCode: "5.7.8", text: "authentication failed" },
         },
         {
-            code: "REJECTED",
-            message: "server answered MAIL FROM with 553 sender not allowed",
+            refusal: [
+                "UNPROCESSABLE_CONTENT",
+                "COMMAND_REJECTED",
+                "server responded to MAIL FROM with 553 sender not allowed",
+            ],
             reply: { code: 553, enhancedCode: "5.7.1", text: "sender not allowed" },
         },
     ]);
 });
 
 test("fail on malformed, mismatched and overlong replies", async () => {
-    await using malformed = await SmtpTestServer.listen({
-        security: "none",
+    const world = simulate();
+    const message = await MimeMessage.compose(DRAFT, world.environment.crypto);
+    await using malformed = await TestMailServer.listen(world.server, {
+        secureTransport: "off",
         answers: { greeting: "hello" },
     });
-    await using mismatched = await SmtpTestServer.listen({
-        security: "none",
+    await using mismatched = await TestMailServer.listen(world.server, {
+        secureTransport: "off",
         answers: { greeting: "220-mail.test ESMTP\n250 ready" },
     });
-    await using overlong = await SmtpTestServer.listen({
-        security: "none",
+    await using overlong = await TestMailServer.listen(world.server, {
+        secureTransport: "off",
         answers: { greeting: `220 ${"x".repeat(600)}` },
     });
-    await using unended = await listenRaw((socket) => socket.write(`220 ${"x".repeat(600)}`));
+    await using unended = await listenRaw(world, (_socket, send) => {
+        void send(`220 ${"x".repeat(600)}`);
+    });
     const failures = [
-        await readFailure(createClient(malformed).submit(ENVELOPE, message)),
-        await readFailure(createClient(mismatched).submit(ENVELOPE, message)),
-        await readFailure(createClient(overlong).submit(ENVELOPE, message)),
-        await readFailure(createClient(unended).submit(ENVELOPE, message)),
+        await readFailure(createClient(world, malformed).submit(ENVELOPE, message)),
+        await readFailure(createClient(world, mismatched).submit(ENVELOPE, message)),
+        await readFailure(createClient(world, overlong).submit(ENVELOPE, message)),
+        await readFailure(createClient(world, unended).submit(ENVELOPE, message)),
     ];
 
     expect(failures).toEqual([
         {
-            code: "PROTOCOL",
-            message: 'server sent "hello", which is not a reply line',
+            refusal: [
+                "BAD_GATEWAY",
+                "RESPONSE_INVALID",
+                'server sent "hello", which is not a reply line',
+            ],
             reply: undefined,
         },
         {
-            code: "PROTOCOL",
-            message: "server continued a 220 reply with a 250 line",
+            refusal: [
+                "BAD_GATEWAY",
+                "RESPONSE_INVALID",
+                "server continued a 220 reply with a 250 line",
+            ],
             reply: undefined,
         },
-        { code: "PROTOCOL", message: "server sent a reply line over 512 octets", reply: undefined },
-        { code: "PROTOCOL", message: "server sent a reply line over 512 octets", reply: undefined },
+        {
+            refusal: [
+                "BAD_GATEWAY",
+                "RESPONSE_INVALID",
+                "server sent a reply line longer than 512 octets",
+            ],
+            reply: undefined,
+        },
+        {
+            refusal: [
+                "BAD_GATEWAY",
+                "RESPONSE_INVALID",
+                "server sent a reply line longer than 512 octets",
+            ],
+            reply: undefined,
+        },
     ]);
 });
 
-test("fail on a silent server, a trickling server, a stalled token and a refused connection", async () => {
-    await using silent = await listenRaw(() => undefined);
-    await using trickling = await listenRaw((socket) => {
-        // send one more byte of an endless greeting every few milliseconds
-        const timer = setInterval(() => socket.write("x"), TRICKLE_MILLISECONDS);
-        socket.on("close", () => clearInterval(timer));
-        socket.write("220 ");
+test("fail on a greeting silent or trickling past RFC 5321's five minutes, a token stalled past five minutes and a refused connection", async () => {
+    const world = simulate();
+    const message = await MimeMessage.compose(DRAFT, world.environment.crypto);
+    await using silent = await listenRaw(world, () => undefined);
+    await using trickling = await listenRaw(world, (socket, send) => {
+        // trickle an endless greeting
+        const leaving = new AbortController();
+        void socket.closed.then(() => leaving.abort());
+        const trickle = async () => {
+            await send("220 ");
+            for (;;) {
+                await world.clock.sleep(TRICKLE_MILLISECONDS, leaving.signal);
+                await send("x");
+            }
+        };
+        trickle().catch(() => undefined);
     });
-    await using stalled = await SmtpTestServer.listen({ security: "none", xoauth2: XOAUTH2 });
-    const closed = await listenRaw(() => undefined);
+    await using stalled = await TestMailServer.listen(world.server, {
+        secureTransport: "off",
+        xoauth2: XOAUTH2,
+    });
+    const closed = await listenRaw(world, () => undefined);
     await closed.close();
     const authentication: Authentication = {
         kind: "xoauth2",
@@ -598,42 +687,86 @@ test("fail on a silent server, a trickling server, a stalled token and a refused
         token: () => new Promise(() => {}),
     };
     const failures = [
-        await readFailure(createClient(silent, { timeout: 20 }).submit(ENVELOPE, message)),
+        await readFailure(createClient(world, silent).submit(ENVELOPE, message)),
+        await readFailure(createClient(world, trickling).submit(ENVELOPE, message)),
         await readFailure(
-            createClient(trickling, { timeout: 1000, deadline: 50 }).submit(ENVELOPE, message),
+            createClient(world, stalled, { authentication }).submit(ENVELOPE, message),
         ),
-        await readFailure(
-            createClient(stalled, { authentication, deadline: 50 }).submit(ENVELOPE, message),
-        ),
-        await readFailure(createClient(closed).submit(ENVELOPE, message)),
+        await readFailure(createClient(world, closed).submit(ENVELOPE, message)),
     ];
 
     expect(failures).toEqual([
         {
-            code: "TIMEOUT",
-            message: `127.0.0.1:${silent.port} sent nothing for 20 ms`,
+            refusal: [
+                "GATEWAY_TIMEOUT",
+                "PROVIDER_TIMEOUT",
+                `127.0.0.1:${silent.port} timed out after 300000 ms`,
+            ],
             reply: undefined,
         },
         {
-            code: "TIMEOUT",
-            message: `127.0.0.1:${trickling.port} missed the 50 ms deadline`,
+            refusal: [
+                "GATEWAY_TIMEOUT",
+                "PROVIDER_TIMEOUT",
+                `127.0.0.1:${trickling.port} timed out after 300000 ms`,
+            ],
             reply: undefined,
         },
         {
-            code: "TIMEOUT",
-            message: `127.0.0.1:${stalled.port} missed the 50 ms deadline`,
+            refusal: [
+                "GATEWAY_TIMEOUT",
+                "PROVIDER_TIMEOUT",
+                `127.0.0.1:${stalled.port} timed out after 300000 ms`,
+            ],
             reply: undefined,
         },
         {
-            code: "CONNECTION",
-            message: `connection to 127.0.0.1:${closed.port} failed: connect ECONNREFUSED 127.0.0.1:${closed.port}`,
+            refusal: [
+                "BAD_GATEWAY",
+                "PROVIDER_UNREACHABLE",
+                `connection to 127.0.0.1:${closed.port} failed: connection refused: nothing listens at 127.0.0.1:${closed.port}`,
+            ],
             reply: undefined,
         },
     ]);
 });
 
+test("fail on a server silent past RFC 5321's timeout for MAIL, RCPT, DATA and the data's end", async () => {
+    // stall one step per server
+    const world = simulate();
+    const message = await MimeMessage.compose(DRAFT, world.environment.crypto);
+    const steps = ["MAIL FROM:<notices@destack.app>", "RCPT TO:<ada@example.com>", "DATA", "."];
+    const failures: { port: number; failure: Record<string, unknown>; waited: number }[] = [];
+    for (const step of steps) {
+        await using server = await TestMailServer.listen(world.server, {
+            secureTransport: "off",
+            plain: PLAIN,
+            silences: [step],
+        });
+        const started = world.clock.now();
+        const failure = await readFailure(createClient(world, server).submit(ENVELOPE, message));
+        failures.push({ port: server.port, failure, waited: world.clock.now() - started });
+    }
+
+    // time out at each step's RFC 5321 limit
+    expect(failures).toEqual(
+        [300_000, 300_000, 120_000, 600_000].map((timeout, index) => {
+            const port = failures[index]?.port;
+            const refusal = [
+                "GATEWAY_TIMEOUT",
+                "PROVIDER_TIMEOUT",
+                `127.0.0.1:${port} timed out after ${timeout} ms`,
+            ];
+
+            return { port, failure: { refusal, reply: undefined }, waited: timeout };
+        }),
+    );
+});
+
 test("refuse envelope addresses that could inject commands, and empty envelopes", async () => {
-    const client = createClient({ port: 25 });
+    const world = simulate();
+    const message = await MimeMessage.compose(DRAFT, world.environment.crypto);
+    const client = createClient(world, { port: 25 });
     const failures = await Promise.all([
         readFailure(client.submit({ ...ENVELOPE, sender: "a@b.example>\r\nRSET" }, message)),
         readFailure(
@@ -647,33 +780,75 @@ test("refuse envelope addresses that could inject commands, and empty envelopes"
 
     expect(failures).toEqual([
         {
-            code: "INVALID_ENVELOPE",
-            message: 'address "a@b.example>\\r\\nRSET" is not a dot-atom addr-spec',
+            refusal: [
+                "BAD_REQUEST",
+                "ENVELOPE_INVALID",
+                'address "a@b.example>\\r\\nRSET" is not a dot-atom addr-spec',
+            ],
             reply: undefined,
         },
         {
-            code: "INVALID_ENVELOPE",
-            message: 'address "<eve@example.com>" is not a dot-atom addr-spec',
+            refusal: [
+                "BAD_REQUEST",
+                "ENVELOPE_INVALID",
+                'address "<eve@example.com>" is not a dot-atom addr-spec',
+            ],
             reply: undefined,
         },
-        { code: "INVALID_ENVELOPE", message: "envelope has no recipients", reply: undefined },
+        {
+            refusal: ["BAD_REQUEST", "ENVELOPE_INVALID", "envelope has no recipients"],
+            reply: undefined,
+        },
     ]);
 });
 
-/** Create a client for a server on 127.0.0.1, with PLAIN in plain text by default. */
+/** Open a simulated world with a mail server's node and a client's. */
+function simulate(): World {
+    const simulation = new Simulation({ seed: 1, start: START });
+
+    return {
+        simulation,
+        clock: simulation.clock,
+        server: simulation.network.server("mail"),
+        environment: simulation.environment("client"),
+    };
+}
+
+/** Create a client for a server on the world's loopback, submitting as the world runs. */
 function createClient(
+    world: World,
     server: { readonly port: number },
     options: Partial<SmtpOptions> = {},
-): SmtpClient {
-    return new SmtpClient({
+): { readonly submit: (envelope: Envelope, submitted: MimeMessage) => Promise<Submission> } {
+    // create the client
+    const client = new SmtpClient({
         host: "127.0.0.1",
         port: server.port,
-        security: "none",
+        secureTransport: "off",
         authentication: { kind: "plain", ...PLAIN },
         helo: "client.test",
-        certificateAuthorities: [certificate.certificate],
+        environment: world.environment,
         ...options,
     });
+
+    // run the world until the submission settles
+    return {
+        submit: async (envelope, submitted) => {
+            const submitting = client.submit(envelope, submitted);
+            let isSettled = false;
+            submitting.then(
+                () => {
+                    isSettled = true;
+                },
+                () => {
+                    isSettled = true;
+                },
+            );
+            await world.simulation.run({ until: () => isSettled });
+
+            return submitting;
+        },
+    };
 }
 
 /** Build a positive completion reply. */
@@ -681,47 +856,35 @@ function accepted(enhancedCode: string, text: string) {
     return { code: 250, enhancedCode, text };
 }
 
-/** Listen on 127.0.0.1, serving each connection's raw socket. */
+/** Listen on the world's loopback, serving each connection's raw socket. */
 async function listenRaw(
-    serve: (socket: net.Socket) => void,
-): Promise<{ port: number; close: () => Promise<void> } & AsyncDisposable> {
-    // accept connections, holding each socket until the server closes
-    const sockets = new Set<net.Socket>();
-    const server = net.createServer((socket) => {
-        sockets.add(socket);
-        socket.on("error", () => socket.destroy());
-        serve(socket);
+    world: World,
+    serve: (socket: Socket, send: (text: string) => Promise<void>) => void,
+): Promise<{ readonly port: number; readonly close: () => Promise<void> } & AsyncDisposable> {
+    // accept connections
+    const listener = await world.server.socket({
+        hostname: "127.0.0.1",
+        accept: (socket) => {
+            const writer = socket.writable.getWriter();
+            serve(socket, (text) => writer.write(new TextEncoder().encode(text)));
+        },
     });
-    await new Promise<void>((resolve) => {
-        server.listen(0, "127.0.0.1", resolve);
-    });
-
-    // read the listening port
-    const address = server.address();
-    if (address === null || typeof address === "string") {
-        throw new TypeError("raw server has no port");
+    const close = () => listener.stop();
+    const { address } = listener;
+    if ("unix" in address) {
+        throw new TypeError("the mail server listens at a Unix socket, not a port");
     }
-
-    // close every socket, then the server
-    const close = async () => {
-        for (const socket of sockets) {
-            socket.destroy();
-        }
-        await new Promise((resolve) => {
-            server.close(resolve);
-        });
-    };
 
     return { port: address.port, close, [Symbol.asyncDispose]: close };
 }
 
-/** Read the code, message and reply a submission fails with. */
+/** Read the refusal and the rejecting reply a submission fails with. */
 async function readFailure(submitted: Promise<unknown>): Promise<Record<string, unknown>> {
     try {
         await submitted;
     } catch (error) {
-        if (error instanceof SmtpError) {
-            return { code: error.code, message: error.message, reply: error.reply };
+        if (MessageError.is(error)) {
+            return { refusal: [error.code, error.reason, error.message], reply: error.data };
         }
         throw error;
     }

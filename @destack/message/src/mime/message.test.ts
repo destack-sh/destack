@@ -1,6 +1,7 @@
+import { testSimulation } from "@destack/object/test";
 import { nth } from "@destack/schema";
-import { expect, test } from "@destack/test";
-import { MimeError, MimeMessage, type Draft } from "./index.ts";
+import { expect, refusal, test } from "@destack/test";
+import { MimeMessage, type Draft } from "./index.ts";
 
 /** The line length folding aims for, as RFC 2047 sets. */
 const LINE_LIMIT = 76;
@@ -28,13 +29,18 @@ const TEXT_PART = [
 ];
 
 test("compose a text message with its structural and extra headers", async () => {
-    const message = await MimeMessage.compose({
-        ...DRAFT,
-        to: ["Ada Lovelace <ada@example.com>", "charles@example.com"],
-        cc: ['"Babbage, Charles" <babbage@example.com>'],
-        replyTo: "support@destack.app",
-        headers: { "X-Destack-Kind": "security" },
-    });
+    const { crypto } = testSimulation().environment("message");
+
+    const message = await MimeMessage.compose(
+        {
+            ...DRAFT,
+            to: ["Ada Lovelace <ada@example.com>", "charles@example.com"],
+            cc: ['"Babbage, Charles" <babbage@example.com>'],
+            replyTo: "support@destack.app",
+            headers: { "X-Destack-Kind": "security" },
+        },
+        crypto,
+    );
 
     expect(message.content).toBe(
         [
@@ -53,10 +59,15 @@ test("compose a text message with its structural and extra headers", async () =>
 });
 
 test("compose html after text as multipart/alternative", async () => {
-    const message = await MimeMessage.compose({
-        ...DRAFT,
-        html: "<p>A new device signed in.</p>",
-    });
+    const { crypto } = testSimulation().environment("message");
+
+    const message = await MimeMessage.compose(
+        {
+            ...DRAFT,
+            html: "<p>A new device signed in.</p>",
+        },
+        crypto,
+    );
 
     expect(message.content).toBe(
         [
@@ -86,12 +97,20 @@ test("compose html after text as multipart/alternative", async () => {
 });
 
 test("encode non-ASCII subjects, display names and header values as RFC 2047 encoded-words", async () => {
-    const message = await MimeMessage.compose({
-        ...DRAFT,
-        from: "Zoë Destack <notices@destack.app>",
-        subject: "Neue Anmeldung auf einem Gerät in Zürich, Österreich und Übersee",
-        headers: { "X-Note": "=?looks encoded?=", "X-Lines": "one\r\nBcc: injected@example.com" },
-    });
+    const { crypto } = testSimulation().environment("message");
+
+    const message = await MimeMessage.compose(
+        {
+            ...DRAFT,
+            from: "Zoë Destack <notices@destack.app>",
+            subject: "Neue Anmeldung auf einem Gerät in Zürich, Österreich und Übersee",
+            headers: {
+                "X-Note": "=?looks encoded?=",
+                "X-Lines": "one\r\nBcc: injected@example.com",
+            },
+        },
+        crypto,
+    );
 
     expect(message.content).toBe(
         [
@@ -110,16 +129,21 @@ test("encode non-ASCII subjects, display names and header values as RFC 2047 enc
 });
 
 test("fold long ASCII subjects, display names and address lists at spaces", async () => {
-    const message = await MimeMessage.compose({
-        ...DRAFT,
-        from: '"Destack Security Notices, for every account and every device" <notices@destack.app>',
-        to: [
-            "Ada Lovelace <ada.lovelace@analytical-engine.example.com>",
-            "Charles Babbage <charles.babbage@difference-engine.example.com>",
-        ],
-        subject:
-            "A new device signed in to your account from a browser we have not seen before today",
-    });
+    const { crypto } = testSimulation().environment("message");
+
+    const message = await MimeMessage.compose(
+        {
+            ...DRAFT,
+            from: '"Destack Security Notices, for every account and every device" <notices@destack.app>',
+            to: [
+                "Ada Lovelace <ada.lovelace@analytical-engine.example.com>",
+                "Charles Babbage <charles.babbage@difference-engine.example.com>",
+            ],
+            subject:
+                "A new device signed in to your account from a browser we have not seen before today",
+        },
+        crypto,
+    );
 
     expect(message.content).toBe(
         [
@@ -137,18 +161,23 @@ test("fold long ASCII subjects, display names and address lists at spaces", asyn
     );
 });
 
-test("fold long structured headers at spaces, valid", async () => {
+test("fold long structured headers at the spaces between their items", async () => {
+    const { crypto } = testSimulation().environment("message");
+
     const unsubscribe = `https://destack.app/unsubscribe/${"a1b2c3d4".repeat(12)}`;
-    const message = await MimeMessage.compose({
-        ...DRAFT,
-        headers: {
-            "List-Unsubscribe": `<${unsubscribe}>, <mailto:unsubscribe@destack.app?subject=unsubscribe>`,
-            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-            "In-Reply-To": "<0123456789abcdef0123456789abcdef@destack.app>",
-            References:
-                "<0123456789abcdef0123456789abcdef@destack.app> <fedcba9876543210fedcba9876543210@destack.app>",
+    const message = await MimeMessage.compose(
+        {
+            ...DRAFT,
+            headers: {
+                "List-Unsubscribe": `<${unsubscribe}>, <mailto:unsubscribe@destack.app?subject=unsubscribe>`,
+                "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+                "In-Reply-To": "<0123456789abcdef0123456789abcdef@destack.app>",
+                References:
+                    "<0123456789abcdef0123456789abcdef@destack.app> <fedcba9876543210fedcba9876543210@destack.app>",
+            },
         },
-    });
+        crypto,
+    );
 
     expect(message.content).toBe(
         [
@@ -171,10 +200,15 @@ test("fold long structured headers at spaces, valid", async () => {
 });
 
 test("encode bodies as quoted-printable UTF-8 with CRLF line breaks and soft breaks", async () => {
-    const message = await MimeMessage.compose({
-        ...DRAFT,
-        text: `Price = 5 €\nTrailing space \r\nTrailing tab\t\r${"x".repeat(80)}\n.leading dot`,
-    });
+    const { crypto } = testSimulation().environment("message");
+
+    const message = await MimeMessage.compose(
+        {
+            ...DRAFT,
+            text: `Price = 5 €\nTrailing space \r\nTrailing tab\t\r${"x".repeat(80)}\n.leading dot`,
+        },
+        crypto,
+    );
 
     expect(message.content).toBe(
         [
@@ -199,16 +233,24 @@ test("encode bodies as quoted-printable UTF-8 with CRLF line breaks and soft bre
 });
 
 test("derive the Message-ID from the sender's address and the key alone", async () => {
-    const first = await MimeMessage.compose(DRAFT);
-    const resent = await MimeMessage.compose({
-        ...DRAFT,
-        from: "Destack Notices <notices@destack.app>",
-        date: new Date("2026-09-30T10:00:00Z"),
-        text: "A new device signed in again.",
-    });
-    const other = await MimeMessage.compose({ ...DRAFT, key: "security-notice-02" });
-    const sender = await MimeMessage.compose({ ...DRAFT, from: "alerts@destack.app" });
-    const relayed = await MimeMessage.compose({ ...DRAFT, from: "notices@mail.destack.app" });
+    const { crypto } = testSimulation().environment("message");
+
+    const first = await MimeMessage.compose(DRAFT, crypto);
+    const resent = await MimeMessage.compose(
+        {
+            ...DRAFT,
+            from: "Destack Notices <notices@destack.app>",
+            date: new Date("2026-09-30T10:00:00Z"),
+            text: "A new device signed in again.",
+        },
+        crypto,
+    );
+    const other = await MimeMessage.compose({ ...DRAFT, key: "security-notice-02" }, crypto);
+    const sender = await MimeMessage.compose({ ...DRAFT, from: "alerts@destack.app" }, crypto);
+    const relayed = await MimeMessage.compose(
+        { ...DRAFT, from: "notices@mail.destack.app" },
+        crypto,
+    );
 
     // derive the same Message-ID across resends of one key, and another with another key or address
     expect([
@@ -227,6 +269,8 @@ test("derive the Message-ID from the sender's address and the key alone", async 
 });
 
 test("refuse structural and malformed headers", async () => {
+    const { crypto } = testSimulation().environment("message");
+
     const longName = `X-${"a".repeat(997)}`;
     const failures = await Promise.all(
         [
@@ -237,31 +281,35 @@ test("refuse structural and malformed headers", async () => {
             { ...DRAFT, headers: { "X-Kind:": "security" } },
             { ...DRAFT, headers: { [longName]: "security" } },
             { ...DRAFT, subject: "x".repeat(998) },
-        ].map((message) => readFailure(MimeMessage.compose(message))),
+        ].map((message) => refusal(MimeMessage.compose(message, crypto))),
     );
 
     expect(failures).toEqual([
-        { code: "INVALID_HEADER", message: "header Subject is written by the composer" },
-        { code: "INVALID_HEADER", message: "header bcc is written by the composer" },
-        {
-            code: "INVALID_HEADER",
-            message: "header Content-Transfer-Encoding is written by the composer",
-        },
-        {
-            code: "INVALID_HEADER",
-            message: 'header name "X Kind" contains a character outside printable ASCII or a colon',
-        },
-        {
-            code: "INVALID_HEADER",
-            message:
-                'header name "X-Kind:" contains a character outside printable ASCII or a colon',
-        },
-        { code: "INVALID_HEADER", message: `header ${longName} has a line over 998 characters` },
-        { code: "INVALID_HEADER", message: "header Subject has a line over 998 characters" },
+        ["BAD_REQUEST", "HEADER_INVALID", "header Subject is set by the composer"],
+        ["BAD_REQUEST", "HEADER_INVALID", "header bcc is set by the composer"],
+        [
+            "BAD_REQUEST",
+            "HEADER_INVALID",
+            "header Content-Transfer-Encoding is set by the composer",
+        ],
+        [
+            "BAD_REQUEST",
+            "HEADER_INVALID",
+            'header name "X Kind" contains a character outside printable ASCII or a colon',
+        ],
+        [
+            "BAD_REQUEST",
+            "HEADER_INVALID",
+            'header name "X-Kind:" contains a character outside printable ASCII or a colon',
+        ],
+        ["BAD_REQUEST", "HEADER_INVALID", `header ${longName} has a line over 998 characters`],
+        ["BAD_REQUEST", "HEADER_INVALID", "header Subject has a line over 998 characters"],
     ]);
 });
 
 test("refuse invalid addresses, keys and dates", async () => {
+    const { crypto } = testSimulation().environment("message");
+
     const failures = await Promise.all(
         [
             { ...DRAFT, to: ["ada@example.com>\r\nBcc: eve@example.com"] },
@@ -271,34 +319,39 @@ test("refuse invalid addresses, keys and dates", async () => {
             { ...DRAFT, from: "notices" },
             { ...DRAFT, key: "" },
             { ...DRAFT, date: new Date("not a date") },
-        ].map((message) => readFailure(MimeMessage.compose(message))),
+        ].map((message) => refusal(MimeMessage.compose(message, crypto))),
     );
 
     expect(failures).toEqual([
-        {
-            code: "INVALID_ADDRESS",
-            message:
-                'address "ada@example.com>\\r\\nBcc: eve@example.com" is not a dot-atom addr-spec',
-        },
-        {
-            code: "INVALID_ADDRESS",
-            message: 'address "ada at example.com" is not a dot-atom addr-spec',
-        },
-        {
-            code: "INVALID_ADDRESS",
-            message: `address "${"a".repeat(65)}@example.com" is not a dot-atom addr-spec`,
-        },
-        {
-            code: "INVALID_ADDRESS",
-            message: `address "ada@${"a".repeat(64)}.example.com" is not a dot-atom addr-spec`,
-        },
-        { code: "INVALID_ADDRESS", message: 'address "notices" is not a dot-atom addr-spec' },
-        { code: "INVALID_KEY", message: "message key is empty" },
-        { code: "INVALID_DATE", message: "message date is invalid" },
+        [
+            "BAD_REQUEST",
+            "ADDRESS_INVALID",
+            'address "ada@example.com>\\r\\nBcc: eve@example.com" is not a dot-atom addr-spec',
+        ],
+        [
+            "BAD_REQUEST",
+            "ADDRESS_INVALID",
+            'address "ada at example.com" is not a dot-atom addr-spec',
+        ],
+        [
+            "BAD_REQUEST",
+            "ADDRESS_INVALID",
+            `address "${"a".repeat(65)}@example.com" is not a dot-atom addr-spec`,
+        ],
+        [
+            "BAD_REQUEST",
+            "ADDRESS_INVALID",
+            `address "ada@${"a".repeat(64)}.example.com" is not a dot-atom addr-spec`,
+        ],
+        ["BAD_REQUEST", "ADDRESS_INVALID", 'address "notices" is not a dot-atom addr-spec'],
+        ["BAD_REQUEST", "KEY_INVALID", "message key is empty"],
+        ["BAD_REQUEST", "DATE_INVALID", "message date is invalid"],
     ]);
 });
 
 test("roundtrip random subjects and bodies within the line limits", async () => {
+    const { crypto } = testSimulation().environment("message");
+
     // compose messages from seeded random text over ASCII, controls, Latin-1, CJK and emoji
     const random = seeded(7);
     const alphabet = [...Array.from("abc XYZ.=?\t\r\n-_:;<>"), "é", "€", "日本", "😀", "\u0000"];
@@ -309,7 +362,7 @@ test("roundtrip random subjects and bodies within the line limits", async () => 
             ).join("");
         const subject = pick().replaceAll(/[\r\n]/gu, "");
         const text = pick();
-        const message = await MimeMessage.compose({ ...DRAFT, subject, text });
+        const message = await MimeMessage.compose({ ...DRAFT, subject, text }, crypto);
 
         // fit every line within the limit, and decode the subject and body back
         const lines = message.content.split("\r\n");
@@ -377,19 +430,4 @@ function seeded(seed: number): () => number {
 
         return ((mixed ^ (mixed >>> 14)) >>> 0) / 4_294_967_296;
     };
-}
-
-/** Read the code and message a composition fails with. */
-async function readFailure(
-    composed: Promise<MimeMessage>,
-): Promise<{ code: string; message: string }> {
-    try {
-        await composed;
-    } catch (error) {
-        if (error instanceof MimeError) {
-            return { code: error.code, message: error.message };
-        }
-        throw error;
-    }
-    throw new Error("composition succeeded");
 }

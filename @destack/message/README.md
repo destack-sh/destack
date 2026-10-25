@@ -4,9 +4,9 @@
 
 ```ts
 const email = emailProvider(new SmtpTransport(client, { from: "Destack <notices@destack.app>" }));
-const push = pushProvider(() => Vapid.derive(keys, "https://destack.app"));
-await MimeMessage.compose({ from, to, subject, date: new Date(), key, text, html });
-await WebhookSignature.sign(secret, id, timestamp, body);
+const push = pushProvider(() => Vapid.derive(keys, "https://destack.app", crypto), fetch);
+await MimeMessage.compose({ from, to, subject, date: new Date(clock.now()), key, text, html });
+await StandardWebhook.sign(secret, { id, timestamp, body }); // from @destack/object
 ```
 
 ## Messages
@@ -19,7 +19,7 @@ await client.message.create({
     requestId,
     to: { channel: "email", address: "dana@example.com" },
     ...ObjectReference.columns("source", issue.reference(spaceId, issueId)),
-    ciphertext: await MessageKey.of(messageKey).seal(content, spaceId),
+    ciphertext: await MessageKey.of(messageKey, environment).seal(content, spaceId),
 });
 await client.message.create({
     scope: spaceId,
@@ -28,7 +28,8 @@ await client.message.create({
     ...source,
 });
 await laptopClient.message.receive({ scope, id });
-const { key } = await client.message.serverKey({ scope: spaceId });
+const { key } = await client.message.serverKey({ scope: spaceId }); // the VAPID key browsers subscribe with
+const { key: messageKey } = await client.message.contentKey({ scope: spaceId }); // the key content is sealed to
 ```
 
 ## Endpoints
@@ -54,16 +55,19 @@ await client.endpoint.create({
 ```ts
 import server from "@destack/message/server";
 
-const extension = server(context); // mail through the bound outboundMail, push signed with its VAPID key
+const extension = server.definition(context); // mail through the bound outboundMail, push signed with its VAPID key
 ```
 
 ## Providers
 
-A `MessageProvider` sends the messages of one channel, and `Outcome.read` reads an HTTP answer as an outcome.
+A `MessageProvider` sends the messages of one channel; a refusal carries a `MessageReason`, with the provider's own code apart.
 
 ```ts
-Outcome.read(new Response(null, { status: 429, headers: { "Retry-After": "30" } }), Date.now());
-Outcome.read(new Response(null, { status: 410 }), Date.now());
+Outcome.read(new Response(null, { status: 410 }), now);
+// { kind: "failed", refusal: { reason: "RECIPIENT_GONE", code: "410", message: "" } }
+Outcome.refuse({ reason: "PROVIDER_THROTTLED", message: "slow down" }, 30_000);
+// { kind: "deferred", after: 30000, refusal: { reason: "PROVIDER_THROTTLED", message: "slow down" } }
+await Outcome.post(fetch, request, clock); // a lost or timed-out post defers as PROVIDER_UNREACHABLE or PROVIDER_TIMEOUT
 ```
 
 ## Tables
@@ -78,13 +82,12 @@ const database = defineDatabase({ name: "main", tables: messageTables });
 
 ## Tests
 
-`SmtpTestServer` is a scripted SMTP server on 127.0.0.1, and `MailFixture` records each email sent through it.
+`TestMessage` serves a space with message installed in a simulation, its mail bound to a `TestMailTransport` and its webhook endpoint and push service served as `TestReceiver`s; `TestMailServer` is a scripted SMTP server listening on a simulated network's loopback.
 
 ```ts
-await using server = await SmtpTestServer.listen({
-    security: "starttls",
-    certificate,
+await using server = await TestMailServer.listen(simulation.network.of("mail"), {
+    secureTransport: "starttls",
     answers: { "RCPT TO:<eve@example.com>": "550 5.1.1 no such user" },
 });
-const mail = new MailFixture();
+const kit = await TestMessage.open({ mails: [{ kind: "sent" }], hooks: [500] });
 ```

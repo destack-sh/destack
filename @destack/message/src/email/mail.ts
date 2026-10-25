@@ -1,12 +1,13 @@
-import { schema } from "@destack/schema";
+import { type DigestCrypto, schema } from "@destack/schema";
 import { EmailContent } from "./message.ts";
+import { MimeMessage } from "../mime/index.ts";
 import type { Outcome } from "../provider/index.ts";
 
 /** The longest deduplication key, in characters: a header line's length (RFC 5322 2.1.1). */
 const KEY_LENGTH = 998;
 
 /** One email to one address, in plain text and optionally HTML. */
-export const Mail = EmailContent.omit({ channel: true }).extend({
+const mail = EmailContent.omit({ channel: true }).extend({
     /** The address. */
     to: schema.email(),
     /** The key the provider deduplicates by, which the Message-ID digests. */
@@ -14,8 +15,27 @@ export const Mail = EmailContent.omit({ channel: true }).extend({
     /** The origination time in the Date header, in milliseconds since the epoch. */
     date: schema.number().int(),
 });
+
+/** One email to one address, and how a transport composes it. */
+export const Mail = Object.assign(mail, {
+    /** Compose an email from a sender's mailbox, its Message-ID digesting its key. */
+    compose(sent: Mail, from: string, crypto: DigestCrypto): Promise<MimeMessage> {
+        return MimeMessage.compose(
+            {
+                from,
+                to: [sent.to],
+                subject: sent.subject,
+                date: new Date(sent.date),
+                key: sent.key,
+                text: sent.text,
+                ...(sent.html === undefined ? {} : { html: sent.html }),
+            },
+            crypto,
+        );
+    },
+});
 /** One email to one address. */
-export type Mail = schema.Infer<typeof Mail>;
+export type Mail = schema.Infer<typeof mail>;
 
 /** A way to send email, such as a mail service's HTTP API, SMTP or a printer. */
 export interface MailTransport {
