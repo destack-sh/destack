@@ -1,3 +1,4 @@
+import { TEST_START } from "@destack/test/world";
 import { join } from "node:path";
 import type { OperatingSystem } from "@destack/environment";
 import { testHost } from "@destack/test/host";
@@ -12,9 +13,6 @@ const DENIED_FAILURES: Partial<Record<OperatingSystem, readonly string[]>> = {
     linux: ["ENOENT", "EROFS"],
 };
 
-/** The start of the worlds' clocks. */
-const START = Date.UTC(2026, 9, 24);
-
 /** The search path of a launcher a test starts itself. */
 const LAUNCHER_PATH = "/usr/bin:/bin:/usr/sbin:/sbin";
 
@@ -22,7 +20,7 @@ const LAUNCHER_PATH = "/usr/bin:/bin:/usr/sbin:/sbin";
 async function world(prefix: string) {
     const simulation = new Simulation({
         seed: 1,
-        start: START,
+        start: TEST_START,
         host: testHost().host,
     });
     const environment = simulation.environment("host");
