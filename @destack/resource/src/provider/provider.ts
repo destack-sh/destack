@@ -94,6 +94,8 @@ export type Provider<
     readonly provision?: Provisioner<Kind>;
     /** Open the resources' content as a database. */
     readonly open?: Opener<Kind, Handle>;
+    /** Resolve a reference to where a workload on this host reaches the resource. */
+    readonly resolve?: (reference: string) => string;
     /** Rewrap the rows the provider binds to its host for another host. */
     readonly rewrap?: Rewrapper<Table, Row>;
     /** Refuse writes into the resources' content while a transfer copies it. */

@@ -21,15 +21,19 @@ export const UnreachablePlan = schema.object({
 export type UnreachablePlan = schema.Infer<typeof UnreachablePlan>;
 
 /** The resource package's failures, each reason with the call error code it answers. */
-export const ResourceError = defineErrorFamily(import.meta.destack.package, {
-    // conflict
-    UNREACHABLE_PLAN: { code: "CONFLICT", data: UnreachablePlan },
+export const ResourceError = defineErrorFamily(
+    import.meta.destack.package,
+    {
+        // conflict
+        UNREACHABLE_PLAN: { code: "CONFLICT", data: UnreachablePlan },
 
-    // internal server error
-    ALREADY_BOUND: { code: "INTERNAL_SERVER_ERROR" },
-    NOT_BOUND: { code: "INTERNAL_SERVER_ERROR" },
-    NOT_PROVISIONED: { code: "INTERNAL_SERVER_ERROR" },
-});
+        // internal server error
+        ALREADY_BOUND: { code: "INTERNAL_SERVER_ERROR" },
+        NOT_BOUND: { code: "INTERNAL_SERVER_ERROR" },
+        NOT_PROVISIONED: { code: "INTERNAL_SERVER_ERROR" },
+    },
+    { audience: "host" },
+);
 
 /** A stable cause of resource failures. */
 export type ResourceReason = ReasonOf<typeof ResourceError>;
