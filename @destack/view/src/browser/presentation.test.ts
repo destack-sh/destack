@@ -1,4 +1,4 @@
-import { Simulation } from "@destack/environment/simulation";
+import { testSimulation } from "@destack/test/world";
 import { TestDatabase } from "@destack/db/test";
 import { Package } from "@destack/package";
 import { type JsonValue, schema } from "@destack/schema";
@@ -12,9 +12,6 @@ import { CommandReference } from "../declare/command.ts";
 import { keybindings, sources } from "../palette/index.ts";
 import { appearance } from "../setting/index.ts";
 import { Presentation, type Page } from "./presentation.ts";
-
-/** The start of the test's world: 2026-10-24 at midnight UTC. */
-const START = Date.UTC(2026, 9, 24);
 
 /** The person a page presents for. */
 const PERSON = schema.identifier("user").parse("user-01996ab0-0000-7000-8000-0000000000e2");
@@ -48,7 +45,7 @@ const page: Page = {
 
 test("present a page in its person's language, their display settings' style and their keybindings, offering none once they turn the package's commands off, and its device's own values over theirs", async () => {
     // place the person's dark appearance and their keybinding of the archive command, each under its own id
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const environment = simulation.environment("page");
     const storage = await TestDatabase.create(
         [accessRelationship, setting.table, deviceSetting.table],

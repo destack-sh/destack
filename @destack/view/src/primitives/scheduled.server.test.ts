@@ -1,14 +1,11 @@
+import { TEST_START, testSimulation } from "@destack/test/world";
 import { BrowserSimulation } from "@destack/environment/browser/simulation";
-import { Simulation } from "@destack/environment/simulation";
 import { expect, test } from "@destack/test";
 import { debounce, leading, leadingAndTrailing, scheduleIdle, throttle } from "./scheduled.ts";
 
-/** The start of every test's world: 2026-10-24 at midnight UTC. */
-const START = Date.UTC(2026, 9, 24);
-
 test("run nothing scheduled on the server, and only the first leading call", async () => {
     // trigger every schedule twice around a second of the server's clock
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const { clock } = simulation;
     const { display } = new BrowserSimulation(simulation).environment("tab");
     const called: string[] = [];
@@ -22,7 +19,7 @@ test("run nothing scheduled on the server, and only the first leading call", asy
     for (const trigger of triggers) {
         trigger("foo");
     }
-    await simulation.run({ to: START + 1000 });
+    await simulation.run({ to: TEST_START + 1000 });
     for (const trigger of triggers) {
         trigger("baz");
     }

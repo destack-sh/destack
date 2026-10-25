@@ -1,5 +1,5 @@
+import { testSimulation } from "@destack/test/world";
 import { none } from "@destack/access";
-import { Simulation } from "@destack/environment/simulation";
 import { type MethodInput, defineObject, field } from "@destack/object";
 import type { Submission } from "@destack/object/client";
 import { schema } from "@destack/schema";
@@ -10,7 +10,7 @@ import { render, wait } from "../test/index.ts";
 import { type Form, type FormMode, useForm, useSchemaForm } from "./form.ts";
 
 /** The world the form tests run in. */
-const world = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 24) }).environment("tab");
+const world = testSimulation().environment("tab");
 
 /** The first strong isolate MessageFormat 2 places around a placeholder's value. */
 const OPEN = String.fromCodePoint(0x2068);

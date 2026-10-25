@@ -1,3 +1,4 @@
+import { testSimulation } from "@destack/test/world";
 import { expect, test } from "@destack/test";
 import {
     createFavicon,
@@ -13,17 +14,13 @@ import {
 } from "./favicon.ts";
 import { testHost } from "@destack/test/host";
 import { BrowserSimulation } from "@destack/environment/browser/simulation";
-import { Simulation } from "@destack/environment/simulation";
-
-/** The start of every test's world: 2026-10-24 at midnight UTC. */
-const START = Date.UTC(2026, 9, 24);
 
 /** The clock a server-side animation would run on. */
 const clock = testHost().clock;
 
 test("read plain favicon addresses on the server", async () => {
     // read each address on a display the server never asks
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const { display } = new BrowserSimulation(simulation).environment("tab");
     expect([
         makeFavicon("/a.svg").href,

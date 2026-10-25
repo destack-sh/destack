@@ -1,6 +1,6 @@
+import { testSimulation } from "@destack/test/world";
 import { expect, onTestFinished, test } from "@destack/test";
 import { BrowserSimulation } from "@destack/environment/browser/simulation";
-import { Simulation } from "@destack/environment/simulation";
 import type { BrowserEnvironment } from "@destack/environment/browser";
 import { render } from "../test/dom.ts";
 import { type Accessor, flush } from "../solid/reactive.ts";
@@ -12,13 +12,10 @@ import {
     type LocalAppearance,
 } from "./appearance.tsx";
 
-/** The start of every test's world: 2026-10-24 at midnight UTC. */
-const START = Date.UTC(2026, 9, 24);
-
 /** Run a component in a root of a tab of its own, answering the tab. */
 async function mount(component: () => null): Promise<BrowserEnvironment> {
     // render in a fresh tab, and reset the root's scheme after the test
-    const simulation = new Simulation({ seed: 1, start: START });
+    const simulation = testSimulation();
     onTestFinished(() => simulation[Symbol.asyncDispose]());
     const tab = new BrowserSimulation(simulation).environment("tab");
     render(component, { environment: tab });
