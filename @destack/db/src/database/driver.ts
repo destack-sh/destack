@@ -7,20 +7,39 @@ import { classifyError, DatabaseError } from "../error/error.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import type { DriverStatement } from "../sql/index.ts";
 import type { Session } from "./session.ts";
-import { TransactionIdentity } from "../log/transaction.ts";
-import { telemetry } from "@destack/telemetry";
+import { TelemetryScope } from "@destack/telemetry";
+import type { Environment } from "@destack/environment";
 import type {} from "@destack/package/import-meta";
 
 /** The milliseconds in a second, as OpenTelemetry records durations in seconds. */
 const MILLISECONDS_PER_SECOND = 1000;
 
-/** The duration of each statement, in seconds, as OpenTelemetry's database conventions name it. */
-const operationDuration = telemetry
-    .scope(import.meta.destack.package)
-    .metric.histogram("db.client.operation.duration", {
-        unit: "s",
-        attributes: { "db.system.name": ["sqlite", "postgresql"] },
-    });
+/** The histogram of each statement's duration in seconds, by OpenTelemetry's conventions. */
+export class OperationDuration {
+    /** The histogram on the connection's telemetry. */
+    readonly #histogram;
+
+    /** Declare the histogram on a telemetry. */
+    constructor(telemetry: Environment["telemetry"]) {
+        this.#histogram = TelemetryScope.of(
+            import.meta.destack.package,
+            telemetry,
+        ).metric.histogram("db.client.operation.duration", {
+            unit: "s",
+            attributes: { "db.system.name": ["sqlite", "postgresql"] },
+        });
+    }
+
+    /** Record a statement's duration in milliseconds on a dialect. */
+    record(milliseconds: number, dialect: Dialect): void {
+        this.#histogram.record(milliseconds / MILLISECONDS_PER_SECOND, {
+            "db.system.name": dialect,
+        });
+    }
+}
+
+/** Whether a write logs: through tables with change triggers, through none, or unknown. */
+type Logging = "logged" | "unlogged" | "unknown";
 
 /** A session and its statements' lifetime, counting and failures. */
 export class DatabaseDriver {
@@ -70,16 +89,15 @@ export class DatabaseDriver {
             this.meter.operations += 1;
         }
 
-        // classify failures, and record the statement's duration
+        // count the statement in flight on the clock, classify failures, and record its duration
         const reported = async () => {
-            const started = performance.now();
+            const started = this.state.clock.now();
             try {
-                return await operation();
+                return await this.state.clock.trackHost(Promise.resolve(operation()));
             } catch (error) {
                 throw classifyError(error, this.state.declared);
             } finally {
-                const seconds = (performance.now() - started) / MILLISECONDS_PER_SECOND;
-                operationDuration.record(seconds, { "db.system.name": this.dialect });
+                this.state.durations.record(this.state.clock.now() - started, this.dialect);
             }
         };
 
@@ -91,13 +109,20 @@ export class DatabaseDriver {
         operation: (session: Session) => Promise<Value>,
         tables: readonly string[],
     ): Promise<Value> {
+        // cascade the written tables, every table for unknown ones
         const written =
             tables.length === 0 ? new Set(this.state.cascades.keys()) : this.#cascade(tables);
 
-        // stamp a write that may log, of a table with triggers or of unknown tables
-        const isLogging = tables.length === 0 || this.state.isLogging(written);
+        // stamp a write that may log, of tables with triggers or of unknown tables
+        const logged = this.state.logged(written);
+        let logging: Logging = logged.length > 0 ? "logged" : "unlogged";
 
-        return this.commit(() => this.#identified(operation, isLogging), written);
+        // read a write of unknown tables as unknown
+        if (tables.length === 0) {
+            logging = "unknown";
+        }
+
+        return this.commit(() => this.#identified(operation, logging, logged), written);
     }
 
     /** Submit work that commits by itself and writes some tables, such as a transaction. */
@@ -268,35 +293,28 @@ export class DatabaseDriver {
         return written;
     }
 
-    /** Run a write after stamping its transaction's log identity. */
+    /** Run a write stamped in its transaction, refusing a logged write outside one. */
     async #identified<Value>(
         operation: (session: Session) => Promise<Value>,
-        isLogging: boolean,
+        logging: Logging,
+        logged: readonly string[],
     ): Promise<Value> {
-        // run an unlogged write, or a PostgreSQL write outside a transaction, as it is
-        if (!isLogging || (this.transaction === undefined && this.session.dialect !== "sqlite")) {
-            return await operation(this.session);
-        }
-        // stamp the enclosing transaction ahead of its first logged write, in statement order
-        else if (this.transaction !== undefined) {
+        // stamp a write that may log inside a transaction, in statement order
+        if (this.transaction !== undefined && logging !== "unlogged") {
             await this.transaction.identity.stamp();
 
             return await operation(this.session);
         }
-        // run a SQLite write in a separate stamped transaction
-        else {
-            return await this.session.transaction(
-                async (transaction) => {
-                    // stamp, write and clear the transaction
-                    const identity = new TransactionIdentity(transaction, this.state);
-                    await identity.stamp();
-                    const result = await operation(transaction);
-                    await identity.close();
-
-                    return result;
-                },
-                { isReadOnly: false, isolationLevel: "serializable" },
+        // refuse a known logged write outside a transaction
+        else if (this.transaction === undefined && logging === "logged") {
+            throw DatabaseError.of(
+                "TRANSACTION_REQUIRED",
+                `a logged write of ${logged.join(", ")} runs outside a transaction: run it in a transaction`,
             );
+        }
+        // run any other write as it is, the triggers refusing an unknown table's logged change
+        else {
+            return await operation(this.session);
         }
     }
 }

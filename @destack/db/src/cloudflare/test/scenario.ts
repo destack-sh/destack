@@ -1,3 +1,5 @@
+import type { Environment } from "@destack/environment";
+import { WorkerdEnvironment } from "@destack/environment/workerd";
 import { ModuleMetadata } from "@destack/package";
 import { and, eq, inArray } from "../../sql/index.ts";
 import { Change } from "../../log/log.ts";
@@ -75,12 +77,16 @@ const UNKEPT = () => ({
 
 /** A Durable Object that stores notes in its SQLite storage through a Destack connection. */
 export class Notes {
+    /** The host the object runs on, the Workers runtime's. */
+    readonly environment: Environment;
     /** The databases the object stores in its storage. */
     readonly databases: DurableObjectDatabaseHost;
 
-    /** Store the object's databases in its storage. */
+    /** Store the object's databases in its storage, on the runtime's host. */
     constructor(state: { readonly storage: DurableObjectStorage }) {
-        this.databases = new DurableObjectDatabaseHost(state.storage);
+        // build the host once, as the runtime constructs the object
+        this.environment = WorkerdEnvironment.system;
+        this.databases = new DurableObjectDatabaseHost(state.storage, this.environment);
     }
 
     /** Answer the scenario in a request's path. */
@@ -142,7 +148,9 @@ export class Notes {
             id: `n${index.toString().padStart(2, "0")}`,
             title: `it's ${index}?`,
         }));
-        await database.insert(note).values(notes);
+        await database.transaction((transaction) =>
+            transaction.insert(note).values(notes).execute(),
+        );
 
         // read them back in one statement of 80 values
         const rows = await database
@@ -157,7 +165,12 @@ export class Notes {
             .orderBy(note.id);
 
         // write a file whose size a number cannot store exactly, and read the integer as text
-        await database.insert(file).values({ id: "g", size: LARGE_SIZE, content: FILE_CONTENT });
+        await database.transaction(
+            async (transaction) =>
+                await transaction
+                    .insert(file)
+                    .values({ id: "g", size: LARGE_SIZE, content: FILE_CONTENT }),
+        );
         const [stored] = this.databases.storage.sql
             .exec(`SELECT CAST(size AS TEXT) AS size FROM "${file[TABLE].sqlName}"`)
             .toArray();
@@ -181,7 +194,11 @@ export class Notes {
         const plan = Plan.parse(await answered.json());
 
         // apply the plan and write through the workload's connector
-        await this.databases.apply(record, desired, await Plan.digest(plan));
+        await this.databases.apply(
+            record,
+            desired,
+            await Plan.digest(plan, this.environment.crypto),
+        );
         const binding = {
             resource: RECORD.id,
             kind: "database",
@@ -192,8 +209,11 @@ export class Notes {
             await using database = await durableObjectConnector(this.databases).connect(
                 binding,
                 entries,
+                this.environment,
             );
-            await database.insert(entry).values({ id: "a", title: "Kept" });
+            await database.transaction((transaction) =>
+                transaction.insert(entry).values({ id: "a", title: "Kept" }).execute(),
+            );
 
             return await database.select().from(entry);
         })();
@@ -236,7 +256,12 @@ export class Notes {
         this.databases.measure();
 
         // write three notes, read them back, then measure nothing more
-        await database.insert(note).values(["a", "b", "c"].map((id) => ({ id, title: id })));
+        await database.transaction(
+            async (transaction) =>
+                await transaction
+                    .insert(note)
+                    .values(["a", "b", "c"].map((id) => ({ id, title: id }))),
+        );
         const written = this.databases.measure();
         const rows = await database.select().from(note);
         const read = this.databases.measure();
@@ -251,14 +276,25 @@ export class Notes {
         // write two notes and a file
         const database = this.databases.connect([note, file]);
         await database.migrate([note, file]);
-        await database.insert(note).values(["a", "b"].map((id) => ({ id, title: `Note ${id}` })));
-        await database.insert(file).values({ id: "f", size: FILE_SIZE, content: FILE_CONTENT });
+        await database.transaction(
+            async (transaction) =>
+                await transaction
+                    .insert(note)
+                    .values(["a", "b"].map((id) => ({ id, title: `Note ${id}` }))),
+        );
+        await database.transaction(
+            async (transaction) =>
+                await transaction
+                    .insert(file)
+                    .values({ id: "f", size: FILE_SIZE, content: FILE_CONTENT }),
+        );
 
         // read a note and the file by its size and bytes through the reader
-        const reader = DurableObjectReader.connect({ fetch: (sent) => this.fetch(sent) }, [
-            note,
-            file,
-        ]);
+        const reader = DurableObjectReader.connect(
+            { fetch: (sent) => this.fetch(sent) },
+            [note, file],
+            this.environment,
+        );
         const found = await Snapshot.live(reader)
             .read(note)
             .findFirst({ where: { id: "b" } });
@@ -270,9 +306,16 @@ export class Notes {
         // write a note in a namespace of the object, and read it through a reader of that namespace
         const spaced = this.databases.connect([note], { namespace: "space-2" });
         await spaced.migrate([note]);
-        await spaced.insert(note).values({ id: "n", title: "Spaced" });
+        await spaced.transaction((transaction) =>
+            transaction.insert(note).values({ id: "n", title: "Spaced" }).execute(),
+        );
         const named = await Snapshot.live(
-            DurableObjectReader.connect({ fetch: (sent) => this.fetch(sent) }, [note], "space-2"),
+            DurableObjectReader.connect(
+                { fetch: (sent) => this.fetch(sent) },
+                [note],
+                this.environment,
+                "space-2",
+            ),
         )
             .read(note)
             .findFirst({ where: { id: "n" } });
@@ -317,7 +360,12 @@ export class Notes {
         for (const [index, database] of databases.entries()) {
             await database.log.create(`space-${index + 1}`);
             await database.migrate([entry]);
-            await database.insert(entry).values({ id: "a", title: `Entry ${index + 1}` });
+            await database.transaction(
+                async (transaction) =>
+                    await transaction
+                        .insert(entry)
+                        .values({ id: "a", title: `Entry ${index + 1}` }),
+            );
         }
 
         // read each database's rows, logged changes and plan
@@ -339,7 +387,9 @@ export class Notes {
         // migrate the table and write a note
         const database = this.databases.connect([note]);
         await database.migrate([note]);
-        await database.insert(note).values({ id: "a", title: "Kept" });
+        await database.transaction((transaction) =>
+            transaction.insert(note).values({ id: "a", title: "Kept" }).execute(),
+        );
 
         // commit the transaction's write when a nested transaction fails
         await database.transaction(async (transaction) => {
@@ -351,7 +401,9 @@ export class Notes {
                 })
                 .catch(() => undefined);
         });
-        await database.update(note).set({ title: "Changed" }).where(eq(note.id, "a"));
+        await database.transaction((transaction) =>
+            transaction.update(note).set({ title: "Changed" }).where(eq(note.id, "a")).execute(),
+        );
 
         // read every note
         const rows = await database.select().from(note).orderBy(note.id);

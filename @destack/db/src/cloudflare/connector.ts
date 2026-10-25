@@ -7,7 +7,7 @@ export function durableObjectConnector(host: DurableObjectDatabaseHost): Databas
     return {
         code: DURABLE_OBJECT_PROVIDER,
         async connect(binding, declaration) {
-            // open the database's namespace in the object's storage
+            // open the database's namespace in the object's storage, on the host's clock
             const namespace = DurableObjectDatabaseHost.namespace(binding.reference);
             const database = host.connect(declaration, { namespace });
 

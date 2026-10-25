@@ -10,7 +10,22 @@ export interface Channel<Message> {
         resume?: () => void,
         fail?: (error: unknown) => void,
     ): () => void;
+    /** Wait until every party listening in this process heard a commit with a token. */
+    readonly hear: (token: string) => Hearing;
+    /** Leave the channel, releasing what opening and joining it took. */
+    readonly close: () => Promise<void>;
 }
+
+/** The wait for a commit's token to reach every party listening in a process. */
+export interface Hearing {
+    /** Settles once every listening party heard the token, or stopped listening. */
+    readonly heard: Promise<void>;
+    /** Stop waiting, for a transaction whose commit sends no token. */
+    readonly forget: () => void;
+}
+
+/** Hear a token at once, where a channel delivers inside the process before the commit returns. */
+export const HEARD: Hearing = { heard: Promise.resolve(), forget: () => {} };
 
 /** A commit announced on a database's channel. */
 export const Commit = schema.object({
@@ -20,6 +35,8 @@ export const Commit = schema.object({
     tables: schema.array(schema.string()),
     /** The log sequence the commit ends at, absent where its writer announces it unnumbered. */
     sequence: schema.number().int().exactOptional(),
+    /** The token of a committed transaction, which its own connection waits to hear. */
+    token: schema.string().exactOptional(),
 });
 /** A commit announced on a database's channel. */
 export type Commit = schema.Infer<typeof Commit>;
@@ -31,6 +48,8 @@ export function typedChannel<Message>(
 ): Channel<Message> {
     return {
         notify: (value) => channel.notify(value),
+        hear: (token) => channel.hear(token),
+        close: () => channel.close(),
         listen: (receive, resume, fail) =>
             channel.listen(
                 (value) => {
@@ -58,6 +77,7 @@ export function channelHub<Payload>(): () => Channel<Payload> {
         const local = new Set<(message: Payload) => void>();
 
         return {
+            hear: () => HEARD,
             notify: (message) => {
                 // deliver to every other party
                 for (const listener of listeners) {
@@ -76,6 +96,13 @@ export function channelHub<Payload>(): () => Channel<Payload> {
                     listeners.delete(receive);
                     local.delete(receive);
                 };
+            },
+            close: async () => {
+                // stop this party's listeners
+                for (const receive of local) {
+                    listeners.delete(receive);
+                }
+                local.clear();
             },
         };
     };

@@ -1,6 +1,5 @@
 import { sql, type SQL } from "../sql/index.ts";
 import { listed, Statement } from "../query/statement.ts";
-import { v7 } from "uuid";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { TABLE, type RowImage, Table } from "../table/table.ts";
 import type { Dialect } from "../dialect/dialect.ts";
@@ -13,13 +12,14 @@ import {
     LOG_REPLICA,
     LOG,
     LOG_TRANSACTION,
+    insertEpoch,
 } from "./schema.ts";
 import { createLog } from "./trigger.ts";
 import { committedEntry, latestOf, LogColumn, selectHead, type LogPosition } from "./position.ts";
 import { Snapshot, type Rewind } from "./snapshot.ts";
 import type { Row } from "../table/row.ts";
 import { Key } from "../query/key.ts";
-import { Digest, mapValues, toJsonSchema } from "@destack/schema";
+import { Digest, type DigestCrypto, mapValues, toJsonSchema, Uuid } from "@destack/schema";
 
 /** A consumer's claimed page: where it ends, and when it was claimed. */
 export interface LogClaim {
@@ -42,6 +42,9 @@ export const LogClaim = {
 
 /** The default page size of a log read, in changes. */
 const PAGE_LIMIT = 1000;
+
+/** The column of each dialect's log holding an entry's write-order id. */
+const LOG_ID: Readonly<Record<Dialect, string>> = { sqlite: "rowid", postgresql: "id" };
 
 /** One logged write: an insert with the row after, an update with both, a delete with before. */
 export type Write<Definition extends Table = Table> = {
@@ -127,6 +130,25 @@ export interface ChangePage<Definition extends Table = Table> {
     readonly sequence: number;
 }
 
+/** The write-order id of a log entry: the row id on SQLite, the identity column on PostgreSQL. */
+export type LogId = number;
+
+/** The tables and log id of a read of the open transaction's own changes. */
+export interface TransactionSelection<Definition extends Table> {
+    /** The logged tables to read. */
+    readonly tables: readonly Definition[];
+    /** The log id read last, the transaction's start when absent. */
+    readonly after?: LogId;
+}
+
+/** The open transaction's own changes after a log id. */
+export interface TransactionPage<Definition extends Table = Table> {
+    /** The changes in write order. */
+    readonly changes: readonly Write<Definition>[];
+    /** The log id the next read continues after. */
+    readonly after: LogId;
+}
+
 /** The tables and position of a change read. */
 export interface ChangeSelection<Definition extends Table> {
     /** The logged tables to read. */
@@ -208,15 +230,15 @@ export class Log {
 
     /** Create the log once, with the row scope of tables without a scope column. */
     async create(scope?: string): Promise<void> {
+        const { dialect, state } = this.database;
+        const epoch = insertEpoch(Uuid.v7(state.environment), state.namespace, scope);
         await this.database.executeScript(
-            createLog(this.database.dialect, v7(), scope, this.database.state.namespace).join(
-                ";\n",
-            ),
+            [...createLog(dialect, state.namespace), epoch].join(";\n"),
         );
     }
 
     /** Digest the layout of tables' changes: logged columns with their kinds and values. */
-    static async layout(tables: readonly Table[]): Promise<string> {
+    static async layout(tables: readonly Table[], crypto: DigestCrypto): Promise<string> {
         // describe each table's logged columns
         const described = tables.map((table) => [
             table[TABLE].sqlName,
@@ -228,7 +250,7 @@ export class Log {
             ]),
         ]);
 
-        return (await Digest.json(described)).slice(0, LAYOUT_LENGTH);
+        return (await Digest.json(described, crypto)).slice(0, LAYOUT_LENGTH);
     }
 
     /** Read a table's row images before their first change between two sequences, by key. */
@@ -377,26 +399,6 @@ export class Log {
         };
     }
 
-    /** Read the position the open transaction's reads see. */
-    async current(): Promise<LogPosition> {
-        // see the latest commit
-        const committed = await this.position();
-        if (this.database.dialect !== "sqlite" || !this.database.driver.transaction) {
-            return committed;
-        }
-
-        // see past the open SQLite transaction's entries
-        const [row] = await this.database.all(sql`
-            SELECT max(sequence) AS sequence FROM ${sql.relation(LOG)}
-            WHERE "transaction" = (SELECT id FROM ${sql.relation(LOG_TRANSACTION)} WHERE slot = 1)
-        `);
-        const sequence = LogColumn.nullableInteger(row?.["sequence"]);
-
-        return sequence === null
-            ? committed
-            : { ...committed, sequence: Math.max(committed.sequence, sequence) };
-    }
-
     /** Read the open transaction's log identifier as an SQL expression. */
     stamp(): SQL {
         // require an open transaction
@@ -446,7 +448,7 @@ export class Log {
 
     /** Start a new epoch after a restore. */
     async renew(): Promise<string> {
-        const epoch = v7();
+        const epoch = Uuid.v7(this.database.state.environment);
         await this.database.run(
             sql`UPDATE ${sql.relation(LOG_EPOCH)} SET epoch = ${epoch} WHERE slot = 1`,
         );
@@ -507,40 +509,44 @@ export class Log {
         return await this.database.driver.transaction?.identity.id();
     }
 
-    /** Read the open transaction's changes before commit. */
-    async written<Definition extends Table>(
-        tables: readonly Definition[],
-    ): Promise<Write<Definition>[]> {
-        // require a log and a writing transaction
-        if (this.database.dialect === "sqlite" && !this.database.state.isLogged) {
+    /** Read the open transaction's own changes after a log id, in write order. */
+    async readTransaction<Definition extends Table>(
+        selection: TransactionSelection<Definition>,
+    ): Promise<TransactionPage<Definition>> {
+        // stamp the transaction, which finds the log, then require the log and a transaction
+        const { dialect } = this.database;
+        const after = selection.after ?? 0;
+        const transaction = await this.transaction();
+        if (dialect === "sqlite" && !this.database.state.isLogged) {
             throw new TypeError("cannot read written changes of an unlogged database");
         }
-        const transaction = await this.transaction();
         if (transaction === undefined) {
-            return [];
+            return { changes: [], after };
         }
 
-        // read its entries in write order
-        const byName = new Map(tables.map((table) => [table[TABLE].sqlName, table]));
+        // read its entries after the log id in write order
+        const byName = new Map(selection.tables.map((table) => [table[TABLE].sqlName, table]));
         const names = sql.join(
             [...byName.keys()].map((name) => sql`${name}`),
             sql`, `,
         );
-        const written =
-            this.database.dialect === "postgresql"
-                ? sql`sequence IS NULL ORDER BY id`
-                : sql`true ORDER BY sequence`;
+        const id = sql.raw(LOG_ID[dialect]);
         const rows = await this.database.all(sql`
-            SELECT sequence, "transaction", "table", key, operation, "row", previous, scope, changed_at
+            SELECT ${id} AS log_id, sequence, "transaction", "table", key, operation, "row", previous, scope, changed_at
             FROM ${sql.relation(LOG)}
-            WHERE "transaction" = ${transaction} AND "table" IN (${names}) AND ${written}
+            WHERE "transaction" = ${transaction} AND "table" IN (${names}) AND ${id} > ${after}
+            ORDER BY ${id}
         `);
 
-        return rows.map((row) => {
-            const entry = LogEntry.read(row, this.database.dialect);
+        // decode each entry, continuing after the last one read
+        const changes = rows.map((row) => {
+            const entry = LogEntry.read(row, dialect);
 
-            return decodeChange(entry, tableOf(byName, entry.table), this.database.dialect);
+            return decodeChange(entry, tableOf(byName, entry.table), dialect);
         });
+        const last = rows.at(-1);
+
+        return { changes, after: last === undefined ? after : LogColumn.integer(last["log_id"]) };
     }
 
     /** Wait until the log includes a sequence, returning false once the signal aborts. */
@@ -610,14 +616,14 @@ export class Log {
         );
     }
 
-    /** Place a consumer's slot at a sequence and end its claim, retaining later changes a while. */
+    /** Place a consumer's slot at a sequence and end its claim, retaining changes until a time. */
     async advance(slot: string, sequence: number, expiresAt: number): Promise<void> {
-        const table = sql.relation(LOG_SLOT);
-        await this.database.run(sql`
-            INSERT INTO ${table} (name, sequence, expires_at)
-            VALUES (${slot}, ${sequence}, ${expiresAt})
-            ON CONFLICT (name) DO UPDATE SET sequence = excluded.sequence, expires_at = excluded.expires_at, claim = NULL, claimed_at = NULL
-        `);
+        await this.#set(slot, sequence, expiresAt);
+    }
+
+    /** Place a slot at a sequence and end its claim, retaining later changes until it drops. */
+    async retain(slot: string, sequence: number): Promise<void> {
+        await this.#set(slot, sequence, null);
     }
 
     /** Place a consumer's slot at the log's start unless placed, retaining changes until a time. */
@@ -716,9 +722,19 @@ export class Log {
         return row === undefined ? undefined : LogColumn.integer(row["sequence"]);
     }
 
-    /** Drop a consumer's slot and its claim, retaining no more changes for it. */
+    /** Drop a slot and its claim, retaining no more changes for it. */
     async drop(slot: string): Promise<void> {
         await this.database.run(sql`DELETE FROM ${sql.relation(LOG_SLOT)} WHERE name = ${slot}`);
+    }
+
+    /** Place a slot at a sequence until a time, or until it drops, and end its claim. */
+    async #set(slot: string, sequence: number, expiresAt: number | null): Promise<void> {
+        const table = sql.relation(LOG_SLOT);
+        await this.database.run(sql`
+            INSERT INTO ${table} (name, sequence, expires_at)
+            VALUES (${slot}, ${sequence}, ${expiresAt})
+            ON CONFLICT (name) DO UPDATE SET sequence = excluded.sequence, expires_at = excluded.expires_at, claim = NULL, claimed_at = NULL
+        `);
     }
 
     /** Delete old windowed changes no slot retains, and advance the horizon. */
@@ -741,7 +757,7 @@ export class Log {
             // retain the changes after the earliest live slot
             const [retainedRow] = await transaction.all(sql`
                 SELECT
-                    (SELECT min(sequence) FROM ${sql.relation(LOG_SLOT)} WHERE expires_at > ${now}) AS sequence,
+                    (SELECT min(sequence) FROM ${sql.relation(LOG_SLOT)} WHERE expires_at IS NULL OR expires_at > ${now}) AS sequence,
                     (SELECT sequence FROM ${sql.relation(LOG_HORIZON)} WHERE slot = 1) AS horizon
             `);
             const retained = {

@@ -16,6 +16,7 @@
         "./sqlite": "./src/sqlite/index.ts",
         "./browser": "./src/browser/index.ts",
         "./cloudflare": "./src/cloudflare/index.ts",
+        "./cloudflare/durable": "./src/cloudflare/durable.ts",
         "./inspect": "./src/inspect/index.ts"
     },
     "imports": {
@@ -31,15 +32,13 @@
     "dependencies": {
         "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
-        "@destack/fs": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/resource": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/telemetry": "workspace:*",
         "@noble/ciphers": "2.4.0",
         "@sqlite.org/sqlite-wasm": "3.53.4-build1",
-        "postgres": "3.4.9",
-        "uuid": "14.0.2"
+        "postgres": "3.4.9"
     },
     "peerDependencies": {
         "@destack/test": "workspace:*"
@@ -51,8 +50,8 @@
     },
     "devDependencies": {
         "@destack/test": "workspace:*",
-        "esbuild": "~0.28.1",
         "miniflare": "4.20260730.0",
+        "rolldown": "1.2.9",
         "@types/node": "26.6.1"
     }
 }

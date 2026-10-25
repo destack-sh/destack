@@ -1,3 +1,4 @@
+import type { DatabaseEnvironment } from "../database/connection.ts";
 import { schema } from "@destack/schema";
 import type { Table } from "../table/table.ts";
 import type { DriverValue } from "../table/column.ts";
@@ -37,14 +38,18 @@ export class DurableObjectReader implements SqliteConnectionClient {
         this.#object = object;
     }
 
-    /** Connect read-only to another object's database, in a namespace of it when given. */
-    static connect(object: DurableObjectStub, tables: readonly Table[], namespace?: string) {
+    /** Connect read-only to another object's database in an environment, in a given namespace. */
+    static connect(
+        object: DurableObjectStub,
+        tables: readonly Table[],
+        environment: DatabaseEnvironment,
+        namespace?: string,
+    ) {
         return new SqliteDatabase(
             new DurableObjectReader(object),
             tables,
             "networked",
-            undefined,
-            namespace,
+            namespace === undefined ? { environment } : { environment, namespace },
         );
     }
 

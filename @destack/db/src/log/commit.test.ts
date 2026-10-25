@@ -1,5 +1,6 @@
+import { Simulation } from "@destack/environment/simulation";
 import { nth, present, schema } from "@destack/schema";
-import { expect, onTestFinished, refusal, test, vi } from "@destack/test";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { asc, eq, sql } from "../sql/index.ts";
 import { TestDatabase, type TestDatabaseOptions } from "../test/database.ts";
 import { defineTable, TABLE } from "../table/table.ts";
@@ -8,6 +9,10 @@ import { unique, uniqueIndex } from "../table/constraint.ts";
 import { ChangeSet, Transaction, ReadSet } from "./commit.ts";
 import { LOG } from "./schema.ts";
 import { STATE } from "../migration/state.ts";
+import { testSimulation } from "@destack/test/world";
+
+/** The frozen moment a migration test applies at: 2026-10-01T00:00:00Z. */
+const START = Date.UTC(2026, 9, 1);
 
 /** The writers and readers the stress test interleaves: 500 each, about 75 ms on SQLite. */
 const STRESS_TRANSACTIONS = 500;
@@ -129,14 +134,23 @@ function unitTable(name: string) {
 
 /** Open a database with three tasks, two in the inbox and one archived. */
 async function open(options: Pick<TestDatabaseOptions, "dialect"> = {}) {
-    const storage = await TestDatabase.create([task], { ...options, isMigrated: true });
+    const storage = await TestDatabase.create([task], {
+        environment: testSimulation().environment("test"),
+        ...options,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     const database = storage.database;
-    await database.insert(task).values([
-        { id: "a", scope: "inbox", priority: 1 },
-        { id: "b", scope: "inbox", priority: 2 },
-        { id: "c", scope: "archive", priority: 3 },
-    ]);
+    await database.transaction((transaction) =>
+        transaction
+            .insert(task)
+            .values([
+                { id: "a", scope: "inbox", priority: 1 },
+                { id: "b", scope: "inbox", priority: 2 },
+                { id: "c", scope: "archive", priority: 3 },
+            ])
+            .execute(),
+    );
 
     return { database, base: await database.log.position() };
 }
@@ -234,9 +248,15 @@ test("touch a merged read set with a change of either set's reads", async () => 
     merged.add(archived);
 
     // change the read task and add to the archive and the inbox, reading the changes
-    await database.update(task).set({ priority: 9 }).where(eq(task.id, "a"));
-    await database.insert(task).values({ id: "f", scope: "archive", priority: 1 });
-    await database.insert(task).values({ id: "g", scope: "inbox", priority: 1 });
+    await database.transaction((transaction) =>
+        transaction.update(task).set({ priority: 9 }).where(eq(task.id, "a")).execute(),
+    );
+    await database.transaction((transaction) =>
+        transaction.insert(task).values({ id: "f", scope: "archive", priority: 1 }).execute(),
+    );
+    await database.transaction((transaction) =>
+        transaction.insert(task).values({ id: "g", scope: "inbox", priority: 1 }).execute(),
+    );
     const { changes } = await database.log.read({ tables: [task], after: base.sequence });
 
     // touch the merged set with the first two changes alone
@@ -282,8 +302,12 @@ test("refuse a transaction another commit raced on a row it read or a row its sc
         .findMany({ where: { scope: "archive" } });
 
     // change a task and add one to the inbox after the base, as other commits do
-    await database.update(task).set({ priority: 7 }).where(eq(task.id, "a"));
-    await database.insert(task).values({ id: "e", scope: "inbox", priority: 1 });
+    await database.transaction((transaction) =>
+        transaction.update(task).set({ priority: 7 }).where(eq(task.id, "a")).execute(),
+    );
+    await database.transaction((transaction) =>
+        transaction.insert(task).values({ id: "e", scope: "inbox", priority: 1 }).execute(),
+    );
     const write = () => {
         const changes = new ChangeSet();
         changes.write({
@@ -361,9 +385,17 @@ test("read a transaction's rows with its writes in order up to a limit, count th
 });
 
 test("show only logged columns in a transaction's images and its view, committed or written", async () => {
-    const storage = await TestDatabase.create([token], { isMigrated: true });
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create([token], {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
-    await storage.database.insert(token).values({ id: "a", scope: "inbox", secret: "first" });
+    await storage.database.transaction((transaction) =>
+        transaction.insert(token).values({ id: "a", scope: "inbox", secret: "first" }).execute(),
+    );
 
     // write a second token, then read both as images and through the view
     const transaction = await Transaction.open(storage.database);
@@ -432,13 +464,24 @@ test("drop a failed step's writes and records as a savepoint does, leaving the w
 });
 
 test("refuse a write sharing a unique key with a committed row, the transaction's or its batch's, nulls being equal and archived rows outside the key", async () => {
-    const storage = await TestDatabase.create([label], { isMigrated: true });
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create([label], {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     const database = storage.database;
-    await database.insert(label).values([
-        { id: "a", scope: "board", folder: null, name: "red", archivedAt: null },
-        { id: "b", scope: "board", folder: null, name: "blue", archivedAt: 1 },
-    ]);
+    await database.transaction((transaction) =>
+        transaction
+            .insert(label)
+            .values([
+                { id: "a", scope: "board", folder: null, name: "red", archivedAt: null },
+                { id: "b", scope: "board", folder: null, name: "blue", archivedAt: 1 },
+            ])
+            .execute(),
+    );
 
     // write labels clashing with committed, written and key values, and ones outside the key
     const transaction = await Transaction.open(database);
@@ -572,7 +615,13 @@ test("rehearse writes over a transaction's rows, answering the rows they change,
 });
 
 test("refuse a write sharing a unique key that includes a JSON column, comparing its JSON values", async () => {
-    const storage = await TestDatabase.create([bookmark], { isMigrated: true });
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create([bookmark], {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     const transaction = await Transaction.open(storage.database);
 
@@ -597,15 +646,26 @@ test("refuse a write sharing a unique key that includes a JSON column, comparing
 });
 
 test("refuse a write sharing a stored row's unique JSON key in another key order", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // store a bookmarked place as the database stores its JSON
-    const storage = await TestDatabase.create([bookmark], { isMigrated: true });
-    onTestFinished(() => storage.close());
-    await storage.database.insert(bookmark).values({
-        id: "a",
-        scope: "board",
-        person: "ada",
-        place: { x: 1, y: 2 },
+    const storage = await TestDatabase.create([bookmark], {
+        environment: world,
+        isMigrated: true,
     });
+    onTestFinished(() => storage.close());
+    await storage.database.transaction((transaction) =>
+        transaction
+            .insert(bookmark)
+            .values({
+                id: "a",
+                scope: "board",
+                person: "ada",
+                place: { x: 1, y: 2 },
+            })
+            .execute(),
+    );
 
     // bookmark the same place with its keys in the other order
     const transaction = await Transaction.open(storage.database);
@@ -623,7 +683,13 @@ test("refuse a write sharing a stored row's unique JSON key in another key order
 });
 
 test("refuse a unique key a commit after the transaction's base took as a lost race, which a run repeats to see the key taken", async () => {
-    const storage = await TestDatabase.create([label], { isMigrated: true });
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create([label], {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     const { database } = storage;
 
@@ -681,7 +747,13 @@ function entryRow(id: string, slug: string, seen: number, note?: string) {
 }
 
 test("commit runs of inserts, plain updates and deletes in a few statements, shifting unique slugs in write order", async () => {
-    const storage = await TestDatabase.create([entry], { isMigrated: true });
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create([entry], {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     const { database } = storage;
     const commit = async (write: (changes: ChangeSet) => void) => {
@@ -919,7 +991,13 @@ const unit = defineTable(
 );
 
 test("refuse writing a predefined row, and write other rows of its table", async () => {
-    const storage = await TestDatabase.create([unit], { isMigrated: true });
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create([unit], {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     const { database } = storage;
 
@@ -947,15 +1025,25 @@ test("refuse writing a predefined row, and write other rows of its table", async
 });
 
 test("share reads of a shared table among transactions until a commit writes it, each seeing its writes", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // store two members and a task
-    const storage = await TestDatabase.create([member, task], { isMigrated: true });
+    const storage = await TestDatabase.create([member, task], {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     const { database } = storage;
     const ada = { id: "ada", scope: "s", role: "owner" };
     const bob = { id: "bob", scope: "s", role: "reader" };
     const carol = { id: "carol", scope: "s", role: "reader" };
-    await database.insert(member).values([ada, bob]);
-    await database.insert(task).values({ id: "a", scope: "inbox", priority: 1 });
+    await database.transaction((transaction) =>
+        transaction.insert(member).values([ada, bob]).execute(),
+    );
+    await database.transaction((transaction) =>
+        transaction.insert(task).values({ id: "a", scope: "inbox", priority: 1 }).execute(),
+    );
     const counted = async (read: () => Promise<readonly unknown[]>) => {
         const before = database.driver.state.statements;
         const rows = await read();
@@ -997,22 +1085,34 @@ test("share reads of a shared table among transactions until a commit writes it,
 });
 
 test("read a shared table's committed rows anew once compaction removed their log entries", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // store a compacted member and a role in history
-    const storage = await TestDatabase.create([member, role], { isMigrated: true });
+    const storage = await TestDatabase.create([member, role], {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     const { database } = storage;
-    const compact = () => database.log.compact(Date.now() + 1000, Date.now());
+    const compact = () => database.log.compact(world.clock.now() + 1000, world.clock.now());
     const members = async () =>
         (await Transaction.reading(database).view().read(member).findMany({}))
             .map((row) => row.id)
             .toSorted();
-    await database.insert(member).values({ id: "ada", scope: "s", role: "owner" });
+    await database.transaction((transaction) =>
+        transaction.insert(member).values({ id: "ada", scope: "s", role: "owner" }).execute(),
+    );
     await compact();
-    await database.insert(role).values({ id: "owner", scope: "s" });
+    await database.transaction((transaction) =>
+        transaction.insert(role).values({ id: "owner", scope: "s" }).execute(),
+    );
     const before = await members();
 
     // add a member and compact its entry away
-    await database.insert(member).values({ id: "bob", scope: "s", role: "reader" });
+    await database.transaction((transaction) =>
+        transaction.insert(member).values({ id: "bob", scope: "s", role: "reader" }).execute(),
+    );
     await compact();
 
     // see the added member past the compaction
@@ -1025,11 +1125,10 @@ test("read a shared table's committed rows anew once compaction removed their lo
 test("read a shared table's predefined rows anew once a migration changes them", async () => {
     // share a read of the predefined unit, migrating at one frozen millisecond
     const before = unitTable("Metre");
-    const storage = await TestDatabase.create([before]);
+    const environment = new Simulation({ seed: 1, start: START }).environment("store");
+    const storage = await TestDatabase.create([before], { environment });
     onTestFinished(() => storage.close());
     const { database } = storage;
-    const frozen = vi.spyOn(Date, "now").mockReturnValue(Date.now());
-    onTestFinished(() => frozen.mockRestore());
     await database.migrate([before]);
     const names = async () =>
         (await Transaction.reading(database).view().read(before).findMany({})).map(
@@ -1061,17 +1160,30 @@ test("read a shared table's predefined rows anew once a migration changes them",
 });
 
 test("see every member committed before a shared read starts, while writers and readers interleave", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // commit members one at a time into four scopes, counting each scope's commits finished
-    const storage = await TestDatabase.create([member], { isMigrated: true });
+    const storage = await TestDatabase.create([member], {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     const { database } = storage;
     const finished = [0, 0, 0, 0];
     const scopeOf = (index: number) => index % finished.length;
     const write = async (index: number) => {
         const scope = scopeOf(index);
-        await database
-            .insert(member)
-            .values({ id: `m${String(index)}`, scope: `s${String(scope)}`, role: "reader" });
+        await database.transaction((transaction) =>
+            transaction
+                .insert(member)
+                .values({
+                    id: `m${String(index)}`,
+                    scope: `s${String(scope)}`,
+                    role: "reader",
+                })
+                .execute(),
+        );
         finished[scope] = nth(finished, scope) + 1;
     };
 
@@ -1099,8 +1211,11 @@ test("see every member committed before a shared read starts, while writers and 
 });
 
 test("read the shared tables' version again after it failed, through the same transaction", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // fail a shared read before the tables and the log exist
-    const storage = await TestDatabase.create([member]);
+    const storage = await TestDatabase.create([member], { environment: world });
     onTestFinished(() => storage.close());
     const { database } = storage;
     const transaction = Transaction.reading(database);
@@ -1112,7 +1227,10 @@ test("read the shared tables' version again after it failed, through the same tr
 
     // read through the same transaction once migrated
     await database.migrate([member]);
-    await database.insert(member).values({ id: "ada", scope: "s", role: "owner" });
+    await database.transaction(
+        async (writing) =>
+            await writing.insert(member).values({ id: "ada", scope: "s", role: "owner" }),
+    );
     expect({ failed, read: (await members()).map((row) => row.id) }).toEqual({
         failed: "failed",
         read: ["ada"],
@@ -1120,11 +1238,19 @@ test("read the shared tables' version again after it failed, through the same tr
 });
 
 test("share a read across commits writing other shared tables, reading anew once its table changes", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // store a member and a role, both shared
-    const storage = await TestDatabase.create([member, role], { isMigrated: true });
+    const storage = await TestDatabase.create([member, role], {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     const { database } = storage;
-    await database.insert(member).values({ id: "ada", scope: "s", role: "owner" });
+    await database.transaction((transaction) =>
+        transaction.insert(member).values({ id: "ada", scope: "s", role: "owner" }).execute(),
+    );
     const counted = async () => {
         const before = database.driver.state.statements;
         await Transaction.reading(database).view().read(member).findMany({});
@@ -1134,9 +1260,13 @@ test("share a read across commits writing other shared tables, reading anew once
     const first = await counted();
 
     // write a role, then a member
-    await database.insert(role).values({ id: "owner", scope: "s" });
+    await database.transaction((transaction) =>
+        transaction.insert(role).values({ id: "owner", scope: "s" }).execute(),
+    );
     const afterRole = await counted();
-    await database.insert(member).values({ id: "bob", scope: "s", role: "reader" });
+    await database.transaction((transaction) =>
+        transaction.insert(member).values({ id: "bob", scope: "s", role: "reader" }).execute(),
+    );
     const afterMember = await counted();
 
     // read the members anew after the member alone

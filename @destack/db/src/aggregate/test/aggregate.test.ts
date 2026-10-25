@@ -2,10 +2,14 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { TestDatabase } from "../../test/database.ts";
 import { asc, eq } from "../../index.ts";
 import { archive, item, list, lists, plainItem } from "./fixture.ts";
+import { testSimulation } from "@destack/test/world";
 
 /** Open a migrated database with lists and their items. */
 async function open() {
-    const storage = await TestDatabase.create(lists, { isMigrated: true });
+    const storage = await TestDatabase.create(lists, {
+        environment: testSimulation().environment("test"),
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
 
     return storage.database;
@@ -69,8 +73,14 @@ test("maintain counts, sums and maximums of the rows referencing each row", asyn
 });
 
 test("compute declared aggregates afresh over the rows present", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // insert items before any aggregate
-    const storage = await TestDatabase.create([plainItem, list], { isMigrated: true });
+    const storage = await TestDatabase.create([plainItem, list], {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     await storage.database.insert(list).values([{ id: "a" }]);
     await storage.database.insert(plainItem).values([
@@ -95,7 +105,11 @@ test("compute declared aggregates afresh over the rows present", async () => {
 });
 
 test("maintain an aggregate the target table declares over another table's rows", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     const storage = await TestDatabase.create([plainItem, archive], {
+        environment: world,
         isMigrated: true,
     });
     onTestFinished(() => storage.close());

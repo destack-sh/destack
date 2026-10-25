@@ -1,3 +1,4 @@
+import type { Environment } from "@destack/environment";
 import { schema } from "@destack/schema";
 import { ModuleMetadata, type Package } from "@destack/package";
 import {
@@ -38,10 +39,11 @@ export type DatabaseDescription = schema.Infer<typeof DatabaseDescription>;
 export interface DatabaseConnector {
     /** The provider code the connector connects to, such as sqlite. */
     readonly code: string;
-    /** Open a database the caller disposes, refusing one lacking its declaration's tables. */
+    /** Open a database in an environment, refusing one lacking its declaration's tables. */
     readonly connect: <Models extends Readonly<Record<string, Model>>>(
         binding: ResourceBinding,
         declaration: Database<Models>,
+        environment: Environment,
     ) => Promise<DatabaseConnection<Models> & AsyncDisposable>;
 }
 

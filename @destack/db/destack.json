@@ -2,6 +2,11 @@
     "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
     "id": "package-01a0c80b-614f-73f4-a451-d79e4b96b4d1",
     "language": "typescript",
+    "entrypoints": [
+        "src/cloudflare/durable.ts",
+        "src/cloudflare/test/scenario.ts",
+        "src/test/write.ts"
+    ],
     "runtimes": ["browser", "bun", "workerd"],
     "exports": {
         "./postgres": {
@@ -12,6 +17,9 @@
         },
         "./cloudflare": {
             "runtimes": ["bun", "workerd"]
+        },
+        "./cloudflare/durable": {
+            "runtimes": ["workerd"]
         },
         "./test": {
             "runtimes": ["bun"]

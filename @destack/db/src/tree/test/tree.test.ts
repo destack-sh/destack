@@ -2,25 +2,37 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { sql } from "../../index.ts";
 import { TestDatabase } from "../../test/database.ts";
 import { baseNode, tree, node } from "./fixture.ts";
+import { testSimulation } from "@destack/test/world";
 
 /** Preserve existing forests while adding and maintaining an ancestor index. */
 test("migrate, query, move and remove scoped trees", async () => {
-    const storage = await TestDatabase.create([node]);
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create([node], { environment: world });
     onTestFinished(() => storage.close());
     const { database } = storage;
 
     // insert parent records before the tree exists
     await database.migrate([baseNode]);
-    await database.insert(node).values([
-        { id: "a", scope: "one", parent: null },
-        { id: "b", scope: "one", parent: "a" },
-        { id: "c", scope: "one", parent: "b" },
-        { id: "d", scope: "one", parent: null },
-        { id: "e", scope: "two", parent: null },
-    ]);
+    await database.transaction((transaction) =>
+        transaction
+            .insert(node)
+            .values([
+                { id: "a", scope: "one", parent: null },
+                { id: "b", scope: "one", parent: "a" },
+                { id: "c", scope: "one", parent: "b" },
+                { id: "d", scope: "one", parent: null },
+                { id: "e", scope: "two", parent: null },
+            ])
+            .execute(),
+    );
 
     // reject a missing parent without applying the migration
-    await database.run(sql`UPDATE ${node} SET parent = 'missing' WHERE id = 'b'`);
+    await database.transaction(
+        async (transaction) =>
+            await transaction.run(sql`UPDATE ${node} SET parent = 'missing' WHERE id = 'b'`),
+    );
     await expect(database.migrate([node])).rejects.toMatchObject({
         reason: "MIGRATION_FAILED",
         cause: { reason: "INVALID_MIGRATION", message: "tree parent is missing" },
@@ -34,12 +46,18 @@ test("migrate, query, move and remove scoped trees", async () => {
     ]);
 
     // reject a cycle, then apply after the repair
-    await database.run(sql`UPDATE ${node} SET parent = 'c' WHERE id = 'b'`);
+    await database.transaction(
+        async (transaction) =>
+            await transaction.run(sql`UPDATE ${node} SET parent = 'c' WHERE id = 'b'`),
+    );
     await expect(database.migrate([node])).rejects.toMatchObject({
         reason: "MIGRATION_FAILED",
         cause: { reason: "INVALID_MIGRATION", message: "tree contains a cycle" },
     });
-    await database.run(sql`UPDATE ${node} SET parent = 'a' WHERE id = 'b'`);
+    await database.transaction(
+        async (transaction) =>
+            await transaction.run(sql`UPDATE ${node} SET parent = 'a' WHERE id = 'b'`),
+    );
     await database.migrate([node]);
     await database.migrate([node]);
 
@@ -74,7 +92,7 @@ test("migrate, query, move and remove scoped trees", async () => {
     ).toEqual([{ id: "a" }, { id: "b" }]);
 
     // preserve inherited paths after a move and a reparenting deletion
-    await tree.move("one", "b", "d", database);
+    await database.transaction((transaction) => tree.move("one", "b", "d", transaction));
     expect(
         await database
             .select({ id: node.id })
@@ -82,7 +100,7 @@ test("migrate, query, move and remove scoped trees", async () => {
             .where(tree.descendantsOf("one", "d"))
             .orderBy(node.id),
     ).toEqual([{ id: "b" }, { id: "c" }]);
-    await tree.remove("one", "b", "reparent", database);
+    await database.transaction((transaction) => tree.remove("one", "b", "reparent", transaction));
     expect(await database.select().from(node).orderBy(node.id)).toEqual([
         { id: "a", scope: "one", parent: null },
         { id: "c", scope: "one", parent: "d" },
@@ -91,8 +109,8 @@ test("migrate, query, move and remove scoped trees", async () => {
     ]);
 
     // delete a subtree without touching another scope
-    await tree.remove("one", "d", "subtree", database);
-    await tree.remove("one", "a", "restrict", database);
+    await database.transaction((transaction) => tree.remove("one", "d", "subtree", transaction));
+    await database.transaction((transaction) => tree.remove("one", "a", "restrict", transaction));
     expect(await database.select().from(node)).toEqual([{ id: "e", scope: "two", parent: null }]);
     expect(await database.select().from(tree.ancestors)).toEqual([
         { scope: "two", ancestor: "e", descendant: "e", depth: 0 },

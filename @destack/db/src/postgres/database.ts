@@ -1,8 +1,10 @@
+import { type Clock, Random } from "@destack/environment";
+import type { DatabaseEnvironment } from "../database/connection.ts";
 import { errorCode } from "../error/error.ts";
-import { present } from "@destack/schema";
+import { present, Uuid } from "@destack/schema";
 import type postgres from "postgres";
 import { ConnectionState, DatabaseConnection, requireDistinct } from "../database/connection.ts";
-import type { Channel } from "../channel/channel.ts";
+import type { Channel, Hearing } from "../channel/channel.ts";
 import { CHANNEL_PREFIX } from "../log/schema.ts";
 import { DatabaseDriver } from "../database/driver.ts";
 import { PostgresSession } from "../database/session.ts";
@@ -33,6 +35,14 @@ const FRAGMENT = "#";
 /** Who writes a PostgreSQL database: pools announcing commits via LISTEN and NOTIFY, or one. */
 export type PostgresWriteMode = "shared" | "sole";
 
+/** How a PostgreSQL connection writes: alone or beside other writers, and in which environment. */
+export interface PostgresConnectOptions {
+    /** Whether the connection is the database's sole writer, shared by default. */
+    readonly writers?: PostgresWriteMode;
+    /** The clock, randomness, crypto and telemetry the connection runs on. */
+    readonly environment: DatabaseEnvironment;
+}
+
 /** A PostgreSQL database with a separate pool. */
 export class PostgresDatabase<
     Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
@@ -44,9 +54,11 @@ export class PostgresDatabase<
     constructor(
         client: postgres.Sql,
         tables: declaration.Database<Models> | readonly Table[],
-        writers: PostgresWriteMode = "shared",
+        options: PostgresConnectOptions,
     ) {
-        // declare the tables with their tree tables
+        // read how the connection writes, and declare the tables with their tree tables
+        const { writers = "shared", environment } = options;
+        const { clock } = environment;
         const declared = "tables" in tables ? tables.tables : expandTrees(tables);
         requireDistinct(declared, "postgresql");
         passJsonText(client);
@@ -54,22 +66,25 @@ export class PostgresDatabase<
         // name each channel within the pool's schema, as the log's notifications do
         let schema: Promise<string> | undefined;
         const channel = (name: string) => {
-            schema ??= client<{ hash: string }[]>`SELECT md5(current_schema()) AS hash`.then(
-                ([row]) => present(row, "the schema's hash").hash,
+            schema ??= clock.trackHost(
+                client<{ hash: string }[]>`SELECT md5(current_schema()) AS hash`.then(
+                    ([row]) => present(row, "the schema's hash").hash,
+                ),
             );
 
             return schema.then((hash) => `${CHANNEL_PREFIX}${name}_${hash}`);
         };
         super(
             new DatabaseDriver(
-                new PostgresSession(client),
+                new PostgresSession(client, clock),
                 new ConnectionState({
                     locality: "networked",
                     openChannel:
                         writers === "sole"
                             ? undefined
-                            : (name) => postgresChannel(client, channel(name)),
+                            : (name) => postgresChannel(client, channel(name), environment),
                     announcer: "database",
+                    environment,
                     tables: declared,
                     dialect: "postgresql",
                     replicated: "tables" in tables ? tables.replicated : new Set(),
@@ -99,14 +114,22 @@ function passJsonText(client: postgres.Sql): void {
     }
 }
 
+/** The parties listening in this process by channel name, with the tokens each waits to hear. */
+const listening = new Map<string, Set<Map<string, () => void>>>();
+
 /** Connect every party of a PostgreSQL notification channel with JSON messages. */
-export function postgresChannel(client: postgres.Sql, name: Promise<string>): Channel<unknown> {
+export function postgresChannel(
+    client: postgres.Sql,
+    name: Promise<string>,
+    environment: DatabaseEnvironment,
+): Channel<unknown> {
     // identify this party to its listeners, and collect the listeners' failures
-    const party = crypto.randomUUID();
+    const { clock, random } = environment;
+    const party = Uuid.v4(random);
     const failures = new Set<(error: unknown) => void>();
     const send = (payload: string) =>
         void name
-            .then((resolved) => client.notify(resolved, payload))
+            .then((resolved) => clock.trackHost(client.notify(resolved, payload)))
             .catch((error: unknown) => {
                 // drop a notification a closed connection leaves nobody to send to
                 const code = errorCode(error);
@@ -124,15 +147,56 @@ export function postgresChannel(client: postgres.Sql, name: Promise<string>): Ch
             });
 
     return {
-        notify: (message) => notifyInFragments(send, party, message),
+        notify: (message) => notifyInFragments(send, party, message, random),
         listen: (receive, resume, fail) =>
-            listenToChannel(client, name, party, failures, receive, resume, fail),
+            listenToChannel(client, name, party, failures, receive, resume, fail, clock),
+        hear: (token) => hearEveryParty(name, token),
+        // leave nothing open, as each listen ends with its listener
+        close: async () => {},
+    };
+}
+
+/** Wait until every party listening in this process on a channel heard a commit's token. */
+function hearEveryParty(name: Promise<string>, token: string): Hearing {
+    // expect the token at each party listening once the channel's name resolves
+    const settlers = new Set<{ readonly parties: Map<string, () => void>; resolve: () => void }>();
+    let isForgotten = false;
+    const heard = name.then(async (resolved) => {
+        const waits = [...(listening.get(resolved) ?? [])].map(
+            (expected) =>
+                new Promise<void>((resolve) => {
+                    if (isForgotten) {
+                        resolve();
+                    } else {
+                        expected.set(token, resolve);
+                        settlers.add({ parties: expected, resolve });
+                    }
+                }),
+        );
+        await Promise.all(waits);
+    });
+
+    return {
+        heard,
+        forget: () => {
+            // settle and drop every expectation of a token no commit sends
+            isForgotten = true;
+            for (const { parties, resolve } of settlers) {
+                parties.delete(token);
+                resolve();
+            }
+        },
     };
 }
 
 /** Send a party's message in numbered fragments, one for a small message. */
-function notifyInFragments(send: (payload: string) => void, party: string, message: unknown): void {
-    const id = crypto.randomUUID();
+function notifyInFragments(
+    send: (payload: string) => void,
+    party: string,
+    message: unknown,
+    random: Random,
+): void {
+    const id = Uuid.v4(random);
     const chunks = fragments(JSON.stringify(message), PAYLOAD_BYTES);
     for (const [index, chunk] of chunks.entries()) {
         send(`${FRAGMENT}${party}:${id}:${index}:${chunks.length}:${chunk}`);
@@ -148,30 +212,70 @@ function listenToChannel(
     receive: (message: unknown) => void,
     resume: (() => void) | undefined,
     fail: ((error: unknown) => void) | undefined,
+    clock: Clock,
 ): () => void {
     // deliver each notification once listening, resuming on each reconnect
+    const expected = new Map<string, () => void>();
+    const hearAll = () => {
+        for (const resolve of expected.values()) {
+            resolve();
+        }
+        expected.clear();
+    };
+    const failing = (error: unknown) => {
+        // settle the token waits of a party that stopped hearing, then fail
+        hearAll();
+        fail?.(error);
+    };
     if (fail !== undefined) {
-        failures.add(fail);
+        failures.add(failing);
     }
-    const listening = name.then((resolved) =>
-        client.listen(resolved, reassembler(resolved, party, receive), () => resume?.()),
-    );
-    listening.catch((error: unknown) => fail?.(error));
+    const hearing = (message: unknown) => {
+        // deliver the message, then settle the wait for the commit's token
+        receive(message);
+        const token: unknown =
+            typeof message === "object" && message !== null
+                ? Reflect.get(message, "token")
+                : undefined;
+        if (typeof token === "string") {
+            expected.get(token)?.();
+            expected.delete(token);
+        }
+    };
+    const subscription = name.then(async (resolved) => {
+        // listen, then hear tokens as a party of the channel
+        const listener = await clock.trackHost(
+            client.listen(resolved, reassembler(resolved, party, hearing, clock), () => {
+                // settle every token wait on a reconnect, which may have lost notifications
+                hearAll();
+                resume?.();
+            }),
+        );
+        const parties = listening.get(resolved) ?? new Set();
+        parties.add(expected);
+        listening.set(resolved, parties);
+
+        return { listener, resolved };
+    });
+    subscription.catch((error: unknown) => failing(error));
 
     // stop listening
     return () => {
-        if (fail !== undefined) {
-            failures.delete(fail);
-        }
-        void listening.then(
-            (listener) =>
-                listener.unlisten().catch((error: unknown) => {
+        failures.delete(failing);
+        void subscription.then(
+            ({ listener, resolved }) => {
+                // stop hearing tokens, settling the ones this party waited for
+                listening.get(resolved)?.delete(expected);
+                hearAll();
+
+                return listener.unlisten().catch((error: unknown) => {
                     // count a closed connection as stopped, and fail on anything else
                     const code = errorCode(error);
                     if (code === undefined || !CLOSED_CODES.has(code)) {
                         fail?.(error);
                     }
-                }),
+                });
+            },
             () => undefined,
         );
     };
@@ -182,6 +286,7 @@ function reassembler(
     name: string,
     party: string,
     receive: (message: unknown) => void,
+    clock: Clock,
 ): (payload: string) => void {
     const pending = new Map<string, { chunks: string[]; received: number; at: number }>();
 
@@ -199,7 +304,7 @@ function reassembler(
         if (sender === party) {
             return;
         }
-        const now = Date.now();
+        const now = clock.now();
         for (const [key, entry] of pending) {
             if (now - entry.at > FRAGMENT_MILLISECONDS) {
                 pending.delete(key);

@@ -15,6 +15,7 @@ import {
 } from "../table/column.ts";
 import { defineTable } from "../table/table.ts";
 import { asc, count, eq, sql } from "../index.ts";
+import { testSimulation } from "@destack/test/world";
 
 /** One column of every kind. */
 const sample = defineTable("sample", {
@@ -74,7 +75,10 @@ const row = {
 
 /** Open a migrated test database. */
 async function open() {
-    const storage = await TestDatabase.create([sample, tag], { isMigrated: true });
+    const storage = await TestDatabase.create([sample, tag], {
+        environment: testSimulation().environment("test"),
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
 
     return storage.database;

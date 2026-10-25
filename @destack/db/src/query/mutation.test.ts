@@ -4,6 +4,7 @@ import { TestDatabase } from "../test/database.ts";
 import { defineTable } from "../table/table.ts";
 import { integer, json, text } from "../table/column.ts";
 import { schema } from "@destack/schema";
+import { testSimulation } from "@destack/test/world";
 
 /** Counters by owner and name. */
 const counter = defineTable("mutation_counter", {
@@ -16,7 +17,13 @@ const counter = defineTable("mutation_counter", {
 });
 
 test("return exactly the rows each mutation changed", async () => {
-    const storage = await TestDatabase.create([counter], { isMigrated: true });
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create([counter], {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     const database = storage.database;
 
@@ -92,7 +99,13 @@ const label = defineTable("mutation_label", {
 });
 
 test("insert the same shape twice in one transaction, taking defaults for values left undefined", async () => {
-    const storage = await TestDatabase.create([label], { isMigrated: true });
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create([label], {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
 
     // insert two labels, the second without a color
@@ -122,7 +135,13 @@ const retention = defineTable("mutation_retention", {
 });
 
 test("take a JSON default that is a plain string, encoded as JSON", async () => {
-    const storage = await TestDatabase.create([retention], { isMigrated: true });
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create([retention], {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
 
     // insert one retention with a window and one taking the default
@@ -136,7 +155,13 @@ test("take a JSON default that is a plain string, encoded as JSON", async () => 
 });
 
 test("refuse inserting and updating properties of no column", async () => {
-    const storage = await TestDatabase.create([counter], { isMigrated: true });
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create([counter], {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     const database = storage.database;
     const stray = { owner: "ada", name: "a", value: 1, count: 2 };

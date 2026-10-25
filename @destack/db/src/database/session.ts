@@ -1,3 +1,4 @@
+import type { Clock } from "@destack/environment";
 import type postgres from "postgres";
 import type { Dialect } from "../dialect/dialect.ts";
 import type { DriverValue } from "../table/column.ts";
@@ -43,17 +44,21 @@ export class SqliteSession implements Session {
     readonly #connection: SqliteConnectionClient | undefined;
     /** The savepoint depth inside a transaction. */
     readonly #depth: number;
+    /** The clock counting each statement, opening and commit in flight. */
+    readonly #clock: Clock;
 
-    /** Run statements on a connection, or in a transaction at a depth. */
-    constructor(client: SqliteConnectionClient | SqliteQueryClient, depth?: number) {
+    /** Run statements on a connection, or in a transaction at a depth, counted on a clock. */
+    constructor(client: SqliteConnectionClient | SqliteQueryClient, clock: Clock, depth?: number) {
+        // keep the client, the connection starting transactions outside one, the depth and the clock
         this.client = client;
         this.#connection = depth === undefined && "transactionAsync" in client ? client : undefined;
         this.#depth = depth ?? 0;
+        this.#clock = clock;
     }
 
     /** Read every row as an array of values, integers exact. */
     values(text: string, parameters: readonly DriverValue[]): Promise<unknown[][]> {
-        return this.client.values(text, parameters);
+        return this.#clock.trackHost(this.client.values(text, parameters));
     }
 
     /** Read every row by column name. */
@@ -61,19 +66,19 @@ export class SqliteSession implements Session {
         text: string,
         parameters: readonly DriverValue[],
     ): Promise<Record<string, unknown>[]> {
-        const rows = await this.client.all(text, parameters);
+        const rows = await this.#clock.trackHost(this.client.all(text, parameters));
 
         return rows.map(requireRecord);
     }
 
     /** Run a statement for its effect. */
     async run(text: string, parameters: readonly DriverValue[]): Promise<void> {
-        await this.client.run(text, parameters);
+        await this.#clock.trackHost(this.client.run(text, parameters));
     }
 
     /** Run a script of statements in one round trip. */
     async exec(script: string): Promise<void> {
-        await this.client.exec(script);
+        await this.#clock.trackHost(this.client.exec(script));
     }
 
     /** Commit work in a transaction, immediate unless read-only, or nest it in a savepoint. */
@@ -82,18 +87,24 @@ export class SqliteSession implements Session {
         options: SessionTransaction,
     ): Promise<Value> {
         // nest inside an open transaction
-        if (this.#connection === undefined) {
-            return this.client.nest(this.#depth, (client) =>
-                operation(new SqliteSession(client, this.#depth + 1)),
+        const clock = this.#clock;
+        const connection = this.#connection;
+        if (connection === undefined) {
+            return transact(clock, operation, (body) =>
+                this.client.nest(this.#depth, (client) =>
+                    body(new SqliteSession(client, clock, this.#depth + 1)),
+                ),
             );
         }
 
         // start a transaction on the connection
-        const transaction = this.#connection.transactionAsync((client) =>
-            operation(new SqliteSession(client, 0)),
-        );
+        return transact(clock, operation, (body) => {
+            const transaction = connection.transactionAsync((client) =>
+                body(new SqliteSession(client, clock, 0)),
+            );
 
-        return options.isReadOnly ? transaction.deferred() : transaction.immediate();
+            return options.isReadOnly ? transaction.deferred() : transaction.immediate();
+        });
     }
 }
 
@@ -103,17 +114,20 @@ export class PostgresSession implements Session {
     readonly dialect = "postgresql";
     /** The pool or transaction running statements. */
     readonly client: postgres.Sql | postgres.TransactionSql;
+    /** The clock counting each statement, opening and commit in flight. */
+    readonly #clock: Clock;
 
-    /** Run statements on a pool or in a transaction. */
-    constructor(client: postgres.Sql | postgres.TransactionSql) {
+    /** Run statements on a pool or in a transaction, counted on a clock. */
+    constructor(client: postgres.Sql | postgres.TransactionSql, clock: Clock) {
         this.client = client;
+        this.#clock = clock;
     }
 
     /** Read every row as an array of values, prepared once per connection. */
     async values(text: string, parameters: readonly DriverValue[]): Promise<unknown[][]> {
-        const rows = await this.client
-            .unsafe(text, parameters.map(postgresParameter), { prepare: true })
-            .values();
+        const rows = await this.#clock.trackHost(
+            this.client.unsafe(text, parameters.map(postgresParameter), { prepare: true }).values(),
+        );
 
         return [...rows].map(requireArray);
     }
@@ -123,21 +137,27 @@ export class PostgresSession implements Session {
         text: string,
         parameters: readonly DriverValue[],
     ): Promise<Record<string, unknown>[]> {
-        const rows = await this.client.unsafe(text, parameters.map(postgresParameter), {
-            prepare: true,
-        });
+        const rows = await this.#clock.trackHost(
+            this.client
+                .unsafe(text, parameters.map(postgresParameter), { prepare: true })
+                .execute(),
+        );
 
         return [...rows].map(requireRecord);
     }
 
     /** Run a statement for its effect. */
     async run(text: string, parameters: readonly DriverValue[]): Promise<void> {
-        await this.client.unsafe(text, parameters.map(postgresParameter), { prepare: true });
+        await this.#clock.trackHost(
+            this.client
+                .unsafe(text, parameters.map(postgresParameter), { prepare: true })
+                .execute(),
+        );
     }
 
     /** Run a script of statements as one simple query. */
     async exec(script: string): Promise<void> {
-        await this.client.unsafe(script).simple();
+        await this.#clock.trackHost(this.client.unsafe(script).simple().execute());
     }
 
     /** Commit work in a transaction, or nest it in a savepoint. */
@@ -146,22 +166,53 @@ export class PostgresSession implements Session {
         options: SessionTransaction,
     ): Promise<Value> {
         // nest inside an open transaction
+        const clock = this.#clock;
         const client = this.client;
         if ("savepoint" in client) {
-            const nested = await client.savepoint(async (transaction) => ({
-                value: await operation(new PostgresSession(transaction)),
-            }));
+            return transact(clock, operation, async (body) => {
+                const nested = await client.savepoint(async (transaction) => ({
+                    value: await body(new PostgresSession(transaction, clock)),
+                }));
 
-            return nested.value;
+                return nested.value;
+            });
         }
 
         // begin a transaction with the isolation level and access mode
         const mode = `isolation level ${options.isolationLevel} ${options.isReadOnly ? "read only" : "read write"}`;
-        const begun = await client.begin(mode, async (transaction) => ({
-            value: await operation(new PostgresSession(transaction)),
-        }));
 
-        return begun.value;
+        return transact(clock, operation, async (body) => {
+            const begun = await client.begin(mode, async (transaction) => ({
+                value: await body(new PostgresSession(transaction, clock)),
+            }));
+
+            return begun.value;
+        });
+    }
+}
+
+/** Run a transaction's body, counting its opening and its end in flight on a clock. */
+async function transact<Value>(
+    clock: Clock,
+    operation: (session: Session) => Promise<Value>,
+    open: (body: (session: Session) => Promise<Value>) => Promise<Value>,
+): Promise<Value> {
+    // count the opening until the body starts, and the commit or rollback once it ends
+    const opening = Promise.withResolvers<void>();
+    const ending = Promise.withResolvers<void>();
+    void clock.trackHost(opening.promise);
+    try {
+        return await open(async (session) => {
+            opening.resolve();
+            try {
+                return await operation(session);
+            } finally {
+                void clock.trackHost(ending.promise);
+            }
+        });
+    } finally {
+        opening.resolve();
+        ending.resolve();
     }
 }
 

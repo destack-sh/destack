@@ -6,6 +6,7 @@ import type { JsonValue } from "@destack/schema";
 import { integer, json, real, text } from "../table/column.ts";
 import { schema } from "@destack/schema";
 import { Expression } from "./expression.ts";
+import { testSimulation } from "@destack/test/world";
 
 /** The random expressions per dialect. */
 const EXPRESSIONS = 300;
@@ -90,7 +91,13 @@ function draw(seed: { value: number }, depth: number): Expression {
 }
 
 test("compute random expressions alike in SQL and in memory", async () => {
-    const storage = await TestDatabase.create([sample], { isMigrated: true });
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create([sample], {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
 
     // insert random rows
@@ -117,7 +124,13 @@ test("compute random expressions alike in SQL and in memory", async () => {
 });
 
 test("take the first present text", async () => {
-    const storage = await TestDatabase.create([sample], { isMigrated: true });
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create([sample], {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     await storage.database.insert(sample).values([
         { id: 1, name: "a" },
@@ -135,7 +148,13 @@ test("take the first present text", async () => {
 });
 
 test("read the text before a separator alike in SQL and in memory", async () => {
-    const storage = await TestDatabase.create([sample], { isMigrated: true });
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create([sample], {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     const names = ["ada@example.com", "a@b@c", "@example.com", "ada", "", null];
     const rows = names.map((name, id) => ({ id, name }));
@@ -197,7 +216,13 @@ const JSON_EXPRESSIONS: readonly Expression[] = [
 ];
 
 test("compute JSON expressions alike in SQL and in memory", async () => {
-    const storage = await TestDatabase.create([documents], { isMigrated: true });
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create([documents], {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     const rows = DOCUMENTS.map((document, id) => ({ id, ...document }));
     await storage.database.insert(documents).values(rows);

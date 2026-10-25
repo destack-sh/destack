@@ -4,6 +4,7 @@ import { integer, text } from "./column.ts";
 import { check } from "./constraint.ts";
 import { defineTable } from "./table.ts";
 import { TestDatabase } from "../test/database.ts";
+import { testSimulation } from "@destack/test/world";
 
 /** Commits of a repository, each check one condition operator. */
 const commit = defineTable(
@@ -64,7 +65,13 @@ const KEPT = {
 };
 
 test("refuse rows breaking each check of conditions, comparing with values the column refuses", async () => {
-    const storage = await TestDatabase.create([commit], { isMigrated: true });
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create([commit], {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     const database = storage.database;
 

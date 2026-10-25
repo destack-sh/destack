@@ -5,18 +5,22 @@ import { connectShared, serveDatabase, type Message } from "./shared.ts";
 import { WasmClient } from "./client.ts";
 import { changeTables, note } from "../log/test/fixture.ts";
 import { channelHub } from "../channel/channel.ts";
+import { testSimulation } from "@destack/test/world";
 
 test("declare, log and query tables on SQLite WebAssembly through a channel, as a browser tab does", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // serve an in-memory database to a party
     const sqlite = await init();
-    const client = new WasmClient(new sqlite.oo1.DB(":memory:"));
+    const client = new WasmClient(new sqlite.oo1.DB(":memory:"), world.clock);
     const join = channelHub<Message>();
-    const stop = serveDatabase(client, join());
+    const stop = serveDatabase(client, join(), world);
     onTestFinished(async () => {
         stop();
         await client.close();
     });
-    const database = connectShared(join(), "tab-1", changeTables);
+    const database = connectShared(join(), "tab-1", changeTables, world);
     onTestFinished(() => database.close());
 
     // migrate the tables and log a write
@@ -31,7 +35,7 @@ test("declare, log and query tables on SQLite WebAssembly through a channel, as 
         editedAt: 1790244000123,
         attachment: new Uint8Array([1, 2, 3]),
     };
-    await database.insert(note).values(values);
+    await database.transaction((transaction) => transaction.insert(note).values(values).execute());
     expect((await database.log.position()).sequence).toBe(1);
 
     // read exact values back

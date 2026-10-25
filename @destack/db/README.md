@@ -5,8 +5,10 @@
 ```ts
 // Drizzle's select
 const notes = await database.select().from(note).where(eq(note.scope, spaceId)).limit(50);
-// Drizzle's insert
-await database.insert(note).values(row).onConflictDoUpdate({ target: note.id, set: { title } });
+// Drizzle's insert, inside a transaction as logged tables require
+await database.transaction((transaction) =>
+    transaction.insert(note).values(row).onConflictDoUpdate({ target: note.id, set: { title } }),
+);
 // Drizzle's relational queries v2
 await database.query.project.findMany({ with: { tasks: { limit: 3 } } });
 type NoteRow = Select<typeof note>; // Drizzle's $inferSelect
@@ -95,12 +97,14 @@ const database = work.get(context);
 
 ## Connections
 
-`connectBunSqlite` and `connectPostgres` open a database on Bun and PostgreSQL, and `DurableObjectDatabaseHost` opens one in a Durable Object.
+`connectBunSqlite` and `connectPostgres` open a database on Bun and PostgreSQL in an environment, and `DurableObjectDatabaseHost` opens one in a Durable Object, which `DurableObjectDatabase` (`/cloudflare/durable`) serves.
 
 ```ts
-const file = await connectBunSqlite("work.db", work);
-const pool = await connectPostgres(url, work);
-const storage = new DurableObjectDatabaseHost(state.storage).connect(work, { namespace: "work" });
+const file = await connectBunSqlite("work.db", work, { environment });
+const pool = await connectPostgres(url, work, { environment });
+const storage = new DurableObjectDatabaseHost(state.storage, environment).connect(work, {
+    namespace: "work",
+});
 ```
 
 ## Sealed columns
@@ -113,13 +117,13 @@ const credential = defineTable("credential", {
     secret: text("secret").notNull().sensitive(),
     token: text("token").notNull().sensitive("deterministic"),
 });
-database.key(await ColumnCipher.derive(spaceIdentity));
+database.key(await ColumnCipher.derive(spaceIdentity, environment.random));
 await database.select().from(credential).where(eq(credential.token, token));
 ```
 
 ## Migrations
 
-`plan` lists the steps from the applied tables to the declared ones, and `apply` runs them.
+`plan` lists the steps from the applied tables to the declared ones, and `apply` runs them, starting a new log at a drawn epoch.
 
 ```ts
 const plan = await database.plan(mergeStates([previous.tables.sqlite, next.tables.sqlite]));
@@ -169,6 +173,8 @@ await database.log
     .at(position)
     .read(note)
     .findMany({ where: { scope: spaceId } });
+await database.log.readTransaction({ tables: [note] }); // the open transaction's own changes
+await database.log.retain("trigger", position.sequence); // a slot without expiry, until dropped
 ```
 
 ## Leases and rate limits
@@ -211,30 +217,34 @@ export const note = defineTable("note", columns, {
 
 ## Tests
 
-`TestDatabase.create` opens an isolated database per dialect.
+`TestDatabase.create` opens an isolated database in a test's world, on the project's dialect unless given.
 
 ```ts
-test.for(TEST_DIALECTS)("keep notes on %s", async (dialect) => {
-    const storage = await TestDatabase.create(dialect, [note]);
+test("keep notes", async () => {
+    const storage = await TestDatabase.create([note], {
+        environment: testSimulation().environment("test"),
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
 });
 ```
 
 ## Templates
 
-A `TestTemplate` is the rows tests start with, written once per run and copied into each test by `TestDatabase.copy`.
+A `TestTemplate` is the databases and rows tests start with, written once per run in a seeded world and copied into each test by `TestDatabase.copy`, which forks that world.
 
 ```ts
 export const templates = [
     new TestTemplate({
         name: "notes.fixture",
-        tables: [note],
+        databases: { main: [note] },
         value: schema.null(),
+        world: { seed: 1, start: START },
         write: keepFixture,
     }),
 ];
 export default TestRun.setup(new URL("./templates.ts", import.meta.url)); // src/test/setup.ts, the config's globalSetup
-const { storage, value } = await TestDatabase.copy(dialect, fixture);
+const { simulation, databases, value } = await TestDatabase.copy(fixture, { label: "notes" });
 ```
 
 ## Controllers

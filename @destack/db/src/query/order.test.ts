@@ -4,6 +4,7 @@ import { TestDatabase } from "../test/database.ts";
 import { defineTable, Table } from "../table/table.ts";
 import { boolean, integer, text } from "../table/column.ts";
 import { Order, type OrderKey } from "./order.ts";
+import { testSimulation } from "@destack/test/world";
 
 /** The random orders per dialect. */
 const ORDERS = 100;
@@ -48,7 +49,13 @@ function pick<Value>(values: readonly Value[], seed: { value: number }): Value {
 }
 
 test("sort and page rows alike in SQL and in memory", async () => {
-    const storage = await TestDatabase.create([sample], { isMigrated: true });
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create([sample], {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     const database = storage.database;
 

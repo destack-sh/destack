@@ -1,4 +1,3 @@
-import { Clock, RetryPolicy } from "@destack/environment";
 import { nth, canonicalize } from "@destack/schema";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { type Dialect, PARAMETER_BUDGET } from "../dialect/dialect.ts";
@@ -19,12 +18,11 @@ import type { LogPosition } from "./position.ts";
 import { type Overlay, Snapshot } from "./snapshot.ts";
 import { RelationalQueryBuilder } from "./query.ts";
 
-/** How a transaction reruns after a lost race: 10 ms doubling, jittered, five runs at most. */
-const TRANSACTION_RETRY = RetryPolicy.of({
-    initialInterval: 10,
-    maximumAttempts: 5,
-    jitter: "full",
-});
+/** The runs of a transaction losing races, the first and four reruns, each rerun at once. */
+const TRANSACTION_ATTEMPTS = 5;
+
+/** A race a transaction loses: the engine's serialization failure, or a stale read at commit. */
+export type LostRace = "SERIALIZATION_FAILURE" | "CONCURRENT_UPDATE";
 
 /** One row a change set writes: its image before the first and after the last write, or null. */
 export interface RowChange {
@@ -523,29 +521,40 @@ export class Transaction {
         attempt: (transaction: Transaction) => Promise<Value>,
         signal?: AbortSignal,
     ): Promise<Value> {
-        return Transaction.retry(async () => {
-            // run the attempt from the log's current position and commit it
-            const transaction = await Transaction.open(database);
-            const value = await attempt(transaction);
-            await transaction.commit();
+        return Transaction.retry(
+            database,
+            "CONCURRENT_UPDATE",
+            async () => {
+                // run the attempt from the log's current position and commit it
+                const transaction = await Transaction.open(database);
+                const value = await attempt(transaction);
+                await transaction.commit();
 
-            return value;
-        }, signal);
+                return value;
+            },
+            signal,
+        );
     }
 
-    /** Run an attempt in a separate transaction again while it loses a race. */
-    static async retry<Value>(run: () => Promise<Value>, signal?: AbortSignal): Promise<Value> {
+    /** Run an attempt again at once while it loses a race, which another commit won. */
+    static async retry<Value>(
+        database: DatabaseConnection,
+        race: LostRace,
+        run: () => Promise<Value>,
+        signal?: AbortSignal,
+    ): Promise<Value> {
         for (let attempt = 1; ; attempt++) {
             try {
                 return await run();
             } catch (error) {
                 // rethrow any other failure, and a lost race once the attempts run out
-                if (!isLostRace(error) || !RetryPolicy.isRetried(TRANSACTION_RETRY, attempt)) {
+                if (!DatabaseError.is(error, race) || attempt >= TRANSACTION_ATTEMPTS) {
                     throw error;
                 }
 
-                // wait out the backoff before the next attempt
-                await Clock.system.sleep(RetryPolicy.interval(TRANSACTION_RETRY, attempt), signal);
+                // count the lost race, and stop once the caller aborts
+                database.state.lostRaces += 1;
+                signal?.throwIfAborted();
             }
         }
     }
@@ -903,11 +912,6 @@ function keyOf(table: Table, key: UniqueKey, row: Row): string {
             Object.fromEntries(key.columns.map((column) => [column, row[column] ?? null])),
         ),
     );
-}
-
-/** Report whether a failure lost a race: a serialization failure, deadlock or busy database. */
-function isLostRace(error: unknown): boolean {
-    return DatabaseError.is(error, "CONCURRENT_UPDATE");
 }
 
 /** Update rows by key from a JSON array of each row's key and changed values, in that order. */

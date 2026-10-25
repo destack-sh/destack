@@ -1,9 +1,8 @@
-import { copyFile, mkdir, mkdtemp, rename, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import postgres from "postgres";
-import { v7 } from "uuid";
-import type { DatabaseConnection } from "../database/connection.ts";
+import { testHost } from "@destack/test/host";
+import { Simulation } from "@destack/environment/simulation";
+import type { DatabaseConnection, DatabaseEnvironment } from "../database/connection.ts";
 import type { Model } from "../query/model.ts";
 import { Dialect } from "../dialect/dialect.ts";
 import type { Table } from "../table/table.ts";
@@ -21,11 +20,25 @@ import { channelHub } from "../channel/channel.ts";
 import { STATE, type TableState } from "../migration/state.ts";
 import { upsertPredefined } from "../migration/plan.ts";
 import { inject, type TestProject, testTarget } from "@destack/test";
-import type { JsonValue } from "@destack/schema";
-import type { TestTemplate, TemplateImage, ImageIndex } from "./template.ts";
+import { type JsonValue, mapValues, present, Uuid } from "@destack/schema";
+import type {
+    ImageIndex,
+    ImageSource,
+    TemplateDatabases,
+    TemplateImage,
+    TemplateStorage,
+    TemplateTables,
+    TestTemplate,
+} from "./template.ts";
+
+/** The host the harness keeps files and schemas on, shared by the test processes of a run. */
+const HOST = testHost();
+
+/** The node a template's databases run as in its world. */
+const TEMPLATE_NODE = "template";
 
 /** The cipher of every test database, a fixed key so schemas reused across test processes open. */
-export const TEST_CIPHER = new ColumnCipher(new Uint8Array(32).fill(7));
+export const TEST_CIPHER = new ColumnCipher(new Uint8Array(32).fill(7), HOST.random);
 
 /** The connections each test database pools: four multi-database test workers stay under 100. */
 const TEST_POOL_CONNECTIONS = 2;
@@ -82,7 +95,7 @@ export class TestDatabase<
 
     /** Read the PostgreSQL server address the tests run against, refusing a run without one. */
     static address(): string {
-        const address = process.env["DESTACK_TEST_POSTGRES"];
+        const address = HOST.process.variables["DESTACK_TEST_POSTGRES"];
         if (address === undefined || address === "") {
             throw new TypeError("DESTACK_TEST_POSTGRES has no PostgreSQL server address");
         }
@@ -96,11 +109,20 @@ export class TestDatabase<
     }
 
     /** Create an isolated database, empty or migrated, in the project's database unless given. */
-    static async create<
+    static create<Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>>(
+        tables: declaration.Database<Models> | readonly Table[],
+        options: TestDatabaseOptions,
+    ): Promise<TestDatabase<Models>> {
+        // count the harness's file and schema work in flight on the database's clock
+        return options.environment.clock.trackHost(TestDatabase.#create(tables, options));
+    }
+
+    /** Create an isolated database, as `create` tracks it. */
+    static async #create<
         Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
     >(
         tables: declaration.Database<Models> | readonly Table[],
-        options: TestDatabaseOptions = {},
+        options: TestDatabaseOptions,
     ): Promise<TestDatabase<Models>> {
         // read the tables and the database, the project's unless given
         const declared = "tables" in tables ? tables.tables : tables;
@@ -111,7 +133,11 @@ export class TestDatabase<
             return TestDatabase.#postgres(declared, tables, options);
         } else if (options.isMigrated !== true && (options.storage ?? "memory") === "memory") {
             return new TestDatabase(
-                keyed(await sqlite.connectBunSqlite(":memory:", tables)),
+                keyed(
+                    await sqlite.connectBunSqlite(":memory:", tables, {
+                        environment: options.environment,
+                    }),
+                ),
                 undefined,
                 async () => {},
             );
@@ -120,19 +146,18 @@ export class TestDatabase<
         return TestDatabase.#sqliteFile(declared, tables, options);
     }
 
-    /** Copy a template's image in the run or in given images, with its write's value. */
-    static async copy<Models extends Readonly<Record<string, Model>>, Value extends JsonValue>(
-        template: TestTemplate<Value, Models>,
-        run: {
-            /** The images of the run's templates, the test run's by default. */
-            readonly images?: ImageIndex | undefined;
-            /** The database the images are of, the test project's by default. */
-            readonly dialect?: Dialect;
-        } = {},
-    ): Promise<{ readonly storage: TestDatabase<Models>; readonly value: Value }> {
+    /** Copy a template's image into a fork of its world at its write's end, with its value. */
+    static async copy<Value extends JsonValue, Databases extends TemplateDatabases>(
+        template: TestTemplate<Value, Databases>,
+        options: TemplateCopyOptions,
+    ): Promise<{
+        readonly simulation: Simulation;
+        readonly databases: TemplateStorage<Databases>;
+        readonly value: Value;
+    }> {
         // read the template's image in the run, refusing a template no setup of the run lists
-        const images = run.images ?? inject("templates");
-        const dialect = run.dialect ?? TestDatabase.target();
+        const images = options.images ?? inject("templates");
+        const dialect = options.dialect ?? TestDatabase.target();
         const image = images?.[template.name]?.[dialect];
         if (image === undefined) {
             throw new TypeError(
@@ -140,84 +165,198 @@ export class TestDatabase<
             );
         }
 
-        // copy it into a claimed schema or a temporary file
-        const { tables } = template;
-        const declared = "tables" in tables ? tables.tables : tables;
-        const storage =
-            image.source.dialect === "postgresql"
-                ? await TestDatabase.#postgres(declared, tables, { isMigrated: true }, image.source)
-                : await TestDatabase.#sqliteFile(declared, tables, {}, image.source.file);
+        // fork the template's world by the label, its databases running as the write's node
+        const recorded = { seed: template.world.seed, start: image.end };
+        const simulation = Simulation.fork(recorded, options.label);
+        const environment = simulation.environment(TEMPLATE_NODE);
 
-        return { storage, value: template.value.parse(image.value) };
+        // copy each database, counting the harness's copying in flight on the fork's clock
+        const copied = await environment.clock.trackHost(
+            TestDatabase.#copyDatabases(template, image, environment),
+        );
+        const databases = mapValues<Databases, TemplateStorage<Databases>>(
+            template.databases,
+            (_, name) => present(copied.get(name), `the copy's database ${name}`),
+        );
+
+        return { simulation, databases, value: template.value.parse(image.value) };
     }
 
-    /** Write a template's image once for a run: a file or a schema the run stores. */
-    static async image<Value extends JsonValue, Models extends Readonly<Record<string, Model>>>(
-        template: TestTemplate<Value, Models>,
+    /** Copy each database of a template's image into a claimed schema or a temporary file. */
+    static async #copyDatabases(
+        template: Pick<TestTemplate, "name" | "databases">,
+        image: TemplateImage,
+        environment: DatabaseEnvironment,
+    ): Promise<Map<string, TestDatabase>> {
+        const copied = await Promise.all(
+            Object.entries(template.databases).map(async ([name, tables]) => {
+                // refuse an image lacking the database
+                const source = image.sources[name];
+                if (source === undefined) {
+                    throw new TypeError(`the image of template ${template.name} has no ${name}`);
+                }
+
+                return [name, await TestDatabase.#copy(tables, source, environment)] as const;
+            }),
+        );
+
+        return new Map(copied);
+    }
+
+    /** Write a template's image once for a run: a file or schema per database the run stores. */
+    static async image<Value extends JsonValue, Databases extends TemplateDatabases>(
+        template: TestTemplate<Value, Databases>,
         dialect: Dialect,
         run: { readonly id: string; readonly directory: string },
     ): Promise<TemplateImage> {
-        // name the template's database by the digest of its name
-        const { tables } = template;
-        const declared = "tables" in tables ? tables.tables : tables;
-        const name = (await digestOf(template.name)).slice(0, 16);
+        // open the template's world, then each database migrated in turn, named by the digest of the template's name and its own
+        const simulation = new Simulation(template.world);
+        const environment = simulation.environment(TEMPLATE_NODE);
+        const opened = new Map<string, ImageDatabase>();
+        let value: Value;
+        let end: number;
+        try {
+            for (const [name, tables] of Object.entries(template.databases)) {
+                const key = (await digestOf(`${template.name}/${name}`)).slice(0, 16);
+                opened.set(
+                    name,
+                    await TestDatabase.#openImage(tables, dialect, key, run, environment),
+                );
+            }
 
-        // write it into a migrated schema that stays until the run's end
-        if (dialect === "postgresql") {
-            const address = TestDatabase.address();
-            const schema = `test_t${run.id}_${name}`;
-            const session = administration(address);
-            await session.unsafe(`CREATE SCHEMA "${schema}"`);
-            const open: TestConnector = (connected) =>
-                postgresql.connectPostgres(schemaPool(address, schema), connected).then(keyed);
-            const migrated = await open(tables);
-            await migrated.apply(
-                await migrated.plan({
-                    declared: declareState(declared, "postgresql", {
-                        isReplica: false,
-                        replicated: replicatedOf(tables),
-                    }),
+            // write the rows into them
+            const databases = mapValues<Databases, TemplateStorage<Databases>>(
+                template.databases,
+                (_, name) => present(opened.get(name), `the image's database ${name}`).storage,
+            );
+            value = await TestDatabase.#write(template, databases, run.directory, simulation);
+            end = simulation.clock.now();
+        } catch (error) {
+            // close what a failed write opened, ending its sessions
+            await Promise.all(
+                [...opened.values()].map(async (entry) => {
+                    await entry.storage.close();
+                    await entry.end();
                 }),
             );
-            await migrated.close();
-            const value = await TestDatabase.#write(
-                template,
-                new TestDatabase(await open(tables), open, async () => {}),
-                run.directory,
-            );
-            const columns = await readColumns(session, schema);
-            await session.end();
-
-            return { source: { dialect, schema, columns }, value };
+            throw error;
         }
 
-        // write a migrated file in the run's directory, and checkpoint its WAL into it
-        const file = join(run.directory, `${name}.db`);
-        await copyFile(await sqliteTemplate(declared, false, replicatedOf(tables)), file);
-        const value = await TestDatabase.#write(
-            template,
-            await TestDatabase.#sqliteAt(file, tables, async () => {}),
-            run.directory,
+        // close the written databases, then read where each keeps its rows
+        await Promise.all([...opened.values()].map((entry) => entry.storage.close()));
+        const sources = await Promise.all(
+            [...opened].map(async ([name, entry]) => [name, await entry.source()] as const),
         );
-        const database = await sqlite.connectBunSqlite(file, tables);
-        await database.executeScript("PRAGMA wal_checkpoint(TRUNCATE)");
-        await database.close();
 
-        return { source: { dialect, file }, value };
+        return { sources: Object.fromEntries(sources), value, end };
+    }
+
+    /** Copy one database of an image into a claimed schema or a temporary file. */
+    static async #copy(
+        tables: TemplateTables,
+        source: ImageSource,
+        environment: DatabaseEnvironment,
+    ): Promise<TestDatabase> {
+        const declared = "tables" in tables ? tables.tables : tables;
+
+        return source.dialect === "postgresql"
+            ? await TestDatabase.#postgres(
+                  declared,
+                  tables,
+                  { isMigrated: true, environment },
+                  source,
+              )
+            : await TestDatabase.#sqliteFile(declared, tables, { environment }, source.file);
+    }
+
+    /** Open one database of an image migrated, and read where it keeps its rows once written. */
+    static async #openImage(
+        tables: TemplateTables,
+        dialect: Dialect,
+        key: string,
+        run: { readonly id: string; readonly directory: string },
+        environment: DatabaseEnvironment,
+    ): Promise<ImageDatabase> {
+        // write it into a migrated schema that stays until the run's end, ending the session should migrating fail
+        const declared = "tables" in tables ? tables.tables : tables;
+        if (dialect === "postgresql") {
+            const address = TestDatabase.address();
+            const schema = `test_t${run.id}_${key}`;
+            const session = administration(address);
+            try {
+                // stamp its creation, which keeps other runs' sweeps off it until it expires
+                await session.unsafe(`CREATE SCHEMA "${schema}"`);
+                await session.unsafe(
+                    `COMMENT ON SCHEMA "${schema}" IS '${HOST.clock.now()} image'`,
+                );
+                const open: TestConnector = (connected) =>
+                    postgresql
+                        .connectPostgres(schemaPool(address, schema), connected, { environment })
+                        .then(keyed);
+                const migrated = await open(tables);
+                await migrated.apply(
+                    await migrated.plan({
+                        declared: declareState(declared, "postgresql", {
+                            isReplica: false,
+                            replicated: replicatedOf(tables),
+                        }),
+                    }),
+                );
+                await migrated.close();
+                const storage = new TestDatabase(await open(tables), open, async () => {});
+                const source = async (): Promise<ImageSource> => {
+                    // read the stored columns, then end the administration session
+                    const columns = await readColumns(session, schema);
+                    await session.end();
+
+                    return { dialect, schema, columns };
+                };
+                const end = () => session.end();
+
+                return { storage, source, end };
+            } catch (error) {
+                await session.end();
+                throw error;
+            }
+        }
+
+        // write a migrated file in the run's directory, and checkpoint its WAL into it once written
+        const file = join(run.directory, `${key}.db`);
+        await HOST.files.copyFile(
+            await sqliteTemplate(declared, false, replicatedOf(tables), environment),
+            file,
+        );
+        const source = async (): Promise<ImageSource> => {
+            // checkpoint the WAL into the file
+            const database = await sqlite.connectBunSqlite(file, tables, { environment });
+            await database.executeScript("PRAGMA wal_checkpoint(TRUNCATE)");
+            await database.close();
+
+            return { dialect, file };
+        };
+
+        // open the file the template writes into, in the template's environment
+        const storage = await TestDatabase.#sqliteAt(file, tables, async () => {}, environment);
+
+        return { storage, source, end: async () => {} };
     }
 
     /** Store SQLite in the caller's file, migrated when the file is new. */
     static async at<Models extends Readonly<Record<string, Model>>>(
         file: string,
         tables: declaration.Database<Models> | readonly Table[],
+        environment: DatabaseEnvironment,
     ): Promise<TestDatabase<Models>> {
         // copy the migrated database into a new file
         const declared = "tables" in tables ? tables.tables : tables;
-        if (!(await Bun.file(file).exists())) {
-            await copyFile(await sqliteTemplate(declared, false, replicatedOf(tables)), file);
+        if (!(await HOST.files.exists(file))) {
+            await HOST.files.copyFile(
+                await sqliteTemplate(declared, false, replicatedOf(tables), environment),
+                file,
+            );
         }
 
-        return TestDatabase.#sqliteAt(file, tables, async () => {});
+        return TestDatabase.#sqliteAt(file, tables, async () => {}, environment);
     }
 
     /** Drop the expired schemas no test claims and the images of runs that ended long ago. */
@@ -225,18 +364,17 @@ export class TestDatabase<
         return TestSchema.sweep(TestDatabase.address());
     }
 
-    /** Write a template into a database and a directory of the run's, then close the database. */
-    static async #write<Value extends JsonValue, Models extends Readonly<Record<string, Model>>>(
-        template: TestTemplate<Value, Models>,
-        storage: TestDatabase<Models>,
+    /** Write a template into its databases and a directory of the run's, then close them. */
+    static async #write<Value extends JsonValue, Databases extends TemplateDatabases>(
+        template: TestTemplate<Value, Databases>,
+        databases: TemplateStorage<Databases>,
         directory: string,
+        simulation: Simulation,
     ): Promise<Value> {
-        const files = await mkdtemp(join(directory, "files-"));
-        try {
-            return await template.write(storage, files);
-        } finally {
-            await storage.close();
-        }
+        const files = join(directory, `files-${Uuid.v4(HOST.random)}`);
+        await HOST.files.mkdir(files);
+
+        return await template.write(databases, files, simulation);
     }
 
     /** Claim a migrated PostgreSQL schema reset to a template's rows, or create an empty one. */
@@ -248,23 +386,26 @@ export class TestDatabase<
     ): Promise<TestDatabase<Models>> {
         // claim a migrated schema with the template's rows, locked by the claim's session
         const address = TestDatabase.address();
+        const { environment } = options;
         if (options.isMigrated === true && declared.length > 0) {
             const state = declareState(declared, "postgresql", {
                 isReplica: options.isReplica ?? false,
                 replicated: replicatedOf(tables),
             });
-            const schema = await TestSchema.claim(address, state, tables, template);
-            const open: TestConnector = (connected) => schema.connect(connected);
+            const schema = await TestSchema.claim(address, state, tables, environment, template);
+            const open: TestConnector = (connected) => schema.connect(connected, environment);
 
             return new TestDatabase(await open(tables), open, () => schema.release());
         }
 
         // create an empty schema for no tables or no migration, dropped once the database closes
         const session = administration(address);
-        const schema = `test_${crypto.randomUUID().replaceAll("-", "")}`;
+        const schema = `test_${Uuid.v4(HOST.random).replaceAll("-", "")}`;
         await session.unsafe(`CREATE SCHEMA "${schema}"`);
         const open: TestConnector = (connected) =>
-            postgresql.connectPostgres(schemaPool(address, schema), connected).then(keyed);
+            postgresql
+                .connectPostgres(schemaPool(address, schema), connected, { environment })
+                .then(keyed);
 
         return new TestDatabase(await open(tables), open, async () => {
             await session.unsafe(`DROP SCHEMA "${schema}" CASCADE`);
@@ -279,19 +420,34 @@ export class TestDatabase<
         options: TestDatabaseOptions,
         template?: string,
     ): Promise<TestDatabase<Models>> {
-        // copy the template's or the migrated database into a temporary file
-        const directory = await mkdtemp(join(tmpdir(), "destack-test-"));
+        // copy the template's or the migrated database into a temporary file, each step tracked on the store's clock
+        const { environment } = options;
+        const { clock } = environment;
+        const directory = await clock.trackHost(HOST.files.makeTemporaryDirectory("destack-test-"));
         const file = join(directory, "test.db");
         const source =
             template ??
             (options.isMigrated === true
-                ? await sqliteTemplate(declared, options.isReplica ?? false, replicatedOf(tables))
+                ? await clock.trackHost(
+                      sqliteTemplate(
+                          declared,
+                          options.isReplica ?? false,
+                          replicatedOf(tables),
+                          environment,
+                      ),
+                  )
                 : undefined);
         if (source !== undefined) {
-            await copyFile(source, file);
+            await clock.trackHost(HOST.files.copyFile(source, file));
         }
 
-        return TestDatabase.#sqliteAt(file, tables, () => rm(directory, { recursive: true }));
+        // open it in the store's environment
+        return TestDatabase.#sqliteAt(
+            file,
+            tables,
+            () => clock.trackHost(HOST.files.remove(directory, { recursive: true })),
+            environment,
+        );
     }
 
     /** Store SQLite in a file, sharing one hub, removed as given once closed. */
@@ -299,6 +455,7 @@ export class TestDatabase<
         file: string,
         tables: declaration.Database<Models> | readonly Table[],
         remove: () => Promise<void>,
+        environment: DatabaseEnvironment,
     ): Promise<TestDatabase<Models>> {
         // share each named channel through one hub
         const hubs = new Map<string, () => Channel<unknown>>();
@@ -310,7 +467,10 @@ export class TestDatabase<
         };
         const open: TestConnector = async (connected) => {
             // commit without syncing the file, which a test database has no use for
-            const opened = await sqlite.connectBunSqlite(file, connected, { openChannel });
+            const opened = await sqlite.connectBunSqlite(file, connected, {
+                openChannel,
+                environment,
+            });
             await opened.executeScript("PRAGMA synchronous = OFF");
 
             return keyed(opened);
@@ -337,8 +497,8 @@ export class TestDatabase<
             throw new TypeError("an in-memory SQLite database has no further connections");
         }
 
-        // track the connection, which closes once however often it is closed
-        const connection = await this.#open(tables);
+        // track the connection, counting its opening in flight on the database's clock
+        const connection = await this.database.state.clock.trackHost(this.#open(tables));
         this.#connections.add(connection);
 
         return connection;
@@ -346,10 +506,22 @@ export class TestDatabase<
 
     /** Close every connection and remove the database. */
     async close(): Promise<void> {
+        // close the connections, then remove the database on its clock
         await Promise.all([...this.#connections].map((connection) => connection.close()));
+        const { clock } = this.database.state;
         await this.database.close();
-        await this.#remove();
+        await clock.trackHost(this.#remove());
     }
+}
+
+/** Where a template's copy reads its image and how it forks the template's world. */
+export interface TemplateCopyOptions {
+    /** The label the copy forks the template's world by, distinct per copy in one world. */
+    readonly label: string;
+    /** The images of the run's templates, the test run's by default. */
+    readonly images?: ImageIndex | undefined;
+    /** The database the images are of, the test project's by default. */
+    readonly dialect?: Dialect;
 }
 
 /** The options of a test database. */
@@ -362,10 +534,22 @@ export interface TestDatabaseOptions {
     readonly isMigrated?: boolean;
     /** Whether it migrates as a replica, without trees and references. */
     readonly isReplica?: boolean;
+    /** The environment its log stamps changes and draws tokens in, its store's. */
+    readonly environment: DatabaseEnvironment;
+}
+
+/** One database of an image being written: its storage, its rows' place and its session's end. */
+interface ImageDatabase {
+    /** The migrated database the template writes into. */
+    readonly storage: TestDatabase;
+    /** Read where the database keeps its rows once written and closed. */
+    readonly source: () => Promise<ImageSource>;
+    /** End the administration session after a failed write. */
+    readonly end: () => Promise<void>;
 }
 
 /** A template image's PostgreSQL schema, whose rows claimed schemas copy. */
-type PostgresImage = Extract<TemplateImage["source"], { readonly dialect: "postgresql" }>;
+type PostgresImage = Extract<ImageSource, { readonly dialect: "postgresql" }>;
 
 /** A migrated schema one test database claims, its session with the claim's lock. */
 class TestSchema {
@@ -377,7 +561,6 @@ class TestSchema {
     readonly name: string;
     /** The relations and applied state the schema was claimed with. */
     readonly shape: TestSchemaShape;
-
     /** Store a claimed schema with its session and shape. */
     private constructor(
         address: string,
@@ -397,11 +580,12 @@ class TestSchema {
         address: string,
         state: readonly TableState[],
         tables: declaration.Database | readonly Table[],
+        environment: DatabaseEnvironment,
         template?: PostgresImage,
     ): Promise<TestSchema> {
         // derive the schema names from the digest of the state and the log it migrates beside
         const session = administration(address);
-        const layout = JSON.stringify([state, createLog("postgresql", "")]);
+        const layout = JSON.stringify([state, createLog("postgresql")]);
         const prefix = `test_s${(await digestOf(layout)).slice(0, 16)}_`;
 
         // claim a free schema of the same state whose shape still matches its stamp
@@ -415,7 +599,7 @@ class TestSchema {
                 if (shape !== undefined && stamp === (await digestOf(shape.fingerprint))) {
                     const schema = new TestSchema(address, session, name, shape);
                     await schema.#stamp();
-                    await schema.#reset(state, template);
+                    await schema.#reset(state, environment, template);
 
                     return schema;
                 }
@@ -424,16 +608,18 @@ class TestSchema {
         }
 
         // create and migrate a new schema with its claim time
-        const name = `${prefix}${crypto.randomUUID().replaceAll("-", "")}`;
+        const name = `${prefix}${Uuid.v4(HOST.random).replaceAll("-", "")}`;
         await lock(session, name);
         await session.unsafe(`CREATE SCHEMA "${name}"`);
-        const database = keyed(new PostgresDatabase(schemaPool(address, name), tables));
+        const database = keyed(
+            new PostgresDatabase(schemaPool(address, name), tables, { environment }),
+        );
         await database.apply(await database.plan({ declared: state }));
         await database.close();
         const schema = new TestSchema(address, session, name, await readShape(session, name));
         await schema.#stamp();
         if (template !== undefined) {
-            await schema.#reset(state, template);
+            await schema.#reset(state, environment, template);
         }
 
         return schema;
@@ -443,7 +629,7 @@ class TestSchema {
     static async sweep(address: string): Promise<void> {
         // list the claimed schemas and run templates past retention
         const session = administration(address);
-        const expired = Date.now() - SCHEMA_RETENTION_MILLISECONDS;
+        const expired = HOST.clock.now() - SCHEMA_RETENTION_MILLISECONDS;
         const schemas = await session<{ name: string }[]>`
             SELECT nspname AS name FROM pg_namespace
             WHERE (starts_with(nspname, 'test_s') OR starts_with(nspname, 'test_t'))
@@ -461,8 +647,11 @@ class TestSchema {
     /** Connect to the schema over a separate pool. */
     async connect<Models extends Readonly<Record<string, Model>>>(
         tables: declaration.Database<Models> | readonly Table[],
+        environment: DatabaseEnvironment,
     ): Promise<TestConnection<Models>> {
-        return keyed(new PostgresDatabase(schemaPool(this.address, this.name), tables));
+        return keyed(
+            new PostgresDatabase(schemaPool(this.address, this.name), tables, { environment }),
+        );
     }
 
     /** Release the claim, leaving the schema for the next test of its state. */
@@ -473,11 +662,17 @@ class TestSchema {
     /** Stamp the schema with its claim time and its shape's digest. */
     async #stamp(): Promise<void> {
         const digest = await digestOf(this.shape.fingerprint);
-        await this.session.unsafe(`COMMENT ON SCHEMA "${this.name}" IS '${Date.now()} ${digest}'`);
+        await this.session.unsafe(
+            `COMMENT ON SCHEMA "${this.name}" IS '${HOST.clock.now()} ${digest}'`,
+        );
     }
 
     /** Replace the rows with a template's and start a new epoch, in one statement batch. */
-    async #reset(state: readonly TableState[], template?: PostgresImage): Promise<void> {
+    async #reset(
+        state: readonly TableState[],
+        environment: DatabaseEnvironment,
+        template?: PostgresImage,
+    ): Promise<void> {
         // pick the tables to empty and the sequences to restart
         const quoted = (name: string) => `"${this.name}"."${name}"`;
         const emptied = this.shape.relations.filter(
@@ -504,7 +699,7 @@ class TestSchema {
             ${sequences.map((sequence) => `ALTER SEQUENCE ${quoted(sequence.name)} RESTART;`).join("\n")}
             UPDATE ${quoted(LOG_HORIZON)} SET sequence = 0 WHERE slot = 1;
             ${copied.join("\n")}
-            UPDATE ${quoted(LOG_EPOCH)} SET epoch = '${v7()}' WHERE slot = 1;`);
+            UPDATE ${quoted(LOG_EPOCH)} SET epoch = '${Uuid.v7(environment)}' WHERE slot = 1;`);
     }
 
     /** Write the statements copying a template's rows, sequences and horizon into the schema. */
@@ -534,7 +729,11 @@ class TestSchema {
 
 /** Open a session that manages schemas and takes claims, skipping the array type read. */
 function administration(address: string): postgres.Sql {
-    return postgres(address, { max: 1, fetch_types: false, onnotice: postgresql.reportNotice });
+    return postgres(address, {
+        max: 1,
+        fetch_types: false,
+        onnotice: postgresql.reportNotices(HOST.telemetry),
+    });
 }
 
 /** Open a connection pool whose queries resolve in a schema. */
@@ -544,7 +743,7 @@ function schemaPool(address: string, schema: string): postgres.Sql {
         idle_timeout: TEST_IDLE_SECONDS,
         // commit without waiting for the WAL flush, which a test schema has no use for
         connection: { search_path: schema, synchronous_commit: "off" },
-        onnotice: postgresql.reportNotice,
+        onnotice: postgresql.reportNotices(HOST.telemetry),
     });
 }
 
@@ -552,7 +751,7 @@ function schemaPool(address: string, schema: string): postgres.Sql {
 async function digestOf(text: string): Promise<string> {
     const bytes = new TextEncoder().encode(text);
 
-    return new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)).toHex();
+    return new Uint8Array(await HOST.crypto.digest("SHA-256", bytes)).toHex();
 }
 
 /** Take a schema's advisory lock in a session, reporting whether it was free. */
@@ -664,26 +863,27 @@ async function sqliteTemplate(
     tables: readonly Table[],
     isReplica: boolean,
     replicated: ReadonlySet<string>,
+    environment: DatabaseEnvironment,
 ): Promise<string> {
     // name the file by the digest of the state and the log it migrates beside
     const key = JSON.stringify(declareState(tables, "sqlite", { isReplica, replicated }));
-    const layout = JSON.stringify([key, createLog("sqlite", "")]);
-    const directory = join(tmpdir(), "destack-template");
+    const layout = JSON.stringify([key, createLog("sqlite")]);
+    const directory = join(await HOST.files.runtimeDirectory(), "destack-template");
     const file = join(directory, `${await digestOf(layout)}.db`);
 
     // reuse the file another test migrated for the state and log
-    if (await Bun.file(file).exists()) {
+    if (await HOST.files.exists(file)) {
         return file;
     }
 
     // migrate a file beside it and checkpoint its WAL, then move it in whole
-    await mkdir(directory, { recursive: true });
-    const written = join(directory, `${v7()}.db`);
-    const database = await sqlite.connectBunSqlite(written, tables);
+    await HOST.files.mkdir(directory, { recursive: true });
+    const written = join(directory, `${Uuid.v7(HOST)}.db`);
+    const database = await sqlite.connectBunSqlite(written, tables, { environment });
     await database.migrate(tables, { isReplica, replicated });
     await database.executeScript("PRAGMA wal_checkpoint(TRUNCATE)");
     await database.close();
-    await rename(written, file);
+    await HOST.files.rename(written, file);
 
     return file;
 }

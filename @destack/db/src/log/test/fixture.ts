@@ -68,3 +68,15 @@ export const reading = defineTable(
 
 /** The log example's tables. */
 export const changeTables = [note, revision, lease, reading];
+
+/** A note with exact, structured and binary values. */
+export const first = {
+    id: "a",
+    title: "First",
+    scope: "inbox",
+    subtitle: null,
+    views: 9_007_199_254_740_993n,
+    labels: ["draft"],
+    editedAt: 1790244000123,
+    attachment: new Uint8Array([1, 2, 3]),
+};

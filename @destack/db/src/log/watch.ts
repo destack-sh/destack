@@ -1,4 +1,4 @@
-import type { Channel, Commit } from "../channel/channel.ts";
+import { type Channel, type Commit, HEARD, type Hearing } from "../channel/channel.ts";
 import type { LogPosition } from "./position.ts";
 
 /** Who announces a connection's commits: the connection after commit, or the database inside it. */
@@ -30,6 +30,8 @@ export class CommitWatch {
     #sequence = 0;
     /** The commits heard since the watch began. */
     #generation = 0;
+    /** The waits for this connection's commit tokens to reach every listening party. */
+    readonly #hearings = new Map<string, Hearing>();
     /** The log head read since the latest commit heard, at that commit's generation. */
     #head: { readonly generation: number; readonly position: Promise<LogPosition> } | undefined;
 
@@ -58,6 +60,30 @@ export class CommitWatch {
     /** The latest sequence an announced commit ended at, all earlier ones committed, else zero. */
     get sequence(): number {
         return this.#sequence;
+    }
+
+    /** Whether the watch listens for the commits announced on its channel. */
+    get isListening(): boolean {
+        return this.#stop !== undefined;
+    }
+
+    /** Wait until every party listening in this process heard a commit's token. */
+    expect(token: string): Promise<void> {
+        const hearing = this.#channel?.hear(token) ?? HEARD;
+        this.#hearings.set(token, hearing);
+
+        return hearing.heard.finally(() => this.#hearings.delete(token));
+    }
+
+    /** Stop waiting for the token of a transaction that never commits. */
+    forget(token: string): void {
+        this.#hearings.get(token)?.forget();
+        this.#hearings.delete(token);
+    }
+
+    /** Whether commits announce on a channel, which other connections listen to. */
+    get isShared(): boolean {
+        return this.#channel !== undefined;
     }
 
     /** Whether readers wait for a commit. */
@@ -172,10 +198,11 @@ export class CommitWatch {
 
     /** Wake every reader and stop listening for other writers. */
     async stop(): Promise<void> {
-        // end the listening wait and wake every reader
+        // end the listening waits and wake every reader
         this.#settleListening();
         this.#wake(this.#tables);
         await this.#stop?.();
+        await this.#channel?.close();
     }
 
     /** Wake every reader waiting for a commit, adding the committed tables to each reader's. */
@@ -251,10 +278,12 @@ export class CommitWatch {
     #listen(): () => Promise<void> {
         const stop = this.#channel?.listen(
             (message) => {
+                // wake on the commit
                 this.#sequence = Math.max(this.#sequence, message.sequence ?? 0);
                 this.#wake(message.tables);
             },
             () => {
+                // wake every reader, as a reconnect may have lost notifications
                 this.#settleListening();
                 this.#wake(this.#tables);
             },

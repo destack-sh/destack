@@ -1,3 +1,4 @@
+import type { Clock } from "@destack/environment";
 import { DatabaseError } from "../error/error.ts";
 import type { DriverValue } from "../table/column.ts";
 
@@ -46,17 +47,22 @@ export class SqliteWorkQueue {
     #tail: Promise<unknown> = Promise.resolve();
     /** The work queued or running now. */
     #pending = 0;
+    /** The clock of the work running now and its end, absent while none runs. */
+    #running: { readonly clock: Clock; readonly settled: Promise<unknown> } | undefined;
+    /** The clocks of the work waiting for its turn, with how much of each waits. */
+    readonly #waiting = new Map<Clock, number>();
 
     /** Queue work, failing work whose turn does not come within the wait. */
     constructor(wait = TURN_WAIT_MILLISECONDS) {
         this.#wait = wait;
     }
 
-    /** Run work after the earlier work, refusing it once its turn takes longer than the wait. */
-    run<Value>(work: () => Promise<Value>): Promise<Value> {
+    /** Run work after the earlier work, refusing it once its turn outlasts the wait. */
+    run<Value>(work: () => Promise<Value>, clock: Clock): Promise<Value> {
         // run work at once on an idle queue, and wait a bounded time behind earlier work
         const turn = this.#tail;
-        const result = this.#pending === 0 ? turn.then(work) : this.#waited(turn, work);
+        const start = () => this.#start(work, clock);
+        const result = this.#pending === 0 ? turn.then(start) : this.#waited(turn, start, clock);
         this.#pending += 1;
 
         // queue later work behind both the earlier work and this one
@@ -72,18 +78,65 @@ export class SqliteWorkQueue {
         return result;
     }
 
+    /** Start work in its turn, counting it as host work on every other clock waiting behind it. */
+    #start<Value>(work: () => Promise<Value>, clock: Clock): Promise<Value> {
+        // run the work, remembering its clock until it ends
+        const running = work();
+        const settled = running.then(
+            () => undefined,
+            () => undefined,
+        );
+        this.#running = { clock, settled };
+        void settled.then(() => {
+            if (this.#running?.settled === settled) {
+                this.#running = undefined;
+            }
+        });
+
+        // keep the other worlds waiting for the file from moving time past it
+        for (const waiting of this.#waiting.keys()) {
+            if (waiting !== clock) {
+                void waiting.trackHost(settled);
+            }
+        }
+
+        return running;
+    }
+
     /** Run work in its turn after earlier work, or refuse it once the wait ends first. */
-    #waited<Value>(turn: Promise<unknown>, work: () => Promise<Value>): Promise<Value> {
-        // wait for the earlier work or the end of the wait, whichever comes first
-        let timer: ReturnType<typeof setTimeout> | undefined;
-        const settled = new Promise<boolean>((resolve) => {
-            timer = setTimeout(() => resolve(false), this.#wait);
-            void turn.then(() => resolve(true));
+    #waited<Value>(
+        turn: Promise<unknown>,
+        start: () => Promise<Value>,
+        clock: Clock,
+    ): Promise<Value> {
+        // count the wait as host work while another world's work runs ahead
+        this.#waiting.set(clock, (this.#waiting.get(clock) ?? 0) + 1);
+        const running = this.#running;
+        if (running !== undefined && running.clock !== clock) {
+            void clock.trackHost(running.settled);
+        }
+
+        // race the turn against the wait on the clock, which the turn stops
+        const stop = new AbortController();
+        const settled = Promise.race([
+            turn.then(() => true),
+            clock.sleep(this.#wait, stop.signal).then(
+                () => false,
+                (error: unknown) => {
+                    if (!stop.signal.aborted) {
+                        throw error;
+                    }
+
+                    return true;
+                },
+            ),
+        ]).finally(() => {
+            stop.abort();
+            this.#leave(clock);
         });
 
         // run the work in its turn, or refuse it
         return settled.then((isTurn) => {
-            clearTimeout(timer);
             if (!isTurn) {
                 throw DatabaseError.of(
                     "CONNECTION_TIMEOUT",
@@ -91,8 +144,18 @@ export class SqliteWorkQueue {
                 );
             }
 
-            return work();
+            return start();
         });
+    }
+
+    /** Stop counting one piece of a clock's waiting work. */
+    #leave(clock: Clock): void {
+        const count = (this.#waiting.get(clock) ?? 0) - 1;
+        if (count === 0) {
+            this.#waiting.delete(clock);
+        } else {
+            this.#waiting.set(clock, count);
+        }
     }
 }
 

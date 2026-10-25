@@ -4,7 +4,7 @@ import { Lease, type LeaseOutcome } from "../limit/index.ts";
 import { type Change, ReadSet, Snapshot } from "../log/index.ts";
 import { TABLE, type Table } from "../table/index.ts";
 import { found, nth } from "@destack/schema";
-import { telemetry } from "@destack/telemetry";
+import { TelemetryScope } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
 import { Failure } from "@destack/error";
 import { RetryPolicy, until, yieldToEventLoop, Clock } from "@destack/environment";
@@ -12,9 +12,6 @@ import type { Alarm } from "./alarm.ts";
 
 /** The default lease duration: 15 s, Kubernetes leader election's lease duration. */
 export const LEASE_MILLISECONDS = 15_000;
-
-/** The control loop's spans. */
-const { span, captureException } = telemetry.scope(import.meta.destack.package);
 
 /** The retry of a failed reconciliation, doubling from a second up to 5 minutes. */
 const RETRY = RetryPolicy.of({ maximumInterval: 5 * 60_000 });
@@ -64,10 +61,14 @@ export interface Delta {
     readonly unlogged: ReadonlySet<string>;
 }
 
-/** A key's backoff: its failures in a row and the revision it last failed at. */
+/** A key's backoff: its failures in a row, the last failure and the revision it failed at. */
 interface Backoff {
     /** The failures in a row. */
     readonly count: number;
+    /** The last failure. */
+    readonly failure: Failure;
+    /** Whether the loop reported the last failure, or an earlier one of the same reason. */
+    readonly isReported: boolean;
     /** The revision the controller read for the key as it failed, absent without revisions. */
     readonly revision: string | undefined;
 }
@@ -140,7 +141,9 @@ export class ControlLoop {
     readonly controllers: readonly Controller[];
     /** Report a failed reconciliation. */
     readonly #report: (controller: Controller, key: string, error: unknown) => void;
-    /** How a failed key retries. */
+    /** The loop's spans and captures, on the database's telemetry. */
+    readonly #instruments: TelemetryScope;
+    /** How a transiently failed key retries. */
     readonly #retry: RetryPolicy;
     /** The keys due, by controller and key, with the time each is due at. */
     readonly #due = new Map<Controller, Map<string, number>>();
@@ -172,8 +175,10 @@ export class ControlLoop {
     #alarmed: number | undefined;
     /** The due time of the key that began the running reconciliations. */
     #busy: number | undefined;
-    /** The callers waiting until no key is due now or unsettled. */
-    #idle: (() => void)[] = [];
+    /** The callers waiting until no key is due now or unsettled, or the loop fails. */
+    #idle: PromiseWithResolvers<void>[] = [];
+    /** The abort of every loop once a controller fails undeclared, its reason the failure. */
+    readonly #failing = new AbortController();
     /** Whether the database's log hears other writers' commits, which settling idle waits for. */
     #isHearing = false;
     /** Whether every controller was listed once since the loop started. */
@@ -198,7 +203,7 @@ export class ControlLoop {
         options: {
             /** Report a failed reconciliation, beside the loop recording it. */
             readonly report: (controller: Controller, key: string, error: unknown) => void;
-            /** How a failed key retries. */
+            /** How a transiently failed key retries. */
             readonly retry?: Partial<RetryPolicy>;
             /** Lease each key to this instance. */
             readonly lease?: { readonly holder: string; readonly duration?: number };
@@ -213,9 +218,14 @@ export class ControlLoop {
         // start with no key due and no failure
         this.database = database;
         this.controllers = controllers;
+        const instruments = TelemetryScope.of(
+            import.meta.destack.package,
+            database.state.environment.telemetry,
+        );
+        this.#instruments = instruments;
         this.#report = (controller, key, error) => {
             // record the failure with the controller and the failed key, then report it
-            captureException(error, {
+            instruments.captureException(error, {
                 isEscaped: true,
                 tags: { controller: controller.name },
                 attributes: { "destack.key": key },
@@ -246,15 +256,14 @@ export class ControlLoop {
 
     /** Run the controllers until the signal aborts. */
     async run(signal: AbortSignal): Promise<void> {
-        // stop every loop once one fails
-        const failed = new AbortController();
-        const running = AbortSignal.any([signal, failed.signal]);
+        // stop every loop once one or a controller fails, the first failure kept
+        const running = AbortSignal.any([signal, this.#failing.signal]);
         const stopping = (loop: Promise<void>) =>
             loop.catch((error: unknown) => {
-                failed.abort(error);
-                throw error;
+                this.#failing.abort(error);
             });
         try {
+            // wait for every loop to end, its running reconciliations included
             await Promise.all(
                 [
                     this.#hear(running),
@@ -263,12 +272,17 @@ export class ControlLoop {
                     this.#work(running),
                 ].map(stopping),
             );
+
+            // fail with the first failure that stopped the loops
+            if (this.#failing.signal.aborted) {
+                throw this.#failing.signal.reason;
+            }
         }
         // release this instance's leases and settle the idle waiters
         finally {
             this.#isStopped = true;
-            for (const resolve of this.#idle.splice(0)) {
-                resolve();
+            for (const waiter of this.#idle.splice(0)) {
+                this.#settleIdle(waiter);
             }
             if (this.#lease !== undefined) {
                 for (const controller of this.controllers) {
@@ -303,14 +317,17 @@ export class ControlLoop {
 
     /** Settle once no key is due or reconciling, every follow synced and every change heard. */
     idle(deadline?: number): Promise<void> {
-        // settle at once when the loop stopped
+        // settle at once when the loop stopped, failing with a controller's failure
         if (this.#isStopped) {
-            return Promise.resolve();
+            return this.#failing.signal.aborted
+                ? Promise.reject(this.#failing.signal.reason)
+                : Promise.resolve();
         }
 
         // wait for the loop to report itself idle once woken
-        const { promise, resolve } = Promise.withResolvers<void>();
-        this.#idle.push(resolve);
+        const waiter = Promise.withResolvers<void>();
+        const { promise, resolve } = waiter;
+        this.#idle.push(waiter);
         this.#wake();
         if (deadline === undefined) {
             return promise;
@@ -396,7 +413,7 @@ export class ControlLoop {
                     // record the consumed sequence for idle waiters, and let other tasks run
                     this.#followed = Math.max(this.#followed, page.sequence);
                     this.#wake();
-                    await yieldToEventLoop();
+                    await this.#clock.trackHost(yieldToEventLoop());
                 }
 
                 // list the watching controllers again once an idle check asked
@@ -589,7 +606,7 @@ export class ControlLoop {
                 await this.#schedule(this.#busy);
 
                 // let other tasks run before the next key
-                await yieldToEventLoop();
+                await this.#clock.trackHost(yieldToEventLoop());
             }
             // set the wake-up due while keys run, or at the next key
             else {
@@ -605,8 +622,8 @@ export class ControlLoop {
                     (await this.#isFollowed()) &&
                     !this.#woken.signal.aborted
                 ) {
-                    for (const resolve of this.#idle.splice(0)) {
-                        resolve();
+                    for (const waiter of this.#idle.splice(0)) {
+                        waiter.resolve();
                     }
                 }
 
@@ -710,7 +727,8 @@ export class ControlLoop {
                 if (controller.mode === "follow") {
                     await controller.reconcile(key, { ...reconciliation, synced });
                     if (!reconciliation.signal.aborted) {
-                        throw new Error(
+                        throw DatabaseError.of(
+                            "FOLLOW_ENDED",
                             `${controller.name} stopped following ${key} without an abort`,
                         );
                     }
@@ -721,7 +739,7 @@ export class ControlLoop {
                 // trace each reconciliation as a separate root span
                 const attributes = { "destack.controller": controller.name, "destack.key": key };
 
-                return span("controller.reconcile", attributes, () =>
+                return this.#instruments.span("controller.reconcile", attributes, () =>
                     controller.reconcile(key, reconciliation),
                 );
             });
@@ -739,30 +757,66 @@ export class ControlLoop {
                 return;
             }
 
-            // report and retry the failure, a transient one once it persists
-            const failed = (failures.get(work.key)?.count ?? 0) + 1;
-            failures.set(work.key, {
-                count: failed,
-                revision: work.controller.revision?.(work.key),
-            });
-            if (this.#isReported(work, error)) {
+            // stop the loop on a failure the controller declares no outcome for
+            if (!Failure.isDeclared(error)) {
+                this.#failing.abort(
+                    DatabaseError.of(
+                        "CONTROLLER_FAILED",
+                        `${work.controller.name} failed to reconcile ${work.key}`,
+                        { cause: error },
+                    ),
+                );
+
+                return;
+            }
+
+            // report a failure once, a transient one once it persists
+            const previous = failures.get(work.key);
+            const failure = Failure.of(error);
+            const failed = (previous?.count ?? 0) + 1;
+            const isRepeated =
+                previous?.isReported === true &&
+                previous.failure.domain === failure.domain &&
+                previous.failure.reason === failure.reason;
+            const isReported = !isRepeated && this.#recordFailure(work, failure);
+            if (isReported) {
                 this.#report(work.controller, work.key, error);
             }
-            this.enqueue(
-                work.controller,
-                work.key,
-                this.#clock.now() + RetryPolicy.interval(this.#retry, failed),
-            );
+            failures.set(work.key, {
+                count: failed,
+                failure,
+                isReported: isRepeated || isReported,
+                revision: work.controller.revision?.(work.key),
+            });
+
+            // retry a transient failure on backoff, leaving any other to the key's next change
+            if (Failure.isTransient(failure)) {
+                const drawn = RetryPolicy.draw(`${work.controller.name} ${work.key} ${failed}`);
+                this.enqueue(
+                    work.controller,
+                    work.key,
+                    this.#clock.now() + RetryPolicy.interval(this.#retry, failed, () => drawn),
+                );
+            }
         }
     }
 
-    /** Decide whether to report a failure at once. */
-    #isReported(work: Work, error: unknown): boolean {
-        // report any failure but a transient one at once
+    /** Settle an idle waiter of the stopped loop, failing it with a controller's failure. */
+    #settleIdle(waiter: PromiseWithResolvers<void>): void {
+        if (this.#failing.signal.aborted) {
+            waiter.reject(this.#failing.signal.reason);
+        } else {
+            waiter.resolve();
+        }
+    }
+
+    /** Record when a key's transient failures began, answering whether one is due a report. */
+    #recordFailure(work: Work, failure: Failure): boolean {
+        // report a lasting failure at once
         const now = this.#clock.now();
         const since = this.#transient.get(work.controller) ?? new Map<string, number>();
         this.#transient.set(work.controller, since);
-        if (!Failure.isTransient(Failure.of(error))) {
+        if (!Failure.isTransient(failure)) {
             since.delete(work.key);
 
             return true;

@@ -11,6 +11,8 @@ export interface DatabaseHost
         Snapshotter<typeof DatabaseKind> {
     /** The provider code of the backend, such as `sqlite`. */
     readonly provider: string;
+    /** Resolve a reference to where a workload on this host reaches a local database file. */
+    readonly resolve?: (reference: string) => string;
 }
 
 /** A database provider: provisioning, migrating, opening and snapshotting one host's databases. */
@@ -34,5 +36,6 @@ export function databaseProvider<Object>(
         reconcile: host,
         open: host,
         snapshot: host,
+        ...(host.resolve === undefined ? {} : { resolve: host.resolve }),
     };
 }

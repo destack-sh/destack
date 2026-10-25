@@ -18,7 +18,7 @@ const JSON_PAIR_LIMIT = Math.floor((FUNCTION_ARGUMENT_LIMIT - 1) / 2);
 
 /** The SQLite log: its tables and a table's change triggers. */
 export const sqliteLog: LogDialect = {
-    create: (epoch, scope, namespace) => createSQLiteLog(epoch, scope, namespace),
+    create: (namespace) => createSQLiteLog(namespace),
     install: (table, description, namespace) =>
         sqliteLogTriggers(table, description, (name) => quote(relation(name, namespace))),
     remove: (table) =>
@@ -28,7 +28,7 @@ export const sqliteLog: LogDialect = {
 };
 
 /** Create the SQLite log, horizon and transaction identity within the database's namespace. */
-function createSQLiteLog(epoch: string, scope?: string, namespace?: string): readonly string[] {
+function createSQLiteLog(namespace?: string): readonly string[] {
     const name = (table: string) => quote(relation(table, namespace));
     const log = name(LOG);
 
@@ -56,9 +56,10 @@ function createSQLiteLog(epoch: string, scope?: string, namespace?: string): rea
         `INSERT INTO ${name(LOG_HORIZON)} (slot, sequence) VALUES (1, 0) ON CONFLICT (slot) DO NOTHING`,
         `CREATE TABLE IF NOT EXISTS ${name(LOG_TRANSACTION)} (
             slot INTEGER PRIMARY KEY CHECK (slot = 1),
-            id TEXT NOT NULL
+            id TEXT NOT NULL,
+            changed_at INTEGER NOT NULL
         )`,
-        ...createEpoch(epoch, scope, namespace),
+        ...createEpoch(namespace),
     ];
 }
 
@@ -68,12 +69,14 @@ function sqliteLogTriggers(
     description: ChangeDescription,
     name: (table: string) => string,
 ): string[] {
-    // abort a change of a table taking the database's scope while the database has none
+    // abort a change outside a transaction, and of a table taking the database's scope while the database has none
     const table = quote(target);
+    const stamped = `SELECT RAISE(ABORT, ${literal(`a logged write of ${description.table} runs outside a transaction: run it in a transaction`)}) WHERE NOT EXISTS (SELECT 1 FROM ${name(LOG_TRANSACTION)} WHERE slot = 1);`;
     const scoped =
         description.scope === undefined
-            ? `SELECT RAISE(ABORT, ${literal(`the database has no scope for the rows of ${description.table}`)}) WHERE ${databaseScope(name)} IS NULL;`
-            : "";
+            ? `${stamped}
+            SELECT RAISE(ABORT, ${literal(`the database has no scope for the rows of ${description.table}`)}) WHERE ${databaseScope(name)} IS NULL;`
+            : stamped;
 
     // tell updates from key or scope changes
     const changed = anyChanged(description.compared);
@@ -127,9 +130,9 @@ function logEntry(
     name: (table: string) => string,
     prior = "NULL",
 ): string {
-    // read the transaction and the time inside the trigger
+    // read the transaction and the time its connection's clock stamped on it
     const transaction = `(SELECT id FROM ${name(LOG_TRANSACTION)} WHERE slot = 1)`;
-    const now = "CAST(unixepoch('subsec') * 1000 AS INTEGER)";
+    const now = `(SELECT changed_at FROM ${name(LOG_TRANSACTION)} WHERE slot = 1)`;
 
     return `INSERT INTO ${name(LOG)} ("transaction", "table", key, operation, "row", previous, scope, retention, changed_at)
             SELECT

@@ -5,6 +5,7 @@ import { TestDatabase } from "../test/database.ts";
 import { defineTable } from "../table/table.ts";
 import { integer, text } from "../table/column.ts";
 import { jsonElements, Statement } from "./statement.ts";
+import { testSimulation } from "@destack/test/world";
 
 /** Write identifiers as the JSON rows a listed statement reads. */
 function ids(values: readonly string[]): string {
@@ -34,7 +35,13 @@ const rankQuery = new Statement(
 );
 
 test("run a statement rendered once with each run's values", async () => {
-    const storage = await TestDatabase.create([item], { isMigrated: true });
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create([item], {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     await storage.database.insert(item).values([
         { id: "a", rank: 1 },

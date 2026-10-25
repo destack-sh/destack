@@ -1,13 +1,11 @@
 import postgres from "postgres";
 import type * as declaration from "../declare/database.ts";
 import type { Table } from "../table/table.ts";
-import { PostgresDatabase, type PostgresWriteMode } from "./database.ts";
-import { telemetry } from "@destack/telemetry";
+import { type PostgresConnectOptions, PostgresDatabase } from "./database.ts";
+import { TelemetryScope } from "@destack/telemetry";
+import type { Environment } from "@destack/environment";
 import type {} from "@destack/package/import-meta";
 import type { Model } from "../query/model.ts";
-
-/** The database log records. */
-const { log } = telemetry.scope(import.meta.destack.package);
 
 /** The connections of one pool: five, within the six a Worker opens per Hyperdrive. */
 const POOL_CONNECTIONS = 5;
@@ -17,16 +15,19 @@ export async function connectPostgres<
     Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
 >(
     connection: string | postgres.Sql,
-    tables: declaration.Database<Models> | readonly Table[] = [],
-    writers: PostgresWriteMode = "shared",
+    tables: declaration.Database<Models> | readonly Table[],
+    options: PostgresConnectOptions,
 ): Promise<PostgresDatabase<Models>> {
     const client =
         typeof connection === "string"
-            ? postgres(connection, { max: POOL_CONNECTIONS, onnotice: reportNotice })
+            ? postgres(connection, {
+                  max: POOL_CONNECTIONS,
+                  onnotice: reportNotices(options.environment.telemetry),
+              })
             : connection;
 
     try {
-        return new PostgresDatabase(client, tables, writers);
+        return new PostgresDatabase(client, tables, options);
     } catch (error) {
         // release only pools this call created
         if (typeof connection === "string") {
@@ -43,9 +44,15 @@ export async function connectPostgres<
     }
 }
 
-/** Report a server warning, dropping informational notices such as skipped drops. */
-export function reportNotice(notice: postgres.Notice): void {
-    if (notice["severity"] === "WARNING") {
-        log.warn("postgresql.warning", { message: String(notice["message"]) });
-    }
+/** Make the reporter of a server's warnings on a telemetry, dropping informational notices. */
+export function reportNotices(
+    telemetry: Environment["telemetry"],
+): (notice: postgres.Notice) => void {
+    const { log } = TelemetryScope.of(import.meta.destack.package, telemetry);
+
+    return (notice) => {
+        if (notice["severity"] === "WARNING") {
+            log.warn("postgresql.warning", { message: String(notice["message"]) });
+        }
+    };
 }

@@ -1,43 +1,31 @@
+import { Simulation } from "@destack/environment/simulation";
+import type { Environment } from "@destack/environment";
 import { schema } from "@destack/schema";
 import { sql } from "../../sql/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { TestDatabase } from "../../test/database.ts";
-import { Change, DatabaseError, eq, LogPosition, TABLE, Transaction } from "../../index.ts";
-import { changeTables, lease, note, reading, revision } from "./fixture.ts";
+import { Change, DatabaseError, eq, LogPosition, TABLE } from "../../index.ts";
+import { changeTables, first, lease, note, reading, revision } from "./fixture.ts";
 import { setting } from "../../bun/test/setting.ts";
+import { testSimulation } from "@destack/test/world";
 
-/** The concurrent writers of the PostgreSQL numbering test: four per pool, filling both pools. */
-const WRITERS = 8;
-
-/** The commits each writer makes. */
-const COMMITS = 10;
-
-/** Open a migrated test database. */
-async function open(kind?: "memory" | "file") {
+/** Open a migrated test database in a world, its own by default, with the world's clock. */
+async function open(
+    kind?: "memory" | "file",
+    environment: Environment = testSimulation().environment("test"),
+) {
     const storage = await TestDatabase.create(
         changeTables,
-        kind === undefined ? {} : { storage: kind },
+        kind === undefined ? { environment } : { storage: kind, environment },
     );
     onTestFinished(() => storage.close());
     await storage.database.migrate(changeTables);
 
-    return storage;
+    return { storage, database: storage.database, clock: environment.clock };
 }
 
-/** A note with exact, structured and binary values. */
-const first = {
-    id: "a",
-    title: "First",
-    scope: "inbox",
-    subtitle: null,
-    views: 9_007_199_254_740_993n,
-    labels: ["draft"],
-    editedAt: 1790244000123,
-    attachment: new Uint8Array([1, 2, 3]),
-};
-
 test("log committed changes of tables in commit order", async () => {
-    const { database } = await open();
+    const { database, clock } = await open();
     const tables = [note, revision, lease];
     expect((await database.log.position()).sequence).toBe(0);
 
@@ -84,12 +72,19 @@ test("log committed changes of tables in commit order", async () => {
     expect(new Set(created.changes.map((change) => change.transaction)).size).toBe(1);
 
     // skip empty updates and record binary-only ones with the bytes before and after
-    await database.update(note).set({ title: "First" }).where(eq(note.id, "a"));
-    await database
-        .update(note)
-        .set({ attachment: new Uint8Array([4]) })
-        .where(eq(note.id, "a"));
-    await database.update(note).set({ title: "Renamed" }).where(eq(note.id, "a"));
+    await database.transaction((transaction) =>
+        transaction.update(note).set({ title: "First" }).where(eq(note.id, "a")).execute(),
+    );
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .update(note)
+                .set({ attachment: new Uint8Array([4]) })
+                .where(eq(note.id, "a")),
+    );
+    await database.transaction((transaction) =>
+        transaction.update(note).set({ title: "Renamed" }).where(eq(note.id, "a")).execute(),
+    );
     const updated = await database.log.read({ tables: [note], after: created.sequence });
     expect(
         updated.changes.map((change) => [
@@ -104,8 +99,12 @@ test("log committed changes of tables in commit order", async () => {
     ]);
 
     // record a key change as a deletion and an insertion, then a deletion
-    await database.update(note).set({ id: "b" }).where(eq(note.id, "a"));
-    await database.delete(note).where(eq(note.id, "b"));
+    await database.transaction((transaction) =>
+        transaction.update(note).set({ id: "b" }).where(eq(note.id, "a")).execute(),
+    );
+    await database.transaction((transaction) =>
+        transaction.delete(note).where(eq(note.id, "b")).execute(),
+    );
     const moved = await database.log.read({ tables: [note], after: updated.sequence });
     expect(
         moved.changes.map((change) => [change.operation, change.key, Change.image(change).title]),
@@ -116,15 +115,18 @@ test("log committed changes of tables in commit order", async () => {
     ]);
 
     // advance a filtered cursor past other tables' changes
-    await database
-        .insert(revision)
-        .values({ scope: "inbox", noteId: "b", number: 2, title: "Second" });
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .insert(revision)
+                .values({ scope: "inbox", noteId: "b", number: 2, title: "Second" }),
+    );
     const filtered = await database.log.read({ tables: [note], after: moved.sequence });
     expect(filtered.changes).toEqual([]);
     expect(filtered.sequence).toBe((await database.log.position()).sequence);
 
     // compact windowed changes, retain history, and fail stale readers
-    const now = Date.now();
+    const now = clock.now();
     await database.log.compact(now + 1, now);
     expect(await refusal(database.log.read({ tables, after: 0 }))).toEqual([
         "GONE",
@@ -147,7 +149,12 @@ test("log committed changes of tables in commit order", async () => {
         controller.signal,
     );
     const next = following.next();
-    await database.insert(note).values({ ...first, id: "c" });
+    await database.transaction((transaction) =>
+        transaction
+            .insert(note)
+            .values({ ...first, id: "c" })
+            .execute(),
+    );
     const received = await next;
     expect(
         received.done === true ? [] : received.value.changes.map((change) => change.key),
@@ -160,14 +167,22 @@ test("log committed changes of tables in commit order", async () => {
         { isAdvancing: true },
     );
     const [skipped, advanced] = [following.next(), advancing.next()];
-    await database
-        .insert(revision)
-        .values({ scope: "inbox", noteId: "c", number: 1, title: "First" });
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .insert(revision)
+                .values({ scope: "inbox", noteId: "c", number: 1, title: "First" }),
+    );
     const other = (await database.log.position()).sequence;
     const keepalive = await advanced;
 
     // yield the next note to the follow that skipped the other table's commit
-    await database.insert(note).values({ ...first, id: "d" });
+    await database.transaction((transaction) =>
+        transaction
+            .insert(note)
+            .values({ ...first, id: "d" })
+            .execute(),
+    );
     const noted = await skipped;
     expect(
         [keepalive, noted].map((page) =>
@@ -183,32 +198,41 @@ test("log committed changes of tables in commit order", async () => {
     expect([(await following.next()).done, (await advancing.next()).done]).toEqual([true, true]);
 });
 
-test("read the changes the open transaction wrote before its commit", async () => {
+test("read the changes the open transaction wrote before its commit, after a log id", async () => {
     const { database } = await open();
-    await database.insert(note).values(first);
+    await database.transaction((transaction) => transaction.insert(note).values(first).execute());
 
-    // read this transaction's changes in order
-    const written = await database.transaction(async (transaction) => {
+    // read the transaction's changes in write order, then those after the first read
+    const reads = await database.transaction(async (transaction) => {
         await transaction.update(note).set({ title: "Renamed" }).where(eq(note.id, "a"));
+        const renamed = await transaction.log.readTransaction({ tables: [note] });
         await transaction
             .insert(revision)
             .values({ scope: "inbox", noteId: "a", number: 1, title: "First" });
         await transaction.delete(note).where(eq(note.id, "a"));
+        const deleted = await transaction.log.readTransaction({
+            tables: [note],
+            after: renamed.after,
+        });
 
-        return await transaction.log.written([note]);
+        return [renamed, deleted];
     });
     expect(
-        written.map((change) => [change.operation, change.key, Change.after(change)?.title]),
-    ).toEqual([
-        ["update", { id: "a" }, "Renamed"],
-        ["delete", { id: "a" }, undefined],
-    ]);
+        reads.map((read) =>
+            read.changes.map((change) => [
+                change.operation,
+                change.key,
+                Change.after(change)?.["title"],
+            ]),
+        ),
+    ).toEqual([[["update", { id: "a" }, "Renamed"]], [["delete", { id: "a" }, undefined]]]);
 });
 
 test("preserve the log's identifier across a restore's new epoch, and refuse comparing positions of two logs", async () => {
     // renew the epoch as a restore does, beside another database's log
-    const { database } = await open();
-    const { database: other } = await open();
+    const world = testSimulation().environment("test");
+    const { database } = await open(undefined, world);
+    const { database: other } = await open(undefined, world);
     const before = await database.log.position();
     const renewed = await database.log.renew();
     const after = await database.log.position();
@@ -226,13 +250,15 @@ test("preserve the log's identifier across a restore's new epoch, and refuse com
 });
 
 test("preserve the latest sequence once compaction removes every change", async () => {
-    const { database } = await open();
-    await database.insert(note).values(first);
-    await database.update(note).set({ title: "Renamed" }).where(eq(note.id, "a"));
+    const { database, clock } = await open();
+    await database.transaction((transaction) => transaction.insert(note).values(first).execute());
+    await database.transaction((transaction) =>
+        transaction.update(note).set({ title: "Renamed" }).where(eq(note.id, "a")).execute(),
+    );
     const latest = (await database.log.position()).sequence;
 
     // compact every windowed change
-    const now = Date.now();
+    const now = clock.now();
     await database.log.compact(now + 1, now);
     expect([
         (await database.log.position()).sequence,
@@ -243,14 +269,27 @@ test("preserve the latest sequence once compaction removes every change", async 
 
 test("read one scope's changes with the rows before and after them", async () => {
     const { database } = await open();
-    await database.insert(note).values(first);
-    await database.insert(note).values({ ...first, id: "b", scope: "archive" });
+    await database.transaction((transaction) => transaction.insert(note).values(first).execute());
+    await database.transaction((transaction) =>
+        transaction
+            .insert(note)
+            .values({ ...first, id: "b", scope: "archive" })
+            .execute(),
+    );
     const start = await database.log.read({ tables: [note], after: 0, scopes: ["inbox"] });
     expect(start.changes.map((change) => change.key)).toEqual([{ id: "a" }]);
 
     // restore the row before each update, nulls included
-    await database.update(note).set({ title: "Titled", subtitle: "Short" }).where(eq(note.id, "a"));
-    await database.update(note).set({ subtitle: null }).where(eq(note.id, "a"));
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .update(note)
+                .set({ title: "Titled", subtitle: "Short" })
+                .where(eq(note.id, "a")),
+    );
+    await database.transaction((transaction) =>
+        transaction.update(note).set({ subtitle: null }).where(eq(note.id, "a")).execute(),
+    );
     const updated = await database.log.read({
         tables: [note],
         after: start.sequence,
@@ -268,7 +307,9 @@ test("read one scope's changes with the rows before and after them", async () =>
     ]);
 
     // log a scope change as a deletion and an insertion
-    await database.update(note).set({ scope: "archive" }).where(eq(note.id, "a"));
+    await database.transaction((transaction) =>
+        transaction.update(note).set({ scope: "archive" }).where(eq(note.id, "a")).execute(),
+    );
     const moved = await database.log.read({ tables: [note], after: updated.sequence });
     expect(moved.changes.map((change) => [change.operation, change.scope])).toEqual([
         ["delete", "inbox"],
@@ -286,11 +327,10 @@ test("read one scope's changes with the rows before and after them", async () =>
 });
 
 test("wait for a position through this connection's and another connection's commits", async () => {
-    const storage = await open("file");
-    const { database } = storage;
+    const { storage, database } = await open("file");
     const other = await storage.connect(changeTables);
     onTestFinished(() => other.close());
-    await database.insert(note).values(first);
+    await database.transaction((transaction) => transaction.insert(note).values(first).execute());
     const position = (await database.log.position()).sequence;
 
     // return at once for a position the log has
@@ -299,12 +339,22 @@ test("wait for a position through this connection's and another connection's com
 
     // wake on this connection's next commit
     const mine = database.log.wait(position + 1, signal);
-    await database.insert(note).values({ ...first, id: "b" });
+    await database.transaction((transaction) =>
+        transaction
+            .insert(note)
+            .values({ ...first, id: "b" })
+            .execute(),
+    );
     expect(await mine).toBe(true);
 
     // wake on another connection's commit
     const foreign = database.log.wait(position + 2, signal);
-    await other.insert(note).values({ ...first, id: "c" });
+    await other.transaction((transaction) =>
+        transaction
+            .insert(note)
+            .values({ ...first, id: "c" })
+            .execute(),
+    );
     expect(await foreign).toBe(true);
 
     // give up once the signal aborts
@@ -320,8 +370,18 @@ test("end each page with a whole transaction", async () => {
             await transaction.insert(note).values({ ...first, id });
         }
     });
-    await database.insert(note).values({ ...first, id: "d" });
-    await database.insert(note).values(["e", "f", "g"].map((id) => ({ ...first, id })));
+    await database.transaction((transaction) =>
+        transaction
+            .insert(note)
+            .values({ ...first, id: "d" })
+            .execute(),
+    );
+    await database.transaction((transaction) =>
+        transaction
+            .insert(note)
+            .values(["e", "f", "g"].map((id) => ({ ...first, id })))
+            .execute(),
+    );
     const page = await database.log.read({ tables: [note], after: 0, limit: 2 });
     const next = await database.log.read({ tables: [note], after: page.sequence, limit: 2 });
 
@@ -332,158 +392,9 @@ test("end each page with a whole transaction", async () => {
     ]);
 });
 
-test.skipIf(TestDatabase.target() !== "postgresql")(
-    "order postgresql changes by commit, not by write",
-    async () => {
-        const { database } = await open();
-
-        // write first in a transaction that commits last
-        const released = Promise.withResolvers<void>();
-        const written = Promise.withResolvers<void>();
-        const late = database.transaction(async (transaction) => {
-            await transaction.insert(note).values({ ...first, id: "late" });
-            written.resolve();
-            await released.promise;
-        });
-        await written.promise;
-        await database.insert(note).values({ ...first, id: "early" });
-
-        // hide the uncommitted write, then order it after the earlier commit
-        const before = await database.log.read({ tables: [note], after: 0 });
-        expect(before.changes.map((change) => change.key)).toEqual([{ id: "early" }]);
-        released.resolve();
-        await late;
-        const after = await database.log.read({ tables: [note], after: before.sequence });
-        expect(after.changes.map((change) => change.key)).toEqual([{ id: "late" }]);
-    },
-);
-
-test.skipIf(TestDatabase.target() !== "postgresql")(
-    "commit both of two postgresql transactions that read a row together and append to it, running the later again",
-    async () => {
-        const { database } = await open();
-        await database.insert(note).values(first);
-
-        // read the row in both before either commits, and append to the title read
-        const both = Promise.withResolvers<void>();
-        let reads = 0;
-        const append = (suffix: string) =>
-            Transaction.run(database, async (transaction) => {
-                const [row] = await transaction.read(note).findMany({ where: { id: "a" } });
-                if (row === undefined) {
-                    throw new TypeError("the note is missing");
-                }
-                reads += 1;
-                if (reads === 2) {
-                    both.resolve();
-                }
-                await both.promise;
-                await transaction.write({
-                    table: note,
-                    before: row,
-                    after: { ...row, title: row.title + suffix },
-                });
-            });
-        await Promise.all([append("!"), append("?")]);
-
-        // commit both appends in one of the two orders, the later one read again
-        const [row] = await database
-            .select({ title: note.title })
-            .from(note)
-            .where(eq(note.id, "a"));
-        expect([[{ title: "First!?" }], [{ title: "First?!" }]]).toContainEqual([row]);
-    },
-);
-
-test.skipIf(TestDatabase.target() !== "postgresql")(
-    "run a postgresql update that lost to a concurrent commit again after it, its write last",
-    async () => {
-        const { database } = await open();
-        await database.insert(note).values(first);
-
-        // commit both of two concurrent updates, the one losing the race again after the other
-        const released = Promise.withResolvers<void>();
-        const read = Promise.withResolvers<void>();
-        const late = database.transaction(async (transaction) => {
-            await transaction.select().from(note).where(eq(note.id, "a"));
-            read.resolve();
-            await released.promise;
-            await transaction.update(note).set({ title: "Late" }).where(eq(note.id, "a"));
-        });
-        await read.promise;
-        await database.update(note).set({ title: "Early" }).where(eq(note.id, "a"));
-        released.resolve();
-        await late;
-        expect(
-            await database.select({ title: note.title }).from(note).where(eq(note.id, "a")),
-        ).toEqual([{ title: "Late" }]);
-    },
-);
-
-test.skipIf(TestDatabase.target() !== "postgresql")(
-    "number concurrent postgresql commits of two pools without gaps, each key's changes in commit order, at once for their writer",
-    async () => {
-        const storage = await open();
-        const other = await storage.connect(changeTables);
-        await storage.database.insert(note).values({ ...first, editedAt: 0 });
-
-        // follow every change from the start through the other pool
-        const total = 1 + WRITERS * COMMITS * 2;
-        const followed: Change[] = [];
-        const following = (async () => {
-            const selection = { tables: [note, revision], after: 0 };
-            for await (const page of other.log.follow(selection, AbortSignal.timeout(10_000))) {
-                followed.push(...page.changes);
-                if (followed.length >= total) {
-                    return;
-                }
-            }
-        })();
-
-        // commit from both pools at once, each counting the shared note up with a revision
-        await Promise.all(
-            Array.from({ length: WRITERS }, async (_, writer) => {
-                const database = writer % 2 === 0 ? storage.database : other;
-                for (let number = 0; number < COMMITS; number++) {
-                    await database.transaction(
-                        async (transaction) => {
-                            await transaction
-                                .update(note)
-                                .set({ editedAt: sql`${note.editedAt} + 1` })
-                                .where(eq(note.id, "a"));
-                            await transaction.insert(revision).values({
-                                scope: "inbox",
-                                noteId: `writer-${writer}`,
-                                number,
-                                title: "Counted",
-                            });
-                        },
-                        { isolationLevel: "read committed" },
-                    );
-                }
-            }),
-        );
-
-        // read the last commit at once through its writer's pool
-        expect((await storage.database.log.position()).sequence).toBe(total);
-
-        // number every change once, without gaps
-        await following;
-        expect(followed.map((change) => change.sequence)).toEqual(
-            Array.from({ length: total }, (_, index) => index + 1),
-        );
-
-        // place each later update of the shared note at a higher position, with its higher count
-        const counts = followed.flatMap((change) =>
-            Change.of(change, note) ? [Change.after(change)?.editedAt] : [],
-        );
-        expect(counts).toEqual(Array.from({ length: WRITERS * COMMITS + 1 }, (_, index) => index));
-    },
-);
-
 test("move a consumer's slot only from the position it read, refusing a consumer whose read another one moved past", async () => {
-    const { database } = await open();
-    const expiresAt = Date.now() + 60_000;
+    const { database, clock } = await open();
+    const expiresAt = clock.now() + 60_000;
 
     // place a slot from the start, then move it from where it stands
     await database.log.move("rating", 0, 3, expiresAt);
@@ -503,8 +414,8 @@ test("move a consumer's slot only from the position it read, refusing a consumer
 });
 
 test("claim a consumer's page once from where its slot stands at the first claim's time, claiming nothing behind a move, placing a slot claimed from the start, and end the claim on a move, an advance or a drop", async () => {
-    const { database } = await open();
-    const expiresAt = Date.now() + 60_000;
+    const { database, clock } = await open();
+    const expiresAt = clock.now() + 60_000;
 
     // claim the page after 3 through 5 at 100, then claim again through 7 at 200
     await database.log.move("rating", 0, 3, expiresAt);
@@ -543,9 +454,117 @@ test("claim a consumer's page once from where its slot stands at the first claim
     });
 });
 
-test("place a consumer's slot at the log's start once, and list the slots of a prefix", async () => {
+test("stamp each logged change at its connection's clock as the clock moves between transactions", async () => {
+    // write a note at one time, and rename it later
+    const simulation = new Simulation({ seed: 1, start: Date.UTC(2026, 0, 1) });
+    const { clock } = simulation;
+    const environment = simulation.environment("store");
+    const storage = await TestDatabase.create(changeTables, { environment });
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    await database.migrate(changeTables);
+    await database.transaction((transaction) => transaction.insert(note).values(first).execute());
+    clock.set(Date.UTC(2026, 0, 2));
+    await database.transaction(async (transaction) => {
+        await transaction.update(note).set({ title: "Renamed" }).where(eq(note.id, "a"));
+    });
+
+    // read both changes at the clock's times
+    const { changes } = await database.log.read({ tables: [note], after: 0 });
+    expect(changes.map((change) => [change.operation, change.changedAt])).toEqual([
+        ["insert", Date.UTC(2026, 0, 1)],
+        ["update", Date.UTC(2026, 0, 2)],
+    ]);
+});
+
+test("keep a transaction's stamp through a failed savepoint after its first write, logging one time for both writes", async () => {
+    // write a note, fail a nested transaction, then rename the note, the clock moving between
+    const simulation = new Simulation({ seed: 1, start: Date.UTC(2026, 0, 1) });
+    const { clock } = simulation;
+    const environment = simulation.environment("store");
+    const storage = await TestDatabase.create(changeTables, { environment });
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    await database.migrate(changeTables);
+    await database.transaction(async (transaction) => {
+        await transaction.insert(note).values(first);
+        clock.set(Date.UTC(2026, 0, 2));
+        await transaction
+            .transaction(async (nested) => {
+                await nested.update(note).set({ title: "Undone" }).where(eq(note.id, "a"));
+                throw new Error("undo");
+            })
+            .catch(() => undefined);
+        await transaction.update(note).set({ title: "Renamed" }).where(eq(note.id, "a"));
+    });
+
+    // log both kept writes at the transaction's first stamp
+    const { changes } = await database.log.read({ tables: [note], after: 0 });
+    expect(changes.map((change) => [change.operation, change.changedAt])).toEqual([
+        ["insert", Date.UTC(2026, 0, 1)],
+        ["update", Date.UTC(2026, 0, 1)],
+    ]);
+});
+
+test("refuse a logged script outside a transaction, and log one inside a transaction", async () => {
+    // run a script writing a note outside a transaction, then inside one
     const { database } = await open();
-    const expiresAt = Date.now() + 60_000;
+    const insert = `INSERT INTO ${note[TABLE].sqlName} (id, title, scope, views, labels, edited_at) VALUES ('b', 'Script', 'inbox', 1, '[]', 1)`;
+    const outside = await refusal(() => database.executeScript(insert));
+    await database.transaction((transaction) =>
+        transaction.executeScript(insert.replace("'b'", "'c'")),
+    );
+
+    // log the transaction's write alone
+    const { changes } = await database.log.read({ tables: [note], after: 0 });
+    expect({ outside, logged: changes.map((change) => change.operation) }).toEqual({
+        outside: [
+            "INTERNAL_SERVER_ERROR",
+            "TRANSACTION_REQUIRED",
+            `a logged write of ${note[TABLE].sqlName} runs outside a transaction: run it in a transaction`,
+        ],
+        logged: ["insert"],
+    });
+});
+
+test("retain the changes after a slot without expiry past any time until it drops", async () => {
+    // write and rename a note at a fixed time, retaining the log after the write
+    const now = Date.UTC(2026, 0, 1);
+    const environment = new Simulation({ seed: 1, start: now }).environment("store");
+    const storage = await TestDatabase.create(changeTables, { environment });
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    await database.migrate(changeTables);
+    await database.transaction((transaction) => transaction.insert(note).values(first).execute());
+    const kept = (await database.log.position()).sequence;
+    await database.transaction((transaction) =>
+        transaction.update(note).set({ title: "Renamed" }).where(eq(note.id, "a")).execute(),
+    );
+
+    // retain the changes after the slot however late compaction runs
+    await database.log.retain("trigger", kept);
+    await database.log.compact(now + 1, now + 365 * 24 * 60 * 60_000);
+    const retained = (await database.log.read({ tables: [note], after: kept })).changes;
+
+    // compact them once the slot drops
+    await database.log.drop("trigger");
+    await database.log.compact(now + 1, now);
+    expect([
+        retained.map((change) => change.operation),
+        await refusal(database.log.read({ tables: [note], after: kept })),
+    ]).toEqual([
+        ["update"],
+        [
+            "GONE",
+            "CHANGES_COMPACTED",
+            `changes after ${kept} were compacted: list the tables again`,
+        ],
+    ]);
+});
+
+test("place a consumer's slot at the log's start once, and list the slots of a prefix", async () => {
+    const { database, clock } = await open();
+    const expiresAt = clock.now() + 60_000;
 
     // place three slots, placing a moved one again
     await database.log.place("usage:a", expiresAt);
@@ -562,13 +581,15 @@ test("place a consumer's slot at the log's start once, and list the slots of a p
 });
 
 test("retain the changes after a consumer's slot until it expires or is dropped, and read its position", async () => {
-    const { database } = await open();
-    await database.insert(note).values(first);
+    const { database, clock } = await open();
+    await database.transaction((transaction) => transaction.insert(note).values(first).execute());
     const kept = (await database.log.position()).sequence;
-    await database.update(note).set({ title: "Renamed" }).where(eq(note.id, "a"));
+    await database.transaction((transaction) =>
+        transaction.update(note).set({ title: "Renamed" }).where(eq(note.id, "a")).execute(),
+    );
 
     // retain the changes after the slot while it lasts
-    const now = Date.now();
+    const now = clock.now();
     await database.log.advance("subscription", kept, now + 60_000);
     expect([await database.log.slot("subscription"), await database.log.slot("other")]).toEqual([
         kept,
@@ -598,7 +619,7 @@ test("bound a transaction's changes by the positions around it", async () => {
     const { database } = await open();
 
     // write two changes in one transaction
-    await database.insert(note).values(first);
+    await database.transaction((transaction) => transaction.insert(note).values(first).execute());
     const before = (await database.log.position()).sequence;
     await database.transaction(async (transaction) => {
         await transaction.update(note).set({ subtitle: "u" }).where(eq(note.id, "a"));
@@ -615,13 +636,17 @@ test("bound a transaction's changes by the positions around it", async () => {
 });
 
 test("log the rows of a table without a scope column under its database's scope", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // refuse writing the rows while the database has no scope
-    const unscoped = await TestDatabase.create([setting]);
+    const unscoped = await TestDatabase.create([setting], { environment: world });
     onTestFinished(() => unscoped.close());
     await unscoped.database.migrate([setting]);
     const unscopedWrite = await unscoped.database
-        .insert(setting)
-        .values({ name: "theme", value: "dark" })
+        .transaction((transaction) =>
+            transaction.insert(setting).values({ name: "theme", value: "dark" }).execute(),
+        )
         .then(
             () => undefined,
             (error: unknown) => error,
@@ -633,13 +658,23 @@ test("log the rows of a table without a scope column under its database's scope"
     ).toEqual(["QUERY_FAILED", "the database has no scope for the rows of destack__db__setting"]);
 
     // file every change under the scope the database was created with
-    const scoped = await TestDatabase.create([setting]);
+    const scoped = await TestDatabase.create([setting], { environment: world });
     onTestFinished(() => scoped.close());
     await scoped.database.log.create("space-a");
     await scoped.database.migrate([setting]);
-    await scoped.database.insert(setting).values({ name: "theme", value: "dark" });
-    await scoped.database.update(setting).set({ value: "light" }).where(eq(setting.name, "theme"));
-    await scoped.database.delete(setting).where(eq(setting.name, "theme"));
+    await scoped.database.transaction((transaction) =>
+        transaction.insert(setting).values({ name: "theme", value: "dark" }).execute(),
+    );
+    await scoped.database.transaction(
+        async (transaction) =>
+            await transaction
+                .update(setting)
+                .set({ value: "light" })
+                .where(eq(setting.name, "theme")),
+    );
+    await scoped.database.transaction((transaction) =>
+        transaction.delete(setting).where(eq(setting.name, "theme")).execute(),
+    );
     const changes = await scoped.database.log.read({ tables: [setting], after: 0 });
     expect(changes.changes.map((change) => [change.operation, change.scope])).toEqual([
         ["insert", "space-a"],
@@ -649,8 +684,11 @@ test("log the rows of a table without a scope column under its database's scope"
 });
 
 test("migrate after a transaction that created the log rolled back, as no log remains", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // create the log and the table in a transaction that rolls back
-    const storage = await TestDatabase.create([setting]);
+    const storage = await TestDatabase.create([setting], { environment: world });
     onTestFinished(() => storage.close());
     const { database } = storage;
     const rolledBack = await database
@@ -670,8 +708,11 @@ test("migrate after a transaction that created the log rolled back, as no log re
 });
 
 test("log a transaction's writes once it creates the log after stamping without one", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // stamp a transaction before the log exists, create the log, then write a logged row
-    const storage = await TestDatabase.create([setting]);
+    const storage = await TestDatabase.create([setting], { environment: world });
     onTestFinished(() => storage.close());
     const { database } = storage;
     await database.transaction(async (transaction) => {
@@ -691,15 +732,22 @@ test("log the insertions of an append-only table alone, refusing its updates", a
     const { database } = await open();
 
     // insert two readings, delete the first and try to change the second
-    await database.insert(reading).values([
-        { id: "a", scope: "inbox", value: 1 },
-        { id: "b", scope: "inbox", value: 2 },
-    ]);
-    await database.delete(reading).where(eq(reading.id, "a"));
+    await database.transaction((transaction) =>
+        transaction
+            .insert(reading)
+            .values([
+                { id: "a", scope: "inbox", value: 1 },
+                { id: "b", scope: "inbox", value: 2 },
+            ])
+            .execute(),
+    );
+    await database.transaction((transaction) =>
+        transaction.delete(reading).where(eq(reading.id, "a")).execute(),
+    );
     const updated = await database
-        .update(reading)
-        .set({ value: 3 })
-        .where(eq(reading.id, "b"))
+        .transaction((transaction) =>
+            transaction.update(reading).set({ value: 3 }).where(eq(reading.id, "b")).execute(),
+        )
         .then(
             () => "updated",
             (error: unknown) => String(error instanceof Error ? (error.cause ?? error) : error),
@@ -724,12 +772,27 @@ test("log the insertions of an append-only table alone, refusing its updates", a
 
 test("read the position of a scope's latest change to some tables, past later changes to others", async () => {
     // write a note and a revision in the inbox, then a note in the archive
-    const { database } = await open();
-    await database.insert(note).values({ ...first, id: "n" });
+    const { database, clock } = await open();
+    await database.transaction((transaction) =>
+        transaction
+            .insert(note)
+            .values({ ...first, id: "n" })
+            .execute(),
+    );
     const noted = await database.log.position();
-    await database.insert(revision).values({ scope: "inbox", noteId: "n", number: 1, title: "R" });
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .insert(revision)
+                .values({ scope: "inbox", noteId: "n", number: 1, title: "R" }),
+    );
     const revised = await database.log.position();
-    await database.insert(note).values({ ...first, id: "m", scope: "archive" });
+    await database.transaction((transaction) =>
+        transaction
+            .insert(note)
+            .values({ ...first, id: "m", scope: "archive" })
+            .execute(),
+    );
     const archived = await database.log.position();
     const changed = {
         notes: await database.log.changed([note], ["inbox"]),
@@ -746,7 +809,7 @@ test("read the position of a scope's latest change to some tables, past later ch
 
     // place the inbox's notes at the horizon once compaction removed the notes' changes
     const before = await database.log.position();
-    await database.log.compact(Date.now() + 1000, Date.now());
+    await database.log.compact(clock.now() + 1000, clock.now());
     expect({ ...changed, compacted: await database.log.changed([note], ["inbox"]) }).toEqual({
         notes: noted,
         both: revised,

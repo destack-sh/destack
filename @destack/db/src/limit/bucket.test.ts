@@ -1,6 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { TestDatabase } from "../test/database.ts";
 import { bucket, Bucket, type BucketRequest } from "./bucket.ts";
+import { testSimulation } from "@destack/test/world";
 
 /** The time the scenarios start at, in UTC epoch milliseconds. */
 const START = 1_800_000_000_000;
@@ -10,7 +11,10 @@ const LIMIT = { name: "note.create", key: "space-1", rate: { count: 10, every: 1
 
 /** Open a database with the bucket table. */
 async function open() {
-    const storage = await TestDatabase.create([bucket], { isMigrated: true });
+    const storage = await TestDatabase.create([bucket], {
+        environment: testSimulation().environment("test"),
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
 
     return storage.database;

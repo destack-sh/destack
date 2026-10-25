@@ -2,9 +2,14 @@ import { expect, onTestFinished, test, refusal } from "@destack/test";
 import { TestDatabase } from "../test/database.ts";
 import { asc, eq } from "../index.ts";
 import { photo, post, remark, section } from "./test/fixture.ts";
+import { testSimulation } from "@destack/test/world";
 
 test("delete the rows referencing a deleted row of their type, also below foreign key cascades", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     const storage = await TestDatabase.create([remark, post, section, photo], {
+        environment: world,
         isMigrated: true,
     });
     onTestFinished(() => storage.close());

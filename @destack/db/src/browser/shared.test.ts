@@ -3,6 +3,7 @@ import { asc, defineTable, eq, integer, text } from "../index.ts";
 import { connectBunSqlite } from "../bun/connection.ts";
 import { channelHub } from "../channel/channel.ts";
 import { connectShared, Party, serveDatabase } from "./shared.ts";
+import { testSimulation } from "@destack/test/world";
 
 /** Notes a party writes. */
 const note = defineTable("shared_note", {
@@ -13,16 +14,20 @@ const note = defineTable("shared_note", {
 });
 
 test("run a party's statements and transactions on the owner's connection, notifying its commits", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // serve the owner's database to a party
     const join = channelHub<unknown>();
     const owner = await connectBunSqlite(":memory:", [note], {
+        environment: world,
         openChannel: () => join(),
     });
     onTestFinished(() => owner.close());
     await owner.migrate([note]);
-    const stop = serveDatabase(owner.$client, join());
+    const stop = serveDatabase(owner.$client, join(), world);
     onTestFinished(stop);
-    const party = connectShared(join(), "tab-2", [note]);
+    const party = connectShared(join(), "tab-2", [note], world);
     onTestFinished(() => party.close());
 
     // write and read through the owner
@@ -62,15 +67,18 @@ test("run a party's statements and transactions on the owner's connection, notif
 });
 
 test("queue requests until an owner serves, and fail requests a replaced owner left unanswered", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // ask before an owner serves
     const join = channelHub<unknown>();
-    const first = await connectBunSqlite(":memory:", [note]);
+    const first = await connectBunSqlite(":memory:", [note], { environment: world });
     onTestFinished(() => first.close());
     await first.migrate([note]);
     const party = new Party(join(), "tab-2");
     onTestFinished(() => party.close());
     const begun = party.begin("deferred");
-    const stopFirst = serveDatabase(first.$client, join());
+    const stopFirst = serveDatabase(first.$client, join(), world);
     const transaction = await begun;
     expect(transaction.id).toBe(0);
 
@@ -82,9 +90,9 @@ test("queue requests until an owner serves, and fail requests a replaced owner l
         sql: "SELECT 1",
         parameters: [],
     });
-    const second = await connectBunSqlite(":memory:", [note]);
+    const second = await connectBunSqlite(":memory:", [note], { environment: world });
     onTestFinished(() => second.close());
-    onTestFinished(serveDatabase(second.$client, join()));
+    onTestFinished(serveDatabase(second.$client, join(), world));
     expect(await refusal(unanswered)).toEqual([
         "SERVICE_UNAVAILABLE",
         "OWNER_CHANGED",

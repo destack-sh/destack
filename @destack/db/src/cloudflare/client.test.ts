@@ -1,29 +1,28 @@
 import { WORKERD_COMPATIBILITY_DATE } from "@destack/package/build";
 import { Miniflare } from "miniflare";
 import { fileURLToPath } from "node:url";
-import { modulePlugin } from "@destack/package/bun";
+import { modulePlugin } from "@destack/package/vite";
+import { rolldown } from "rolldown";
+import { testHost } from "@destack/test/host";
 import { expect, onTestFinished, test } from "@destack/test";
 
 /** Run the scenario in the Workers runtime with one Durable Object, disposed after the test. */
 async function start(): Promise<Miniflare> {
     // bundle the scenario with its declarations' module metadata
-    const compiled = await Bun.build({
-        entrypoints: [fileURLToPath(new URL("./test/scenario.ts", import.meta.url))],
-        format: "esm",
-        target: "browser",
-        conditions: ["workerd", "worker", "browser"],
-        external: ["node:*", "cloudflare:*"],
-        plugins: [modulePlugin],
+    const bundle = await rolldown({
+        input: fileURLToPath(new URL("./test/scenario.ts", import.meta.url)),
+        platform: "browser",
+        resolve: { conditionNames: ["workerd", "worker", "browser"] },
+        external: [/^node:/u, /^cloudflare:/u],
+        plugins: [modulePlugin(testHost().files)],
     });
-    const [output] = compiled.outputs;
-    if (output === undefined) {
-        throw new Error("the scenario bundled into no file");
-    }
+    const { output } = await bundle.generate({ format: "esm" });
+    const [chunk] = output;
 
     // run it with one Durable Object
     const worker = new Miniflare({
         modules: true,
-        script: await output.text(),
+        script: chunk.code,
         compatibilityDate: WORKERD_COMPATIBILITY_DATE,
         compatibilityFlags: ["nodejs_compat"],
         durableObjects: { NOTES: { className: "Notes", useSQLite: true } },

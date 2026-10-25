@@ -1,3 +1,4 @@
+import type { Clock } from "@destack/environment";
 /// <reference types="bun" />
 import type * as bun from "bun:sqlite";
 import type { DriverValue } from "../table/column.ts";
@@ -8,11 +9,12 @@ import {
     type SqliteQueryClient,
 } from "../sqlite/client.ts";
 import { SqliteScript } from "../sqlite/script.ts";
+import { present } from "@destack/schema";
 
 /** The most prepared statement texts per connection: a package runs 400 to 600 of 2 to 10 KB. */
 const PREPARED_TEXTS = 512;
 
-/** The work queue of each database file, shared by the process's connections to it. */
+/** The work queue of each database file by its real path: one writer per file in the process. */
 const FILE_QUEUES = new Map<string, SqliteWorkQueue>();
 
 /** Bun's SQLite statements, with the integer mode Bun has beside its declared methods. */
@@ -30,11 +32,15 @@ export class BunQuery implements SqliteQueryClient {
     readonly database: bun.Database;
     /** The prepared statements. */
     readonly statements: BunStatementCache;
-    /** The work queue, absent within a transaction. */
-    readonly queue: SqliteWorkQueue | undefined;
+    /** The work queue and the clock each turn waits on, absent within a transaction. */
+    readonly queue: { readonly work: SqliteWorkQueue; readonly clock: Clock } | undefined;
 
     /** Create the client. */
-    constructor(database: bun.Database, statements: BunStatementCache, queue?: SqliteWorkQueue) {
+    constructor(
+        database: bun.Database,
+        statements: BunStatementCache,
+        queue?: { readonly work: SqliteWorkQueue; readonly clock: Clock },
+    ) {
         this.database = database;
         this.statements = statements;
         this.queue = queue;
@@ -84,7 +90,7 @@ export class BunQuery implements SqliteQueryClient {
 
     /** Run work behind the queue, or at once within a transaction. */
     #schedule<Value>(work: () => Promise<Value>): Promise<Value> {
-        return this.queue === undefined ? work() : this.queue.run(work);
+        return this.queue === undefined ? work() : this.queue.work.run(work, this.queue.clock);
     }
 }
 
@@ -92,30 +98,47 @@ export class BunQuery implements SqliteQueryClient {
 export class BunClient extends BunQuery implements SqliteConnectionClient {
     /** The work queue of the database file. */
     readonly #queue: SqliteWorkQueue;
+    /** The clock the client's turns wait on. */
+    readonly #clock: Clock;
 
-    /** Create the client. */
-    constructor(database: bun.Database) {
+    /** Create the client, its turns waited for on a clock. */
+    constructor(database: bun.Database, clock: Clock) {
+        // share the file's queue, each turn waited for on the client's clock
         const queue = BunClient.queue(database);
-        super(database, new BunStatementCache(database), queue);
+        super(database, new BunStatementCache(database), { work: queue, clock });
         this.#queue = queue;
+        this.#clock = clock;
     }
 
-    /** Read the work queue of a database's file, or a separate queue for a memory database. */
+    /** Read the work queue of a database's file by its real path, or a separate one in memory. */
     static queue(database: bun.Database): SqliteWorkQueue {
         // give each memory database a separate queue
-        const file = database.filename;
-        if (file === "" || file === ":memory:") {
+        const file = BunClient.file(database);
+        if (file === "") {
             return new SqliteWorkQueue();
         }
 
-        // share one queue per file
-        let queue = FILE_QUEUES.get(file);
-        if (queue === undefined) {
-            queue = new SqliteWorkQueue();
-            FILE_QUEUES.set(file, queue);
+        // share one queue per file, however its path was spelled
+        const known = FILE_QUEUES.get(file);
+        if (known !== undefined) {
+            return known;
         }
+        const queue = new SqliteWorkQueue();
+        FILE_QUEUES.set(file, queue);
 
         return queue;
+    }
+
+    /** Read the real path SQLite resolved for a database's main file, empty in memory. */
+    static file(database: bun.Database): string {
+        const listed = database
+            .query<{ name: string; file: string }, []>("PRAGMA database_list")
+            .all();
+
+        return present(
+            listed.find((entry) => entry.name === "main"),
+            "the database's main file",
+        ).file;
     }
 
     /** Close the database after its work. */
@@ -123,7 +146,7 @@ export class BunClient extends BunQuery implements SqliteConnectionClient {
         await this.#queue.run(async () => {
             this.statements.close();
             this.database.close();
-        });
+        }, this.#clock);
     }
 
     /** Run a callback in a transaction. */
@@ -141,7 +164,7 @@ export class BunClient extends BunQuery implements SqliteConnectionClient {
                     this.database.run("ROLLBACK");
                     throw error;
                 }
-            });
+            }, this.#clock);
 
         return {
             deferred: () => begin("DEFERRED"),

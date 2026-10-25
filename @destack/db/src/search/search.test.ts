@@ -2,6 +2,7 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { asc, Condition, defineTable, eq, TABLE, text } from "../index.ts";
 import { TestDatabase } from "../test/database.ts";
 import { SearchText } from "./text.ts";
+import { testSimulation } from "@destack/test/world";
 
 /** Notes before their text is searched. */
 const plainNote = defineTable(
@@ -49,25 +50,47 @@ const SEARCHES = [
 ];
 
 test("search rows by word prefixes, current through writes and a migration, alike in SQL and memory", async () => {
-    const storage = await TestDatabase.create([plainNote], { storage: "file" });
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create([plainNote], {
+        environment: world,
+        storage: "file",
+    });
     onTestFinished(() => storage.close());
 
     // store notes before their text is searched, then search it over a connection with search
     await storage.database.migrate([plainNote]);
-    await storage.database.insert(plainNote).values([
-        { id: "a", scope: "s", title: "Ada Lovelace", body: "The first program" },
-        { id: "b", scope: "s", title: "Analytical Engine", body: "engine-note by Ada" },
-    ]);
+    await storage.database.transaction((transaction) =>
+        transaction
+            .insert(plainNote)
+            .values([
+                { id: "a", scope: "s", title: "Ada Lovelace", body: "The first program" },
+                { id: "b", scope: "s", title: "Analytical Engine", body: "engine-note by Ada" },
+            ])
+            .execute(),
+    );
     const database = await storage.connect([note]);
     onTestFinished(() => database.close());
     await database.migrate([note]);
 
     // add, change and remove notes once their text is searched
-    await database.insert(note).values([
-        { id: "c", scope: "s", title: "Café in 東京", body: null },
-        { id: "d", scope: "s", title: "Removed", body: "Ada" },
-    ]);
-    await database.update(note).set({ body: "Notes on Lovelace" }).where(eq(note.id, "b"));
+    await database.transaction((transaction) =>
+        transaction
+            .insert(note)
+            .values([
+                { id: "c", scope: "s", title: "Café in 東京", body: null },
+                { id: "d", scope: "s", title: "Removed", body: "Ada" },
+            ])
+            .execute(),
+    );
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .update(note)
+                .set({ body: "Notes on Lovelace" })
+                .where(eq(note.id, "b")),
+    );
     await database.transaction(async (transaction) => {
         await transaction.delete(note).where(eq(note.id, "d"));
         await transaction.update(note).set({ title: "Charles" }).where(eq(note.id, "a"));

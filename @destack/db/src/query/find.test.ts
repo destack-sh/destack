@@ -4,6 +4,7 @@ import { boolean, integer, text } from "../table/column.ts";
 import { defineTable } from "../table/table.ts";
 import { defineDatabase } from "../declare/database.ts";
 import { defineRelations } from "./relation.ts";
+import { testSimulation } from "@destack/test/world";
 
 /** Projects with tasks. */
 const project = defineTable("project", {
@@ -85,7 +86,10 @@ const database = defineDatabase({
 
 /** Open the database with two projects, five tasks, two tags and a page forest. */
 async function open() {
-    const opened = await TestDatabase.create(database, { isMigrated: true });
+    const opened = await TestDatabase.create(database, {
+        environment: testSimulation().environment("test"),
+        isMigrated: true,
+    });
     onTestFinished(() => opened.close());
     const connection = opened.database;
     await connection.insert(project).values([
@@ -108,11 +112,16 @@ async function open() {
         { taskId: "t1", tagId: "g2" },
         { taskId: "t2", tagId: "g1" },
     ]);
-    await connection.insert(page).values([
-        { id: "a", space: "s", parentId: null },
-        { id: "b", space: "s", parentId: "a" },
-        { id: "c", space: "s", parentId: "b" },
-    ]);
+    await connection.transaction((transaction) =>
+        transaction
+            .insert(page)
+            .values([
+                { id: "a", space: "s", parentId: null },
+                { id: "b", space: "s", parentId: "a" },
+                { id: "c", space: "s", parentId: "b" },
+            ])
+            .execute(),
+    );
 
     return connection;
 }

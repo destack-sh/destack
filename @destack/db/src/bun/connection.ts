@@ -14,8 +14,8 @@ export async function connectBunSqlite<
     Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
 >(
     connection: string | Database,
-    tables: declaration.Database<Models> | readonly Table[] = [],
-    options: SqliteConnectOptions = {},
+    tables: declaration.Database<Models> | readonly Table[],
+    options: SqliteConnectOptions,
 ): Promise<SqliteDatabase<BunClient, Models>> {
     // open the file, or take the database given
     const database = typeof connection === "string" ? new Database(connection) : connection;
@@ -24,19 +24,22 @@ export async function connectBunSqlite<
         // configure connections opened here
         if (typeof connection === "string") {
             for (const pragma of [
+                `busy_timeout = ${BUSY_TIMEOUT_MILLISECONDS}`,
                 "journal_mode = WAL",
                 "synchronous = FULL",
                 "foreign_keys = ON",
-                `busy_timeout = ${BUSY_TIMEOUT_MILLISECONDS}`,
             ]) {
                 database.run(`PRAGMA ${pragma}`);
             }
         }
 
         // connect to the database's other connections on the given channels, or to none as the only writer
-        const { openChannel } = options;
-
-        return new SqliteDatabase(new BunClient(database), tables, "embedded", openChannel);
+        return new SqliteDatabase(
+            new BunClient(database, options.environment.clock),
+            tables,
+            "embedded",
+            options,
+        );
     } catch (error) {
         // release only connections opened by this call
         if (typeof connection === "string") {

@@ -615,7 +615,8 @@ export class Snapshot {
 
         // undo the transaction's writes
         const undone = new Map(images);
-        for (const change of await this.database.log.written([table])) {
+        for (const change of (await this.database.log.readTransaction({ tables: [table] }))
+            .changes) {
             const name = Key.name(table, change.key);
             if (!undone.has(name)) {
                 undone.set(name, Change.before(change));

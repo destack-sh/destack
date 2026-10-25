@@ -24,6 +24,12 @@ export const LOG_EPOCH = "__destack_log_epoch";
 /** The SQL name of the replica write marker, set while a replica's transaction writes. */
 export const LOG_REPLICA = "__destack_log_replica";
 
+/** The transaction-local setting with the time the connection's clock stamped on it. */
+export const CHANGED_AT_SETTING = "destack.changed_at";
+
+/** The transaction-local setting with the token a commit notification sends back to its writer. */
+export const COMMIT_TOKEN_SETTING = "destack.commit_token";
+
 /** The SQL name of the open SQLite transaction's identity. */
 export const LOG_TRANSACTION = "__destack_log_transaction";
 
@@ -108,15 +114,15 @@ export function loggedKey(table: Table): readonly Column[] {
     return columns;
 }
 
-/** Create the log once, its identifier its first epoch, with the row scope of unscoped tables. */
-export function createEpoch(epoch: string, scope?: string, namespace?: string): readonly string[] {
+/** Create the log's slot, replica marker and epoch tables once. */
+export function createEpoch(namespace?: string): readonly string[] {
     const name = (table: string) => quote(relation(table, namespace));
 
     return [
         `CREATE TABLE IF NOT EXISTS ${name(LOG_SLOT)} (
             name TEXT PRIMARY KEY,
             sequence BIGINT NOT NULL,
-            expires_at BIGINT NOT NULL,
+            expires_at BIGINT,
             claim BIGINT,
             claimed_at BIGINT,
             CHECK ((claim IS NULL) = (claimed_at IS NULL))
@@ -130,16 +136,23 @@ export function createEpoch(epoch: string, scope?: string, namespace?: string): 
             epoch TEXT NOT NULL,
             scope TEXT
         )`,
-        `INSERT INTO ${name(LOG_EPOCH)} (slot, log, epoch, scope)
-            VALUES (1, ${literal(epoch)}, ${literal(epoch)}, ${scope === undefined ? "NULL" : literal(scope)})
-            ON CONFLICT (slot) DO NOTHING`,
     ];
+}
+
+/** Start the log once at a first epoch, its identifier, with the row scope of unscoped tables. */
+export function insertEpoch(epoch: string, namespace?: string, scope?: string): string {
+    const table = quote(relation(LOG_EPOCH, namespace));
+    const scoped = scope === undefined ? "NULL" : literal(scope);
+
+    return `INSERT INTO ${table} (slot, log, epoch, scope)
+        VALUES (1, ${literal(epoch)}, ${literal(epoch)}, ${scoped})
+        ON CONFLICT (slot) DO NOTHING`;
 }
 
 /** The log of one dialect: its tables and change triggers, within the database's namespace. */
 export interface LogDialect {
-    /** Create the log once at a first epoch, with the row scope of unscoped tables. */
-    readonly create: (epoch: string, scope?: string, namespace?: string) => readonly string[];
+    /** Create the log's tables and functions once within the database's namespace. */
+    readonly create: (namespace?: string) => readonly string[];
     /** Generate the triggers on a table's relation recording its changes under its SQL name. */
     readonly install: (
         table: string,

@@ -3,6 +3,7 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { TestDatabase } from "../test/database.ts";
 import { integer, text } from "../table/column.ts";
 import { defineTable } from "../table/table.ts";
+import { testSimulation } from "@destack/test/world";
 
 /** The counters one upsert writes and one remove deletes. */
 const COUNTERS = 201;
@@ -36,17 +37,27 @@ function counters(count: number, value: number) {
 }
 
 test("upsert rows as they are, get them and remove them by key in one statement each", async () => {
-    const storage = await TestDatabase.create([counter], { isMigrated: true });
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create([counter], {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     const database = storage.database;
     const read = () =>
         database.select().from(counter).orderBy(asc(counter.owner), asc(counter.name));
 
     // insert and update the counters
-    await database.upsert(counter, counters(COUNTERS, 1));
+    await database.transaction(
+        async (transaction) => await transaction.upsert(counter, counters(COUNTERS, 1)),
+    );
     const inserted = await database.log.position();
     const bob = { scope: "s", owner: "bob", name: "c0000", value: 7 };
-    await database.upsert(counter, [...counters(COUNTERS, 2), bob]);
+    await database.transaction(
+        async (transaction) => await transaction.upsert(counter, [...counters(COUNTERS, 2), bob]),
+    );
     const page = await database.log.read({ tables: [counter], after: inserted.sequence });
     expect([
         (await read()).map((row) => row.value),
@@ -74,6 +85,6 @@ test("upsert rows as they are, get them and remove them by key in one statement 
     }).toEqual({ rows: [...counters(2, 2), bob], statements: 1 });
 
     // remove every row but one
-    await database.remove(counter, counters(COUNTERS, 0));
+    await database.transaction((transaction) => transaction.remove(counter, counters(COUNTERS, 0)));
     expect(await read()).toEqual([bob]);
 });

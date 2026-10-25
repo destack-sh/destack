@@ -1,5 +1,5 @@
 import type { ContentStore } from "@destack/resource";
-import { Digest } from "@destack/schema";
+import { Digest, type DigestCrypto } from "@destack/schema";
 import { DatabaseError } from "../error/error.ts";
 import type { DurableObjectStub } from "./host.ts";
 
@@ -12,11 +12,14 @@ export class DurableObjectContentStore implements Pick<ContentStore, "read" | "w
     readonly #object: DurableObjectStub;
     /** The operation's credential, proving each request. */
     readonly #authorization: string;
+    /** The WebCrypto hashing the pages. */
+    readonly #crypto: DigestCrypto;
 
     /** Read and write an object's pages, with an operation's credential. */
-    constructor(object: DurableObjectStub, authorization: string) {
+    constructor(object: DurableObjectStub, authorization: string, crypto: DigestCrypto) {
         this.#object = object;
         this.#authorization = authorization;
+        this.#crypto = crypto;
     }
 
     /** Read a page's bytes. */
@@ -33,7 +36,7 @@ export class DurableObjectContentStore implements Pick<ContentStore, "read" | "w
     async write(body: AsyncIterable<Uint8Array>, expected?: Digest): Promise<Digest> {
         // gather and hash the page
         const page = await gathered(body);
-        const digest = Digest.parse(await Digest.of(page));
+        const digest = await Digest.of(page, this.#crypto);
         if (expected !== undefined && expected !== digest) {
             throw DatabaseError.of(
                 "INVALID_RECORD",

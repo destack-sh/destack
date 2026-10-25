@@ -1,7 +1,8 @@
+import type { Clock, Environment } from "@destack/environment";
 import { schema } from "@destack/schema";
 import { exists, fill, render, type SQL, sql, type SQLWrapper } from "../sql/index.ts";
 import { classifyError, DatabaseError, type DeclaredNames } from "../error/error.ts";
-import { DatabaseDriver, type DriverOptions } from "./driver.ts";
+import { DatabaseDriver, type DriverOptions, OperationDuration } from "./driver.ts";
 import type { ColumnCipher } from "./cipher.ts";
 import type { Session } from "./session.ts";
 import { type Insert, type Table, TABLE } from "../table/table.ts";
@@ -324,7 +325,8 @@ export class DatabaseConnection<
                 : [];
 
         // plan the declared, given and retained tables, then apply the plan
-        const plan = await this.plan(mergeStates([...(options.states ?? []), others, declared]));
+        const merged = mergeStates([...(options.states ?? []), others, declared]);
+        const plan = await this.plan(merged);
         await this.apply(plan);
 
         return plan;
@@ -390,6 +392,7 @@ export class DatabaseConnection<
         // open the transaction, or a savepoint sharing the outermost one's writes and identity
         const isNested = this.driver.transaction !== undefined;
         const written = this.driver.transaction?.written ?? new Set<string>();
+        let attempt: TransactionIdentity | undefined;
         const execute = () =>
             this.driver.session.transaction(
                 async (session) => {
@@ -408,6 +411,7 @@ export class DatabaseConnection<
                     const identity =
                         this.driver.transaction?.identity ??
                         new TransactionIdentity(session, this.state);
+                    attempt = isNested ? undefined : identity;
                     const isStamped = identity.isStamped;
 
                     // run the work, forgetting a stamp its rolled back savepoint undid
@@ -437,7 +441,7 @@ export class DatabaseConnection<
                 },
             );
 
-        // report a lost commit as a concurrent update, which the outermost transaction runs again
+        // classify a nested failure, which the outermost transaction runs again on a lost race
         const enclosing = this.driver.transaction;
         if (enclosing !== undefined) {
             try {
@@ -447,12 +451,24 @@ export class DatabaseConnection<
             }
         }
 
-        // forget a lost attempt's writes, then announce the written tables once committed
-        return Transaction.retry(() => {
-            written.clear();
+        // forget a lost attempt's writes and token, then announce the written tables once committed
+        return Transaction.retry(
+            this,
+            "SERIALIZATION_FAILURE",
+            async () => {
+                written.clear();
+                try {
+                    const committed = await this.driver.commit(execute, written);
+                    attempt?.commit();
 
-            return this.driver.commit(execute, written);
-        }, signal);
+                    return committed;
+                } catch (error) {
+                    attempt?.abandon();
+                    throw error;
+                }
+            },
+            signal,
+        );
     }
 
     /** Bind a transaction session and drain its queries. */
@@ -477,6 +493,9 @@ export class DatabaseConnection<
 /** Where a connection's database runs: in the process, or across a network. */
 export type Locality = "embedded" | "networked";
 
+/** The effects a connection runs on: its clock, randomness, crypto and telemetry. */
+export type DatabaseEnvironment = Pick<Environment, "clock" | "crypto" | "random" | "telemetry">;
+
 /** How a physical connection runs: where, over which channels, and who announces commits. */
 export interface ConnectionOptions {
     /** Where the connection runs. */
@@ -493,12 +512,18 @@ export interface ConnectionOptions {
     readonly replicated: ReadonlySet<string>;
     /** The namespace of the database's relations, absent for none. */
     readonly namespace?: string;
+    /** The clock, randomness, crypto and telemetry the connection runs on. */
+    readonly environment: DatabaseEnvironment;
 }
 
 /** The operations, shutdown and commit watch of one physical connection. */
 export class ConnectionState {
     /** Where the connection's database runs. */
     readonly locality: Locality;
+    /** The clock, randomness, crypto and telemetry the connection runs on. */
+    readonly environment: DatabaseEnvironment;
+    /** The histogram of each statement's duration on the environment's telemetry. */
+    readonly durations: OperationDuration;
     /** The SQL names of the tables the database replicates, empty over bare tables. */
     readonly replicated: ReadonlySet<string>;
     /** The SQL tables a write to each declared table changes, itself first, through cascades. */
@@ -537,16 +562,27 @@ export class ConnectionState {
     operations = 0;
     /** The run statements and transactions, including nested ones. */
     statements = 0;
+    /** The commits that lost a race on their reads and ran again. */
+    lostRaces = 0;
+    /** The end of the latest serialized work, which the next one waits for. */
+    #serialized: Promise<unknown> = Promise.resolve();
     /** The operations to finish before close. */
     readonly #pending = new Set<Promise<void>>();
     /** The shutdown. */
     #closing?: Promise<void>;
+
+    /** The clock the log stamps changes at, the environment's. */
+    get clock(): Clock {
+        return this.environment.clock;
+    }
 
     /** Create the state of a new connection over declared tables. */
     constructor(options: ConnectionOptions) {
         // store the channels, the namespace and what writes to the declared tables change
         const { openChannel, tables } = options;
         this.locality = options.locality;
+        this.environment = options.environment;
+        this.durations = new OperationDuration(options.environment.telemetry);
         this.replicated = options.replicated;
         this.openChannel = openChannel;
         this.namespace = options.namespace;
@@ -596,9 +632,9 @@ export class ConnectionState {
         );
     }
 
-    /** Report whether a write of some tables may log, writing one with change triggers. */
-    isLogging(written: ReadonlySet<string>): boolean {
-        return [...written].some((table) => !this.unlogged.has(table));
+    /** List the written tables with change triggers, in written order. */
+    logged(written: ReadonlySet<string>): readonly string[] {
+        return [...written].filter((table) => !this.unlogged.has(table));
     }
 
     /** Submit an operation. */
@@ -624,11 +660,21 @@ export class ConnectionState {
         return result;
     }
 
+    /** Run work after the connection's earlier serialized work, one at a time in arrival order. */
+    serialize<Value>(work: () => Promise<Value>): Promise<Value> {
+        const running = this.#serialized.then(work);
+        this.#serialized = running.catch(() => undefined);
+
+        return running;
+    }
+
     /** Stop submissions, drain work, and close the client once. */
     close(operation: () => Promise<void>): Promise<void> {
-        this.#closing ??= Promise.all(this.#pending)
-            .then(() => this.commits.stop())
-            .then(operation);
+        this.#closing ??= this.clock.trackHost(
+            Promise.all(this.#pending)
+                .then(() => this.commits.stop())
+                .then(operation),
+        );
 
         return this.#closing;
     }

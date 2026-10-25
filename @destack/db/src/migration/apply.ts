@@ -1,4 +1,5 @@
-import { fromJsonSchema, present, schema } from "@destack/schema";
+import { fromJsonSchema, present, schema, Uuid } from "@destack/schema";
+import { insertEpoch } from "../log/schema.ts";
 import { sql } from "../sql/index.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { rebuildTree } from "../tree/rebuild.ts";
@@ -15,16 +16,18 @@ export async function applyPlan(database: DatabaseConnection, plan: TablePlan): 
         return;
     }
 
-    // serialise appliers, defer foreign keys, and defer the triggers
+    // serialise appliers, defer foreign keys and the triggers, and start the log at a drawn epoch
     const lock =
         plan.dialect === "postgresql"
             ? `SELECT pg_advisory_xact_lock(hashtextextended(${literal(STATE)}, 0))`
             : "PRAGMA defer_foreign_keys = ON";
+    const { environment, namespace } = database.state;
     const changes = [
         lock,
         ...plan.before,
         ...plan.steps.filter((step) => !isLogged(step)).flatMap((step) => step.statements),
         ...plan.after,
+        insertEpoch(Uuid.v7(environment), namespace),
     ];
 
     // turn foreign keys off while SQLite rebuilds tables
@@ -35,7 +38,7 @@ export async function applyPlan(database: DatabaseConnection, plan: TablePlan): 
     }
 
     // apply every phase and record the state
-    const appliedAt = Date.now();
+    const appliedAt = database.state.clock.now();
     try {
         await applySteps(database, plan, changes, appliedAt, isRebuilt);
     } finally {

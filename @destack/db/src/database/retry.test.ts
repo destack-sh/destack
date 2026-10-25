@@ -4,6 +4,9 @@ import { eq } from "../sql/index.ts";
 import { integer, text } from "../table/column.ts";
 import { defineTable } from "../table/table.ts";
 import { TestDatabase } from "../test/database.ts";
+import { testSimulation } from "@destack/test/world";
+import type { Environment } from "@destack/environment";
+import { testHost } from "@destack/test/host";
 
 /** Counters by name. */
 const tally = defineTable("retry_tally", {
@@ -13,29 +16,26 @@ const tally = defineTable("retry_tally", {
     value: integer("value").notNull(),
 });
 
-/** Open a database with one counter at zero. */
-async function open() {
-    const storage = await TestDatabase.create([tally], { isMigrated: true });
+/** Open a database with one counter at zero on an environment. */
+async function open(environment: Environment) {
+    const storage = await TestDatabase.create([tally], { environment, isMigrated: true });
     onTestFinished(() => storage.close());
     await storage.database.insert(tally).values({ name: "a", value: 0 });
 
-    return storage.database;
+    return { database: storage.database, clock: environment.clock };
 }
 
 test("commit both of two concurrent transactions incrementing the same row, running the one losing the race again", async () => {
+    // race on the real host, whose engines lock the losing transaction
+    const { database, clock } = await open(testHost());
+
     // read and increment the counter in two transactions at once, each reading before either writes
-    const database = await open();
     const reads = [Promise.withResolvers<void>(), Promise.withResolvers<void>()];
     const increment = (index: number) =>
         database.transaction(async (transaction) => {
             const [row] = await transaction.select().from(tally).where(eq(tally.name, "a"));
             reads[index]?.resolve();
-            await Promise.race([
-                Promise.all(reads.map((read) => read.promise)),
-                new Promise((resolve) => {
-                    setTimeout(resolve, 100);
-                }),
-            ]);
+            await Promise.race([Promise.all(reads.map((read) => read.promise)), clock.sleep(100)]);
             await transaction
                 .update(tally)
                 .set({ value: (row?.value ?? 0) + 1 })
@@ -49,13 +49,16 @@ test("commit both of two concurrent transactions incrementing the same row, runn
 
 test("answer a transaction that loses every race as unavailable after five attempts, and a failure of another kind at once", async () => {
     // lose the race at each attempt, and fail otherwise once
-    const database = await open();
+    await using simulation = testSimulation();
+    const { database } = await open(simulation.environment("test"));
     let losing = 0;
-    const lost = await database
-        .transaction(async () => {
-            losing++;
-            throw new Error("database is locked");
-        })
+    const lost = await simulation
+        .drive(
+            database.transaction(async () => {
+                losing++;
+                throw new Error("database is locked");
+            }),
+        )
         .catch((error: unknown) => error);
     let failing = 0;
     const failed = await database
@@ -67,7 +70,7 @@ test("answer a transaction that loses every race as unavailable after five attem
 
     expect({
         losing,
-        code: DatabaseError.is(lost) ? lost.toCallError().code : lost,
+        code: DatabaseError.is(lost) ? lost.code : lost,
         failing,
         failed,
     }).toEqual({

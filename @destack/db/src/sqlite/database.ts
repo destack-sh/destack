@@ -1,3 +1,4 @@
+import type { DatabaseEnvironment } from "../database/connection.ts";
 import type { SqliteConnectionClient } from "./client.ts";
 import {
     ConnectionState,
@@ -27,23 +28,23 @@ export class SqliteDatabase<
         client: Client,
         tables: declaration.Database<Models> | readonly Table[],
         locality: Locality,
-        openChannel: ((name: string) => Channel<unknown>) | undefined,
-        namespace?: string,
+        options: SqliteConnectOptions & { readonly namespace?: string },
     ) {
         // declare the tables with their tree tables
         const declared = "tables" in tables ? tables.tables : expandTrees(tables);
         requireDistinct(declared, "sqlite");
         super(
             new DatabaseDriver(
-                new SqliteSession(client),
+                new SqliteSession(client, options.environment.clock),
                 new ConnectionState({
                     locality,
-                    openChannel,
+                    openChannel: options.openChannel,
+                    environment: options.environment,
                     announcer: "connection",
                     tables: declared,
                     dialect: "sqlite",
                     replicated: "tables" in tables ? tables.replicated : new Set(),
-                    ...(namespace === undefined ? {} : { namespace }),
+                    ...(options.namespace === undefined ? {} : { namespace: options.namespace }),
                 }),
             ),
             declared,
@@ -67,4 +68,6 @@ export class SqliteDatabase<
 export interface SqliteConnectOptions {
     /** Open a channel of a name to the database's other connections, absent for a sole writer. */
     readonly openChannel?: (name: string) => Channel<unknown>;
+    /** The clock, randomness, crypto and telemetry the connection runs on. */
+    readonly environment: DatabaseEnvironment;
 }

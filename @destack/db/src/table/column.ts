@@ -185,18 +185,39 @@ export class ColumnBuilder<Definition extends ColumnDefinition = ColumnDefinitio
         return new ColumnBuilder({ ...this.definition, reference: { column, ...actions } });
     }
 
-    /** Validate values that are their JSON form with a narrower schema, in both forms. */
-    validate(
-        this: ColumnBuilder<Definition & { readonly json: schema.Schema<ValueOf<Definition>> }>,
-        validator: schema.Schema<ValueOf<Definition>>,
-    ): ColumnBuilder<Definition> {
-        const definition = this.definition;
+    /** Validate a column's values with a narrower schema, in both forms, typed by it. */
+    validate<
+        Value extends ColumnValue & JsonValue,
+        Kind extends ColumnKind,
+        Validator extends schema.Schema<Value>,
+    >(
+        this: ColumnBuilder<ColumnDefinitionOf<Value, Kind, Value>>,
+        validator: Validator,
+    ): ColumnBuilder<
+        ColumnDefinitionOf<schema.Infer<Validator>, Kind, Value> &
+            Pick<Definition, "nullable" | "primaryKey">
+    > {
+        // keep every setting, the default checked against the narrower schema
+        const { default: initial, ...definition } = this.definition;
+        const checked =
+            initial === undefined
+                ? {}
+                : { default: initial instanceof SQL ? initial : validator.parse(initial) };
 
-        return new ColumnBuilder({
+        return new ColumnBuilder<
+            ColumnDefinitionOf<schema.Infer<Validator>, Kind, Value> &
+                Pick<Definition, "nullable" | "primaryKey">
+        >({
             ...definition,
+            ...checked,
             schema: validator,
             json: validator,
-            fromJson: (value: unknown) => validator.parse(definition.fromJson(value)),
+            decode: (value, dialect) => {
+                // read the stored value as its write validated it
+                // oxlint-disable-next-line typescript/consistent-type-assertions, typescript/no-unsafe-type-assertion -- stored values passed their write's validator
+                return definition.decode(value, dialect) as schema.Infer<Validator>;
+            },
+            fromJson: (value) => validator.parse(definition.fromJson(value)),
         });
     }
 
@@ -241,7 +262,7 @@ export interface ColumnDefinition<
     readonly generated?: ColumnGeneration;
     /** The referenced column and referential actions. */
     readonly reference?: ReferenceAction & {
-        readonly column: () => Column<ColumnDefinition<Value>>;
+        readonly column: () => Column;
     };
     /** The protection: sensitive values stay in the row and out of the log. */
     readonly classification?: "sensitive";
@@ -426,7 +447,7 @@ function storedJson(value: unknown, dialect: Dialect): unknown {
     }
 }
 
-/** Define a prefixed UUIDv7 identifier, whose JSON form is its text. */
+/** Define a prefixed UUIDv7 or UUIDv8 identifier, whose JSON form is its text. */
 export function identifier<const Prefix extends string>(
     name: string,
     prefix: Prefix | (() => Prefix),

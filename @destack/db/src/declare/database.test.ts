@@ -3,6 +3,7 @@ import { TestDatabase } from "../test/database.ts";
 import { text } from "../table/column.ts";
 import { defineTable, TABLE } from "../table/table.ts";
 import { defineDatabase } from "./database.ts";
+import { testSimulation } from "@destack/test/world";
 
 /** Users, which another package declares. */
 const user = defineTable("user", { id: text("id").primaryKey() });
@@ -47,11 +48,16 @@ test("declare local and replicated tables, replicating a replicated tree's index
 });
 
 test("decide replicated tables on a connection by its declaration, and none over bare tables", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // open a database replicating the users and the same tables bare
     const tables = [user, note];
     const opened = await Promise.all([
-        TestDatabase.create(defineDatabase({ name: "main", tables: [note], replicated: [user] })),
-        TestDatabase.create(tables),
+        TestDatabase.create(defineDatabase({ name: "main", tables: [note], replicated: [user] }), {
+            environment: world,
+        }),
+        TestDatabase.create(tables, { environment: world }),
     ]);
     onTestFinished(async () => {
         await Promise.all(opened.map((opening) => opening.close()));

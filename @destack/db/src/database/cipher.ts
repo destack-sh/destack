@@ -1,5 +1,6 @@
 import { gcmsiv } from "@noble/ciphers/aes.js";
 import { schema } from "@destack/schema";
+import type { Random } from "@destack/environment";
 import type { Sealing } from "../table/column.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 
@@ -22,20 +23,26 @@ const SealedValue = schema.union([schema.string(), schema.number(), schema.boole
 export class ColumnCipher {
     /** The 256-bit column key. */
     readonly #key: Uint8Array<ArrayBuffer>;
+    /** The randomness the random nonces draw from. */
+    readonly #random: Random;
 
-    /** Encrypt under a 256-bit key. */
-    constructor(key: Uint8Array<ArrayBuffer>) {
+    /** Encrypt under a 256-bit key, drawing nonces from some randomness. */
+    constructor(key: Uint8Array<ArrayBuffer>, random: Random) {
         this.#key = key;
+        this.#random = random;
     }
 
     /** Derive the column key from the identity root of the database's scope. */
-    static async derive(root: {
-        readonly derive: (label: {
-            readonly label: string;
-            readonly context: string;
-        }) => Promise<Uint8Array<ArrayBuffer>>;
-    }): Promise<ColumnCipher> {
-        return new ColumnCipher(await root.derive(COLUMN_LABEL));
+    static async derive(
+        root: {
+            readonly derive: (label: {
+                readonly label: string;
+                readonly context: string;
+            }) => Promise<Uint8Array<ArrayBuffer>>;
+        },
+        random: Random,
+    ): Promise<ColumnCipher> {
+        return new ColumnCipher(await root.derive(COLUMN_LABEL), random);
     }
 
     /** Seal a column's driver value as text bound to the column. */
@@ -43,9 +50,7 @@ export class ColumnCipher {
         // encrypt the value's JSON under a fresh or fixed nonce and the column's context
         const plaintext = new TextEncoder().encode(JSON.stringify(SealedValue.parse(value)));
         const nonce =
-            sealing === "random"
-                ? crypto.getRandomValues(new Uint8Array(NONCE_BYTES))
-                : new Uint8Array(NONCE_BYTES);
+            sealing === "random" ? this.#random.bytes(NONCE_BYTES) : new Uint8Array(NONCE_BYTES);
         const ciphertext = ColumnCipher.#aead(this.#key, nonce, column).encrypt(plaintext);
         const sealed = new Uint8Array([...nonce, ...ciphertext]);
 

@@ -1,3 +1,4 @@
+import type { Environment } from "@destack/environment";
 import type { ResourceBinding } from "@destack/resource";
 import type { Database, DatabaseConnector } from "../declare/database.ts";
 import { DatabaseError } from "../error/error.ts";
@@ -36,10 +37,14 @@ export class PostgresConnector implements DatabaseConnector {
     async connect<Models extends Readonly<Record<string, Model>>>(
         binding: Pick<ResourceBinding, "reference">,
         declaration: Database<Models>,
+        environment: Environment,
     ): Promise<PostgresDatabase<Models>> {
-        // open the binding's pool as the sole writer
+        // open the binding's pool as the sole writer in the environment
         const url = this.url(binding.reference);
-        const connection = await connectPostgres(url, declaration, "sole");
+        const connection = await connectPostgres(url, declaration, {
+            writers: "sole",
+            environment,
+        });
 
         // refuse a database lacking its tables
         const unapplied = await declaration.check(connection);

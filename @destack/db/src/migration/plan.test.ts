@@ -12,6 +12,7 @@ import { declareState, STATE } from "./state.ts";
 import type { TablePlan } from "./plan.ts";
 import { Expression } from "../expression/expression.ts";
 import { ResourceError } from "@destack/resource/error";
+import { testSimulation } from "@destack/test/world";
 
 /** Folders with documents, as first released. */
 const folderOne = defineTable("folder", {
@@ -164,7 +165,9 @@ const unit = defineTable(
 
 /** Open an empty test database. */
 async function open(tables: readonly Table[]) {
-    const storage = await TestDatabase.create(tables);
+    const storage = await TestDatabase.create(tables, {
+        environment: testSimulation().environment("test"),
+    });
     onTestFinished(() => storage.close());
 
     return storage.database;
@@ -206,9 +209,18 @@ test("write a table's predefined rows in a fresh database, unlogged, and plan no
     ]);
 
     // log only rows written after, and plan nothing once migrated
-    await database
-        .insert(unit)
-        .values({ id: "mile", scope: "imperial", name: "Mile", factor: 1609, aliases: ["mi"] });
+    await database.transaction((transaction) =>
+        transaction
+            .insert(unit)
+            .values({
+                id: "mile",
+                scope: "imperial",
+                name: "Mile",
+                factor: 1609,
+                aliases: ["mi"],
+            })
+            .execute(),
+    );
     const changes = await database.log.read({ tables: [unit], after: 0 });
     expect(changes.changes.map((change) => change.key)).toEqual([{ id: "mile" }]);
     expect(
@@ -237,8 +249,11 @@ test("retain the applied tables a migration leaves out when asked, and drop them
 test("rename, drop, add and index columns while preserving rows", async () => {
     const database = await open([taskTwo]);
     await database.migrate([taskOne]);
-    await database.run(
-        sql`INSERT INTO ${sql.identifier(table(taskOne))} (id, scope, name, urgent, note) VALUES ('a', 'inbox', 'Plan', 1, 'old')`,
+    await database.transaction(
+        async (transaction) =>
+            await transaction.run(
+                sql`INSERT INTO ${sql.identifier(table(taskOne))} (id, scope, name, urgent, note) VALUES ('a', 'inbox', 'Plan', 1, 'old')`,
+            ),
     );
 
     // classify the rename, addition and dropped note
@@ -270,8 +285,11 @@ test("rename, drop, add and index columns while preserving rows", async () => {
 test("convert rows to a new release and log the converted values", async () => {
     const database = await open([taskThree]);
     await database.migrate([taskTwo]);
-    await database.run(
-        sql`INSERT INTO ${sql.identifier(table(taskTwo))} (id, scope, title, urgent, due_at) VALUES ('a', 'inbox', 'Plan', 1, NULL), ('b', 'inbox', 'Ship', 0, 5)`,
+    await database.transaction(
+        async (transaction) =>
+            await transaction.run(
+                sql`INSERT INTO ${sql.identifier(table(taskTwo))} (id, scope, title, urgent, due_at) VALUES ('a', 'inbox', 'Plan', 1, NULL), ('b', 'inbox', 'Ship', 0, 5)`,
+            ),
     );
     const before = (await database.log.position()).sequence;
 
@@ -301,8 +319,11 @@ test("convert rows to a new release and log the converted values", async () => {
 test("name what the declarations must fix instead of planning", async () => {
     const database = await open([taskUnfilled]);
     await database.migrate([taskOne]);
-    await database.run(
-        sql`INSERT INTO ${sql.identifier(table(taskOne))} (id, scope, name, urgent) VALUES ('t', 's', 'Plan', 0)`,
+    await database.transaction(
+        async (transaction) =>
+            await transaction.run(
+                sql`INSERT INTO ${sql.identifier(table(taskOne))} (id, scope, name, urgent) VALUES ('t', 's', 'Plan', 0)`,
+            ),
     );
     await database.run(sql`CREATE TABLE ${sql.identifier(table(labelPlain))} (id TEXT)`);
 
@@ -735,8 +756,11 @@ test("plan the union of declarations sharing a database", async () => {
 test("expand for two running releases, bridge a renamed column, then contract", async () => {
     const database = await open([taskOne]);
     await database.migrate([taskOne]);
-    await database.run(
-        sql`INSERT INTO ${sql.identifier(table(taskOne))} (id, scope, name, urgent, note) VALUES ('a', 'inbox', 'Plan', 1, 'old')`,
+    await database.transaction(
+        async (transaction) =>
+            await transaction.run(
+                sql`INSERT INTO ${sql.identifier(table(taskOne))} (id, scope, name, urgent, note) VALUES ('a', 'inbox', 'Plan', 1, 'old')`,
+            ),
     );
 
     // expand the table for both releases and bridge the renamed column
@@ -766,13 +790,22 @@ test("expand for two running releases, bridge a renamed column, then contract", 
 
     // make both names equal
     const name = sql.identifier(table(taskOne));
-    await database.run(
-        sql`INSERT INTO ${name} (id, scope, name, urgent) VALUES ('b', 'inbox', 'Old', 0)`,
+    await database.transaction(
+        async (transaction) =>
+            await transaction.run(
+                sql`INSERT INTO ${name} (id, scope, name, urgent) VALUES ('b', 'inbox', 'Old', 0)`,
+            ),
     );
-    await database.run(
-        sql`INSERT INTO ${name} (id, scope, title, urgent) VALUES ('c', 'inbox', 'New', 0)`,
+    await database.transaction(
+        async (transaction) =>
+            await transaction.run(
+                sql`INSERT INTO ${name} (id, scope, title, urgent) VALUES ('c', 'inbox', 'New', 0)`,
+            ),
     );
-    await database.run(sql`UPDATE ${name} SET title = 'Plan again' WHERE id = 'a'`);
+    await database.transaction(
+        async (transaction) =>
+            await transaction.run(sql`UPDATE ${name} SET title = 'Plan again' WHERE id = 'a'`),
+    );
     expect(await database.all(sql`SELECT id, name, title FROM ${name} ORDER BY id`)).toEqual([
         { id: "a", name: "Plan again", title: "Plan again" },
         { id: "b", name: "Old", title: "Old" },
@@ -816,6 +849,9 @@ test("name declared tables a database has not applied", async () => {
 });
 
 test("add foreign keys to local tables and leave references elsewhere logical", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // describe documents with and without their folders in the same database
     const keys = (tables: readonly Table[]) =>
         declareState(tables, TestDatabase.target())
@@ -827,10 +863,12 @@ test("add foreign keys to local tables and leave references elsewhere logical", 
     // migrate a database with documents but without their folders
     const storage = await TestDatabase.create(
         defineDatabase({ name: "documents", tables: [document] }),
-        { isMigrated: true },
+        { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
-    await storage.database.insert(document).values({ id: "d1", folderId: "elsewhere" });
+    await storage.database.transaction((transaction) =>
+        transaction.insert(document).values({ id: "d1", folderId: "elsewhere" }).execute(),
+    );
 
     expect([keys([folderTwo, document]), keys([document])]).toEqual([
         [["foreignKey", ["folder_id"], folderTwo[TABLE].sqlName]],
@@ -914,7 +952,12 @@ test("refuse an applied state in a format this release no longer reads, listing 
         .looseObject({ table: schema.looseObject({}) })
         .parse(JSON.parse(present(stored, "the stored state").state));
     const old = { ...state, table: { ...state.table, columns: "restrict" } };
-    await database.run(sql`UPDATE ${sql.relation(STATE)} SET state = ${JSON.stringify(old)}`);
+    await database.transaction(
+        async (transaction) =>
+            await transaction.run(
+                sql`UPDATE ${sql.relation(STATE)} SET state = ${JSON.stringify(old)}`,
+            ),
+    );
 
     // read the server's database and schema the state lives in
     const [server] =

@@ -4,6 +4,7 @@ import { uniqueIndex } from "../table/constraint.ts";
 import { defineTable, TABLE } from "../table/table.ts";
 import { TestDatabase } from "../test/database.ts";
 import { classifyError, DatabaseError, type DeclaredNames, violatedKeyOf } from "./error.ts";
+import { testSimulation } from "@destack/test/world";
 
 /** Notes as a database declares them, their title column named apart from its property. */
 const NOTES: DeclaredNames = new Map([
@@ -51,8 +52,14 @@ test("classify driver failures and leave domain errors that wrap them alone", ()
 });
 
 test("read the table and key columns a duplicate violates", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // insert two labels of one folder under one name
-    const storage = await TestDatabase.create([label], { isMigrated: true });
+    const storage = await TestDatabase.create([label], {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     await storage.database.insert(label).values({ id: "l1", folder: "inbox", name: "red" });
     const failure = await storage.database

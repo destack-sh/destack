@@ -4,6 +4,7 @@ import { TestDatabase } from "../test/database.ts";
 import { MemoryContentStore } from "@destack/resource/test";
 import { defineTable, eq, text } from "../index.ts";
 import { DatabaseHandle } from "./handle.ts";
+import { testSimulation } from "@destack/test/world";
 
 /** Attachments with a title and the digest of their file. */
 const attachment = defineTable("attachment", {
@@ -22,9 +23,10 @@ const SHARED = "a".repeat(64);
 
 /** Open two migrated SQLite databases of attachments, closed after the test. */
 async function openPair() {
+    const environment = testSimulation().environment("test");
     const [source, target] = await Promise.all([
-        TestDatabase.create([attachment], { isMigrated: true }),
-        TestDatabase.create([attachment], { isMigrated: true }),
+        TestDatabase.create([attachment], { environment, isMigrated: true }),
+        TestDatabase.create([attachment], { environment, isMigrated: true }),
     ]);
     onTestFinished(async () => {
         await Promise.all([source.close(), target.close()]);
@@ -44,8 +46,11 @@ async function pagesOf(store: MemoryContentStore, snapshot: Digest): Promise<str
 }
 
 test("snapshot a database's rows into a content-addressed store and restore them into another, rewriting rows both ways", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     const [source, target] = await openPair();
-    const store = new MemoryContentStore();
+    const store = new MemoryContentStore(world.crypto);
     await source.database
         .insert(attachment)
         .values({ id: "a", scope: "space", title: "notes", file: SHARED });
@@ -71,9 +76,12 @@ test("snapshot a database's rows into a content-addressed store and restore them
 });
 
 test("restore onto a base snapshot only the pages an edit, an insert and a deletion changed", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // store 6001 attachments
     const [source, target] = await openPair();
-    const store = new MemoryContentStore();
+    const store = new MemoryContentStore(world.crypto);
     const rows = Array.from({ length: 6001 }, (_, index) => ({
         id: `a${String(index).padStart(4, "0")}`,
         scope: "space",

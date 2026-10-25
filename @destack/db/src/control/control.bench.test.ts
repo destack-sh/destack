@@ -2,7 +2,10 @@ import { expect, onTestFinished, test, type TestContext } from "@destack/test";
 import { defineTable, eq, integer, text } from "../index.ts";
 import { TestDatabase } from "../test/index.ts";
 import { ControlLoop, type Controller, type FollowController } from "./control.ts";
-import { Clock } from "@destack/environment";
+import { testHost } from "@destack/test/host";
+
+/** The host the benchmark times real work on. */
+const HOST = testHost();
 
 /** The keys one burst reconciles. */
 const KEYS = 20;
@@ -27,7 +30,12 @@ const job = defineTable("controller_bench_job", {
 test("run timers between the reconciliations of a synchronous database, one key per turn", async ({
     annotate,
 }) => {
-    const storage = await TestDatabase.create([job], { dialect: "sqlite", isMigrated: true });
+    const { clock } = HOST;
+    const storage = await TestDatabase.create([job], {
+        environment: HOST,
+        dialect: "sqlite",
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     const database = storage.database;
     await database
@@ -45,8 +53,8 @@ test("run timers between the reconciliations of a synchronous database, one key 
             for (let read = 0; read < READS; read++) {
                 await database.select().from(job).where(eq(job.id, key));
             }
-            const end = performance.now() + WORK_MILLISECONDS;
-            while (performance.now() < end) {
+            const end = clock.now() + WORK_MILLISECONDS;
+            while (clock.now() < end) {
                 // occupy the thread as decoding does
             }
 
@@ -61,22 +69,32 @@ test("run timers between the reconciliations of a synchronous database, one key 
     };
 
     // probe the event loop while the loop reconciles every key
-    let last = performance.now();
+    let last = clock.now();
     let longest = 0;
-    const probe = setInterval(() => {
-        const now = performance.now();
-        longest = Math.max(longest, now - last);
-        last = now;
-        events.push("tick");
-    }, PROBE_MILLISECONDS);
+    const probing = new AbortController();
+    const probe = (async () => {
+        // tick once per wait until the probe stops
+        while (
+            await clock.sleep(PROBE_MILLISECONDS, probing.signal).then(
+                () => true,
+                () => false,
+            )
+        ) {
+            const now = clock.now();
+            longest = Math.max(longest, now - last);
+            last = now;
+            events.push("tick");
+        }
+    })();
     const stopping = new AbortController();
-    const loop = new ControlLoop(database, [controller], { clock: Clock.system, report: fail });
-    const start = performance.now();
+    const loop = new ControlLoop(database, [controller], { clock, report: fail });
+    const start = clock.now();
     const running = loop.run(stopping.signal);
     await done.promise;
-    const elapsed = performance.now() - start;
-    longest = Math.max(longest, performance.now() - last);
-    clearInterval(probe);
+    const elapsed = clock.now() - start;
+    longest = Math.max(longest, clock.now() - last);
+    probing.abort();
+    await probe;
     stopping.abort();
     await running;
 

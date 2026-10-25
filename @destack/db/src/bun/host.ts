@@ -1,4 +1,4 @@
-import { mkdir, rm, stat } from "node:fs/promises";
+import { type Environment, FileSystemError } from "@destack/environment";
 import { fileURLToPath } from "node:url";
 import type { Digest } from "@destack/schema";
 import { type KindState, Plan, ResourceRecord } from "@destack/resource";
@@ -15,36 +15,47 @@ export class BunSqliteDatabaseHost implements DatabaseHost {
     readonly provider: string = "sqlite";
     /** The directory URL with a folder per space. */
     readonly root: URL;
+    /** The machine's environment the databases run in, with its files and servers. */
+    readonly environment: Environment<"files" | "server">;
 
-    /** Store databases below a file directory URL. */
-    constructor(root: URL) {
+    /** Store databases below a file directory URL, in the machine's environment. */
+    constructor(root: URL, environment: Environment<"files" | "server">) {
         // require a directory URL
         if (root.protocol !== "file:" || !root.pathname.endsWith("/")) {
             throw new TypeError(`sqlite database root must be a file directory URL: ${root.href}`);
         }
         this.root = root;
+        this.environment = environment;
     }
 
-    /** Create the space folder and the database file with its log under the space's scope. */
+    /** Resolve a database's reference below the root to its file's URL. */
+    readonly resolve = (reference: string): string => new URL(reference, this.root).href;
+
+    /** Create the space folder and the database file with its log, referenced below the root. */
     async provision(record: ResourceRecord<typeof DatabaseKind>): Promise<{ reference: string }> {
         // create the folder and the file, and start its log
-        const space = new URL(`${record.scope}/`, this.root);
-        const file = new URL(`${record.id}.db`, space);
-        await mkdir(space, { recursive: true });
-        await using connection = await connectBunSqlite(fileURLToPath(file));
+        const reference = `${record.scope}/${record.id}.db`;
+        const file = fileURLToPath(this.resolve(reference));
+        await this.environment.files.mkdir(fileURLToPath(new URL(`${record.scope}/`, this.root)), {
+            recursive: true,
+        });
+        await using connection = await connectBunSqlite(file, [], {
+            environment: this.environment,
+        });
         await connection.log.create(record.scope);
 
-        return { reference: file.href };
+        return { reference };
     }
 
     /** Count a database's bytes: its file and write-ahead log, if a checkpoint left one. */
     async bytes(reference: string): Promise<number> {
         // read the file's size, and its log's
-        const path = fileURLToPath(reference);
-        const file = await stat(path);
-        const log = await stat(`${path}-wal`).catch((error: unknown) => {
+        const { files } = this.environment;
+        const path = fileURLToPath(this.resolve(reference));
+        const file = await files.stat(path);
+        const log = await files.stat(`${path}-wal`).catch((error: unknown) => {
             // count no log once a checkpoint removed it
-            if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+            if (FileSystemError.is(error, "NOT_FOUND")) {
                 return { size: 0 };
             }
 
@@ -56,9 +67,10 @@ export class BunSqliteDatabaseHost implements DatabaseHost {
 
     /** Remove the file with its WAL and shared memory. */
     async destroy(record: ResourceRecord<typeof DatabaseKind>): Promise<void> {
-        const path = fileURLToPath(ResourceRecord.reference(record));
+        const path = fileURLToPath(this.resolve(ResourceRecord.reference(record)));
+        const { files } = this.environment;
         for (const suffix of ["", "-wal", "-shm"]) {
-            await rm(`${path}${suffix}`, { force: true });
+            await files.remove(`${path}${suffix}`, { force: true });
         }
     }
 
@@ -67,7 +79,7 @@ export class BunSqliteDatabaseHost implements DatabaseHost {
         record: ResourceRecord<typeof DatabaseKind>,
         desired: readonly KindState<typeof DatabaseKind>[],
     ): Promise<Plan> {
-        const connect = (tables: readonly Table[]) => openBunSqlite(record, tables);
+        const connect = (tables: readonly Table[]) => this.#open(record, tables);
 
         return DatabaseHandle.plan(
             connect,
@@ -81,7 +93,7 @@ export class BunSqliteDatabaseHost implements DatabaseHost {
         desired: readonly KindState<typeof DatabaseKind>[],
         digest: Digest,
     ): Promise<void> {
-        const connect = (tables: readonly Table[]) => openBunSqlite(record, tables);
+        const connect = (tables: readonly Table[]) => this.#open(record, tables);
         const states = desired.map((state) => state.tables.sqlite);
 
         return DatabaseHandle.apply(connect, states, digest, record.id);
@@ -92,12 +104,19 @@ export class BunSqliteDatabaseHost implements DatabaseHost {
         record: ResourceRecord<typeof DatabaseKind>,
         desired: readonly KindState<typeof DatabaseKind>[],
     ): Promise<DatabaseHandle> {
-        const connect = (tables: readonly Table[]) => openBunSqlite(record, tables);
+        const connect = (tables: readonly Table[]) => this.#open(record, tables);
 
         return DatabaseHandle.open(
             connect,
             desired.map((state) => state.tables.sqlite),
         );
+    }
+
+    /** Open a database's file at its resolved reference, with some tables. */
+    #open(record: ResourceRecord<typeof DatabaseKind>, tables: readonly Table[]) {
+        const url = this.resolve(ResourceRecord.reference(record));
+
+        return openBunSqlite({ reference: url }, tables, this.environment);
     }
 
     /** Copy a database's rows into a store as content-addressed pages, returning the digest. */

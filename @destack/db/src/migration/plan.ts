@@ -13,7 +13,6 @@ import { bridgeTriggers } from "./bridge.ts";
 import type { Triggers } from "./trigger.ts";
 import type { Merge } from "./merge.ts";
 import { canonicalize, present, Version } from "@destack/schema";
-import { v7 } from "uuid";
 import { Address, Plan, type Action, type Risk, type Step } from "@destack/resource";
 import { type PlanProblem, ResourceError, unreachablePlan } from "@destack/resource/error";
 
@@ -502,7 +501,7 @@ function reinstallTriggers(
             TRIGGERS.flatMap((triggers) => triggers.remove(state, dialect)),
         ),
         after: [
-            ...createLog(dialect, v7(), undefined, namespace),
+            ...createLog(dialect, namespace),
             createState(namespace),
             ...declared.flatMap((state) =>
                 TRIGGERS.flatMap((triggers) => triggers.install(state, dialect, namespace)),

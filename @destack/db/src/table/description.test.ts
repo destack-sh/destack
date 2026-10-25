@@ -7,6 +7,7 @@ import { describeTable } from "./description.ts";
 import { declareState } from "../migration/state.ts";
 import { present, schema } from "@destack/schema";
 import { TEST_CIPHER, TestDatabase } from "../test/database.ts";
+import { testSimulation } from "@destack/test/world";
 
 /** Lamps with an enumerated state. */
 const lamp = defineTable("describe_lamp", {
@@ -43,7 +44,13 @@ const shelf = defineTable("describe_shelf", {
 });
 
 test("fill JSON columns with their declared defaults", async () => {
-    const storage = await TestDatabase.create([shelf], { isMigrated: true });
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create([shelf], {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
 
     // insert through raw SQL to use the database defaults
@@ -56,7 +63,13 @@ test("fill JSON columns with their declared defaults", async () => {
 });
 
 test("refuse a value outside an enum column's values in the database itself", async () => {
-    const storage = await TestDatabase.create([lamp], { isMigrated: true });
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create([lamp], {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
 
     // accept each declared value and none
@@ -75,14 +88,25 @@ test("refuse a value outside an enum column's values in the database itself", as
 });
 
 test("rebuild a declared table from its state under its properties, reading the rows it writes", async () => {
-    const storage = await TestDatabase.create([light], { isMigrated: true });
-    onTestFinished(() => storage.close());
-    await storage.database.insert(light).values({
-        id: "a",
-        scope: "space-1",
-        switchedAt: 1_790_000_000_000,
-        wiringKey: "secret",
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create([light], {
+        environment: world,
+        isMigrated: true,
     });
+    onTestFinished(() => storage.close());
+    await storage.database.transaction((transaction) =>
+        transaction
+            .insert(light)
+            .values({
+                id: "a",
+                scope: "space-1",
+                switchedAt: 1_790_000_000_000,
+                wiringKey: "secret",
+            })
+            .execute(),
+    );
 
     // rebuild the table from its state, with the switch time under its property name
     const [state] = declareState([light], TestDatabase.target());

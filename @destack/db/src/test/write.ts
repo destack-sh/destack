@@ -1,5 +1,5 @@
-import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { BunEnvironment } from "@destack/environment/bun";
 import { Dialect } from "../dialect/dialect.ts";
 import { TestDatabase } from "./database.ts";
 import { ImageIndex, TestTemplate } from "./template.ts";
@@ -39,8 +39,12 @@ async function write(
     }
 
     // leave the index for the run's setup
-    await writeFile(join(directory, "images.json"), JSON.stringify(ImageIndex.parse(images)));
+    const index = JSON.stringify(ImageIndex.parse(images));
+    await BunEnvironment.system.files.writeTextFile(join(directory, "images.json"), index);
 }
 
+/** The module, the run's directory, its id and its database, as the run's setup passes them. */
+const [module, directory, id, target] = BunEnvironment.system.process.arguments;
+
 // write the templates of the module the run's setup names
-await write(process.argv[2], process.argv[3], process.argv[4], process.argv[5]);
+await write(module, directory, id, target);

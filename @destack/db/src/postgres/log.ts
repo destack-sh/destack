@@ -1,6 +1,8 @@
 import type { ChangeDescription } from "../log/description.ts";
 import { literal, quote } from "../dialect/quote.ts";
 import {
+    CHANGED_AT_SETTING,
+    COMMIT_TOKEN_SETTING,
     createEpoch,
     LOG,
     LOG_CHANNEL,
@@ -18,7 +20,7 @@ const NOTIFICATION_BYTES = 7_800;
 
 /** The PostgreSQL log: its tables, functions and triggers. */
 export const postgresLog: LogDialect = {
-    create: (epoch, scope) => createPostgresLog(epoch, scope),
+    create: () => createPostgresLog(),
     install: (table, description) => postgresLogTriggers(table, description),
     remove: (table) => [
         `DROP TRIGGER IF EXISTS ${quote("destack_change")} ON ${quote(table)}`,
@@ -27,9 +29,9 @@ export const postgresLog: LogDialect = {
 };
 
 /** Create the PostgreSQL log, its horizon and its functions. */
-function createPostgresLog(epoch: string, scope?: string): readonly string[] {
+function createPostgresLog(): readonly string[] {
     // create the log with its stamp and record functions
-    return [...createLogTables(), ...createEpoch(epoch, scope), ...createStamp(), createRecord()];
+    return [...createLogTables(), ...createEpoch(), ...createStamp(), createRecord()];
 }
 
 /** Create the log table with its indexes and sequence and the horizon. */
@@ -99,7 +101,7 @@ function createStamp(): string[] {
                 batch := batch || name;
                 bytes := bytes + octet_length(name) + 3;
             END LOOP;
-            PERFORM pg_notify('${LOG_CHANNEL}_' || md5(current_schema()), json_build_object('kind', 'commit', 'tables', batch, 'sequence', base + unstamped - 1)::TEXT);
+            PERFORM pg_notify('${LOG_CHANNEL}_' || md5(current_schema()), json_strip_nulls(json_build_object('kind', 'commit', 'tables', batch, 'sequence', base + unstamped - 1, 'token', NULLIF(current_setting('${COMMIT_TOKEN_SETTING}', true), '')))::TEXT);
             PERFORM set_config('${STAMPED_SETTING}', NEW."transaction", true);
             RETURN NULL;
         END $$`,
@@ -128,7 +130,7 @@ function createRecord(): string {
             old_scope TEXT;
             new_scope TEXT;
             previous JSONB;
-            now_ms BIGINT := floor(extract(epoch FROM clock_timestamp()) * 1000);
+            now_ms BIGINT := NULLIF(current_setting('${CHANGED_AT_SETTING}', true), '')::BIGINT;
             transaction_id TEXT := pg_current_xact_id()::TEXT;
             old_row JSONB;
             new_row JSONB;
@@ -138,6 +140,9 @@ function createRecord(): string {
             new_recorded JSONB;
             name TEXT;
         BEGIN
+            IF now_ms IS NULL THEN
+                RAISE EXCEPTION 'a logged write of % runs outside a transaction: run it in a transaction', TG_TABLE_NAME USING ERRCODE = '25P01';
+            END IF;
             IF TG_OP <> 'INSERT' THEN old_row := to_jsonb(OLD); END IF;
             IF TG_OP <> 'DELETE' THEN new_row := to_jsonb(NEW); END IF;
             IF TG_OP = 'UPDATE' AND old_row = new_row THEN RETURN NULL; END IF;

@@ -1,3 +1,4 @@
+import type { DatabaseEnvironment } from "../database/connection.ts";
 import { Digest, schema } from "@destack/schema";
 import { type KindState, Plan, ResourceId, ResourceRecord } from "@destack/resource";
 import { DatabaseHandle } from "../database/handle.ts";
@@ -117,7 +118,7 @@ export const DurableObjectMeasurement = schema.object({
 export type DurableObjectMeasurement = schema.Infer<typeof DurableObjectMeasurement>;
 
 /** The options of a database in a Durable Object's SQLite storage. */
-export interface DurableObjectConnectOptions extends SqliteConnectOptions {
+export interface DurableObjectConnectOptions extends Omit<SqliteConnectOptions, "environment"> {
     /** The database's namespace in a shared storage, such as its identifier, if any. */
     readonly namespace?: string;
 }
@@ -152,18 +153,22 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
     /** The object's SQLite storage. */
     readonly storage: DurableObjectStorage;
     /** The work queue of the storage's one connection, one transaction at a time. */
-    readonly queue = new SqliteWorkQueue();
+    readonly queue: SqliteWorkQueue;
+    /** The clock the databases' logs stamp changes at and the randomness they draw from. */
+    readonly environment: DatabaseEnvironment;
     /** The rows the databases read and wrote since the last measure. */
     #rows = { rowsRead: 0, rowsWritten: 0 };
 
-    /** Store databases in an object's storage. */
-    constructor(storage: DurableObjectStorage) {
+    /** Store databases in an object's storage, in the object's environment. */
+    constructor(storage: DurableObjectStorage, environment: DatabaseEnvironment) {
         this.storage = storage;
+        this.environment = environment;
+        this.queue = new SqliteWorkQueue();
     }
 
-    /** Open a database in the storage, with the object as sole writer behind the queue. */
+    /** Open a database in the storage in the host's environment, the object its sole writer. */
     connect<Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>>(
-        tables: declaration.Database<Models> | readonly Table[] = [],
+        tables: declaration.Database<Models> | readonly Table[],
         options: DurableObjectConnectOptions = {},
     ): SqliteDatabase<DurableObjectClient, Models> {
         return this.#open(tables, options);
@@ -178,7 +183,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
             } finally {
                 transaction.close();
             }
-        });
+        }, this.environment.clock);
     }
 
     /** Open a database of the storage whose statements run in a mode. */
@@ -186,14 +191,11 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
         tables: declaration.Database<Models> | readonly Table[],
         options: DurableObjectConnectOptions,
     ): SqliteDatabase<DurableObjectClient, Models> {
-        const { openChannel, namespace } = options;
-
         return new SqliteDatabase(
             new DurableObjectClient(this, { kind: "queued" }),
             tables,
             "embedded",
-            openChannel,
-            namespace,
+            { ...options, environment: this.environment },
         );
     }
 
@@ -245,7 +247,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
             for (const name of await this.relations(namespace)) {
                 this.storage.sql.exec(`DROP TABLE IF EXISTS "${name.replaceAll('"', '""')}"`);
             }
-        });
+        }, this.environment.clock);
     }
 
     /** Diff the applied state against the desired states. */
@@ -329,7 +331,11 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
                 );
             }
 
-            return new DurableObjectContentStore(keeper(scope), authorization);
+            return new DurableObjectContentStore(
+                keeper(scope),
+                authorization,
+                this.environment.crypto,
+            );
         };
         switch (body.operation) {
             case "provision":
@@ -452,30 +458,6 @@ export interface DurableObjectDatabaseBindings {
     readonly PARTITION: DurableObjectNamespace;
     /** The jurisdiction that stores the partitions' objects. */
     readonly DESTACK_JURISDICTION: Jurisdiction;
-}
-
-/** A Durable Object answering operations on its databases. */
-export class DurableObjectDatabase {
-    /** The object's databases. */
-    readonly host: DurableObjectDatabaseHost;
-    /** The partitions' objects, in their jurisdiction. */
-    readonly #partitions: DurableObjectNamespace;
-
-    /** Store databases in the object's storage, with partition objects from Worker bindings. */
-    constructor(
-        state: { readonly storage: DurableObjectStorage },
-        bindings: DurableObjectDatabaseBindings,
-    ) {
-        this.host = new DurableObjectDatabaseHost(state.storage);
-        this.#partitions = Jurisdiction.narrow(bindings.PARTITION, bindings.DESTACK_JURISDICTION);
-    }
-
-    /** Answer an operation on a stored database, copying through its partition's object. */
-    fetch(request: Request): Promise<Response> {
-        return this.host.answer(request, (scope) =>
-            this.#partitions.get(this.#partitions.idFromName(scope)),
-        );
-    }
 }
 
 /** Write a row of values, or of columns by name, in JSON form. */

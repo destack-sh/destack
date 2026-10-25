@@ -6,6 +6,7 @@ import { asc, eq, sql } from "../sql/index.ts";
 import { boolean, json, text } from "../table/column.ts";
 import { defineTable, TABLE } from "../table/table.ts";
 import { TEST_CIPHER, TestDatabase } from "../test/database.ts";
+import { testSimulation } from "@destack/test/world";
 
 /** Credentials with a secret sealed randomly and a token sealed alike for lookups. */
 const credential = defineTable(
@@ -44,13 +45,21 @@ const Stored = schema.array(schema.object({ secret: schema.string(), token: sche
 
 /** Open a migrated database with two credentials. */
 async function open() {
-    const storage = await TestDatabase.create([credential], { isMigrated: true });
+    const storage = await TestDatabase.create([credential], {
+        environment: testSimulation().environment("test"),
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     const { database } = storage;
-    await database.insert(credential).values([
-        { id: "a", scope: "s", secret: "first secret", token: "first token" },
-        { id: "b", scope: "s", secret: "second secret", token: "second token" },
-    ]);
+    await database.transaction((transaction) =>
+        transaction
+            .insert(credential)
+            .values([
+                { id: "a", scope: "s", secret: "first secret", token: "first token" },
+                { id: "b", scope: "s", secret: "second secret", token: "second token" },
+            ])
+            .execute(),
+    );
 
     return database;
 }
@@ -91,10 +100,15 @@ test("seal sensitive columns at rest, open them on read, and find a deterministi
 
 test("seal equal secrets apart and equal tokens alike, each bound to its column", async () => {
     const database = await open();
-    await database.insert(credential).values([
-        { id: "c", scope: "s", secret: "same", token: "same" },
-        { id: "d", scope: "s", secret: "same", token: "same" },
-    ]);
+    await database.transaction((transaction) =>
+        transaction
+            .insert(credential)
+            .values([
+                { id: "c", scope: "s", secret: "same", token: "same" },
+                { id: "d", scope: "s", secret: "same", token: "same" },
+            ])
+            .execute(),
+    );
     const [, , third, fourth] = await stored(database);
 
     // differ for the secret and match for the token
@@ -139,15 +153,21 @@ test("seal the values one transaction updates together, as one statement writes 
 test("return the opened values of the rows an insert and an update write, as a select reads them", async () => {
     // insert and update credentials, returning the written rows
     const database = await open();
-    const inserted = await database
-        .insert(credential)
-        .values({ id: "c", scope: "s", secret: "third secret", token: "third token" })
-        .returning();
-    const updated = await database
-        .update(credential)
-        .set({ secret: "renewed secret" })
-        .where(eq(credential.token, "third token"))
-        .returning({ token: credential.token, secret: credential.secret });
+    const inserted = await database.transaction(
+        async (transaction) =>
+            await transaction
+                .insert(credential)
+                .values({ id: "c", scope: "s", secret: "third secret", token: "third token" })
+                .returning(),
+    );
+    const updated = await database.transaction(
+        async (transaction) =>
+            await transaction
+                .update(credential)
+                .set({ secret: "renewed secret" })
+                .where(eq(credential.token, "third token"))
+                .returning({ token: credential.token, secret: credential.secret }),
+    );
 
     // return the plaintext the select reads too
     expect([inserted, updated]).toEqual([
@@ -157,8 +177,14 @@ test("return the opened values of the rows an insert and an update write, as a s
 });
 
 test("open sealed JSON and boolean values as the values written", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
     // write a sealed JSON value and a sealed flag
-    const storage = await TestDatabase.create([subscription], { isMigrated: true });
+    const storage = await TestDatabase.create([subscription], {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     const endpoint = { url: "https://push.example.com/1", keys: { auth: "a", p256dh: "b" } };
     await storage.database.insert(subscription).values({ id: "s", endpoint, isMuted: true });
@@ -170,7 +196,12 @@ test("open sealed JSON and boolean values as the values written", async () => {
 });
 
 test("refuse writing a sensitive value into a database opened without its key", async () => {
-    const database = await connectBunSqlite(":memory:", [credential]);
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const database = await connectBunSqlite(":memory:", [credential], {
+        environment: world,
+    });
     onTestFinished(() => database.close());
     await database.migrate([credential]);
 

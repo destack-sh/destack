@@ -1,5 +1,7 @@
+import { type Clock } from "@destack/environment";
+import type { DatabaseEnvironment } from "../database/connection.ts";
 import { DriverValue } from "../table/column.ts";
-import { schema } from "@destack/schema";
+import { schema, Uuid } from "@destack/schema";
 import type * as declaration from "../declare/database.ts";
 import { Commit, typedChannel, type Channel } from "../channel/channel.ts";
 import type { Table } from "../table/table.ts";
@@ -97,12 +99,16 @@ export const Message = schema.discriminatedUnion("kind", [
 export type Message = schema.Infer<typeof Message>;
 
 /** Serve a connection to a channel's other parties until stopped. */
-export function serveDatabase(client: SqliteConnectionClient, raw: Channel<unknown>): () => void {
+export function serveDatabase(
+    client: SqliteConnectionClient,
+    raw: Channel<unknown>,
+    environment: DatabaseEnvironment,
+): () => void {
     // type the channel's messages, name this owner and leave party transactions open
     const channel = typedChannel(raw, Message);
-    const owner = crypto.randomUUID();
+    const owner = Uuid.v4(environment.random);
     const transactions = new Map<number, OwnerTransaction>();
-    const run = stepRunner(client, transactions);
+    const run = stepRunner(client, transactions, environment.clock);
 
     // announce this owner to a joining party
     const stop = channel.listen((message) => {
@@ -141,6 +147,7 @@ export function serveDatabase(client: SqliteConnectionClient, raw: Channel<unkno
 function stepRunner(
     client: SqliteConnectionClient,
     transactions: Map<number, OwnerTransaction>,
+    clock: Clock,
 ): (step: Step) => Promise<unknown> {
     let next = 0;
 
@@ -152,7 +159,7 @@ function stepRunner(
         // begin a transaction
         else if (step.type === "begin") {
             const id = next++;
-            const opened = await OwnerTransaction.begin(client, step.mode, () =>
+            const opened = await OwnerTransaction.begin(client, step.mode, clock, () =>
                 transactions.delete(id),
             );
             transactions.set(id, opened);
@@ -201,8 +208,10 @@ class OwnerTransaction {
     readonly #finish: (commit: boolean) => void;
     /** Forget the transaction. */
     readonly #forget: () => void;
-    /** The idle rollback timer. */
-    #idle?: ReturnType<typeof setTimeout>;
+    /** The clock the idle rollback waits on. */
+    readonly #clock: Clock;
+    /** Cancel the idle rollback's wait. */
+    #idle: AbortController | undefined;
 
     /** Create the transaction. */
     private constructor(
@@ -210,12 +219,14 @@ class OwnerTransaction {
         done: Promise<void>,
         finish: (commit: boolean) => void,
         forget: () => void,
+        clock: Clock,
     ) {
         // store the client and its end
         this.client = client;
         this.done = done;
         this.#finish = finish;
         this.#forget = forget;
+        this.#clock = clock;
         this.touch();
     }
 
@@ -223,6 +234,7 @@ class OwnerTransaction {
     static begin(
         connection: SqliteConnectionClient,
         mode: "deferred" | "immediate" | "exclusive",
+        clock: Clock,
         forget: () => void,
     ): Promise<OwnerTransaction> {
         return new Promise((resolve, reject) => {
@@ -235,7 +247,7 @@ class OwnerTransaction {
                             commit
                                 ? finish()
                                 : abort(new Error("the shared transaction rolled back"));
-                        opened = new OwnerTransaction(transaction, done, end, forget);
+                        opened = new OwnerTransaction(transaction, done, end, forget, clock);
                         resolve(opened);
                     }),
             );
@@ -251,16 +263,22 @@ class OwnerTransaction {
         });
     }
 
-    /** Reset the idle timer. */
+    /** Restart the idle rollback, rolling back once the party stays idle. */
     touch(): void {
-        clearTimeout(this.#idle);
-        this.#idle = setTimeout(() => void this.end(false), IDLE_TRANSACTION_MILLISECONDS);
+        // cancel the last wait, then wait again
+        this.#idle?.abort();
+        const idle = new AbortController();
+        this.#idle = idle;
+        this.#clock.sleep(IDLE_TRANSACTION_MILLISECONDS, idle.signal).then(
+            () => this.end(false),
+            () => undefined,
+        );
     }
 
     /** Commit or roll back. */
     async end(commit: boolean): Promise<void> {
-        // stop the timer and end the callback
-        clearTimeout(this.#idle);
+        // stop the idle rollback and end the callback
+        this.#idle?.abort();
         this.#forget();
         this.#finish(commit);
         if (commit) {
@@ -277,13 +295,15 @@ export function connectShared<
 >(
     channel: Channel<unknown>,
     party: string,
-    tables: declaration.Database<Models> | readonly Table[] = [],
+    tables: declaration.Database<Models> | readonly Table[],
+    environment: DatabaseEnvironment,
 ): SqliteDatabase<SharedClient, Models> {
     const client = new SharedClient(channel, party);
 
-    return new SqliteDatabase(client, tables, "embedded", (name: string) =>
-        SharedClient.channel(channel, name),
-    );
+    return new SqliteDatabase(client, tables, "embedded", {
+        openChannel: (name: string) => SharedClient.channel(channel, name),
+        environment,
+    });
 }
 
 /** Statements the channel's owner runs. */
@@ -383,6 +403,8 @@ export class SharedClient extends SharedQuery implements SqliteConnectionClient 
 
         return {
             notify: (message) => channel.notify(message),
+            hear: (token) => channel.hear(token),
+            close: () => channel.close(),
             listen: (receive, resume, fail) =>
                 shared.listen(
                     (message) => {

@@ -1,13 +1,17 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { TestDatabase } from "../test/database.ts";
 import { lease, Lease } from "./lease.ts";
+import { testSimulation } from "@destack/test/world";
 
 /** The time the scenarios start at, in UTC epoch milliseconds. */
 const START = 1_800_000_000_000;
 
 /** Open a database with the lease table. */
 async function open() {
-    const storage = await TestDatabase.create([lease], { isMigrated: true });
+    const storage = await TestDatabase.create([lease], {
+        environment: testSimulation().environment("test"),
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
 
     return storage.database;

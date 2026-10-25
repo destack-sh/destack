@@ -8,6 +8,7 @@ import { Order } from "../query/order.ts";
 import type { LogPosition } from "./position.ts";
 import { Snapshot } from "./snapshot.ts";
 import { Key } from "../query/key.ts";
+import { testSimulation } from "@destack/test/world";
 
 /** The writes before each snapshot. */
 const WRITES = 120;
@@ -74,7 +75,13 @@ function byKey(rows: readonly Row[]): Row[] {
 }
 
 test("read tables as they were at sampled earlier positions, ordered and bounded", async () => {
-    const storage = await TestDatabase.create([item], { isMigrated: true });
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create([item], {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     const database = storage.database;
     const seed = { value: 19 };
@@ -92,12 +99,17 @@ test("read tables as they were at sampled earlier positions, ordered and bounded
             label: random(seed) < 0.3 ? null : "x",
         };
         if (random(seed) < 0.2) {
-            await database.delete(item).where(eq(item.id, id));
+            await database.transaction((transaction) =>
+                transaction.delete(item).where(eq(item.id, id)).execute(),
+            );
         } else {
-            await database
-                .insert(item)
-                .values(values)
-                .onConflictDoUpdate({ target: item.id, set: values });
+            await database.transaction(
+                async (transaction) =>
+                    await transaction
+                        .insert(item)
+                        .values(values)
+                        .onConflictDoUpdate({ target: item.id, set: values }),
+            );
         }
         const rows = await database.select().from(item);
         captured.push({ position: await database.log.position(), rows });
@@ -146,18 +158,35 @@ test("read tables as they were at sampled earlier positions, ordered and bounded
 });
 
 test("read history past compaction, and refuse compacted windows and other epochs", async () => {
-    const storage = await TestDatabase.create([item, revision], { isMigrated: true });
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create([item, revision], {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     const database = storage.database;
     const everything = {};
 
     // write, take a position, change and compact
-    await database.insert(item).values({ id: "a", scope: "inbox", rank: 1, label: null });
-    await database.insert(revision).values({ id: "r", scope: "inbox", title: "First" });
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .insert(item)
+                .values({ id: "a", scope: "inbox", rank: 1, label: null }),
+    );
+    await database.transaction((transaction) =>
+        transaction.insert(revision).values({ id: "r", scope: "inbox", title: "First" }).execute(),
+    );
     const position = await database.log.position();
-    await database.update(revision).set({ title: "Second" }).where(eq(revision.id, "r"));
-    await database.delete(item).where(eq(item.id, "a"));
-    const now = Date.now();
+    await database.transaction((transaction) =>
+        transaction.update(revision).set({ title: "Second" }).where(eq(revision.id, "r")).execute(),
+    );
+    await database.transaction((transaction) =>
+        transaction.delete(item).where(eq(item.id, "a")).execute(),
+    );
+    const now = world.clock.now();
     await database.log.compact(now + 1, now);
     const snapshot = database.log.at(position);
 
@@ -182,10 +211,21 @@ test("read history past compaction, and refuse compacted windows and other epoch
 });
 
 test("read the latest commit and the rows at it inside a writing transaction", async () => {
-    const storage = await TestDatabase.create([item], { isMigrated: true });
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create([item], {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     const database = storage.database;
-    await database.insert(item).values({ id: "i1", scope: "inbox", rank: 1, label: "x" });
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .insert(item)
+                .values({ id: "i1", scope: "inbox", rank: 1, label: "x" }),
+    );
     const committed = await database.log.position();
 
     // write inside a transaction and read the head and a snapshot
@@ -211,7 +251,13 @@ test("read the latest commit and the rows at it inside a writing transaction", a
 });
 
 test("read tables under an overlay live and at every earlier position", async () => {
-    const storage = await TestDatabase.create([item], { isMigrated: true });
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create([item], {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     const database = storage.database;
     const seed = { value: 7 };
@@ -243,12 +289,17 @@ test("read tables under an overlay live and at every earlier position", async ()
             label: random(seed) < 0.3 ? null : "x",
         };
         if (random(seed) < 0.2) {
-            await database.delete(item).where(eq(item.id, id));
+            await database.transaction((transaction) =>
+                transaction.delete(item).where(eq(item.id, id)).execute(),
+            );
         } else {
-            await database
-                .insert(item)
-                .values(values)
-                .onConflictDoUpdate({ target: item.id, set: values });
+            await database.transaction(
+                async (transaction) =>
+                    await transaction
+                        .insert(item)
+                        .values(values)
+                        .onConflictDoUpdate({ target: item.id, set: values }),
+            );
         }
         captured.push({
             position: await database.log.position(),
@@ -283,14 +334,25 @@ test("read tables under an overlay live and at every earlier position", async ()
 });
 
 test("select rows by keys of text and integer columns, none for a missing key", async () => {
-    const storage = await TestDatabase.create([part], { isMigrated: true });
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create([part], {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     const database = storage.database;
-    await database.insert(part).values([
-        { upload: "u", number: 1, scope: "inbox", size: 10 },
-        { upload: "u", number: 2, scope: "inbox", size: 20 },
-        { upload: "v", number: 1, scope: "inbox", size: 30 },
-    ]);
+    await database.transaction((transaction) =>
+        transaction
+            .insert(part)
+            .values([
+                { upload: "u", number: 1, scope: "inbox", size: 10 },
+                { upload: "u", number: 2, scope: "inbox", size: 20 },
+                { upload: "v", number: 1, scope: "inbox", size: 30 },
+            ])
+            .execute(),
+    );
 
     // read two stored keys and a missing one
     const rows = await Snapshot.live(database).select(

@@ -2,6 +2,10 @@ import { defineErrorFamily, type ReasonOf } from "@destack/error";
 import { schema } from "@destack/schema";
 import type {} from "@destack/package/import-meta";
 
+/** The refusal of a logged write outside a transaction, as the change triggers word it. */
+const OUTSIDE_TRANSACTION =
+    /a logged write of .+? runs outside a transaction: run it in a transaction/u;
+
 /** A unique key a write violated: its table and columns as the table declares them. */
 export const ViolatedKey = schema.object({
     /** The table's declared name. */
@@ -33,6 +37,8 @@ export const DatabaseError = defineErrorFamily(import.meta.destack.package, {
     STALE_EPOCH: { code: "GONE" },
 
     // internal server error
+    CONTROLLER_FAILED: { code: "INTERNAL_SERVER_ERROR" },
+    FOLLOW_ENDED: { code: "INTERNAL_SERVER_ERROR" },
     INVALID_MIGRATION: { code: "INTERNAL_SERVER_ERROR" },
     MIGRATION_FAILED: { code: "INTERNAL_SERVER_ERROR" },
     NOT_APPLIED: { code: "INTERNAL_SERVER_ERROR" },
@@ -49,6 +55,7 @@ export const DatabaseError = defineErrorFamily(import.meta.destack.package, {
     CONNECTION_TIMEOUT: { code: "SERVICE_UNAVAILABLE" },
     CONTENT_UNAVAILABLE: { code: "SERVICE_UNAVAILABLE" },
     OWNER_CHANGED: { code: "SERVICE_UNAVAILABLE" },
+    SERIALIZATION_FAILURE: { code: "SERVICE_UNAVAILABLE" },
 });
 
 /** A stable cause of database failures. */
@@ -103,8 +110,8 @@ export function classifyError(error: unknown, declared: DeclaredNames): unknown 
         error.message.includes("database table is locked")
     ) {
         return DatabaseError.of(
-            "CONCURRENT_UPDATE",
-            "a concurrent transaction changed the same records",
+            "SERIALIZATION_FAILURE",
+            "a concurrent transaction conflicted with this one",
             {
                 cause: error,
             },
@@ -125,6 +132,12 @@ export function classifyError(error: unknown, declared: DeclaredNames): unknown 
             {
                 cause: error,
             },
+        );
+    } else if (code === "25P01" || OUTSIDE_TRANSACTION.test(error.message)) {
+        return DatabaseError.of(
+            "TRANSACTION_REQUIRED",
+            OUTSIDE_TRANSACTION.exec(error.message)?.[0] ?? error.message,
+            { cause: error },
         );
     } else if (code === "23514" || error.message.includes("CHECK constraint failed")) {
         return DatabaseError.of("INVALID_RECORD", "a record fails a declared check", {

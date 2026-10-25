@@ -1,11 +1,20 @@
 import { quote } from "../dialect/quote.ts";
 import type { Session } from "../database/session.ts";
-import { v7 } from "uuid";
-import { schema } from "@destack/schema";
+import { schema, Uuid } from "@destack/schema";
 import type { ConnectionState } from "../database/connection.ts";
-import { LOG_TRANSACTION } from "./schema.ts";
+import { CHANGED_AT_SETTING, COMMIT_TOKEN_SETTING, LOG, LOG_TRANSACTION } from "./schema.ts";
 import { relation } from "../table/namespace.ts";
 import { FullTextIndex } from "../search/search.ts";
+
+/** The token a PostgreSQL commit notification sends back to its writer. */
+interface CommitToken {
+    /** The token. */
+    readonly value: string;
+    /** Settles once the writer's connection heard the token. */
+    readonly heard: Promise<void>;
+    /** Whether the transaction wrote log rows, which makes its commit notify. */
+    isLogged: Promise<boolean>;
+}
 
 /** A transaction's log identity: a SQLite marker, else PostgreSQL's transaction id. */
 export class TransactionIdentity {
@@ -17,6 +26,10 @@ export class TransactionIdentity {
     #stamped: Promise<string | undefined> | undefined;
     /** Whether the transaction looked for its marker before, so a log it finds may be its log. */
     #isMarking = false;
+    /** The PostgreSQL transaction's stamped time, absent before its first logged write. */
+    #timed: Promise<unknown> | undefined;
+    /** The token PostgreSQL's commit notification sends back, while the connection listens. */
+    #token: CommitToken | undefined;
 
     /** Prepare the identity of a transaction in a session. */
     constructor(session: Session, connection: ConnectionState) {
@@ -35,15 +48,17 @@ export class TransactionIdentity {
         return await this.#stamped;
     }
 
-    /** Whether a SQLite marker is stamped. */
+    /** Whether the transaction is stamped: its SQLite marker or its PostgreSQL time. */
     get isStamped(): boolean {
-        return this.#stamped !== undefined;
+        return this.#stamped !== undefined || this.#timed !== undefined;
     }
 
-    /** Submit a SQLite marker once ahead of the first logged write, in statement order. */
+    /** Stamp the transaction's time, and a SQLite marker, once ahead of its first logged write. */
     stamp(): Promise<unknown> | undefined {
-        // leave PostgreSQL, whose trigger reads the transaction id
+        // submit PostgreSQL's transaction-local time once, in statement order
         if (this.#session.dialect === "postgresql") {
+            this.#timed ??= this.#time();
+
             return undefined;
         }
 
@@ -68,11 +83,52 @@ export class TransactionIdentity {
 
     /** Forget a stamp that a rolled back savepoint undid. */
     unstamp(): void {
+        this.abandon();
         this.#stamped = undefined;
+        this.#timed = undefined;
+    }
+
+    /** Count a committed transaction's token in flight on the clock until it is heard. */
+    commit(): void {
+        // wait for the token of a transaction that logged, and forget one that logged nothing
+        const token = this.#token;
+        if (token === undefined) {
+            return;
+        }
+        const { commits } = this.#connection;
+        const heard = token.isLogged.then(
+            (isLogged) => (isLogged ? token.heard : commits.forget(token.value)),
+            () => commits.forget(token.value),
+        );
+        void this.#connection.clock.trackHost(heard).catch(() => commits.forget(token.value));
+    }
+
+    /** Stop waiting for the token of a transaction that rolled back. */
+    abandon(): void {
+        if (this.#token !== undefined) {
+            this.#connection.commits.forget(this.#token.value);
+            this.#token = undefined;
+        }
     }
 
     /** Update a stamped transaction's full-text rows, then clear its marker before commit. */
     async close(): Promise<void> {
+        // surface a failed PostgreSQL stamp, and ask in statement order whether the transaction logged
+        if (this.#session.dialect === "postgresql") {
+            await this.#timed;
+            if (this.#token !== undefined) {
+                this.#token.isLogged = this.#session
+                    .values(
+                        `SELECT EXISTS (SELECT FROM ${quote(LOG)} WHERE "transaction" = pg_current_xact_id_if_assigned()::TEXT AND sequence IS NULL)`,
+                        [],
+                    )
+                    .then(([row]) => row?.[0] === true);
+                this.#token.isLogged.catch(() => undefined);
+            }
+
+            return;
+        }
+
         // leave a transaction that logged nothing
         if ((await this.#stamped) === undefined) {
             return;
@@ -86,6 +142,36 @@ export class TransactionIdentity {
         );
         const marker = quote(relation(LOG_TRANSACTION, this.#connection.namespace));
         await this.#session.run(`DELETE FROM ${marker} WHERE slot = 1`, []);
+    }
+
+    /** Set PostgreSQL's transaction-local time, and the token while the connection listens. */
+    #time(): Promise<unknown> {
+        // set the time alone without a listener to hear the token
+        const time = String(this.#connection.clock.now());
+        const { commits } = this.#connection;
+        let timed: Promise<unknown>;
+        if (!commits.isShared) {
+            timed = this.#session.run("SELECT set_config($1, $2, true)", [
+                CHANGED_AT_SETTING,
+                time,
+            ]);
+        }
+        // set the token beside the time, for the stamp trigger's commit notification to send
+        else {
+            const value = Uuid.v4(this.#connection.environment.random);
+            this.#token = { value, heard: commits.expect(value), isLogged: Promise.resolve(false) };
+            timed = this.#session.run("SELECT set_config($1, $2, true), set_config($3, $4, true)", [
+                CHANGED_AT_SETTING,
+                time,
+                COMMIT_TOKEN_SETTING,
+                value,
+            ]);
+        }
+
+        // surface a failure at the close
+        timed.catch(() => undefined);
+
+        return timed;
     }
 
     /** Read PostgreSQL's transaction id, assigning it. */
@@ -116,8 +202,11 @@ export class TransactionIdentity {
 
         // write the marker
         const marker = quote(relation(LOG_TRANSACTION, connection.namespace));
-        const id = v7();
-        await this.#session.run(`INSERT INTO ${marker} (slot, id) VALUES (1, ?)`, [id]);
+        const id = Uuid.v7(connection.environment);
+        await this.#session.run(`INSERT INTO ${marker} (slot, id, changed_at) VALUES (1, ?, ?)`, [
+            id,
+            connection.clock.now(),
+        ]);
 
         return id;
     }

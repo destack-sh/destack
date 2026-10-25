@@ -1,6 +1,6 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { Uuid } from "@destack/schema";
 import { join } from "node:path";
+import { testHost } from "@destack/test/host";
 import { fileURLToPath } from "node:url";
 import postgres from "postgres";
 import type { TestProject } from "@destack/test";
@@ -9,6 +9,9 @@ import { TestDatabase } from "./database.ts";
 import { ImageIndex } from "./template.ts";
 
 export type { ImageIndex } from "./template.ts";
+
+/** The host the run's setup writes templates on, as the run's entrypoint. */
+const HOST = testHost();
 
 /** The file the writer leaves the index of the run's template images in. */
 const INDEX = "images.json";
@@ -35,19 +38,17 @@ export const TestRun = {
         readonly remove: () => Promise<void>;
     }> {
         // write the templates' images in a child, into the run's directory
-        const directory = await mkdtemp(join(tmpdir(), "destack-run-"));
-        const id = crypto.randomUUID().replaceAll("-", "").slice(0, 16);
+        const directory = await HOST.files.makeTemporaryDirectory("destack-run-");
+        const id = Uuid.v4(HOST.random).replaceAll("-", "").slice(0, 16);
         const writer = fileURLToPath(new URL("./write.ts", import.meta.url));
-        const child = Bun.spawn([process.execPath, writer, module.href, directory, id, dialect], {
-            stdout: "inherit",
-            stderr: "pipe",
-        });
+        const command = [HOST.process.executable, writer, module.href, directory, id, dialect];
+        const child = HOST.process.spawn(command, { stdout: "inherit", stderr: "pipe" });
         const [code, stderr] = await Promise.all([child.exited, new Response(child.stderr).text()]);
 
         // remove the run's images once it ends, or at once after a failed write
         const remove = async () => {
             await TestRun.drop(id, dialect);
-            await rm(directory, { recursive: true, force: true });
+            await HOST.files.remove(directory, { recursive: true });
         };
         if (code !== 0) {
             await remove();
@@ -62,7 +63,7 @@ export const TestRun = {
 
     /** Read the index of a run's template images from its file. */
     async read(index: string): Promise<ImageIndex> {
-        const parsed: unknown = JSON.parse(await readFile(index, "utf8"));
+        const parsed: unknown = JSON.parse(await HOST.files.readTextFile(index));
 
         return ImageIndex.parse(parsed);
     },

@@ -7,6 +7,7 @@ import { Condition, type Comparable, type Scalar } from "./condition.ts";
 import { Predicate } from "./predicate.ts";
 import { Namespace } from "./namespace.ts";
 import { Order } from "./order.ts";
+import { testSimulation } from "@destack/test/world";
 
 /** The encoder of texts' UTF-8 bytes. */
 const UTF8 = new TextEncoder();
@@ -160,7 +161,13 @@ function draw(seed: { value: number }, depth: number): Condition {
 }
 
 test("decide random conditions alike in SQL and in memory", async () => {
-    const storage = await TestDatabase.create([sample], { isMigrated: true });
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create([sample], {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     const database = storage.database;
 
@@ -274,7 +281,13 @@ test("refuse conditions beyond a thousand terms", () => {
 });
 
 test("match a thousand listed values in SQL", async () => {
-    const storage = await TestDatabase.create([sample], { isMigrated: true });
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    const storage = await TestDatabase.create([sample], {
+        environment: world,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     await storage.database.insert(sample).values([
         { id: 1, count: 999 },
