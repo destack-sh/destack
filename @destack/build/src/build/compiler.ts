@@ -1,13 +1,10 @@
 import type { graph } from "@destack/package";
 import { type PackageInspection } from "@destack/package/code";
-import { mkdir, mkdtemp, realpath, rename, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
+import type { Environment } from "@destack/environment";
 import { fileURLToPath } from "node:url";
 import { Sandbox } from "@destack/sandbox";
-import { readBuild } from "@destack/package/bun";
 import { Toolchain } from "@destack/check/toolchain";
-import { BunProcess } from "@destack/check/bun";
 import { FamilyError } from "@destack/error";
 import { BuildError } from "../error/index.ts";
 import { locateWorkspace } from "@destack/check/workspace";
@@ -37,6 +34,7 @@ import {
 } from "./message.ts";
 import type { InspectOptions } from "../inspection/inspection.ts";
 import type { PackageManifest } from "@destack/package/manifest";
+import { BuildReader } from "@destack/package/manifest";
 
 /** The compiler executable beside a standalone Destack executable. */
 const EXECUTABLE = "destack-build";
@@ -58,36 +56,51 @@ export interface CompilerCommand {
     readonly arguments: readonly string[];
     /** The directories with the compiler and its tools. */
     readonly read: readonly string[];
+    /** The variables the compiler starts with, such as the path of rolldown's native binding. */
+    readonly variables: Readonly<Record<string, string>>;
 }
 
 /** The commands that start the compiler: a release's beside its executables, or from source. */
 export const CompilerCommand = {
     /** Find the released `destack-build` beside an executable, reading its toolchain directory. */
-    beside(executable: string): CompilerCommand {
+    beside(executable: string, environment: Environment<"process" | "host">): CompilerCommand {
+        // load rolldown's native binding from the toolchain, as the compiler has none of its own
         const compiler = join(dirname(executable), EXECUTABLE);
+        const toolchain = Toolchain.of(executable);
+        const platform = Toolchain.platform(environment.host);
+        const name = `@rolldown/binding-${platform}`;
+        const binding = Toolchain.locate([name], toolchain, environment.process);
 
         return {
             executable: compiler,
             arguments: [],
-            read: [compiler, Toolchain.of(executable)],
+            read: [compiler, toolchain],
+            variables: {
+                NAPI_RS_NATIVE_LIBRARY_PATH: join(binding, `rolldown-binding.${platform}.node`),
+            },
         };
     },
 
     /** Find the compiler this process starts. */
-    async current(): Promise<CompilerCommand> {
+    async current(
+        environment: Environment<"files" | "process" | "host">,
+    ): Promise<CompilerCommand> {
         // start the release's compiler from a standalone executable
-        if (BunProcess.isStandalone) {
-            return CompilerCommand.beside(process.execPath);
+        const { executable } = environment.process;
+        if (environment.process.runtime.isStandalone) {
+            return CompilerCommand.beside(executable, environment);
         }
 
         // run the entry with Bun, reading the workspace that installed the tools
         const entry = fileURLToPath(new URL("../main.ts", import.meta.url));
-        const workspace = await locateWorkspace(fileURLToPath(new URL("../..", import.meta.url)));
+        const root = fileURLToPath(new URL("../..", import.meta.url));
+        const workspace = await locateWorkspace(root, environment.files);
 
         return {
-            executable: process.execPath,
+            executable,
             arguments: ["run", "--no-env-file", entry],
             read: [workspace],
+            variables: {},
         };
     },
 };
@@ -114,6 +127,8 @@ export class Compiler implements AsyncDisposable {
     readonly #compiler: CompilerCommand;
     /** The sandboxed compiler, started again after a failed one. */
     #sandbox: Sandbox;
+    /** The writer of the current compiler's input. */
+    #input: WritableStreamDefaultWriter<Uint8Array>;
     /** Compiler completion, including native compiler shutdown. */
     #closed: Promise<void>;
     /** The request awaiting a response. */
@@ -158,26 +173,31 @@ export class Compiler implements AsyncDisposable {
 
         // watch the started compiler
         this.#sandbox = sandbox;
-        this.#closed = this.#watch(sandbox);
+        this.#input = sandbox.stdin.getWriter();
+        this.#closed = this.#watch(sandbox, this.#input);
     }
 
     /** Start a reusable compiler for a directory's workspace, building into a store. */
     static async start(directory: string, options: CompilerOptions): Promise<Compiler> {
         // read the workspace, the compiler's tools and the store's trees
         const { store } = options;
-        const started = options.command ?? (await CompilerCommand.current());
-        const workspace = await realpath(await locateWorkspace(resolve(directory)));
+        const { environment } = store;
+        const { files } = environment;
+        const started = options.command ?? (await CompilerCommand.current(environment));
+        const workspace = await files.realPath(await locateWorkspace(resolve(directory), files));
         const paths = [workspace, ...started.read, store.trees];
-        const read = [...new Set(await Promise.all(paths.map((path) => realpath(path))))];
+        const read = [...new Set(await Promise.all(paths.map((path) => files.realPath(path))))];
 
         // start the compiler with a temporary directory
-        const temporary = await realpath(await mkdtemp(join(tmpdir(), "destack-compile-")));
+        const temporary = await files.realPath(
+            await files.makeTemporaryDirectory("destack-compile-"),
+        );
         try {
-            const sandbox = await spawn(workspace, temporary, read, started);
+            const sandbox = await spawn(workspace, temporary, read, started, environment);
 
             return new Compiler(workspace, store, temporary, read, started, sandbox);
         } catch (error) {
-            await rm(temporary, { recursive: true });
+            await files.remove(temporary, { recursive: true });
             throw error;
         }
     }
@@ -190,7 +210,13 @@ export class Compiler implements AsyncDisposable {
     /** Start the compiler again after a failed one. */
     async #restart(): Promise<void> {
         // start the next compiler, recording the failure of the stopped one should it not start
-        const sandbox = await spawn(this.workspace, this.#temporary, this.#read, this.#compiler);
+        const sandbox = await spawn(
+            this.workspace,
+            this.#temporary,
+            this.#read,
+            this.#compiler,
+            this.store.environment,
+        );
 
         // reset the failure and diagnostics, then watch the next compiler
         this.#failure = undefined;
@@ -198,11 +224,12 @@ export class Compiler implements AsyncDisposable {
         this.#exitCode = null;
         this.#stderr = "";
         this.#sandbox = sandbox;
-        this.#closed = this.#watch(sandbox);
+        this.#input = sandbox.stdin.getWriter();
+        this.#closed = this.#watch(sandbox, this.#input);
     }
 
     /** Watch a started compiler's exit, diagnostics and responses, returning its completion. */
-    #watch(sandbox: Sandbox): Promise<void> {
+    #watch(sandbox: Sandbox, input: WritableStreamDefaultWriter<Uint8Array>): Promise<void> {
         // fail the pending build of a compiler that exits unexpectedly or whose sandbox fails
         const closed = sandbox.exited.then(
             ({ code }) => {
@@ -233,12 +260,30 @@ export class Compiler implements AsyncDisposable {
                 this.#fail(error);
             }
         };
-        sandbox.stdin.on("error", fail);
+        input.closed.catch((cause: unknown) =>
+            fail(BuildError.of("COMPILER_FAILED", "the compiler's input failed", { cause })),
+        );
 
         // bound diagnostics retained from compiler tools
-        sandbox.stderr.setEncoding("utf8");
-        sandbox.stderr.on("data", (chunk: string) => {
-            this.#stderr += chunk;
+        void this.#diagnose(sandbox, fail).catch(fail);
+
+        // deliver each response to the pending build
+        void this.#deliver(sandbox, input).catch(fail);
+
+        return closed;
+    }
+
+    /** Retain the current compiler's diagnostics, failing it once and stopping past the bound. */
+    async #diagnose(sandbox: Sandbox, fail: (error: Error) => void): Promise<void> {
+        const decoder = new TextDecoder();
+        for await (const chunk of sandbox.stderr) {
+            // stop once a restarted compiler replaced this one
+            if (this.#sandbox !== sandbox) {
+                return;
+            }
+
+            // retain the text, failing the compiler once it passes the bound
+            this.#stderr += decoder.decode(chunk, { stream: true });
             if (this.#stderr.length > MAX_DIAGNOSTICS) {
                 const head = this.#stderr.slice(0, DIAGNOSTICS_HEAD);
                 fail(
@@ -247,17 +292,17 @@ export class Compiler implements AsyncDisposable {
                         `build diagnostics exceeded 1 MiB, starting: ${head}`,
                     ),
                 );
+
+                return;
             }
-        });
-
-        // deliver each response to the pending build
-        void this.#deliver(sandbox).catch(fail);
-
-        return closed;
+        }
     }
 
     /** Deliver each compiler response to the build awaiting it, and answer its cache requests. */
-    async #deliver(sandbox: Sandbox): Promise<void> {
+    async #deliver(
+        sandbox: Sandbox,
+        input: WritableStreamDefaultWriter<Uint8Array>,
+    ): Promise<void> {
         for await (const message of readMessages(sandbox.stdout, CompilerMessage)) {
             // refuse a message no request awaits
             const pending = this.#pending;
@@ -270,7 +315,7 @@ export class Compiler implements AsyncDisposable {
             }
             // answer a transform's cache request from the pending build's store
             else {
-                void this.#answer(sandbox, message).catch((error: unknown) =>
+                void this.#answer(input, message).catch((error: unknown) =>
                     this.#fail(
                         BuildError.of("COMPILER_FAILED", "cannot respond to a cache request", {
                             cause: error,
@@ -282,7 +327,10 @@ export class Compiler implements AsyncDisposable {
     }
 
     /** Read or write a transform's file in the store. */
-    async #answer(sandbox: Sandbox, request: CacheRequest): Promise<void> {
+    async #answer(
+        input: WritableStreamDefaultWriter<Uint8Array>,
+        request: CacheRequest,
+    ): Promise<void> {
         // read the file a key caches, a miss without an entry
         const { store } = this;
         let bytes: Uint8Array<ArrayBuffer> | null = null;
@@ -297,13 +345,14 @@ export class Compiler implements AsyncDisposable {
                 path,
                 "application/octet-stream",
                 request.bytes,
+                store.environment.crypto,
             );
             await store.putFile(file, async () => request.bytes);
             await store.cache(request.key, { kind: "file", file });
         }
 
         // answer the request
-        await writeMessage(sandbox.stdin, { kind: "cached", id: request.id, bytes });
+        await writeMessage(input, { kind: "cached", id: request.id, bytes });
     }
 
     /** Build a package's current source after the requests before it. */
@@ -314,22 +363,23 @@ export class Compiler implements AsyncDisposable {
     /** Build a package's current source using retained compiler state. */
     async #build(options: PackageBuildOptions): Promise<PackageBuild> {
         // build the package at its real directory
+        const { files } = this.store.environment;
         const { signal, timeout, ...given } = options;
-        const requested = { ...given, directory: await realpath(resolve(given.directory)) };
+        const requested = { ...given, directory: await files.realPath(resolve(given.directory)) };
 
         // install the dependencies, then build into temporary files moved into place once complete
         const tree = await this.#install(requested.dependencies);
         const request = { ...requested, tree: tree.directories };
         const written = join(this.#temporary, "builds", String(this.#builds++));
-        const destination = await mkdtemp(join(tmpdir(), "destack-build-"));
+        const destination = await files.makeTemporaryDirectory("destack-build-");
         try {
             return await this.#buildCached(request, written, destination, signal, timeout);
         } catch (error) {
             if (this.#stopping) {
                 await this.#closed;
             }
-            await rm(written, { recursive: true, force: true });
-            await rm(destination, { recursive: true, force: true });
+            await files.remove(written, { recursive: true, force: true });
+            await files.remove(destination, { recursive: true, force: true });
             throw error;
         }
     }
@@ -344,17 +394,18 @@ export class Compiler implements AsyncDisposable {
     ): Promise<PackageBuild> {
         // compile the outputs the cache lacks beside the cached outputs' files
         const { store } = this;
+        const { files } = store.environment;
         const keys = await this.#plan(request, signal, timeout);
         const reuse = await reuseOutputs(store, keys, written);
         const response = await this.#compile(request, reuse, written, signal, timeout);
-        await rename(written, destination);
+        await files.rename(written, destination);
         const reused = Object.keys(reuse);
-        const build = new PackageBuild(
-            await readBuild(destination),
+        const reader = await BuildReader.openDirectory(
             destination,
-            "temporary",
-            reused,
+            files,
+            store.environment.crypto,
         );
+        const build = new PackageBuild(reader, destination, "temporary", files, reused);
 
         // refuse an unloadable build, then store it and key each compiled output
         await Compiler.#requireLoadable(build.manifest, store);
@@ -410,7 +461,7 @@ export class Compiler implements AsyncDisposable {
         timeout: number | undefined,
     ): Promise<Extract<BuildResult, { kind: "build" }>> {
         // send the build with its destination, reused outputs and whether transforms have a cache
-        await mkdir(destination, { recursive: true });
+        await this.store.environment.files.mkdir(destination, { recursive: true });
         const request: BuildRequest = {
             kind: "build",
             destination,
@@ -465,7 +516,8 @@ export class Compiler implements AsyncDisposable {
     ): Promise<InspectOptions & Pick<RequestedBuild, "tree">> {
         // resolve the directory and materialize the dependencies' builds
         const { dependencies, ...inspected } = options;
-        const directory = await realpath(resolve(inspected.directory));
+        const { files } = this.store.environment;
+        const directory = await files.realPath(resolve(inspected.directory));
         const tree = await this.#install(dependencies);
 
         return { ...inspected, directory, tree: tree.directories };
@@ -475,7 +527,10 @@ export class Compiler implements AsyncDisposable {
     convert(request: NpmConversionRequest): ReturnType<NpmConverter> {
         return this.#serially(async () => {
             // convert into a separate directory of the compiler, then read the converted copy
-            const destination = await mkdtemp(join(this.#temporary, "npm-"));
+            const { files } = this.store.environment;
+            const destination = await files.makeTemporaryDirectory("npm-", {
+                directory: this.#temporary,
+            });
             try {
                 const response = await this.#request({
                     kind: "convert",
@@ -490,11 +545,11 @@ export class Compiler implements AsyncDisposable {
                 }
 
                 return {
-                    files: await NpmUnit.files(destination),
+                    files: await NpmUnit.files(destination, files),
                     imported: new Set(response.imported),
                 };
             } finally {
-                await rm(destination, { recursive: true });
+                await files.remove(destination, { recursive: true });
             }
         });
     }
@@ -540,23 +595,25 @@ export class Compiler implements AsyncDisposable {
                 BuildError.of("BUILD_CANCELLED", "build cancelled", { cause: signal?.reason }),
             );
         // fail a build past the caller's deadline, and leave one without a deadline to its signal
-        const timer =
-            timeout === undefined
-                ? undefined
-                : setTimeout(
-                      () =>
-                          this.#fail(
-                              BuildError.of("COMPILER_TIMEOUT", `build exceeded ${timeout} ms`),
-                          ),
-                      timeout,
-                  );
+        const deadline = new AbortController();
+        if (timeout !== undefined) {
+            const late = BuildError.of("COMPILER_TIMEOUT", `build exceeded ${timeout} ms`);
+            void this.store.environment.clock.sleep(timeout, deadline.signal).then(
+                () => this.#fail(late),
+                (error: unknown) => {
+                    if (!deadline.signal.aborted) {
+                        throw error;
+                    }
+                },
+            );
+        }
         signal?.addEventListener("abort", abort, { once: true });
 
         // send the request and wait for its response
         try {
             return resultOf(await this.#send(request));
         } finally {
-            clearTimeout(timer);
+            deadline.abort();
             signal?.removeEventListener("abort", abort);
             this.#pending = undefined;
         }
@@ -568,7 +625,7 @@ export class Compiler implements AsyncDisposable {
 
         return new Promise<BuildResponse>((deliver, reject) => {
             this.#pending = { resolve: deliver, reject };
-            void writeMessage(this.#sandbox.stdin, request).catch((error: unknown) =>
+            void writeMessage(this.#input, request).catch((error: unknown) =>
                 this.#fail(
                     BuildError.of("COMPILER_FAILED", "cannot send the compiler request", {
                         cause: error,
@@ -590,7 +647,11 @@ export class Compiler implements AsyncDisposable {
         if (this.#pending) {
             this.#fail(BuildError.of("INVARIANT_VIOLATED", "compiler closed during a build"));
         }
-        this.#sandbox.stdin.end();
+        void this.#input.close().catch((cause: unknown) => {
+            this.#failure ??= BuildError.of("COMPILER_FAILED", "cannot end the compiler's input", {
+                cause,
+            });
+        });
 
         // await the compiler's exit once it read the end of its input
         try {
@@ -599,7 +660,7 @@ export class Compiler implements AsyncDisposable {
                 throw present(this.#failure, "the failure of the exited compiler");
             }
         } finally {
-            await rm(this.#temporary, { recursive: true });
+            await this.store.environment.files.remove(this.#temporary, { recursive: true });
         }
     }
 
@@ -628,28 +689,36 @@ function spawn(
     temporary: string,
     read: readonly string[],
     compiler: CompilerCommand,
+    environment: Environment<"files" | "process" | "host">,
 ): Promise<Sandbox> {
-    return Sandbox.start({
-        executable: compiler.executable,
-        arguments: [...compiler.arguments],
-        directory: workspace,
-        environment: {
-            NODE_ENV: "production",
-            HOME: temporary,
-            TMPDIR: temporary,
-            NO_COLOR: "1",
+    return Sandbox.start(
+        {
+            executable: compiler.executable,
+            arguments: [...compiler.arguments],
+            directory: workspace,
+            environment: {
+                NODE_ENV: "production",
+                HOME: temporary,
+                TMPDIR: temporary,
+                NO_COLOR: "1",
+                ...compiler.variables,
+            },
+            read: [...read],
+            write: [temporary],
+            network: [],
+            sockets: [],
+            listening: "denied",
         },
-        read: [...read],
-        write: [temporary],
-        network: [],
-    });
+        environment,
+    );
 }
 
 /** Read a compiler response's result, rethrowing the failure it reports. */
 function resultOf(response: BuildResponse): BuildResult {
     if (response.error !== undefined) {
-        const { code, reason, domain, message, data } = response.error.failure;
-        const failure = new FamilyError({ domain, reason, code, data }, message, {
+        const { failure: described, audience } = response.error;
+        const { code, reason, domain, message, data } = described;
+        const failure = new FamilyError({ domain, reason, code, data, audience }, message, {
             cause: response.error.cause,
         });
         if (response.error.stack !== undefined) {

@@ -1,7 +1,6 @@
+import { testSimulation } from "../test/world.ts";
 import { CompilerPool } from "../index.ts";
 import { expect, test } from "@destack/test";
-import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { Workspace } from "../dependency/workspace.ts";
 import { LocalPackageStore } from "../store/local.ts";
@@ -41,18 +40,28 @@ const FILES: Readonly<Record<string, string>> = {
 
 test("describe a symbol by the package's declarations, leaving a linked dependency's augmentation", async () => {
     // link the dependency beside the app, as a workspace installs it
-    const directory = await realpath(await mkdtemp(join(tmpdir(), "destack-augmentation-")));
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await files.realPath(
+        await files.makeTemporaryDirectory("destack-augmentation-"),
+    );
     try {
         for (const [path, text] of Object.entries(FILES)) {
-            await mkdir(dirname(join(directory, path)), { recursive: true });
-            await writeFile(join(directory, path), text);
+            await files.mkdir(dirname(join(directory, path)), { recursive: true });
+            await files.writeTextFile(join(directory, path), text);
         }
-        await mkdir(join(directory, "app/node_modules/@example"), { recursive: true });
-        await symlink(join(directory, "other"), join(directory, "app/node_modules/@example/other"));
-        expect(Bun.spawnSync(["git", "init", "--quiet", directory]).exitCode).toBe(0);
+        await files.mkdir(join(directory, "app/node_modules/@example"), { recursive: true });
+        await files.symlink(
+            join(directory, "other"),
+            join(directory, "app/node_modules/@example/other"),
+        );
+        expect(await environment.process.spawn(["git", "init", "--quiet", directory]).exited).toBe(
+            0,
+        );
 
         // inspect the app
-        await using store = await LocalPackageStore.temporary();
+        await using store = await LocalPackageStore.temporary(environment);
         await using compilers = await CompilerPool.open(store);
         const workspace = await Workspace.open(join(directory, "app"), compilers);
         const inspection = await workspace.inspect({ runtime: "bun" });
@@ -73,15 +82,18 @@ test("describe a symbol by the package's declarations, leaving a linked dependen
             },
         ]);
     } finally {
-        await rm(directory, { recursive: true, force: true });
+        await files.remove(directory, { recursive: true });
     }
 });
 
 test("describe a class's private members by the names their declarations write", async () => {
     // write a package with a class with a private field and method
-    const directory = await realpath(await mkdtemp(join(tmpdir(), "destack-private-")));
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await files.realPath(await files.makeTemporaryDirectory("destack-private-"));
     try {
-        await writeFile(
+        await files.writeTextFile(
             join(directory, "bun.lock"),
             JSON.stringify({
                 lockfileVersion: 2,
@@ -89,20 +101,25 @@ test("describe a class's private members by the names their declarations write",
                 packages: {},
             }),
         );
-        await mkdir(join(directory, "app/src"), { recursive: true });
-        await writeFile(join(directory, "app/destack.json"), FILES["app/destack.json"] ?? "");
-        await writeFile(
+        await files.mkdir(join(directory, "app/src"), { recursive: true });
+        await files.writeTextFile(
+            join(directory, "app/destack.json"),
+            FILES["app/destack.json"] ?? "",
+        );
+        await files.writeTextFile(
             join(directory, "app/package.json"),
             JSON.stringify({ ...JSON.parse(FILES["app/package.json"] ?? "{}"), dependencies: {} }),
         );
-        await writeFile(
+        await files.writeTextFile(
             join(directory, "app/src/index.ts"),
             "/** An inbox. */\nexport class Inbox {\n    /** The unread count. */\n    #unread = 0;\n\n    /** Read every message. */\n    read(): number {\n        return this.#clear();\n    }\n\n    /** Clear the unread count. */\n    #clear(): number {\n        this.#unread = 0;\n\n        return this.#unread;\n    }\n}\n",
         );
-        expect(Bun.spawnSync(["git", "init", "--quiet", directory]).exitCode).toBe(0);
+        expect(await environment.process.spawn(["git", "init", "--quiet", directory]).exited).toBe(
+            0,
+        );
 
         // inspect the app
-        await using store = await LocalPackageStore.temporary();
+        await using store = await LocalPackageStore.temporary(environment);
         await using compilers = await CompilerPool.open(store);
         const workspace = await Workspace.open(join(directory, "app"), compilers);
         const inspection = await workspace.inspect({ runtime: "bun" });
@@ -116,6 +133,6 @@ test("describe a class's private members by the names their declarations write",
             ["Inbox.#clear", []],
         ]);
     } finally {
-        await rm(directory, { recursive: true, force: true });
+        await files.remove(directory, { recursive: true });
     }
 });

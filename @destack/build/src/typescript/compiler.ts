@@ -1,6 +1,5 @@
-import { realpathSync } from "node:fs";
-import { realpath } from "node:fs/promises";
 import { join, resolve } from "node:path";
+import type { Environment, FileSystem } from "@destack/environment";
 import { fileURLToPath } from "node:url";
 import { API, type Diagnostic, type Project } from "typescript/unstable/async";
 import { Toolchain } from "@destack/check/toolchain";
@@ -27,28 +26,45 @@ export class TypeScriptCompiler implements AsyncDisposable {
     readonly directory: string;
     /** The compiler process and retained project state. */
     readonly #api: API;
+    /** The files the configurations resolve through. */
+    readonly #files: FileSystem;
+
+    /** Run the native compiler for a source package's real directory. */
+    private constructor(directory: string, api: API, files: FileSystem) {
+        this.directory = directory;
+        this.#api = api;
+        this.#files = files;
+    }
 
     /** Start the native compiler for a source package. */
-    constructor(directory: string) {
-        this.directory = realpathSync(directory);
-        this.#api = new API({
-            cwd: this.directory,
-            tsserverPath: TypeScriptCompiler.executable(),
+    static async start(
+        directory: string,
+        environment: Environment<"files" | "process" | "host">,
+    ): Promise<TypeScriptCompiler> {
+        const real = await environment.files.realPath(directory);
+        const api = new API({
+            cwd: real,
+            tsserverPath: TypeScriptCompiler.executable(environment),
         });
+
+        return new TypeScriptCompiler(real, api, environment.files);
     }
 
     /** Find this platform's native TypeScript compiler among the tools. */
-    static executable(): string {
-        const platform = `@typescript/typescript-${process.platform}-${process.arch}`;
+    static executable(environment: Environment<"process" | "host">): string {
+        // find the platform's native package beside TypeScript
+        const { os, architecture } = environment.host;
+        const native = `@typescript/typescript-${os}-${architecture}`;
+        const directory = Toolchain.locate(["typescript", native], PACKAGE, environment.process);
 
-        return join(Toolchain.locate(["typescript", platform], PACKAGE), "lib", "tsc");
+        return join(directory, "lib", "tsc");
     }
 
     /** Inspect programs to a depth: check them at once, then read the first and the rest. */
     async inspect(
         programs: readonly Pick<
             PackageSource,
-            "configuration" | "entries" | "directory" | "versions"
+            "configuration" | "entries" | "directory" | "versions" | "environment"
         >[],
         depth: InspectionDepth,
     ): Promise<TypeScriptInspection[]> {
@@ -108,7 +124,7 @@ export class TypeScriptCompiler implements AsyncDisposable {
 
     /** Parse a configuration into options and root files, without loading its program. */
     async configure(configuration: string): Promise<ParsedConfiguration> {
-        const path = await realpath(resolve(this.directory, configuration));
+        const path = await this.#files.realPath(resolve(this.directory, configuration));
         const parsed = await this.#api.parseConfigFile(path);
 
         return { options: parsed.options, files: parsed.fileNames };
@@ -121,7 +137,9 @@ export class TypeScriptCompiler implements AsyncDisposable {
     ): Promise<Result> {
         // refresh the selected configurations
         const paths = await Promise.all(
-            configurations.map((configuration) => realpath(resolve(this.directory, configuration))),
+            configurations.map((configuration) =>
+                this.#files.realPath(resolve(this.directory, configuration)),
+            ),
         );
 
         // refresh client ASTs while the native compiler retains incremental project state

@@ -1,10 +1,10 @@
 import { BuildDescription } from "@destack/package/manifest";
-import { readFile, stat } from "node:fs/promises";
+import { type FileSystem, FileSystemError } from "@destack/environment";
 import { dirname, isAbsolute, join, resolve, sep, posix } from "node:path";
 import { type Plugin } from "vite";
 import { type DependencyResolution } from "@destack/package";
 import { comparePath } from "../build/serialization.ts";
-import { BuildError, isMissing } from "../error/index.ts";
+import { BuildError } from "../error/index.ts";
 import { type PackageSource } from "../source/index.ts";
 import { PackageFile } from "@destack/package/file";
 import {
@@ -72,17 +72,20 @@ class DependencyResolver {
     readonly #packages = new Map<string, Promise<PackageLocation>>();
     /** Destack declarations indexed by package directory. */
     readonly #definitions = new Map<string, Promise<PackageDefinition | undefined>>();
+    /** The files the manifests are read from. */
+    readonly files: FileSystem;
 
     /** Read packages at the versions a build releases. */
-    constructor(versions: Readonly<Record<string, Version>>) {
+    constructor(versions: Readonly<Record<string, Version>>, files: FileSystem) {
         this.#versions = versions;
+        this.files = files;
     }
 
     /** Locate the manifest that contains a resolved module. */
     package(directory: string): Promise<PackageLocation> {
         let result = this.#packages.get(directory);
         if (!result) {
-            result = modulePackage(directory, this.#versions);
+            result = modulePackage(directory, this.#versions, this.files);
             this.#packages.set(directory, result);
         }
 
@@ -93,7 +96,7 @@ class DependencyResolver {
     definition(directory: string): Promise<PackageDefinition | undefined> {
         let result = this.#definitions.get(directory);
         if (!result) {
-            result = readPackageDefinition(directory);
+            result = readPackageDefinition(directory, this.files);
             this.#definitions.set(directory, result);
         }
 
@@ -131,7 +134,7 @@ class DependencyRecorder {
     ) {
         // store the compiled package, the releases and what the compilation fills
         this.project = project;
-        this.resolver = new DependencyResolver(project.versions);
+        this.resolver = new DependencyResolver(project.versions, project.environment.files);
         this.resolutions = resolutions;
         this.description = description;
         this.locations = locations;
@@ -276,7 +279,7 @@ class DependencyRecorder {
             return;
         }
         const absolute = resolve(root, original);
-        if (!(await isFile(absolute))) {
+        if (!(await isFile(absolute, this.resolver.files))) {
             throw BuildError.of("ASSET_INVALID", `missing asset file: ${original}`);
         }
 
@@ -306,7 +309,12 @@ class DependencyRecorder {
         if (bytes === undefined || snapshot === undefined || snapshot.kind !== "source") {
             return;
         }
-        const file = await PackageFile.describe(path, "application/octet-stream", bytes);
+        const file = await PackageFile.describe(
+            path,
+            "application/octet-stream",
+            bytes,
+            this.project.environment.crypto,
+        );
         addFile(snapshot, file);
     }
 
@@ -338,8 +346,13 @@ class DependencyRecorder {
 
         // identify authored modules independently of generated JavaScript
         const local = relativePath(source.directory, path);
-        const bytes = new Uint8Array(await readFile(path));
-        const file = await PackageFile.describe(local, "application/octet-stream", bytes);
+        const bytes = await this.resolver.files.readFile(path);
+        const file = await PackageFile.describe(
+            local,
+            "application/octet-stream",
+            bytes,
+            this.project.environment.crypto,
+        );
         addFile(await this.#snapshot(source, definition, key), file);
     }
 
@@ -360,8 +373,17 @@ class DependencyRecorder {
             };
             this.description.packages[key] = created;
             for (const name of ["package.json", "destack.json"]) {
-                const bytes = new Uint8Array(await readFile(join(source.directory, name)));
-                addFile(created, await PackageFile.describe(name, "application/json", bytes));
+                const path = join(source.directory, name);
+                const bytes = await this.resolver.files.readFile(path);
+                addFile(
+                    created,
+                    await PackageFile.describe(
+                        name,
+                        "application/json",
+                        bytes,
+                        this.project.environment.crypto,
+                    ),
+                );
             }
             await this.#storeCatalogs(created, source.directory);
             snapshot = created;
@@ -377,8 +399,17 @@ class DependencyRecorder {
 
     /** Store an unpublished dependency's catalogs in its snapshot and in the build. */
     async #storeCatalogs(snapshot: SourceSnapshot, directory: string): Promise<void> {
-        for (const [path, bytes] of await readCatalogs(directory, snapshot.package.id)) {
-            addFile(snapshot, await PackageFile.describe(path, "application/json", bytes));
+        const catalogs = await readCatalogs(directory, snapshot.package.id, this.resolver.files);
+        for (const [path, bytes] of catalogs) {
+            addFile(
+                snapshot,
+                await PackageFile.describe(
+                    path,
+                    "application/json",
+                    bytes,
+                    this.project.environment.crypto,
+                ),
+            );
         }
         await this.#bundleCatalogs(directory, snapshot.package.id);
     }
@@ -386,7 +417,7 @@ class DependencyRecorder {
     /** Write a bundled package's catalogs where the build's views read them. */
     async #bundleCatalogs(directory: string, packageId: PackageId): Promise<void> {
         const owner = this.project.packageJson.package.id;
-        for (const [, bytes] of await readCatalogs(directory, packageId)) {
+        for (const [, bytes] of await readCatalogs(directory, packageId, this.resolver.files)) {
             const catalog = Catalog.parse(JSON.parse(new TextDecoder().decode(bytes)));
             this.files.set(Catalog.path(catalog, owner), bytes);
         }
@@ -506,13 +537,16 @@ export function dependencyPlugin(
 }
 
 /** Read a package's Destack declaration when it provides one. */
-async function readPackageDefinition(directory: string): Promise<PackageDefinition | undefined> {
+async function readPackageDefinition(
+    directory: string,
+    files: FileSystem,
+): Promise<PackageDefinition | undefined> {
     try {
-        const text = await readFile(join(directory, "destack.json"), "utf8");
+        const text = await files.readTextFile(join(directory, "destack.json"));
 
         return PackageDefinition.parse(JSON.parse(text));
     } catch (error) {
-        if (isMissing(error)) {
+        if (FileSystemError.is(error, "NOT_FOUND")) {
             return undefined;
         }
         throw error;
@@ -525,7 +559,7 @@ export function resolutionPlugin(
     dependencies: Readonly<Record<string, DependencyResolution>>,
     runtime?: Runtime,
     runtimes = new Map<string, Runtime[]>(),
-    resolver = new DependencyResolver(source.versions),
+    resolver = new DependencyResolver(source.versions, source.environment.files),
 ): Plugin {
     return {
         name: "destack-resolution",
@@ -795,11 +829,11 @@ export function unresolvedImports(ast: ESTree.Program): string[] {
 }
 
 /** Report whether a path is a file on disk, refusing any failure but a missing one. */
-async function isFile(path: string): Promise<boolean> {
+async function isFile(path: string, files: FileSystem): Promise<boolean> {
     try {
-        return (await stat(path)).isFile();
+        return (await files.stat(path)).kind === "file";
     } catch (error) {
-        if (isMissing(error)) {
+        if (FileSystemError.is(error, "NOT_FOUND")) {
             return false;
         }
         throw error;

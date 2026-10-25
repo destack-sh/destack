@@ -1,13 +1,13 @@
-import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { Clock } from "@destack/environment";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { testSimulation } from "../test/world.ts";
+import type { Crypto } from "@destack/environment";
+import { expect, refusal, test } from "@destack/test";
+import type { Environment, FileSystem } from "@destack/environment";
 import { join } from "node:path";
 import { LocalBucket } from "@destack/bucket/bun";
 import { PackageFile } from "@destack/package/file";
 import { BuildReader, PackageManifest } from "@destack/package/manifest";
 import { CallError } from "@destack/object";
-import { found, present } from "@destack/schema";
+import { Digest, found, present } from "@destack/schema";
 import { type PackageAccess, PackageClient, PackageStore, Retention } from "./index.ts";
 
 /** The mount the tests serve stores below. */
@@ -25,21 +25,21 @@ const INTERVAL = 60 * 60 * 1000;
 const STRESS_BUILDS = 20;
 
 /** A host granting every read and every upload. */
-const UPLOADING: PackageAccess = { authorize: async () => ({}), upload: async () => {} };
+const UPLOADING: PackageAccess = { authorize: async () => {}, upload: async () => {} };
 
 /** A host granting every read and taking no uploads. */
-const READING: PackageAccess = { authorize: async () => ({}) };
+const READING: PackageAccess = { authorize: async () => {} };
 
-/** Create a temporary directory removed when the test finishes. */
-async function temporary(): Promise<string> {
-    const directory = await mkdtemp(join(tmpdir(), "destack-store-"));
-    onTestFinished(() => rm(directory, { recursive: true, force: true }));
-
-    return directory;
+/** Create a temporary directory in a world. */
+async function temporary(files: FileSystem): Promise<string> {
+    return await files.makeTemporaryDirectory("store-");
 }
 
 /** Write a build of some source files in memory, as a builder writes one. */
-async function written(sources: Readonly<Record<string, string>>): Promise<BuildReader> {
+async function written(
+    sources: Readonly<Record<string, string>>,
+    crypto: Crypto,
+): Promise<BuildReader> {
     // describe each source file
     const encoder = new TextEncoder();
     const bytes = new Map(
@@ -47,7 +47,7 @@ async function written(sources: Readonly<Record<string, string>>): Promise<Build
     );
     const files = await Promise.all(
         [...bytes].map(([path, contents]) =>
-            PackageFile.describe(path, "text/typescript", contents),
+            PackageFile.describe(path, "text/typescript", contents, crypto),
         ),
     );
 
@@ -56,7 +56,7 @@ async function written(sources: Readonly<Record<string, string>>): Promise<Build
         const contents = encoder.encode(JSON.stringify(value));
         bytes.set(path, contents);
 
-        return PackageFile.describe(path, "application/json", contents);
+        return PackageFile.describe(path, "application/json", contents, crypto);
     };
     const manifest = PackageManifest.parse({
         formatVersion: 1,
@@ -75,7 +75,11 @@ async function written(sources: Readonly<Record<string, string>>): Promise<Build
         outputs: {},
     });
 
-    return new BuildReader(manifest, async (path) => new Blob([found(bytes, path)]).stream());
+    return new BuildReader(
+        manifest,
+        async (path) => new Blob([found(bytes, path)]).stream(),
+        crypto,
+    );
 }
 
 /** Read a stream's bytes. */
@@ -89,11 +93,16 @@ async function listing(bucket: LocalBucket): Promise<string[]> {
 }
 
 /** Extract a gzip tarball with the system tar into a directory. */
-async function extract(archive: Uint8Array, directory: string): Promise<void> {
-    await writeFile(join(directory, "archive.tgz"), archive);
-    await mkdir(join(directory, "extracted"));
-    const child = Bun.spawn(["tar", "-xzf", "archive.tgz", "-C", "extracted"], {
-        cwd: directory,
+async function extract(
+    archive: Uint8Array,
+    directory: string,
+    environment: Environment<"files" | "process">,
+): Promise<void> {
+    const { files } = environment;
+    await files.writeFile(join(directory, "archive.tgz"), archive);
+    await files.mkdir(join(directory, "extracted"));
+    const child = environment.process.spawn(["tar", "-xzf", "archive.tgz", "-C", "extracted"], {
+        workingDirectory: directory,
         stderr: "pipe",
     });
     const [code, errors] = await Promise.all([child.exited, new Response(child.stderr).text()]);
@@ -103,8 +112,11 @@ async function extract(archive: Uint8Array, directory: string): Promise<void> {
 }
 
 test("store a build's files once by digest, read it after reopening, and refuse stored corruption", async () => {
-    const directory = await temporary();
-    const build = await written(SOURCES);
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await temporary(files);
+    const build = await written(SOURCES, environment.crypto);
     const list = await build.distributed();
     const answer = present(
         list.find((file) => file.path === "src/answer.ts"),
@@ -112,14 +124,14 @@ test("store a build's files once by digest, read it after reopening, and refuse 
     );
 
     // store the build twice, which writes every file once under its digest
-    let digest: string;
+    let digest: Digest;
     {
         await using bucket = await LocalBucket.open(
             join(directory, "bucket"),
             "space-test",
-            Clock.system,
+            environment,
         );
-        const store = new PackageStore(bucket);
+        const store = new PackageStore(bucket, environment);
         digest = await store.put(build);
         expect([
             await store.put(build),
@@ -134,9 +146,9 @@ test("store a build's files once by digest, read it after reopening, and refuse 
     await using bucket = await LocalBucket.open(
         join(directory, "bucket"),
         "space-test",
-        Clock.system,
+        environment,
     );
-    const store = new PackageStore(bucket);
+    const store = new PackageStore(bucket, environment);
     expect([await store.get(digest), await store.file(answer)]).toEqual([
         build.manifest,
         new TextEncoder().encode(SOURCES["src/answer.ts"]),
@@ -158,16 +170,22 @@ test("store a build's files once by digest, read it after reopening, and refuse 
 
 test("sweep the builds retention drops, the files only they list and the cache entries that list them", async () => {
     // store a live build and a dropped one sharing the index module, each listed by a cache key
-    const directory = await temporary();
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await temporary(files);
     await using bucket = await LocalBucket.open(
         join(directory, "bucket"),
         "space-test",
-        Clock.system,
+        environment,
     );
-    const store = new PackageStore(bucket);
-    const live = await store.put(await written(SOURCES));
+    const store = new PackageStore(bucket, environment);
+    const live = await store.put(await written(SOURCES, environment.crypto));
     const dropped = await store.put(
-        await written({ ...SOURCES, "src/answer.ts": "export const answer = 43;\n" }),
+        await written(
+            { ...SOURCES, "src/answer.ts": "export const answer = 43;\n" },
+            environment.crypto,
+        ),
     );
     const keys = { live: "a".repeat(64), dropped: "b".repeat(64) };
     await store.cache(keys.live, { kind: "build", manifest: live });
@@ -179,17 +197,17 @@ test("sweep the builds retention drops, the files only they list and the cache e
     expect((await bucket.list()).files.map((file) => file.key)).toEqual(
         before.files.map((file) => file.key),
     );
-    const later = new Date(Date.now() + 1000);
+    const later = new Date(simulation.clock.now() + 1000);
     await store.sweep(Retention.of([live]), later, Retention.none, later);
     await store.sweep(Retention.of([live]), later, Retention.none, later, later);
 
     // retain exactly the live build's manifest, the files it lists and its cache entry
     const reader = await store.contents(live);
-    const files = await reader.distributed();
+    const distributed = await reader.distributed();
     expect((await bucket.list()).files.map((file) => file.key)).toEqual(
         [
             `cache/${keys.live}`,
-            ...new Set(files.map((file) => `files/${file.digest}`)),
+            ...new Set(distributed.map((file) => `files/${file.digest}`)),
             `manifests/${live}`,
         ].toSorted(),
     );
@@ -198,17 +216,25 @@ test("sweep the builds retention drops, the files only they list and the cache e
 
 test("attach a code index to a build, retain it with the build, and sweep it with the build", async () => {
     // store two builds, each with a separate code index attached
-    const directory = await temporary();
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await temporary(files);
     await using bucket = await LocalBucket.open(
         join(directory, "bucket"),
         "space-test",
-        Clock.system,
+        environment,
     );
-    const store = new PackageStore(bucket);
+    const store = new PackageStore(bucket, environment);
     const attached = async (sources: Readonly<Record<string, string>>, index: string) => {
-        const manifest = await store.put(await written(sources));
+        const manifest = await store.put(await written(sources, environment.crypto));
         const bytes = new TextEncoder().encode(index);
-        const file = await PackageFile.describe("code.json", "application/json", bytes);
+        const file = await PackageFile.describe(
+            "code.json",
+            "application/json",
+            bytes,
+            environment.crypto,
+        );
         await store.receive(file.digest, bytes, file.mediaType);
         await store.attach(manifest, file);
 
@@ -221,7 +247,7 @@ test("attach a code index to a build, retain it with the build, and sweep it wit
     );
 
     // refuse a file the store lacks, and read each attached index back
-    const missing = { ...live.file, digest: "c".repeat(64) };
+    const missing = { ...live.file, digest: Digest.parse("c".repeat(64)) };
     await expect(store.attach(live.manifest, missing)).rejects.toThrow(
         `build ${live.manifest} lists code.json, which was not uploaded`,
     );
@@ -232,13 +258,13 @@ test("attach a code index to a build, retain it with the build, and sweep it wit
     ]).toEqual([live.file, dropped.file, undefined]);
 
     // mark and drop the build retention leaves out, its index and its referrer with it
-    const later = new Date(Date.now() + 1000);
+    const later = new Date(simulation.clock.now() + 1000);
     await store.sweep(Retention.of([live.manifest]), later, Retention.none, later);
     await store.sweep(Retention.of([live.manifest]), later, Retention.none, later, later);
-    const files = await (await store.contents(live.manifest)).distributed();
+    const distributed = await (await store.contents(live.manifest)).distributed();
     expect(await listing(bucket)).toEqual(
         [
-            ...new Set([...files, live.file].map((file) => `files/${file.digest}`)),
+            ...new Set([...distributed, live.file].map((file) => `files/${file.digest}`)),
             `manifests/${live.manifest}`,
             `referrers/${live.manifest}/code.json`,
         ].toSorted(),
@@ -247,33 +273,39 @@ test("attach a code index to a build, retain it with the build, and sweep it wit
 
 test("sweep an old unretained build but retain the files a recent build shares with it", async () => {
     // store an old build, then a recent one sharing its index module
-    const directory = await temporary();
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await temporary(files);
     await using bucket = await LocalBucket.open(
         join(directory, "bucket"),
         "space-test",
-        Clock.system,
+        environment,
     );
-    const store = new PackageStore(bucket);
-    const old = await store.put(await written(SOURCES));
-    await Bun.sleep(2);
-    const moment = new Date();
+    const store = new PackageStore(bucket, environment);
+    const old = await store.put(await written(SOURCES, environment.crypto));
+    simulation.clock.advance(2);
+    const moment = new Date(simulation.clock.now());
     const recent = await store.put(
-        await written({ ...SOURCES, "src/answer.ts": "export const answer = 43;\n" }),
+        await written(
+            { ...SOURCES, "src/answer.ts": "export const answer = 43;\n" },
+            environment.crypto,
+        ),
     );
 
     // mark and drop the old manifest alone, retaining every file the recent manifest lists
-    const later = new Date(Date.now() + 1000);
+    const later = new Date(simulation.clock.now() + 1000);
     await store.sweep(Retention.none, moment, Retention.none, moment);
     await store.sweep(Retention.none, moment, Retention.none, later, later);
     const reader = await store.contents(recent);
-    const files = await reader.distributed();
+    const distributed = await reader.distributed();
     expect({
         isOldStored: await store.contains(old),
         files: (await bucket.list()).files.map((file) => file.key),
     }).toEqual({
         isOldStored: false,
         files: [
-            ...new Set(files.map((file) => `files/${file.digest}`)),
+            ...new Set(distributed.map((file) => `files/${file.digest}`)),
             `manifests/${recent}`,
         ].toSorted(),
     });
@@ -281,18 +313,21 @@ test("sweep an old unretained build but retain the files a recent build shares w
 
 test("open one reader per stored build, and forget a swept build's reader", async () => {
     // store a build and open it twice
-    const directory = await temporary();
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await temporary(files);
     await using bucket = await LocalBucket.open(
         join(directory, "bucket"),
         "space-test",
-        Clock.system,
+        environment,
     );
-    const store = new PackageStore(bucket);
-    const digest = await store.put(await written(SOURCES));
+    const store = new PackageStore(bucket, environment);
+    const digest = await store.put(await written(SOURCES, environment.crypto));
     const [first, second] = [await store.contents(digest), await store.contents(digest)];
 
     // mark and drop it, then open it again
-    const later = new Date(Date.now() + 1000);
+    const later = new Date(simulation.clock.now() + 1000);
     await store.sweep(Retention.none, later, Retention.none, later);
     await store.sweep(Retention.none, later, Retention.none, later, later);
     const reopened = await store.contents(digest).then(
@@ -309,16 +344,19 @@ test("open one reader per stored build, and forget a swept build's reader", asyn
 
 test("retain a leased build through sweeps until its lease expires, then mark and delete it", async () => {
     // store a build and lease it for two intervals
-    const directory = await temporary();
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await temporary(files);
     await using bucket = await LocalBucket.open(
         join(directory, "bucket"),
         "space-test",
-        Clock.system,
+        environment,
     );
-    const store = new PackageStore(bucket);
-    const digest = await store.put(await written(SOURCES));
+    const store = new PackageStore(bucket, environment);
+    const digest = await store.put(await written(SOURCES, environment.crypto));
     const build = await listing(bucket);
-    const start = Date.now() + 1000;
+    const start = simulation.clock.now() + 1000;
     const at = (intervals: number) => new Date(start + intervals * INTERVAL);
     await store.lease(digest, at(2));
 
@@ -338,16 +376,19 @@ test("retain a leased build through sweeps until its lease expires, then mark an
 
 test("delete an unretained old build only in the second sweep after a sweep marked it", async () => {
     // store a build, and mark it in a first sweep
-    const directory = await temporary();
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await temporary(files);
     await using bucket = await LocalBucket.open(
         join(directory, "bucket"),
         "space-test",
-        Clock.system,
+        environment,
     );
-    const store = new PackageStore(bucket);
-    await store.put(await written(SOURCES));
+    const store = new PackageStore(bucket, environment);
+    await store.put(await written(SOURCES, environment.crypto));
     const build = await listing(bucket);
-    const start = Date.now() + 1000;
+    const start = simulation.clock.now() + 1000;
     const at = (intervals: number) => new Date(start + intervals * INTERVAL);
     await store.sweep(Retention.none, at(0), Retention.none, at(0), at(-1));
     const marks = await present(await bucket.get("marks"), "the marks").json();
@@ -365,16 +406,19 @@ test("delete an unretained old build only in the second sweep after a sweep mark
 
 test("retain a build a release retains between its mark and the next sweep, and clear its mark", async () => {
     // store a build, and mark it while unretained
-    const directory = await temporary();
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await temporary(files);
     await using bucket = await LocalBucket.open(
         join(directory, "bucket"),
         "space-test",
-        Clock.system,
+        environment,
     );
-    const store = new PackageStore(bucket);
-    const digest = await store.put(await written(SOURCES));
+    const store = new PackageStore(bucket, environment);
+    const digest = await store.put(await written(SOURCES, environment.crypto));
     const build = await listing(bucket);
-    const start = Date.now() + 1000;
+    const start = simulation.clock.now() + 1000;
     const at = (intervals: number) => new Date(start + intervals * INTERVAL);
     await store.sweep(Retention.none, at(0), Retention.none, at(0), at(-1));
 
@@ -384,14 +428,17 @@ test("retain a build a release retains between its mark and the next sweep, and 
 });
 
 test("serve a stored build over HTTP after the host authorizes each read", async () => {
-    const directory = await temporary();
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await temporary(files);
     await using bucket = await LocalBucket.open(
         join(directory, "bucket"),
         "space-test",
-        Clock.system,
+        environment,
     );
-    const store = new PackageStore(bucket);
-    const build = await written(SOURCES);
+    const store = new PackageStore(bucket, environment);
+    const build = await written(SOURCES, environment.crypto);
     const digest = await store.put(build);
     const answer = present(
         (await build.distributed()).find((file) => file.path === "src/answer.ts"),
@@ -399,15 +446,12 @@ test("serve a stored build over HTTP after the host authorizes each read", async
     );
     const bytes = new TextEncoder().encode(SOURCES["src/answer.ts"]);
 
-    // grant bearers of the allowed token reads of the stored build, expiring when the host says so
-    let isExpired = false;
+    // grant bearers of the allowed token reads of the stored build
     const access = {
         async authorize(request: Request, selected: string) {
             if (request.headers.get("authorization") !== "Bearer allowed" || selected !== digest) {
                 throw CallError.http("UNAUTHORIZED", { message: "package access denied" });
             }
-
-            return isExpired ? { expiresAt: 0 } : {};
         },
     };
     const url = `https://packages.test/packages/${digest}/`;
@@ -419,10 +463,20 @@ test("serve a stored build over HTTP after the host authorizes each read", async
     };
 
     // open the build as a remote package, refusing another manifest digest
-    const reader = await BuildReader.open({ manifest: digest, url }, fetchPackage);
+    const reader = await BuildReader.open(
+        { manifest: digest, url },
+        fetchPackage,
+        environment.crypto,
+    );
     expect([reader.manifest, await reader.files()]).toEqual([build.manifest, await build.files()]);
     expect(
-        await refusal(BuildReader.open({ manifest: "0".repeat(64), url }, fetchPackage)),
+        await refusal(
+            BuildReader.open(
+                { manifest: Digest.parse("0".repeat(64)), url },
+                fetchPackage,
+                environment.crypto,
+            ),
+        ),
     ).toEqual(["BAD_REQUEST", "INVALID_FILE", "file digest mismatch: manifest.json"]);
 
     // authorize before serving partial bodies or answering cache conditions
@@ -462,24 +516,20 @@ test("serve a stored build over HTTP after the host authorizes each read", async
         missing: 404,
         head: [200, String(bytes.length), ""],
     });
-    isExpired = true;
-    const expired = await fetchPackage(`${url}manifest.json`);
-    isExpired = false;
 
     // stream the whole build as a tarball of the manifest and every file, answered unchanged by its digest
     const archive = await fetchPackage(`${url}archive`);
-    await extract(await read(present(archive.body, "the archive body")), directory);
+    await extract(await read(present(archive.body, "the archive body")), directory, environment);
     const unchanged = await fetchPackage(`${url}archive`, {
         headers: { "if-none-match": `"${digest}.tar.gz"` },
     });
     expect([
-        expired.status,
         archive.status,
         archive.headers.get("etag"),
         unchanged.status,
-        JSON.parse(await readFile(join(directory, "extracted", "manifest.json"), "utf8")),
-        await readFile(join(directory, "extracted", "src/answer.ts"), "utf8"),
-    ]).toEqual([410, 200, `"${digest}.tar.gz"`, 304, build.manifest, SOURCES["src/answer.ts"]]);
+        JSON.parse(await files.readTextFile(join(directory, "extracted", "manifest.json"))),
+        await files.readTextFile(join(directory, "extracted", "src/answer.ts")),
+    ]).toEqual([200, `"${digest}.tar.gz"`, 304, build.manifest, SOURCES["src/answer.ts"]]);
 
     // release streamed reads when clients disconnect
     await present((await fetchPackage(path)).body, "the file body").cancel();
@@ -488,26 +538,29 @@ test("serve a stored build over HTTP after the host authorizes each read", async
 
 test("copy a served build into another store by its digest, fetching only the files it lacks", async () => {
     // serve a stored build, recording each path read
-    const directory = await temporary();
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await temporary(files);
     await using served = await LocalBucket.open(
         join(directory, "served"),
         "space-test",
-        Clock.system,
+        environment,
     );
     await using copied = await LocalBucket.open(
         join(directory, "copied"),
         "space-test",
-        Clock.system,
+        environment,
     );
-    const source = new PackageStore(served);
-    const target = new PackageStore(copied);
-    const build = await written(SOURCES);
+    const source = new PackageStore(served, environment);
+    const target = new PackageStore(copied, environment);
+    const build = await written(SOURCES, environment.crypto);
     const digest = await source.put(build);
     const paths: string[] = [];
     const fetchPackage = async (input: URL, options: RequestInit) => {
         paths.push(input.pathname.slice(`/packages/${digest}/`.length));
 
-        return source.fetch(new Request(input, options), MOUNT, { authorize: async () => ({}) });
+        return source.fetch(new Request(input, options), MOUNT, { authorize: async () => {} });
     };
     const location = { manifest: digest, url: `https://packages.test/packages/${digest}/` };
 
@@ -542,16 +595,19 @@ test("copy a served build into another store by its digest, fetching only the fi
 
 test("push a stored build to a package target by its digest, uploading only the files it lacks", async () => {
     // store a build, and serve another store that accepts uploads
-    const directory = await temporary();
-    await using live = await LocalBucket.open(join(directory, "live"), "space-test", Clock.system);
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await temporary(files);
+    await using live = await LocalBucket.open(join(directory, "live"), "space-test", environment);
     await using received = await LocalBucket.open(
         join(directory, "received"),
         "space-test",
-        Clock.system,
+        environment,
     );
-    const source = new PackageStore(live);
-    const target = new PackageStore(received);
-    const build = await written(SOURCES);
+    const source = new PackageStore(live, environment);
+    const target = new PackageStore(received, environment);
+    const build = await written(SOURCES, environment.crypto);
     const digest = await source.put(build);
     const uploads: string[] = [];
     const accepting = async (request: Request) => {
@@ -563,7 +619,11 @@ test("push a stored build to a package target by its digest, uploading only the 
     };
 
     // push the build, then push it again, which uploads its manifest alone
-    const client = new PackageClient("https://packages.test/packages/", accepting);
+    const client = new PackageClient(
+        "https://packages.test/packages/",
+        accepting,
+        environment.crypto,
+    );
     await client.push(await source.contents(digest));
     const first = uploads.splice(0);
     await client.push(await source.contents(digest));
@@ -584,16 +644,15 @@ test("push a stored build to a package target by its digest, uploading only the 
 
 test("refuse uploads lacking files, of other bytes, past the limit, or where nobody uploads", async () => {
     // store a build, and serve an empty store
-    const directory = await temporary();
-    await using live = await LocalBucket.open(join(directory, "live"), "space-test", Clock.system);
-    await using empty = await LocalBucket.open(
-        join(directory, "empty"),
-        "space-test",
-        Clock.system,
-    );
-    const source = new PackageStore(live);
-    const digest = await source.put(await written(SOURCES));
-    const receiving = new PackageStore(empty);
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await temporary(files);
+    await using live = await LocalBucket.open(join(directory, "live"), "space-test", environment);
+    await using empty = await LocalBucket.open(join(directory, "empty"), "space-test", environment);
+    const source = new PackageStore(live, environment);
+    const digest = await source.put(await written(SOURCES, environment.crypto));
+    const receiving = new PackageStore(empty, environment);
     const manifest = new Uint8Array(await (await source.manifest(digest)).arrayBuffer());
 
     // stream one byte past the limit in chunks of one MiB without declaring a length
@@ -667,15 +726,20 @@ async function upload(
 
 test("retain the union of every root's builds, and forget a root that retains nothing", async () => {
     // store two builds, each retained by a separate root
-    const directory = await temporary();
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await temporary(files);
     await using bucket = await LocalBucket.open(
         join(directory, "bucket"),
         "space-test",
-        Clock.system,
+        environment,
     );
-    const store = new PackageStore(bucket);
-    const first = await store.put(await written(SOURCES));
-    const second = await store.put(await written({ ...SOURCES, "src/extra.ts": "export {};\n" }));
+    const store = new PackageStore(bucket, environment);
+    const first = await store.put(await written(SOURCES, environment.crypto));
+    const second = await store.put(
+        await written({ ...SOURCES, "src/extra.ts": "export {};\n" }, environment.crypto),
+    );
     await store.root("space-a", new Set([first]));
     await store.root("space-b", new Set([second]));
     const both = await store.retained();
@@ -691,19 +755,25 @@ test("retain the union of every root's builds, and forget a root that retains no
 
 test("sweep a store at most once per interval, once among concurrent sweeps, and again after a failed one", async () => {
     // store a build one root retains and one no root retains
-    const directory = await temporary();
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await temporary(files);
     await using bucket = await LocalBucket.open(
         join(directory, "bucket"),
         "space-test",
-        Clock.system,
+        environment,
     );
-    const store = new PackageStore(bucket);
-    const live = await store.put(await written(SOURCES));
+    const store = new PackageStore(bucket, environment);
+    const live = await store.put(await written(SOURCES, environment.crypto));
     const dropped = await store.put(
-        await written({ ...SOURCES, "src/answer.ts": "export const answer = 0;\n" }),
+        await written(
+            { ...SOURCES, "src/answer.ts": "export const answer = 0;\n" },
+            environment.crypto,
+        ),
     );
     await store.root("space-a", new Set([live]));
-    const start = Date.now() + 1000;
+    const start = simulation.clock.now() + 1000;
     const at = (intervals: number) => new Date(start + intervals * INTERVAL);
     const manifests = async () =>
         (await listing(bucket)).filter((key) => key.startsWith("manifests/"));
@@ -747,32 +817,39 @@ test("sweep a store at most once per interval, once among concurrent sweeps, and
 
 test("sweep many builds sharing a module, sparing exactly the retained ones and the files they list", async () => {
     // store builds sharing the index module, each with a separate answer, retaining the first half
-    const directory = await temporary();
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await temporary(files);
     await using bucket = await LocalBucket.open(
         join(directory, "bucket"),
         "space-test",
-        Clock.system,
+        environment,
     );
-    const store = new PackageStore(bucket);
+    const store = new PackageStore(bucket, environment);
     const digests = [];
     for (let index = 0; index < STRESS_BUILDS; index++) {
         const answer = `export const answer = ${String(index)};\n`;
-        digests.push(await store.put(await written({ ...SOURCES, "src/answer.ts": answer })));
+        digests.push(
+            await store.put(
+                await written({ ...SOURCES, "src/answer.ts": answer }, environment.crypto),
+            ),
+        );
     }
     const live = digests.slice(0, STRESS_BUILDS / 2);
 
     // mark and drop the builds retention leaves out
-    const later = new Date(Date.now() + 1000);
+    const later = new Date(simulation.clock.now() + 1000);
     await store.sweep(Retention.of(live), later, Retention.none, later);
     await store.sweep(Retention.of(live), later, Retention.none, later, later);
 
     // retain exactly the live manifests and the files they list
-    const files = await Promise.all(
+    const distributed = await Promise.all(
         live.map(async (digest) => (await store.contents(digest)).distributed()),
     );
     expect(await listing(bucket)).toEqual(
         [
-            ...new Set(files.flat().map((file) => `files/${file.digest}`)),
+            ...new Set(distributed.flat().map((file) => `files/${file.digest}`)),
             ...live.map((digest) => `manifests/${digest}`),
         ].toSorted(),
     );

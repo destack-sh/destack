@@ -1,14 +1,14 @@
-import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Digest, schema } from "@destack/schema";
 import { expect, refusal, test } from "@destack/test";
 
 import { NpmInstallation } from "./npm.ts";
+import { testSimulation } from "../test/world.ts";
 import { convertHere, copy, moduleFailure, writeStore } from "./test/store.ts";
 import { LocalPackageStore } from "../store/local.ts";
 
 /** The toolchain identity the units key by, as one call's workspace reads it. */
-const CONTEXT = await Digest.json({ test: "toolchain" });
+const CONTEXT = Digest.parse("802596258260ddeb8be4565d4ec5b9afd34a32b950022f39c64bcda3ac575316");
 
 /** The exports of a module. */
 const Exports = schema.record(schema.string(), schema.unknown());
@@ -25,12 +25,13 @@ function call(value: unknown, ...parameters: unknown[]): unknown {
 /** Place a unit's output for a runtime in a node_modules directory, its modules read as ESM. */
 async function place(
     store: LocalPackageStore,
-    manifest: string,
+    manifest: Digest,
     name: string,
     runtime: "bun" | "workerd",
     directory: string,
 ): Promise<void> {
     // write the output's files as the package, marking a converted package's modules as ESM
+    const { files } = store.environment;
     const reader = await store.contents(manifest);
     const prefix = `${runtime}/`;
     for (const file of await reader.distributed()) {
@@ -41,43 +42,52 @@ async function place(
                 name,
                 file.path.slice(prefix.length),
             );
-            await mkdir(join(destination, ".."), { recursive: true });
-            await writeFile(destination, await reader.load(file.path));
+            await files.mkdir(join(destination, ".."), { recursive: true });
+            await files.writeFile(destination, await reader.load(file.path));
         }
     }
     if (runtime === "workerd") {
         const packageJson = join(directory, "node_modules", name, "package.json");
         const declared = schema
             .looseObject({})
-            .parse(JSON.parse(await Bun.file(packageJson).text()));
-        await writeFile(packageJson, JSON.stringify({ ...declared, type: "module" }));
+            .parse(JSON.parse(await files.readTextFile(packageJson)));
+        await files.writeTextFile(packageJson, JSON.stringify({ ...declared, type: "module" }));
     }
 }
 
 /** List the runtimes a stored unit's build has outputs for. */
-async function runtimesOf(store: LocalPackageStore, manifest: string): Promise<string[]> {
+async function runtimesOf(store: LocalPackageStore, manifest: Digest): Promise<string[]> {
     return Object.keys((await store.contents(manifest)).manifest.outputs);
 }
 
 test("build an npm unit as installed for Bun and as ESM for workerd, on its dependency's unit", async () => {
     // install a CommonJS package requiring another
-    const { root, locked } = await writeStore({
-        greeting: {
-            manifest: { main: "index.js", dependencies: { word: "1.0.0" } },
-            files: { "index.js": 'module.exports = require("word") + ", world";\n' },
-            links: ["word"],
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const { root, locked } = await writeStore(
+        {
+            greeting: {
+                manifest: { main: "index.js", dependencies: { word: "1.0.0" } },
+                files: { "index.js": 'module.exports = require("word") + ", world";\n' },
+                links: ["word"],
+            },
+            word: {
+                manifest: { main: "index.js" },
+                files: { "index.js": 'module.exports = "hello";\n' },
+            },
         },
-        word: {
-            manifest: { main: "index.js" },
-            files: { "index.js": 'module.exports = "hello";\n' },
-        },
-    });
-    await using store = await LocalPackageStore.temporary();
-    const installation = new NpmInstallation(locked, store, CONTEXT);
+        files,
+    );
+    await using store = await LocalPackageStore.temporary(environment);
+    const installation = new NpmInstallation(locked, store, CONTEXT, environment);
     const unit = await installation.open(copy(root, "greeting"));
-    const stored = await installation.store(unit, convertHere);
-    const reopened = new NpmInstallation(locked, store, CONTEXT);
-    const again = await reopened.store(await reopened.open(copy(root, "greeting")), convertHere);
+    const stored = await installation.store(unit, convertHere(files));
+    const reopened = new NpmInstallation(locked, store, CONTEXT, environment);
+    const again = await reopened.store(
+        await reopened.open(copy(root, "greeting")),
+        convertHere(files),
+    );
 
     // place each workerd output where node_modules resolves it, and run the converted module
     const reader = await store.contents(stored.manifest);
@@ -112,30 +122,36 @@ test("build an npm unit as installed for Bun and as ESM for workerd, on its depe
 
 test("convert for workerd what its conditions import, replacing what a `browser` field empties and failing a require of a missing host module when it runs", async () => {
     // install a parser whose signal reader requires the constants module lazily, once replaced and once not
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
     const index =
         'exports.parse = (text) => text.toUpperCase();\nexports.parseFile = async () => require("constants").SIGINT;\n';
-    const { root, locked } = await writeStore({
-        replaced: {
-            manifest: { main: "index.js", browser: { constants: false } },
-            files: { "index.js": index },
-        },
-        unreplaced: { manifest: { main: "index.js" }, files: { "index.js": index } },
-        reader: {
-            manifest: { type: "module", main: "index.js" },
-            files: { "index.js": 'export { SIGINT as signal } from "constants";\n' },
-        },
-        detector: {
-            manifest: { exports: { ".": { node: "./node.js", browser: "./browser.js" } } },
-            files: {
-                "node.js": 'module.exports = require("fs").existsSync("/");\n',
-                "browser.js": "module.exports = false;\n",
+    const { root, locked } = await writeStore(
+        {
+            replaced: {
+                manifest: { main: "index.js", browser: { constants: false } },
+                files: { "index.js": index },
+            },
+            unreplaced: { manifest: { main: "index.js" }, files: { "index.js": index } },
+            reader: {
+                manifest: { type: "module", main: "index.js" },
+                files: { "index.js": 'export { SIGINT as signal } from "constants";\n' },
+            },
+            detector: {
+                manifest: { exports: { ".": { node: "./node.js", browser: "./browser.js" } } },
+                files: {
+                    "node.js": 'module.exports = require("fs").existsSync("/");\n',
+                    "browser.js": "module.exports = false;\n",
+                },
             },
         },
-    });
-    await using store = await LocalPackageStore.temporary();
-    const installation = new NpmInstallation(locked, store, CONTEXT);
+        files,
+    );
+    await using store = await LocalPackageStore.temporary(environment);
+    const installation = new NpmInstallation(locked, store, CONTEXT, environment);
     const build = async (name: string) =>
-        await installation.store(await installation.open(copy(root, name)), convertHere);
+        await installation.store(await installation.open(copy(root, name)), convertHere(files));
 
     // run the replaced parser on workerd's modules, and build no workerd output of the other
     const replaced = await build("replaced");
@@ -169,23 +185,61 @@ test("convert for workerd what its conditions import, replacing what a `browser`
     );
 });
 
-test("convert a package for workerd past the tsconfig it publishes, which extends a development dependency, as khroma's does", async () => {
-    // install a package whose index re-exports a module, publishing a tsconfig of an absent package
-    const { root, locked } = await writeStore({
-        colors: {
-            manifest: { type: "module", exports: "./dist/index.js" },
-            files: {
-                "tsconfig.json": '{ "extends": "tsex/tsconfig.json" }\n',
-                "dist/index.js": 'export * from "./methods/index.js";\n',
-                "dist/methods/index.js": "export const lighten = (value) => value + 1;\n",
+test("convert a CommonJS module whose own binding takes the name rolldown gives its wrapper, as OpenTelemetry's builds do", async () => {
+    // install a module that names its required sibling as rolldown names the module itself
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const { root, locked } = await writeStore(
+        {
+            colliding: {
+                manifest: { main: "index.js" },
+                files: {
+                    "index.js": 'exports.answer = require("./logs/internal.js").answer;\n',
+                    "logs/internal.js":
+                        'const require_internal = require("../common/internal.js");\nexports.answer = require_internal.base + 1;\n',
+                    "common/internal.js": "exports.base = 41;\n",
+                },
             },
         },
-    });
-    await using store = await LocalPackageStore.temporary();
-    const installation = new NpmInstallation(locked, store, CONTEXT);
+        files,
+    );
+    await using store = await LocalPackageStore.temporary(environment);
+    const installation = new NpmInstallation(locked, store, CONTEXT, environment);
+    const unit = await installation.open(copy(root, "colliding"));
+    const built = await installation.store(unit, convertHere(files));
+
+    // run workerd's module, exported by name
+    await place(store, built.manifest, "colliding", "workerd", join(root, "placed"));
+    const module = Exports.parse(
+        await import(join(root, "placed", "node_modules", "colliding", "index.js")),
+    );
+    expect(module["answer"]).toBe(42);
+});
+
+test("convert a package for workerd past the tsconfig it publishes, which extends a development dependency, as khroma's does", async () => {
+    // install a package whose index re-exports a module, publishing a tsconfig of an absent package
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const { root, locked } = await writeStore(
+        {
+            colors: {
+                manifest: { type: "module", exports: "./dist/index.js" },
+                files: {
+                    "tsconfig.json": '{ "extends": "tsex/tsconfig.json" }\n',
+                    "dist/index.js": 'export * from "./methods/index.js";\n',
+                    "dist/methods/index.js": "export const lighten = (value) => value + 1;\n",
+                },
+            },
+        },
+        files,
+    );
+    await using store = await LocalPackageStore.temporary(environment);
+    const installation = new NpmInstallation(locked, store, CONTEXT, environment);
     const built = await installation.store(
         await installation.open(copy(root, "colors")),
-        convertHere,
+        convertHere(files),
     );
 
     // run workerd's converted modules through the re-export
@@ -198,34 +252,40 @@ test("convert a package for workerd past the tsconfig it publishes, which extend
 
 test("fail an absent optional dependency's require when it runs, and an absent optional peer's import once imported", async () => {
     // install a package falling back without its optional dependency, and a loader of an optional peer nobody installs
-    const { root, locked } = await writeStore({
-        fallback: {
-            manifest: { main: "index.js", optionalDependencies: { absent: "1.0.0" } },
-            files: {
-                "index.js":
-                    'try { module.exports = require("absent"); } catch (error) { module.exports = error.code; }\n',
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const { root, locked } = await writeStore(
+        {
+            fallback: {
+                manifest: { main: "index.js", optionalDependencies: { absent: "1.0.0" } },
+                files: {
+                    "index.js":
+                        'try { module.exports = require("absent"); } catch (error) { module.exports = error.code; }\n',
+                },
+            },
+            loader: {
+                manifest: {
+                    type: "module",
+                    main: "index.js",
+                    peerDependencies: { plugin: "1.0.0" },
+                    peerDependenciesMeta: { plugin: { optional: true } },
+                },
+                files: {
+                    "index.js":
+                        'export const greet = () => "hello";\nexport const load = () => import("plugin");\n',
+                },
             },
         },
-        loader: {
-            manifest: {
-                type: "module",
-                main: "index.js",
-                peerDependencies: { plugin: "1.0.0" },
-                peerDependenciesMeta: { plugin: { optional: true } },
-            },
-            files: {
-                "index.js":
-                    'export const greet = () => "hello";\nexport const load = () => import("plugin");\n',
-            },
-        },
-    });
-    await using store = await LocalPackageStore.temporary();
+        files,
+    );
+    await using store = await LocalPackageStore.temporary(environment);
     const placed = join(root, "placed");
     for (const name of ["fallback", "loader"]) {
-        const installation = new NpmInstallation(locked, store, CONTEXT);
+        const installation = new NpmInstallation(locked, store, CONTEXT, environment);
         const stored = await installation.store(
             await installation.open(copy(root, name)),
-            convertHere,
+            convertHere(files),
         );
         await place(store, stored.manifest, name, "workerd", placed);
     }
@@ -248,24 +308,34 @@ test("fail an absent optional dependency's require when it runs, and an absent o
 
 test("refuse an npm unit with a missing dependency or a cycle, and build Bun's copy alone of a native addon and its importers", async () => {
     // install a native addon, a unit importing it, a missing dependency and a cycle
-    const { root, locked } = await writeStore({
-        native: {
-            manifest: { main: "index.js" },
-            files: { "index.js": "module.exports = 1;\n", "addon.node": "" },
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const { root, locked } = await writeStore(
+        {
+            native: {
+                manifest: { main: "index.js" },
+                files: { "index.js": "module.exports = 1;\n", "addon.node": "" },
+            },
+            importer: {
+                manifest: { main: "index.js", dependencies: { native: "1.0.0" } },
+                files: { "index.js": 'module.exports = require("native");\n' },
+                links: ["native"],
+            },
+            missing: { manifest: { dependencies: { absent: "1.0.0" } }, files: {} },
+            first: {
+                manifest: { dependencies: { second: "1.0.0" } },
+                files: {},
+                links: ["second"],
+            },
+            second: { manifest: { dependencies: { first: "1.0.0" } }, files: {}, links: ["first"] },
         },
-        importer: {
-            manifest: { main: "index.js", dependencies: { native: "1.0.0" } },
-            files: { "index.js": 'module.exports = require("native");\n' },
-            links: ["native"],
-        },
-        missing: { manifest: { dependencies: { absent: "1.0.0" } }, files: {} },
-        first: { manifest: { dependencies: { second: "1.0.0" } }, files: {}, links: ["second"] },
-        second: { manifest: { dependencies: { first: "1.0.0" } }, files: {}, links: ["first"] },
-    });
-    await using store = await LocalPackageStore.temporary();
-    const installation = new NpmInstallation(locked, store, CONTEXT);
+        files,
+    );
+    await using store = await LocalPackageStore.temporary(environment);
+    const installation = new NpmInstallation(locked, store, CONTEXT, environment);
     const build = async (name: string) =>
-        await installation.store(await installation.open(copy(root, name)), convertHere);
+        await installation.store(await installation.open(copy(root, name)), convertHere(files));
 
     // build Bun's copy alone of the native addon and its importer, and refuse the others with their exact reasons
     expect(await runtimesOf(store, (await build("native")).manifest)).toEqual(["bun"]);

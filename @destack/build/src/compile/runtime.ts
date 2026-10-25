@@ -1,7 +1,6 @@
 import type { FamilyError } from "@destack/error";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { Environment, Process } from "@destack/environment";
 import { fileURLToPath } from "node:url";
 import { Toolchain } from "@destack/check/toolchain";
 import { API, type Program } from "typescript/unstable/async";
@@ -18,11 +17,18 @@ const PACKAGE = fileURLToPath(new URL("../..", import.meta.url));
 
 /** Runtime type environments retained across builds of one package. */
 export class RuntimeCompiler implements AsyncDisposable {
+    /** The files, process and platform the compilers run on. */
+    readonly environment: Environment<"files" | "process" | "host">;
     /** Initialized runtime configurations and their native compilers. */
     readonly #environments = new Map<
         Runtime,
         { directory: string; configuration: string; api: API }
     >();
+
+    /** Check runtimes on an environment's files and tools. */
+    constructor(environment: Environment<"files" | "process" | "host">) {
+        this.environment = environment;
+    }
 
     /** Refuse each global that every runtime a module ships to lacks. */
     async check(
@@ -68,7 +74,7 @@ export class RuntimeCompiler implements AsyncDisposable {
         const source = lines.join("\n") + "\nexport {};\n";
         const { directory, api, configuration } = await this.#open(runtime);
         const entry = join(directory, "runtime.ts");
-        await writeFile(entry, source);
+        await this.environment.files.writeTextFile(entry, source);
         api.clearSourceFileCache();
 
         // resolve each used global and member through the runtime's type environment
@@ -122,30 +128,32 @@ export class RuntimeCompiler implements AsyncDisposable {
         }
 
         // create the runtime configuration outside the source package
-        const directory = await mkdtemp(join(tmpdir(), "destack-runtime-"));
+        const { files } = this.environment;
+        const directory = await files.makeTemporaryDirectory("destack-runtime-");
         try {
             // load runtime APIs independently of application declarations and dependency typings
             const entry = join(directory, "runtime.ts");
-            await writeFile(entry, "export {};\n");
+            await files.writeTextFile(entry, "export {};\n");
             const configuration = join(directory, "tsconfig.json");
             const libraries =
                 runtime === "browser" ? ["ESNext", "DOM", "DOM.Iterable"] : ["ESNext"];
-            await writeFile(
+            await files.writeTextFile(
                 configuration,
                 JSON.stringify({
                     compilerOptions: { ...TYPESCRIPT_OPTIONS, types: [], lib: libraries },
-                    files: [entry, ...declarationFiles(runtime)],
+                    files: [entry, ...declarationFiles(runtime, this.environment.process)],
                 }),
             );
 
             // retain the compiler with its temporary configuration
-            const api = new API({ cwd: directory, tsserverPath: TypeScriptCompiler.executable() });
+            const executable = TypeScriptCompiler.executable(this.environment);
+            const api = new API({ cwd: directory, tsserverPath: executable });
             const environment = { directory, configuration, api };
             this.#environments.set(runtime, environment);
 
             return environment;
         } catch (error) {
-            await rm(directory, { recursive: true });
+            await files.remove(directory, { recursive: true });
             throw error;
         }
     }
@@ -158,7 +166,7 @@ export class RuntimeCompiler implements AsyncDisposable {
                 try {
                     await api.close();
                 } finally {
-                    await rm(directory, { recursive: true });
+                    await this.environment.files.remove(directory, { recursive: true });
                 }
             }),
         );
@@ -231,14 +239,16 @@ async function checkEnvironment(program: Program, runtime: Runtime): Promise<voi
 }
 
 /** List the declaration files of a runtime's global APIs, none for the browser's built-in ones. */
-function declarationFiles(runtime: Runtime): string[] {
+function declarationFiles(runtime: Runtime, process: Process): string[] {
     // load the Workers types
     if (runtime === "workerd") {
-        return [join(Toolchain.locate(["@cloudflare/workers-types"], PACKAGE), "index.d.ts")];
+        const directory = Toolchain.locate(["@cloudflare/workers-types"], PACKAGE, process);
+
+        return [join(directory, "index.d.ts")];
     }
     // load the Bun types
     else if (runtime === "bun") {
-        return [join(Toolchain.locate(["@types/bun"], PACKAGE), "index.d.ts")];
+        return [join(Toolchain.locate(["@types/bun"], PACKAGE, process), "index.d.ts")];
     }
     // load nothing beyond the libraries
     else {

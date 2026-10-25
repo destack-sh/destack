@@ -1,24 +1,14 @@
 #!/usr/bin/env bun
-/** The tools on disk, read before any module loads rolldown. */
-const { Toolchain } = await import("@destack/check/toolchain");
-
-// load rolldown's native binding from the toolchain beside a standalone compiler
-if (Toolchain.directory !== undefined) {
-    const binding = Toolchain.locate(
-        [`@rolldown/binding-${Toolchain.platform}`],
-        Toolchain.directory,
-    );
-    process.env["NAPI_RS_NATIVE_LIBRARY_PATH"] =
-        `${binding}/rolldown-binding.${Toolchain.platform}.node`;
-}
-
-// load package sources with their module metadata before the compiler loads rolldown
+// load package sources with their module metadata, which loads rolldown's native binding
 await import("@destack/package/bun/preload");
 
-// remove the binding's path from the environment of the tools the compiler starts
+// remove the binding's path, which every other native binding would load as its own
 delete process.env["NAPI_RS_NATIVE_LIBRARY_PATH"];
 
-// answer the host's requests
-await (await import("./build/worker.ts")).CompilerWorker.run();
+/** The environments of the machine Bun runs on. */
+const { BunEnvironment } = await import("@destack/environment/bun");
+
+// answer the host's requests on this machine
+await (await import("./build/worker.ts")).CompilerWorker.run(BunEnvironment.system);
 
 export {};

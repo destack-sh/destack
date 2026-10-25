@@ -1,5 +1,5 @@
-import { readFile, mkdir, copyFile } from "node:fs/promises";
 import { isAbsolute, dirname, resolve } from "node:path";
+import type { Environment } from "@destack/environment";
 import { type Plugin } from "vite";
 import type { OutputBundle } from "rolldown";
 import { PackagePath } from "@destack/package/file";
@@ -26,6 +26,7 @@ export function sourcePlugin(
     sources: ReadonlyMap<string, Uint8Array<ArrayBuffer>>,
     destination: string,
     paths: string[],
+    environment: Environment<"files">,
 ): Plugin {
     return {
         name: "destack-source",
@@ -54,14 +55,14 @@ export function sourcePlugin(
                 // preserve large assets by file copy while Vite loads them separately
                 if (!sources.has(local) && !/\.[cm]?[jt]sx?$/u.test(path)) {
                     const output = resolve(destination, PackagePath.parse(local));
-                    await mkdir(dirname(output), { recursive: true });
-                    await copyFile(path, output);
+                    await environment.files.mkdir(dirname(output), { recursive: true });
+                    await environment.files.copyFile(path, output);
                     paths.push(local);
                     return null;
                 }
 
                 // return inspected source to the compiler without rereading it
-                const bytes = sources.get(local) ?? new Uint8Array(await readFile(path));
+                const bytes = sources.get(local) ?? (await environment.files.readFile(path));
                 files.set(PackagePath.parse(local), bytes);
                 if (!id.includes("?") && /\.[cm]?[jt]sx?$/u.test(path)) {
                     return new TextDecoder("utf-8", { fatal: true }).decode(bytes);

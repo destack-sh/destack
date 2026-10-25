@@ -1,5 +1,6 @@
+import type { FileSystem } from "@destack/environment";
+import { testSimulation } from "../src/test/world.ts";
 import { test } from "@destack/test";
-import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { graph } from "@destack/package";
 import { PackageManifest } from "@destack/package/manifest";
@@ -94,11 +95,11 @@ export const LOUD_LOOK = { tone: "loud" } as const;
 `;
 
 /** Add a card component with an interaction, an example and a scenario taking steps on it. */
-async function writeCards(source: string): Promise<void> {
+async function writeCards(source: string, files: FileSystem): Promise<void> {
     // depend on the declaring packages
     const manifest = join(source, "package.json");
-    const declared = schema.looseObject({}).parse(JSON.parse(await readFile(manifest, "utf8")));
-    await writeFile(
+    const declared = schema.looseObject({}).parse(JSON.parse(await files.readTextFile(manifest)));
+    await files.writeTextFile(
         manifest,
         JSON.stringify({
             ...declared,
@@ -110,21 +111,24 @@ async function writeCards(source: string): Promise<void> {
     );
 
     // write the card, the interaction and the module declaring the example and the scenario
-    await writeFile(join(source, "src/card.ts"), CARD);
-    await writeFile(join(source, "src/card.interaction.ts"), CARD_INTERACTION);
-    await writeFile(join(source, "src/card.look.ts"), CARD_LOOK);
-    await writeFile(join(source, "src/card.example.ts"), CARD_EXAMPLES);
+    await files.writeTextFile(join(source, "src/card.ts"), CARD);
+    await files.writeTextFile(join(source, "src/card.interaction.ts"), CARD_INTERACTION);
+    await files.writeTextFile(join(source, "src/card.look.ts"), CARD_LOOK);
+    await files.writeTextFile(join(source, "src/card.example.ts"), CARD_EXAMPLES);
 }
 
 test.concurrent("reuse the graph file of each module an edit leaves unchanged", async ({
     expect,
 }) => {
     // build the library, then reorder a function body in one module and build again
-    await using input = await Fixture.open("library");
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    await using input = await Fixture.open("library", environment);
     await using before = await input.build(library.request);
     const note = join(input.source, "src/note.ts");
-    const source = await readFile(note, "utf8");
-    await writeFile(
+    const source = await files.readTextFile(note);
+    await files.writeTextFile(
         note,
         source.replace("return { title, complete: false };", "return { complete: false, title };"),
     );
@@ -132,16 +136,17 @@ test.concurrent("reuse the graph file of each module an edit leaves unchanged", 
 
     // leave the untouched module's file byte for byte, and change the edited module's file and the root
     const [first, second] = await Promise.all([before.reader.graph(), after.reader.graph()]);
-    const index = await readFile(
+    const index = await files.readTextFile(
         join(after.directory, `graph/${second.modules["src/index.ts"]}.json`),
+    );
+    const previous = await files.readTextFile(
+        join(before.directory, `graph/${first.modules["src/index.ts"]}.json`),
     );
     expect([
         second.modules["src/index.ts"] === first.modules["src/index.ts"],
         second.modules["src/note.ts"] === first.modules["src/note.ts"],
         after.manifest.lists.graph.digest === before.manifest.lists.graph.digest,
-        index.equals(
-            await readFile(join(before.directory, `graph/${first.modules["src/index.ts"]}.json`)),
-        ),
+        index === previous,
     ]).toEqual([true, false, false, true]);
 });
 
@@ -149,14 +154,17 @@ test.concurrent("declare each test in its module's graph, and index the package 
     expect,
 }) => {
     // add a suite whose test calls the library's note constructor
-    await using input = await Fixture.open("library");
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    await using input = await Fixture.open("library", environment);
     const manifest = join(input.source, "package.json");
-    const declared = schema.looseObject({}).parse(JSON.parse(await readFile(manifest, "utf8")));
-    await writeFile(
+    const declared = schema.looseObject({}).parse(JSON.parse(await files.readTextFile(manifest)));
+    await files.writeTextFile(
         manifest,
         JSON.stringify({ ...declared, devDependencies: { "@destack/test": "workspace:*" } }),
     );
-    await writeFile(
+    await files.writeTextFile(
         join(input.source, "src/note.test.ts"),
         `import { describe, test } from "@destack/test";
 import { createNote } from "./note.ts";
@@ -175,9 +183,8 @@ describe("note", () => {
     const root = await build.reader.graph();
     const module = graph.Module.parse(
         JSON.parse(
-            await readFile(
+            await files.readTextFile(
                 join(build.directory, `graph/${root.modules["src/note.test.ts"]}.json`),
-                "utf8",
             ),
         ),
     );
@@ -218,17 +225,19 @@ test.concurrent("declare each example showing its symbol with controls and the p
     expect,
 }) => {
     // add a card component, an interaction, an example of the card and a scenario given that example
-    await using input = await Fixture.open("library");
-    await writeCards(input.source);
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    await using input = await Fixture.open("library", environment);
+    await writeCards(input.source, files);
     await using build = await input.build(library.request);
 
     // read the example module's declarations and edges, with monikers within the package
     const root = await build.reader.graph();
     const module = graph.Module.parse(
         JSON.parse(
-            await readFile(
+            await files.readTextFile(
                 join(build.directory, `graph/${root.modules["src/card.example.ts"]}.json`),
-                "utf8",
             ),
         ),
     );

@@ -1,5 +1,5 @@
-import { readdir, readFile, realpath, stat } from "node:fs/promises";
-import { join, relative, sep } from "node:path";
+import { join } from "node:path";
+import type { Environment, FileSystem } from "@destack/environment";
 import {
     type DependencyRelease,
     type NpmRelease,
@@ -54,6 +54,8 @@ export class NpmInstallation {
     readonly #store: PackageStore;
     /** The identity of the toolchain building the units, which their keys include. */
     readonly #toolchain: Digest;
+    /** The files the installed copies are read from, and the crypto keying their builds. */
+    readonly #environment: Environment<"files">;
     /** The units opened so far, by their copy in Bun's store. */
     readonly #opened = new Map<string, NpmUnit>();
     /** The units' stored builds so far, by their copy in Bun's store. */
@@ -66,10 +68,13 @@ export class NpmInstallation {
         locked: Readonly<Record<string, NpmRelease>>,
         store: PackageStore,
         toolchain: Digest,
+        environment: Environment<"files">,
     ) {
+        // store the locked releases and what the units build with
         this.locked = locked;
         this.#store = store;
         this.#toolchain = toolchain;
+        this.#environment = environment;
     }
 
     /** Open the npm package installed in a directory and every package it requires, once each. */
@@ -93,7 +98,7 @@ export class NpmInstallation {
 
         // lock the release by its installed name and version
         const manifest = Manifest.parse(
-            JSON.parse(await readFile(join(directory, "package.json"), "utf8")),
+            JSON.parse(await this.#environment.files.readTextFile(join(directory, "package.json"))),
         );
         const key = `${manifest.name}@${manifest.version}`;
         const release = this.locked[key];
@@ -102,7 +107,7 @@ export class NpmInstallation {
         }
 
         // open each installed package it requires, leaving its peers to the tree it sits in
-        const locator = new PackageLocator();
+        const locator = new PackageLocator(this.#environment.files);
         const dependencies = new Map<string, NpmUnit>();
         const required = Object.keys({
             ...manifest.dependencies,
@@ -111,7 +116,7 @@ export class NpmInstallation {
         const peers = new Set(PackageJson.peers(manifest));
         const next = new Set([...visiting, directory]);
         for (const name of required.toSorted()) {
-            const installed = locator.directory(name, directory);
+            const installed = await locator.directory(name, directory);
             // leave out an absent optional dependency
             if (installed === undefined && manifest.optionalDependencies?.[name] !== undefined) {
                 continue;
@@ -125,10 +130,11 @@ export class NpmInstallation {
             }
             // open the installed one
             else {
-                dependencies.set(name, await this.#open(await realpath(installed), next));
+                const real = await this.#environment.files.realPath(installed);
+                dependencies.set(name, await this.#open(real, next));
             }
         }
-        const unit = new NpmUnit(release, directory, dependencies, peers);
+        const unit = new NpmUnit(release, directory, dependencies, peers, this.#environment);
         this.#opened.set(directory, unit);
 
         return unit;
@@ -156,14 +162,17 @@ export class NpmInstallation {
 
         // key the build by the toolchain, the release and the dependencies' builds
         const { package: released, integrity } = unit.release;
-        const key = await Digest.json({
-            kind: "npm",
-            toolchain: this.#toolchain,
-            package: { ...released, integrity },
-            dependencies: Object.fromEntries(
-                Object.entries(dependencies).map(([name, each]) => [name, each.manifest]),
-            ),
-        });
+        const key = await Digest.json(
+            {
+                kind: "npm",
+                toolchain: this.#toolchain,
+                package: { ...released, integrity },
+                dependencies: Object.fromEntries(
+                    Object.entries(dependencies).map(([name, each]) => [name, each.manifest]),
+                ),
+            },
+            this.#environment.crypto,
+        );
 
         // take the stored build, building and storing it once when missing
         const manifest = await this.#store.cachedBuild(key, async () => {
@@ -191,6 +200,8 @@ export class NpmUnit {
     readonly dependencies: ReadonlyMap<string, NpmUnit>;
     /** The peers it declares, which the tree it sits in provides. */
     readonly peers: ReadonlySet<string>;
+    /** The files the installed copy is read from, and the crypto digesting its build. */
+    readonly #environment: Environment<"files">;
 
     /** Store an installed package's release, copy, dependencies and peers. */
     constructor(
@@ -198,12 +209,14 @@ export class NpmUnit {
         directory: string,
         dependencies: ReadonlyMap<string, NpmUnit>,
         peers: ReadonlySet<string>,
+        environment: Environment<"files">,
     ) {
         // store the release, its copy and its requirements
         this.release = release;
         this.directory = directory;
         this.dependencies = dependencies;
         this.peers = peers;
+        this.#environment = environment;
     }
 
     /** List this unit and every unit it requires, each once. */
@@ -228,13 +241,16 @@ export class NpmUnit {
         convert: NpmConverter,
     ): Promise<BuildReader> {
         // read the installed copy's files once, leaving workerd out for a native addon
-        const files = await NpmUnit.files(this.directory);
+        const files = await NpmUnit.files(this.directory, this.#environment.files);
         const written = new Map<string, Uint8Array<ArrayBuffer>>();
-        const writer = new BuildWriter({
-            write: async (path, bytes) => {
-                written.set(path, bytes);
+        const writer = new BuildWriter(
+            {
+                write: async (path, bytes) => {
+                    written.set(path, bytes);
+                },
             },
-        });
+            this.#environment.crypto,
+        );
         const isAddon = [...files.keys()].some((path) => path.endsWith(ADDON_EXTENSION));
         const runtimes = SERVER_RUNTIMES.filter(
             (runtime) => !isAddon || NATIVE_ADDON_RUNTIMES.has(runtime),
@@ -291,40 +307,46 @@ export class NpmUnit {
             dependencies,
         });
 
-        return new BuildReader(manifest, async (path) => new Blob([found(written, path)]).stream());
+        return new BuildReader(
+            manifest,
+            async (path) => new Blob([found(written, path)]).stream(),
+            this.#environment.crypto,
+        );
     }
 
     /** Read every file of an installed copy by its path, leaving the copy's node_modules out. */
-    static async files(directory: string): Promise<Map<string, Uint8Array<ArrayBuffer>>> {
+    static async files(
+        directory: string,
+        files: FileSystem,
+    ): Promise<Map<string, Uint8Array<ArrayBuffer>>> {
         // list each file, links followed, in path order
-        const entries = await readdir(directory, { recursive: true, withFileTypes: true });
+        const entries = await files.readDirectory(directory, { recursive: true });
         const listed = entries
-            .filter((entry) => entry.isFile() || entry.isSymbolicLink())
-            .map((entry) => ({
-                path: relative(directory, join(entry.parentPath, entry.name)),
-                isLink: entry.isSymbolicLink(),
-            }))
-            .filter(({ path }) => !path.split(sep).includes("node_modules"));
-        const paths = listed.map(({ path }) => path.split(sep).join("/")).toSorted();
+            .filter((entry) => entry.kind === "file" || entry.kind === "symlink")
+            .map((entry) => ({ path: entry.name, isLink: entry.kind === "symlink" }))
+            .filter(({ path }) => !path.split("/").includes("node_modules"));
+        const paths = listed.map(({ path }) => path).toSorted();
 
         // refuse a link to a folder, whose files a recursive listing never lists
         const links = listed.filter((entry) => entry.isLink).map((entry) => entry.path);
-        const linked = await Promise.all(links.map((path) => stat(join(directory, path))));
-        const folder = links.find((_path, index) => nth(linked, index).isDirectory());
+        const linked = await Promise.all(links.map((path) => files.stat(join(directory, path))));
+        const folder = links.find((_path, index) => nth(linked, index).kind === "directory");
         if (folder !== undefined) {
             throw BuildError.of("DEPENDENCY_INVALID", `npm package links a folder: ${folder}`);
         }
 
         // read the files a bounded number at a time
-        const files = new Map<string, Uint8Array<ArrayBuffer>>();
+        const contents = new Map<string, Uint8Array<ArrayBuffer>>();
         for (let start = 0; start < paths.length; start += CONCURRENT_READS) {
             const batch = paths.slice(start, start + CONCURRENT_READS);
-            const read = await Promise.all(batch.map((path) => readFile(join(directory, path))));
+            const read = await Promise.all(
+                batch.map((path) => files.readFile(join(directory, path))),
+            );
             for (const [index, path] of batch.entries()) {
-                files.set(path, new Uint8Array(nth(read, index)));
+                contents.set(path, new Uint8Array(nth(read, index)));
             }
         }
 
-        return files;
+        return contents;
     }
 }

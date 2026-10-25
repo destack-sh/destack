@@ -1,17 +1,8 @@
-import { execFile } from "node:child_process";
-import { createHash } from "node:crypto";
-import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { promisify } from "node:util";
+import { type Environment, FileSystemError } from "@destack/environment";
 import { Digest, schema } from "@destack/schema";
-import { BuildError, isMissing } from "../error/index.ts";
+import { BuildError } from "../error/index.ts";
 import { relativePath } from "../source/dependency.ts";
-
-/** Run a command and read its standard output. */
-const run = promisify(execFile);
-
-/** The most bytes a checkout's listing may print, 64 MiB: a million paths of 64 bytes. */
-const LISTING_BYTES = 64 * 1024 * 1024;
 
 /** The mode git stores a symbolic link with, whose blob stores the link's target path. */
 const LINK_MODE = "120000";
@@ -22,6 +13,12 @@ const UNREAD_FILES = [/(?:^|\/)[^/]*\.test\.[^/]+$/u, /^tests\//u, /\.md$/u, /(?
 /** The hash functions of git's object formats. */
 const ObjectFormat = schema.enum(["sha1", "sha256"]);
 
+/** The WebCrypto algorithm of each git object format. */
+const OBJECT_ALGORITHMS = { sha1: "SHA-1", sha256: "SHA-256" } as const;
+
+/** The most bytes a checkout's listing may print, 64 MiB: a million paths of 64 bytes. */
+const LISTING_BYTES = 64 * 1024 * 1024;
+
 /** The files of a git checkout: its tracked files and the untracked files git does not ignore. */
 export class Checkout {
     /** The checkout's top-level directory. */
@@ -30,31 +27,44 @@ export class Checkout {
     readonly files: ReadonlyMap<string, string | undefined>;
     /** The hash function of the checkout's object format. */
     readonly #format: schema.Infer<typeof ObjectFormat>;
+    /** The files and process the checkout reads through. */
+    readonly #environment: Environment<"files" | "process">;
 
     /** Store a checkout's root, its listed files and its object format. */
     private constructor(
         root: string,
         files: ReadonlyMap<string, string | undefined>,
         format: schema.Infer<typeof ObjectFormat>,
+        environment: Environment<"files" | "process">,
     ) {
+        // store the root, the listing, the format and the environment
         this.root = root;
         this.files = files;
         this.#format = format;
+        this.#environment = environment;
     }
 
     /** List the files of the git checkout enclosing a directory, refusing one outside. */
-    static async list(directory: string): Promise<Checkout> {
+    static async list(
+        directory: string,
+        environment: Environment<"files" | "process">,
+    ): Promise<Checkout> {
         // find the checkout's top-level directory and object format
         const revision = ["rev-parse", "--show-toplevel", "--show-object-format"];
-        const [root, format] = (await Checkout.#git(revision, directory)).split("\n");
+        const listed = await Checkout.#git(revision, directory, environment);
+        const [root, format] = listed.split("\n");
         if (root === undefined || root === "") {
             throw BuildError.of("CHECKOUT_FAILED", `${directory} is not a git checkout`);
         }
 
         // list the stored blobs, then the untracked and modified files git stores no blob for
         const [stored, changed] = await Promise.all([
-            Checkout.#git(["ls-files", "--stage", "-z"], root),
-            Checkout.#git(["ls-files", "--others", "--modified", "--exclude-standard", "-z"], root),
+            Checkout.#git(["ls-files", "--stage", "-z"], root, environment),
+            Checkout.#git(
+                ["ls-files", "--others", "--modified", "--exclude-standard", "-z"],
+                root,
+                environment,
+            ),
         ]);
         const files = new Map<string, string | undefined>();
         for (const entry of Checkout.#entries(stored)) {
@@ -66,7 +76,7 @@ export class Checkout {
             files.set(path, undefined);
         }
 
-        return new Checkout(root, files, ObjectFormat.parse(format));
+        return new Checkout(root, files, ObjectFormat.parse(format), environment);
     }
 
     /** Digest the files a build reads by path and git blob id, hashing files without a blob. */
@@ -94,29 +104,36 @@ export class Checkout {
                 ]),
         );
 
-        return await Digest.json(blobs);
+        return await Digest.json(blobs, this.#environment.crypto);
     }
 
     /** Hash a file's bytes through its links as git hashes a blob, null for a deleted file. */
     async #hash(path: string): Promise<string | null> {
-        try {
-            const bytes = await readFile(path);
-
-            return createHash(this.#format)
-                .update(`blob ${bytes.byteLength}\0`)
-                .update(bytes)
-                .digest("hex");
-        } catch (error) {
-            // key a deleted file as null
-            if (isMissing(error)) {
+        // read the bytes, keying a deleted file as null and refusing a linked directory
+        const { files } = this.#environment;
+        const bytes = await files.readFile(path).catch(async (error: unknown) => {
+            if (FileSystemError.is(error, "NOT_FOUND")) {
                 return null;
-            }
-            // refuse a linked directory, which git lists as one entry
-            else if (error instanceof Error && "code" in error && error.code === "EISDIR") {
+            } else if ((await files.stat(path).catch(() => undefined))?.kind === "directory") {
                 throw BuildError.of("CHECKOUT_FAILED", `git lists the linked directory ${path}`);
             }
             throw error;
+        });
+        if (bytes === null) {
+            return null;
         }
+
+        // put git's blob header before the bytes
+        const header = new TextEncoder().encode(`blob ${bytes.byteLength}\0`);
+        const object = new Uint8Array(header.byteLength + bytes.byteLength);
+        object.set(header);
+        object.set(bytes, header.byteLength);
+
+        // hash the object as git hashes a blob
+        const algorithm = OBJECT_ALGORITHMS[this.#format];
+        const hash = await this.#environment.crypto.digest(algorithm, object);
+
+        return new Uint8Array(hash).toHex();
     }
 
     /** Split git's NUL-separated output into its entries. */
@@ -125,15 +142,59 @@ export class Checkout {
     }
 
     /** Run git in a directory and read its standard output, refusing a failed run. */
-    static async #git(command: readonly string[], directory: string): Promise<string> {
-        const ran = await run("git", command, { cwd: directory, maxBuffer: LISTING_BYTES }).catch(
-            (cause: unknown) => {
-                throw BuildError.of("CHECKOUT_FAILED", `git ${command[0]} failed in ${directory}`, {
-                    cause,
-                });
-            },
-        );
+    static async #git(
+        command: readonly string[],
+        directory: string,
+        environment: Environment<"process">,
+    ): Promise<string> {
+        // run git and read its bounded output and its diagnostics
+        const child = environment.process.spawn(["git", ...command], {
+            workingDirectory: directory,
+            stdout: "pipe",
+            stderr: "pipe",
+        });
+        const [output, diagnostics, code] = await Promise.all([
+            Checkout.#bounded(child.stdout, () => child.kill()),
+            new Response(child.stderr).text(),
+            child.exited,
+        ]);
 
-        return ran.stdout;
+        // refuse a failed run with git's diagnostics, and an output past the bound
+        if (code !== 0) {
+            const reason = diagnostics.trim();
+            throw BuildError.of(
+                "CHECKOUT_FAILED",
+                `git ${command[0]} failed in ${directory}: ${reason}`,
+            );
+        } else if (output === undefined) {
+            throw BuildError.of(
+                "CHECKOUT_FAILED",
+                `git ${command[0]} printed over 64 MiB in ${directory}`,
+            );
+        }
+
+        return output;
+    }
+
+    /** Read a stream's text up to the listing bound, stopping its writer and absent past it. */
+    static async #bounded(
+        stream: ReadableStream<Uint8Array>,
+        stop: () => void,
+    ): Promise<string | undefined> {
+        // decode the chunks until the bound
+        const decoder = new TextDecoder();
+        let text = "";
+        let size = 0;
+        for await (const chunk of stream) {
+            size += chunk.byteLength;
+            if (size > LISTING_BYTES) {
+                stop();
+
+                return undefined;
+            }
+            text += decoder.decode(chunk, { stream: true });
+        }
+
+        return text + decoder.decode();
     }
 }

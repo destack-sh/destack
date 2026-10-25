@@ -3,41 +3,48 @@ import { Digest, present, schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 
 import { NpmInstallation } from "./npm.ts";
+import { testSimulation } from "../test/world.ts";
 import { convertHere, copy, moduleFailure, writeStore } from "./test/store.ts";
 import { DependencyTree } from "./tree.ts";
 import { LocalPackageStore } from "../store/local.ts";
 
 /** The toolchain identity the units key by. */
-const CONTEXT = await Digest.json({ test: "toolchain" });
+const CONTEXT = Digest.parse("802596258260ddeb8be4565d4ec5b9afd34a32b950022f39c64bcda3ac575316");
 
 /** The default export of a module. */
 const DefaultExport = schema.looseObject({ default: schema.unknown() });
 
 test("place npm units with the peers the packages beside them provide, failing a missing peer once it loads", async () => {
     // install a renderer whose peer is a core package, and a list depending on a store whose peer it is
-    const { root, locked } = await writeStore({
-        renderer: {
-            manifest: { main: "index.js", peerDependencies: { core: "1.0.0" } },
-            files: { "index.js": 'module.exports = "rendered with " + require("core");\n' },
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const { root, locked } = await writeStore(
+        {
+            renderer: {
+                manifest: { main: "index.js", peerDependencies: { core: "1.0.0" } },
+                files: { "index.js": 'module.exports = "rendered with " + require("core");\n' },
+            },
+            core: {
+                manifest: { main: "index.js" },
+                files: { "index.js": 'module.exports = "core";\n' },
+            },
+            store: {
+                manifest: { main: "index.js", dependencies: { lists: "1.0.0" } },
+                files: { "index.js": 'module.exports = require("lists");\n' },
+                links: ["lists"],
+            },
+            lists: {
+                manifest: { main: "index.js", peerDependencies: { store: "1.0.0" } },
+                files: { "index.js": 'module.exports = typeof require("store");\n' },
+            },
         },
-        core: {
-            manifest: { main: "index.js" },
-            files: { "index.js": 'module.exports = "core";\n' },
-        },
-        store: {
-            manifest: { main: "index.js", dependencies: { lists: "1.0.0" } },
-            files: { "index.js": 'module.exports = require("lists");\n' },
-            links: ["lists"],
-        },
-        lists: {
-            manifest: { main: "index.js", peerDependencies: { store: "1.0.0" } },
-            files: { "index.js": 'module.exports = typeof require("store");\n' },
-        },
-    });
-    await using store = await LocalPackageStore.temporary();
-    const installation = new NpmInstallation(locked, store, CONTEXT);
+        files,
+    );
+    await using store = await LocalPackageStore.temporary(environment);
+    const installation = new NpmInstallation(locked, store, CONTEXT, environment);
     const build = async (name: string) =>
-        await installation.store(await installation.open(copy(root, name)), convertHere);
+        await installation.store(await installation.open(copy(root, name)), convertHere(files));
     const [renderer, core, lists] = [
         await build("renderer"),
         await build("core"),

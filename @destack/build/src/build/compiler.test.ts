@@ -1,6 +1,6 @@
-import { expect, onTestFinished, refusal, test, vi } from "@destack/test";
-import { cp, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { yieldToEventLoop } from "@destack/environment";
+import { testSimulation } from "../test/world.ts";
+import { expect, refusal, test } from "@destack/test";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PackageBuild, Compiler } from "../index.ts";
@@ -23,26 +23,29 @@ import { convertHere, copy, writeStore } from "../dependency/test/store.ts";
 const CANCEL_MILLISECONDS = 100;
 
 test("rebuild edited source, reject incompatible APIs, restore distributed output", async () => {
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
     const fixture = new URL("../../tests/fixture/library/", import.meta.url);
-    const directory = await mkdtemp(join(tmpdir(), "destack-build-library-"));
+    const directory = await files.makeTemporaryDirectory("build-library-");
     const source = join(directory, "source");
     const destination = join(directory, "build");
     const library = { ...request, directory: source };
 
     try {
         // compile a real package
-        await cp(new URL("source/", fixture), source, { recursive: true });
-        await using store = await LocalPackageStore.temporary();
+        await files.copy(fileURLToPath(new URL("source/", fixture)), source);
+        await using store = await LocalPackageStore.temporary(environment);
         await using builder = await Compiler.start(source, { store });
         await using build = await builder.build(library);
 
         // rebuild unchanged, edited, and restored source with the same compiler
         await using unchanged = await builder.build(library);
         expect(unchanged.manifest).toEqual(build.manifest);
-        await expectFiles(unchanged, build);
+        await expectFiles(unchanged, build, files);
         const notePath = join(source, "src/note.ts");
-        const note = await readFile(notePath, "utf8");
-        await writeFile(
+        const note = await files.readTextFile(notePath);
+        await files.writeTextFile(
             notePath,
             note
                 .replace("complete: boolean", "complete: true")
@@ -50,16 +53,16 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
         );
         await using edited = await builder.build(library);
         const editDirectory = join(directory, "edited");
-        await PackageBuild.write(edited.reader, editDirectory);
+        await PackageBuild.write(edited.reader, editDirectory, files);
         const editedModule = await importNotes(
             editDirectory,
             rootExport(edited.manifest, "library"),
         );
         expect(editedModule.createNote("Edited")).toEqual({ title: "Edited", complete: true });
-        await writeFile(notePath, note);
+        await files.writeTextFile(notePath, note);
         await using restoredSource = await builder.build(library);
         expect(restoredSource.manifest).toEqual(build.manifest);
-        await expectFiles(restoredSource, build);
+        await expectFiles(restoredSource, build, files);
 
         // refuse a browser API in the workerd output, though the package also ships the module to the browser
         const workerdRequest = {
@@ -67,7 +70,7 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
             dependencies: {},
             outputs: { library: { ...request.outputs.library, runtime: "workerd" } },
         } as const;
-        await writeFile(
+        await files.writeTextFile(
             notePath,
             note + "\n/** The page title. */\nexport const page = document.title;\n",
         );
@@ -80,9 +83,9 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
         // accept the browser API inside a function, which only the browser calls
         const deferredSource =
             note + "\n/** Read the page title. */\nexport const page = () => document.title;\n";
-        await writeFile(notePath, deferredSource);
+        await files.writeTextFile(notePath, deferredSource);
         await using deferred = await builder.build(workerdRequest);
-        expect(await readFile(join(deferred.directory, "src/note.ts"), "utf8")).toBe(
+        expect(await files.readTextFile(join(deferred.directory, "src/note.ts"))).toBe(
             deferredSource,
         );
 
@@ -90,7 +93,7 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
         const constructed =
             note +
             "\n/** The constructor. */\nexport const create: FunctionConstructor = Function;\n";
-        await writeFile(notePath, constructed);
+        await files.writeTextFile(notePath, constructed);
         expect(
             await refusal(
                 builder.build({
@@ -107,25 +110,25 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
         const prototypeSource =
             note +
             "\n/** The function prototype's names. */\nexport const names = Object.getOwnPropertyNames(Function.prototype);\n";
-        await writeFile(notePath, prototypeSource);
+        await files.writeTextFile(notePath, prototypeSource);
         await using workerd = await builder.build({
             directory: source,
             dependencies: {},
             outputs: { library: { ...request.outputs.library, runtime: "workerd" } },
         });
-        expect(await readFile(join(workerd.directory, "src/note.ts"), "utf8")).toBe(
+        expect(await files.readTextFile(join(workerd.directory, "src/note.ts"))).toBe(
             prototypeSource,
         );
 
         // accept a global read by a well-known symbol, and refuse one read by a computed key
         const symbolSource =
             note + "\n/** The tag of Math. */\nexport const tag = Math[Symbol.toStringTag];\n";
-        await writeFile(notePath, symbolSource);
+        await files.writeTextFile(notePath, symbolSource);
         await using symbolKeyed = await builder.build(workerdRequest);
-        expect(await readFile(join(symbolKeyed.directory, "src/note.ts"), "utf8")).toBe(
+        expect(await files.readTextFile(join(symbolKeyed.directory, "src/note.ts"))).toBe(
             symbolSource,
         );
-        await writeFile(
+        await files.writeTextFile(
             notePath,
             note +
                 '\n/** A Math member. */\nexport const member = (key: string) => Math[key as "PI"];\n',
@@ -140,7 +143,7 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
         const browserSource =
             note +
             '\n/** The page theme. */\nexport const page = document.documentElement.dataset["theme"];\n';
-        await writeFile(notePath, browserSource);
+        await files.writeTextFile(notePath, browserSource);
         await using browser = await builder.build({
             directory: source,
             dependencies: {},
@@ -151,21 +154,25 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
                 },
             },
         });
-        expect(await readFile(join(browser.directory, "src/note.ts"), "utf8")).toBe(browserSource);
+        expect(await files.readTextFile(join(browser.directory, "src/note.ts"))).toBe(
+            browserSource,
+        );
 
         // remove source access before loading the distributed package
-        await PackageBuild.write(build.reader, destination);
-        await rm(source, { recursive: true });
-        const restored = await PackageBuild.read(destination);
+        await PackageBuild.write(build.reader, destination, files);
+        await files.remove(source, { recursive: true });
+        const restored = await PackageBuild.read(destination, environment);
         expect(restored.manifest).toEqual(build.manifest);
 
         // preserve an existing distribution when the caller repeats a write
-        expect(await systemFailure(PackageBuild.write(build.reader, destination))).toEqual([
-            "EEXIST",
-            "mkdir",
-            destination,
+        expect(await refusal(PackageBuild.write(build.reader, destination, files))).toEqual([
+            "CONFLICT",
+            "ALREADY_EXISTS",
+            `cannot create ${destination}: EEXIST`,
         ]);
-        expect((await PackageBuild.read(destination)).manifest).toEqual(build.manifest);
+        expect((await PackageBuild.read(destination, environment)).manifest).toEqual(
+            build.manifest,
+        );
 
         // refuse writing a file whose bytes of the same size no longer match its digest
         const changed = present(
@@ -174,29 +181,30 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
             ),
             "a distributed file besides the library",
         );
-        const original = await readFile(join(build.directory, changed.path));
+        const original = await files.readFile(join(build.directory, changed.path));
         const flipped = Uint8Array.from(original, (byte, index) => (index === 0 ? byte ^ 1 : byte));
-        await writeFile(join(build.directory, changed.path), flipped);
+        await files.writeFile(join(build.directory, changed.path), flipped);
         const corrupted = join(directory, "corrupted");
-        expect(await refusal(PackageBuild.write(build.reader, corrupted))).toEqual([
+        expect(await refusal(PackageBuild.write(build.reader, corrupted, files))).toEqual([
             "BAD_REQUEST",
             "INVALID_FILE",
             `file digest mismatch: ${changed.path}`,
         ]);
-        await writeFile(join(build.directory, changed.path), original);
+        await files.writeFile(join(build.directory, changed.path), original);
 
         // leave no published manifest when an output cannot be written
         const failed = join(directory, "failed");
-        await rm(join(build.directory, rootExport(build.manifest, "library")));
-        expect(await systemFailure(PackageBuild.write(build.reader, failed))).toEqual([
-            "ENOENT",
-            "open",
-            join(build.directory, rootExport(build.manifest, "library")),
+        await files.remove(join(build.directory, rootExport(build.manifest, "library")));
+        const removed = join(build.directory, rootExport(build.manifest, "library"));
+        expect(await refusal(PackageBuild.write(build.reader, failed, files))).toEqual([
+            "NOT_FOUND",
+            "NOT_FOUND",
+            `cannot open ${removed}: ENOENT`,
         ]);
-        expect(await systemFailure(readFile(join(failed, "manifest.json")))).toEqual([
-            "ENOENT",
-            "open",
-            join(failed, "manifest.json"),
+        expect(await refusal(files.readFile(join(failed, "manifest.json")))).toEqual([
+            "NOT_FOUND",
+            "NOT_FOUND",
+            `cannot read ${join(failed, "manifest.json")}: ENOENT`,
         ]);
 
         const module = await importNotes(destination, rootExport(restored.manifest, "library"));
@@ -204,27 +212,34 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
 
         // discard temporary compiler output while preserving the retained distribution
         await build[Symbol.asyncDispose]();
-        expect(await systemFailure(readFile(join(build.directory, "manifest.json")))).toEqual([
-            "ENOENT",
-            "open",
-            join(build.directory, "manifest.json"),
+        const written = join(build.directory, "manifest.json");
+        expect(await refusal(files.readFile(written))).toEqual([
+            "NOT_FOUND",
+            "NOT_FOUND",
+            `cannot read ${written}: ENOENT`,
         ]);
         await restored[Symbol.asyncDispose]();
-        expect((await PackageBuild.read(destination)).manifest).toEqual(restored.manifest);
+        expect((await PackageBuild.read(destination, environment)).manifest).toEqual(
+            restored.manifest,
+        );
     } finally {
-        await rm(directory, { recursive: true });
+        await files.remove(directory, { recursive: true });
     }
 });
 
 test("reuse cached builds and outputs, and compile what their keys miss", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "destack-build-cache-"));
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await files.makeTemporaryDirectory("build-cache-");
     const source = join(directory, "source");
     try {
         // build a library into a store's cache
-        await cp(new URL("../../tests/fixture/library/source/", import.meta.url), source, {
-            recursive: true,
-        });
-        await using store = await LocalPackageStore.temporary();
+        await files.copy(
+            fileURLToPath(new URL("../../tests/fixture/library/source/", import.meta.url)),
+            source,
+        );
+        await using store = await LocalPackageStore.temporary(environment);
         await using builder = await Compiler.start(source, { store });
         const library = { ...request, directory: source };
         await using first = await builder.build(library);
@@ -234,52 +249,56 @@ test("reuse cached builds and outputs, and compile what their keys miss", async 
         await using unchanged = await builder.build(library);
         expect(unchanged.reused).toEqual(["library"]);
         expect(unchanged.manifest).toEqual(first.manifest);
-        await expectFiles(unchanged, first);
+        await expectFiles(unchanged, first, files);
         await using other = await Compiler.start(source, { store });
         await using elsewhere = await other.build(library);
         expect(elsewhere.reused).toEqual(["library"]);
 
         // reuse the library output beside a module it does not import, as a build without the cache compiles it
         const draft = join(source, "src/draft.ts");
-        await writeFile(
+        await files.writeTextFile(
             draft,
             await formatSource(draft, '/** A draft title. */\nexport const draft = "draft";\n'),
         );
         await using added = await builder.build(library);
-        await using empty = await LocalPackageStore.temporary();
+        await using empty = await LocalPackageStore.temporary(environment);
         await using uncached = await Compiler.start(source, { store: empty });
         await using cold = await uncached.build(library);
         expect(added.reused).toEqual(["library"]);
         expect(added.manifest).toEqual(cold.manifest);
-        await expectFiles(added, cold);
+        await expectFiles(added, cold, files);
 
         // compile the library again once a module it imports changes
         const note = join(source, "src/note.ts");
-        const original = await readFile(note, "utf8");
-        await writeFile(note, original.replace("complete: false", "complete: true"));
+        const original = await files.readTextFile(note);
+        await files.writeTextFile(note, original.replace("complete: false", "complete: true"));
         await using edited = await builder.build(library);
         expect(edited.reused).toEqual([]);
         expect(edited.manifest).not.toEqual(added.manifest);
 
         // restore the earlier build from the cache once the module is restored
-        await writeFile(note, original);
+        await files.writeTextFile(note, original);
         await using restored = await builder.build(library);
         expect(restored.reused).toEqual(["library"]);
         expect(restored.manifest).toEqual(added.manifest);
     } finally {
-        await rm(directory, { recursive: true });
+        await files.remove(directory, { recursive: true });
     }
 });
 
 test("reuse cached outputs sharing source files once the build's commit changes", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "destack-build-shared-"));
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await files.makeTemporaryDirectory("build-shared-");
     const source = join(directory, "source");
     try {
         // build the library for two runtimes into a store's cache at one commit
-        await cp(new URL("../../tests/fixture/library/source/", import.meta.url), source, {
-            recursive: true,
-        });
-        await using store = await LocalPackageStore.temporary();
+        await files.copy(
+            fileURLToPath(new URL("../../tests/fixture/library/source/", import.meta.url)),
+            source,
+        );
+        await using store = await LocalPackageStore.temporary(environment);
         await using builder = await Compiler.start(source, { store });
         const outputs = {
             bun: request.outputs.library,
@@ -295,22 +314,24 @@ test("reuse cached outputs sharing source files once the build's commit changes"
         // reuse both outputs at another commit, as a build without the cache compiles them
         const commit = Commit.parse("b".repeat(40));
         await using reused = await builder.build({ ...shared, commit });
-        await using empty = await LocalPackageStore.temporary();
+        await using empty = await LocalPackageStore.temporary(environment);
         await using uncached = await Compiler.start(source, { store: empty });
         await using cold = await uncached.build({ ...shared, commit });
         expect(reused.reused).toEqual(["bun", "workerd"]);
         expect(reused.manifest).toEqual(cold.manifest);
-        await expectFiles(reused, cold);
+        await expectFiles(reused, cold, files);
     } finally {
-        await rm(directory, { recursive: true });
+        await files.remove(directory, { recursive: true });
     }
 });
 
 test("reject invalid outputs and recover the retained compiler", async () => {
     // build once before any rejected request
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
     const source = fileURLToPath(new URL("../../tests/fixture/library/source/", import.meta.url));
     const library = { ...request, directory: source };
-    await using store = await LocalPackageStore.temporary();
+    await using store = await LocalPackageStore.temporary(environment);
     await using builder = await Compiler.start(source, { store });
     await using first = await builder.build(library);
     expect(
@@ -332,17 +353,21 @@ test("reject invalid outputs and recover the retained compiler", async () => {
 });
 
 test("terminate compilation on cancellation and deadline, and build again with the same builder", async () => {
+    // run a world whose clock flows with real time
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    simulation.clock.resume();
     const directory = fileURLToPath(
         new URL("../../tests/fixture/library/source/", import.meta.url),
     );
     const library = { ...request, directory };
     const controller = new AbortController();
-    await using store = await LocalPackageStore.temporary();
+    await using store = await LocalPackageStore.temporary(environment);
     await using builder = await Compiler.start(directory, { store });
 
     // cancel a build once the compiler has it, as the library's build takes over a second
     const pending = builder.build({ ...library, signal: controller.signal });
-    setTimeout(() => controller.abort(), CANCEL_MILLISECONDS);
+    void simulation.clock.sleep(CANCEL_MILLISECONDS).then(() => controller.abort());
     expect(await refusal(pending)).toEqual([
         "CLIENT_CLOSED_REQUEST",
         "BUILD_CANCELLED",
@@ -361,10 +386,13 @@ test("terminate compilation on cancellation and deadline, and build again with t
 
 test("close a compiler once it exits, however long its shutdown takes", async () => {
     // start a compiler that exits only once the test releases it, after the end of its input
-    const directory = await realpath(await mkdtemp(join(tmpdir(), "destack-shutdown-")));
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await files.realPath(await files.makeTemporaryDirectory("destack-shutdown-"));
     const release = join(directory, "release");
     const script = join(directory, "compiler.ts");
-    await writeFile(
+    await files.writeTextFile(
         script,
         `for await (const _chunk of process.stdin) {}
 while (!(await Bun.file(${JSON.stringify(release)}).exists())) {
@@ -373,43 +401,44 @@ while (!(await Bun.file(${JSON.stringify(release)}).exists())) {
 `,
     );
     const source = fileURLToPath(new URL("../../tests/fixture/library/source/", import.meta.url));
-    await using store = await LocalPackageStore.temporary();
+    await using store = await LocalPackageStore.temporary(environment);
     const builder = await Compiler.start(source, {
         command: {
-            executable: process.execPath,
+            executable: environment.process.executable,
             arguments: ["run", "--no-env-file", script],
             read: [directory],
+            variables: {},
         },
         store,
     });
 
     // stay open an hour past the end of its input, then close once it exits
     try {
-        vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
         let isClosed = false;
         const closing = builder[Symbol.asyncDispose]().then(() => {
             isClosed = true;
         });
-        vi.advanceTimersByTime(3_600_000);
-        vi.useRealTimers();
-        await new Promise((resolve) => {
-            setImmediate(resolve);
-        });
+        simulation.clock.advance(3_600_000);
+        await yieldToEventLoop();
         const isClosedEarly = isClosed;
-        await writeFile(release, "");
+        await files.writeTextFile(release, "");
         await closing;
         expect([isClosedEarly, isClosed]).toEqual([false, true]);
     } finally {
-        vi.useRealTimers();
-        await rm(directory, { recursive: true });
+        await files.remove(directory, { recursive: true });
     }
 });
 
 test("compile a package with the build extension it declares", async () => {
-    const directory = await realpath(await mkdtemp(join(tmpdir(), "destack-build-extension-")));
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await files.realPath(
+        await files.makeTemporaryDirectory("destack-build-extension-"),
+    );
     try {
         // write a package whose module reads a constant only its extension writes in
-        const files: Record<string, string> = {
+        const contents: Record<string, string> = {
             "bun.lock": JSON.stringify({ lockfileVersion: 1, workspaces: {}, packages: {} }),
             "destack.json": JSON.stringify({
                 $schema: "https://destack.app/schemas/2026.9.0/destack.json",
@@ -448,13 +477,13 @@ test("compile a package with the build extension it declares", async () => {
                 "",
             ].join("\n"),
         };
-        for (const [path, text] of Object.entries(files)) {
-            await mkdir(join(directory, path, ".."), { recursive: true });
-            await writeFile(join(directory, path), text);
+        for (const [path, text] of Object.entries(contents)) {
+            await files.mkdir(join(directory, path, ".."), { recursive: true });
+            await files.writeTextFile(join(directory, path), text);
         }
 
         // build the package and read the greeting its extension wrote in
-        await using store = await LocalPackageStore.temporary();
+        await using store = await LocalPackageStore.temporary(environment);
         await using builder = await Compiler.start(directory, { store });
         const outputs = { library: { kind: "module", runtime: "bun" } } as const;
         await using built = await builder.build({
@@ -462,40 +491,48 @@ test("compile a package with the build extension it declares", async () => {
             dependencies: {},
             outputs,
         });
-        await PackageBuild.write(built.reader, join(directory, "build"));
+        await PackageBuild.write(built.reader, join(directory, "build"), files);
         const module = await importBuilt(
             join(directory, "build"),
             rootExport(built.manifest, "library"),
         );
         expect({ ...module }).toEqual({ greeting: "hello" });
     } finally {
-        await rm(directory, { recursive: true });
+        await files.remove(directory, { recursive: true });
     }
 });
 
 test("refuse a workerd output importing an npm unit that workerd cannot load", async () => {
     // store an npm unit of a native addon, which has no workerd output
-    const { root, locked } = await writeStore({
-        native: {
-            manifest: { main: "index.js" },
-            files: { "index.js": "module.exports = 1;\n", "addon.node": "" },
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const { root, locked } = await writeStore(
+        {
+            native: {
+                manifest: { main: "index.js" },
+                files: { "index.js": "module.exports = 1;\n", "addon.node": "" },
+            },
         },
-    });
-    await using store = await LocalPackageStore.temporary();
+        files,
+    );
+    await using store = await LocalPackageStore.temporary(environment);
     const installation = new NpmInstallation(
         locked,
         store,
-        await Digest.json({ test: "toolchain" }),
+        await Digest.json({ test: "toolchain" }, environment.crypto),
+        environment,
     );
     const native = await installation.store(
         await installation.open(copy(root, "native")),
-        convertHere,
+        convertHere(files),
     );
 
     // write a workerd package importing it
-    const directory = await realpath(await mkdtemp(join(tmpdir(), "destack-build-addon-")));
-    onTestFinished(() => rm(directory, { recursive: true }));
-    const files: Record<string, string> = {
+    const directory = await files.realPath(
+        await files.makeTemporaryDirectory("destack-build-addon-"),
+    );
+    const contents: Record<string, string> = {
         "bun.lock": JSON.stringify({ lockfileVersion: 1, workspaces: {}, packages: {} }),
         "destack.json": JSON.stringify({
             $schema: "https://destack.app/schemas/2026.9.0/destack.json",
@@ -515,11 +552,11 @@ test("refuse a workerd output importing an npm unit that workerd cannot load", a
         "src/index.ts":
             'import value from "native";\n\n/** The addon\'s value, doubled. */\nexport const doubled: number = value * 2;\n',
     };
-    for (const [path, text] of Object.entries(files)) {
-        await mkdir(join(directory, path, ".."), { recursive: true });
-        await writeFile(join(directory, path), text);
+    for (const [path, text] of Object.entries(contents)) {
+        await files.mkdir(join(directory, path, ".."), { recursive: true });
+        await files.writeTextFile(join(directory, path), text);
     }
-    await cp(copy(root, "native"), join(directory, "node_modules", "native"), { recursive: true });
+    await files.copy(copy(root, "native"), join(directory, "node_modules", "native"));
 
     // refuse its build before the store stores it
     const stored = await countObjects(store);
@@ -539,9 +576,13 @@ test("refuse a workerd output importing an npm unit that workerd cannot load", a
 
 test("check every output's entries with the package's ambient declarations", async () => {
     // write a package for Bun and browsers whose entry uses a type its ambient declarations declare
-    const directory = await realpath(await mkdtemp(join(tmpdir(), "destack-build-ambient-")));
-    onTestFinished(() => rm(directory, { recursive: true }));
-    const files: Record<string, string> = {
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await files.realPath(
+        await files.makeTemporaryDirectory("destack-build-ambient-"),
+    );
+    const contents: Record<string, string> = {
         "bun.lock": JSON.stringify({ lockfileVersion: 1, workspaces: {}, packages: {} }),
         "destack.json": JSON.stringify({
             $schema: "https://destack.app/schemas/2026.9.0/destack.json",
@@ -564,13 +605,13 @@ test("check every output's entries with the package's ambient declarations", asy
         "src/index.ts":
             "/** Read a greeting's text. */\nexport const read = (greeting: Greeting): string => greeting.text;\n",
     };
-    for (const [path, text] of Object.entries(files)) {
-        await mkdir(join(directory, path, ".."), { recursive: true });
-        await writeFile(join(directory, path), text);
+    for (const [path, text] of Object.entries(contents)) {
+        await files.mkdir(join(directory, path, ".."), { recursive: true });
+        await files.writeTextFile(join(directory, path), text);
     }
 
     // build both outputs, the browser's program rooted at its entries
-    await using store = await LocalPackageStore.temporary();
+    await using store = await LocalPackageStore.temporary(environment);
     await using builder = await Compiler.start(directory, { store });
     await using built = await builder.build({
         directory,
@@ -582,16 +623,6 @@ test("check every output's entries with the package's ambient declarations", asy
     });
     expect(Object.keys(built.manifest.outputs).toSorted()).toEqual(["browser", "server"]);
 });
-
-/** Read a system call's failure as its code, call and path. */
-async function systemFailure(pending: Promise<unknown>): Promise<unknown[]> {
-    try {
-        await pending;
-    } catch (error) {
-        return ["code", "syscall", "path"].map((key): unknown => Reflect.get(Object(error), key));
-    }
-    throw new TypeError("the system call did not fail");
-}
 
 /** Read the file an output exports at its root, failing when the manifest lacks it. */
 function rootExport(manifest: PackageManifest, output: string): string {

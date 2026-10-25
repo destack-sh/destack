@@ -1,6 +1,5 @@
-import { mkdtemp, readdir, realpath, rm, stat, writeFile, readFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { dirname, join, resolve, isAbsolute, sep } from "node:path";
+import { type Environment, type FileSystem, FileSystemError } from "@destack/environment";
 import { type InspectOptions } from "../inspection/inspection.ts";
 import { runtimeConditions, TYPE_CHECKS, TYPESCRIPT_OPTIONS } from "@destack/package/build";
 import { linkDependencies, ReleasedPackage } from "./dependency.ts";
@@ -10,7 +9,6 @@ import { type JsonObject, type JsonValue, schema, type Version } from "@destack/
 import { PackagePath } from "@destack/package/file";
 import { type Runtime } from "@destack/package/runtime";
 import { PackageLocator } from "@destack/package/locator";
-import { isMissing } from "../error/index.ts";
 import { DependencyTree } from "../dependency/tree.ts";
 
 /** Source manifests and selected runtime exports for a package build. */
@@ -33,6 +31,8 @@ export interface PackageSource extends AsyncDisposable {
     entries: readonly string[];
     /** The builds of the package's Destack dependencies, materialized for it. */
     tree: DependencyTree;
+    /** The files the build reads and the processes its transforms run. */
+    environment: Environment<"files" | "process">;
 }
 
 /** A package's inputs opened for inspection and compilation. */
@@ -51,30 +51,33 @@ export const PackageSource = {
             /** What the program reads: the package's whole source, or the entries' closure. */
             roots: "package" | "entries";
         },
+        environment: Environment<"files" | "process">,
     ): Promise<PackageSource> {
         // read the package.json and destack.json and select the runtime's exports
+        const { files } = environment;
         const definition = await readPackageSource(
             options.directory,
             options.runtime,
             options.entries,
             options.versions ?? {},
+            files,
         );
         const authored = resolve(definition.directory, options.configuration ?? "tsconfig.json");
 
         // use an explicit configuration or the package's existing configuration
         let hasConfiguration = true;
         try {
-            await stat(authored);
+            await files.stat(authored);
         } catch (error) {
-            if (options.configuration !== undefined || !isMissing(error)) {
+            if (options.configuration !== undefined || !FileSystemError.is(error, "NOT_FOUND")) {
                 throw error;
             }
             hasConfiguration = false;
         }
 
         // read the dependencies' builds, then root the configuration at the selected modules
-        const tree = await DependencyTree.read(options.tree);
-        const temporary = await mkdtemp(join(tmpdir(), "destack-project-"));
+        const tree = await DependencyTree.read(options.tree, files);
+        const temporary = await files.makeTemporaryDirectory("destack-project-");
         const configuration = join(temporary, "tsconfig.json");
         const extra = (options.files ?? []).map((path) =>
             resolve(definition.directory, PackagePath.parse(path)),
@@ -84,31 +87,34 @@ export const PackageSource = {
             ...Object.values(definition.types),
             ...extra,
         ];
-        const files = [...new Set(roots.filter((path) => /\.[cm]?[jt]sx?$/u.test(path)))];
+        const modules = [...new Set(roots.filter((path) => /\.[cm]?[jt]sx?$/u.test(path)))];
         try {
             // resolve explicit type packages from the same installation as authored modules
-            await linkDependencies(definition.directory, temporary);
-            const extended = hasConfiguration ? await realpath(authored) : undefined;
+            await linkDependencies(definition.directory, temporary, files);
+            const extended = hasConfiguration ? await files.realPath(authored) : undefined;
             const settings = compilerSettings(
                 definition,
-                files,
+                modules,
                 extended,
                 tree.paths(),
                 options.roots,
             );
-            await writeFile(configuration, JSON.stringify(settings), { flag: "wx" });
+            await files.writeTextFile(configuration, JSON.stringify(settings), {
+                createNew: true,
+            });
         } catch (error) {
-            await rm(temporary, { recursive: true });
+            await files.remove(temporary, { recursive: true });
             throw error;
         }
 
         return {
             ...definition,
             configuration,
-            entries: files,
+            entries: modules,
             tree,
+            environment,
             async [Symbol.asyncDispose]() {
-                await rm(temporary, { recursive: true });
+                await files.remove(temporary, { recursive: true });
             },
         };
     },
@@ -163,10 +169,16 @@ async function readPackageSource(
     runtime: Runtime,
     entries: Readonly<Record<string, string>> | undefined,
     versions: Readonly<Record<string, Version>>,
-): Promise<Omit<PackageSource, "configuration" | "entries" | "tree" | typeof Symbol.asyncDispose>> {
+    files: FileSystem,
+): Promise<
+    Omit<
+        PackageSource,
+        "configuration" | "entries" | "tree" | "environment" | typeof Symbol.asyncDispose
+    >
+> {
     // read the package.json and destack.json
-    directory = await realpath(directory);
-    const packageJson = await readPackageJson(directory, versions);
+    directory = await files.realPath(directory);
+    const packageJson = await readPackageJson(directory, files, versions);
     const definition = packageJson.definition;
 
     // select package exports using the runtime's standard conditions
@@ -176,7 +188,7 @@ async function readPackageSource(
         ? Object.fromEntries(
               Object.entries(entries).map(([name, path]) => [name, `./${PackagePath.parse(path)}`]),
           )
-        : await expandPatterns(directory, mapExports(packageJson));
+        : await expandPatterns(directory, mapExports(packageJson), files);
     const exports: Record<string, string> = {};
     const types: Record<string, string> = {};
     for (const [name, entry] of Object.entries(authoredEntries)) {
@@ -271,14 +283,15 @@ function selectModule(entry: PackageExport, conditions: ReadonlySet<string>): st
 /** Read a package's package.json and destack.json, at the version a build releases it at. */
 export async function readPackageJson(
     directory: string,
+    files: FileSystem,
     versions: Readonly<Record<string, Version>> = {},
 ): Promise<PackageJson> {
     // read package.json and destack.json
     const metadata = schema
         .jsonObject()
-        .parse(JSON.parse(await readFile(resolve(directory, "package.json"), "utf8")));
+        .parse(JSON.parse(await files.readTextFile(resolve(directory, "package.json"))));
     const configuration = PackageDefinition.read(
-        await readFile(resolve(directory, "destack.json"), "utf8"),
+        await files.readTextFile(resolve(directory, "destack.json")),
     );
     const packageJson = PackageJson.parse({
         package: {
@@ -334,6 +347,7 @@ function field(metadata: JsonObject, name: string): JsonValue {
 async function expandPatterns(
     directory: string,
     exports: Readonly<Record<string, PackageExport>>,
+    files: FileSystem,
 ): Promise<Record<string, PackageExport>> {
     const expanded: Record<string, PackageExport> = {};
     for (const [name, entry] of Object.entries(exports)) {
@@ -351,8 +365,10 @@ async function expandPatterns(
         // key each file the target matches by the text its wildcard stands for
         else {
             const [prefix = "", suffix = ""] = PackagePath.parse(entry.slice(2)).split("*");
-            const files = await readdir(join(directory, dirname(prefix)), { recursive: true });
-            for (const file of files) {
+            const listed = await files.readDirectory(join(directory, dirname(prefix)), {
+                recursive: true,
+            });
+            for (const { name: file } of listed) {
                 const path = join(dirname(prefix), file).replaceAll(sep, "/");
                 const isMatch = path.length >= prefix.length + suffix.length;
                 if (isMatch && path.startsWith(prefix) && path.endsWith(suffix)) {

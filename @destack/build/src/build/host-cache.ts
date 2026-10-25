@@ -1,12 +1,17 @@
-import type { Writable } from "node:stream";
+import type { Digest } from "@destack/schema";
 import type { TransformCache } from "@destack/package/build";
 import { BuildError } from "../error/index.ts";
-import { type CacheRequest, type CacheResponse, writeMessage } from "./message.ts";
+import {
+    type CacheRequest,
+    type CacheResponse,
+    type MessageOutput,
+    writeMessage,
+} from "./message.ts";
 
 /** The build's cache as the compiler sees it, through requests its host answers. */
 export class HostCache implements TransformCache {
     /** The stream the compiler's requests go out on. */
-    readonly #output: Writable;
+    readonly #output: MessageOutput;
     /** The requests awaiting their answer, by number. */
     readonly #pending: Map<
         number,
@@ -19,19 +24,19 @@ export class HostCache implements TransformCache {
     #next: number;
 
     /** Send cache requests on the compiler's output stream. */
-    constructor(output: Writable) {
+    constructor(output: MessageOutput) {
         this.#output = output;
         this.#pending = new Map();
         this.#next = 0;
     }
 
     /** Read the bytes stored under a key, absent on a miss. */
-    async read(key: string): Promise<Uint8Array<ArrayBuffer> | undefined> {
+    async read(key: Digest): Promise<Uint8Array<ArrayBuffer> | undefined> {
         return (await this.#ask((id) => ({ kind: "read", id, key }))) ?? undefined;
     }
 
     /** Store bytes under a key for later builds. */
-    async write(key: string, bytes: Uint8Array<ArrayBuffer>): Promise<void> {
+    async write(key: Digest, bytes: Uint8Array<ArrayBuffer>): Promise<void> {
         await this.#ask((id) => ({ kind: "write", id, key, bytes }));
     }
 

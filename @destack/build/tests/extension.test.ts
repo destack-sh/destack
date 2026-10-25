@@ -1,6 +1,6 @@
-import { mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
+import type { FileSystem } from "@destack/environment";
+import { testSimulation } from "../src/test/world.ts";
 import { DependencyTree } from "../src/dependency/index.ts";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { present, schema } from "@destack/schema";
 import { expect, refusal, test } from "@destack/test";
@@ -48,13 +48,14 @@ async function writePackage(
     manifest: Readonly<Record<string, unknown>>,
     definition: Readonly<Record<string, unknown>>,
     modules: Readonly<Record<string, string>>,
+    files: FileSystem,
 ): Promise<void> {
-    await mkdir(join(directory, "src"), { recursive: true });
-    await writeFile(
+    await files.mkdir(join(directory, "src"), { recursive: true });
+    await files.writeTextFile(
         join(directory, "package.json"),
         JSON.stringify({ version: "2026.9.0", type: "module", ...manifest }),
     );
-    await writeFile(
+    await files.writeTextFile(
         join(directory, "destack.json"),
         JSON.stringify({
             $schema: SCHEMA,
@@ -64,25 +65,34 @@ async function writePackage(
         }),
     );
     for (const [path, text] of Object.entries(modules)) {
-        await writeFile(join(directory, "src", path), text);
+        await files.writeTextFile(join(directory, "src", path), text);
     }
 }
 
 /** Write a workspace's lockfile, listing its members by their directory names. */
-async function writeLockfile(root: string, members: readonly string[]): Promise<void> {
+async function writeLockfile(
+    root: string,
+    members: readonly string[],
+    files: FileSystem,
+): Promise<void> {
     const workspaces = Object.fromEntries(
         members.map((name) => [name, { name: `@fixture/${name}` }]),
     );
-    await writeFile(
+    await files.writeTextFile(
         join(root, "bun.lock"),
         JSON.stringify({ lockfileVersion: 2, workspaces, packages: {} }),
     );
 }
 
 /** Link a package into a dependent's node_modules, as a workspace installs it. */
-async function link(root: string, dependent: string, name: string): Promise<void> {
-    await mkdir(join(root, dependent, "node_modules", "@fixture"), { recursive: true });
-    await symlink(join(root, name), join(root, dependent, "node_modules", "@fixture", name));
+async function link(
+    root: string,
+    dependent: string,
+    name: string,
+    files: FileSystem,
+): Promise<void> {
+    await files.mkdir(join(root, dependent, "node_modules", "@fixture"), { recursive: true });
+    await files.symlink(join(root, name), join(root, dependent, "node_modules", "@fixture", name));
 }
 
 /** Run an entry of a build's Bun output, reading its exports. */
@@ -95,10 +105,12 @@ async function readEntry(build: PackageBuild, name: string): Promise<Record<stri
 }
 
 /** Write an application whose two packages require one extension leaf, returning its root. */
-async function writeApplication(): Promise<string> {
+async function writeApplication(files: FileSystem): Promise<string> {
     // write the leaf declaring the extension, and two packages requiring it
-    const root = await realpath(await mkdtemp(join(tmpdir(), "destack-build-extension-")));
-    await writeLockfile(root, ["leaf", "middle", "other", "application"]);
+    const root = await files.realPath(
+        await files.makeTemporaryDirectory("destack-build-extension-"),
+    );
+    await writeLockfile(root, ["leaf", "middle", "other", "application"], files);
     await writePackage(
         join(root, "leaf"),
         { name: "@fixture/leaf", exports: { ".": "./src/index.ts", "./build": "./src/build.ts" } },
@@ -108,6 +120,7 @@ async function writeApplication(): Promise<string> {
             build: "./build#leafExtension",
         },
         { "index.ts": "export {};\n", "build.ts": LEAF_EXTENSION },
+        files,
     );
     for (const [index, name] of ["middle", "other"].entries()) {
         await writePackage(
@@ -119,8 +132,9 @@ async function writeApplication(): Promise<string> {
             },
             { id: `package-01a10b00-0000-7000-8000-00000000000${index + 2}` },
             { "index.ts": "export {};\n" },
+            files,
         );
-        await link(root, name, "leaf");
+        await link(root, name, "leaf", files);
     }
 
     // write the application requiring both packages but not the leaf
@@ -137,9 +151,10 @@ async function writeApplication(): Promise<string> {
             "marker.ts":
                 '/** The marker the leaf rewrites. */\nexport const marker = "unchanged";\n',
         },
+        files,
     );
-    await link(root, "application", "middle");
-    await link(root, "application", "other");
+    await link(root, "application", "middle", files);
+    await link(root, "application", "other", files);
 
     return root;
 }
@@ -149,46 +164,55 @@ async function declare(
     directory: string,
     group: "dependencies" | "devDependencies",
     name: string,
+    files: FileSystem,
 ): Promise<void> {
     const manifest = join(directory, "package.json");
-    const declared = schema.looseObject({}).parse(JSON.parse(await readFile(manifest, "utf8")));
+    const declared = schema.looseObject({}).parse(JSON.parse(await files.readTextFile(manifest)));
     const existing = schema.record(schema.string(), schema.string()).parse(declared[group] ?? {});
     const updated = { ...existing, [name]: "2026.9.0" };
-    await writeFile(manifest, JSON.stringify({ ...declared, [group]: updated }));
+    await files.writeTextFile(manifest, JSON.stringify({ ...declared, [group]: updated }));
 }
 
 /** List the packages whose extensions compile a fixture package in its destack.json. */
-async function listExtensions(directory: string, extensions: readonly string[]): Promise<void> {
+async function listExtensions(
+    directory: string,
+    extensions: readonly string[],
+    files: FileSystem,
+): Promise<void> {
     const path = join(directory, "destack.json");
-    const definition = schema.looseObject({}).parse(JSON.parse(await readFile(path, "utf8")));
-    await writeFile(path, JSON.stringify({ ...definition, extensions }));
+    const definition = schema.looseObject({}).parse(JSON.parse(await files.readTextFile(path)));
+    await files.writeTextFile(path, JSON.stringify({ ...definition, extensions }));
 }
 
 test("apply the extensions of a package's runtime dependency closure, its dependencies' among them", async () => {
     // load the application's extensions and build its server module while only its dependencies require the leaf
-    const root = await writeApplication();
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const root = await writeApplication(files);
     const directory = join(root, "application");
     const outputs = { bun: { kind: "module", runtime: "bun" } } as const;
-    try {
-        const loaded = await loadExtensions(
-            directory,
-            await readPackageJson(directory),
-            await DependencyTree.read({}),
-        );
-        await using store = await LocalPackageStore.temporary();
-        await using compiler = await Compiler.start(directory, { store });
-        await using transformed = await compiler.build({ directory, dependencies: {}, outputs });
-        expect([loaded.map((entry) => entry.directory), await readEntry(transformed, ".")]).toEqual(
-            [[await realpath(join(root, "leaf"))], { marker: "transformed" }],
-        );
-    } finally {
-        await rm(root, { recursive: true });
-    }
+    const loaded = await loadExtensions(
+        directory,
+        await readPackageJson(directory, files),
+        await DependencyTree.read({}, files),
+        files,
+    );
+    await using store = await LocalPackageStore.temporary(environment);
+    await using compiler = await Compiler.start(directory, { store });
+    await using transformed = await compiler.build({ directory, dependencies: {}, outputs });
+    expect([loaded.map((entry) => entry.directory), await readEntry(transformed, ".")]).toEqual([
+        [await files.realPath(join(root, "leaf"))],
+        { marker: "transformed" },
+    ]);
 });
 
 test("compile a package through a listed extension and leave a development dependency's out", async () => {
     // write a package requiring the leaf in development only
-    const root = await writeApplication();
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const root = await writeApplication(files);
     const directory = join(root, "solo");
     await writePackage(
         directory,
@@ -203,48 +227,49 @@ test("compile a package through a listed extension and leave a development depen
             "marker.ts":
                 '/** The marker the leaf rewrites. */\nexport const marker = "unchanged";\n',
         },
+        files,
     );
-    await link(root, "solo", "leaf");
-    await writeLockfile(root, ["leaf", "middle", "other", "application", "solo"]);
+    await link(root, "solo", "leaf", files);
+    await writeLockfile(root, ["leaf", "middle", "other", "application", "solo"], files);
     const outputs = { bun: { kind: "module", runtime: "bun" } } as const;
     const extensions = async () =>
         (
             await loadExtensions(
                 directory,
-                await readPackageJson(directory),
-                await DependencyTree.read({}),
+                await readPackageJson(directory, files),
+                await DependencyTree.read({}, files),
+                files,
             )
         ).map((entry) => entry.directory);
-    try {
-        // build without the development dependency's extension
-        const developed = await extensions();
-        await using store = await LocalPackageStore.temporary();
-        await using compiler = await Compiler.start(directory, { store });
-        await using untouched = await compiler.build({ directory, dependencies: {}, outputs });
+    // build without the development dependency's extension
+    const developed = await extensions();
+    await using store = await LocalPackageStore.temporary(environment);
+    await using compiler = await Compiler.start(directory, { store });
+    await using untouched = await compiler.build({ directory, dependencies: {}, outputs });
 
-        // list the leaf's extension, then build again through it
-        await listExtensions(directory, ["@fixture/leaf"]);
-        const listed = await extensions();
-        await using transformed = await compiler.build({ directory, dependencies: {}, outputs });
-        expect([
-            developed,
-            await readEntry(untouched, "."),
-            listed,
-            await readEntry(transformed, "."),
-        ]).toEqual([
-            [],
-            { marker: "unchanged" },
-            [await realpath(join(root, "leaf"))],
-            { marker: "transformed" },
-        ]);
-    } finally {
-        await rm(root, { recursive: true });
-    }
+    // list the leaf's extension, then build again through it
+    await listExtensions(directory, ["@fixture/leaf"], files);
+    const listed = await extensions();
+    await using transformed = await compiler.build({ directory, dependencies: {}, outputs });
+    expect([
+        developed,
+        await readEntry(untouched, "."),
+        listed,
+        await readEntry(transformed, "."),
+    ]).toEqual([
+        [],
+        { marker: "unchanged" },
+        [await files.realPath(join(root, "leaf"))],
+        { marker: "transformed" },
+    ]);
 });
 
 test("load a listed package's extension without walking its dependencies, and build a listed member as a unit", async () => {
     // write a tool requiring the leaf and declaring an extension, which the site requires in development
-    const root = await writeApplication();
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const root = await writeApplication(files);
     await writePackage(
         join(root, "tool"),
         {
@@ -258,8 +283,9 @@ test("load a listed package's extension without walking its dependencies, and bu
             build: "./build#toolExtension",
         },
         { "index.ts": "export {};\n", "build.ts": "export const toolExtension = {};\n" },
+        files,
     );
-    await link(root, "tool", "leaf");
+    await link(root, "tool", "leaf", files);
     await writePackage(
         join(root, "site"),
         {
@@ -269,131 +295,128 @@ test("load a listed package's extension without walking its dependencies, and bu
         },
         { id: "package-01a10b00-0000-7000-8000-000000000006" },
         { "index.ts": "export {};\n" },
+        files,
     );
-    await link(root, "site", "other");
-    await link(root, "site", "tool");
-    await writeLockfile(root, ["leaf", "middle", "other", "application", "tool", "site"]);
-    expect(Bun.spawnSync(["git", "init", "--quiet", root]).exitCode).toBe(0);
+    await link(root, "site", "other", files);
+    await link(root, "site", "tool", files);
+    await writeLockfile(root, ["leaf", "middle", "other", "application", "tool", "site"], files);
+    expect((await environment.process.spawn(["git", "init", "--quiet", root]).output()).code).toBe(
+        0,
+    );
     const directory = join(root, "site");
     const extensions = async () =>
         await loadExtensions(
             directory,
-            await readPackageJson(directory),
-            await DependencyTree.read({}),
+            await readPackageJson(directory, files),
+            await DependencyTree.read({}, files),
+            files,
         );
-    await using store = await LocalPackageStore.temporary();
+    await using store = await LocalPackageStore.temporary(environment);
     await using compilers = await CompilerPool.open(store);
     const units = async () =>
         (await Workspace.open(directory, compilers)).units.map((unit) => unit.name);
-    try {
-        // build the development dependencies as no units
-        const developed = await units();
+    // build the development dependencies as no units
+    const developed = await units();
 
-        // refuse a listed package declaring no extension
-        await listExtensions(directory, ["@fixture/other"]);
-        expect(await refusal(extensions())).toEqual([
-            "UNPROCESSABLE_CONTENT",
-            "EXTENSION_INVALID",
-            "@fixture/site lists @fixture/other, but @fixture/other declares no build extension",
-        ]);
+    // refuse a listed package declaring no extension
+    await listExtensions(directory, ["@fixture/other"], files);
+    expect(await refusal(extensions())).toEqual([
+        "UNPROCESSABLE_CONTENT",
+        "EXTENSION_INVALID",
+        "@fixture/site lists @fixture/other, but @fixture/other declares no build extension",
+    ]);
 
-        // refuse a lockfile member whose directory is missing
-        await writeLockfile(root, [
-            "leaf",
-            "middle",
-            "other",
-            "application",
-            "tool",
-            "site",
-            "gone",
-        ]);
-        expect(await refusal(units())).toEqual([
-            "NOT_FOUND",
-            "MEMBER_UNKNOWN",
-            `the workspace member @fixture/gone is missing at ${join(root, "gone")}`,
-        ]);
-        await writeLockfile(root, ["leaf", "middle", "other", "application", "tool", "site"]);
+    // refuse a lockfile member whose directory is missing
+    await writeLockfile(
+        root,
+        ["leaf", "middle", "other", "application", "tool", "site", "gone"],
+        files,
+    );
+    expect(await refusal(units())).toEqual([
+        "NOT_FOUND",
+        "MEMBER_UNKNOWN",
+        `the workspace member @fixture/gone is missing at ${join(root, "gone")}`,
+    ]);
+    await writeLockfile(root, ["leaf", "middle", "other", "application", "tool", "site"], files);
 
-        // refuse a listed extension that is not installed
-        await listExtensions(directory, ["@fixture/absent"]);
-        expect(await refusal(units())).toEqual([
-            "UNPROCESSABLE_CONTENT",
-            "DEPENDENCY_UNRESOLVED",
-            "missing dependency of @fixture/site: @fixture/absent",
-        ]);
+    // refuse a listed extension that is not installed
+    await listExtensions(directory, ["@fixture/absent"], files);
+    expect(await refusal(units())).toEqual([
+        "UNPROCESSABLE_CONTENT",
+        "DEPENDENCY_UNRESOLVED",
+        "missing dependency of @fixture/site: @fixture/absent",
+    ]);
 
-        // load the tool's extension, not the leaf's it requires, and build the tool's closure first
-        await listExtensions(directory, ["@fixture/tool"]);
-        const loaded = await extensions();
-        const listed = await units();
+    // load the tool's extension, not the leaf's it requires, and build the tool's closure first
+    await listExtensions(directory, ["@fixture/tool"], files);
+    const loaded = await extensions();
+    const listed = await units();
 
-        // build no unit of a package the lockfile does not list as a member
-        await writeLockfile(root, ["leaf", "middle", "other", "application", "site"]);
-        const released = await units();
-        expect({
-            developed,
-            loaded: loaded.map((entry) => entry.directory),
-            listed,
-            released,
-        }).toEqual({
-            developed: ["@fixture/site"],
-            loaded: [await realpath(join(root, "tool"))],
-            listed: ["@fixture/leaf", "@fixture/tool", "@fixture/site"],
-            released: ["@fixture/site"],
-        });
-    } finally {
-        await rm(root, { recursive: true });
-    }
+    // build no unit of a package the lockfile does not list as a member
+    await writeLockfile(root, ["leaf", "middle", "other", "application", "site"], files);
+    const released = await units();
+    expect({
+        developed,
+        loaded: loaded.map((entry) => entry.directory),
+        listed,
+        released,
+    }).toEqual({
+        developed: ["@fixture/site"],
+        loaded: [await files.realPath(join(root, "tool"))],
+        listed: ["@fixture/leaf", "@fixture/tool", "@fixture/site"],
+        released: ["@fixture/site"],
+    });
 });
 
 test("refuse what a module an extension generates imports until the package declares it", async () => {
     // let the leaf's listed extension, a development dependency, emit a generated entry importing the leaf
-    const root = await writeApplication();
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const root = await writeApplication(files);
     const directory = join(root, "application");
-    await writeFile(join(root, "leaf", "src", "build.ts"), BARREL_EXTENSION);
-    await writeFile(join(root, "leaf", "src", "index.ts"), 'export const exported = "exported";\n');
-    await declare(directory, "devDependencies", "@fixture/leaf");
-    await listExtensions(directory, ["@fixture/leaf"]);
-    await link(root, "application", "leaf");
-    try {
-        // refuse the generated import as an authored one
-        const request = {
-            directory,
-            dependencies: {},
-            outputs: { bun: { kind: "module", runtime: "bun" } },
-        } as const;
-        await using refusing = await LocalPackageStore.temporary();
-        await using compiler = await Compiler.start(directory, { store: refusing });
-        expect(await refusal(compiler.build(request))).toEqual([
-            "UNPROCESSABLE_CONTENT",
-            "DEPENDENCY_UNRESOLVED",
-            "undeclared runtime dependency: @fixture/leaf, imported by \0virtual:@fixture/leaf/barrel",
-        ]);
+    await files.writeTextFile(join(root, "leaf", "src", "build.ts"), BARREL_EXTENSION);
+    await files.writeTextFile(
+        join(root, "leaf", "src", "index.ts"),
+        'export const exported = "exported";\n',
+    );
+    await declare(directory, "devDependencies", "@fixture/leaf", files);
+    await listExtensions(directory, ["@fixture/leaf"], files);
+    await link(root, "application", "leaf", files);
+    // refuse the generated import as an authored one
+    const request = {
+        directory,
+        dependencies: {},
+        outputs: { bun: { kind: "module", runtime: "bun" } },
+    } as const;
+    await using refusing = await LocalPackageStore.temporary(environment);
+    await using compiler = await Compiler.start(directory, { store: refusing });
+    expect(await refusal(compiler.build(request))).toEqual([
+        "UNPROCESSABLE_CONTENT",
+        "DEPENDENCY_UNRESOLVED",
+        "undeclared runtime dependency: @fixture/leaf, imported by \0virtual:@fixture/leaf/barrel",
+    ]);
 
-        // build the application on the leaf's build once it declares the leaf at runtime
-        await declare(directory, "dependencies", "@fixture/leaf");
-        await writeFile(join(root, ".gitignore"), "node_modules/\n");
-        expect(Bun.spawnSync(["git", "init", "--quiet", root]).exitCode).toBe(0);
-        await using store = await LocalPackageStore.temporary();
-        await using compilers = await CompilerPool.open(store);
-        const workspace = await Workspace.open(directory, compilers);
-        await using build = await workspace.build({ outputs: request.outputs });
+    // build the application on the leaf's build once it declares the leaf at runtime
+    await declare(directory, "dependencies", "@fixture/leaf", files);
+    await files.writeTextFile(join(root, ".gitignore"), "node_modules/\n");
+    expect((await environment.process.spawn(["git", "init", "--quiet", root]).output()).code).toBe(
+        0,
+    );
+    await using store = await LocalPackageStore.temporary(environment);
+    await using compilers = await CompilerPool.open(store);
+    const workspace = await Workspace.open(directory, compilers);
+    await using build = await workspace.build({ outputs: request.outputs });
 
-        // run the generated entry with the leaf's build placed beside it, as a machine places it
-        const leaf = build.manifest.outputs["bun"]?.dependencies["@fixture/leaf"];
-        if (leaf?.kind !== "destack") {
-            throw new TypeError("the application's output records no leaf build");
-        }
-        const destination = join(root, "deployed");
-        await PackageBuild.write(build.reader, destination);
-        const tree = await DependencyTree.materialize(store, [leaf], join(root, "builds"));
-        await tree.link(join(destination, "node_modules"));
-        const barrel = present(
-            build.manifest.outputs["bun"]?.exports["barrel"],
-            "the barrel entry",
-        );
-        expect({ ...(await import(join(destination, barrel))) }).toEqual({ exported: "exported" });
-    } finally {
-        await rm(root, { recursive: true });
+    // run the generated entry with the leaf's build placed beside it, as a machine places it
+    const leaf = build.manifest.outputs["bun"]?.dependencies["@fixture/leaf"];
+    if (leaf?.kind !== "destack") {
+        throw new TypeError("the application's output records no leaf build");
     }
+    const destination = join(root, "deployed");
+    await PackageBuild.write(build.reader, destination, files);
+    const tree = await DependencyTree.materialize(store, [leaf], join(root, "builds"));
+    await tree.link(join(destination, "node_modules"), files);
+    const barrel = present(build.manifest.outputs["bun"]?.exports["barrel"], "the barrel entry");
+    expect({ ...(await import(join(destination, barrel))) }).toEqual({ exported: "exported" });
 });

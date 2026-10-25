@@ -1,7 +1,6 @@
 import { graph } from "@destack/package";
 import { PackageInspection } from "@destack/package/code";
 import { deserialize, serialize } from "node:v8";
-import type { Writable } from "node:stream";
 import { DependencyResolution, PackageName } from "@destack/package";
 import { OutputRequest } from "@destack/package/build";
 import { Runtime } from "@destack/package/runtime";
@@ -57,6 +56,8 @@ export const BuildResponse = schema.union([
         /** The compilation failure, keeping its call error. */
         error: schema.object({
             failure: Failure,
+            /** Whether the failure is for callers or for the host alone, as its family declares. */
+            audience: schema.enum(["caller", "host"]),
             cause: schema.unknown().exactOptional(),
             stack: schema.string().exactOptional(),
         }),
@@ -67,6 +68,9 @@ export type BuildResponse = schema.Infer<typeof BuildResponse>;
 
 /** The most bytes of one compiler message, bounding what package code makes the host allocate. */
 const MAX_MESSAGE_BYTES = 256 * 1024 * 1024;
+
+/** The bytes of a message's length header, a little-endian 32-bit integer. */
+const HEADER_BYTES = 4;
 
 /** The options of a build of one source package. */
 export const RequestedBuild = schema.object({
@@ -177,13 +181,19 @@ export const HostMessage = schema.union([BuildRequest, CacheResponse]);
 /** What the compiler sends its host: a result, or a cache request. */
 export const CompilerMessage = schema.union([BuildResponse, CacheRequest]);
 
+/** Where compiler messages are written, such as a stream's writer or a process's output. */
+export interface MessageOutput {
+    /** Write a chunk, settling once the output took it. */
+    readonly write: (chunk: Uint8Array) => Promise<void> | void;
+}
+
 /** Read and parse length-prefixed messages from writeMessage without copying chunks. */
 export async function* readMessages<Message>(
     stream: AsyncIterable<Uint8Array>,
     message: schema.Schema<Message>,
 ): AsyncGenerator<Message> {
     // read message headers and bodies from the stream
-    let buffer = Buffer.allocUnsafe(4);
+    let buffer = Buffer.allocUnsafe(HEADER_BYTES);
     let offset = 0;
     let isHeader = true;
 
@@ -216,7 +226,7 @@ export async function* readMessages<Message>(
             // release the complete payload before reading the next header
             else {
                 yield message.parse(deserialize(buffer));
-                buffer = Buffer.allocUnsafe(4);
+                buffer = Buffer.allocUnsafe(HEADER_BYTES);
                 isHeader = true;
             }
             offset = 0;
@@ -231,17 +241,13 @@ export async function* readMessages<Message>(
 
 /** Write a compiler message, preserving byte arrays and regular expressions. */
 export async function writeMessage(
-    stream: Writable,
+    output: MessageOutput,
     value: BuildRequest | BuildResponse | CacheRequest | CacheResponse,
 ): Promise<void> {
-    // write the length header
+    // write the length header and the payload as one chunk, which concurrent writes cannot split
     const payload = serialize(value);
-    const header = Buffer.allocUnsafe(4);
-    header.writeUInt32LE(payload.length);
-    stream.write(header);
-
-    // write the payload and wait for the flush
-    await new Promise<void>((resolve, reject) => {
-        stream.write(payload, (error) => (error ? reject(error) : resolve()));
-    });
+    const message = new Uint8Array(HEADER_BYTES + payload.length);
+    new DataView(message.buffer).setUint32(0, payload.length, true);
+    message.set(payload, HEADER_BYTES);
+    await output.write(message);
 }

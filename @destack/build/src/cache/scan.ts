@@ -1,8 +1,7 @@
-import { readFile, stat } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { type Environment, FileSystemError } from "@destack/environment";
 import { Digest, schema } from "@destack/schema";
-import { isMissing } from "../error/index.ts";
 import type { ParsedConfiguration } from "../typescript/index.ts";
 import type { Identities } from "./cache.ts";
 
@@ -69,7 +68,11 @@ export const ProgramImports = {
 
         // list the installed packages and read the subpath imports
         const packages = await identities.installed(directory);
-        const resolver = new SpecifierResolver(directory, await identities.subpaths(directory));
+        const resolver = new SpecifierResolver(
+            directory,
+            await identities.subpaths(directory),
+            identities.environment,
+        );
 
         // scan the root files and the modules they import within the package, a wave at a time
         const modules = new Map<string, ModuleImports>();
@@ -103,19 +106,26 @@ class SpecifierResolver {
     readonly #root: string;
     /** The package's subpath imports, `#name` or `#prefix/*`, with their conditions' files. */
     readonly #subpaths: ReadonlyMap<string, readonly string[]>;
+    /** The files the resolver reads, and the crypto it digests them with. */
+    readonly #environment: Environment<"files">;
     /** Whether each checked path is a file, by path. */
-    readonly #files = new Map<string, Promise<boolean>>();
+    readonly #checked = new Map<string, Promise<boolean>>();
 
     /** Resolve within a package and its subpath imports. */
-    constructor(root: string, subpaths: ReadonlyMap<string, readonly string[]>) {
+    constructor(
+        root: string,
+        subpaths: ReadonlyMap<string, readonly string[]>,
+        environment: Environment<"files">,
+    ) {
         this.#root = root;
         this.#subpaths = subpaths;
+        this.#environment = environment;
     }
 
     /** Read one module: its digest, its specifiers resolved within the package, and its reads. */
     async scan(file: string): Promise<ModuleImports> {
         // read the module and find its specifiers and directory references
-        const bytes = new Uint8Array(await readFile(file));
+        const bytes = await this.#environment.files.readFile(file);
         const text = new TextDecoder().decode(bytes);
         const specifiers = [...text.matchAll(SPECIFIER_PATTERN)].flatMap((match) =>
             match[2] === undefined ? [] : [match[2]],
@@ -134,7 +144,7 @@ class SpecifierResolver {
             ),
         );
 
-        return { digest: await Digest.of(bytes), imports, directories };
+        return { digest: await Digest.of(bytes, this.#environment.crypto), imports, directories };
     }
 
     /** Map a subpath import to its conditions' absolute files, and return other specifiers. */
@@ -182,21 +192,19 @@ class SpecifierResolver {
 
     /** Report whether a path is a file, checking once and refusing failures but absence. */
     #isFile(path: string): Promise<boolean> {
-        let checked = this.#files.get(path);
+        let checked = this.#checked.get(path);
         if (checked === undefined) {
-            checked = stat(path).then(
-                (found) => found.isFile(),
+            checked = this.#environment.files.stat(path).then(
+                (found) => found.kind === "file",
                 (error: unknown) => {
                     // read a missing path, or one below a file, as no file
-                    const isBelowFile =
-                        error instanceof Error && "code" in error && error.code === "ENOTDIR";
-                    if (isMissing(error) || isBelowFile) {
+                    if (FileSystemError.is(error, "NOT_FOUND")) {
                         return false;
                     }
                     throw error;
                 },
             );
-            this.#files.set(path, checked);
+            this.#checked.set(path, checked);
         }
 
         return checked;

@@ -9,8 +9,8 @@ const MAX_UPLOAD_BYTES = 64 * 1024 * 1024;
 
 /** The host's decision on reading and uploading stored builds. */
 export interface PackageAccess {
-    /** Authorize reading a build and return its retention expiry, if temporary. */
-    readonly authorize: (request: Request, digest: string) => Promise<{ expiresAt?: number }>;
+    /** Authorize reading a build, refusing a request the host does not grant it. */
+    readonly authorize: (request: Request, digest: Digest) => Promise<void>;
     /** Authorize an upload below a scope such as its package, absent where nobody uploads. */
     readonly upload?: (request: Request, scope: string | undefined) => Promise<void>;
 }
@@ -131,16 +131,14 @@ async function read(
         return new Response(null, { status: 405, headers: { allow: "GET, HEAD, PUT" } });
     }
     const separator = path.indexOf("/");
-    const digest = path.slice(0, separator);
-    if (separator < 0 || !Digest.safeParse(digest).success) {
+    const parsed = Digest.safeParse(path.slice(0, separator));
+    if (separator < 0 || !parsed.success) {
         return new Response(null, { status: 404 });
     }
+    const digest = parsed.data;
 
-    // authorize the build, refusing an expired grant
-    const grant = await access.authorize(request, digest);
-    if (grant.expiresAt !== undefined && Date.now() >= grant.expiresAt) {
-        return new Response(null, { status: 410, headers: { "cache-control": "no-store" } });
-    }
+    // authorize the build
+    await access.authorize(request, digest);
 
     // stream the whole build as an archive, validated by the digest of the manifest it contains
     const selected = path.slice(separator + 1);
@@ -160,7 +158,7 @@ async function read(
 /** Find the manifest or a listed file by its path, answering malformed or unknown paths. */
 async function select(
     store: PackageStore,
-    digest: string,
+    digest: Digest,
     selected: string,
 ): Promise<PackageFile | Response> {
     // describe the manifest itself
@@ -190,7 +188,7 @@ async function select(
 async function serve(
     store: PackageStore,
     request: Request,
-    digest: string,
+    digest: Digest,
     selected: string,
     file: PackageFile,
 ): Promise<Response> {
@@ -225,7 +223,7 @@ async function serve(
         return new Response(null, { headers });
     }
 
-    // stream through cancellation
+    // open the selected bytes, which a disconnecting client cancels
     const selection = range
         ? { offset: range.start, length: range.end - range.start + 1 }
         : undefined;
@@ -240,14 +238,11 @@ async function serve(
         headers.set("content-length", String(range.end - range.start + 1));
     }
 
-    return new Response(body.pipeThrough(new TransformStream(), { signal: request.signal }), {
-        status: range ? 206 : 200,
-        headers,
-    });
+    return new Response(body, { status: range ? 206 : 200, headers });
 }
 
 /** Serve a stored build as one whole archive, answering cache conditions without file reads. */
-async function archive(store: PackageStore, request: Request, digest: string): Promise<Response> {
+async function archive(store: PackageStore, request: Request, digest: Digest): Promise<Response> {
     // require the stored build before promising its archive
     await store.head(digest);
     const etag = `"${digest}.tar.gz"`;
@@ -274,7 +269,7 @@ interface UploadTarget {
     /** What the upload stores. */
     readonly kind: "file" | "manifest";
     /** The digest keying it. */
-    readonly digest: string;
+    readonly digest: Digest;
     /** The scope the upload is sent below, such as its package, absent for none. */
     readonly scope: string | undefined;
 }
@@ -289,16 +284,14 @@ const UploadTarget = {
         const [first = "", second = "", third] = scope === undefined ? segments : segments.slice(1);
 
         // key a file by its digest
-        if (third === undefined && first === "files" && Digest.safeParse(second).success) {
-            return { kind: "file", digest: second, scope };
+        const file = Digest.safeParse(second);
+        const manifest = Digest.safeParse(first);
+        if (third === undefined && first === "files" && file.success) {
+            return { kind: "file", digest: file.data, scope };
         }
         // key a manifest by the digest of its build
-        else if (
-            third === undefined &&
-            second === "manifest.json" &&
-            Digest.safeParse(first).success
-        ) {
-            return { kind: "manifest", digest: first, scope };
+        else if (third === undefined && second === "manifest.json" && manifest.success) {
+            return { kind: "manifest", digest: manifest.data, scope };
         }
         // name nothing else
         else {

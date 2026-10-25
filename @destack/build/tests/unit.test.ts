@@ -1,13 +1,14 @@
-import { expect, onTestFinished, test } from "@destack/test";
-import { cp, mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join, sep } from "node:path";
+import { testSimulation } from "../src/test/world.ts";
+import { expect, test } from "@destack/test";
+import type { FileSystem } from "@destack/environment";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CompilerPool, DependencyTree, PackageBuild, Workspace } from "../src/index.ts";
 import { PackageManifest } from "@destack/package/manifest";
 import { PackageStore } from "../src/store/index.ts";
 import { LocalPackageStore } from "../src/store/local.ts";
 import { countObjects, exported, importBuilt, property } from "./fixture.ts";
+import { copySource } from "../src/test/source.ts";
 
 /** One module output per unit, its dependencies external. */
 const OUTPUTS = { bun: { kind: "module", runtime: "bun" } } as const;
@@ -16,12 +17,9 @@ const OUTPUTS = { bun: { kind: "module", runtime: "bun" } } as const;
 const LIBRARY = "@destack/build-unit-library-fixture";
 
 /** Copy a unit fixture's source into a workspace directory. */
-async function copyUnit(name: string, destination: string): Promise<void> {
+async function copyUnit(name: string, destination: string, files: FileSystem): Promise<void> {
     const source = fileURLToPath(new URL(`./fixture/${name}/source/`, import.meta.url));
-    await cp(source, destination, {
-        recursive: true,
-        filter: (path) => !path.split(sep).includes("node_modules"),
-    });
+    await copySource(source, destination, files);
 }
 
 /** Report whether a built export is the greeting function. */
@@ -31,14 +29,16 @@ function isGreeter(value: unknown): value is () => unknown {
 
 test("build a workspace's units on their dependencies' builds, restore every unit while unchanged, and rebuild the dependents of an edited unit", async () => {
     // lay out a workspace whose application links its library unit
-    const directory = await mkdtemp(join(tmpdir(), "destack-build-unit-"));
-    onTestFinished(() => rm(directory, { recursive: true }));
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await files.makeTemporaryDirectory("destack-build-unit-");
     const workspace = join(directory, "workspace");
     const library = join(workspace, "library");
     const application = join(workspace, "application");
-    await copyUnit("unit-library", library);
-    await copyUnit("unit-application", application);
-    await writeFile(
+    await copyUnit("unit-library", library, files);
+    await copyUnit("unit-application", application, files);
+    await files.writeTextFile(
         join(workspace, "bun.lock"),
         JSON.stringify({
             lockfileVersion: 2,
@@ -49,11 +49,13 @@ test("build a workspace's units on their dependencies' builds, restore every uni
             packages: {},
         }),
     );
-    await mkdir(join(application, "node_modules", "@destack"), { recursive: true });
-    await symlink(library, join(application, "node_modules", LIBRARY), "junction");
-    await writeFile(join(workspace, ".gitignore"), "node_modules/\n");
-    expect(Bun.spawnSync(["git", "init", "--quiet", workspace]).exitCode).toBe(0);
-    await using store = await LocalPackageStore.temporary();
+    await files.mkdir(join(application, "node_modules", "@destack"), { recursive: true });
+    await files.symlink(library, join(application, "node_modules", LIBRARY));
+    await files.writeTextFile(join(workspace, ".gitignore"), "node_modules/\n");
+    expect(
+        (await environment.process.spawn(["git", "init", "--quiet", workspace]).output()).code,
+    ).toBe(0);
+    await using store = await LocalPackageStore.temporary(environment);
     await using compilers = await CompilerPool.open(store);
     const units = await Workspace.open(application, compilers);
     const build = async () =>
@@ -66,9 +68,9 @@ test("build a workspace's units on their dependencies' builds, restore every uni
     const unchanged = await countObjects(store);
 
     // rebuild the application on the edited library's new build
-    await writeFile(
+    await files.writeTextFile(
         join(library, "src", "greeting.ts"),
-        (await Bun.file(join(library, "src", "greeting.ts")).text()).replace("hello", "hi"),
+        (await files.readTextFile(join(library, "src", "greeting.ts"))).replace("hello", "hi"),
     );
     await using rebuilt = await build();
 
@@ -76,7 +78,7 @@ test("build a workspace's units on their dependencies' builds, restore every uni
     const greetings: unknown[] = [];
     for (const [index, each] of [built, restored, rebuilt].entries()) {
         const destination = join(directory, `application-${index}`);
-        await PackageBuild.write(each.reader, destination);
+        await PackageBuild.write(each.reader, destination, files);
         const dependency = each.manifest.outputs["bun"]?.dependencies?.[LIBRARY];
         if (dependency?.kind !== "destack") {
             throw new TypeError("the application's output records no library build");
@@ -87,7 +89,7 @@ test("build a workspace's units on their dependencies' builds, restore every uni
             join(directory, "builds"),
             workspace,
         );
-        await tree.link(join(destination, "node_modules"));
+        await tree.link(join(destination, "node_modules"), files);
         const module = await importBuilt(destination, exported(each.manifest.outputs["bun"], "."));
         const greetWorld = property(module, "greetWorld");
         greetings.push(isGreeter(greetWorld) ? greetWorld() : greetWorld);
@@ -97,7 +99,7 @@ test("build a workspace's units on their dependencies' builds, restore every uni
     const first = {
         kind: "destack",
         package: PackageManifest.package(built.manifest),
-        manifest: await PackageStore.digest(built.manifest),
+        manifest: await PackageStore.digest(built.manifest, environment.crypto),
     } as const;
     const edited = rebuilt.manifest.outputs["bun"]?.dependencies?.[LIBRARY];
     if (edited?.kind !== "destack") {

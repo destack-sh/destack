@@ -1,7 +1,6 @@
 import { BuildError } from "../error/index.ts";
 import { stringifyInspection } from "../build/serialization.ts";
 import { found, nth, present, Text } from "@destack/schema";
-import { readFile } from "node:fs/promises";
 import { basename, dirname } from "node:path";
 import { version } from "typescript";
 import {
@@ -87,7 +86,7 @@ export const TypeScriptInspection = {
 /** Inspect a project's modules to a depth, every symbol their exports lead to at the index's. */
 async function inspectProject(
     project: Project,
-    compiled: Pick<PackageSource, "directory" | "versions" | "entries">,
+    compiled: Pick<PackageSource, "directory" | "versions" | "entries" | "environment">,
     depth: InspectionDepth,
     described?: Promise<TypeScriptInspection>,
 ): Promise<TypeScriptInspection> {
@@ -187,6 +186,8 @@ class ProjectInspection {
     readonly root: string;
     /** The inspected constructors and package identities. */
     readonly catalog: ConstructorCatalog;
+    /** The files and crypto the inspection reads and digests sources with. */
+    readonly #environment: PackageSource["environment"];
     /** The described modules, by package-relative path. */
     readonly modules = new Map<string, ModuleDescription>();
     /** The exact source bytes, by package-relative path. */
@@ -207,13 +208,14 @@ class ProjectInspection {
     /** Start inspecting a project of a compiled package, completely or as a build describes it. */
     constructor(
         project: Project,
-        compiled: Pick<PackageSource, "directory" | "versions">,
+        compiled: Pick<PackageSource, "directory" | "versions" | "environment">,
         depth: InspectionDepth,
     ) {
         // store the project, the package's directory and its catalog, then inspect its symbols
         this.project = project;
         this.root = compiled.directory;
-        this.catalog = new ConstructorCatalog(compiled.versions);
+        this.catalog = new ConstructorCatalog(compiled.versions, compiled.environment.files);
+        this.#environment = compiled.environment;
         this.depth = depth;
         this.inspector = new SymbolInspector(
             project,
@@ -257,7 +259,8 @@ class ProjectInspection {
     ): Promise<CollectedModule> {
         // read a dependency module only when it can construct a directory URL from import.meta
         const { project } = this;
-        const isMeta = authored === undefined && META.test(await readFile(file, "utf8"));
+        const isMeta =
+            authored === undefined && META.test(await this.#environment.files.readTextFile(file));
         const source = isMeta ? await project.program.getSourceFile(file) : authored;
         if (!source || source.isDeclarationFile) {
             return { file, references: [], tests: [], declarations: [] };
@@ -284,7 +287,7 @@ class ProjectInspection {
     async register(file: string, source: SourceFile): Promise<void> {
         // require source bytes to match the compiler snapshot
         const path = relativePath(this.root, file);
-        const bytes = new Uint8Array(await readFile(file));
+        const bytes = await this.#environment.files.readFile(file);
         const text = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes);
         if (text !== source.text) {
             throw BuildError.of("INSPECTION_FAILED", `source changed during inspection: ${path}`);
@@ -296,7 +299,7 @@ class ProjectInspection {
             path,
             globals: [],
             errors: [],
-            source: await PackageFile.describe(path, "text/plain", bytes),
+            source: await PackageFile.describe(path, "text/plain", bytes, this.#environment.crypto),
             length: source.text.length,
             imports: [],
             symbols: [],

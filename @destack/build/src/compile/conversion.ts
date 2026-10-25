@@ -1,4 +1,4 @@
-import { mkdir, realpath, writeFile } from "node:fs/promises";
+import type { FileSystem } from "@destack/environment";
 import { isBuiltin } from "node:module";
 import { dirname, join, relative, sep } from "node:path";
 import * as lexer from "cjs-module-lexer";
@@ -32,7 +32,7 @@ const ABSENT_PREFIX = "\0destack-absent:";
 const EMPTY_MODULE = "\0destack-empty";
 
 /** The module export of a converted CommonJS module, as rolldown renders it. */
-const CONVERTED_EXPORT = /^export default (require_\w+)\(\);$/mu;
+const CONVERTED_EXPORT = /^export default (require_[\w$]+)\(\);$/mu;
 
 /** The names a converted module exports itself, which Node's lexer also reports. */
 const IMPLIED_EXPORTS: ReadonlySet<string> = new Set(["default", "module.exports", "__esModule"]);
@@ -70,22 +70,31 @@ export class NpmConversion {
     readonly dependencies: ReadonlySet<string>;
     /** The peers it declares, which the tree it sits in provides. */
     readonly peers: ReadonlySet<string>;
+    /** The files the conversion reads and writes. */
+    readonly #files: FileSystem;
 
     /** Store a package's name, dependencies and peers. */
-    constructor(name: string, dependencies: readonly string[], peers: readonly string[]) {
+    constructor(
+        name: string,
+        dependencies: readonly string[],
+        peers: readonly string[],
+        files: FileSystem,
+    ) {
+        // store the package's requirements and the files it converts
         this.name = name;
         this.dependencies = new Set(dependencies);
         this.peers = new Set(peers);
+        this.#files = files;
     }
 
     /** Convert an installed copy into a directory, answering the installed packages it imports. */
     async convert(source: string, destination: string): Promise<string[]> {
         // copy the package where rolldown keys its modules plainly
-        const root = await realpath(destination);
-        const files = await NpmUnit.files(source);
+        const root = await this.#files.realPath(destination);
+        const files = await NpmUnit.files(source, this.#files);
         for (const [path, bytes] of files) {
-            await mkdir(dirname(join(root, path)), { recursive: true });
-            await writeFile(join(root, path), bytes);
+            await this.#files.mkdir(dirname(join(root, path)), { recursive: true });
+            await this.#files.writeFile(join(root, path), bytes);
         }
 
         // convert every module its entries import, in place
@@ -94,8 +103,8 @@ export class NpmConversion {
         if (modules.length > 0) {
             await lexer.init();
             for (const { path, code } of await this.#rolldown(root, modules, files, imported)) {
-                await mkdir(dirname(join(root, path)), { recursive: true });
-                await writeFile(join(root, path), code);
+                await this.#files.mkdir(dirname(join(root, path)), { recursive: true });
+                await this.#files.writeTextFile(join(root, path), code);
             }
         }
 
@@ -109,13 +118,13 @@ export class NpmConversion {
         seen: Set<string>,
     ): Plugin {
         // leave runtime modules, empty replaced ones, and take requires as Node's require(esm) does
-        const hosts = new HostModules("workerd");
+        const hosts = new HostModules("workerd", this.#files);
         const name = this.name;
         const known = new Set([name, ...this.dependencies, ...this.peers]);
 
         return {
             name: "destack-npm-workerd",
-            resolveId: (specifier, importer, options) => {
+            resolveId: async (specifier, importer, options) => {
                 // leave a relative import of a file JavaScript does not load, such as a component's source
                 if (specifier.startsWith(".") && FOREIGN_PATTERN.test(specifier)) {
                     return { id: specifier, external: true };
@@ -127,7 +136,7 @@ export class NpmConversion {
                 const isRequire = options.kind === "require-call";
                 const resolution = WORKERD_SCHEME.test(specifier)
                     ? "external"
-                    : hosts.classify(specifier, importer);
+                    : await hosts.classify(specifier, importer);
                 const imported = DependencyName.of(specifier);
                 // leave a runtime module, and empty one a `browser` field replaces
                 if (resolution === "external" || resolution === "empty") {
@@ -300,7 +309,8 @@ export class NpmConversion {
             lines.push(`export { named${index} as ${JSON.stringify(name)} };`);
         }
 
-        return code.replace(CONVERTED_EXPORT, lines.join("\n"));
+        // replace with a function, as a wrapper name's `$` would read as a replacement pattern
+        return code.replace(CONVERTED_EXPORT, () => lines.join("\n"));
     }
 
     /** List the names a CommonJS module exports as Node's lexer reads them, re-exports included. */

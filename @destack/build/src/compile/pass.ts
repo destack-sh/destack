@@ -1,15 +1,5 @@
-import {
-    copyFile,
-    mkdir,
-    mkdtemp,
-    readdir,
-    realpath,
-    rm,
-    symlink,
-    writeFile,
-} from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import type { Environment } from "@destack/environment";
 import type { Manifest, Plugin, PluginOption } from "vite";
 import type { DependencyResolution } from "@destack/package";
 import {
@@ -101,30 +91,43 @@ export class OutputPass implements Pass {
         }
     }
 
+    /** The files and process the build runs on. */
+    get environment(): Environment<"files" | "process"> {
+        return this.project.environment;
+    }
+
     /** Return the plugins retaining sources, directories and module metadata for every output. */
     plugins(): Plugin[] {
         return [
-            directoryPlugin(this.project.directory, this.files, this.directories, this.#assets),
+            directoryPlugin(
+                this.project.directory,
+                this.files,
+                this.directories,
+                this.#assets,
+                this.environment,
+            ),
             sourcePlugin(
                 this.project.directory,
                 this.files,
                 this.sources,
                 this.destination,
                 this.paths,
+                this.environment,
             ),
-            modulePlugin(this.project.versions),
+            modulePlugin(this.environment.files, this.project.versions),
         ];
     }
 
     /** Return the plugins of the dependency closure's extensions, transforming the modules. */
     transforms(
-        context: Omit<TransformContext, "directory" | "cache" | "dependencies">,
+        context: Omit<TransformContext, "directory" | "cache" | "dependencies" | "environment">,
     ): PluginOption[] {
         return transformPlugins(this.extensions, {
             ...context,
             directory: this.project.directory,
             dependencies: this.project.tree.directories,
             cache: this.cache,
+            environment: this.environment,
         });
     }
 
@@ -194,38 +197,41 @@ export class OutputPass implements Pass {
 
     /** Stage the package in a temporary directory that resolves its dependencies. */
     async stage(): Promise<AsyncDisposable & { readonly directory: string }> {
-        const directory = await realpath(await mkdtemp(join(tmpdir(), "destack-build-")));
+        // create the staging directory at its real path
+        const { files } = this.environment;
+        const directory = await files.realPath(
+            await files.makeTemporaryDirectory("destack-build-"),
+        );
 
         // link package inputs while reserving the framework's output directory
         try {
-            for (const entry of await readdir(this.project.directory, { withFileTypes: true })) {
+            for (const entry of await files.readDirectory(this.project.directory)) {
                 if (["dist", "node_modules", ".git", "tsconfig.json"].includes(entry.name)) {
                     continue;
                 }
-                await symlink(
+                await files.symlink(
                     join(this.project.directory, entry.name),
                     join(directory, entry.name),
-                    entry.isDirectory() ? "junction" : "file",
                 );
             }
 
             // resolve dependencies through the nearest installed package tree
-            await linkDependencies(this.project.directory, directory);
+            await linkDependencies(this.project.directory, directory, files);
 
             // retain authored relative paths through the selected absolute compiler configuration
-            await writeFile(
+            await files.writeTextFile(
                 join(directory, "tsconfig.json"),
                 JSON.stringify({ extends: this.project.configuration }),
             );
         } catch (error) {
-            await rm(directory, { recursive: true });
+            await files.remove(directory, { recursive: true });
             throw error;
         }
 
         return {
             directory,
             async [Symbol.asyncDispose]() {
-                await rm(directory, { recursive: true });
+                await files.remove(directory, { recursive: true });
             },
         };
     }
@@ -238,9 +244,10 @@ export class OutputPass implements Pass {
     /** Copy a generated file into the build. */
     async copy(path: string, source: string): Promise<void> {
         // copy the file and record its path
+        const { files } = this.environment;
         const destination = join(this.destination, path);
-        await mkdir(dirname(destination), { recursive: true });
-        await copyFile(source, destination);
+        await files.mkdir(dirname(destination), { recursive: true });
+        await files.copyFile(source, destination);
         this.paths.push(path);
     }
 

@@ -1,8 +1,8 @@
-import { readFile } from "node:fs/promises";
 import { isBuiltin } from "node:module";
 import { dirname, extname, join, relative, sep } from "node:path";
-import { Digest, schema } from "@destack/schema";
-import { BuildError, isMissing } from "../error/index.ts";
+import { type Environment, type FileSystem, FileSystemError } from "@destack/environment";
+import { Digest, type DigestCrypto, schema } from "@destack/schema";
+import { BuildError } from "../error/index.ts";
 
 /** An entry's hashbang line, which Bun runs past but its scanner refuses. */
 const HASHBANG = /^#!.*/u;
@@ -33,8 +33,9 @@ export class ModuleClosure {
     }
 
     /** Read the modules an entry imports, sources by their bytes and npm releases by name. */
-    static async read(entry: string): Promise<ModuleClosure> {
+    static async read(entry: string, environment: Environment<"files">): Promise<ModuleClosure> {
         // follow each source's imports once, keying a module under node_modules by its release
+        const { files, crypto } = environment;
         const modules = new Map<string, string>();
         const visited = new Set<string>();
         const pending = [entry];
@@ -43,7 +44,7 @@ export class ModuleClosure {
                 continue;
             }
             visited.add(file);
-            const owner = await ModuleClosure.#package(file);
+            const owner = await ModuleClosure.#package(file, files);
             const path = relative(owner.directory, file).split(sep).join("/");
             // identify an npm release by its name and version, without reading its modules
             if (file.split(sep).includes("node_modules")) {
@@ -51,8 +52,8 @@ export class ModuleClosure {
             }
             // identify a source by its package, path and bytes, and follow its imports
             else {
-                const bytes = new Uint8Array(await readFile(file));
-                modules.set(`${owner.name}/${path}`, await Digest.of(bytes));
+                const bytes = await files.readFile(file);
+                modules.set(`${owner.name}/${path}`, await Digest.of(bytes, crypto));
                 pending.push(...ModuleClosure.#imports(new TextDecoder().decode(bytes), file));
             }
         }
@@ -63,8 +64,8 @@ export class ModuleClosure {
     }
 
     /** Digest the closure by its modules' identities. */
-    async digest(): Promise<Digest> {
-        return await Digest.json([...this.modules]);
+    async digest(crypto: DigestCrypto): Promise<Digest> {
+        return await Digest.json([...this.modules], crypto);
     }
 
     /** Resolve the imports Bun loads of a module to files, leaving runtime modules out. */
@@ -92,6 +93,7 @@ export class ModuleClosure {
     /** Find the package a module belongs to: its directory, name and version. */
     static async #package(
         file: string,
+        files: FileSystem,
     ): Promise<{ readonly directory: string; readonly name: string; readonly version: string }> {
         // take the nearest manifest declaring a package
         for (
@@ -99,14 +101,14 @@ export class ModuleClosure {
             dirname(directory) !== directory;
             directory = dirname(directory)
         ) {
-            const text = await readFile(join(directory, "package.json"), "utf8").catch(
-                (error: unknown) => {
-                    if (isMissing(error)) {
+            const text = await files
+                .readTextFile(join(directory, "package.json"))
+                .catch((error: unknown) => {
+                    if (FileSystemError.is(error, "NOT_FOUND")) {
                         return undefined;
                     }
                     throw error;
-                },
-            );
+                });
             const parsed =
                 text === undefined ? undefined : ModulePackage.safeParse(JSON.parse(text));
             if (parsed?.success === true) {

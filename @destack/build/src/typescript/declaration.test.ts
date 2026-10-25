@@ -1,8 +1,8 @@
+import type { Environment } from "@destack/environment";
+import { testSimulation } from "../test/world.ts";
 import { CompilerPool } from "../index.ts";
 import { DeclarationDescription } from "@destack/package";
 import { expect, test } from "@destack/test";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { schema } from "@destack/schema";
 import { TestDeclaration } from "./test.ts";
@@ -21,13 +21,18 @@ const GREETING =
     'import { defineGreeting } from "@example/other";\n\nexport const greeting = defineGreeting({ name: "greeting" });\n';
 
 /** Write a workspace whose app declares a greeting, as the app's kind and the owner's kind. */
-async function writeWorkspace(directory: string, owner: string, app = GREETING): Promise<void> {
+async function writeWorkspace(
+    directory: string,
+    owner: string,
+    environment: Environment<"files" | "process">,
+    app = GREETING,
+): Promise<void> {
     // write each package's constructor, the function describing a declaration by its name, and the function reading a greeting as a thing
     const describe =
         "export function describe(value: { name: string }) {\n    return { name: value.name };\n}\nexport function thing(value: { name: string }) {\n    return value;\n}\n";
     const define =
         "export function define(definition: { name: string }, module?: { package: object }) {\n    return { ...definition, package: module!.package, renamed(name: string) { return { ...this, name }; } };\n}\n";
-    const files: Record<string, string> = {
+    const contents: Record<string, string> = {
         "node_modules/@example/owner/index.ts": define.replace("define(", "defineThing("),
         "node_modules/@example/owner/inspect.ts": describe,
         "node_modules/@example/other/index.ts": define.replace("define(", "defineGreeting("),
@@ -57,7 +62,7 @@ async function writeWorkspace(directory: string, owner: string, app = GREETING):
         const stamps = Object.fromEntries(
             Object.keys(constructors).map((name) => [name, { module: 1 }]),
         );
-        files[`${root}destack.json`] = JSON.stringify({
+        contents[`${root}destack.json`] = JSON.stringify({
             $schema: "https://destack.app/schemas/2026.9.0/destack.json",
             id: identity.id,
             language: "typescript",
@@ -65,7 +70,7 @@ async function writeWorkspace(directory: string, owner: string, app = GREETING):
             declarations: constructors,
             stamps,
         });
-        files[`${root}package.json`] = JSON.stringify({
+        contents[`${root}package.json`] = JSON.stringify({
             name: identity.name,
             version: "2026.9.0",
             type: "module",
@@ -81,21 +86,26 @@ async function writeWorkspace(directory: string, owner: string, app = GREETING):
                       : {},
         });
     }
-    for (const [path, text] of Object.entries(files)) {
-        await mkdir(dirname(join(directory, path)), { recursive: true });
-        await writeFile(join(directory, path), text);
+    const { files } = environment;
+    for (const [path, text] of Object.entries(contents)) {
+        await files.mkdir(dirname(join(directory, path)), { recursive: true });
+        await files.writeTextFile(join(directory, path), text);
     }
 
     // make the workspace a git checkout, whose listing keys its units
-    expect(Bun.spawnSync(["git", "init", "--quiet", directory]).exitCode).toBe(0);
+    const git = environment.process.spawn(["git", "init", "--quiet", directory]);
+    expect(await git.exited).toBe(0);
 }
 
 test("describe one declaration as every kind its constructor lists, each under the package declaring the kind", async () => {
     // inspect the app's greeting
-    const directory = await mkdtemp(join(tmpdir(), "destack-kinds-"));
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await files.makeTemporaryDirectory("kinds-");
     try {
-        await writeWorkspace(directory, "@example/owner");
-        await using store = await LocalPackageStore.temporary();
+        await writeWorkspace(directory, "@example/owner", environment);
+        await using store = await LocalPackageStore.temporary(environment);
         await using compilers = await CompilerPool.open(store);
         const workspace = await Workspace.open(directory, compilers);
         const inspection = await workspace.inspect({ runtime: "bun" });
@@ -134,23 +144,27 @@ test("describe one declaration as every kind its constructor lists, each under t
             ],
         ]);
     } finally {
-        await rm(directory, { recursive: true, force: true });
+        await files.remove(directory, { recursive: true });
     }
 });
 
 test("describe a declaration a method call chained on its constructor returns, as a type implemented in place", async () => {
     // inspect the app's greeting, renamed by a call on the declaration
-    const directory = await mkdtemp(join(tmpdir(), "destack-chained-"));
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await files.makeTemporaryDirectory("chained-");
     try {
         await writeWorkspace(
             directory,
             "@example/owner",
+            environment,
             GREETING.replace(
                 'defineGreeting({ name: "greeting" })',
                 'defineGreeting({ name: "greeting" }).renamed("hello")',
             ),
         );
-        await using store = await LocalPackageStore.temporary();
+        await using store = await LocalPackageStore.temporary(environment);
         await using compilers = await CompilerPool.open(store);
         const workspace = await Workspace.open(directory, compilers);
         const inspection = await workspace.inspect({ runtime: "bun" });
@@ -173,20 +187,24 @@ test("describe a declaration a method call chained on its constructor returns, a
             ["thing", "hello", { name: "hello" }],
         ]);
     } finally {
-        await rm(directory, { recursive: true, force: true });
+        await files.remove(directory, { recursive: true });
     }
 });
 
 test("describe a module's default-exported declaration under the default export", async () => {
     // inspect the app's greeting, exported as the module's default
-    const directory = await mkdtemp(join(tmpdir(), "destack-default-"));
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await files.makeTemporaryDirectory("default-");
     try {
         await writeWorkspace(
             directory,
             "@example/owner",
+            environment,
             'import { defineGreeting } from "@example/other";\n\nexport default defineGreeting({ name: "greeting" });\n',
         );
-        await using store = await LocalPackageStore.temporary();
+        await using store = await LocalPackageStore.temporary(environment);
         await using compilers = await CompilerPool.open(store);
         const workspace = await Workspace.open(directory, compilers);
         const inspection = await workspace.inspect({ runtime: "bun" });
@@ -210,6 +228,6 @@ test("describe a module's default-exported declaration under the default export"
             ["thing", "greeting", "default", { name: "greeting" }],
         ]);
     } finally {
-        await rm(directory, { recursive: true, force: true });
+        await files.remove(directory, { recursive: true });
     }
 });

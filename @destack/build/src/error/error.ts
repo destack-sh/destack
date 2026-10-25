@@ -12,57 +12,61 @@ import type {} from "@destack/package/import-meta";
 const BundleErrors = schema.array(schema.looseObject({ message: schema.string() })).min(1);
 
 /** The build package's failures, each reason with the call error code it answers. */
-export const BuildError = defineErrorFamily(import.meta.destack.package, {
-    // bad request
-    CACHE_DIRECTORY_INVALID: { code: "BAD_REQUEST" },
-    DIGEST_INVALID: { code: "BAD_REQUEST" },
-    MANIFEST_BLOB_UNKNOWN: { code: "BAD_REQUEST" },
-    MANIFEST_INVALID: { code: "BAD_REQUEST" },
-    MEDIA_TYPE_MISSING: { code: "BAD_REQUEST" },
-    OUTPUT_INVALID: { code: "BAD_REQUEST" },
-    TIMEOUT_INVALID: { code: "BAD_REQUEST" },
+export const BuildError = defineErrorFamily(
+    import.meta.destack.package,
+    {
+        // bad request
+        CACHE_DIRECTORY_INVALID: { code: "BAD_REQUEST" },
+        DIGEST_INVALID: { code: "BAD_REQUEST" },
+        MANIFEST_BLOB_UNKNOWN: { code: "BAD_REQUEST" },
+        MANIFEST_INVALID: { code: "BAD_REQUEST" },
+        MEDIA_TYPE_MISSING: { code: "BAD_REQUEST" },
+        OUTPUT_INVALID: { code: "BAD_REQUEST" },
+        TIMEOUT_INVALID: { code: "BAD_REQUEST" },
 
-    // not found
-    BLOB_UNKNOWN: { code: "NOT_FOUND" },
-    MANIFEST_UNKNOWN: { code: "NOT_FOUND" },
-    MEMBER_UNKNOWN: { code: "NOT_FOUND" },
+        // not found
+        BLOB_UNKNOWN: { code: "NOT_FOUND" },
+        MANIFEST_UNKNOWN: { code: "NOT_FOUND" },
+        MEMBER_UNKNOWN: { code: "NOT_FOUND" },
 
-    // conflict
-    SOURCE_CHANGED: { code: "CONFLICT" },
+        // conflict
+        SOURCE_CHANGED: { code: "CONFLICT" },
 
-    // unprocessable content
-    ASSET_INVALID: { code: "UNPROCESSABLE_CONTENT" },
-    BUNDLE_FAILED: { code: "UNPROCESSABLE_CONTENT" },
-    CATALOG_INVALID: { code: "UNPROCESSABLE_CONTENT" },
-    DECLARATION_INVALID: { code: "UNPROCESSABLE_CONTENT" },
-    DECLARATION_UNEXPORTED: { code: "UNPROCESSABLE_CONTENT" },
-    DEPENDENCY_INVALID: { code: "UNPROCESSABLE_CONTENT" },
-    DEPENDENCY_UNRESOLVED: { code: "UNPROCESSABLE_CONTENT" },
-    ENTRY_INVALID: { code: "UNPROCESSABLE_CONTENT" },
-    EXTENSION_FAILED: { code: "UNPROCESSABLE_CONTENT" },
-    EXTENSION_INVALID: { code: "UNPROCESSABLE_CONTENT" },
-    INSPECTION_FAILED: { code: "UNPROCESSABLE_CONTENT" },
-    LOCKFILE_INVALID: { code: "UNPROCESSABLE_CONTENT" },
-    RUNTIME_API_UNSUPPORTED: { code: "UNPROCESSABLE_CONTENT" },
-    RUNTIME_MODULE_UNSUPPORTED: { code: "UNPROCESSABLE_CONTENT" },
+        // unprocessable content
+        ASSET_INVALID: { code: "UNPROCESSABLE_CONTENT" },
+        BUNDLE_FAILED: { code: "UNPROCESSABLE_CONTENT" },
+        CATALOG_INVALID: { code: "UNPROCESSABLE_CONTENT" },
+        DECLARATION_INVALID: { code: "UNPROCESSABLE_CONTENT" },
+        DECLARATION_UNEXPORTED: { code: "UNPROCESSABLE_CONTENT" },
+        DEPENDENCY_INVALID: { code: "UNPROCESSABLE_CONTENT" },
+        DEPENDENCY_UNRESOLVED: { code: "UNPROCESSABLE_CONTENT" },
+        ENTRY_INVALID: { code: "UNPROCESSABLE_CONTENT" },
+        EXTENSION_FAILED: { code: "UNPROCESSABLE_CONTENT" },
+        EXTENSION_INVALID: { code: "UNPROCESSABLE_CONTENT" },
+        INSPECTION_FAILED: { code: "UNPROCESSABLE_CONTENT" },
+        LOCKFILE_INVALID: { code: "UNPROCESSABLE_CONTENT" },
+        RUNTIME_API_UNSUPPORTED: { code: "UNPROCESSABLE_CONTENT" },
+        RUNTIME_MODULE_UNSUPPORTED: { code: "UNPROCESSABLE_CONTENT" },
 
-    // client closed request
-    BUILD_CANCELLED: { code: "CLIENT_CLOSED_REQUEST" },
+        // client closed request
+        BUILD_CANCELLED: { code: "CLIENT_CLOSED_REQUEST" },
 
-    // internal server error
-    CHECKOUT_FAILED: { code: "INTERNAL_SERVER_ERROR" },
-    COMPILER_FAILED: { code: "INTERNAL_SERVER_ERROR" },
-    INVARIANT_VIOLATED: { code: "INTERNAL_SERVER_ERROR" },
-    STORED_CONTENT_DIFFERS: { code: "INTERNAL_SERVER_ERROR" },
+        // internal server error
+        CHECKOUT_FAILED: { code: "INTERNAL_SERVER_ERROR" },
+        COMPILER_FAILED: { code: "INTERNAL_SERVER_ERROR" },
+        INVARIANT_VIOLATED: { code: "INTERNAL_SERVER_ERROR" },
+        STORED_CONTENT_DIFFERS: { code: "INTERNAL_SERVER_ERROR" },
 
-    // bad gateway
-    DIGEST_MISMATCH: { code: "BAD_GATEWAY" },
-    PROBE_FAILED: { code: "BAD_GATEWAY" },
-    UPLOAD_FAILED: { code: "BAD_GATEWAY" },
+        // bad gateway
+        DIGEST_MISMATCH: { code: "BAD_GATEWAY" },
+        PROBE_FAILED: { code: "BAD_GATEWAY" },
+        UPLOAD_FAILED: { code: "BAD_GATEWAY" },
 
-    // gateway timeout
-    COMPILER_TIMEOUT: { code: "GATEWAY_TIMEOUT" },
-});
+        // gateway timeout
+        COMPILER_TIMEOUT: { code: "GATEWAY_TIMEOUT" },
+    },
+    { audience: "host" },
+);
 
 /** A stable cause of build failures. */
 export type BuildReason = ReasonOf<typeof BuildError>;
@@ -104,9 +108,9 @@ export function bundleFailureOf(error: unknown): Error {
                 },
             );
         }
-        const { domain, reason, data } = declared;
+        const { domain, reason, data, audience } = declared;
 
-        return new FamilyError({ domain, reason, code, data }, declared.message, {
+        return new FamilyError({ domain, reason, code, data, audience }, declared.message, {
             cause: declared.cause,
         });
     }
@@ -126,9 +130,4 @@ export function bundleFailureOf(error: unknown): Error {
 /** Report whether a failure is a Rolldown bundle failure, which aggregates its errors. */
 function isBundleFailure(error: unknown): boolean {
     return error instanceof Error && BundleErrors.safeParse(Reflect.get(error, "errors")).success;
-}
-
-/** Report whether a filesystem failure is a missing file. */
-export function isMissing(error: unknown): boolean {
-    return error instanceof Error && "code" in error && error.code === "ENOENT";
 }

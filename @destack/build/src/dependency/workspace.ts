@@ -1,7 +1,5 @@
-import { existsSync } from "node:fs";
-import { mkdtemp, realpath } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
+import { type FileSystem, FileSystemError } from "@destack/environment";
 import type { BunLockfile } from "@destack/check/bun";
 import { DomainError } from "@destack/error";
 import { type DependencyResolution, PackageJson, type graph } from "@destack/package";
@@ -9,14 +7,14 @@ import { PackageManifest } from "@destack/package/manifest";
 import { PackageLocator } from "@destack/package/locator";
 import type { History } from "@destack/resource";
 import { Digest, found, nth, Text } from "@destack/schema";
-import { Checkout, Identities, identifyToolchain } from "../cache/index.ts";
+import { Checkout, Identities } from "../cache/index.ts";
 import { type NpmConverter, type NpmDependency, NpmInstallation } from "./npm.ts";
 import { outputsOf, type PackageBuildOptions, PackageBuild } from "../build/build.ts";
 import type { Compiler } from "../build/compiler.ts";
 import type { CompilerPool } from "../build/pool.ts";
 import type { InspectOptions } from "../inspection/inspection.ts";
 import type { PackageInspection } from "@destack/package/code";
-import { BuildError, isMissing } from "../error/index.ts";
+import { BuildError } from "../error/index.ts";
 import { readLockedReleases, readLockfile, readPackageJson } from "../source/index.ts";
 import { PackageStore } from "../store/index.ts";
 import type { LocalPackageStore } from "../store/local.ts";
@@ -106,15 +104,17 @@ export class Workspace {
     /** Read the closure of Destack workspace members a package requires, in build order. */
     static async open(directory: string, compilers: WorkspaceCompilers): Promise<Workspace> {
         // read the workspace's members by their real directories, refusing a missing one
-        const lockfile = await readLockfile(directory);
-        const workspace = await Workspace.#locate(lockfile);
+        const { environment } = compilers.store;
+        const { files } = environment;
+        const lockfile = await readLockfile(directory, files);
+        const workspace = await Workspace.#locate(lockfile, files);
         const members = new Set(
             await Promise.all(
                 Object.entries(lockfile.workspaces).map(async ([path, member]) => {
                     const location = join(workspace, path);
 
-                    return await realpath(location).catch((cause: unknown) => {
-                        if (!isMissing(cause)) {
+                    return await files.realPath(location).catch((cause: unknown) => {
+                        if (!FileSystemError.is(cause, "NOT_FOUND")) {
                             throw cause;
                         }
                         throw BuildError.of(
@@ -129,14 +129,16 @@ export class Workspace {
 
         // walk the Destack members the root requires through their installed links
         const units = new Map<string, WorkspaceUnit>();
-        const walk = { locator: new PackageLocator(), members, units, visiting: new Set<string>() };
-        await Workspace.#visit(await realpath(directory), walk);
+        const locator = new PackageLocator(files);
+        const walk = { locator, files, members, units, visiting: new Set<string>() };
+        await Workspace.#visit(await files.realPath(directory), walk);
 
         // read the toolchain, the checkout and the locked npm releases the units' keys read
-        const identities = Identities.of({});
-        const toolchain = await identifyToolchain(identities);
-        const checkout = await Checkout.list(workspace);
-        const npm = new NpmInstallation(readLockedReleases(lockfile), compilers.store, toolchain);
+        const identities = Identities.of({}, environment);
+        const toolchain = await identities.toolchain();
+        const checkout = await Checkout.list(workspace, environment);
+        const locked = readLockedReleases(lockfile);
+        const npm = new NpmInstallation(locked, compilers.store, toolchain, environment);
 
         return new Workspace([...units.values()], compilers, identities, toolchain, checkout, npm);
     }
@@ -146,6 +148,7 @@ export class Workspace {
         from: string,
         walk: {
             readonly locator: PackageLocator;
+            readonly files: FileSystem;
             readonly members: ReadonlySet<string>;
             readonly units: Map<string, WorkspaceUnit>;
             readonly visiting: Set<string>;
@@ -160,7 +163,7 @@ export class Workspace {
             throw BuildError.of("DEPENDENCY_INVALID", `workspace dependency cycle through ${from}`);
         }
         walk.visiting.add(from);
-        const packageJson = await readPackageJson(from);
+        const packageJson = await readPackageJson(from, walk.files);
         const name = packageJson.package.name;
 
         // split each runtime or listed dependency once into units and npm packages, leaving the rest to the compiler
@@ -171,12 +174,14 @@ export class Workspace {
             ...PackageJson.runtimeDependencies(packageJson),
             ...listed,
         ])) {
-            const installed = walk.locator.directory(dependency, from);
-            const resolved = installed === undefined ? undefined : await realpath(installed);
+            const installed = await walk.locator.directory(dependency, from);
+            const resolved =
+                installed === undefined ? undefined : await walk.files.realPath(installed);
             const isOptional =
                 !listed.includes(dependency) && PackageJson.isOptional(packageJson, dependency);
             const isMember = resolved !== undefined && walk.members.has(resolved);
-            const isDestack = resolved !== undefined && existsSync(join(resolved, "destack.json"));
+            const isDestack =
+                resolved !== undefined && (await walk.files.exists(join(resolved, "destack.json")));
             // refuse a missing dependency the package cannot build without
             if (resolved === undefined && !isOptional) {
                 throw BuildError.of(
@@ -200,8 +205,8 @@ export class Workspace {
     }
 
     /** Find the workspace a lockfile belongs to, past a link to it. */
-    static async #locate(lockfile: BunLockfile): Promise<string> {
-        return dirname(await realpath(join(lockfile.directory, "bun.lock")));
+    static async #locate(lockfile: BunLockfile, files: FileSystem): Promise<string> {
+        return dirname(await files.realPath(join(lockfile.directory, "bun.lock")));
     }
 
     /** The store the workspace's units build into. */
@@ -230,12 +235,12 @@ export class Workspace {
                 ? await PackageBuild.restore(
                       this.#store,
                       cached.manifest,
-                      await mkdtemp(join(tmpdir(), "destack-build-")),
+                      await this.#store.environment.files.makeTemporaryDirectory("destack-build-"),
                   )
                 : await this.#compile(this.root, options);
 
         // key the build, and root it as the root's latest
-        const manifest = await PackageStore.digest(built.manifest);
+        const manifest = await PackageStore.digest(built.manifest, this.#store.environment.crypto);
         await this.#store.cache(key, { kind: "build", manifest });
         await this.#rootUnit(this.root, manifest, dependencies);
 
@@ -428,20 +433,25 @@ export class Workspace {
         unit: WorkspaceUnit,
         options: Omit<PackageBuildOptions, "signal" | "timeout">,
     ): Promise<string> {
-        return await Digest.json({
-            kind: "unit",
-            toolchain: this.#toolchain,
-            checkout: await this.#checkout.identify(unit.directory),
-            dependencies: options.dependencies,
-            outputs: options.outputs,
-            configuration:
-                options.configuration === undefined
-                    ? null
-                    : await this.#identities.file(resolve(unit.directory, options.configuration)),
-            version: options.versions?.[unit.name] ?? null,
-            history: options.history ?? null,
-            commit: options.commit ?? null,
-        });
+        return await Digest.json(
+            {
+                kind: "unit",
+                toolchain: this.#toolchain,
+                checkout: await this.#checkout.identify(unit.directory),
+                dependencies: options.dependencies,
+                outputs: options.outputs,
+                configuration:
+                    options.configuration === undefined
+                        ? null
+                        : await this.#identities.file(
+                              resolve(unit.directory, options.configuration),
+                          ),
+                version: options.versions?.[unit.name] ?? null,
+                history: options.history ?? null,
+                commit: options.commit ?? null,
+            },
+            this.#store.environment.crypto,
+        );
     }
 
     /** Root a unit's latest build and its dependencies' builds by its directory. */
@@ -457,10 +467,10 @@ export class Workspace {
     }
 
     /** Compile a unit, which puts it into the store, answering its manifest's digest. */
-    async #put(unit: WorkspaceUnit, options: PackageBuildOptions): Promise<string> {
+    async #put(unit: WorkspaceUnit, options: PackageBuildOptions): Promise<Digest> {
         await using build = await this.#compile(unit, options);
 
-        return await PackageStore.digest(build.manifest);
+        return await PackageStore.digest(build.manifest, this.#store.environment.crypto);
     }
 
     /** Compile a unit with its compiler, which stores the build. */

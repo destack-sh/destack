@@ -1,7 +1,6 @@
-import { cp, mkdir, mkdtemp, realpath, rm, symlink } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import type { FileSystem } from "@destack/environment";
 import { type DependencyResolution, PackageJson } from "@destack/package";
 import { type PackageBuildOptions, PackageBuild } from "../build/build.ts";
 import { DependencyTree } from "../dependency/tree.ts";
@@ -41,15 +40,14 @@ export class PackageCopy implements AsyncDisposable {
     /** Copy a package beside its workspace's lockfile, linking its members, and store its units. */
     static async open(fixture: URL, compilers: WorkspaceCompilers): Promise<PackageCopy> {
         // copy the package without its installed tree, beside a link to its workspace's lockfile
+        const { files } = compilers.store.environment;
         const origin = fileURLToPath(fixture);
-        const lockfile = await readLockfile(origin);
-        const directory = await realpath(await mkdtemp(join(tmpdir(), "destack-test-source-")));
+        const lockfile = await readLockfile(origin, files);
+        const temporary = await files.makeTemporaryDirectory("destack-test-source-");
+        const directory = await files.realPath(temporary);
         const source = join(directory, "source");
-        await cp(origin, source, {
-            recursive: true,
-            filter: (path) => !path.split(/[/\\]/u).includes("node_modules"),
-        });
-        await symlink(join(lockfile.directory, "bun.lock"), join(directory, "bun.lock"));
+        await copySource(origin, source, files);
+        await files.symlink(join(lockfile.directory, "bun.lock"), join(directory, "bun.lock"));
 
         // link each dependency it declares to its workspace member, as an install does
         const members = new Map(
@@ -57,7 +55,7 @@ export class PackageCopy implements AsyncDisposable {
                 member.name === undefined ? [] : [[member.name, join(lockfile.directory, path)]],
             ),
         );
-        const packageJson = await readPackageJson(source);
+        const packageJson = await readPackageJson(source, files);
         const declared = [
             ...PackageJson.runtimeDependencies(packageJson),
             ...Object.keys(packageJson.devDependencies),
@@ -68,8 +66,8 @@ export class PackageCopy implements AsyncDisposable {
                 throw BuildError.of("MEMBER_UNKNOWN", `the workspace has no member ${name}`);
             }
             const link = join(source, "node_modules", name);
-            await mkdir(dirname(link), { recursive: true });
-            await symlink(member, link, "junction");
+            await files.mkdir(dirname(link), { recursive: true });
+            await files.symlink(member, link);
         }
 
         // store the units it depends on
@@ -91,7 +89,8 @@ export class PackageCopy implements AsyncDisposable {
     /** Write a build into a directory with the builds its outputs import placed beside it. */
     async deploy(build: PackageBuild, destination: string): Promise<void> {
         // write the build, then place the builds its outputs record and link them into it
-        await PackageBuild.write(build.reader, destination);
+        const { files } = this.store.environment;
+        await PackageBuild.write(build.reader, destination, files);
         const recorded = Object.values(build.manifest.outputs).flatMap((output) =>
             Object.values(output.dependencies),
         );
@@ -101,11 +100,38 @@ export class PackageCopy implements AsyncDisposable {
             unique,
             join(this.directory, "tree"),
         );
-        await tree.link(join(destination, "node_modules"));
+        await tree.link(join(destination, "node_modules"), files);
     }
 
     /** Remove the copy, its builds and their trees. */
     async [Symbol.asyncDispose](): Promise<void> {
-        await rm(this.directory, { recursive: true });
+        await this.store.environment.files.remove(this.directory, { recursive: true });
+    }
+}
+
+/** Copy a package's files into a new directory, never walking into installed trees. */
+export async function copySource(
+    origin: string,
+    destination: string,
+    files: FileSystem,
+): Promise<void> {
+    // create the directory, then copy each entry but installed trees, walking into directories
+    await files.mkdir(destination, { recursive: true });
+    const entries = await files.readDirectory(origin);
+    for (const entry of entries.filter((each) => each.name !== "node_modules")) {
+        const source = join(origin, entry.name);
+        const target = join(destination, entry.name);
+        if (entry.kind === "directory") {
+            await copySource(source, target, files);
+        } else if (entry.kind === "symlink") {
+            await files.symlink(await files.readLink(source), target);
+        } else if (entry.kind === "file") {
+            await files.copyFile(source, target);
+        } else {
+            throw BuildError.of(
+                "ASSET_INVALID",
+                `unsupported ${entry.kind} entry in a package source: ${source}`,
+            );
+        }
     }
 }

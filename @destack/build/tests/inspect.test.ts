@@ -1,7 +1,6 @@
+import { testSimulation } from "../src/test/world.ts";
 import { DeclarationDescription } from "@destack/package";
-import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { expect, refusal, test } from "@destack/test";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { schema } from "@destack/schema";
@@ -16,31 +15,35 @@ const VITEST = dirname(fileURLToPath(import.meta.resolve("vitest/package.json"))
 /** Retain test discovery without collecting test bodies' declarations or fixture extensions. */
 test("inspect test bodies and fixture extensions without declaring what they construct", async () => {
     // inspect an app declaring one thing, with vitest installed beside its kind package
-    const directory = await realpath(await mkdtemp(join(tmpdir(), "destack-inspect-")));
-    try {
-        for (const [path, text] of Object.entries(THING_FILES)) {
-            await mkdir(dirname(join(directory, path)), { recursive: true });
-            await writeFile(join(directory, path), text);
-        }
-        await symlink(VITEST, join(directory, "node_modules", "vitest"));
-        expect(Bun.spawnSync(["git", "init", "--quiet", directory]).exitCode).toBe(0);
-        await using store = await LocalPackageStore.temporary();
-        await using compilers = await CompilerPool.open(store);
-        const workspace = await Workspace.open(directory, compilers);
-        const dependencies = await workspace.storeDependencies({});
-        const inspect = async () =>
-            await compilers.use(directory, (compiler) =>
-                compiler.inspect({ directory, runtime: "bun", dependencies }),
-            );
-        const before = await inspect();
-        const description = schema.object({
-            tests: schema.array(TestDeclaration),
-            declarations: schema.array(DeclarationDescription),
-        });
-        const original = description.parse(before.descriptions);
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await files.realPath(await files.makeTemporaryDirectory("destack-inspect-"));
+    for (const [path, text] of Object.entries(THING_FILES)) {
+        await files.mkdir(dirname(join(directory, path)), { recursive: true });
+        await files.writeTextFile(join(directory, path), text);
+    }
+    await files.symlink(VITEST, join(directory, "node_modules", "vitest"));
+    expect(
+        (await environment.process.spawn(["git", "init", "--quiet", directory]).output()).code,
+    ).toBe(0);
+    await using store = await LocalPackageStore.temporary(environment);
+    await using compilers = await CompilerPool.open(store);
+    const workspace = await Workspace.open(directory, compilers);
+    const dependencies = await workspace.storeDependencies({});
+    const inspect = async () =>
+        await compilers.use(directory, (compiler) =>
+            compiler.inspect({ directory, runtime: "bun", dependencies }),
+        );
+    const before = await inspect();
+    const description = schema.object({
+        tests: schema.array(TestDeclaration),
+        declarations: schema.array(DeclarationDescription),
+    });
+    const original = description.parse(before.descriptions);
 
-        // construct a thing in a registered test beside a fixture extension, then inspect again
-        const source = `import { test } from "vitest";
+    // construct a thing in a registered test beside a fixture extension, then inspect again
+    const source = `import { test } from "vitest";
 import { defineThing } from "@example/owner";
 export const extended = test.extend<{ name: string }>({ name: "test-only" });
 test("construct a thing", () => {
@@ -48,44 +51,45 @@ test("construct a thing", () => {
     void thing;
 });
 `;
-        await writeFile(join(directory, "src/app.test.ts"), source);
-        const after = await inspect();
+    await files.writeTextFile(join(directory, "src/app.test.ts"), source);
+    const after = await inspect();
 
-        // list the one declaration and add only the statically collected test
-        expect(description.parse(after.descriptions)).toEqual({
-            declarations: original.declarations,
-            tests: [
-                ...original.tests,
-                {
-                    kind: "test",
-                    name: "construct a thing",
-                    suites: [],
-                    file: "src/app.test.ts",
-                    start: source.indexOf('test("'),
-                    end: source.lastIndexOf(";"),
-                    modifiers: [],
-                },
-            ],
-        });
-        expect(original.declarations.map((declaration) => declaration.name)).toEqual(["greeting"]);
-    } finally {
-        await rm(directory, { recursive: true });
-    }
+    // list the one declaration and add only the statically collected test
+    expect(description.parse(after.descriptions)).toEqual({
+        declarations: original.declarations,
+        tests: [
+            ...original.tests,
+            {
+                kind: "test",
+                name: "construct a thing",
+                suites: [],
+                file: "src/app.test.ts",
+                start: source.indexOf('test("'),
+                end: source.lastIndexOf(";"),
+                modifiers: [],
+            },
+        ],
+    });
+    expect(original.declarations.map((declaration) => declaration.name)).toEqual(["greeting"]);
 });
 
 /** Inspect an app module beside the thing kind's package, answering its declarations. */
 async function inspectApp(app: string): Promise<readonly string[]> {
     // write the app with its kind's package installed beside it
-    const directory = await realpath(await mkdtemp(join(tmpdir(), "destack-inspect-")));
-    onTestFinished(() => rm(directory, { recursive: true }));
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await files.realPath(await files.makeTemporaryDirectory("destack-inspect-"));
     for (const [path, text] of Object.entries({ ...THING_FILES, "src/app.ts": app })) {
-        await mkdir(dirname(join(directory, path)), { recursive: true });
-        await writeFile(join(directory, path), text);
+        await files.mkdir(dirname(join(directory, path)), { recursive: true });
+        await files.writeTextFile(join(directory, path), text);
     }
-    expect(Bun.spawnSync(["git", "init", "--quiet", directory]).exitCode).toBe(0);
+    expect(
+        (await environment.process.spawn(["git", "init", "--quiet", directory]).output()).code,
+    ).toBe(0);
 
     // inspect it on its dependencies' builds
-    await using store = await LocalPackageStore.temporary();
+    await using store = await LocalPackageStore.temporary(environment);
     await using compilers = await CompilerPool.open(store);
     const dependencies = await (await Workspace.open(directory, compilers)).storeDependencies({});
     const inspected = await compilers.use(directory, (compiler) =>

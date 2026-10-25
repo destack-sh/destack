@@ -1,8 +1,8 @@
-import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { type FileSystem, FileSystemError } from "@destack/environment";
 import { Catalog } from "@destack/locale";
 import type { PackageId } from "@destack/package";
-import { BuildError, isMissing } from "../error/index.ts";
+import { BuildError } from "../error/index.ts";
 
 /** The directory of a package that stores its catalogs. */
 const CATALOG_DIRECTORY = "locale";
@@ -11,9 +11,10 @@ const CATALOG_DIRECTORY = "locale";
 export async function readCatalogs(
     directory: string,
     owner: PackageId,
+    files: FileSystem,
 ): Promise<Map<string, Uint8Array<ArrayBuffer>>> {
     // list the catalog directory, which a package without catalogs lacks
-    const names = await listDirectory(join(directory, CATALOG_DIRECTORY));
+    const names = await listDirectory(join(directory, CATALOG_DIRECTORY), files);
     const catalogs = new Map<string, Uint8Array<ArrayBuffer>>();
     for (const name of names.toSorted()) {
         // require a catalog file of the package's messages
@@ -21,7 +22,7 @@ export async function readCatalogs(
         if (!Catalog.isPath(path)) {
             throw BuildError.of("CATALOG_INVALID", `not a catalog: ${path}`);
         }
-        const bytes = new Uint8Array(await readFile(join(directory, path)));
+        const bytes = await files.readFile(join(directory, path));
         try {
             Catalog.of(path, JSON.parse(new TextDecoder().decode(bytes)), owner);
         } catch (cause) {
@@ -34,11 +35,11 @@ export async function readCatalogs(
 }
 
 /** List a directory's entries, none for a missing directory. */
-async function listDirectory(directory: string): Promise<string[]> {
+async function listDirectory(directory: string, files: FileSystem): Promise<string[]> {
     try {
-        return await readdir(directory);
+        return (await files.readDirectory(directory)).map((entry) => entry.name);
     } catch (error) {
-        if (!isMissing(error)) {
+        if (!FileSystemError.is(error, "NOT_FOUND")) {
             throw error;
         }
 

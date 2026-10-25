@@ -1,5 +1,5 @@
+import { testSimulation } from "../src/test/world.ts";
 import { refusal, test } from "@destack/test";
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { PackageBuild } from "../src/index.ts";
 import {
@@ -18,26 +18,33 @@ import { PackageDefinition } from "@destack/package";
 test.concurrent("relocate the library build and call its exports, refusing corrupted description bytes", async ({
     expect,
 }) => {
-    await using input = await Fixture.open("library");
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    await using input = await Fixture.open("library", environment);
     await using build = await input.build(library.request);
 
     // load the complete distribution after removing its source checkout
     const destination = join(input.directory, "build");
-    await PackageBuild.write(build.reader, destination);
-    await rm(input.source, { recursive: true });
-    const restored = await PackageBuild.read(destination);
+    await PackageBuild.write(build.reader, destination, files);
+    await files.remove(input.source, { recursive: true });
+    const restored = await PackageBuild.read(destination, environment);
     expect(restored.manifest).toEqual(build.manifest);
-    await expectFiles(restored, build);
-    await expectManifest(build, destination);
+    await expectFiles(restored, build, files);
+    await expectManifest(build, destination, environment);
 
     // reject corrupted description bytes
-    const corrupt = new BuildReader(build.manifest, async (path) => {
-        const bytes = new Uint8Array(await readFile(join(destination, path)));
-        const [first = 0] = bytes;
-        bytes[0] = first ^ 1;
+    const corrupt = new BuildReader(
+        build.manifest,
+        async (path) => {
+            const bytes = new Uint8Array(await files.readFile(join(destination, path)));
+            const [first = 0] = bytes;
+            bytes[0] = first ^ 1;
 
-        return new Blob([bytes]).stream();
-    });
+            return new Blob([bytes]).stream();
+        },
+        environment.crypto,
+    );
     expect(await refusal(corrupt.files())).toEqual([
         "BAD_REQUEST",
         "INVALID_FILE",
@@ -56,14 +63,17 @@ test.concurrent("ship a package's catalogs in its build, refusing a misnamed one
     expect,
 }) => {
     // write a German catalog of the library's messages
-    await using input = await Fixture.open("library");
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    await using input = await Fixture.open("library", environment);
     const owner = PackageDefinition.read(
-        await readFile(join(input.source, "destack.json"), "utf8"),
+        await files.readTextFile(join(input.source, "destack.json")),
     ).id;
     const german = { package: owner, locale: "de", messages: { a1: "Notiz" }, drafts: ["a1"] };
     const write = (name: string, catalog: object) =>
-        writeFile(join(input.source, "locale", name), JSON.stringify(catalog));
-    await mkdir(join(input.source, "locale"));
+        files.writeTextFile(join(input.source, "locale", name), JSON.stringify(catalog));
+    await files.mkdir(join(input.source, "locale"));
     await write("de.json", german);
 
     // read the shipped catalog back from the build

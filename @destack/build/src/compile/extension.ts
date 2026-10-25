@@ -1,8 +1,7 @@
 import { HOST_RUNTIME } from "@destack/package/runtime";
-import { existsSync } from "node:fs";
 import { DependencyTree } from "../dependency/tree.ts";
-import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import type { FileSystem } from "@destack/environment";
 import {
     type BuildExtension,
     type PluginOption,
@@ -10,7 +9,6 @@ import {
     type TransformContext,
 } from "@destack/package/build";
 import { PackageDefinition, PackageJson, PackageExport } from "@destack/package";
-import { registerModulePlugin } from "@destack/package/bun";
 import { PackageLocator } from "@destack/package/locator";
 import { BuildError, extensionFailureOf } from "../error/index.ts";
 import { readPackageJson, selectExport } from "../source/index.ts";
@@ -40,11 +38,12 @@ export async function loadExtensions(
     directory: string,
     packageJson: PackageJson,
     tree: DependencyTree,
+    files: FileSystem,
 ): Promise<LoadedExtension[]> {
     // take the package itself, then its listed extensions and its runtime dependency closure
     const root = packageJson.package.name;
     const listed = packageJson.definition.extensions ?? [];
-    const locator = new PackageLocator();
+    const locator = new PackageLocator(files);
     const packages = new Map<string, { directory: string; definition: PackageDefinition }>([
         [root, { directory, definition: packageJson.definition }],
     ]);
@@ -58,7 +57,7 @@ export async function loadExtensions(
     for (const { name, dependent, from, isRequired } of pending) {
         const installed = packages.has(name)
             ? undefined
-            : (tree.directories[name] ?? locator.directory(name, from));
+            : (tree.directories[name] ?? (await locator.directory(name, from)));
         // take each package once, and skip an absent optional dependency
         if (
             packages.has(name) ||
@@ -72,8 +71,8 @@ export async function loadExtensions(
             throw BuildError.of("DEPENDENCY_UNRESOLVED", `missing dependency of ${named}: ${name}`);
         }
         // take a Destack package's definition, walking a required one's runtime dependencies
-        else if (existsSync(join(installed, "destack.json"))) {
-            const read = await readPackageJson(installed);
+        else if (await files.exists(join(installed, "destack.json"))) {
+            const read = await readPackageJson(installed, files);
             packages.set(name, { directory: installed, definition: read.definition });
             const next = isRequired ? PackageJson.runtimeDependencies(read) : [];
             pending.push(
@@ -103,7 +102,12 @@ export async function loadExtensions(
         if (found.definition.build === undefined) {
             continue;
         }
-        const extension = await importExtension(name, found.directory, found.definition.build);
+        const extension = await importExtension(
+            name,
+            found.directory,
+            found.definition.build,
+            files,
+        );
         extensions.push({ directory: found.directory, extension });
     }
 
@@ -115,9 +119,10 @@ export async function loadTransforms(
     context: Omit<TransformContext, "dependencies">,
 ): Promise<PluginOption[]> {
     // develop from the sources, where no dependency's build is materialized
-    const packageJson = await readPackageJson(context.directory);
-    const tree = await DependencyTree.read({});
-    const loaded = await loadExtensions(context.directory, packageJson, tree);
+    const { files } = context.environment;
+    const packageJson = await readPackageJson(context.directory, files);
+    const tree = await DependencyTree.read({}, files);
+    const loaded = await loadExtensions(context.directory, packageJson, tree, files);
 
     return transformPlugins(
         loaded.map((entry) => entry.extension),
@@ -140,8 +145,11 @@ export function transformPlugins(
 }
 
 /** Read the exports of an installed package's package.json. */
-async function readManifest(installed: string): Promise<schema.Infer<typeof Manifest>> {
-    return Manifest.parse(JSON.parse(await readFile(join(installed, "package.json"), "utf8")));
+async function readManifest(
+    installed: string,
+    files: FileSystem,
+): Promise<schema.Infer<typeof Manifest>> {
+    return Manifest.parse(JSON.parse(await files.readTextFile(join(installed, "package.json"))));
 }
 
 /** Import the extension a package's build field names, such as `./build#viewExtension`. */
@@ -149,6 +157,7 @@ async function importExtension(
     name: string,
     installed: string,
     build: string,
+    files: FileSystem,
 ): Promise<BuildExtension> {
     // split the build field into the package export and the export name
     const separator = build.indexOf("#");
@@ -162,14 +171,13 @@ async function importExtension(
     const exportName = build.slice(separator + 1);
 
     // select the module the build worker's conditions resolve
-    const manifest = await readManifest(installed);
+    const manifest = await readManifest(installed, files);
     const file = selectExport(manifest.exports?.[subpath], CONDITIONS);
     if (typeof file !== "string") {
         throw BuildError.of("EXTENSION_INVALID", `${name} exports no build module at ${subpath}`);
     }
 
     // read the extension from the module's exports
-    registerModulePlugin();
     const module = Exports.parse(await import(join(installed, file)));
     const extension = module[exportName];
     if (typeof extension !== "object" || extension === null) {

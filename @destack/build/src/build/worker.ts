@@ -1,5 +1,4 @@
-import { writeSync } from "node:fs";
-import { readFile, realpath } from "node:fs/promises";
+import { type Environment, FileSystemError, type Output } from "@destack/environment";
 import { DependencyTree } from "../dependency/tree.ts";
 import type { TestDeclaration } from "../typescript/test.ts";
 import { join, resolve } from "node:path";
@@ -40,7 +39,6 @@ import {
     type CachedOutput,
     deriveModuleKeys,
     Identities,
-    identifyToolchain,
     importClosure,
 } from "../cache/index.ts";
 import { NpmConversion } from "../compile/conversion.ts";
@@ -48,7 +46,7 @@ import { OutputPass } from "../compile/pass.ts";
 import { checkRuntime, RuntimeCompiler } from "../compile/runtime.ts";
 import { Template } from "../template/index.ts";
 import { DomainError } from "@destack/error";
-import { BuildError, isMissing, extensionFailureOf } from "../error/index.ts";
+import { BuildError, extensionFailureOf } from "../error/index.ts";
 import { isAuthored, relativePath } from "../source/dependency.ts";
 import { ProgramImports } from "../cache/scan.ts";
 import type { PackageBuildOptions, ModuleOptions } from "./build.ts";
@@ -66,6 +64,7 @@ import {
     type RequestedBuild,
 } from "./message.ts";
 import { Console } from "node:console";
+import { Writable } from "node:stream";
 import { PRIMARY_RUNTIMES } from "@destack/package/runtime";
 
 /** This package's directory, whose dependencies include the tools when running from a workspace. */
@@ -108,18 +107,27 @@ interface InspectedOutput {
 
 /** The compiler inside the sandbox, retaining the last package's state across requests. */
 export class CompilerWorker implements AsyncDisposable {
+    /** The files, process and platform the compiler runs on. */
+    readonly environment: Environment<"files" | "process" | "host">;
     /** The native TypeScript compiler of the last requested package. */
     #typescript: TypeScriptCompiler | undefined;
     /** Runtime type environments reused across output checks. */
-    readonly runtimes = new RuntimeCompiler();
+    readonly runtimes: RuntimeCompiler;
     /** The Destack packages the build tool's dependencies resolve to. */
-    readonly #packages = new PackageLocator();
+    readonly #packages: PackageLocator;
     /** Configurations indexed by output settings. */
     readonly #sources = new Map<string, { declaration: string; source: PackageSource }>();
     /** The identity of the toolchain this process runs, read once. */
     #toolchain: Promise<Digest> | undefined;
     /** The identity of each loaded extension's package, read once as the process caches code. */
     readonly #extensions = new Map<string, Promise<Digest>>();
+
+    /** Compile on an environment's files, process and platform. */
+    constructor(environment: Environment<"files" | "process" | "host">) {
+        this.environment = environment;
+        this.runtimes = new RuntimeCompiler(environment);
+        this.#packages = new PackageLocator(environment.files);
+    }
 
     /** Switch to a package's native compiler, closing the others' compiler and configurations. */
     async #switch(directory: string): Promise<TypeScriptCompiler> {
@@ -139,25 +147,35 @@ export class CompilerWorker implements AsyncDisposable {
         }
 
         // start the package's compiler
-        this.#typescript = new TypeScriptCompiler(directory);
+        this.#typescript = await TypeScriptCompiler.start(directory, this.environment);
 
         return this.#typescript;
     }
 
     /** Answer the host's requests on stdin with one retained compiler. */
-    static async run(): Promise<void> {
+    static async run(environment: Environment<"files" | "process" | "host">): Promise<void> {
         // reserve stdout for framed build results and send package logs to diagnostics
+        const { stdin, stdout, stderr } = environment.process;
+        const diagnostics = new Writable({
+            write: (chunk: Uint8Array, _encoding, done: () => void) => {
+                stderr.writeSync(chunk);
+                done();
+            },
+        });
         Object.assign(
             globalThis.console,
-            new Console({ stdout: process.stderr, stderr: process.stderr }),
-            { write: writeDiagnostics },
+            new Console({ stdout: diagnostics, stderr: diagnostics }),
+            {
+                write: (...messages: (string | ArrayBufferView | ArrayBuffer)[]) =>
+                    writeDiagnostics(messages, stderr),
+            },
         );
-        const cache = new HostCache(process.stdout);
-        await using compiler = new CompilerWorker();
+        const cache = new HostCache(stdout);
+        await using compiler = new CompilerWorker(environment);
 
         // read the host's messages while requests run
         let responding = Promise.resolve();
-        for await (const message of readMessages(process.stdin, HostMessage)) {
+        for await (const message of readMessages(stdin.readable, HostMessage)) {
             // deliver the host's cache answers at once
             if (message.kind === "cached") {
                 cache.answer(message);
@@ -165,10 +183,7 @@ export class CompilerWorker implements AsyncDisposable {
             // answer the host's requests one at a time
             else {
                 responding = responding.then(async () =>
-                    writeMessage(
-                        process.stdout,
-                        await CompilerWorker.#respond(compiler, message, cache),
-                    ),
+                    writeMessage(stdout, await CompilerWorker.#respond(compiler, message, cache)),
                 );
             }
         }
@@ -199,7 +214,7 @@ export class CompilerWorker implements AsyncDisposable {
             inspection.modules,
             evaluation.declarations,
             {
-                package: await findPackage("@destack/test", this.#packages),
+                package: await findPackage("@destack/test", this.#packages, this.environment),
                 declarations: inspection.tests,
             },
         );
@@ -227,7 +242,7 @@ export class CompilerWorker implements AsyncDisposable {
         directory: string,
         identities: Identities,
     ) {
-        this.#toolchain ??= identifyToolchain(Identities.of({}));
+        this.#toolchain ??= Identities.of({}, this.environment).toolchain();
         const files = (paths: Iterable<string>) =>
             Promise.all([...paths].map((path) => identities.file(join(directory, path))));
 
@@ -241,16 +256,17 @@ export class CompilerWorker implements AsyncDisposable {
     /** Derive each requested output's cache key without checking, evaluating or compiling it. */
     async plan(options: RequestedBuild): Promise<OutputKeys> {
         // plan the outputs with the extensions of the package's dependency closure
-        const packageJson = await readPackageJson(options.directory);
-        const tree = await DependencyTree.read(options.tree);
-        const loaded = await loadExtensions(options.directory, packageJson, tree);
+        const { files } = this.environment;
+        const packageJson = await readPackageJson(options.directory, files);
+        const tree = await DependencyTree.read(options.tree, files);
+        const loaded = await loadExtensions(options.directory, packageJson, tree, files);
         const planned = expand(
             options.outputs,
             loaded.map((entry) => entry.extension),
         );
 
         // identify the toolchain, the extensions and the package's manifests
-        const identities = Identities.of(options.dependencies);
+        const identities = Identities.of(options.dependencies, this.environment);
         const { toolchain, extensions, manifests } = await this.#identifyInputs(
             loaded,
             options.directory,
@@ -261,16 +277,19 @@ export class CompilerWorker implements AsyncDisposable {
         const outputs = await this.#keyModules(options, planned, toolchain, identities);
         const keys: Record<string, Digest> = {};
         for (const [request, imported] of outputs) {
-            keys[request] = await Digest.json({
-                toolchain,
-                extensions,
-                manifests,
-                dependencies: options.dependencies,
-                versions: options.versions ?? {},
-                request: present(options.outputs[request], `the requested output ${request}`),
-                configuration: options.configuration ?? null,
-                modules: [...imported].toSorted(),
-            });
+            keys[request] = await Digest.json(
+                {
+                    toolchain,
+                    extensions,
+                    manifests,
+                    dependencies: options.dependencies,
+                    versions: options.versions ?? {},
+                    request: present(options.outputs[request], `the requested output ${request}`),
+                    configuration: options.configuration ?? null,
+                    modules: [...imported].toSorted(),
+                },
+                this.environment.crypto,
+            );
         }
 
         return keys;
@@ -284,16 +303,16 @@ export class CompilerWorker implements AsyncDisposable {
         cache: TransformCache,
     ): Promise<Record<string, CachedOutput>> {
         // plan the outputs with the extensions of the package's dependency closure
-        const packageJson = await readPackageJson(options.directory);
-        const tree = await DependencyTree.read(options.tree);
-        const extensions = (await loadExtensions(options.directory, packageJson, tree)).map(
-            (entry) => entry.extension,
-        );
+        const { files: system } = this.environment;
+        const packageJson = await readPackageJson(options.directory, system);
+        const tree = await DependencyTree.read(options.tree, system);
+        const loaded = await loadExtensions(options.directory, packageJson, tree, system);
+        const extensions = loaded.map((entry) => entry.extension);
         const planned = expand(options.outputs, extensions);
 
         // inspect, check, evaluate and retain every output's sources before compiling any
         const inspected = await this.#inspect(options, planned);
-        const files = new BuildDirectory(destination);
+        const files = new BuildDirectory(destination, this.environment);
         await retain(inspected, files);
 
         // compile the outputs the cache lacks
@@ -326,6 +345,7 @@ export class CompilerWorker implements AsyncDisposable {
             upgrade,
             files,
             this.#packages,
+            this.environment,
         );
 
         return compiled.cached;
@@ -334,16 +354,17 @@ export class CompilerWorker implements AsyncDisposable {
     /** Reuse a configuration until its package declarations change. */
     async open(options: Parameters<typeof PackageSource.open>[0]): Promise<PackageSource> {
         // read the manifests on every build so changed exports update the compiler roots
+        const { files } = this.environment;
         const manifests = await Promise.all(
             ["package.json", "destack.json"].map((path) =>
-                readFile(join(options.directory, path), "utf8"),
+                files.readTextFile(join(options.directory, path)),
             ),
         );
 
         // include authored compiler settings in configuration invalidation
-        const configuration = await readOptional(
-            resolve(options.directory, options.configuration ?? "tsconfig.json"),
-        );
+        const configuration = await files
+            .readTextFile(resolve(options.directory, options.configuration ?? "tsconfig.json"))
+            .catch(FileSystemError.absent);
 
         // reuse the configuration while its inputs remain unchanged
         const declaration = JSON.stringify([manifests, configuration]);
@@ -354,7 +375,7 @@ export class CompilerWorker implements AsyncDisposable {
         }
 
         // replace changed configurations and retain the new source until shutdown
-        const source = await PackageSource.open(options);
+        const source = await PackageSource.open(options, this.environment);
         await previous?.source[Symbol.asyncDispose]();
         this.#sources.set(key, { declaration, source });
 
@@ -412,13 +433,13 @@ export class CompilerWorker implements AsyncDisposable {
         const configured = await typescript
             .configure(options.configuration ?? "tsconfig.json")
             .catch((error: unknown) => {
-                if (!isMissing(error)) {
+                if (!FileSystemError.is(error, "NOT_FOUND")) {
                     throw error;
                 }
             });
 
         // take its declaration files
-        const directory = await realpath(options.directory);
+        const directory = await this.environment.files.realPath(options.directory);
 
         return (configured?.files ?? [])
             .filter((file) => file.endsWith(".d.ts") && isAuthored(directory, file))
@@ -444,7 +465,10 @@ export class CompilerWorker implements AsyncDisposable {
                 name === primary ? "package" : "entries",
                 declarations,
             );
-            const entries = await Promise.all(project.entries.map((entry) => realpath(entry)));
+            const { files } = this.environment;
+            const entries = await Promise.all(
+                project.entries.map((entry) => files.realPath(entry)),
+            );
             projects.set(name, { project, entries });
             compiled.set(project.configuration, [
                 ...(compiled.get(project.configuration) ?? []),
@@ -799,11 +823,11 @@ export class CompilerWorker implements AsyncDisposable {
             [...modules.values()],
             [...evaluated],
             {
-                package: await findPackage("@destack/test", this.#packages),
+                package: await findPackage("@destack/test", this.#packages, this.environment),
                 declarations: tests.values,
             },
             {
-                package: await findPackage("@destack/package", this.#packages),
+                package: await findPackage("@destack/package", this.#packages, this.environment),
                 examples: examples.values,
                 scenarios: scenarios.values,
             },
@@ -869,6 +893,7 @@ export class CompilerWorker implements AsyncDisposable {
                     request.name,
                     request.dependencies,
                     request.peers,
+                    compiler.environment.files,
                 );
                 const imported = await conversion.convert(request.source, request.destination);
 
@@ -917,7 +942,8 @@ function sourcePackage(inspected: ReadonlyMap<string, InspectedOutput>): Package
 /** Read a source's package.json as released: as authored, or at the release's version. */
 async function releasedManifest(project: PackageSource): Promise<Uint8Array<ArrayBuffer>> {
     // take the authored bytes of the version they list
-    const authored = await readFile(resolve(project.directory, "package.json"), "utf8");
+    const path = resolve(project.directory, "package.json");
+    const authored = await project.environment.files.readTextFile(path);
     const manifest = schema.jsonObject().parse(JSON.parse(authored));
     const { version } = project.packageJson.package;
     if (manifest["version"] === version) {
@@ -930,19 +956,6 @@ async function releasedManifest(project: PackageSource): Promise<Uint8Array<Arra
 /** Report whether two identities are the same package release. */
 function isSamePackage(left: Package, right: Package): boolean {
     return left.id === right.id && left.name === right.name && left.version === right.version;
-}
-
-/** Read a file's text, absent for a missing file. */
-async function readOptional(path: string): Promise<string | undefined> {
-    try {
-        return await readFile(path, "utf8");
-    } catch (error) {
-        if (!isMissing(error)) {
-            throw error;
-        }
-
-        return undefined;
-    }
 }
 
 /** Record the files of reused outputs the caller wrote, refusing one that changed. */
@@ -1089,7 +1102,7 @@ async function retain(
 
         // retain template assets, leaving package.json to its release's copy below
         if (project.packageJson.definition.template) {
-            const template = await Template.read(project.directory);
+            const template = await Template.read(project.directory, project.environment.files);
             for (const [path, bytes] of template.files) {
                 if (path !== "package.json") {
                     files.retain(path, new Uint8Array(bytes));
@@ -1099,14 +1112,15 @@ async function retain(
 
         // retain the authored package declarations, package.json at the version the build releases
         files.retain("package.json", await releasedManifest(project));
+        const system = project.environment.files;
         files.retain(
             "destack.json",
-            new Uint8Array(await readFile(resolve(project.directory, "destack.json"))),
+            await system.readFile(resolve(project.directory, "destack.json")),
         );
 
         // retain the package's catalogs
         const owner = project.packageJson.package.id;
-        for (const [path, bytes] of await readCatalogs(project.directory, owner)) {
+        for (const [path, bytes] of await readCatalogs(project.directory, owner, system)) {
             files.retain(path, bytes);
         }
     }
@@ -1177,6 +1191,7 @@ async function writeManifest(
     upgrade: Upgrade | undefined,
     files: BuildDirectory,
     locator: PackageLocator,
+    environment: Environment<"process">,
 ): Promise<void> {
     // write the build in its format, the upgrade qualified by the package defining it
     await files.finish({
@@ -1192,7 +1207,7 @@ async function writeManifest(
             ? {}
             : {
                   upgrade: {
-                      package: await findPackage("@destack/resource", locator),
+                      package: await findPackage("@destack/resource", locator, environment),
                       description: upgrade,
                   },
               }),
@@ -1257,8 +1272,14 @@ function joinResolutions(
 }
 
 /** Read the identity of a Destack package among the build tool's dependencies. */
-async function findPackage(name: string, locator: PackageLocator): Promise<Package> {
-    const owner = await locator.find(join(Toolchain.locate([name], PACKAGE), "package.json"));
+async function findPackage(
+    name: string,
+    locator: PackageLocator,
+    environment: Environment<"process">,
+): Promise<Package> {
+    // find the package among the tools, refusing a missing one
+    const directory = Toolchain.locate([name], PACKAGE, environment.process);
+    const owner = await locator.find(join(directory, "package.json"));
     if (!owner) {
         throw BuildError.of("INVARIANT_VIOLATED", `missing Destack package: ${name}`);
     }
@@ -1270,16 +1291,19 @@ async function findPackage(name: string, locator: PackageLocator): Promise<Packa
 function describeFailure(error: unknown): Extract<BuildResponse, { error: object }>["error"] {
     // describe a thrown value that is no error by its text
     if (!(error instanceof Error)) {
-        return { failure: BuildError.of("INVARIANT_VIOLATED", String(error)).toCallError() };
+        const failure = BuildError.of("INVARIANT_VIOLATED", String(error));
+
+        return { failure: failure.toCallError(), audience: failure.audience };
     }
 
-    // keep a package's declared failure, and report anything else as an internal fault
+    // keep a family's failure with its audience, and report anything else as an internal fault
     const failure = DomainError.is(error)
-        ? error.toCallError()
-        : BuildError.of("INVARIANT_VIOLATED", error.message).toCallError();
+        ? error
+        : BuildError.of("INVARIANT_VIOLATED", error.message);
 
     return {
-        failure,
+        failure: failure.toCallError(),
+        audience: failure.audience,
         cause: cloneableCause(error.cause),
         ...(error.stack === undefined ? {} : { stack: error.stack }),
     };
@@ -1299,10 +1323,13 @@ function cloneableCause(cause: unknown): unknown {
 }
 
 /** Write console output to diagnostics, returning the bytes written. */
-function writeDiagnostics(...messages: (string | ArrayBufferView | ArrayBuffer)[]): number {
+function writeDiagnostics(
+    messages: readonly (string | ArrayBufferView | ArrayBuffer)[],
+    stderr: Output,
+): number {
     // write at once, as the console's write answers the bytes written
     const bytes = Buffer.concat(messages.map((message) => toBuffer(message)));
-    writeSync(2, bytes);
+    stderr.writeSync(bytes);
 
     return bytes.length;
 }

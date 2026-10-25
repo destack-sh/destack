@@ -1,4 +1,4 @@
-import { lstat, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import type { FileSystem } from "@destack/environment";
 import { formatSource } from "@destack/check";
 import { dirname, join, resolve } from "node:path";
 import { DependencyName, Package, PackageDefinition } from "@destack/package";
@@ -28,32 +28,33 @@ export class Template {
     }
 
     /** Read declared template files without following symbolic links. */
-    static async read(directory: string): Promise<Template> {
+    static async read(directory: string, files: FileSystem): Promise<Template> {
         // require regular manifests before reading the copy declaration
         const root = resolve(directory);
-        const files = new Map<string, Uint8Array>();
+        const contents = new Map<string, Uint8Array>();
         for (const name of ["package.json", "destack.json"]) {
-            if (!(await lstat(join(root, name))).isFile()) {
+            if ((await files.lstat(join(root, name))).kind !== "file") {
                 throw PackageError.of(
                     "INVALID_FILE",
                     `template manifest is not a regular file: ${name}`,
                 );
             }
-            files.set(name, new Uint8Array(await readFile(join(root, name))));
+            contents.set(name, await files.readFile(join(root, name)));
         }
         const definition = PackageDefinition.read(
-            new TextDecoder("utf-8", { fatal: true }).decode(files.get("destack.json")),
+            new TextDecoder("utf-8", { fatal: true }).decode(contents.get("destack.json")),
         );
         if (!definition.template) {
             throw PackageError.of("INVALID_DEFINITION", "package has no template declaration");
         }
 
         // traverse declared paths while checking every parent for symbolic links
-        for (const [path, bytes] of await readDeclared(root, definition.template.files)) {
-            files.set(path, bytes);
+        const declared = await readDeclared(root, definition.template.files, files);
+        for (const [path, bytes] of declared) {
+            contents.set(path, bytes);
         }
 
-        return new Template(files);
+        return new Template(contents);
     }
 
     /** Copy source and replace declared dependencies without executing package code. */
@@ -130,21 +131,21 @@ export class Template {
     }
 
     /** Instantiate a package into a new directory. */
-    async write(directory: string, parameters: TemplateInput): Promise<void> {
+    async write(directory: string, parameters: TemplateInput, files: FileSystem): Promise<void> {
         // instantiate the files
-        const files = await this.instantiate(parameters);
+        const contents = await this.instantiate(parameters);
         // validate relative paths before creating the destination
-        for (const path of files.keys()) {
+        for (const path of contents.keys()) {
             PackagePath.parse(path);
         }
         const root = resolve(directory);
-        await mkdir(root);
+        await files.mkdir(root);
 
         // preserve binary contents and refuse existing files
-        for (const [path, bytes] of files) {
+        for (const [path, bytes] of contents) {
             const target = resolve(root, path);
-            await mkdir(dirname(target), { recursive: true });
-            await writeFile(target, bytes, { flag: "wx" });
+            await files.mkdir(dirname(target), { recursive: true });
+            await files.writeFile(target, bytes, { createNew: true });
         }
     }
 }
@@ -153,9 +154,10 @@ export class Template {
 async function readDeclared(
     root: string,
     declared: readonly string[],
+    files: FileSystem,
 ): Promise<Map<string, Uint8Array>> {
     // walk the declared paths depth first
-    const files = new Map<string, Uint8Array>();
+    const contents = new Map<string, Uint8Array>();
     const pending = [...declared];
     const visited = new Set<string>();
     for (let path = pending.pop(); path !== undefined; path = pending.pop()) {
@@ -168,7 +170,8 @@ async function readDeclared(
         // require every parent to be a directory
         const segments = path.split("/");
         for (let count = 1; count < segments.length; count++) {
-            if (!(await lstat(join(root, ...segments.slice(0, count)))).isDirectory()) {
+            const parent = await files.lstat(join(root, ...segments.slice(0, count)));
+            if (parent.kind !== "directory") {
                 throw PackageError.of(
                     "INVALID_FILE",
                     `template parent is not a directory: ${path}`,
@@ -178,19 +181,19 @@ async function readDeclared(
 
         // descend into a directory, or read a regular file
         const absolute = join(root, path);
-        const entry = await lstat(absolute);
-        if (entry.isDirectory()) {
-            for (const name of await readdir(absolute)) {
+        const entry = await files.lstat(absolute);
+        if (entry.kind === "directory") {
+            for (const { name } of await files.readDirectory(absolute)) {
                 pending.push(path + "/" + name);
             }
-        } else if (entry.isFile()) {
-            files.set(path, new Uint8Array(await readFile(absolute)));
+        } else if (entry.kind === "file") {
+            contents.set(path, await files.readFile(absolute));
         } else {
             throw PackageError.of("INVALID_FILE", `unsupported template file: ${path}`);
         }
     }
 
-    return files;
+    return contents;
 }
 
 /** Replace a template manifest's declared dependency selections with the chosen packages. */

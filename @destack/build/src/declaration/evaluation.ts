@@ -1,5 +1,5 @@
-import { Digest, present, schema } from "@destack/schema";
-import { realpath } from "node:fs/promises";
+import { Digest, type DigestCrypto, present, schema } from "@destack/schema";
+import type { FileSystem } from "@destack/environment";
 import { join, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { SourceTextModule, SyntheticModule } from "node:vm";
@@ -113,6 +113,7 @@ export const Evaluation = {
                 index,
                 namespace,
                 compare,
+                project.environment.crypto,
             ).catch((cause: unknown) => {
                 throw BuildError.of(
                     "INSPECTION_FAILED",
@@ -226,11 +227,16 @@ async function evaluateEntry(source: string, project: PackageSource): Promise<Ev
             treeshake: { moduleSideEffects: true },
             plugins: [
                 entryPlugin(source),
-                treePlugin(project.tree, project.runtime),
-                modulePlugin(project.versions),
+                treePlugin(project.tree, project.runtime, project.environment.files),
+                modulePlugin(project.environment.files, project.versions),
                 ...transformPlugins(
                     (
-                        await loadExtensions(project.directory, project.packageJson, project.tree)
+                        await loadExtensions(
+                            project.directory,
+                            project.packageJson,
+                            project.tree,
+                            project.environment.files,
+                        )
                     ).map((loaded) => loaded.extension),
                     {
                         directory: project.directory,
@@ -238,6 +244,7 @@ async function evaluateEntry(source: string, project: PackageSource): Promise<Ev
                         server: true,
                         options: {},
                         dependencies: project.tree.directories,
+                        environment: project.environment,
                     },
                 ).map((option) => serverTransform(option)),
             ],
@@ -277,7 +284,7 @@ async function linkHost(specifier: string): Promise<SyntheticModule> {
 }
 
 /** Mark dependencies external: Destack ones at their builds' modules, npm ones at their files. */
-function treePlugin(tree: DependencyTree, runtime: Runtime): Plugin {
+function treePlugin(tree: DependencyTree, runtime: Runtime, files: FileSystem): Plugin {
     return {
         name: "destack-dependency-builds",
         async resolveId(specifier, importer, options) {
@@ -308,7 +315,7 @@ function treePlugin(tree: DependencyTree, runtime: Runtime): Plugin {
                 resolved.id.split(sep).includes("node_modules") &&
                 INSTALLED_MODULE.test(resolved.id);
 
-            return isModule ? { id: await realpath(resolved.id), external: true } : null;
+            return isModule ? { id: await files.realPath(resolved.id), external: true } : null;
         },
     };
 }
@@ -374,6 +381,7 @@ async function describeDeclaration(
     index: number,
     namespace: EvaluatedEntry,
     compare: Map<string, Comparator>,
+    crypto: DigestCrypto,
 ): Promise<DeclarationDescription> {
     // serialize the domain description under the declaration's described name
     const description: unknown = JSON.parse(stringifyInspection(namespace.default[index]));
@@ -390,9 +398,9 @@ async function describeDeclaration(
         typeof vocabularyOf === "function"
             ? Terms.parse(Reflect.apply(vocabularyOf, undefined, [declared]))
             : undefined;
-    const vocabulary: Record<string, string> = {};
+    const vocabulary: Record<string, Digest> = {};
     for (const [term, definition] of Object.entries(terms ?? {})) {
-        vocabulary[`${parsed.kind}/${term}`] = await Digest.json(definition);
+        vocabulary[`${parsed.kind}/${term}`] = await Digest.json(definition, crypto);
     }
 
     // list the symbols the kind's code derives from the declaration

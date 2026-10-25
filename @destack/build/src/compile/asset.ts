@@ -1,6 +1,6 @@
-import { createHash } from "node:crypto";
-import { realpath } from "node:fs/promises";
 import { dirname, isAbsolute, join, resolve } from "node:path";
+import type { Environment, FileSystem } from "@destack/environment";
+import { Digest, type DigestCrypto } from "@destack/schema";
 import MagicString from "magic-string";
 import { type DirectoryReference } from "../typescript/index.ts";
 import { type Plugin, type Manifest } from "vite";
@@ -18,6 +18,7 @@ export function directoryPlugin(
     files: Map<string, Uint8Array<ArrayBuffer>>,
     directories: ReadonlyMap<string, readonly DirectoryReference[]>,
     sources: Map<string, Uint8Array<ArrayBuffer>>,
+    environment: Environment<"files">,
 ): Plugin {
     const emitted = new Set<string>();
 
@@ -43,7 +44,7 @@ export function directoryPlugin(
                 if (references === undefined || references.length === 0) {
                     return;
                 }
-                const owner = await modulePackage(dirname(id), {});
+                const owner = await modulePackage(dirname(id), {}, environment.files);
                 const rewritten = new MagicString(code);
 
                 // bind each directory URL to a relocatable emitted asset
@@ -52,17 +53,26 @@ export function directoryPlugin(
                         reference.path,
                         id,
                         owner.directory,
+                        environment.files,
                     );
 
                     // emit the directory's files and add the package's to the build
-                    const entries = await readDirectory(source).catch((cause: unknown) => {
+                    const listing = readDirectory(source, environment.files);
+                    const entries = await listing.catch((cause: unknown) => {
                         throw BuildError.of(
                             "ASSET_INVALID",
                             `${id} references an unreadable directory`,
                             { cause },
                         );
                     });
-                    const url = await emitDirectory(this, reference.path, source, entries, emitted);
+                    const url = await emitDirectory(
+                        this,
+                        reference.path,
+                        source,
+                        entries,
+                        emitted,
+                        environment.crypto,
+                    );
                     const path = owner.directory === directory ? local : undefined;
                     retainEntries(entries, source, path, files, sources);
                     rewritten.overwrite(reference.start, reference.end, url);
@@ -82,9 +92,10 @@ async function resolveDirectory(
     path: string,
     importer: string,
     packageDirectory: string,
+    files: FileSystem,
 ): Promise<{ source: string; local: string }> {
     // follow symbolic links to the directory itself
-    const source = await realpath(fileURLToPath(new URL(path, pathToFileURL(importer))));
+    const source = await files.realPath(fileURLToPath(new URL(path, pathToFileURL(importer))));
     const local = relativePath(packageDirectory, source);
     if (local === ".." || local.startsWith("../") || isAbsolute(local)) {
         throw BuildError.of("ASSET_INVALID", `directory import is outside its package: ${path}`);
@@ -100,14 +111,11 @@ async function emitDirectory(
     source: string,
     entries: ReadonlyMap<string, Uint8Array<ArrayBuffer>>,
     emitted: Set<string>,
+    crypto: DigestCrypto,
 ): Promise<string> {
     // key the directory by the digest of its file names and bytes
-    const digest = createHash("sha256");
-    for (const [name, bytes] of entries) {
-        digest.update(JSON.stringify([name, bytes.length]));
-        digest.update(bytes);
-    }
-    const destination = `asset/${digest.digest("hex")}`;
+    const digest = await Digest.of(directoryBytes(entries), crypto);
+    const destination = `asset/${digest}`;
 
     // emit each file, anchoring the directory at the first
     let anchor: { asset: string; parent: string } | undefined;
@@ -184,4 +192,16 @@ function assetKey(key: string, keys: ReadonlyMap<string, string>): string {
     }
 
     return value;
+}
+
+/** Stream each file's name and length, then its bytes, as a directory's digest reads them. */
+async function* directoryBytes(
+    entries: ReadonlyMap<string, Uint8Array<ArrayBuffer>>,
+): AsyncIterable<Uint8Array> {
+    // write each entry as JSON, then its bytes
+    const encoder = new TextEncoder();
+    for (const [name, bytes] of entries) {
+        yield encoder.encode(JSON.stringify([name, bytes.length]));
+        yield bytes;
+    }
 }

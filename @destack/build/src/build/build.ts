@@ -10,11 +10,10 @@ import type { LocalPackageStore } from "../store/local.ts";
 import { mapExports } from "../source/source.ts";
 import type { OutputRequest } from "@destack/package/build";
 import { Runtime } from "@destack/package/runtime";
-import { type Commit, schema, type Version } from "@destack/schema";
-import { mkdir, writeFile, rm } from "node:fs/promises";
+import { type Commit, type Digest, schema, type Version } from "@destack/schema";
 import { dirname, join, resolve } from "node:path";
-import { readBuild } from "@destack/package/bun";
-import { type BuildReader, MANIFEST_PATH, type PackageManifest } from "@destack/package/manifest";
+import type { Environment, FileSystem } from "@destack/environment";
+import { BuildReader, MANIFEST_PATH, type PackageManifest } from "@destack/package/manifest";
 import type { PackageFile } from "@destack/package/file";
 import { digestFile } from "./directory.ts";
 import { PackageError } from "@destack/package/error";
@@ -31,12 +30,15 @@ export class PackageBuild implements AsyncDisposable {
     readonly reader: BuildReader;
     /** The requested outputs the build reused from a cache instead of compiling them. */
     readonly reused: readonly string[];
+    /** The files the directory lives in. */
+    readonly #files: FileSystem;
 
     /** Store a build directory's reader, whether it removes it and the outputs it reused. */
     constructor(
         reader: BuildReader,
         directory: string,
         ownership: "temporary" | "retained",
+        files: FileSystem,
         reused: readonly string[] = [],
     ) {
         // store the reader with its manifest, the directory and whether the build removes it
@@ -44,42 +46,50 @@ export class PackageBuild implements AsyncDisposable {
         this.manifest = reader.manifest;
         this.directory = directory;
         this.ownership = ownership;
+        this.#files = files;
         this.reused = reused;
     }
 
     /** Remove only this instance's temporary results. */
     async [Symbol.asyncDispose](): Promise<void> {
         if (this.ownership === "temporary") {
-            await rm(this.directory, { recursive: true, force: true });
+            await this.#files.remove(this.directory, { recursive: true, force: true });
         }
     }
 
     /** Write a stored build's files and manifest into a directory, reusing every output. */
     static async restore(
         store: LocalPackageStore,
-        digest: string,
+        digest: Digest,
         destination: string,
     ): Promise<PackageBuild> {
         // clone the files, then write the manifest listing them
+        const { files } = store.environment;
         const reader = await store.contents(digest);
         const { manifest } = reader;
         for (const file of await reader.distributed()) {
             await store.place(file, join(destination, file.path));
         }
-        await writeFile(join(destination, MANIFEST_PATH), JSON.stringify(manifest), {
-            flag: "wx",
+        await files.writeTextFile(join(destination, MANIFEST_PATH), JSON.stringify(manifest), {
+            createNew: true,
         });
 
         // read the written build back, reusing every output
         const reused = Object.keys(manifest.outputs);
+        const written = await BuildReader.openDirectory(
+            destination,
+            files,
+            store.environment.crypto,
+        );
 
-        return new PackageBuild(await readBuild(destination), destination, "temporary", reused);
+        return new PackageBuild(written, destination, "temporary", files, reused);
     }
 
     /** Read a distributed build and verify its files. */
-    static async read(directory: string): Promise<PackageBuild> {
+    static async read(directory: string, environment: Environment<"files">): Promise<PackageBuild> {
         // follow verified file references without retaining source or executable contents
-        const reader = await readBuild(directory);
+        const { files, crypto } = environment;
+        const reader = await BuildReader.openDirectory(directory, files, crypto);
         const { manifest } = reader;
         const list = await reader.distributed();
 
@@ -100,28 +110,29 @@ export class PackageBuild implements AsyncDisposable {
 
         // verify distributed bytes without retaining complete files in memory
         for (const file of list) {
-            const { digest, size } = await digestFile(resolve(directory, file.path));
+            const { digest, size } = await digestFile(resolve(directory, file.path), environment);
             if (size !== file.size || digest !== file.digest) {
                 throw PackageError.of("INVALID_FILE", `file contents differ: ${file.path}`);
             }
         }
 
-        return new PackageBuild(reader, directory, "retained");
+        return new PackageBuild(reader, directory, "retained", files);
     }
 
     /** Write a build to a new directory, its manifest last, for the caller to move into place. */
-    static async write(reader: BuildReader, directory: string): Promise<void> {
+    static async write(reader: BuildReader, directory: string, files: FileSystem): Promise<void> {
         // require a new directory so a failed write cannot damage an existing build
-        await mkdir(directory);
+        await files.mkdir(directory);
         for (const file of await reader.distributed()) {
             const destination = resolve(directory, file.path);
-            await mkdir(dirname(destination), { recursive: true });
-            await writeFile(destination, await reader.load(file.path));
+            await files.mkdir(dirname(destination), { recursive: true });
+            await files.writeFile(destination, await reader.load(file.path));
         }
 
         // make the build readable only after every file has been written
-        await writeFile(resolve(directory, MANIFEST_PATH), JSON.stringify(reader.manifest), {
-            flag: "wx",
+        const manifest = JSON.stringify(reader.manifest);
+        await files.writeTextFile(resolve(directory, MANIFEST_PATH), manifest, {
+            createNew: true,
         });
     }
 }

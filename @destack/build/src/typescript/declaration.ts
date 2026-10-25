@@ -1,5 +1,5 @@
 import { dirname, join, relative } from "node:path";
-import { readFile } from "node:fs/promises";
+import { type FileSystem, FileSystemError } from "@destack/environment";
 import type { Symbol as TypeScriptSymbol } from "typescript/unstable/async";
 import {
     type CallExpression,
@@ -24,7 +24,7 @@ import {
     PackageExport,
     type DeclarationDescription,
 } from "@destack/package";
-import { BuildError, isMissing } from "../error/index.ts";
+import { BuildError } from "../error/index.ts";
 import { nth, schema, type Version } from "@destack/schema";
 import { PackageLocator } from "@destack/package/locator";
 import { modulePackage } from "../source/dependency.ts";
@@ -98,11 +98,14 @@ export class ConstructorCatalog {
     readonly #packages: PackageLocator;
     /** The versions the build releases its source packages at, by package name. */
     readonly #versions: Readonly<Record<string, Version>>;
+    /** The files the packages are read from. */
+    readonly files: FileSystem;
 
     /** Inspect the constructors of a build's packages, the sources at the versions it releases. */
-    constructor(versions: Readonly<Record<string, Version>>) {
+    constructor(versions: Readonly<Record<string, Version>>, files: FileSystem) {
         this.#versions = versions;
-        this.#packages = new PackageLocator(versions);
+        this.files = files;
+        this.#packages = new PackageLocator(files, versions);
     }
 
     /** Resolve a call target to an inspected constructor, or undefined for any other function. */
@@ -182,7 +185,7 @@ export class ConstructorCatalog {
     locate(directory: string): Promise<PackageLocation> {
         let location = this.#locations.get(directory);
         if (location === undefined) {
-            location = modulePackage(directory, this.#versions);
+            location = modulePackage(directory, this.#versions, this.files);
             this.#locations.set(directory, location);
         }
 
@@ -193,7 +196,7 @@ export class ConstructorCatalog {
     owner(location: PackageLocation): Promise<Package | DependencyPackage> {
         let owner = this.#owners.get(location.directory);
         if (owner === undefined) {
-            owner = readOwner(location);
+            owner = readOwner(location, this.files);
             this.#owners.set(location.directory, owner);
         }
 
@@ -228,7 +231,7 @@ export class ConstructorCatalog {
     async #readInspected(location: PackageLocation): Promise<Map<string, InspectedConstructor>> {
         // skip packages without described constructors before reading their manifests
         const declared = Object.entries(
-            this.#packages.constructors(location.name, location.directory),
+            await this.#packages.constructors(location.name, location.directory),
         );
         const inspected = new Map<string, InspectedConstructor>();
         if (declared.length === 0) {
@@ -304,8 +307,8 @@ export class ConstructorCatalog {
         entry: DeclarationKind;
     }> {
         // require a dependency whose constructors describe the kind as theirs
-        const directory = this.#packages.directory(name, location.directory);
-        const entry = Object.values(this.#packages.constructors(name, location.directory))
+        const directory = await this.#packages.directory(name, location.directory);
+        const entry = Object.values(await this.#packages.constructors(name, location.directory))
             .flatMap((constructor) => constructor.describes)
             .find(
                 (candidate): candidate is DeclarationKind =>
@@ -362,7 +365,7 @@ export class ConstructorCatalog {
     ): Promise<Readonly<Record<string, PackageExport>> | undefined> {
         let exported = this.#exports.get(location.directory);
         if (exported === undefined) {
-            exported = readExports(location);
+            exported = readExports(location, this.files);
             this.#exports.set(location.directory, exported);
         }
 
@@ -578,13 +581,16 @@ async function locateDeclaration(
 }
 
 /** Read a package's identity from its package.json, with the id of its optional destack.json. */
-async function readOwner(location: PackageLocation): Promise<Package | DependencyPackage> {
+async function readOwner(
+    location: PackageLocation,
+    files: FileSystem,
+): Promise<Package | DependencyPackage> {
     // read the optional Destack definition and preserve every other filesystem failure
     let definition: string | undefined;
     try {
-        definition = await readFile(join(location.directory, "destack.json"), "utf8");
+        definition = await files.readTextFile(join(location.directory, "destack.json"));
     } catch (error) {
-        if (!isMissing(error)) {
+        if (!FileSystemError.is(error, "NOT_FOUND")) {
             throw error;
         }
     }
@@ -600,9 +606,10 @@ async function readOwner(location: PackageLocation): Promise<Package | Dependenc
 /** Read the exports a package's package.json lists, absent when it lists none. */
 async function readExports(
     location: PackageLocation,
+    files: FileSystem,
 ): Promise<Readonly<Record<string, PackageExport>> | undefined> {
     const manifest = ExportsManifest.parse(
-        JSON.parse(await readFile(join(location.directory, "package.json"), "utf8")),
+        JSON.parse(await files.readTextFile(join(location.directory, "package.json"))),
     );
 
     return manifest.exports;

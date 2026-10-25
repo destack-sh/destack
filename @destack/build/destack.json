@@ -3,6 +3,20 @@
     "id": "package-01a0c80b-614f-73ec-82e0-7594bbf8213e",
     "language": "typescript",
     "runtimes": ["bun"],
+    "check": {
+        "expect": [
+            {
+                "files": ["src/cache/closure.ts"],
+                "rules": ["destack/no-ambient-effect"],
+                "reason": "the toolchain closure resolves its imports as Bun loads them, which only Bun's resolver over the host's files does"
+            },
+            {
+                "files": ["src/main.ts"],
+                "rules": ["destack/no-ambient-effect"],
+                "reason": "the compiler's entry clears rolldown's binding path once the preload loaded it, before any other native binding reads it"
+            }
+        ]
+    },
     "exports": {
         "./browser": {
             "runtimes": ["browser"]

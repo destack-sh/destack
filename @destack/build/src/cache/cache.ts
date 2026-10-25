@@ -1,12 +1,11 @@
-import { readdir, readFile } from "node:fs/promises";
 import { join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { version } from "typescript";
 import { type DependencyResolution, PackageJson } from "@destack/package";
 import { PackageLocator } from "@destack/package/locator";
+import { type Environment, type FileSystem, FileSystemError } from "@destack/environment";
 import { Digest, found, schema } from "@destack/schema";
-import { BunProcess } from "@destack/check/bun";
-import { BuildError, isMissing } from "../error/index.ts";
+import { BuildError } from "../error/index.ts";
 import { ModuleClosure } from "./closure.ts";
 import type { ProgramImports } from "./scan.ts";
 import { relativePath } from "../source/dependency.ts";
@@ -31,26 +30,37 @@ const Manifest = schema.looseObject({
 
 /** The identities of packages, files and directories a key derivation reads, each once. */
 export class Identities {
+    /** The files and process the derivation reads. */
+    readonly environment: Environment<"files" | "process">;
     /** The installed packages and source packages the derivation found. */
-    readonly #locator = new PackageLocator();
+    readonly #locator: PackageLocator;
     /** Each package's identity and the packages it depends on, by directory. */
     readonly #packages = new Map<string, Promise<PackageIdentity>>();
     /** The manifest digests of the Destack dependencies' builds, by package name. */
     readonly #builds: ReadonlyMap<string, string>;
 
     /** Identify packages, Destack dependencies by their builds' manifests. */
-    private constructor(builds: ReadonlyMap<string, string>) {
+    private constructor(
+        builds: ReadonlyMap<string, string>,
+        environment: Environment<"files" | "process">,
+    ) {
         this.#builds = builds;
+        this.environment = environment;
+        this.#locator = new PackageLocator(environment.files);
     }
 
     /** Identify packages with a build's dependencies, Destack ones by their manifests. */
-    static of(dependencies: Readonly<Record<string, DependencyResolution>>): Identities {
+    static of(
+        dependencies: Readonly<Record<string, DependencyResolution>>,
+        environment: Environment<"files" | "process">,
+    ): Identities {
         return new Identities(
             new Map(
                 Object.entries(dependencies).flatMap(([name, dependency]) =>
                     dependency.kind === "destack" ? [[name, dependency.manifest]] : [],
                 ),
             ),
+            environment,
         );
     }
 
@@ -70,24 +80,25 @@ export class Identities {
 
         return await Digest.json(
             [...visited.values()].map((identity) => identity.identity).toSorted(),
+            this.environment.crypto,
         );
     }
 
     /** List the directories of a package's dependencies, development ones included. */
     async installed(directory: string): Promise<readonly string[]> {
         // read the manifest's dependencies of every kind
-        const manifest = await readManifest(directory);
+        const manifest = await readManifest(directory, this.environment.files);
         const names = new Set([
             ...PackageJson.runtimeDependencies(manifest),
             ...Object.keys(manifest.devDependencies ?? {}),
         ]);
 
-        return [...names].flatMap((name) => this.#locator.directory(name, directory) ?? []);
+        return await this.#locate([...names], directory);
     }
 
     /** Read a package's subpath imports, `#name` or `#prefix/*`, with all conditions' files. */
     async subpaths(directory: string): Promise<ReadonlyMap<string, readonly string[]>> {
-        const manifest = await readManifest(directory);
+        const manifest = await readManifest(directory, this.environment.files);
 
         return new Map(
             Object.entries(manifest.imports ?? {}).map(([name, mapped]) => [
@@ -100,9 +111,12 @@ export class Identities {
     /** Digest a file's bytes, null for a missing file. */
     async file(path: string): Promise<string | null> {
         try {
-            return await Digest.of(new Uint8Array(await readFile(path)));
+            return await Digest.of(
+                await this.environment.files.readFile(path),
+                this.environment.crypto,
+            );
         } catch (error) {
-            if (isMissing(error)) {
+            if (FileSystemError.is(error, "NOT_FOUND")) {
                 return null;
             }
             throw error;
@@ -112,15 +126,19 @@ export class Identities {
     /** Digest a directory's files by their paths and bytes, null for a missing directory. */
     async directory(path: string): Promise<string | null> {
         try {
-            const files = await readDirectory(path);
+            const files = await readDirectory(path, this.environment.files);
 
             return await Digest.json(
                 await Promise.all(
-                    [...files].map(async ([name, bytes]) => [name, await Digest.of(bytes)]),
+                    [...files].map(async ([name, bytes]) => [
+                        name,
+                        await Digest.of(bytes, this.environment.crypto),
+                    ]),
                 ),
+                this.environment.crypto,
             );
         } catch (error) {
-            if (isMissing(error)) {
+            if (FileSystemError.is(error, "NOT_FOUND")) {
                 return null;
             }
             throw error;
@@ -141,7 +159,7 @@ export class Identities {
     /** Identify a release by name and version, and a source package by manifests and sources. */
     async #read(directory: string): Promise<PackageIdentity> {
         // key a Destack dependency by its build's manifest, which records its dependencies
-        const manifest = await readManifest(directory);
+        const manifest = await readManifest(directory, this.environment.files);
         const build = this.#builds.get(manifest.name);
         if (build !== undefined) {
             return { identity: `${manifest.name} ${build}`, dependencies: [] };
@@ -149,9 +167,7 @@ export class Identities {
 
         // locate each installed dependency, leaving absent optional ones
         const names = new Set(PackageJson.runtimeDependencies(manifest));
-        const dependencies = [...names]
-            .toSorted()
-            .flatMap((name) => this.#locator.directory(name, directory) ?? []);
+        const dependencies = await this.#locate([...names].toSorted(), directory);
 
         // key an installed release by its version
         const release = `${manifest.name}@${manifest.version}`;
@@ -167,12 +183,52 @@ export class Identities {
             ]),
         );
         for (const root of ["src", "locale"]) {
-            for (const path of await listFiles(join(directory, root))) {
+            for (const path of await listFiles(join(directory, root), this.environment.files)) {
                 files.push([`${root}/${path}`, await this.file(join(directory, root, path))]);
             }
         }
 
-        return { identity: `${release} ${await Digest.json(files)}`, dependencies };
+        return {
+            identity: `${release} ${await Digest.json(files, this.environment.crypto)}`,
+            dependencies,
+        };
+    }
+
+    /** Locate the installed packages of names, leaving out absent ones. */
+    async #locate(names: readonly string[], from: string): Promise<string[]> {
+        const directories = await Promise.all(
+            names.map((name) => this.#locator.directory(name, from)),
+        );
+
+        return directories.filter((directory) => directory !== undefined);
+    }
+
+    /** Identify the toolchain running this compiler. */
+    async toolchain(): Promise<Digest> {
+        // identify a standalone executable by its bytes
+        if (this.environment.process.runtime.isStandalone) {
+            return await Digest.json(
+                {
+                    layout: KEY_LAYOUT,
+                    executable: await this.file(this.environment.process.executable),
+                },
+                this.environment.crypto,
+            );
+        }
+
+        // identify Bun, TypeScript and the modules the compiler's entry loads
+        const entry = fileURLToPath(COMPILER_ENTRY);
+        const compiler = await ModuleClosure.read(entry, this.environment);
+
+        return await Digest.json(
+            {
+                layout: KEY_LAYOUT,
+                bun: this.environment.process.runtime.revision,
+                typescript: version,
+                compiler: await compiler.digest(this.environment.crypto),
+            },
+            this.environment.crypto,
+        );
     }
 }
 
@@ -184,27 +240,6 @@ interface PackageIdentity {
     readonly dependencies: readonly string[];
 }
 
-/** Identify the toolchain running this compiler. */
-export async function identifyToolchain(identities: Identities): Promise<Digest> {
-    // identify a standalone executable by its bytes
-    if (BunProcess.isStandalone) {
-        return await Digest.json({
-            layout: KEY_LAYOUT,
-            executable: await identities.file(process.execPath),
-        });
-    }
-
-    // identify Bun, TypeScript and the modules the compiler's entry loads
-    const compiler = await ModuleClosure.read(fileURLToPath(COMPILER_ENTRY));
-
-    return await Digest.json({
-        layout: KEY_LAYOUT,
-        bun: BunProcess.revision(),
-        typescript: version,
-        compiler: await compiler.digest(),
-    });
-}
-
 /** Key each module by toolchain, program, bytes and import cycle, and its read directories. */
 export async function deriveModuleKeys(
     program: ProgramImports,
@@ -214,19 +249,23 @@ export async function deriveModuleKeys(
     compiled: ReadonlySet<string>,
 ): Promise<Map<string, Digest>> {
     // identify the program by its options and its packages
-    const context = await Digest.json({
-        toolchain,
-        options: program.options,
-        packages: await Promise.all(
-            program.packages.map((directory) => identities.package(directory)),
-        ),
-    });
+    const context = await Digest.json(
+        {
+            toolchain,
+            options: program.options,
+            packages: await Promise.all(
+                program.packages.map((directory) => identities.package(directory)),
+            ),
+        },
+        identities.environment.crypto,
+    );
 
     // digest each import cycle after the cycles it imports, as cycles complete dependencies first
     const digests = new Map<string, Digest>();
     for (const cycle of new CycleFinder(program).cycles()) {
         const digest = await Digest.json(
             await describeCycle(cycle, program, root, digests, identities, compiled),
+            identities.environment.crypto,
         );
         for (const file of cycle) {
             digests.set(file, digest);
@@ -237,7 +276,13 @@ export async function deriveModuleKeys(
     const keys = new Map<string, Digest>();
     for (const file of program.modules.keys()) {
         const path = relativePath(root, file);
-        keys.set(file, await Digest.json({ context, path, cycle: found(digests, file) }));
+        keys.set(
+            file,
+            await Digest.json(
+                { context, path, cycle: found(digests, file) },
+                identities.environment.crypto,
+            ),
+        );
     }
 
     return keys;
@@ -401,16 +446,16 @@ class CycleFinder {
 }
 
 /** List the regular files below a directory by relative path, none for an absent directory. */
-async function listFiles(directory: string): Promise<string[]> {
+async function listFiles(directory: string, files: FileSystem): Promise<string[]> {
     try {
-        const entries = await readdir(directory, { recursive: true, withFileTypes: true });
+        const entries = await files.readDirectory(directory, { recursive: true });
 
         return entries
-            .filter((entry) => entry.isFile())
-            .map((entry) => relativePath(directory, join(entry.parentPath, entry.name)))
+            .filter((entry) => entry.kind === "file")
+            .map((entry) => entry.name.replaceAll(sep, "/"))
             .toSorted();
     } catch (error) {
-        if (isMissing(error)) {
+        if (FileSystemError.is(error, "NOT_FOUND")) {
             return [];
         }
         throw error;
@@ -418,8 +463,11 @@ async function listFiles(directory: string): Promise<string[]> {
 }
 
 /** Read a package's manifest. */
-async function readManifest(directory: string): Promise<schema.Infer<typeof Manifest>> {
-    return Manifest.parse(JSON.parse(await readFile(join(directory, "package.json"), "utf8")));
+async function readManifest(
+    directory: string,
+    files: FileSystem,
+): Promise<schema.Infer<typeof Manifest>> {
+    return Manifest.parse(JSON.parse(await files.readTextFile(join(directory, "package.json"))));
 }
 
 /** List the files a subpath import maps to under any condition, none for an excluded one. */

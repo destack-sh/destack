@@ -1,7 +1,7 @@
+import type { Environment, FileSystem } from "@destack/environment";
 import { BuildReader } from "@destack/package/manifest";
 import { found } from "@destack/schema";
-import { cp, mkdtemp, mkdir, readdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
-import { dirname, join, relative } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { Buffer } from "node:buffer";
 import { expect } from "@destack/test";
@@ -10,7 +10,7 @@ import { type PackageBuildOptions, Compiler, type PackageBuild } from "../src/in
 import { comparePath } from "../src/build/serialization.ts";
 import { LocalPackageStore } from "../src/store/local.ts";
 import { linkDependencies } from "../src/source/index.ts";
-import { tmpdir } from "node:os";
+import { copySource } from "../src/test/source.ts";
 
 /** The kind package's constructor, inspector and manifests, and the app declaring one thing. */
 export const THING_FILES: Readonly<Record<string, string>> = {
@@ -53,10 +53,15 @@ export const THING_FILES: Readonly<Record<string, string>> = {
 };
 
 /** Write the thing kind's package and an app as a git workspace, answering the app. */
-export async function writeThing(directory: string, app: string): Promise<string> {
+export async function writeThing(
+    directory: string,
+    app: string,
+    environment: Environment<"files" | "process">,
+): Promise<string> {
     // place the kind's package as a member beside the app, which links it
+    const { files } = environment;
     const owner = "node_modules/@example/owner/";
-    const files: Record<string, string> = {
+    const written: Record<string, string> = {
         "bun.lock": JSON.stringify({
             lockfileVersion: 2,
             workspaces: { owner: { name: "@example/owner" }, app: { name: "@example/app" } },
@@ -66,17 +71,23 @@ export async function writeThing(directory: string, app: string): Promise<string
     };
     for (const [path, text] of Object.entries({ ...THING_FILES, "src/app.ts": app })) {
         if (path !== "bun.lock") {
-            files[path.startsWith(owner) ? `owner/${path.slice(owner.length)}` : `app/${path}`] =
+            written[path.startsWith(owner) ? `owner/${path.slice(owner.length)}` : `app/${path}`] =
                 text;
         }
     }
-    for (const [path, text] of Object.entries(files)) {
-        await mkdir(dirname(join(directory, path)), { recursive: true });
-        await writeFile(join(directory, path), text);
+    for (const [path, text] of Object.entries(written)) {
+        await files.mkdir(dirname(join(directory, path)), { recursive: true });
+        await files.writeTextFile(join(directory, path), text);
     }
-    await mkdir(join(directory, "app/node_modules/@example"), { recursive: true });
-    await symlink(join(directory, "owner"), join(directory, "app/node_modules/@example/owner"));
-    expect(Bun.spawnSync(["git", "init", "--quiet", directory]).exitCode).toBe(0);
+    await files.mkdir(join(directory, "app/node_modules/@example"), { recursive: true });
+    await files.symlink(
+        join(directory, "owner"),
+        join(directory, "app/node_modules/@example/owner"),
+    );
+    const initialized = await environment.process
+        .spawn(["git", "init", "--quiet", directory])
+        .output();
+    expect(initialized.code).toBe(0);
 
     return join(directory, "app");
 }
@@ -102,47 +113,43 @@ export function exported(
 
 /** Compare a complete file collection with its expected directory. */
 export async function expectDirectory(
-    files: ReadonlyMap<string, Uint8Array>,
+    written: ReadonlyMap<string, Uint8Array>,
     expected: URL,
+    environment: Environment<"files" | "process">,
 ): Promise<void> {
+    const { files } = environment;
     const directory = fileURLToPath(expected);
-    const paths = [...files.keys()].toSorted();
-    const isUpdating = process.env["UPDATE_BUILD_FIXTURES"] === "1";
+    const paths = [...written.keys()].toSorted();
+    const isUpdating = environment.process.variables["UPDATE_BUILD_FIXTURES"] === "1";
 
     // refresh only the explicitly selected fixture output
     if (isUpdating) {
-        await mkdir(directory, { recursive: true });
-        const entries = await readdir(directory, { recursive: true, withFileTypes: true });
+        await files.mkdir(directory, { recursive: true });
+        const entries = await files.readDirectory(directory, { recursive: true });
         for (const entry of entries) {
-            if (!entry.isFile()) {
-                continue;
-            }
-            const path = join(entry.parentPath, entry.name);
-            if (!files.has(relative(directory, path).replaceAll("\\", "/"))) {
-                await rm(path);
+            if (entry.kind === "file" && !written.has(entry.name.replaceAll("\\", "/"))) {
+                await files.remove(join(directory, entry.name));
             }
         }
-        for (const [path, bytes] of files) {
+        for (const [path, bytes] of written) {
             const destination = join(directory, path);
-            await mkdir(dirname(destination), { recursive: true });
-            await writeFile(destination, bytes);
+            await files.mkdir(dirname(destination), { recursive: true });
+            await files.writeFile(destination, bytes);
         }
     }
 
     // reject missing and unexpected files before comparing their contents
-    const entries = await readdir(directory, { recursive: true, withFileTypes: true });
+    const entries = await files.readDirectory(directory, { recursive: true });
     const actual = entries
-        .filter((entry) => entry.isFile())
-        .map((entry) =>
-            relative(directory, join(entry.parentPath, entry.name)).replaceAll("\\", "/"),
-        )
+        .filter((entry) => entry.kind === "file")
+        .map((entry) => entry.name.replaceAll("\\", "/"))
         .toSorted();
     expect(actual).toEqual(paths);
     for (const path of paths) {
-        const bytes = await readFile(join(directory, path));
-        const written = found(files, path);
-        if (Buffer.compare(bytes, written) !== 0) {
-            expect(new Uint8Array(bytes), path).toEqual(written);
+        const bytes = await files.readFile(join(directory, path));
+        const expectedBytes = found(written, path);
+        if (Buffer.compare(bytes, expectedBytes) !== 0) {
+            expect(bytes, path).toEqual(expectedBytes);
         }
     }
 }
@@ -151,9 +158,10 @@ export async function expectDirectory(
 export async function expectFiles(
     actualBuild: PackageBuild,
     expectedBuild: PackageBuild,
+    files: FileSystem,
 ): Promise<void> {
-    const actual = await readBuildFiles(actualBuild);
-    const expected = await readBuildFiles(expectedBuild);
+    const actual = await readBuildFiles(actualBuild, files);
+    const expected = await readBuildFiles(expectedBuild, files);
     expect([...actual.keys()]).toEqual([...expected.keys()]);
     for (const [path, bytes] of actual) {
         expect(Buffer.compare(bytes, found(expected, path)), path).toBe(0);
@@ -163,14 +171,15 @@ export async function expectFiles(
 /** Read fixture outputs for complete byte comparisons. */
 export async function readBuildFiles(
     build: PackageBuild,
+    files: FileSystem,
 ): Promise<Map<string, Uint8Array<ArrayBuffer>>> {
-    const files = new Map<string, Uint8Array<ArrayBuffer>>();
+    const read = new Map<string, Uint8Array<ArrayBuffer>>();
     const records = (await build.reader.distributed()).toSorted(comparePath);
     for (const file of records) {
-        files.set(file.path, new Uint8Array(await readFile(join(build.directory, file.path))));
+        read.set(file.path, await files.readFile(join(build.directory, file.path)));
     }
 
-    return files;
+    return read;
 }
 
 /** An isolated source checkout of a build fixture without Destack or npm dependencies. */
@@ -185,6 +194,8 @@ export class Fixture implements AsyncDisposable {
     readonly #store: LocalPackageStore;
     /** The compiler building and indexing the copy. */
     readonly #compiler: Compiler;
+    /** The file system the checkout lives on. */
+    readonly #files: FileSystem;
 
     /** Retain the fixture, its copied source, and the store and compiler building it. */
     private constructor(
@@ -192,34 +203,36 @@ export class Fixture implements AsyncDisposable {
         directory: string,
         source: string,
         built: { readonly store: LocalPackageStore; readonly compiler: Compiler },
+        files: FileSystem,
     ) {
         this.fixture = fixture;
         this.directory = directory;
         this.source = source;
         this.#store = built.store;
         this.#compiler = built.compiler;
+        this.#files = files;
     }
 
     /** Copy a fixture into a temporary checkout beside the installed toolchain. */
-    static async open(name: string): Promise<Fixture> {
+    static async open(
+        name: string,
+        environment: Environment<"files" | "process" | "host">,
+    ): Promise<Fixture> {
         // copy each case into a separate editable checkout
+        const { files } = environment;
         const fixture = new URL(`./fixture/${name}/`, import.meta.url);
-        const directory = await mkdtemp(join(tmpdir(), "destack-build-fixture-"));
+        const directory = await files.makeTemporaryDirectory("destack-build-fixture-");
         const source = join(directory, "source");
         try {
-            await cp(new URL("source/", fixture), source, {
-                recursive: true,
-                filter: (path) =>
-                    !path.endsWith("/node_modules") && !path.endsWith("\\node_modules"),
-            });
-            await linkDependencies(fileURLToPath(new URL("source/", fixture)), source);
+            await copySource(fileURLToPath(new URL("source/", fixture)), source, files);
+            await linkDependencies(fileURLToPath(new URL("source/", fixture)), source, files);
 
-            const store = await LocalPackageStore.temporary();
+            const store = await LocalPackageStore.temporary(environment);
             const compiler = await Compiler.start(source, { store });
 
-            return new Fixture(fixture, directory, source, { store, compiler });
+            return new Fixture(fixture, directory, source, { store, compiler }, files);
         } catch (error) {
-            await rm(directory, { recursive: true });
+            await files.remove(directory, { recursive: true });
             throw error;
         }
     }
@@ -244,19 +257,28 @@ export class Fixture implements AsyncDisposable {
     async [Symbol.asyncDispose](): Promise<void> {
         await this.#compiler[Symbol.asyncDispose]();
         await this.#store[Symbol.asyncDispose]();
-        await rm(this.directory, { recursive: true });
+        await this.#files.remove(this.directory, { recursive: true });
     }
 }
 
 /** Read each manifest list and graph file independently from a relocated package. */
-export async function expectManifest(build: PackageBuild, destination: string): Promise<void> {
+export async function expectManifest(
+    build: PackageBuild,
+    destination: string,
+    environment: Environment<"files">,
+): Promise<void> {
     // load each file independently without touching executable files
+    const { files } = environment;
     const loaded: string[] = [];
-    const reader = new BuildReader(build.manifest, async (path) => {
-        loaded.push(path);
+    const reader = new BuildReader(
+        build.manifest,
+        async (path) => {
+            loaded.push(path);
 
-        return new Blob([await readFile(join(destination, path))]).stream();
-    });
+            return new Blob([await files.readFile(join(destination, path))]).stream();
+        },
+        environment.crypto,
+    );
 
     // read each list independently and compare its complete serialized contents
     for (const [name, read] of [
@@ -268,7 +290,7 @@ export async function expectManifest(build: PackageBuild, destination: string): 
         const records = await read();
         const reference = build.manifest.lists[name];
         const expected: unknown = JSON.parse(
-            await readFile(join(build.directory, reference.path), "utf8"),
+            await files.readTextFile(join(build.directory, reference.path)),
         );
         expect(records).toEqual(expected);
         expect(loaded).toEqual([reference.path]);

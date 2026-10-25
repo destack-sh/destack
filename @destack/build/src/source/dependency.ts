@@ -1,6 +1,6 @@
-import { readFile, stat, symlink } from "node:fs/promises";
 import { dirname, join, relative, resolve, sep } from "node:path";
-import { BuildError, isMissing } from "../error/index.ts";
+import { type FileSystem, FileSystemError } from "@destack/environment";
+import { BuildError } from "../error/index.ts";
 import { DependencyName, NpmRelease, PackageJson } from "@destack/package";
 import { BunLockfile, type LockedPackage } from "@destack/check/bun";
 import { PackageLocator } from "@destack/package/locator";
@@ -31,12 +31,16 @@ export const ReleasedPackage = schema.looseObject({
 const LOCKFILE_VERSION = 2;
 
 /** Link the nearest installed dependency directory into an isolated compiler directory. */
-export async function linkDependencies(source: string, destination: string): Promise<void> {
+export async function linkDependencies(
+    source: string,
+    destination: string,
+    files: FileSystem,
+): Promise<void> {
     // link the nearest installed dependency tree above the package
     for (const directory of ancestors(source)) {
         const path = join(directory, "node_modules");
-        if (await isDirectory(path)) {
-            await symlink(path, join(destination, "node_modules"), "junction");
+        if (await isDirectory(path, files)) {
+            await files.symlink(path, join(destination, "node_modules"));
 
             return;
         }
@@ -47,10 +51,12 @@ export async function linkDependencies(source: string, destination: string): Pro
 export async function modulePackage(
     directory: string,
     versions: Readonly<Record<string, Version>>,
+    files: FileSystem,
 ): Promise<{ directory: string; name: string; version: string }> {
     // find the nearest manifest of a release, passing subpath manifests
     for (const current of ancestors(directory)) {
-        const metadata = ReleasedPackage.safeParse(await readJson(join(current, "package.json")));
+        const manifest = await readJson(join(current, "package.json"), files);
+        const metadata = ReleasedPackage.safeParse(manifest);
         if (metadata.success) {
             const version = PackageLocator.release(current, metadata.data, versions);
 
@@ -64,12 +70,13 @@ export async function modulePackage(
 /** Read the npm releases the nearest Bun lockfile locks, by release and by import name. */
 export async function readDependencies(
     directory: string,
+    files: FileSystem,
     lockfile?: BunLockfile,
 ): Promise<Record<string, NpmRelease>> {
     // read the authored dependency names, and resolve none for a package that declares none
     directory = resolve(directory);
     const declaration = DependencyManifest.parse(
-        JSON.parse(await readFile(join(directory, "package.json"), "utf8")),
+        JSON.parse(await files.readTextFile(join(directory, "package.json"))),
     );
     const names = new Set(PackageJson.runtimeDependencies(declaration));
     if (names.size === 0) {
@@ -78,13 +85,15 @@ export async function readDependencies(
 
     // locate the lockfile without changing the selected releases
     const lock =
-        lockfile === undefined ? await readLockfile(directory) : requireLockfileVersion(lockfile);
+        lockfile === undefined
+            ? await readLockfile(directory, files)
+            : requireLockfileVersion(lockfile);
     const dependencies = readLockedReleases(lock);
 
     // associate authored import names, including npm aliases, with their installed releases
     for (const name of names) {
         DependencyName.parse(name);
-        const installed = await readInstalledPackage(name, directory);
+        const installed = await readInstalledPackage(name, directory, files);
         if (installed?.version === undefined) {
             continue;
         }
@@ -153,10 +162,12 @@ function readLockedRelease(id: string, entry: LockedPackage): NpmRelease | undef
 async function readInstalledPackage(
     name: string,
     directory: string,
+    files: FileSystem,
 ): Promise<InstalledPackage | undefined> {
     // read the nearest installed manifest of the dependency
     for (const current of ancestors(directory)) {
-        const manifest = await readJson(join(current, "node_modules", name, "package.json"));
+        const path = join(current, "node_modules", name, "package.json");
+        const manifest = await readJson(path, files);
         if (manifest !== undefined) {
             return InstalledPackage.parse(manifest);
         }
@@ -180,8 +191,8 @@ export function isAuthored(root: string, file: string): boolean {
 }
 
 /** Read the nearest Bun lockfile used by the source package, refusing other formats. */
-export async function readLockfile(directory: string): Promise<BunLockfile> {
-    const lockfile = await BunLockfile.read(directory);
+export async function readLockfile(directory: string, files: FileSystem): Promise<BunLockfile> {
+    const lockfile = await BunLockfile.read(directory, files);
     if (lockfile === undefined) {
         throw BuildError.of("LOCKFILE_INVALID", "no Bun lockfile");
     }
@@ -212,11 +223,11 @@ function* ancestors(directory: string): Generator<string> {
 }
 
 /** Read a file's text, absent for a missing file. */
-async function readText(path: string): Promise<string | undefined> {
+async function readText(path: string, files: FileSystem): Promise<string | undefined> {
     try {
-        return await readFile(path, "utf8");
+        return await files.readTextFile(path);
     } catch (error) {
-        if (!isMissing(error)) {
+        if (!FileSystemError.is(error, "NOT_FOUND")) {
             throw error;
         }
 
@@ -225,18 +236,18 @@ async function readText(path: string): Promise<string | undefined> {
 }
 
 /** Read a JSON file, absent for a missing file. */
-async function readJson(path: string): Promise<unknown> {
-    const text = await readText(path);
+async function readJson(path: string, files: FileSystem): Promise<unknown> {
+    const text = await readText(path, files);
 
     return text === undefined ? undefined : JSON.parse(text);
 }
 
 /** Report whether a path is an existing directory. */
-async function isDirectory(path: string): Promise<boolean> {
+async function isDirectory(path: string, files: FileSystem): Promise<boolean> {
     try {
-        return (await stat(path)).isDirectory();
+        return (await files.stat(path)).kind === "directory";
     } catch (error) {
-        if (!isMissing(error)) {
+        if (!FileSystemError.is(error, "NOT_FOUND")) {
             throw error;
         }
 

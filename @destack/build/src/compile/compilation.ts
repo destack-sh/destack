@@ -1,4 +1,3 @@
-import { readFile } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { build, type InlineConfig, type Plugin, type PluginOption } from "vite";
 import type {
@@ -23,6 +22,7 @@ import {
     type CompiledOutput,
     type DeclarationModule,
     HostModules,
+    isHostModule,
     isRuntimeModule,
     type OutputDescription,
     runtimeConditions,
@@ -123,7 +123,7 @@ export class OutputCompilation implements Compilation {
         this.extensions = extensions;
         this.isLent = isLent;
         this.cache = cache;
-        this.#hosts = new HostModules(project.runtime);
+        this.#hosts = new HostModules(project.runtime, project.environment.files);
     }
 
     /** The package the build compiles. */
@@ -210,7 +210,7 @@ export class OutputCompilation implements Compilation {
             );
             compiled.files.set(
                 compiled.output.exports[name],
-                new Uint8Array(await readFile(entry)),
+                await project.environment.files.readFile(entry),
             );
         }
         const entries = exported
@@ -224,7 +224,7 @@ export class OutputCompilation implements Compilation {
         }
 
         // retain HTML before Vite rewrites its module and asset references
-        await retainPages(project.directory, entries, compiled.files);
+        await retainPages(project, entries, compiled.files);
 
         // delegate JSX, CSS, assets, and minification to the extensions and standard plugins
         const facades = new Map<string, string>();
@@ -302,6 +302,7 @@ export class OutputCompilation implements Compilation {
             options: {},
             dependencies: this.project.tree.directories,
             cache: this.cache,
+            environment: this.project.environment,
         };
 
         return [...transformPlugins(this.extensions, context), ...compiling];
@@ -337,10 +338,10 @@ export class OutputCompilation implements Compilation {
             plugins: [
                 ...this.#packagePlugins(compiled, facades, input, locations),
                 ...plugins,
-                modulePlugin(project.versions),
+                modulePlugin(project.environment.files, project.versions),
             ],
             // give worker bundles their modules' metadata too
-            worker: { plugins: () => [modulePlugin(project.versions)] },
+            worker: { plugins: () => [modulePlugin(project.environment.files, project.versions)] },
             build: {
                 emitAssets: true,
                 write: true,
@@ -369,13 +370,20 @@ export class OutputCompilation implements Compilation {
         const assets = new Map<string, Uint8Array<ArrayBuffer>>();
 
         return [
-            directoryPlugin(project.directory, compiled.files, this.directories, assets),
+            directoryPlugin(
+                project.directory,
+                compiled.files,
+                this.directories,
+                assets,
+                project.environment,
+            ),
             sourcePlugin(
                 project.directory,
                 compiled.files,
                 input.sources,
                 input.destinationRoot,
                 compiled.paths,
+                project.environment,
             ),
             dependencyPlugin(
                 project,
@@ -537,10 +545,9 @@ export class OutputCompilation implements Compilation {
         dependencies: Readonly<Record<string, DependencyResolution>>,
         output: PackageOutput,
     ): boolean {
-        // mark host modules the runtime supplies external, and bundle the empty module for replaced ones
-        const host = this.#hosts.resolve(specifier, importer);
-        if (host !== undefined) {
-            return host === "external";
+        // leave host modules to the host plugin, which keeps, empties or refuses them
+        if (isHostModule(specifier)) {
+            return false;
         }
 
         // bundle local modules and what bundled dependencies import
@@ -748,12 +755,13 @@ export class OutputCompilation implements Compilation {
 
 /** Retain each HTML entry's authored bytes under its package path. */
 async function retainPages(
-    directory: string,
+    project: PackageSource,
     entries: readonly string[],
     files: Map<string, Uint8Array<ArrayBuffer>>,
 ): Promise<void> {
     for (const entry of entries.filter((path) => path.endsWith(".html"))) {
-        files.set(relativePath(directory, entry), new Uint8Array(await readFile(entry)));
+        const bytes = await project.environment.files.readFile(entry);
+        files.set(relativePath(project.directory, entry), new Uint8Array(bytes));
     }
 }
 

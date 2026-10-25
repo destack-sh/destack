@@ -3,32 +3,30 @@
 `@destack/build` compiles a package into one module output per runtime with Vite on Rolldown, and keeps builds by content as an OCI registry does.
 
 ```ts
-// vite build
-await using build = await buildPackage({
-    directory,
-    dependencies,
-    outputs: await readOutputs(directory),
-});
+// vite build, in a sandboxed compiler building into a store
+await using compiler = await Compiler.start(directory, { store });
+await using build = await compiler.build({ directory, dependencies, outputs });
 // warm compilers, like vite build --watch, building a workspace's units into one store
-await using compilers = await CompilerPool.open(store, report);
+await using compilers = await CompilerPool.open(store);
 await using build = await (await Workspace.open(directory, compilers)).build({ outputs });
 // Vite plugins
 export const viewExtension: BuildExtension = {
     transform: ({ server, options }) => viewPlugins(server, options["@destack/view"]),
 };
 // OCI push: blobs, then the manifest
-await new PackageClient("https://packages.example.com/builds/", fetch).push(reader);
-await PackageBuild.read(destination); // every file checked against the manifest's digests
+await new PackageClient("https://packages.example.com/builds/", fetch, crypto).push(reader);
+await PackageBuild.read(destination, environment); // every file checked against the manifest's digests
 ```
 
 ## Builds
 
-`buildPackage` compiles named module outputs, and `PackageBuild.write` writes a build with the manifest that describes it.
+`Compiler.build` compiles named module outputs, and `PackageBuild.write` writes a build with the manifest that describes it.
 
 ```ts
-import { buildPackage } from "@destack/build";
+import { Compiler } from "@destack/build";
 
-await using build = await buildPackage({
+await using compiler = await Compiler.start(directory, { store });
+await using build = await compiler.build({
     directory,
     dependencies,
     outputs: {
@@ -37,7 +35,7 @@ await using build = await buildPackage({
     },
     versions: { "@example/notes": "2026.10.0-dev.3" }, // listed sources at -dev.3
 });
-await PackageBuild.write(build.reader, destination);
+await PackageBuild.write(build.reader, destination, environment.files);
 ```
 
 ## Compilers
@@ -51,8 +49,10 @@ const code = await compiler.index({ directory, runtime: "bun", dependencies }); 
 // warm.reused: ["bun"]
 await using warm = await compiler.build({ directory, dependencies, outputs, timeout: 60_000 });
 
-await using compilers = await CompilerPool.open(store, report);
-const built = await compilers.use(directory, (leased) => leased.build({ directory, dependencies, outputs }));
+await using compilers = await CompilerPool.open(store);
+const built = await compilers.use(directory, (leased) =>
+    leased.build({ directory, dependencies, outputs }),
+);
 ```
 
 ## Workspaces
@@ -91,7 +91,7 @@ const dependencies = await workspace.storeDependencies({}); // the root's builds
 ```ts
 // the workerd output follows Node's rules: a require of a missing host module or package throws when it runs,
 // an import of one fails when workerd loads the module, and a native addon and its importers have no workerd output
-const installation = new NpmInstallation(pins, store, toolchain);
+const installation = new NpmInstallation(pins, store, toolchain, environment);
 const unit = await installation.open(installed);
 const release = await installation.store(unit, convert); // { kind: "npm", ..., manifest }
 ```
@@ -103,10 +103,11 @@ const release = await installation.store(unit, convert); // { kind: "npm", ..., 
 ```ts
 import { PackageStore, Retention } from "@destack/build/store";
 
-const store = new PackageStore(bucket);
+const store = new PackageStore(bucket, environment);
 const digest = await store.put(build.reader);
 const response = await store.fetch(request, new URL("https://packages.example.com/"), access);
-await store.sweep(retained, new Date(Date.now() - 60 * 60 * 1000), Retention.none, new Date());
+const now = environment.clock.now();
+await store.sweep(retained, new Date(now - 60 * 60 * 1000), Retention.none, new Date(now));
 ```
 
 ## Local store
@@ -116,7 +117,7 @@ await store.sweep(retained, new Date(Date.now() - 60 * 60 * 1000), Retention.non
 ```ts
 import { LocalPackageStore } from "@destack/build";
 
-await using store = await LocalPackageStore.checkout(directory, "test"); // <checkout root>/node_modules/.cache/destack/test, or $DESTACK_CACHE_DIRECTORY/test
+await using store = await LocalPackageStore.checkout(directory, "test", environment); // <checkout root>/node_modules/.cache/destack/test, or $DESTACK_CACHE_DIRECTORY/test
 await store.rootDirectory(directory, manifests); // retained until the directory is gone
 ```
 
@@ -127,6 +128,6 @@ await store.rootDirectory(directory, manifests); // retained until the directory
 ```ts
 import { Template } from "@destack/build/template";
 
-const template = await Template.read(directory);
-await template.write(destination, { id, name: "@example/site", dependencies });
+const template = await Template.read(directory, environment.files);
+await template.write(destination, { id, name: "@example/site", dependencies }, environment.files);
 ```

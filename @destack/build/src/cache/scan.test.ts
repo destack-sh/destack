@@ -1,15 +1,16 @@
-import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { testSimulation } from "../test/world.ts";
 import { dirname, join } from "node:path";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, test } from "@destack/test";
 import { Identities } from "./cache.ts";
 import { ProgramImports } from "./scan.ts";
 
 test("follow the modules and files a compiler reads from a package's root files", async () => {
     // write a package whose entry imports by query, by a JavaScript twin, by a directory, by a wildcard subpath and by a directory URL
-    const root = await realpath(await mkdtemp(join(tmpdir(), "destack-scan-")));
-    onTestFinished(() => rm(root, { recursive: true }));
-    const files = {
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const root = await files.realPath(await files.makeTemporaryDirectory("destack-scan-"));
+    const contents = {
         "package.json": JSON.stringify({
             name: "@example/scan",
             version: "1.0.0",
@@ -28,9 +29,9 @@ test("follow the modules and files a compiler reads from a package's root files"
         "src/local/index.ts": 'export { twin as local } from "../twin.ts";',
         "src/shared/value.ts": "export const shared = 1;",
     };
-    for (const [path, text] of Object.entries(files)) {
-        await mkdir(dirname(join(root, path)), { recursive: true });
-        await writeFile(join(root, path), text);
+    for (const [path, text] of Object.entries(contents)) {
+        await files.mkdir(dirname(join(root, path)), { recursive: true });
+        await files.writeTextFile(join(root, path), text);
     }
 
     // scan from the entry as the configuration's one root file
@@ -47,7 +48,7 @@ test("follow the modules and files a compiler reads from a package's root files"
             },
             files: [entry],
         },
-        Identities.of({}),
+        Identities.of({}, environment),
     );
     const targets = (file: string) =>
         scanned.modules

@@ -1,5 +1,6 @@
-import { mkdtemp, readFile, realpath, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import type { Environment, OperatingSystem } from "@destack/environment";
+import { testHost } from "@destack/test/host";
+import { testSimulation } from "../src/test/world.ts";
 import { join } from "node:path";
 import { formatSource } from "@destack/check";
 import { PackageManifest } from "@destack/package/manifest";
@@ -14,14 +15,19 @@ import { writeThing } from "./fixture.ts";
 const OUTPUTS = { bun: { kind: "module", runtime: "bun" } } as const;
 
 /** The error a denied read reports: Seatbelt refuses it, bubblewrap hides the file. */
-const DENIED_READ: Partial<Record<NodeJS.Platform, string>> = { darwin: "EPERM", linux: "ENOENT" };
+const DENIED_READ: Partial<Record<OperatingSystem, string>> = { darwin: "EPERM", linux: "ENOENT" };
 
 /** Write the thing kind's package and an app module into a fresh workspace, answering the app. */
-async function thingPackage(app: string): Promise<string> {
-    const directory = await realpath(await mkdtemp(join(tmpdir(), "destack-build-thing-")));
-    onTestFinished(() => rm(directory, { recursive: true }));
+async function thingPackage(
+    app: string,
+    environment: Environment<"files" | "process">,
+): Promise<string> {
+    const { files } = environment;
+    const directory = await files.realPath(
+        await files.makeTemporaryDirectory("destack-build-thing-"),
+    );
 
-    return await writeThing(directory, app);
+    return await writeThing(directory, app, environment);
 }
 
 /** Read the names of a build's things. */
@@ -33,18 +39,24 @@ async function thingNames(build: PackageBuild): Promise<unknown[]> {
 
 test("evaluate package code without the host's environment, files or network", async () => {
     // write a host file outside the package and serve a host server
-    using server = Bun.serve({ port: 0, fetch: () => new Response("answered") });
-    const outside = await realpath(await mkdtemp(join(tmpdir(), "destack-build-sandbox-")));
-    onTestFinished(() => rm(outside, { recursive: true }));
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const server = testHost().server.http({ port: 0, fetch: () => new Response("answered") });
+    onTestFinished(() => server.stop(true));
+    const outside = await files.realPath(
+        await files.makeTemporaryDirectory("destack-build-sandbox-"),
+    );
     const secret = join(outside, "secret.txt");
-    await writeFile(secret, "secret");
+    await files.writeTextFile(secret, "secret");
 
     // name a thing by what package code observes of the host while the build evaluates it
     const directory = await thingPackage(
         'import { defineThing } from "@example/owner";\nimport { observed } from "./probe.ts";\n\nexport const greeting = defineThing({ name: observed });\n',
+        environment,
     );
     const probe = join(directory, "src/probe.ts");
-    await writeFile(
+    await files.writeTextFile(
         probe,
         `/** The host process, as Bun provides it. */
 declare const process: Readonly<Record<string, Readonly<Record<string, string>> | undefined>>;
@@ -70,42 +82,46 @@ async function read(path: string): Promise<string> {
     );
 
     // see no user, a refused file and the sandbox proxy's refusal
-    await using store = await LocalPackageStore.temporary();
+    await using store = await LocalPackageStore.temporary(environment);
     await using compilers = await CompilerPool.open(store);
     await using build = await (
         await Workspace.open(directory, compilers)
     ).build({ outputs: OUTPUTS });
     expect(await thingNames(build)).toEqual([
-        `_${DENIED_READ[process.platform] ?? "unsupported"}_403`,
+        `_${DENIED_READ[environment.host.os] ?? "unsupported"}_403`,
     ]);
 });
 
 test("reinspect edited modules a declaration imports in a retained compiler", async () => {
     // declare a thing whose name a title module returns, and write a noisy module beside it
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
     const directory = await thingPackage(
         'import { defineThing } from "@example/owner";\nimport { title } from "./title.ts";\n\nexport const greeting = defineThing({ name: title() });\n',
+        environment,
     );
     const title = join(directory, "src/title.ts");
     const original =
         '/** Return the thing\'s name. */\nexport function title(): string {\n    return "title";\n}\n';
-    await writeFile(title, original);
-    await writeFile(
+    await files.writeTextFile(title, original);
+    await files.writeTextFile(
         join(directory, "src/noisy.ts"),
         '/** Log a name and return it. */\nexport function noisy(name: string): string {\n    console.info("inspecting", name);\n\n    return name;\n}\n',
     );
-    await using store = await LocalPackageStore.temporary();
+    await using store = await LocalPackageStore.temporary(environment);
     await using compilers = await CompilerPool.open(store);
     const build = async () =>
         await (await Workspace.open(directory, compilers)).build({ outputs: OUTPUTS });
     await using first = await build();
 
     // make the title call the noisy module, which writes to standard output, then restore it
-    await writeFile(
+    await files.writeTextFile(
         title,
         'import { noisy } from "./noisy.ts";\n\n/** Return the thing\'s name. */\nexport function title(): string {\n    return noisy("heading");\n}\n',
     );
     await using edited = await build();
-    await writeFile(title, original);
+    await files.writeTextFile(title, original);
     await using restored = await build();
 
     // describe the edited name, and restore the first manifest and every distributed file
@@ -122,10 +138,14 @@ test("reinspect edited modules a declaration imports in a retained compiler", as
 
 test("plan the upgrade from what a package published", async () => {
     // publish the app's first release, declaring one thing
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
     const directory = await thingPackage(
         'import { defineThing } from "@example/owner";\n\nexport const greeting = defineThing({ name: "greeting" });\n',
+        environment,
     );
-    await using store = await LocalPackageStore.temporary();
+    await using store = await LocalPackageStore.temporary(environment);
     await using compilers = await CompilerPool.open(store);
     const build = async (history?: Readonly<Record<string, History>>) =>
         await (
@@ -142,12 +162,15 @@ test("plan the upgrade from what a package published", async () => {
 
     // rename the thing and add another in the next release
     const manifest = join(directory, "package.json");
-    await writeFile(
+    await files.writeTextFile(
         manifest,
-        (await readFile(manifest, "utf8")).replace('"version":"2026.9.0"', '"version":"2026.10.0"'),
+        (await files.readTextFile(manifest)).replace(
+            '"version":"2026.9.0"',
+            '"version":"2026.10.0"',
+        ),
     );
     const app = join(directory, "src/app.ts");
-    await writeFile(
+    await files.writeTextFile(
         app,
         await formatSource(
             app,

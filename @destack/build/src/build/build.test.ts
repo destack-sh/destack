@@ -1,19 +1,20 @@
+import { testSimulation } from "../test/world.ts";
 import { expect, test } from "@destack/test";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { outputsOf } from "./build.ts";
 import { readPackageJson } from "../source/index.ts";
 
 test("read one module per runtime the shipped exports compile for", async () => {
     // declare packages with every runtime, with runtimes per export, with a test layer and without runtimes
-    const directory = await mkdtemp(join(tmpdir(), "destack-outputs-"));
+    await using simulation = testSimulation();
+    const { files } = simulation.environment("test");
+    const directory = await files.makeTemporaryDirectory("outputs-");
     const read = async (exports: object, definition: object) => {
-        await writeFile(
+        await files.writeTextFile(
             join(directory, "package.json"),
             JSON.stringify({ name: "@example/outputs", version: "2026.9.0", exports }),
         );
-        await writeFile(
+        await files.writeTextFile(
             join(directory, "destack.json"),
             JSON.stringify({
                 $schema: "https://destack.app/schemas/2026.9.0/destack.json",
@@ -21,7 +22,7 @@ test("read one module per runtime the shipped exports compile for", async () => 
             }),
         );
         try {
-            return outputsOf(await readPackageJson(directory));
+            return outputsOf(await readPackageJson(directory, files));
         } catch (error) {
             if (!(error instanceof Error)) {
                 throw error;
@@ -69,6 +70,6 @@ test("read one module per runtime the shipped exports compile for", async () => 
             "no runtimes declared for export: .",
         ]);
     } finally {
-        await rm(directory, { recursive: true, force: true });
+        await files.remove(directory, { recursive: true });
     }
 });

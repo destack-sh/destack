@@ -1,4 +1,5 @@
-import { Digest, Instant, nth, present, schema } from "@destack/schema";
+import type { Environment } from "@destack/environment";
+import { Digest, type DigestCrypto, Instant, nth, present, schema } from "@destack/schema";
 import {
     type Bucket,
     type BucketBody,
@@ -60,21 +61,29 @@ export const Retention = {
 };
 
 /** Immutable package builds in a bucket: files by digest, and manifests by digest. */
-export class PackageStore {
+export class PackageStore<
+    StoreEnvironment extends Pick<Environment, "compression" | "crypto"> = Pick<
+        Environment,
+        "compression" | "crypto"
+    >,
+> {
     /** The bucket storing the builds. */
     readonly bucket: Bucket;
+    /** The compression streaming the store's archives, and the crypto digesting its files. */
+    readonly environment: StoreEnvironment;
     /** The reader of each build opened so far, by manifest digest, until its build is deleted. */
     readonly #readers = new Map<string, Promise<BuildReader>>();
     /** The builds of cache keys in flight, so callers asking at once build each key once. */
-    readonly #building = new Map<string, Promise<string>>();
+    readonly #building = new Map<string, Promise<Digest>>();
 
-    /** Store builds in a bucket. */
-    constructor(bucket: Bucket) {
+    /** Store builds in a bucket, streaming archives and digesting files in an environment. */
+    constructor(bucket: Bucket, environment: StoreEnvironment) {
         this.bucket = bucket;
+        this.environment = environment;
     }
 
     /** Build the bucket key of a stored file from its digest. */
-    static fileKey(digest: string): string {
+    static fileKey(digest: Digest): string {
         return `${FILES_PREFIX}${digest}`;
     }
 
@@ -84,16 +93,14 @@ export class PackageStore {
     }
 
     /** Identify a build by the digest of its manifest, as a store stores it. */
-    static async digest(manifest: PackageManifest): Promise<Digest> {
+    static async digest(manifest: PackageManifest, crypto: DigestCrypto): Promise<Digest> {
         const bytes = encodeManifest(PackageManifest.parse(manifest));
 
-        return Digest.parse(
-            (await PackageFile.describe("manifest.json", "application/json", bytes)).digest,
-        );
+        return Digest.of(bytes, crypto);
     }
 
     /** Store each file of a build, then its manifest, returning the manifest's digest. */
-    async put(source: BuildReader, signal?: AbortSignal): Promise<string> {
+    async put(source: BuildReader, signal?: AbortSignal): Promise<Digest> {
         // parse the manifest and refuse reserved and duplicate file paths
         const manifest = PackageManifest.parse(source.manifest);
         const list = await source.distributed();
@@ -107,15 +114,20 @@ export class PackageStore {
         // store the manifest last
         signal?.throwIfAborted();
         const bytes = encodeManifest(manifest);
-        const file = await PackageFile.describe("manifest.json", "application/json", bytes);
+        const file = await PackageFile.describe(
+            "manifest.json",
+            "application/json",
+            bytes,
+            this.environment.crypto,
+        );
         await this.#put(`${MANIFESTS_PREFIX}${file.digest}`, bytes, file);
 
         return file.digest;
     }
 
     /** Report whether the store has a build, whose manifest it stores after every file. */
-    async contains(digest: string): Promise<boolean> {
-        return (await this.bucket.head(`${MANIFESTS_PREFIX}${Digest.parse(digest)}`)) !== null;
+    async contains(digest: Digest): Promise<boolean> {
+        return (await this.bucket.head(`${MANIFESTS_PREFIX}${digest}`)) !== null;
     }
 
     /** Copy a served build by manifest digest unless stored, fetching only missing files. */
@@ -130,7 +142,7 @@ export class PackageStore {
         }
 
         // read the served manifest, verified by its digest
-        const reader = await BuildReader.open(location, fetch, signal);
+        const reader = await BuildReader.open(location, fetch, this.environment.crypto, signal);
 
         // store each missing file as served, then the manifest
         const digest = await this.put(reader, signal);
@@ -148,22 +160,29 @@ export class PackageStore {
         bytes: Uint8Array<ArrayBuffer>,
         mediaType: string,
     ): Promise<void> {
-        if ((await Digest.of(bytes)) !== Digest.parse(digest)) {
+        // refuse bytes of another digest
+        const expected = Digest.parse(digest);
+        if ((await Digest.of(bytes, this.environment.crypto)) !== expected) {
             throw BuildError.of(
                 "DIGEST_INVALID",
                 `the uploaded file does not match its digest ${digest}`,
             );
         }
         await this.putFile(
-            { path: PackageStore.fileKey(digest), digest, size: bytes.byteLength, mediaType },
+            {
+                path: PackageStore.fileKey(expected),
+                digest: expected,
+                size: bytes.byteLength,
+                mediaType,
+            },
             async () => bytes,
         );
     }
 
     /** Store an uploaded manifest with all its files, refusing other digests and missing files. */
-    async adopt(digest: string, bytes: Uint8Array<ArrayBuffer>): Promise<void> {
+    async adopt(digest: Digest, bytes: Uint8Array<ArrayBuffer>): Promise<void> {
         // read the manifest its digest names
-        if ((await Digest.of(bytes)) !== Digest.parse(digest)) {
+        if ((await Digest.of(bytes, this.environment.crypto)) !== digest) {
             throw BuildError.of(
                 "DIGEST_INVALID",
                 `the uploaded manifest does not match its digest ${digest}`,
@@ -178,6 +197,7 @@ export class PackageStore {
             manifest,
             async (path) =>
                 (await this.open(present(references.get(path), `the listed file ${path}`))).body,
+            this.environment.crypto,
         );
         const references = new Map(reader.references().map((file) => [file.path, file]));
         await this.#requireStored(digest, reader.references());
@@ -202,7 +222,7 @@ export class PackageStore {
     }
 
     /** Attach a stored file to a stored manifest as its referrer at a path, unless one exists. */
-    async attach(subject: string, file: PackageFile): Promise<void> {
+    async attach(subject: Digest, file: PackageFile): Promise<void> {
         // require the manifest and the file
         await this.head(subject);
         await this.#requireStored(subject, [file]);
@@ -222,20 +242,21 @@ export class PackageStore {
     }
 
     /** Read the file attached to a manifest at a path, absent for a manifest without one. */
-    async referrer(subject: string, path: string): Promise<PackageFile | undefined> {
+    async referrer(subject: Digest, path: string): Promise<PackageFile | undefined> {
         const object = await this.bucket.get(PackageStore.#referrerKey(subject, path));
 
         return object === null ? undefined : PackageFile.parse(await object.json());
     }
 
     /** Read and verify a build's manifest. */
-    async get(digest: string): Promise<PackageManifest> {
+    async get(digest: Digest): Promise<PackageManifest> {
         // read and verify the manifest bytes
         const object = await this.manifest(digest);
         const bytes = new Uint8Array(await object.arrayBuffer());
         await PackageFile.verify(
             { path: "manifest.json", digest, size: object.size, mediaType: "application/json" },
             bytes,
+            this.environment.crypto,
         );
 
         return PackageManifest.parse(
@@ -244,7 +265,7 @@ export class PackageStore {
     }
 
     /** Open a stored build for selective reads, one reader per build, as its files never change. */
-    contents(digest: string): Promise<BuildReader> {
+    contents(digest: Digest): Promise<BuildReader> {
         // reuse the build's reader, forgetting one whose opening failed
         const known = this.#readers.get(digest);
         if (known !== undefined) {
@@ -258,17 +279,21 @@ export class PackageStore {
     }
 
     /** Open a stored build's reader over its manifest's listed files. */
-    async #open(digest: string): Promise<BuildReader> {
+    async #open(digest: Digest): Promise<BuildReader> {
         // index the files the manifest lists directly
         const manifest = await this.get(digest);
-        const reader = new BuildReader(manifest, async (path, signal) => {
-            signal?.throwIfAborted();
-            const object = await this.open(await select(path));
+        const reader = new BuildReader(
+            manifest,
+            async (path, signal) => {
+                signal?.throwIfAborted();
+                const object = await this.open(await select(path));
 
-            return signal
-                ? object.body.pipeThrough(new TransformStream(), { signal })
-                : object.body;
-        });
+                return signal
+                    ? object.body.pipeThrough(new TransformStream(), { signal })
+                    : object.body;
+            },
+            this.environment.crypto,
+        );
         const references = new Map(reader.references().map((file) => [file.path, file]));
         let list: Promise<PackageFile[]> | undefined;
         const select = async (path: string) => {
@@ -315,7 +340,7 @@ export class PackageStore {
     }
 
     /** Take the build a key caches, else build and cache it once for all callers at once. */
-    cachedBuild(key: string, build: () => Promise<string>): Promise<string> {
+    cachedBuild(key: string, build: () => Promise<Digest>): Promise<Digest> {
         // join a build of the key in flight
         const flying = this.#building.get(key);
         if (flying !== undefined) {
@@ -341,8 +366,8 @@ export class PackageStore {
     }
 
     /** Lease a manifest or file until a moment, protecting it and its listed files from sweeps. */
-    async lease(digest: string, until: Date): Promise<void> {
-        await this.bucket.put(`leases/${Digest.parse(digest)}`, JSON.stringify(until.getTime()), {
+    async lease(digest: Digest, until: Date): Promise<void> {
+        await this.bucket.put(`leases/${digest}`, JSON.stringify(until.getTime()), {
             httpMetadata: { contentType: "application/json" },
         });
     }
@@ -388,8 +413,8 @@ export class PackageStore {
     }
 
     /** Report whether a lease covers a manifest or file at a moment. */
-    async leased(digest: string, at: Date): Promise<boolean> {
-        const object = await this.bucket.get(`leases/${Digest.parse(digest)}`);
+    async leased(digest: Digest, at: Date): Promise<boolean> {
+        const object = await this.bucket.get(`leases/${digest}`);
 
         return object !== null && Instant.parse(await object.json()) > at.getTime();
     }
@@ -597,15 +622,14 @@ export class PackageStore {
         // read and verify the file bytes
         const object = await this.open(file);
         const bytes = new Uint8Array(await object.arrayBuffer());
-        await PackageFile.verify(file, bytes);
+        await PackageFile.verify(file, bytes, this.environment.crypto);
 
         return bytes;
     }
 
     /** Describe a build's manifest file from the bucket's metadata, leaving its bytes unread. */
-    async head(digest: string): Promise<PackageFile> {
-        // read the manifest's metadata by its validated digest
-        Digest.parse(digest);
+    async head(digest: Digest): Promise<PackageFile> {
+        // read the manifest's metadata by its digest
         const stored = await this.bucket.head(`${MANIFESTS_PREFIX}${digest}`);
         if (!stored) {
             throw BuildError.of("MANIFEST_UNKNOWN", "package manifest not found");
@@ -615,9 +639,8 @@ export class PackageStore {
     }
 
     /** Stream a manifest by its digest. */
-    async manifest(digest: string, range?: BucketRange) {
-        // read the manifest by its validated digest
-        Digest.parse(digest);
+    async manifest(digest: Digest, range?: BucketRange) {
+        // read the manifest by its digest
         const object = await this.bucket.get(
             `${MANIFESTS_PREFIX}${digest}`,
             range === undefined ? {} : { range },
@@ -648,12 +671,12 @@ export class PackageStore {
     }
 
     /** Stream a stored build as a tarball of its manifest and files in path order, verified. */
-    export(digest: string): ReadableStream<Uint8Array<ArrayBuffer>> {
-        return Tarball.stream(this.#entries(digest));
+    export(digest: Digest): ReadableStream<Uint8Array<ArrayBuffer>> {
+        return Tarball.stream(this.#entries(digest), this.environment.compression);
     }
 
     /** Read a stored build's manifest, then each file in path order. */
-    async *#entries(digest: string) {
+    async *#entries(digest: Digest) {
         // yield the manifest first
         const contents = await this.contents(digest);
         yield {
@@ -683,9 +706,10 @@ export class PackageStore {
     /** Collect the digests of the files the store's retained manifests list or attach. */
     async #listedFiles(retained: ReadonlySet<string>): Promise<Set<string>> {
         const referenced = new Set<string>();
-        for (const digest of retained) {
+        for (const retainedDigest of retained) {
             // skip a retained manifest the store lacks
-            if ((await this.bucket.head(`${MANIFESTS_PREFIX}${Digest.parse(digest)}`)) === null) {
+            const digest = Digest.parse(retainedDigest);
+            if ((await this.bucket.head(`${MANIFESTS_PREFIX}${digest}`)) === null) {
                 continue;
             }
 
