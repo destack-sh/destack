@@ -7,7 +7,7 @@ export const scopeTable = defineTable(
     {
         /** The scope of the record and the scope object's identifier. */
         scope: text("scope").primaryKey(),
-        /** The scope containing this one, the universe for users and organisations. */
+        /** The scope containing this one, the universe for users and organizations. */
         parent: text("parent").notNull(),
         /** The enclosing scopes nearest first, as this row's database knew them at recording. */
         ancestors: json("ancestors", schema.array(schema.string())).notNull().default([]),
