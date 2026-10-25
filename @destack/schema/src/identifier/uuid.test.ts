@@ -1,9 +1,6 @@
+import { TEST_START, testSimulation } from "@destack/test/world";
 import { expect, test } from "@destack/test";
-import { Simulation } from "@destack/environment/simulation";
 import { Uuid } from "./uuid.ts";
-
-/** The clock's start: 2026-10-24 at midnight UTC. */
-const START = Date.UTC(2026, 9, 24);
 
 /** Make randomness of all-ones bytes, which version and variant bits must overwrite. */
 function ones() {
@@ -23,12 +20,12 @@ function zeros() {
 
 test("lay out a UUIDv7 as the millisecond big-endian, then the version, counter, variant and random bits", () => {
     expect([
-        Uuid.v7({ clock: { now: () => START }, random: ones() }),
-        Uuid.v7({ clock: { now: () => START + 1 }, random: zeros() }),
+        Uuid.v7({ clock: { now: () => TEST_START }, random: ones() }),
+        Uuid.v7({ clock: { now: () => TEST_START + 1 }, random: zeros() }),
         Uuid.v7({ clock: { now: () => 2 ** 48 - 1 }, random: zeros() }),
     ]).toEqual([
-        "01a16b35-0800-77ff-bfff-ffffffffffff",
-        "01a16b35-0801-7000-8000-000000000000",
+        "01a0f4c2-c400-77ff-bfff-ffffffffffff",
+        "01a0f4c2-c401-7000-8000-000000000000",
         "ffffffff-ffff-7000-8000-000000000000",
     ]);
 });
@@ -36,12 +33,12 @@ test("lay out a UUIDv7 as the millisecond big-endian, then the version, counter,
 test("order UUIDv7s within a millisecond, after a clock moving back, and past a full counter", () => {
     // draw twice in a millisecond, once after the clock moved back, then at a later one
     const random = ones();
-    let now = START;
+    let now = TEST_START;
     const environment = { clock: { now: () => now }, random };
     const counted = [Uuid.v7(environment), Uuid.v7(environment)];
-    now = START - 5;
+    now = TEST_START - 5;
     counted.push(Uuid.v7(environment));
-    now = START + 1;
+    now = TEST_START + 1;
     counted.push(Uuid.v7(environment));
 
     // draw past the last counter, moving on to the next millisecond
@@ -49,11 +46,11 @@ test("order UUIDv7s within a millisecond, after a clock moving back, and past a 
     counted.push(Uuid.v7(environment));
 
     expect(counted).toEqual([
-        "01a16b35-0800-77ff-bfff-ffffffffffff",
-        "01a16b35-0800-7800-bfff-ffffffffffff",
-        "01a16b35-0800-7801-bfff-ffffffffffff",
-        "01a16b35-0801-77ff-bfff-ffffffffffff",
-        "01a16b35-0802-77ff-bfff-ffffffffffff",
+        "01a0f4c2-c400-77ff-bfff-ffffffffffff",
+        "01a0f4c2-c400-7800-bfff-ffffffffffff",
+        "01a0f4c2-c400-7801-bfff-ffffffffffff",
+        "01a0f4c2-c401-77ff-bfff-ffffffffffff",
+        "01a0f4c2-c402-77ff-bfff-ffffffffffff",
     ]);
 });
 
@@ -78,25 +75,27 @@ test("refuse a time outside the 48-bit timestamp, and a draw of the wrong length
         bytes: (length: number) => new Uint8Array(length - 1),
         sequence: Uuid.sequence(),
     };
-    const refused = [at(-1), at(2 ** 48), at(START + 0.5), () => Uuid.v4(short)].map((create) => {
-        try {
-            return create();
-        } catch (error) {
-            return error instanceof RangeError ? error.message : "other";
-        }
-    });
+    const refused = [at(-1), at(2 ** 48), at(TEST_START + 0.5), () => Uuid.v4(short)].map(
+        (create) => {
+            try {
+                return create();
+            } catch (error) {
+                return error instanceof RangeError ? error.message : "other";
+            }
+        },
+    );
 
     expect(refused).toEqual([
         "uuid time -1 is outside 0 to 2^48 milliseconds",
         "uuid time 281474976710656 is outside 0 to 2^48 milliseconds",
-        `uuid time ${START + 0.5} is outside 0 to 2^48 milliseconds`,
+        `uuid time ${TEST_START + 0.5} is outside 0 to 2^48 milliseconds`,
         "random bytes are 15, not 16",
     ]);
 });
 
 test("hash www.example.com in the DNS namespace into RFC 9562's UUIDv8, and another name differently", async () => {
     // hash the namespace's bytes and the name with SHA-256 (RFC 9562 B.2)
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const { crypto } = simulation.environment("schema");
     const dns = "6ba7b810-9dad-11d1-80b4-00c04fd430c8";
 
@@ -107,7 +106,7 @@ test("hash www.example.com in the DNS namespace into RFC 9562's UUIDv8, and anot
 });
 
 test("refuse a namespace that is not a lowercase hyphenated UUID", async () => {
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const { crypto } = simulation.environment("schema");
 
     await expect(Uuid.v8("6BA7B810-9DAD-11D1-80B4-00C04FD430C8", "x", crypto)).rejects.toThrow(

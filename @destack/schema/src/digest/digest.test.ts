@@ -1,13 +1,10 @@
-import { Simulation } from "@destack/environment/simulation";
+import { testSimulation } from "@destack/test/world";
 import { expect, test } from "@destack/test";
 import { Digest } from "./digest.ts";
 
-/** The clock's start: 2026-10-24 at midnight UTC. */
-const START = Date.UTC(2026, 9, 24);
-
 test("hash text, bytes and JSON values, whatever their key order", async () => {
     // hash text and its UTF-8 bytes alike
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const crypto = simulation.environment("schema").crypto;
     expect(await Digest.of("destack", crypto)).toBe(
         await Digest.of(new TextEncoder().encode("destack"), crypto),
