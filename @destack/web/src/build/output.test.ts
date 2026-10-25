@@ -12,7 +12,7 @@ test("refuse a site that is no bare HTTP origin, and prerendered pages and site 
     // refuse a non-HTTP site and a site with a path
     const origin = [
         "BAD_REQUEST",
-        "INVALID_OPTIONS",
+        "OPTIONS_INVALID",
         "invalid web output site: site: expected an HTTP origin",
     ];
     expect([

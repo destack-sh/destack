@@ -15,6 +15,6 @@ test("refuse an uncanonical route and two routes writing one file before renderi
     // refuse each before the renderer runs
     expect(refusals).toEqual([
         ["BAD_REQUEST", "ROUTE_NOT_CANONICAL", "expected a canonical URL path: /notes/../about"],
-        ["BAD_REQUEST", "DUPLICATE_PAGE", "prerender routes produce duplicate files"],
+        ["BAD_REQUEST", "PAGE_DUPLICATE", "prerender routes produce duplicate files"],
     ]);
 });

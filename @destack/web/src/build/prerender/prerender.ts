@@ -105,7 +105,7 @@ function planRequests(site: string, options: PrerenderOptions): PageRequest[] {
 
     // refuse two routes writing one file
     if (new Set(requests.map((request) => request.path)).size !== requests.length) {
-        throw WebError.of("DUPLICATE_PAGE", "prerender routes produce duplicate files");
+        throw WebError.of("PAGE_DUPLICATE", "prerender routes produce duplicate files");
     }
 
     return requests;
@@ -152,7 +152,7 @@ async function readPage(
     const contentType = response.headers["content-type"];
     if (response.status !== request.status || contentType?.startsWith("text/html") !== true) {
         throw WebError.of(
-            "UNEXPECTED_RESPONSE",
+            "RESPONSE_UNEXPECTED",
             `expected an HTML response: ${request.url.pathname} (${response.status})`,
         );
     }

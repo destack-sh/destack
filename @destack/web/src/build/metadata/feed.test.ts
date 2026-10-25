@@ -77,6 +77,6 @@ test("refuse a feed without articles and an article with an invalid date", async
         ),
     ]).toEqual([
         ["BAD_REQUEST", "FEED_EMPTY", "the feed /blog/feed.xml has no articles"],
-        ["BAD_REQUEST", "INVALID_FEED_DATE", "invalid feed date: someday"],
+        ["BAD_REQUEST", "FEED_DATE_INVALID", "invalid feed date: someday"],
     ]);
 });

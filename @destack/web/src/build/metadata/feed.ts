@@ -96,7 +96,7 @@ export function writeFeed(origin: string, options: FeedOptions): string {
 function instant(date: string): string {
     const parsed = new Date(date);
     if (Number.isNaN(parsed.getTime())) {
-        throw WebError.of("INVALID_FEED_DATE", `invalid feed date: ${date}`);
+        throw WebError.of("FEED_DATE_INVALID", `invalid feed date: ${date}`);
     }
 
     return parsed.toISOString();

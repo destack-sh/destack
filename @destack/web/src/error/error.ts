@@ -6,11 +6,11 @@ export const WebError = defineErrorFamily(
     import.meta.destack.package,
     {
         // bad request
-        DUPLICATE_PAGE: { code: "BAD_REQUEST" },
+        PAGE_DUPLICATE: { code: "BAD_REQUEST" },
         FEED_EMPTY: { code: "BAD_REQUEST" },
-        INVALID_FEED_DATE: { code: "BAD_REQUEST" },
-        INVALID_OPTIONS: { code: "BAD_REQUEST" },
-        INVALID_SECURITY_EXPIRY: { code: "BAD_REQUEST" },
+        FEED_DATE_INVALID: { code: "BAD_REQUEST" },
+        OPTIONS_INVALID: { code: "BAD_REQUEST" },
+        SECURITY_EXPIRY_INVALID: { code: "BAD_REQUEST" },
         ROUTE_NOT_CANONICAL: { code: "BAD_REQUEST" },
         SITE_REQUIRED: { code: "BAD_REQUEST" },
         SSR_REQUIRED: { code: "BAD_REQUEST" },
@@ -20,7 +20,7 @@ export const WebError = defineErrorFamily(
         PERSONALIZED_RESPONSE: { code: "UNPROCESSABLE_CONTENT" },
         PRERENDER_EXITED: { code: "UNPROCESSABLE_CONTENT" },
         PRERENDER_UNREADABLE: { code: "UNPROCESSABLE_CONTENT" },
-        UNEXPECTED_RESPONSE: { code: "UNPROCESSABLE_CONTENT" },
+        RESPONSE_UNEXPECTED: { code: "UNPROCESSABLE_CONTENT" },
 
         // gateway timeout
         PRERENDER_TIMEOUT: { code: "GATEWAY_TIMEOUT" },

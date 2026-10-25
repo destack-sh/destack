@@ -21,7 +21,7 @@ export function writeSecurity(origin: string, options: SecurityOptions, now: Dat
     const expires = new Date(options.expires);
     if (Number.isNaN(expires.getTime()) || expires <= now) {
         throw WebError.of(
-            "INVALID_SECURITY_EXPIRY",
+            "SECURITY_EXPIRY_INVALID",
             `security.txt expiry is invalid or in the past: ${options.expires}`,
         );
     }

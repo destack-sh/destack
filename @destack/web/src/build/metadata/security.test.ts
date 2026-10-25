@@ -40,7 +40,7 @@ test("refuse an expiry that has passed", async () => {
         ),
     ).toEqual([
         "BAD_REQUEST",
-        "INVALID_SECURITY_EXPIRY",
+        "SECURITY_EXPIRY_INVALID",
         "security.txt expiry is invalid or in the past: 2026-01-01T00:00:00Z",
     ]);
 });

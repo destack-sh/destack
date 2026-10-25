@@ -87,7 +87,7 @@ export const webOutput: OutputKind = {
                 (issue) => `${issue.path.join(".")}: ${issue.message}`,
             );
             throw WebError.of(
-                "INVALID_OPTIONS",
+                "OPTIONS_INVALID",
                 `invalid web output ${name}: ${issues.join(", ")}`,
             );
         }
@@ -121,7 +121,7 @@ export const webOutput: OutputKind = {
                 (issue) => `${issue.path.join(".")}: ${issue.message}`,
             );
             throw WebError.of(
-                "INVALID_OPTIONS",
+                "OPTIONS_INVALID",
                 `invalid web output ${name}: ${issues.join(", ")}`,
             );
         }
