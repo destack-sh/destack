@@ -287,7 +287,7 @@ export class Theme {
                 if (lightness < floor) {
                     const contrast = level === 0 ? "standard" : "more";
                     throw PackageError.of(
-                        "INVALID_DEFINITION",
+                        "DEFINITION_INVALID",
                         `theme ${this.name}: ${name} on ${reading.on} reads at Lc ${lightness.toFixed(1)} in ${scheme} with ${contrast} contrast, below ${floor}`,
                     );
                 }

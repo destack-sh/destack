@@ -283,7 +283,7 @@ test("check the roles a theme replaces like every other role", async () => {
     );
     expect(await refusal(illegible)).toEqual([
         "BAD_REQUEST",
-        "INVALID_DEFINITION",
+        "DEFINITION_INVALID",
         "theme fog: foreground on background reads at Lc 43.7 in light with standard contrast, below 75",
     ]);
 });
