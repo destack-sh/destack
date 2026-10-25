@@ -50,7 +50,7 @@ export const cardInteraction: Interaction<
     name: "card",
     step: DoneStep,
     observation: StateObservation,
-    environment: schema.object({ width: schema.number().exactOptional() }),
+    globals: schema.object({ width: schema.number().exactOptional() }),
 };
 `;
 
@@ -80,7 +80,7 @@ export const noteCardComplete = defineScenario({
     interaction: cardInteraction,
     name: "complete",
     description: "complete a card",
-    given: { examples: [noteCardLoud], environment: { width: 320 } },
+    given: { examples: [noteCardLoud], globals: { width: 320 } },
     when: [{ action: "done" }, { action: "set", properties: { tone: "quiet" } }],
     then: {
         observe: { state: { kind: "state" } },
@@ -266,7 +266,7 @@ test.concurrent("declare each example showing its symbol with controls and the p
                         name: "cardInteraction",
                     }),
                     examples: [loud?.moniker],
-                    environment: { width: 320 },
+                    globals: { width: 320 },
                     when: [{ action: "done" }, { action: "set", properties: { tone: "quiet" } }],
                     then: {
                         observe: { state: { kind: "state" } },

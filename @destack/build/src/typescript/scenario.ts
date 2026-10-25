@@ -13,7 +13,7 @@ export interface ScenarioDeclaration extends DefinitionSite {
     readonly interaction: SymbolReference;
     /** The examples the scenario starts from. */
     readonly examples: readonly SymbolReference[];
-    /** The description without interaction and examples: environment, steps and observations. */
+    /** The description without interaction and examples: globals, steps and observations. */
     readonly description: Omit<ScenarioDescription, "interaction" | "examples">;
 }
 
@@ -37,7 +37,7 @@ export const ScenarioDeclaration = {
 
         return await Promise.all(
             definitions.map(async ({ site, fields }) => {
-                // read the scenario's subject, interaction, examples, environment, steps and observations
+                // read the scenario's subject, interaction, examples, globals, steps and observations
                 const of = await fields.symbol("of", inspector);
                 const interaction = await fields.symbol("interaction", inspector);
                 const given = new DefinitionFields(
@@ -46,7 +46,7 @@ export const ScenarioDeclaration = {
                     fields.location,
                 );
                 const examples = await given.symbols("examples", inspector);
-                const environment = given.literal("environment");
+                const globals = given.literal("globals");
 
                 return {
                     ...site,
@@ -57,7 +57,7 @@ export const ScenarioDeclaration = {
                     ),
                     description: {
                         description: fields.text("description"),
-                        ...(environment === undefined ? {} : { environment }),
+                        ...(globals === undefined ? {} : { globals }),
                         when: schema.array(schema.json()).min(1).parse(fields.literal("when")),
                         then: Then.parse(fields.literal("then")),
                     },
