@@ -33,14 +33,14 @@ export function Script(properties: ScriptProperties): JSX.Element {
 
     // add the others on the client once the page settles, or once it is idle after load
     if (!isServer) {
-        const { display } = useEnvironment();
+        const environment = useEnvironment();
         onMount(() => {
             if (strategy === "afterInteractive") {
                 add(properties);
 
                 return undefined;
             } else {
-                return whenIdle(() => add(properties), display);
+                return whenIdle(() => add(properties), environment.display);
             }
         });
     }

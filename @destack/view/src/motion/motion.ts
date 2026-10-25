@@ -11,7 +11,7 @@ const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 /** Follow whether the theme keeps an element's motion still. */
 export function createReducedMotion(element: Accessor<Element | undefined>): Accessor<boolean> {
     // follow the device preference and the theme roots at and above the element
-    const { display } = useEnvironment();
+    const environment = useEnvironment();
     const isPreferred = createMediaQuery(REDUCED_MOTION_QUERY);
     const [mutations, setMutations] = createSignal(0, { ownedWrite: true });
 
@@ -26,7 +26,7 @@ export function createReducedMotion(element: Accessor<Element | undefined>): Acc
             cancelFrame ??= requestFrame(() => {
                 cancelFrame = undefined;
                 setMutations((count) => count + 1);
-            }, display);
+            }, environment.display);
         },
     );
 
