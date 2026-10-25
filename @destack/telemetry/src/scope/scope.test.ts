@@ -176,6 +176,7 @@ test("capture handled failures and messages as exceptions with their error type,
         scope.captureException(answered, { isEscaped: true });
         scope.captureException(
             Object.assign(new Error("note is gone"), {
+                audience: "caller",
                 toCallError: () => ({ code: "NOT_FOUND" as const, message: "note is gone" }),
             }),
         );
