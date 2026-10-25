@@ -114,7 +114,7 @@ export class TestTunnelMachine implements AsyncDisposable {
         await using opening = new AsyncDisposableStack();
         const universe = await TestUniverse.open({
             residencies: RESIDENCIES,
-            environment: simulation.environment("universe"),
+            simulation,
             lifetimes: new Map([[relayPackage.id, TUNNEL_TOKEN_LIFETIME_MILLISECONDS]]),
         });
         opening.use(universe);
