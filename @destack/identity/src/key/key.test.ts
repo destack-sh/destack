@@ -1,4 +1,4 @@
-import { Simulation } from "@destack/environment/simulation";
+import { testSimulation } from "@destack/test/world";
 import { expect, test } from "@destack/test";
 import { KeyPair, PublicKey } from "./key.ts";
 
@@ -7,7 +7,7 @@ const SIGNING = { name: "ECDSA", hash: "SHA-256" } as const;
 
 test("read a generated key pair back from what a keychain stores, signing as the generated one", async () => {
     // generate a pair and read it back from its stored private half
-    const world = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 24) }).environment("test");
+    const world = testSimulation().environment("test");
     const { pair, secret } = await KeyPair.generate(world.crypto);
     const read = await KeyPair.read(secret, world.crypto);
 

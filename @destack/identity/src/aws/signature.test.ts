@@ -1,6 +1,6 @@
+import { testSimulation } from "@destack/test/world";
 import { expect, test } from "@destack/test";
 import type { Crypto } from "@destack/environment";
-import { Simulation } from "@destack/environment/simulation";
 import { type AwsCredentials, AwsSigner, EMPTY_HASH, type SignableRequest } from "./index.ts";
 
 /** The AWS SigV4 test suite's example credentials. */
@@ -39,7 +39,7 @@ function suiteRequest(method: string, url: string, headers: Record<string, strin
 }
 
 test("sign the suite's get-vanilla and get-vanilla-query-order-key-case requests", async () => {
-    const world = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 24) }).environment("test");
+    const world = testSimulation().environment("test");
     const vanilla = await suiteSigner(world.crypto).authorize(
         suiteRequest("GET", "https://example.amazonaws.com/"),
         DATE,
@@ -60,7 +60,7 @@ test("sign the suite's get-vanilla and get-vanilla-query-order-key-case requests
 });
 
 test("sign the suite's post-x-www-form-urlencoded request over its content type and body", async () => {
-    const world = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 24) }).environment("test");
+    const world = testSimulation().environment("test");
     const request = {
         ...suiteRequest("POST", "https://example.amazonaws.com/", {
             "Content-Type": "application/x-www-form-urlencoded",
@@ -75,7 +75,7 @@ test("sign the suite's post-x-www-form-urlencoded request over its content type 
 });
 
 test("sign the suite's post-sts-header-after request with the session token as a signed header", async () => {
-    const world = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 24) }).environment("test");
+    const world = testSimulation().environment("test");
     const temporary = suiteSigner(world.crypto, { ...CREDENTIALS, sessionToken: SESSION_TOKEN });
     const headers = await temporary.authorize(
         suiteRequest("POST", "https://example.amazonaws.com/"),
@@ -89,7 +89,7 @@ test("sign the suite's post-sts-header-after request with the session token as a
 });
 
 test("encode each path segment again or once as S3 reads it, each query pair, and collapse header whitespace", async () => {
-    const world = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 24) }).environment("test");
+    const world = testSimulation().environment("test");
     const signed = await suiteSigner(world.crypto).sign(
         {
             ...suiteRequest("GET", "https://example.amazonaws.com/a b/ü?key=a b&key=A&tilde=~", {

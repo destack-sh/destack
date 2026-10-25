@@ -1,4 +1,4 @@
-import { Simulation } from "@destack/environment/simulation";
+import { TEST_START, testSimulation } from "@destack/test/world";
 import { expect, refusal, test } from "@destack/test";
 import { Base64Url } from "./base64.ts";
 import { Jwe } from "./jwe.ts";
@@ -6,9 +6,6 @@ import { Jwk } from "./jwk.ts";
 import { Jwks } from "./jwks.ts";
 import { Jws } from "./jws.ts";
 import { Jwt, type JwtOptions } from "./jwt.ts";
-
-/** The start of every test's world: 2026-10-24 at midnight UTC. */
-const START = Date.UTC(2026, 9, 24);
 
 /** The P-256 key of RFC 7515 Appendix A.3. */
 const ES256_KEY = {
@@ -36,7 +33,7 @@ const ED25519_JWS =
 
 test("verify the ES256 JWS of RFC 7515 A.3 and sign and verify the Ed25519 JWS of RFC 8037 A.4 exactly", async () => {
     // verify the ES256 example with its public key
-    const world = new Simulation({ seed: 1, start: START }).environment("test");
+    const world = testSimulation().environment("test");
     const es256 = await Jws.importJwk(ES256_KEY, "ES256", world.crypto);
     const verified = await Jws.verify(ES256_JWS, es256, ["ES256"], world.crypto);
 
@@ -65,7 +62,7 @@ test("verify the ES256 JWS of RFC 7515 A.3 and sign and verify the Ed25519 JWS o
 
 test("refuse an unsigned token, an algorithm other than the key's, a key of another identifier and a forged signature", async () => {
     // sign a token with a P-256 key named in a key set
-    const world = new Simulation({ seed: 1, start: START }).environment("test");
+    const world = testSimulation().environment("test");
     const pair = await world.crypto.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, [
         "sign",
         "verify",
@@ -104,9 +101,9 @@ test("refuse an unsigned token, an algorithm other than the key's, a key of anot
 
 test("check a token's expiry, start, issuer and audience at the time of the check, within the clock tolerance", async () => {
     // sign claims valid from a minute after the start for an hour
-    const world = new Simulation({ seed: 1, start: START }).environment("test");
+    const world = testSimulation().environment("test");
     const secret = new Uint8Array(32).fill(1);
-    const seconds = START / 1000;
+    const seconds = TEST_START / 1000;
     const claims = { iss: "issuer", aud: ["one", "two"], nbf: seconds + 60, exp: seconds + 3660 };
     const token = await Jwt.sign(claims, { alg: "HS256" }, secret, world.crypto);
     const check = (now: number, issuer = "issuer", audience = "two") =>
@@ -118,11 +115,11 @@ test("check a token's expiry, start, issuer and audience at the time of the chec
         ).then(({ claims: verified }) => verified);
 
     expect({
-        early: await refusal(check(START + 50_000)),
-        tolerated: await check(START + 56_000),
-        expired: await refusal(check(START + 3_665_000)),
-        issuer: await refusal(check(START + 120_000, "other")),
-        audience: await refusal(check(START + 120_000, "issuer", "three")),
+        early: await refusal(check(TEST_START + 50_000)),
+        tolerated: await check(TEST_START + 56_000),
+        expired: await refusal(check(TEST_START + 3_665_000)),
+        issuer: await refusal(check(TEST_START + 120_000, "other")),
+        audience: await refusal(check(TEST_START + 120_000, "issuer", "three")),
     }).toEqual({
         early: ["UNAUTHORIZED", "TOKEN_NOT_YET_VALID", "the token is not valid yet"],
         tolerated: claims,
@@ -134,7 +131,7 @@ test("check a token's expiry, start, issuer and audience at the time of the chec
 
 test("encrypt to an AES-GCM key and to an ECDH key, opening each with its key alone", async () => {
     // encrypt one plaintext to a wrapping key and to a recipient's key pair
-    const world = new Simulation({ seed: 1, start: START }).environment("test");
+    const world = testSimulation().environment("test");
     const plaintext = new Uint8Array([1, 2, 3]);
     const wrapping = await world.crypto.generateKey({ name: "AES-GCM", length: 256 }, false, [
         "encrypt",
@@ -178,7 +175,7 @@ test("encrypt to an AES-GCM key and to an ECDH key, opening each with its key al
 
 test("fetch a remote key set once while it is fresh, again once it is stale, and again for an unknown key after the cooldown", async () => {
     // serve a key set that starts with one key and later gains another
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const world = simulation.environment("verifier");
     const pair = await world.crypto.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, [
         "sign",
@@ -220,11 +217,11 @@ test("fetch a remote key set once while it is fresh, again once it is stale, and
     };
     await lookup("key-1");
     await lookup("key-1");
-    await simulation.run({ to: START + 61_000 });
+    await simulation.run({ to: TEST_START + 61_000 });
     await lookup("key-1");
     published.push({ ...exported, kid: "key-2" });
     await lookup("key-2");
-    await simulation.run({ to: START + 72_000 });
+    await simulation.run({ to: TEST_START + 72_000 });
     await lookup("key-2");
 
     expect(lookups).toEqual([1, 1, 1, 1, 1, 2, "no key of the set signed the token", 2, 1, 3]);
@@ -261,7 +258,7 @@ const RS256_JWS = `eyJhbGciOiJSUzI1NiJ9.${EXAMPLE_PAYLOAD}.cC4hiUPoj9Eetdgtv3hF8
 
 test("verify the HS256 JWS of RFC 7515 A.1, sign the RS256 JWS of A.2 exactly, and verify both with their keys", async () => {
     // sign the RS256 example's header and payload again with its key
-    const world = new Simulation({ seed: 1, start: START }).environment("test");
+    const world = testSimulation().environment("test");
     const payload = Base64Url.decode(EXAMPLE_PAYLOAD);
     const secret = Base64Url.decode(HS256_KEY.k);
     const rsa = await Jws.importJwk(RS256_KEY, "RS256", world.crypto);
@@ -286,7 +283,7 @@ test("verify the HS256 JWS of RFC 7515 A.1, sign the RS256 JWS of A.2 exactly, a
 
 test("sign with an ES384 key and an RS256 key a PKCS #8 PEM holds, and verify each with its public half", async () => {
     // generate an ES384 pair, and export the RS256 key of RFC 7515 A.2 as a PEM
-    const world = new Simulation({ seed: 1, start: START }).environment("test");
+    const world = testSimulation().environment("test");
     const es384 = await world.crypto.generateKey({ name: "ECDSA", namedCurve: "P-384" }, true, [
         "sign",
         "verify",
@@ -329,7 +326,7 @@ test("sign with an ES384 key and an RS256 key a PKCS #8 PEM holds, and verify ea
 
 test("refuse weak and unfitting keys, a JWS marking an extension critical, and a thumbprint without a required member", async () => {
     // generate a short RSA key and a P-384 key, and sign one HS256 token
-    const world = new Simulation({ seed: 1, start: START }).environment("test");
+    const world = testSimulation().environment("test");
     const rsa = { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" };
     const short = await world.crypto.generateKey(
         { ...rsa, modulusLength: 1024, publicExponent: new Uint8Array([1, 0, 1]) },
@@ -382,7 +379,7 @@ test("refuse weak and unfitting keys, a JWS marking an extension critical, and a
 
 test("refuse a JWE header with crit, zip, apu or apv, a tag of another length, and a key of another management", async () => {
     // encrypt one plaintext to a wrapping key
-    const world = new Simulation({ seed: 1, start: START }).environment("test");
+    const world = testSimulation().environment("test");
     const wrapping = await world.crypto.generateKey({ name: "AES-GCM", length: 256 }, false, [
         "encrypt",
         "decrypt",
@@ -433,9 +430,9 @@ test("refuse a JWE header with crit, zip, apu or apv, a tag of another length, a
 
 test("refuse a token older than its maximum age, issued in the future, of another type, or without a required claim", async () => {
     // sign a token issued at the start, typed as an access token
-    const world = new Simulation({ seed: 1, start: START }).environment("test");
+    const world = testSimulation().environment("test");
     const secret = Base64Url.decode(HS256_KEY.k);
-    const seconds = START / 1000;
+    const seconds = TEST_START / 1000;
     const token = await Jwt.sign(
         { sub: "machine", iat: seconds },
         { alg: "HS256", typ: "at+jwt" },
@@ -447,14 +444,14 @@ test("refuse a token older than its maximum age, issued in the future, of anothe
             Jwt.verify(
                 token,
                 secret,
-                { algorithms: ["HS256"], now: START, ...options },
+                { algorithms: ["HS256"], now: TEST_START, ...options },
                 world.crypto,
             ),
         );
 
     expect({
-        old: await check({ now: START + 61_000, maxTokenAge: 60 }),
-        future: await check({ now: START - 10_000, maxTokenAge: 60 }),
+        old: await check({ now: TEST_START + 61_000, maxTokenAge: 60 }),
+        future: await check({ now: TEST_START - 10_000, maxTokenAge: 60 }),
         type: await check({ typ: "JWT" }),
         required: await check({ requiredClaims: ["jti"] }),
     }).toEqual({

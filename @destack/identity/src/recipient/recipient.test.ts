@@ -1,11 +1,11 @@
-import { Simulation } from "@destack/environment/simulation";
+import { testSimulation } from "@destack/test/world";
 import { expect, test, refusal } from "@destack/test";
 import { Derivation } from "../derivation/derivation.ts";
 import { Jwe } from "../jose/jwe.ts";
 import { Recipient } from "./recipient.ts";
 
 test("seal bytes to a recipient, which alone opens them under the same context", async () => {
-    const world = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 24) }).environment("test");
+    const world = testSimulation().environment("test");
     const recipient = await Recipient.generate(world);
     const context = { label: "@destack/identity/test", context: "vault/secret-1/1" };
     const other = { label: "@destack/identity/test", context: "vault/secret-2/1" };
@@ -30,7 +30,7 @@ test("seal bytes to a recipient, which alone opens them under the same context",
 
 test("derive the same recipient of a root under a label, another under another label or root, and seal to it by its public key", async () => {
     // derive under two roots and two labels
-    const world = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 24) }).environment("test");
+    const world = testSimulation().environment("test");
     const root = Derivation.of(
         await Derivation.root(new Uint8Array(32).fill(7), world.crypto),
         world.crypto,

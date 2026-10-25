@@ -1,11 +1,11 @@
-import { Simulation } from "@destack/environment/simulation";
+import { testSimulation } from "@destack/test/world";
 import { expect, test, refusal } from "@destack/test";
 import { PublicKey } from "../key/key.ts";
 import { IdentityOperation } from "./identity.ts";
 
 test("verify an operation signed by a P-256 or an Ed25519 rotation key at its priority, and none signed by another key", async () => {
     // generate P-256, Ed25519 and unlisted rotation keys
-    const world = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 24) }).environment("test");
+    const world = testSimulation().environment("test");
     const [p256, ed25519, stranger] = await Promise.all([
         world.crypto.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]),
         world.crypto.generateKey({ name: "Ed25519" }, true, ["sign", "verify"]),

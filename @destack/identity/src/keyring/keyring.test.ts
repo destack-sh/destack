@@ -1,11 +1,11 @@
-import { Simulation } from "@destack/environment/simulation";
+import { testSimulation } from "@destack/test/world";
 import { schema } from "@destack/schema";
 import { expect, test, refusal } from "@destack/test";
 import { MemoryKeychain } from "../keychain/index.ts";
 import { LocalKeyring } from "./index.ts";
 
 test("open root keys a keychain stores, refuse another context, rotate them, and retire the old key once reencrypted, refusing the active and unknown keys", async () => {
-    const world = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 24) }).environment("test");
+    const world = testSimulation().environment("test");
     const keychain = new MemoryKeychain();
     const name = "keys/host-1";
     const context = { label: "@destack/identity/test", context: "context-1" };
@@ -52,7 +52,7 @@ test("open root keys a keychain stores, refuse another context, rotate them, and
 });
 
 test("open one keyset from concurrent opens of an empty keychain, and store both of two concurrent rotations", async () => {
-    const world = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 24) }).environment("test");
+    const world = testSimulation().environment("test");
     const keychain = new MemoryKeychain();
     const name = "keys/host-1";
     const context = { label: "@destack/identity/test", context: "context-1" };
@@ -86,7 +86,7 @@ test("open one keyset from concurrent opens of an empty keychain, and store both
 
 test("derive the same secrets and private key from a keyset's text on every opening, apart by label and by keyset", async () => {
     // open one keyset twice beside another
-    const world = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 24) }).environment("test");
+    const world = testSimulation().environment("test");
     const text = LocalKeyring.generate(world);
     const [first, second, other] = await Promise.all([
         LocalKeyring.read(text, world),
@@ -118,7 +118,7 @@ test("derive the same secrets and private key from a keyset's text on every open
 
 test("derive one keyset per label with every root key version, the same on every opening and apart by label", async () => {
     // rotate a keyset to two versions, and derive two labels' keysets from it twice
-    const world = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 24) }).environment("test");
+    const world = testSimulation().environment("test");
     const keychain = new MemoryKeychain();
     await LocalKeyring.open(keychain, "master", world);
     const master = await LocalKeyring.rotate(keychain, "master", world);

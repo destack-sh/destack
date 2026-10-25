@@ -1,9 +1,6 @@
-import { Simulation } from "@destack/environment/simulation";
+import { testSimulation } from "@destack/test/world";
 import { expect, refusal, test } from "@destack/test";
 import { Ciphertext } from "./ciphertext.ts";
-
-/** The start of every test's world: 2026-10-24 at midnight UTC. */
-const START = Date.UTC(2026, 9, 24);
 
 /** The context every vector was encrypted under. */
 const LABEL = { label: "note", context: "space-1" };
@@ -33,7 +30,7 @@ const AGREED =
 
 test("decrypt the ciphertexts the jose library wrote, under a wrapped key and an agreed one, refusing another context", async () => {
     // import the wrapping key and the recipient's private key in a world
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const { crypto } = simulation.environment("identity");
     const wrapping = await crypto.importKey(
         "raw",

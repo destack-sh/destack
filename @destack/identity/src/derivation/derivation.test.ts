@@ -1,11 +1,11 @@
-import { Simulation } from "@destack/environment/simulation";
+import { testSimulation } from "@destack/test/world";
 import { expect, test } from "@destack/test";
 import { Label } from "../label/index.ts";
 import { Derivation } from "./index.ts";
 
 test("derive apart by label, by context and by where the label ends, and refuse an overlong label", async () => {
     // derive under labels that share their characters but split them differently
-    const world = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 24) }).environment("test");
+    const world = testSimulation().environment("test");
     const root = await Derivation.root(world.random.bytes(32), world.crypto);
     const secret = async (label: string, context: string) =>
         (await Derivation.secret(root, { label, context }, world.crypto)).toHex();

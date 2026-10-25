@@ -1,4 +1,4 @@
-import { Simulation } from "@destack/environment/simulation";
+import { testSimulation } from "@destack/test/world";
 import { expect, refusal, test } from "@destack/test";
 import { PublicKey } from "../key/key.ts";
 import { Proof } from "./proof.ts";
@@ -8,7 +8,7 @@ const REQUEST = { method: "POST", url: "https://destack.test/machines/token" };
 
 test("verify a request proof for its subject, key, time and request, refusing every other one", async () => {
     // sign a proof of one request with a machine's key
-    const world = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 24) }).environment("test");
+    const world = testSimulation().environment("test");
     const pair = await world.crypto.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, [
         "sign",
         "verify",
@@ -59,7 +59,7 @@ test("refuse reading anything but a key proof", async () => {
 
 test("tell a key proof from other tokens by its declared type", async () => {
     // sign a proof, and build an unsigned token of another type
-    const world = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 24) }).environment("test");
+    const world = testSimulation().environment("test");
     const pair = await world.crypto.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, [
         "sign",
         "verify",
