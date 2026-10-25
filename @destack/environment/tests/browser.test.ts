@@ -5,7 +5,7 @@ import { Simulation } from "../src/simulation/index.ts";
 /** The simulations' start: 2026-10-24 at midnight UTC. */
 const START = Date.UTC(2026, 9, 24);
 
-test("store values and move through session history on a node, telling listeners each move", async () => {
+test("store values and move through session history on a node, telling listeners each move once, within its ends", async () => {
     // store a value, and navigate, replace and traverse while listening
     await using simulation = new Simulation({ seed: 1, start: START });
     const browsers = new BrowserSimulation(simulation, { url: "https://notes.test/" });
@@ -15,26 +15,26 @@ test("store values and move through session history on a node, telling listeners
     using _subscription = navigation.on((entry) => moves.push(entry.url));
     navigation.navigate("/inbox");
     navigation.navigate("/inbox?page=2", { history: "replace" });
-    navigation.navigate("https://notes.test/settings");
-    navigation.back();
-    navigation.back();
-    navigation.back();
-    navigation.forward();
+    navigation.navigate("https://notes.test/settings", { state: { tab: "privacy" } });
+    navigation.go(-1);
+    navigation.go(-1);
+    navigation.go(-1);
+    navigation.go(5);
 
     expect({
         stored: [storage.getItem("theme"), storage.getItem("missing")],
-        current: navigation.currentEntry.url,
+        current: navigation.currentEntry,
         moves,
     }).toEqual({
         stored: ["dark", null],
-        current: "https://notes.test/inbox?page=2",
+        current: { url: "https://notes.test/settings", index: 2, state: { tab: "privacy" } },
         moves: [
             "https://notes.test/inbox",
             "https://notes.test/inbox?page=2",
             "https://notes.test/settings",
             "https://notes.test/inbox?page=2",
             "https://notes.test/",
-            "https://notes.test/inbox?page=2",
+            "https://notes.test/settings",
         ],
     });
 });

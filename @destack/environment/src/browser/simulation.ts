@@ -248,44 +248,48 @@ function deliver(ports: readonly SimulatedPort[], message: unknown): unknown[] {
 
 /** A node's session history, kept in memory from a first URL. */
 export class SimulatedNavigation implements Navigation {
-    /** The entries' URLs, oldest first. */
-    readonly #entries: string[];
+    /** The entries' URLs and states, oldest first. */
+    readonly #entries: { readonly url: string; readonly state: unknown }[];
     /** The position of the current entry. */
     #index = 0;
+    /** The changes told so far, which a change told meanwhile overtakes. */
+    #changes = 0;
     /** The listeners of entry changes. */
     readonly #listeners = new Set<(entry: NavigationEntry) => void>();
 
     /** Start a history at a URL. */
     constructor(url: string) {
-        this.#entries = [url];
+        this.#entries = [{ url, state: undefined }];
     }
 
     /** The current entry. */
     get currentEntry(): NavigationEntry {
-        return { url: present(this.#entries[this.#index], "the current history entry") };
+        const entry = present(this.#entries[this.#index], "the current history entry");
+
+        return { ...entry, index: this.#index };
     }
 
     /** Go to a URL, adding or replacing an entry. */
     navigate(url: string, options: NavigateOptions = {}): void {
         // resolve the URL against the current entry, then add or replace an entry
-        const resolved = new URL(url, this.currentEntry.url).href;
+        const entry = { url: new URL(url, this.currentEntry.url).href, state: options.state };
         if (options.history === "replace") {
-            this.#entries[this.#index] = resolved;
+            this.#entries[this.#index] = entry;
         } else {
             this.#index += 1;
-            this.#entries.splice(this.#index, Infinity, resolved);
+            this.#entries.splice(this.#index, Infinity, entry);
         }
         this.#emit();
     }
 
-    /** Go back one entry, staying at the first. */
-    back(): void {
-        this.#traverse(-1);
-    }
-
-    /** Go forward one entry, staying at the last. */
-    forward(): void {
-        this.#traverse(1);
+    /** Move through the entries by a number at once, within the first and the last. */
+    go(delta: number): void {
+        // move once to the clamped entry, telling the listeners of a move
+        const index = Math.min(Math.max(this.#index + delta, 0), this.#entries.length - 1);
+        if (index !== this.#index) {
+            this.#index = index;
+            this.#emit();
+        }
     }
 
     /** Call a listener on each change of the current entry until the subscription disposes. */
@@ -295,19 +299,16 @@ export class SimulatedNavigation implements Navigation {
         return { [Symbol.dispose]: () => this.#listeners.delete(listener) };
     }
 
-    /** Move through the entries by a step, telling the listeners of a move. */
-    #traverse(step: number): void {
-        const index = this.#index + step;
-        if (index >= 0 && index < this.#entries.length) {
-            this.#index = index;
-            this.#emit();
-        }
-    }
-
-    /** Tell each listener the current entry. */
+    /** Tell each listener the current entry, stopping once a listener's move told a newer one. */
     #emit(): void {
+        // number this change, then tell each listener until a newer change overtakes it
+        this.#changes += 1;
+        const change = this.#changes;
         const entry = this.currentEntry;
         for (const listener of this.#listeners) {
+            if (this.#changes !== change) {
+                return;
+            }
             listener(entry);
         }
     }
