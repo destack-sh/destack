@@ -13,6 +13,9 @@ class ReasonedFailure extends Error {
 
 /** A package's failure, which knows the call error its caller receives. */
 class NoteError extends Error {
+    /** The note's callers, who receive the failure. */
+    readonly audience = "caller";
+
     /** Convert the failure to the call error a caller receives. */
     toCallError() {
         return {

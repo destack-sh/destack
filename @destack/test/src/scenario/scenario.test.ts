@@ -27,7 +27,7 @@ const tallyInteraction: Tallying = {
     name: "tally",
     step: MarkStep,
     observation: MarksObservation,
-    environment: schema.object({}),
+    globals: schema.object({}),
 };
 
 /** A tally of marks. */
