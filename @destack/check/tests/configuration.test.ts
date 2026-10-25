@@ -1,3 +1,4 @@
+import { testSimulation } from "@destack/test/world";
 import type { FileSystem } from "@destack/environment";
 import { Simulation } from "@destack/environment/simulation";
 import { expect, refusal, test } from "@destack/test";
@@ -12,12 +13,9 @@ import {
 } from "../src/check/configuration.ts";
 import { readExpectations, applyExpectations } from "../src/check/expectation.ts";
 
-/** The start of every test's world: 2026-10-24 at midnight UTC. */
-const START = Date.UTC(2026, 9, 24);
-
 /** Open a world for one test, whose files it removes once disposed. */
 function world(): Simulation {
-    return new Simulation({ seed: 1, start: START });
+    return testSimulation();
 }
 
 /** Write a package with its manifests and sources into a temporary directory. */

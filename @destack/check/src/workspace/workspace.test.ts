@@ -1,14 +1,11 @@
-import { Simulation } from "@destack/environment/simulation";
+import { testSimulation } from "@destack/test/world";
 import { expect, test } from "@destack/test";
 import { join } from "node:path";
 import { Workspace } from "./workspace.ts";
 
-/** The start of every test's world: 2026-10-24 at midnight UTC. */
-const START = Date.UTC(2026, 9, 24);
-
 test("find no workspace outside any lockfile", async () => {
     // open an empty directory in a world
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const { files } = simulation.environment("test");
     const directory = await files.makeTemporaryDirectory("workspace-");
 
@@ -17,7 +14,7 @@ test("find no workspace outside any lockfile", async () => {
 
 test("read a workspace's members from its lockfile and walk their workspace dependencies both ways", async () => {
     // record a root on the library, the library, an app on it, a fixture inside the app and a tool on the app
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = testSimulation();
     const { files } = simulation.environment("test");
     const root = await files.makeTemporaryDirectory("workspace-");
     await files.writeTextFile(
