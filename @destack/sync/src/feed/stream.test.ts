@@ -1,18 +1,15 @@
+import { testSimulation } from "@destack/test/world";
 import { expect, test } from "@destack/test";
 import { TABLE } from "@destack/db";
 import type { Page, RowChange } from "../query/page.ts";
 import { note } from "../test/fixture.ts";
 import { Stream } from "./stream.ts";
-import { Simulation } from "@destack/environment/simulation";
 
 /** The interval between published pages, in milliseconds. */
 const EVERY = 1000;
 
-/** When every test's world starts: 1 October 2026, UTC. */
-const START = Date.UTC(2026, 9, 1);
-
 test("publish a page at once after a quiet interval, and merge the pages within it at its end", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    const simulation = testSimulation();
     const source = pages();
     const published = Stream.coalesce(source.pages, EVERY, [note], simulation.clock);
 
@@ -47,7 +44,7 @@ test("publish a page at once after a quiet interval, and merge the pages within 
 });
 
 test("publish the buffered page once the pages end", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    const simulation = testSimulation();
     const source = pages();
     const published = Stream.coalesce(source.pages, EVERY, [note], simulation.clock);
 
@@ -66,7 +63,7 @@ test("publish the buffered page once the pages end", async () => {
 });
 
 test("stop the pages once the consumer stops, after the page read ahead", async () => {
-    const simulation = new Simulation({ seed: 1, start: START });
+    const simulation = testSimulation();
     const source = pages();
     const published = Stream.coalesce(source.pages, EVERY, [note], simulation.clock);
 
