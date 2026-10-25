@@ -1,16 +1,18 @@
+import { testSimulation } from "@destack/test/world";
 import { expect, onTestFinished, test } from "@destack/test";
 import { asc, defineTable, Transaction, text, defineDatabase } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import {
+    AccessContext,
     accessTables,
     Authorization,
     Authorizer,
+    Caller,
     Policy,
     principal,
     relation,
-    through,
-    type AccessContext,
     type TableMapping,
+    through,
 } from "../index.ts";
 import { module1 } from "../test/fixture.ts";
 
@@ -95,12 +97,14 @@ const mappings: TableMapping[] = [
 ];
 
 test("allow a remark exactly when the caller may read its parent, of whichever type it is", async () => {
+    await using simulation = testSimulation();
+    const environment = simulation.environment("access");
     const storage = await TestDatabase.create(
         defineDatabase({
             name: "attachment",
             tables: [...accessTables, articles, photos, remarks],
         }),
-        { isMigrated: true },
+        { environment: environment, isMigrated: true },
     );
     onTestFinished(() => storage.close());
     const { database } = storage;
@@ -145,20 +149,12 @@ test("allow a remark exactly when the caller may read its parent, of whichever t
     ]);
 
     // decide each remark in memory and by query
-    const alice: AccessContext = {
-        grants: [],
-        subject: principal.user.reference("universe", "alice"),
-        actors: [],
-        groups: [],
-        contacts: [],
-        linkSecrets: [],
-        now: 1000,
-        attributes: {},
-    };
+    const alice = AccessContext.of(Caller.of(principal.user.reference("universe", "alice")), 1000);
     const authorization = new Authorization(
         authorizer,
         await Transaction.open(database),
         () => alice,
+        environment,
     );
     const decided = [];
     for (const id of ["r1", "r2", "r3", "r4"]) {

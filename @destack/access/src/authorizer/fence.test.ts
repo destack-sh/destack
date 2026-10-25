@@ -1,3 +1,4 @@
+import { testSimulation } from "@destack/test/world";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { Snapshot, Transaction } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
@@ -5,28 +6,28 @@ import { principal } from "../declare/principal.ts";
 import { AccessFixture } from "../test/access.ts";
 import { account, fixtureDatabase, mappings, policies, space } from "../test/fixture.ts";
 import { Authorizer } from "./authorizer.ts";
+import { AccessContext, Caller } from "../context/context.ts";
 import { Scope } from "@destack/sync";
 
 test("fence a scope for a transfer, moving it and the scopes below it until unfenced", async () => {
-    const storage = await TestDatabase.create(fixtureDatabase, { isMigrated: true });
+    await using simulation = testSimulation();
+    const environment = simulation.environment("access");
+    const storage = await TestDatabase.create(fixtureDatabase, {
+        environment: environment,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     const database = storage.database;
     const authorizer = new Authorizer(policies, mappings);
 
     // insert an account and a space inside it
-    const access = new AccessFixture(database);
+    const access = new AccessFixture(database, environment);
     await access.replicateScope(account.reference(Scope.universe.id, "account-a"), account);
     await access.replicateScope(space.reference("account-a", "space-a"), space);
-    const context = {
-        subject: principal.user.reference("universe", "alice"),
-        groups: [],
-        now: 1000,
-        attributes: {},
-        actors: [],
-        contacts: [],
-        linkSecrets: [],
-        grants: [],
-    };
+    const context = AccessContext.of(
+        Caller.of(principal.user.reference("universe", "alice")),
+        1000,
+    );
     const moved = async () =>
         await Promise.all(
             ["account-a", "space-a"].map(

@@ -1,14 +1,27 @@
+import { testSimulation } from "@destack/test/world";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { TestDatabase } from "@destack/db/test";
 import { defineTable, Snapshot, sql, text } from "@destack/db";
-import { schema } from "@destack/schema";
+import { nth, schema } from "@destack/schema";
 import type { ObjectReference } from "@destack/sync";
-import { Authorizer, contained, Policy, principal, through, TableMapping } from "../index.ts";
+import {
+    AccessContext,
+    Authorizer,
+    Caller,
+    CONTAINED,
+    contained,
+    Policy,
+    principal,
+    relation,
+    TableMapping,
+    through,
+} from "../index.ts";
 import {
     accountTable,
     fixtureDatabase,
     groupTable,
     module4,
+    regionTable,
     spaceTable,
     teamTable,
 } from "../test/fixture.ts";
@@ -68,7 +81,12 @@ const mappings: TableMapping[] = [
 
 test("permit a scope's row to the principals inside it and a row living in a scope to the named principal types inside that scope, refusing others", async () => {
     // place two districts in one realm and one district in another
-    const opened = await TestDatabase.create(fixtureDatabase, { isMigrated: true });
+    await using simulation = testSimulation();
+    const environment = simulation.environment("access");
+    const opened = await TestDatabase.create(fixtureDatabase, {
+        environment: environment,
+        isMigrated: true,
+    });
     onTestFinished(() => opened.close());
     const { database } = opened;
     const authorizer = new Authorizer([realm, district, parcel, lot], mappings);
@@ -80,7 +98,7 @@ test("permit a scope's row to the principals inside it and a row living in a sco
         [district.reference("far", "outside"), district],
     ] as const;
     for (const [scope, policy] of scopes) {
-        await new AccessFixture(database).replicateScope(scope, policy);
+        await new AccessFixture(database, environment).replicateScope(scope, policy);
     }
     await database.insert(accountTable).values([
         { id: "near", scope: "universe" },
@@ -103,16 +121,7 @@ test("permit a scope's row to the principals inside it and a row living in a sco
         subject = principal.installation.reference(scope, "app"),
         name = "reside",
     ) => {
-        const caller = {
-            subject: subject,
-            groups: [],
-            now: 1000,
-            attributes: {},
-            actors: [],
-            contacts: [],
-            linkSecrets: [],
-            grants: [],
-        };
+        const caller = AccessContext.of(Caller.of(subject), 1000);
         const isScope = target.type === realm.name || target.type === district.name;
         const holder = isScope ? target.id : target.scope;
         const access = await authorizer.resolve(snapshot, holder, caller);
@@ -179,7 +188,12 @@ test("permit a scope's row to the principals inside it and a row living in a sco
 
 test("resolve a credential bound to a scope within that scope and the scopes inside it, refusing every other scope", async () => {
     // place a district in each of two realms
-    const opened = await TestDatabase.create(fixtureDatabase, { isMigrated: true });
+    await using simulation = testSimulation();
+    const environment = simulation.environment("access");
+    const opened = await TestDatabase.create(fixtureDatabase, {
+        environment: environment,
+        isMigrated: true,
+    });
     onTestFinished(() => opened.close());
     const { database } = opened;
     const authorizer = new Authorizer([realm, district, parcel, lot], mappings);
@@ -189,7 +203,7 @@ test("resolve a credential bound to a scope within that scope and the scopes ins
         [district.reference("near", "inside"), district],
         [district.reference("far", "outside"), district],
     ] as const) {
-        await new AccessFixture(database).replicateScope(scope, policy);
+        await new AccessFixture(database, environment).replicateScope(scope, policy);
     }
 
     // resolve a caller whose credential is bound to the near realm in each scope
@@ -250,12 +264,15 @@ test("contain a space's principals under its global principal reference", async 
             { policy: person, table: groupTable, id: "id", attributes: {}, relations: {} },
         ],
     );
+    await using simulation = testSimulation();
+    const environment = simulation.environment("access");
     const opened = await TestDatabase.create([...fixtureDatabase.tables, homeTable], {
+        environment: environment,
         isMigrated: true,
     });
     onTestFinished(() => opened.close());
     const { database } = opened;
-    const access = new AccessFixture(database);
+    const access = new AccessFixture(database, environment);
     await access.replicateScope(realm.reference("universe", "near"), realm);
     await access.replicateScope(home.reference("near", "own"), home);
     await access.replicateScope(home.reference("near", "other"), home);
@@ -273,16 +290,10 @@ test("contain a space's principals under its global principal reference", async 
     const snapshot = Snapshot.live(database);
     const target = person.reference("universe", "alice");
     const decide = async (scope: string) => {
-        const caller = {
-            subject: principal.installation.reference(scope, "app"),
-            groups: [],
-            now: 1000,
-            attributes: {},
-            actors: [],
-            contacts: [],
-            linkSecrets: [],
-            grants: [],
-        };
+        const caller = AccessContext.of(
+            Caller.of(principal.installation.reference(scope, "app")),
+            1000,
+        );
         const resolved = await authorizer.resolve(snapshot, "universe", caller);
         const permission = { ...target, name: "contact" };
         const memory = await authorizer.check(snapshot, permission, target, resolved);
@@ -329,12 +340,15 @@ test("contain a global scope's principal in its scope under its universe referen
             },
         ],
     );
+    await using simulation = testSimulation();
+    const environment = simulation.environment("access");
     const opened = await TestDatabase.create([...fixtureDatabase.tables, placeTable], {
+        environment: environment,
         isMigrated: true,
     });
     onTestFinished(() => opened.close());
     const { database } = opened;
-    const access = new AccessFixture(database);
+    const access = new AccessFixture(database, environment);
     await access.replicateScope(realm.reference("universe", "near"), realm);
     await access.replicateScope(home.reference("near", "own"), home);
     await access.replicateScope(home.reference("near", "other"), home);
@@ -347,16 +361,7 @@ test("contain a global scope's principal in its scope under its universe referen
     const snapshot = Snapshot.live(database);
     const target = home.reference("near", "own");
     const decide = async (id: string) => {
-        const caller = {
-            subject: home.reference("universe", id),
-            actors: [],
-            groups: [],
-            contacts: [],
-            linkSecrets: [],
-            grants: [],
-            now: 1000,
-            attributes: {},
-        };
+        const caller = AccessContext.of(Caller.of(home.reference("universe", id)), 1000);
         const resolved = await authorizer.resolve(snapshot, "near", caller);
 
         return (await authorizer.check(snapshot, { ...target, name: "reside" }, target, resolved))
@@ -365,4 +370,96 @@ test("contain a global scope's principal in its scope under its universe referen
 
     // allow the home itself, and refuse another home
     expect([await decide("own"), await decide("other")]).toEqual([true, false]);
+});
+
+test("admit the contents of a realm related as a zone's residents, through an arrow from a gate in another scope, refusing another realm's", async () => {
+    // relate the near realm's contents to the zone, and the zone to a gate in the far realm
+    const zone = new Policy(module4.package, {
+        name: "zone",
+        relations: { resident: { subjects: ["realm#contained"], grantedBy: null } },
+        permissions: { reside: relation("resident") },
+    });
+    const gate = new Policy(module4.package, {
+        name: "gate",
+        relations: { zone: { subjects: [zone], grantedBy: null } },
+        permissions: { pass: through("zone", "reside") },
+    });
+    await using simulation = testSimulation();
+    const environment = simulation.environment("access");
+    const opened = await TestDatabase.create(fixtureDatabase, { environment, isMigrated: true });
+    onTestFinished(() => opened.close());
+    const { database } = opened;
+    const authorizer = new Authorizer(
+        [realm, district, zone, gate],
+        [
+            nth(mappings, 0),
+            nth(mappings, 1),
+            { policy: zone, table: regionTable, id: "id", attributes: {}, relations: {} },
+            {
+                policy: gate,
+                table: groupTable,
+                id: "id",
+                scope: "scope",
+                attributes: {},
+                relations: {},
+            },
+        ],
+    );
+    const fixture = new AccessFixture(database, environment);
+    for (const [scope, policy] of [
+        [realm.reference("universe", "near"), realm],
+        [realm.reference("universe", "far"), realm],
+        [district.reference("near", "inside"), district],
+        [district.reference("far", "outside"), district],
+    ] as const) {
+        await fixture.replicateScope(scope, policy);
+    }
+    await database.insert(accountTable).values([
+        { id: "near", scope: "universe" },
+        { id: "far", scope: "universe" },
+    ]);
+    await database.insert(spaceTable).values([
+        { id: "inside", account: "near" },
+        { id: "outside", account: "far" },
+    ]);
+    await database.insert(regionTable).values([{ id: "north" }]);
+    await database.insert(groupTable).values([{ id: "door", scope: "outside" }]);
+    const north = zone.reference("universe", "north");
+    const resident = { ...realm.reference("universe", "near"), relation: CONTAINED };
+    await fixture.replicateRelationship(north, "resident", resident, 0);
+    await fixture.replicateRelationship(gate.reference("outside", "door"), "zone", north, 0);
+
+    // decide an installation of each district on the gate inside its realm, in memory and in SQL
+    const snapshot = Snapshot.live(database);
+    const door = gate.reference("outside", "door");
+    const decide = async (scope: string, realmId: string) => {
+        const caller = {
+            subject: principal.installation.reference(scope, "app"),
+            groups: [{ ...realm.reference("universe", realmId), relation: CONTAINED }],
+            now: 1000,
+            attributes: {},
+            actors: [],
+            contacts: [],
+            linkSecrets: [],
+            grants: [],
+        };
+        const access = await authorizer.resolve(snapshot, door.scope, caller);
+        const permission = { ...door, name: "pass" };
+        const memory = await authorizer.check(snapshot, permission, door, access);
+        const [row] = await database.execute(
+            sql`SELECT EXISTS (SELECT 1 FROM ${groupTable} WHERE ${authorizer.where(permission, access, groupTable)} AND ${groupTable.id} = ${door.id}) AS permitted`,
+            schema.record(
+                schema.string(),
+                schema.union([schema.number(), schema.string(), schema.bigint(), schema.boolean()]),
+            ),
+        );
+
+        return [scope, memory.isAllowed, Number(row?.["permitted"]) === 1];
+    };
+
+    // pass the near realm's installation inside it, and refuse the far realm's living beside the gate
+    expect([await decide("inside", "near"), await decide("outside", "far")]).toEqual([
+        ["inside", true, true],
+        ["outside", false, false],
+    ]);
 });

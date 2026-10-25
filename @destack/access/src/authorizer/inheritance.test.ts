@@ -1,3 +1,4 @@
+import { testSimulation } from "@destack/test/world";
 import { expect, onTestFinished, test } from "@destack/test";
 import { asc, type DatabaseConnection, Snapshot } from "@destack/db";
 import type { ObjectReference, Subject } from "@destack/sync";
@@ -9,6 +10,7 @@ import { fixtureDatabase, item, module1 } from "../test/fixture.ts";
 import {
     AccessContext,
     Authorizer,
+    Caller,
     intersection,
     Policy,
     principal,
@@ -16,7 +18,6 @@ import {
     type TableMapping,
     through,
     union,
-    Caller,
 } from "../index.ts";
 
 /** Organisations, with editors and viewers whose permissions apply everywhere below them. */
@@ -87,15 +88,18 @@ async function relate(
 ): Promise<void> {
     written += 1;
     const id = `relationship-01996ab0-0000-7000-8000-${String(written).padStart(12, "0")}`;
-    await database.insert(accessRelationship).values(
-        Relationship.encode({
-            id,
-            object,
-            relation: relationName,
-            subject,
-            createdAt: 1,
-            expiresAt: null,
-        }),
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(accessRelationship).values(
+                Relationship.encode({
+                    id,
+                    object,
+                    relation: relationName,
+                    subject,
+                    createdAt: 1,
+                    expiresAt: null,
+                }),
+            ),
     );
 }
 
@@ -116,17 +120,23 @@ function documentRow(id: string) {
 
 test("inherit a scope's relations onto the objects it encloses, through every scope above it", async () => {
     // store a folder in an organisation, and three documents of someone else in it
+    await using simulation = testSimulation();
+    const environment = simulation.environment("access");
     const storage = await TestDatabase.create(fixtureDatabase, {
+        environment: environment,
         isMigrated: true,
     });
     onTestFinished(() => storage.close());
     const { database } = storage;
     const acme = org.reference("universe", "acme");
     const plans = folder.reference("acme", "plans");
-    const replicas = new AccessFixture(database);
+    const replicas = new AccessFixture(database, environment);
     await replicas.replicateScope(acme, org);
     await replicas.replicateScope(plans, folder);
-    await database.insert(item).values(["a", "b", "c"].map((id) => documentRow(id)));
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(item).values(["a", "b", "c"].map((id) => documentRow(id))),
+    );
 
     // make carol an editor of the organisation, dave a viewer of the folder, and erin nothing
     await relate(database, acme, "editor", people.carol);
@@ -135,16 +145,7 @@ test("inherit a scope's relations onto the objects it encloses, through every sc
 
     // list the documents each reads and edits, in SQL and in memory alike
     const allowed = async (person: keyof typeof people, name: "read" | "edit") => {
-        const context: AccessContext = {
-            grants: [],
-            subject: people[person],
-            groups: [],
-            now: 1000,
-            attributes: {},
-            actors: [],
-            contacts: [],
-            linkSecrets: [],
-        };
+        const context = AccessContext.of(Caller.of(people[person]), 1000);
         const access = await authorizer.resolve(Snapshot.live(database), "plans", context);
         const listed = (
             await database
@@ -206,7 +207,10 @@ test("refuse a permission read through an enclosing scope that its chain's relat
 
 test("share an object with everyone with a permission on another, as its relations decide it", async () => {
     // store a team with its viewers and editors as readers, and a note shared with its readers
+    await using simulation = testSimulation();
+    const environment = simulation.environment("access");
     const storage = await TestDatabase.create(fixtureDatabase, {
+        environment: environment,
         isMigrated: true,
     });
     onTestFinished(() => storage.close());
@@ -225,18 +229,24 @@ test("share an object with everyone with a permission on another, as its relatio
         permissions: { read: relation("reader") },
     });
     const authorizer = new Authorizer([team, note], [{ ...mapping, policy: note, relations: {} }]);
-    await new AccessFixture(database).replicateScope(org.reference("universe", "plans"), org);
-    await database.insert(item).values({
-        id: "a",
-        scope: "plans",
-        owner: "frank",
-        parent: null,
-        row: 0,
-        column: 0,
-        locked: 0,
-        team: 0,
-        protected: 0,
-    });
+    await new AccessFixture(database, environment).replicateScope(
+        org.reference("universe", "plans"),
+        org,
+    );
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(item).values({
+                id: "a",
+                scope: "plans",
+                owner: "frank",
+                parent: null,
+                row: 0,
+                column: 0,
+                locked: 0,
+                team: 0,
+                protected: 0,
+            }),
+    );
     const crew = team.reference("plans", "core");
     await relate(database, crew, "editor", people.carol);
     await relate(database, crew, "viewer", people.dave);
@@ -247,16 +257,7 @@ test("share an object with everyone with a permission on another, as its relatio
 
     // let the team's editor and viewer read the note, and nobody else, in SQL and in memory alike
     const reads = async (person: keyof typeof people) => {
-        const context: AccessContext = {
-            grants: [],
-            subject: people[person],
-            actors: [],
-            groups: [],
-            contacts: [],
-            linkSecrets: [],
-            now: 1000,
-            attributes: {},
-        };
+        const context = AccessContext.of(Caller.of(people[person]), 1000);
         const access = await authorizer.resolve(Snapshot.live(database), "plans", context);
         const listed = (
             await database
@@ -284,7 +285,10 @@ test("share an object with everyone with a permission on another, as its relatio
 
 test("share an object with a scope's readers, including those of the scopes enclosing it", async () => {
     // store a document in a folder of an organisation, shared with the folder's readers
+    await using simulation = testSimulation();
+    const environment = simulation.environment("access");
     const storage = await TestDatabase.create(fixtureDatabase, {
+        environment: environment,
         isMigrated: true,
     });
     onTestFinished(() => storage.close());
@@ -300,20 +304,23 @@ test("share an object with a scope's readers, including those of the scopes encl
     );
     const acme = org.reference("universe", "acme");
     const plans = folder.reference("acme", "plans");
-    const replicas = new AccessFixture(database);
+    const replicas = new AccessFixture(database, environment);
     await replicas.replicateScope(acme, org);
     await replicas.replicateScope(plans, folder);
-    await database.insert(item).values({
-        id: "a",
-        scope: "plans",
-        owner: "frank",
-        parent: null,
-        row: 0,
-        column: 0,
-        locked: 0,
-        team: 0,
-        protected: 0,
-    });
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(item).values({
+                id: "a",
+                scope: "plans",
+                owner: "frank",
+                parent: null,
+                row: 0,
+                column: 0,
+                locked: 0,
+                team: 0,
+                protected: 0,
+            }),
+    );
     await relate(database, acme, "editor", people.carol);
     await relate(database, plans, "viewer", people.dave);
     await relate(database, shared.reference("plans", "a"), "reader", {
@@ -363,7 +370,10 @@ test("share an object with a scope's readers, including those of the scopes encl
 
 test("read a permission through each object's scope, granting nothing where the scope type lacks the permission", async () => {
     // store notes in a shop serving its workers and in a club declaring no serving
+    await using simulation = testSimulation();
+    const environment = simulation.environment("access");
     const storage = await TestDatabase.create(fixtureDatabase, {
+        environment: environment,
         isMigrated: true,
     });
     onTestFinished(() => storage.close());
@@ -390,13 +400,16 @@ test("read a permission through each object's scope, granting nothing where the 
     });
     const corner = shop.reference("universe", "corner");
     const chess = club.reference("universe", "chess");
-    const replicas = new AccessFixture(database);
+    const replicas = new AccessFixture(database, environment);
     await replicas.replicateScope(corner, shop);
     await replicas.replicateScope(chess, club);
-    await database.insert(item).values([
-        { ...documentRow("a"), scope: "corner" },
-        { ...documentRow("b"), scope: "chess" },
-    ]);
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(item).values([
+                { ...documentRow("a"), scope: "corner" },
+                { ...documentRow("b"), scope: "chess" },
+            ]),
+    );
 
     // make dave a worker of both
     await relate(database, corner, "worker", people.dave);

@@ -1,8 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { Subject } from "@destack/sync";
 import { Snapshot } from "@destack/db";
-import { nth } from "@destack/schema";
-import { v7 } from "uuid";
+import { Identifier, nth } from "@destack/schema";
 import { accessRelationship, principal, Relationship } from "../index.ts";
 import { group, node } from "../test/fixture.ts";
 import { openFixture } from "../test/database.ts";
@@ -17,15 +16,18 @@ test("list the users with a permission on an object, through nested groups, deci
     onTestFinished(() => fixture.close());
     const { database, authorizer } = fixture;
     const relate = (object: Relationship["object"], relation: string, subject: Subject) =>
-        database.insert(accessRelationship).values(
-            Relationship.encode({
-                id: `relationship-${v7()}`,
-                object,
-                relation,
-                subject,
-                createdAt: 1,
-                expiresAt: null,
-            }),
+        database.transaction(
+            async (transaction) =>
+                await transaction.insert(accessRelationship).values(
+                    Relationship.encode({
+                        id: Identifier.create("relationship", fixture.environment),
+                        object,
+                        relation,
+                        subject,
+                        createdAt: 1,
+                        expiresAt: null,
+                    }),
+                ),
         );
 
     // let a group, with carol and a nested group with dave, and every user view note a

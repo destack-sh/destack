@@ -1,17 +1,19 @@
+import { TEST_START, testSimulation } from "@destack/test/world";
+import { Identifier } from "@destack/schema";
 import { defineDatabase, defineTable, Snapshot, asc, text } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { Scope, type ObjectReference, type Subject } from "@destack/sync";
-import { v7 } from "uuid";
 import {
+    AccessContext,
     accessRelationship,
     Authorizer,
+    Caller,
     Policy,
     principal,
     Relationship,
-    through,
-    type AccessContext,
     type TableMapping,
+    through,
 } from "../index.ts";
 import { AccessFixture } from "../test/access.ts";
 import {
@@ -67,15 +69,17 @@ const home = space.reference("account-3", "home");
 /** Open a database storing assets of a space in another account's home, scopes replicated. */
 async function openWithOwner() {
     // migrate the access tables beside the scopes and the assets
+    await using simulation = testSimulation();
+    const environment = simulation.environment("access");
     const storage = await TestDatabase.create(
         defineDatabase({ name: "main", tables: [...fixtureTables, assetTable] }),
-        { isMigrated: true },
+        { environment: environment, isMigrated: true },
     );
     onTestFinished(() => storage.close());
     const { database } = storage;
 
     // replicate the accounts, the holder and the home, and store the holder and an asset of it
-    const replicas = new AccessFixture(database);
+    const replicas = new AccessFixture(database, environment);
     for (const scope of [holding, unrelated, account.reference(Scope.universe.id, "account-3")]) {
         await replicas.replicateScope(scope, account);
     }
@@ -88,16 +92,7 @@ async function openWithOwner() {
     const authorizer = new Authorizer([...policies, asset], [...homeMappings, assetMapping]);
     const readable = async () => {
         const snapshot = Snapshot.live(database);
-        const context: AccessContext = {
-            grants: [],
-            subject: carol,
-            groups: [],
-            now: Date.now(),
-            attributes: {},
-            actors: [],
-            contacts: [],
-            linkSecrets: [],
-        };
+        const context = AccessContext.of(Caller.of(carol), TEST_START);
         const access = await authorizer.resolve(snapshot, home.id, context);
         const selected = await database
             .select({ id: assetTable.id })
@@ -134,15 +129,18 @@ async function openWithOwner() {
 
     // bind a role to carol on another object
     const bind = async (object: ObjectReference, role: string, subject: Subject = carol) => {
-        await database.insert(accessRelationship).values(
-            Relationship.encode({
-                id: `relationship-${v7()}`,
-                object,
-                role,
-                subject,
-                createdAt: 0,
-                expiresAt: null,
-            }),
+        await database.transaction(
+            async (transaction) =>
+                await transaction.insert(accessRelationship).values(
+                    Relationship.encode({
+                        id: Identifier.create("relationship", environment),
+                        object,
+                        role,
+                        subject,
+                        createdAt: 0,
+                        expiresAt: null,
+                    }),
+                ),
         );
     };
 

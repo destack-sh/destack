@@ -35,7 +35,7 @@ test("allow any signed-in user's read of a public space whose home stores its ro
     // store an account and its public space, the space's row and its scope row, in the space's home
     const fixture = await openFixture();
     onTestFinished(() => fixture.close());
-    const { database } = fixture;
+    const { database, environment } = fixture;
     const mappings: TableMapping[] = homeMappings.map((mapping) =>
         mapping.policy === space ? { ...mapping, policy: publicSpace } : mapping,
     );
@@ -46,7 +46,7 @@ test("allow any signed-in user's read of a public space whose home stores its ro
     const home = publicSpace.reference("account-1", "personal");
     await database.insert(accountTable).values({ id: "account-1", scope: "universe" });
     await database.insert(spaceTable).values({ id: "personal", account: "account-1" });
-    const access = new AccessFixture(database);
+    const access = new AccessFixture(database, environment);
     await access.replicateScope(account.reference("universe", "account-1"), account);
     await access.replicateScope(home, publicSpace);
 

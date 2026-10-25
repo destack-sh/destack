@@ -1,5 +1,5 @@
 import { TestDatabase } from "@destack/db/test";
-import { nth, schema } from "@destack/schema";
+import { Digest, nth, schema } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { Scope, type Subject } from "@destack/sync";
 import { Snapshot, and, asc, eq, sql } from "@destack/db";
@@ -65,14 +65,14 @@ function lifetime(createdAt: number, expiresAt: number | null) {
 }
 
 /** Share a relationship through a link with this secret's digest, or directly. */
-function linkSecretOf(linkSecret: string | null) {
+function linkSecretOf(linkSecret: Digest | null) {
     return linkSecret === null ? {} : { linkSecret };
 }
 
 test("decide in memory exactly as the permission queries do, for objects and the relationships they share, for random access models", async () => {
     const fixture = await openFixture();
     onTestFinished(() => fixture.close());
-    const { database } = fixture;
+    const { database, environment } = fixture;
     const snapshot = Snapshot.live(database);
 
     // cover roles on ancestors through the tree, as well as without it
@@ -88,24 +88,30 @@ test("decide in memory exactly as the permission queries do, for objects and the
 
     // define a role that reads and edits nodes and reads cells across types
     const roleId = schema.identifier("role").parse("role-01996ab0-0000-7000-8000-000000000101");
-    await database.insert(accessRole).values({
-        id: roleId,
-        createdAt: 1,
-        updatedAt: 1,
-        scope: "personal",
-        name: "editor",
-        description: "Edits nodes",
-    });
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(accessRole).values({
+                id: roleId,
+                createdAt: 1,
+                updatedAt: 1,
+                scope: "personal",
+                name: "editor",
+                description: "Edits nodes",
+            }),
+    );
     const granted = [node.permission("read"), node.permission("edit"), cell.permission("read")];
     for (const [position, permission] of granted.entries()) {
-        await database.insert(accessRolePermission).values({
-            id: schema
-                .identifier("role-permission")
-                .parse(`role-permission-01996ab0-0000-7000-8000-00000000020${position}`),
-            roleId,
-            scope: "personal",
-            ...permission,
-        });
+        await database.transaction(
+            async (transaction) =>
+                await transaction.insert(accessRolePermission).values({
+                    id: schema
+                        .identifier("role-permission")
+                        .parse(`role-permission-01996ab0-0000-7000-8000-00000000020${position}`),
+                    roleId,
+                    scope: "personal",
+                    ...permission,
+                }),
+        );
     }
     await database.insert(teamTable).values({ id: "t1", scope: "personal", member: "bob" });
 
@@ -118,7 +124,7 @@ test("decide in memory exactly as the permission queries do, for objects and the
         { ...team.reference("personal", "t1"), relation: "member" },
         anyone.reference("*", "*"),
     ];
-    const linkSecrets: (string | null)[] = [null, null, "c".repeat(64)];
+    const linkSecrets: (Digest | null)[] = [null, null, Digest.parse("c".repeat(64))];
 
     // call with the request attributes the policies' conditions read
     const attributes = {
@@ -133,7 +139,7 @@ test("decide in memory exactly as the permission queries do, for objects and the
     // call as users, members, anonymous callers, presenters of link secrets and actors under grants
     const agent = principal.installation.reference("personal", "agent");
     const client = principal.client.reference(Scope.universe.id, "client-bob");
-    const granting = new AccessFixture(database);
+    const granting = new AccessFixture(database, environment);
     const toAgent = await granting.replicateGrant(
         user("bob"),
         agent,
@@ -249,7 +255,9 @@ test("decide in memory exactly as the permission queries do, for objects and the
         const draw = random(model + 1);
         const pick = <Value>(values: readonly Value[]) =>
             nth(values, Math.floor(draw() * values.length));
-        await database.delete(accessRelationship);
+        await database.transaction(
+            async (transaction) => await transaction.delete(accessRelationship),
+        );
 
         // relate random subjects to random nodes, groups and roles in one insert, skipping repeated tuples
         const related = Array.from({ length: 10 }, (_, position) => {
@@ -273,7 +281,10 @@ test("decide in memory exactly as the permission queries do, for objects and the
                 ...(isMembership ? {} : linkSecretOf(pick(linkSecrets))),
             });
         });
-        await database.insert(accessRelationship).values(related).onConflictDoNothing();
+        await database.transaction(
+            async (transaction) =>
+                await transaction.insert(accessRelationship).values(related).onConflictDoNothing(),
+        );
 
         // allow through grants what the queries allow, for each caller at once, permission and authorizer
         for (const authorizer of authorizers) {
@@ -472,17 +483,20 @@ test("explain which grants allow a caller and why the others fail", async () => 
     const { database, authorizer } = fixture;
 
     // share a node with a link only its secret opens
-    const linkSecret = "d".repeat(64);
-    await database.insert(accessRelationship).values(
-        Relationship.encode({
-            id: "relationship-01996ab0-0000-7000-8000-000000000401",
-            object: node.reference("personal", "c"),
-            relation: "viewer",
-            subject: anyone.reference("*", "*"),
-            createdAt: 1,
-            expiresAt: null,
-            linkSecret,
-        }),
+    const linkSecret = Digest.parse("d".repeat(64));
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(accessRelationship).values(
+                Relationship.encode({
+                    id: "relationship-01996ab0-0000-7000-8000-000000000401",
+                    object: node.reference("personal", "c"),
+                    relation: "viewer",
+                    subject: anyone.reference("*", "*"),
+                    createdAt: 1,
+                    expiresAt: null,
+                    linkSecret,
+                }),
+            ),
     );
 
     // explain reading the node for a visitor without and with the link secret

@@ -7,6 +7,7 @@ import {
     type Snapshot,
     Table,
 } from "@destack/db";
+import type { Environment } from "@destack/environment";
 import { ObjectReference, Scope, Subject } from "@destack/sync";
 
 import { AccessError } from "../error/index.ts";
@@ -45,6 +46,9 @@ export interface Creation {
     readonly owner?: Subject;
 }
 
+/** The clock, randomness and WebCrypto an authorization creates rows and secrets with. */
+export type AuthorizationEnvironment = Pick<Environment, "clock" | "crypto" | "random">;
+
 /** A caller's authorization under a set of policies in one database. */
 export class Authorization {
     /** The policies deciding the caller's access. */
@@ -55,6 +59,8 @@ export class Authorization {
     readonly snapshot: Snapshot;
     /** The applied declaration writing its rows, null for direct access changes. */
     readonly manager: Manager | null;
+    /** The clock, randomness and WebCrypto the call's new rows and secrets come from. */
+    readonly environment: AuthorizationEnvironment;
     /** Read the verified caller at the time it acts. */
     readonly #context: () => AccessContext;
     /** The caller's access resolved in each scope during this call, until renewed. */
@@ -69,6 +75,7 @@ export class Authorization {
         authorizer: Authorizer,
         transaction: Transaction,
         context: () => AccessContext,
+        environment: AuthorizationEnvironment,
         options: {
             /** The caller's access already resolved in one scope. */
             readonly resolved?: Access;
@@ -81,6 +88,7 @@ export class Authorization {
         this.#resolved = new Map<string, Promise<Access>>();
         this.#below = new Map<string, Map<string, Access | undefined>>();
         this.manager = manager;
+        this.environment = environment;
         this.#writes = transaction.changes.writes(authorizer.decidingTables);
 
         // take the caller, reusing the access resolved in one scope
@@ -98,16 +106,25 @@ export class Authorization {
         authorizer: Authorizer,
         database: DatabaseConnection,
         context: () => AccessContext,
+        environment: AuthorizationEnvironment,
         call: (authorization: Authorization) => Promise<Value>,
     ): Promise<Value> {
         return Transaction.run(database, (transaction) =>
-            call(new Authorization(authorizer, transaction, context)),
+            call(new Authorization(authorizer, transaction, context, environment)),
         );
     }
 
     /** Authorize the caller to apply a declaration that manages its rows. */
     applying(manager: Manager): Authorization {
-        return new Authorization(this.authorizer, this.transaction, this.#context, { manager });
+        return new Authorization(
+            this.authorizer,
+            this.transaction,
+            this.#context,
+            this.environment,
+            {
+                manager,
+            },
+        );
     }
 
     /** Read the verified caller as it acts now. */
@@ -331,7 +348,12 @@ export class Authorization {
         }
 
         // relate the first subjects
-        const relationships = this.authorizer.initialRelationships(object, creation, context.now);
+        const relationships = this.authorizer.initialRelationships(
+            object,
+            creation,
+            context.now,
+            this.environment,
+        );
         await this.transaction.write(
             ...relationships.map((relationship) => ({
                 table: accessRelationship,
@@ -342,7 +364,7 @@ export class Authorization {
 
         // bind the owner role on a scope to its owner
         if (creation.owner !== undefined) {
-            await Role.bindOwner(this.transaction, object, creation.owner, context.now);
+            await Role.bind(object, Role.OWNER, creation.owner, this);
         }
     }
 
@@ -402,7 +424,7 @@ export class Authorization {
         record?: Select<typeof accessRole>,
     ): Promise<void> {
         // write only the roles of a homed scope, and refuse a managed role outside its declaration until detached
-        await this.authorizer.requireHome(this.transaction, scope);
+        await this.authorizer.requireHome(this.transaction, scope, scope.id);
         if (record !== undefined) {
             Manager.requireChangeable(record, this.manager, "role");
         }
@@ -520,7 +542,7 @@ export class Authorization {
         if (this.authorizer.policy(object).definition.scope !== true) {
             throw AccessError.of("SCOPE_REQUIRED", `${object.type} is not a scope`);
         }
-        await this.authorizer.requireHome(this.transaction, object);
+        await this.authorizer.requireHome(this.transaction, object, object.id);
 
         // mark the scope's record
         const row = await this.transaction

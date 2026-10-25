@@ -1,3 +1,4 @@
+import { testSimulation } from "@destack/test/world";
 import { TestDatabase } from "@destack/db/test";
 import { Scope, type Subject } from "@destack/sync";
 import { fixtureDatabase, item, mappings, node, policies, rows } from "./fixture.ts";
@@ -16,8 +17,13 @@ const CREDENTIAL_MILLISECONDS = 60_000;
 
 /** Open a migrated database home to a partition, the universe by default, with two users. */
 export async function openDatabase(partition: string = Scope.universe.id) {
-    // open the database and authorize its objects as its partition's
-    const test = await TestDatabase.create(fixtureDatabase, { isMigrated: true });
+    // open the database in a world of its own, and authorize its objects as its partition's
+    const simulation = testSimulation();
+    const environment = simulation.environment("access");
+    const test = await TestDatabase.create(fixtureDatabase, {
+        environment: environment,
+        isMigrated: true,
+    });
     const { database } = test;
     const authorizer = new Authorizer(policies, mappings, { partition });
 
@@ -40,19 +46,31 @@ export async function openDatabase(partition: string = Scope.universe.id) {
         credential: sessionCredential("bob", 1000),
     };
 
-    return { test, database, authorizer, alice, bob, close: () => test.close() };
+    return {
+        test,
+        database,
+        environment,
+        authorizer,
+        alice,
+        bob,
+        close: async () => {
+            await test.close();
+            await simulation[Symbol.asyncDispose]();
+        },
+    };
 }
 
 /** Open a migrated application database home to a partition, with its notes and one grant. */
 export async function openFixture(partition: string = Scope.universe.id) {
     // populate the database and grant bob one note
     const opened = await openDatabase(partition);
-    const { database, authorizer, alice } = opened;
-    await database.insert(item).values(rows);
+    const { database, environment, authorizer, alice } = opened;
+    await database.transaction(async (transaction) => await transaction.insert(item).values(rows));
     await Authorization.run(
         authorizer,
         database,
         () => alice,
+        environment,
         (authorization) =>
             Relationship.grant(
                 {

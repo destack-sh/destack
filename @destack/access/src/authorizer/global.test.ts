@@ -1,15 +1,18 @@
+import { testSimulation } from "@destack/test/world";
 import { expect, onTestFinished, test } from "@destack/test";
 import { asc, defineTable, Snapshot, text } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import {
+    AccessContext,
     accessTables,
     Authorizer,
+    Caller,
     none,
     Policy,
     principal,
     relation,
-    through,
     type TableMapping,
+    through,
 } from "../index.ts";
 import { module4, space } from "../test/fixture.ts";
 import { AccessFixture } from "../test/access.ts";
@@ -69,13 +72,16 @@ const mappings: TableMapping[] = [
 
 test("follow a relation to a global type at the universe, through a plain and a typed field, deciding in memory as in SQL", async () => {
     // store a profile carol views, and a card in a space showing it through both fields
+    await using simulation = testSimulation();
+    const environment = simulation.environment("access");
     const storage = await TestDatabase.create([...accessTables, profileTable, cardTable], {
+        environment: environment,
         isMigrated: true,
     });
     onTestFinished(() => storage.close());
     const { database } = storage;
     const authorizer = new Authorizer([space, profile, card], mappings);
-    const access = new AccessFixture(database);
+    const access = new AccessFixture(database, environment);
     await access.replicateScope(space.reference("universe", "personal"), space);
     await database.insert(profileTable).values({ id: "p1" });
     await database.insert(cardTable).values({
@@ -98,16 +104,11 @@ test("follow a relation to a global type at the universe, through a plain and a 
     const snapshot = Snapshot.live(database);
     const target = card.reference("personal", "c1");
     const decide = async (caller: string) => {
-        const resolved = await authorizer.resolve(snapshot, "personal", {
-            grants: [],
-            subject: principal.user.reference("universe", caller),
-            groups: [],
-            now: 1000,
-            attributes: {},
-            actors: [],
-            contacts: [],
-            linkSecrets: [],
-        });
+        const resolved = await authorizer.resolve(
+            snapshot,
+            "personal",
+            AccessContext.of(Caller.of(principal.user.reference("universe", caller)), 1000),
+        );
         const selected = async (name: "read" | "view") =>
             (
                 await database

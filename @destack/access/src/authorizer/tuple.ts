@@ -97,14 +97,10 @@ export class TupleReader {
     readonly #authorizer: Authorizer;
     /** The database as the tuples are read from it: live, or at a position. */
     readonly #snapshot: Snapshot;
-    /** The objects of the rows' scope and every scope enclosing it, nearest first. */
-    readonly #scopes: readonly ObjectReference[];
-    /** The chains of the enclosed scopes the reader also decides rows of, by scope. */
-    readonly #chains: Map<string, readonly ObjectReference[]>;
+    /** The chain of each scope read or known so far, nearest first, by scope. */
+    readonly #chains: Map<string, Promise<readonly ObjectReference[]>>;
     /** The relationships of each object read so far, by object key. */
     readonly #read: Map<string, Promise<Select<typeof accessRelationship>[]>>;
-    /** The role bindings of each owner scope's chain read so far, by scope. */
-    readonly #chainBound: Map<string, Promise<RoleBinding[]>>;
     /** The proper ancestors of each node read so far, by tree, scope and node. */
     readonly #ancestry: Map<string, Promise<string[]>>;
     /** The rows read so far, absent where none exists, by type, scope and identifier. */
@@ -113,23 +109,21 @@ export class TupleReader {
     /** Read tuples from a snapshot of a database for rows within a scope chain. */
     constructor(authorizer: Authorizer, snapshot: Snapshot, scopes: readonly ObjectReference[]) {
         // start with empty state
-        this.#chains = new Map<string, readonly ObjectReference[]>();
+        this.#chains = new Map<string, Promise<readonly ObjectReference[]>>();
         this.#read = new Map<string, Promise<Select<typeof accessRelationship>[]>>();
-        this.#chainBound = new Map<string, Promise<RoleBinding[]>>();
         this.#ancestry = new Map<string, Promise<string[]>>();
         this.#loaded = new Map<string, Promise<Row | undefined>>();
 
         // take the authorizer, the snapshot and the scope chain
         this.#authorizer = authorizer;
         this.#snapshot = snapshot;
-        this.#scopes = scopes;
+        this.record(scopes);
     }
 
-    /** Decide an enclosed scope's rows by that scope's chain, nearest first. */
-    cover(scopes: readonly ObjectReference[]): void {
-        const [nearest] = scopes;
-        if (nearest !== undefined) {
-            this.#chains.set(nearest.id, scopes);
+    /** Record a known scope chain and the chains of the scopes enclosing it, nearest first. */
+    record(scopes: readonly ObjectReference[]): void {
+        for (const [index, object] of scopes.entries()) {
+            this.#chains.set(object.id, Promise.resolve(scopes.slice(index)));
         }
     }
 
@@ -226,7 +220,7 @@ export class TupleReader {
             }
             related.push(
                 ...[...new Set([...ids, ...ancestors])].map((id) => typed(id, scope)),
-                ...this.#chain(scope),
+                ...(await this.#chain(scope)),
             );
         }
 
@@ -329,10 +323,38 @@ export class TupleReader {
             case "readers":
                 return this.#readers(expression, mapping, row, trail);
             case "contained":
-                return this.#contained(expression, mapping, row, trail);
+                return await this.#contained(expression, mapping, row, trail);
+            case "subjectSet":
+                return TupleReader.#subjectSet(expression, mapping, row, trail);
             case "self":
                 return TupleReader.#self(mapping, row, trail);
         }
+    }
+
+    /** Grant a row to the members of one object's subject set in the row's scope. */
+    static #subjectSet(
+        expression: Extract<AccessExpression, { kind: "subjectSet" }>,
+        mapping: TableMapping,
+        row: Row,
+        trail: Trail,
+    ): TupleTree {
+        // read the row's object and the set in its scope
+        const definition = mapping.policy.definition;
+        const scope = TableMapping.scope(mapping, row);
+        const object = {
+            packageId: definition.packageId,
+            type: definition.name,
+            scope,
+            id: TableMapping.text(row, mapping.id),
+        };
+        const subject = {
+            ...expression.object,
+            scope,
+            id: expression.id,
+            relation: expression.relation,
+        };
+
+        return TupleTree.any([{ subject, arrows: trail.arrows, object, path: trail.path }]);
     }
 
     /** Grant a row to the principal it represents, a global one by its universe reference. */
@@ -352,16 +374,16 @@ export class TupleReader {
     }
 
     /** Grant a row to principals inside its scope, or inside the row as a scope, of some types. */
-    #contained(
+    async #contained(
         expression: Extract<AccessExpression, { kind: "contained" }>,
         mapping: TableMapping,
         row: Row,
         trail: Trail,
-    ): TupleTree {
+    ): Promise<TupleTree> {
         // find the scope containing the principals: the row itself for a scope, else the scope it lives in
         const definition = mapping.policy.definition;
         const scope = TableMapping.scope(mapping, row);
-        const [nearest] = this.#chain(scope);
+        const [nearest] = await this.#chain(scope);
         const object =
             definition.scope === true
                 ? {
@@ -609,7 +631,7 @@ export class TupleReader {
             return this.#enclosing(expression, mapping, scope, trail);
         }
 
-        // follow relationships to plain objects in the same scope
+        // follow relationships to plain objects, each in its own scope
         const field = mapping.relations[expression.relation];
         if (!field) {
             return this.#throughRelationships(expression, mapping, row, scope, trail);
@@ -619,7 +641,7 @@ export class TupleReader {
         return this.#throughField(expression, mapping, field, row, scope, trail);
     }
 
-    /** Follow a row's relationships to plain objects in its scope, adding arrow conditions. */
+    /** Follow a row's relationships to plain objects in their scopes, adding arrow conditions. */
     async #throughRelationships(
         expression: Extract<AccessExpression, { kind: "through" }>,
         mapping: TableMapping,
@@ -627,13 +649,10 @@ export class TupleReader {
         scope: string,
         trail: Trail,
     ): Promise<TupleTree> {
-        // select the relationships to plain objects in the row's scope
+        // select the relationships to plain objects
         const relation = this.#authorizer.relation(mapping.policy, expression.relation);
         const relationships = (await this.#rowRelationships(mapping, row)).filter(
-            (entry) =>
-                entry.relation === expression.relation &&
-                entry.subjectScope === scope &&
-                entry.subjectRelation === null,
+            (entry) => entry.relation === expression.relation && entry.subjectRelation === null,
         );
 
         // collect the trees of each related object in turn
@@ -666,7 +685,8 @@ export class TupleReader {
         // decide the permission on the related object under the arrow's conditions
         const target = this.#authorizer.requireMapping(subject);
         const trees: TupleTree[] = [];
-        for (const related of await this.#rows(target, scope, [entry.subjectId])) {
+        const rows = await this.#rows(target, entry.subjectScope, [entry.subjectId]);
+        for (const related of await this.#reached(scope, target, rows)) {
             trees.push(
                 await this.#permission(
                     target.policy.permission(expression.permission),
@@ -748,7 +768,8 @@ export class TupleReader {
         trail: Trail,
     ): Promise<TupleTree> {
         // find the objects of the chain deciding the enclosing scope's permission
-        const steps = this.#authorizer.chainSteps(mapping.policy, expression, this.#chain(scope));
+        const chain = await this.#chain(scope);
+        const steps = this.#authorizer.chainSteps(mapping.policy, expression, chain);
 
         // grant to the containment sets of the chain scopes allowing their principals
         const contained = steps.flatMap(({ object, contained: allowed }) =>
@@ -847,7 +868,7 @@ export class TupleReader {
 
         // read the bindings of a scope owner and its enclosing scopes by its chain only
         if (target.policy.definition.scope === true) {
-            return await this.#chainBindings(referred);
+            return await this.#scopeBindings(referred);
         }
 
         // read any other owner's coverage, and the bindings of its scope's chain
@@ -857,32 +878,11 @@ export class TupleReader {
         const bindings = await Promise.all(
             owners.map(async (owner) => [
                 ...(await this.#covering(target, owner)),
-                ...(await this.#chainBindings(TableMapping.scope(target, owner))),
+                ...(await this.#scopeBindings(TableMapping.scope(target, owner))),
             ]),
         );
 
         return bindings.flat();
-    }
-
-    /** Read the role bindings on a scope's object and the scopes enclosing it, once per scope. */
-    #chainBindings(scope: string): Promise<RoleBinding[]> {
-        // reuse the bindings of a chain read before
-        const known = this.#chainBound.get(scope);
-        if (known !== undefined) {
-            return known;
-        }
-
-        // read the chain's objects and their bindings
-        const read = Scope.chain(this.#snapshot, scope).then(async (links) => {
-            const bindings = await Promise.all(
-                links.map((link) => this.#relationships(link.object)),
-            );
-
-            return bindings.flat().filter((relationship) => Relationship.isBinding(relationship));
-        });
-        this.#chainBound.set(scope, read);
-
-        return read;
     }
 
     /** Read the role bindings on the row, its tree ancestors, or its owner parent's chain. */
@@ -941,15 +941,44 @@ export class TupleReader {
     /** Read the role bindings on the objects of a scope's chain. */
     async #scopeBindings(scope: string): Promise<RoleBinding[]> {
         const bindings = await Promise.all(
-            this.#chain(scope).map((object) => this.#relationships(object)),
+            (await this.#chain(scope)).map((object) => this.#relationships(object)),
         );
 
         return bindings.flat().filter((relationship) => Relationship.isBinding(relationship));
     }
 
-    /** Read the chain deciding a scope's rows: the scope's when covered, the reader's otherwise. */
-    #chain(scope: string): readonly ObjectReference[] {
-        return this.#chains.get(scope) ?? this.#scopes;
+    /** Keep the related rows a scope reaches: global, in the scope, or handed down above it. */
+    async #reached(scope: string, target: TableMapping, rows: readonly Row[]): Promise<Row[]> {
+        // reach a global row always, else a row of the scope or a handed down one above it
+        const chain = await this.#chain(scope);
+
+        return rows.filter((row) => {
+            const other = TableMapping.scope(target, row);
+            const isAbove = chain.some((object) => object.id === other);
+
+            return (
+                target.scope === undefined ||
+                other === scope ||
+                (isAbove && TableMapping.isHandedDown(target, row))
+            );
+        });
+    }
+
+    /** Read a scope's chain once, nearest first: known, else from the scope rows. */
+    #chain(scope: string): Promise<readonly ObjectReference[]> {
+        // reuse a chain known or read before
+        const known = this.#chains.get(scope);
+        if (known !== undefined) {
+            return known;
+        }
+
+        // read the chain's objects from the scope rows
+        const read = Scope.chain(this.#snapshot, scope).then((links) =>
+            links.map((link) => link.object),
+        );
+        this.#chains.set(scope, read);
+
+        return read;
     }
 
     /** Read the relationships on a mapped row's object. */
@@ -1122,13 +1151,13 @@ export const TupleTree = {
                         placeholder: request,
                         exists: (via) => {
                             throw AccessError.of(
-                                "INVALID_DECLARATION",
+                                "DECLARATION_INVALID",
                                 `policy conditions cannot follow relations: ${via}`,
                             );
                         },
                         search: () => {
                             throw AccessError.of(
-                                "INVALID_DECLARATION",
+                                "DECLARATION_INVALID",
                                 "policy conditions cannot search",
                             );
                         },

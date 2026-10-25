@@ -1,17 +1,19 @@
+import { TEST_START } from "@destack/test/world";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { Snapshot, asc, eq, type DatabaseConnection } from "@destack/db";
 import { Feed, Replica, Scope, type Subscription } from "@destack/sync";
 import { nth } from "@destack/schema";
 import {
-    accessTables,
+    AccessContext,
     accessRelationship,
-    CHAIN_PUBLICATION,
+    accessTables,
     Authorization,
     Authorizer,
+    Caller,
+    CHAIN_PUBLICATION,
     principal,
-    Role,
-    type AccessContext,
     Relationship,
+    Role,
 } from "../index.ts";
 import {
     account,
@@ -26,19 +28,9 @@ import {
     spaceTable,
 } from "../test/fixture.ts";
 import { openDatabase, openFixture } from "../test/database.ts";
-import { Clock } from "@destack/environment";
 
 /** The owner of the account and the space. */
-const alice: AccessContext = {
-    grants: [],
-    subject: principal.user.reference("universe", "alice"),
-    groups: [],
-    now: 1000,
-    attributes: {},
-    actors: [],
-    contacts: [],
-    linkSecrets: [],
-};
+const alice = AccessContext.of(Caller.of(principal.user.reference("universe", "alice")), 1000);
 
 /** A member of the account who has roles through the membership. */
 const carol: AccessContext = {
@@ -103,7 +95,7 @@ test("relay an account's access through the space's database into an app's, and 
     await global.database.insert(accountTable).values({ id: "account-1", scope: "universe" });
     const object = account.reference("universe", "account-1");
     const owner = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
-        Authorization.run(accounts, global.database, () => alice, call);
+        Authorization.run(accounts, global.database, () => alice, app.environment, call);
     await owner((authorization) => authorization.create(object, { owner: alice.subject }));
     const reader = await owner((authorization) =>
         Role.create(
@@ -134,14 +126,10 @@ test("relay an account's access through the space's database into an app's, and 
             owner: alice.subject,
         }),
     );
-    const accountFeed = new Feed(global.database, [...accessTables, policyTable], {
-        clock: Clock.system,
-    });
+    const accountFeed = new Feed(global.database, [...accessTables, policyTable], {});
 
     // relay the universe, the account and the space through the space's database into the app's, where carol reads every note
-    const spaceFeed = new Feed(regional.database, [...accessTables, policyTable], {
-        clock: Clock.system,
-    });
+    const spaceFeed = new Feed(regional.database, [...accessTables, policyTable], {});
     const chain = ["personal", "account-1", Scope.universe.id];
     const relay = async () => {
         await replicate(regional.database, universeOf(spaces, chain), accountFeed);
@@ -171,12 +159,12 @@ test("relay an account's access through the space's database into an app's, and 
     await owner((authorization) => Relationship.revoke(object, binding.id, authorization));
     const revoked = await global.database.log.position();
     const impatient = new Authorizer(policies, mappings, { lag: 50 });
-    const late = { ...carol, now: Date.now() + 60 };
+    const late = { ...carol, now: TEST_START + 60 };
     expect(await refusal(impatient.resolve(Snapshot.live(app.database), "personal", late))).toEqual(
         [
             "SERVICE_UNAVAILABLE",
             "STALE",
-            "the home of universe has not confirmed access for over 50 ms",
+            "the home of personal has not confirmed access for over 50 ms",
         ],
     );
 
@@ -193,6 +181,7 @@ test("relay an account's access through the space's database into an app's, and 
                 notes,
                 app.database,
                 () => alice,
+                app.environment,
                 (authorization) =>
                     Relationship.grant(
                         {
@@ -231,7 +220,7 @@ test("write a space's own access beside its row where its creator stores it, and
     const accounts = new Authorizer(policies, homeMappings, { partition: Scope.universe.id });
     const spaces = new Authorizer(policies, mappings, { partition: "personal" });
     const owner = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
-        Authorization.run(accounts, global.database, () => alice, call);
+        Authorization.run(accounts, global.database, () => alice, home.environment, call);
     await global.database.insert(accountTable).values({ id: "account-1", scope: "universe" });
     await owner((authorization) =>
         authorization.create(account.reference("universe", "account-1"), {
@@ -243,13 +232,14 @@ test("write a space's own access beside its row where its creator stores it, and
     await owner((authorization) => authorization.create(personal, { owner: alice.subject }));
 
     // replicate the home's chain, store its row, and receive it
-    const feed = new Feed(global.database, [...accessTables, policyTable], { clock: Clock.system });
+    const feed = new Feed(global.database, [...accessTables, policyTable], {});
     await replicate(home.database, chainOf(spaces, "account-1", "personal"), feed);
     await home.database.insert(spaceTable).values({ id: "personal", account: "account-1" });
     await Authorization.run(
         spaces,
         home.database,
         () => alice,
+        home.environment,
         (authorization) => authorization.receive(personal, ["account-1"]),
     );
 
@@ -270,6 +260,7 @@ test("write a space's own access beside its row where its creator stores it, and
             authorizer,
             database,
             () => alice,
+            home.environment,
             (authorization) =>
                 Relationship.grant(
                     {
@@ -307,7 +298,7 @@ async function replicate(
 ): Promise<void> {
     // read the pages up to the source's head
     const { replica, subscription } = chain;
-    await replica.register(database, { subscription, audience: "contained", clock: Clock.system });
+    await replica.register(database, { subscription, audience: "contained" });
     const head = await feed.database.log.position();
     const after = from === "snapshot" ? undefined : await replica.position(database);
     const pages = [];
@@ -319,5 +310,5 @@ async function replicate(
     }
 
     // apply them in order
-    await Array.fromAsync(replica.apply(database, pages, { clock: Clock.system }));
+    await Array.fromAsync(replica.apply(database, pages, {}));
 }

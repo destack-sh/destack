@@ -643,8 +643,11 @@ export class Access {
         lag: number,
         now: number,
     ): Promise<void> {
-        for (const [scope, origin] of await Replica.origins(database, CHAIN_PUBLICATION, chain)) {
-            if (now - origin.confirmedAt > lag) {
+        // refuse the nearest scope whose home has not confirmed access lately
+        const origins = await Replica.origins(database, CHAIN_PUBLICATION, chain);
+        for (const scope of chain) {
+            const origin = origins.get(scope);
+            if (origin !== undefined && now - origin.confirmedAt > lag) {
                 throw AccessError.of(
                     "STALE",
                     `the home of ${scope} has not confirmed access for over ${lag} ms`,

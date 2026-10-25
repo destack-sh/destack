@@ -59,7 +59,7 @@ Caller.principal(caller);
 
 ## Decisions
 
-An `Authorizer` resolves a caller's `Access` in a scope, and `require` throws an `AccessError` with the first permission the caller lacks.
+An `Authorizer` resolves a caller's `Access` in a scope, `require` throws an `AccessError` with the first permission the caller lacks, and each related object's permission is decided with the chain of the scope it lives in, as a direct check of it would.
 
 ```ts
 const authorizer = new Authorizer(

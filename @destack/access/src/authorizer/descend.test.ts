@@ -26,13 +26,13 @@ test("resolve a caller in the scopes one encloses exactly as each scope resolves
     // place three spaces below an account and one below another
     const fixture = await openFixture();
     onTestFinished(() => fixture.close());
-    const { database, authorizer, bob } = fixture;
-    const access = new AccessFixture(database);
+    const { database, authorizer, bob, environment } = fixture;
+    const access = new AccessFixture(database, environment);
     await access.replicateScope(account.reference("universe", "near"), account);
     await access.replicateScope(account.reference("universe", "far"), account);
     const spaces = ["plain", "shared", "suspended"].map((id) => space.reference("near", id));
     for (const scope of [...spaces, space.reference("far", "outside")]) {
-        await new AccessFixture(database).replicateScope(scope, space);
+        await new AccessFixture(database, environment).replicateScope(scope, space);
     }
 
     // let bob read the nodes of two spaces through a role, and suspend one of them
@@ -46,7 +46,7 @@ test("resolve a caller in the scopes one encloses exactly as each scope resolves
         scope,
         parent: null,
     }));
-    await database.insert(item).values(nodes);
+    await database.transaction(async (transaction) => await transaction.insert(item).values(nodes));
 
     // resolve the account's spaces at once, leaving out the space of another account and an unknown scope
     const snapshot = Snapshot.live(database);

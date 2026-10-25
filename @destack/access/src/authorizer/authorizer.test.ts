@@ -1,6 +1,6 @@
+import { testSimulation } from "@destack/test/world";
 import { expect, refusal, test } from "@destack/test";
 import type { FamilyError } from "@destack/error";
-import { v7 } from "uuid";
 import {
     defineTable,
     Snapshot,
@@ -10,7 +10,7 @@ import {
     Table,
     text,
 } from "@destack/db";
-import { nth, Identifier, schema } from "@destack/schema";
+import { nth, Identifier } from "@destack/schema";
 import { Scope, type Subject } from "@destack/sync";
 import {
     AccessError,
@@ -67,7 +67,7 @@ const databaseTest = test.extend<{
 });
 
 databaseTest("authorize notes, ranges and world entities", async ({ fixture }) => {
-    const { database, authorizer, alice, bob } = fixture;
+    const { database, authorizer, alice, bob, environment } = fixture;
 
     // retain the prepared mapping when the caller changes its input records
     const selections = mappings.map((mapping) => ({
@@ -102,6 +102,7 @@ databaseTest("authorize notes, ranges and world entities", async ({ fixture }) =
                 authorizer,
                 database,
                 () => bob,
+                environment,
                 (authorization) =>
                     Relationship.grant(
                         {
@@ -208,12 +209,13 @@ databaseTest("authorize notes, ranges and world entities", async ({ fixture }) =
 databaseTest(
     "share notes through wildcards and expiring, revocable credentials",
     async ({ fixture }) => {
-        const { database, authorizer, alice } = fixture;
+        const { database, authorizer, alice, environment } = fixture;
         // relate every user to a note, but no anonymous caller
         await Authorization.run(
             authorizer,
             database,
             () => alice,
+            environment,
             (authorization) =>
                 Relationship.grant(
                     {
@@ -250,6 +252,7 @@ databaseTest(
             authorizer,
             database,
             () => alice,
+            environment,
             (authorization) =>
                 Relationship.link(
                     {
@@ -265,14 +268,14 @@ databaseTest(
         const visitor = {
             ...anonymous,
             contacts: [],
-            linkSecrets: [await LinkSecret.digest(shared.secret)],
+            linkSecrets: [await LinkSecret.digest(shared.secret, environment.crypto)],
         };
         await expectEditable(database, authorizer, node, visitor, ["b", "c"]);
         await expectEditable(database, authorizer, node, { ...visitor, now: 2000 }, []);
         const stranger = {
             ...anonymous,
             contacts: [],
-            linkSecrets: [(await LinkSecret.create()).digest],
+            linkSecrets: [(await LinkSecret.create(environment)).digest],
         };
         await expectEditable(database, authorizer, node, stranger, []);
 
@@ -281,6 +284,7 @@ databaseTest(
             authorizer,
             database,
             () => alice,
+            environment,
             (authorization) =>
                 Relationship.revoke(node.reference("personal", "b"), shared.id, authorization),
         );
@@ -291,6 +295,7 @@ databaseTest(
             authorizer,
             database,
             () => alice,
+            environment,
             (authorization) =>
                 Relationship.link(
                     {
@@ -304,6 +309,7 @@ databaseTest(
             authorizer,
             database,
             () => alice,
+            environment,
             (authorization) =>
                 Relationship.link(
                     {
@@ -320,6 +326,7 @@ databaseTest(
                     authorizer,
                     database,
                     () => alice,
+                    environment,
                     (authorization) =>
                         Relationship.grant(
                             {
@@ -338,7 +345,7 @@ databaseTest(
 databaseTest(
     "apply invited relationships only once a grantor or the addressee accepts",
     async ({ fixture }) => {
-        const { database, authorizer, alice, bob } = fixture;
+        const { database, authorizer, alice, bob, environment } = fixture;
         const carol: AccessContext = {
             ...alice,
             subject: principal.user.reference("universe", "carol"),
@@ -356,6 +363,7 @@ databaseTest(
             authorizer,
             database,
             () => carol,
+            environment,
             (authorization) =>
                 Invitation.create(
                     {
@@ -376,6 +384,7 @@ databaseTest(
                     authorizer,
                     database,
                     () => alice,
+                    environment,
                     (authorization) =>
                         Invitation.list(
                             { object: node.reference("personal", "c") },
@@ -397,6 +406,7 @@ databaseTest(
                     ...alice,
                     now: asked.expiresAt,
                 }),
+                environment,
                 (authorization) =>
                     Invitation.list(
                         { object: node.reference("personal", "c") },
@@ -411,6 +421,7 @@ databaseTest(
                     authorizer,
                     database,
                     () => alice,
+                    environment,
                     (authorization) =>
                         Invitation.list(
                             { object: node.reference("personal", "c") },
@@ -426,6 +437,7 @@ databaseTest(
                     authorizer,
                     database,
                     () => carol,
+                    environment,
                     (authorization) =>
                         Invitation.accept(asked.relationship.object, asked.id, authorization),
                 ),
@@ -437,6 +449,7 @@ databaseTest(
                     authorizer,
                     database,
                     () => carol,
+                    environment,
                     (authorization) =>
                         Invitation.list(
                             { object: node.reference("personal", "c") },
@@ -450,6 +463,7 @@ databaseTest(
             authorizer,
             database,
             () => alice,
+            environment,
             (authorization) =>
                 Invitation.accept(asked.relationship.object, asked.id, authorization),
         );
@@ -460,6 +474,7 @@ databaseTest(
             authorizer,
             database,
             () => alice,
+            environment,
             (authorization) =>
                 Invitation.create(
                     {
@@ -478,6 +493,7 @@ databaseTest(
                     authorizer,
                     database,
                     () => dave,
+                    environment,
                     (authorization) =>
                         Invitation.create(
                             {
@@ -498,6 +514,7 @@ databaseTest(
                     authorizer,
                     database,
                     () => dave,
+                    environment,
                     (authorization) =>
                         Invitation.accept(offered.relationship.object, offered.id, authorization),
                 ),
@@ -518,9 +535,14 @@ databaseTest(
                         subject: userSubject("carol"),
                         actors: [agent],
                         grants: [
-                            { id: Identifier.create("grant"), scope: "carol", permissions: [] },
+                            {
+                                id: Identifier.create("grant", environment),
+                                scope: "carol",
+                                permissions: [],
+                            },
                         ],
                     }),
+                    environment,
                     (authorization) =>
                         Invitation.accept(offered.relationship.object, offered.id, authorization),
                 ),
@@ -534,6 +556,7 @@ databaseTest(
             authorizer,
             database,
             () => carol,
+            environment,
             (authorization) =>
                 Invitation.accept(offered.relationship.object, offered.id, authorization),
         );
@@ -544,6 +567,7 @@ databaseTest(
             authorizer,
             database,
             () => alice,
+            environment,
             (authorization) =>
                 Invitation.create(
                     {
@@ -560,6 +584,7 @@ databaseTest(
             authorizer,
             database,
             () => bob,
+            environment,
             (authorization) =>
                 Invitation.withdraw(refused.relationship.object, refused.id, authorization),
         );
@@ -567,6 +592,7 @@ databaseTest(
             authorizer,
             database,
             () => dave,
+            environment,
             (authorization) =>
                 Invitation.create(
                     {
@@ -585,6 +611,7 @@ databaseTest(
                     authorizer,
                     database,
                     () => carol,
+                    environment,
                     (authorization) =>
                         Invitation.withdraw(
                             rejected.relationship.object,
@@ -598,6 +625,7 @@ databaseTest(
             authorizer,
             database,
             () => alice,
+            environment,
             (authorization) =>
                 Invitation.withdraw(rejected.relationship.object, rejected.id, authorization),
         );
@@ -607,6 +635,7 @@ databaseTest(
                 authorizer,
                 database,
                 () => alice,
+                environment,
                 (authorization) =>
                     Invitation.list(
                         { object: node.reference("work", "d") },
@@ -621,21 +650,24 @@ databaseTest(
 databaseTest(
     "narrow a delegate to what its subject may and its grant gives, until the grant is revoked or lapses",
     async ({ fixture }) => {
-        const { database, authorizer, alice, bob } = fixture;
+        const { database, authorizer, alice, bob, environment } = fixture;
         const assistant = principal.installation.reference("personal", "assistant");
 
         // store alice's and bob's personal scopes, where their grants live
-        await database.insert(Scope.table).values(
-            ["alice", "bob"].map((id) =>
-                Table.complete(Scope.table, {
-                    scope: id,
-                    parent: Scope.universe.id,
-                    partition: Scope.universe.id,
-                    packageId: ACCESS_PACKAGE_ID,
-                    type: principal.user.name,
-                    ancestors: [],
-                }),
-            ),
+        await database.transaction(
+            async (transaction) =>
+                await transaction.insert(Scope.table).values(
+                    ["alice", "bob"].map((id) =>
+                        Table.complete(Scope.table, {
+                            scope: id,
+                            parent: Scope.universe.id,
+                            partition: Scope.universe.id,
+                            packageId: ACCESS_PACKAGE_ID,
+                            type: principal.user.name,
+                            ancestors: [],
+                        }),
+                    ),
+                ),
         );
 
         // grant the assistant editing a and b for each of them until 2000, refusing others' authority and sets
@@ -644,6 +676,7 @@ databaseTest(
                 authorizer,
                 database,
                 () => context,
+                environment,
                 (authorization) =>
                     Grant.create(
                         scopeOf(scope),
@@ -690,6 +723,7 @@ databaseTest(
             authorizer,
             database,
             () => alice,
+            environment,
             (authorization) => Grant.revoke(scopeOf("alice"), forAlice.id, authorization),
         );
         expect({
@@ -716,17 +750,20 @@ databaseTest(
 databaseTest(
     "act for a delegator under its one grant to a delegate, replaced by a later grant, refused once lapsed and for a chain link without a grant",
     async ({ fixture }) => {
-        const { database, authorizer, alice } = fixture;
+        const { database, authorizer, alice, environment } = fixture;
         const assistant = principal.installation.reference("personal", "assistant");
-        await database.insert(Scope.table).values(
-            Table.complete(Scope.table, {
-                scope: "alice",
-                parent: Scope.universe.id,
-                partition: Scope.universe.id,
-                packageId: ACCESS_PACKAGE_ID,
-                type: principal.user.name,
-                ancestors: [],
-            }),
+        await database.transaction(
+            async (transaction) =>
+                await transaction.insert(Scope.table).values(
+                    Table.complete(Scope.table, {
+                        scope: "alice",
+                        parent: Scope.universe.id,
+                        partition: Scope.universe.id,
+                        packageId: ACCESS_PACKAGE_ID,
+                        type: principal.user.name,
+                        ancestors: [],
+                    }),
+                ),
         );
 
         // grant the assistant editing a, then editing b until 2000 in its place
@@ -735,6 +772,7 @@ databaseTest(
                 authorizer,
                 database,
                 () => alice,
+                environment,
                 (authorization) =>
                     Grant.create(
                         scopeOf("alice"),
@@ -770,7 +808,7 @@ databaseTest(
     "give a chain what every live grant of it gives, approval-mode permissions only to a call applying an approved change",
     async ({ fixture }) => {
         // let alice's agent edit a and b, share once approved, and its sub-agent edit b and c
-        const { database, alice } = fixture;
+        const { database, alice, environment } = fixture;
         const agent = principal.installation.reference("personal", "agent");
         const subagent = principal.installation.reference("personal", "subagent");
         const sharing = {
@@ -778,7 +816,7 @@ databaseTest(
             scope: "personal",
             mode: "approval" as const,
         };
-        const access = new AccessFixture(database);
+        const access = new AccessFixture(database, environment);
         const toAgent = await access.replicateGrant(
             alice.subject,
             agent,
@@ -842,17 +880,20 @@ databaseTest(
         const few = await resolve();
 
         // relate many other subjects to notes of the scope, then resolve bob again
-        await database.insert(accessRelationship).values(
-            Array.from({ length: STRESS_RELATIONSHIPS }, (_, index) =>
-                Relationship.encode({
-                    id: schema.identifier("relationship").parse(`relationship-${v7()}`),
-                    object: node.reference("personal", `stress-${index}`),
-                    relation: "editor",
-                    subject: userSubject(`stranger-${index}`),
-                    createdAt: bob.now,
-                    expiresAt: null,
-                }),
-            ),
+        await database.transaction(
+            async (transaction) =>
+                await transaction.insert(accessRelationship).values(
+                    Array.from({ length: STRESS_RELATIONSHIPS }, (_, index) =>
+                        Relationship.encode({
+                            id: Identifier.create("relationship", fixture.environment),
+                            object: node.reference("personal", `stress-${index}`),
+                            relation: "editor",
+                            subject: userSubject(`stranger-${index}`),
+                            createdAt: bob.now,
+                            expiresAt: null,
+                        }),
+                    ),
+                ),
         );
         const many = await resolve();
 
@@ -861,21 +902,23 @@ databaseTest(
     },
 );
 
-test("resolve the policy of an identifier by its prefix, refusing a prefix of no type or of several", () => {
+test("resolve the policy of an identifier by its prefix, refusing a prefix of no type or of several", async () => {
     // read the cell and entity policies by identifiers of theirs
+    await using simulation = testSimulation();
+    const world = simulation.environment("test");
     const authorizer = new Authorizer(policies, mappings);
-    const found = [Identifier.create("cell"), Identifier.create("entity")];
-    const unknown = Identifier.create("sloth");
-    const shared = Identifier.create("group");
+    const found = [Identifier.create("cell", world), Identifier.create("entity", world)];
+    const unknown = Identifier.create("sloth", world);
+    const shared = Identifier.create("group", world);
 
     // find each identifier's type, and refuse one of no registered type and one two packages share
     expect(found.map((id) => authorizer.policyOf(id))).toEqual([cell, entity]);
     expect(() => authorizer.policyOf(unknown)).toThrow(
-        AccessError.of("INVALID_DECLARATION", `no known type has identifiers like ${unknown}`),
+        AccessError.of("DECLARATION_INVALID", `no known type has identifiers like ${unknown}`),
     );
     expect(() => authorizer.policyOf(shared)).toThrow(
         AccessError.of(
-            "INVALID_DECLARATION",
+            "DECLARATION_INVALID",
             `several known types have identifiers like ${shared}`,
         ),
     );
@@ -901,25 +944,28 @@ test("follow a scope relation of several scope types to the nearest scope only, 
     ]).toEqual([["space"], ["account"]]);
     expect(() => new Authorizer([...policies, badgePolicy([account, group])], mappings)).toThrow(
         AccessError.of(
-            "INVALID_DECLARATION",
+            "DECLARATION_INVALID",
             "badge.scope is a scope relation: it accepts scope types only",
         ),
     );
 });
 
 databaseTest("remove a space's delegated grants when the space goes", async ({ fixture }) => {
-    const { database, authorizer, alice } = fixture;
+    const { database, authorizer, alice, environment } = fixture;
 
     // store alice's personal scope, where her grants live
-    await database.insert(Scope.table).values(
-        Table.complete(Scope.table, {
-            scope: "alice",
-            parent: Scope.universe.id,
-            partition: Scope.universe.id,
-            packageId: ACCESS_PACKAGE_ID,
-            type: principal.user.name,
-            ancestors: [],
-        }),
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(Scope.table).values(
+                Table.complete(Scope.table, {
+                    scope: "alice",
+                    parent: Scope.universe.id,
+                    partition: Scope.universe.id,
+                    packageId: ACCESS_PACKAGE_ID,
+                    type: principal.user.name,
+                    ancestors: [],
+                }),
+            ),
     );
 
     // grant editing to an installation of each of two spaces
@@ -928,6 +974,7 @@ databaseTest("remove a space's delegated grants when the space goes", async ({ f
             authorizer,
             database,
             () => alice,
+            environment,
             (authorization) =>
                 Grant.create(
                     scopeOf("alice"),
@@ -980,13 +1027,14 @@ async function outcome(promise: Promise<unknown>): Promise<string> {
 }
 
 databaseTest("update inherited permissions when notes move or disappear", async ({ fixture }) => {
-    const { database, authorizer, alice, bob } = fixture;
+    const { database, authorizer, alice, bob, environment } = fixture;
 
     // share the root and its descendants while retaining the direct grant on b
     await Authorization.run(
         authorizer,
         database,
         () => alice,
+        environment,
         (authorization) =>
             Relationship.grant(
                 {
@@ -1000,28 +1048,37 @@ databaseTest("update inherited permissions when notes move or disappear", async 
     await expectEditable(database, authorizer, node, bob, ["a", "b", "c"]);
 
     // detach b: its direct grant remains, but c loses inherited root access
-    await database.update(item).set({ parent: null }).where(eq(item.id, "b"));
+    await database.transaction(
+        async (transaction) =>
+            await transaction.update(item).set({ parent: null }).where(eq(item.id, "b")),
+    );
     await expectEditable(database, authorizer, node, bob, ["a", "b"]);
 
     // reattach b and restore access through the same parent relationship
-    await database.update(item).set({ parent: "a" }).where(eq(item.id, "b"));
+    await database.transaction(
+        async (transaction) =>
+            await transaction.update(item).set({ parent: "a" }).where(eq(item.id, "b")),
+    );
     await expectEditable(database, authorizer, node, bob, ["a", "b", "c"]);
 
     // remove the leaf and restrict edits to the remaining records
-    await database.delete(item).where(eq(item.id, "c"));
+    await database.transaction(
+        async (transaction) => await transaction.delete(item).where(eq(item.id, "c")),
+    );
     await expectEditable(database, authorizer, node, bob, ["a", "b"]);
 });
 
 databaseTest(
     "end a caller's access at the moment a relationship its listings read expires",
     async ({ fixture }) => {
-        const { database, authorizer, alice, bob } = fixture;
+        const { database, authorizer, alice, bob, environment } = fixture;
 
         // let bob view c until 1500
         await Authorization.run(
             authorizer,
             database,
             () => alice,
+            environment,
             (authorization) =>
                 Relationship.grant(
                     {
@@ -1167,12 +1224,13 @@ test("refuse binding a role to a scope relation a field decides", () => {
 databaseTest(
     "refuse sharing with a group outside the object's scope chain",
     async ({ fixture }) => {
-        const { database, authorizer, alice } = fixture;
+        const { database, authorizer, alice, environment } = fixture;
         const share = (scope: string) =>
             Authorization.run(
                 authorizer,
                 database,
                 () => alice,
+                environment,
                 (authorization) =>
                     Relationship.grant(
                         {
@@ -1186,26 +1244,31 @@ databaseTest(
 
         // share with a group of the node's scope, refusing another account's, also as a first subject
         await share("personal");
-        const created = Authorization.run(
-            authorizer,
-            database,
-            () => alice,
-            (authorization) =>
-                authorization.create(node.reference("personal", "z"), {
-                    relationships: [
-                        {
-                            relation: "viewer",
-                            subject: { ...group.reference("account-2", "g"), relation: "member" },
-                        },
-                    ],
-                }),
-        );
+        const create = () =>
+            Authorization.run(
+                authorizer,
+                database,
+                () => alice,
+                environment,
+                (authorization) =>
+                    authorization.create(node.reference("personal", "z"), {
+                        relationships: [
+                            {
+                                relation: "viewer",
+                                subject: {
+                                    ...group.reference("account-2", "g"),
+                                    relation: "member",
+                                },
+                            },
+                        ],
+                    }),
+            );
         const refused = AccessError.of(
             "SUBJECT_OUTSIDE_CHAIN",
             "group#member in account-2 is outside the scope chain of personal",
         );
         await expect(share("account-2")).rejects.toEqual(refused);
-        await expect(created).rejects.toEqual(refused);
+        await expect(create()).rejects.toEqual(refused);
     },
 );
 
@@ -1223,7 +1286,7 @@ test("refuse universe subject sets that nest without end", () => {
     // refuse the declaration, listing the cycle
     expect(declare).toThrow(
         AccessError.of(
-            "INVALID_DECLARATION",
+            "DECLARATION_INVALID",
             "universe subject sets nest in a cycle: crew -> crew",
         ),
     );

@@ -1,8 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import type { Subject } from "@destack/sync";
 import { Snapshot } from "@destack/db";
-import { v7 } from "uuid";
-import { schema } from "@destack/schema";
+import { Identifier, schema } from "@destack/schema";
 import {
     accessRelationship,
     accessRole,
@@ -26,26 +25,29 @@ function user(id: string): Subject {
 test("relate a caller to a scope through a direct, wildcard or subject-set share or a role bound on the scope, but not through an expired share or none", async () => {
     const fixture = await openFixture();
     onTestFinished(() => fixture.close());
-    const { database, authorizer } = fixture;
+    const { database, authorizer, environment } = fixture;
     const snapshot = Snapshot.live(database);
     const note = node.reference("personal", "a");
 
     // store the personal space below its account, as every scope has its row
-    const replicas = new AccessFixture(database);
+    const replicas = new AccessFixture(database, environment);
     const personal = space.reference("account-1", "personal");
     await replicas.replicateScope(account.reference("universe", "account-1"), account);
     await replicas.replicateScope(personal, space);
 
     // define a role in the personal space to bind on the space itself
     const roleId = schema.identifier("role").parse("role-01996ab0-0000-7000-8000-000000000301");
-    await database.insert(accessRole).values({
-        id: roleId,
-        createdAt: 1,
-        updatedAt: 1,
-        scope: "personal",
-        name: "editor",
-        description: "Edits the space",
-    });
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(accessRole).values({
+                id: roleId,
+                createdAt: 1,
+                updatedAt: 1,
+                scope: "personal",
+                name: "editor",
+                description: "Edits the space",
+            }),
+    );
 
     // share a note of the personal space, or bind the role on the space, deciding the caller's relation after each
     const relatedAfter = async (
@@ -58,7 +60,7 @@ test("relate a caller to a scope through a direct, wildcard or subject-set share
         const row = Relationship.encode(
             isBinding
                 ? {
-                      id: `relationship-${v7()}`,
+                      id: Identifier.create("relationship", environment),
                       object: personal,
                       role: roleId,
                       subject,
@@ -66,7 +68,7 @@ test("relate a caller to a scope through a direct, wildcard or subject-set share
                       expiresAt,
                   }
                 : {
-                      id: `relationship-${v7()}`,
+                      id: Identifier.create("relationship", environment),
                       object: note,
                       relation: "viewer",
                       subject,
@@ -74,7 +76,9 @@ test("relate a caller to a scope through a direct, wildcard or subject-set share
                       expiresAt,
                   },
         );
-        await database.insert(accessRelationship).values(row);
+        await database.transaction(
+            async (transaction) => await transaction.insert(accessRelationship).values(row),
+        );
 
         // decide the caller's relation, then take the share back
         const access = await authorizer.resolve(
@@ -83,22 +87,27 @@ test("relate a caller to a scope through a direct, wildcard or subject-set share
             AccessContext.of(Caller.of(user(caller)), NOW),
         );
         const isRelated = await authorizer.isRelatedIn(snapshot, "personal", access);
-        await database.remove(accessRelationship, [row]);
+        await database.transaction(
+            async (transaction) => await transaction.remove(accessRelationship, [row]),
+        );
 
         return isRelated;
     };
 
     // let carol be a member of a group in the universe, outside the personal scope
     const team = group.reference("universe", "team");
-    await database.insert(accessRelationship).values(
-        Relationship.encode({
-            id: `relationship-${v7()}`,
-            object: team,
-            relation: "member",
-            subject: user("carol"),
-            createdAt: 1,
-            expiresAt: null,
-        }),
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(accessRelationship).values(
+                Relationship.encode({
+                    id: Identifier.create("relationship", environment),
+                    object: team,
+                    relation: "member",
+                    subject: user("carol"),
+                    createdAt: 1,
+                    expiresAt: null,
+                }),
+            ),
     );
 
     // relate through each share, and through none for an expired share or a stranger

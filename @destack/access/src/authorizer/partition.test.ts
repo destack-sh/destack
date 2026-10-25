@@ -1,3 +1,4 @@
+import { TEST_START } from "@destack/test/world";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { and, asc, type DatabaseConnection, eq, Snapshot } from "@destack/db";
 import { Scope } from "@destack/sync";
@@ -32,8 +33,9 @@ test("record each scope in its partition where its type partitions, else in its 
             home.database,
             () => ({
                 ...home.alice,
-                now: Date.now(),
+                now: TEST_START,
             }),
+            home.environment,
             call,
         );
     await home.database.insert(accountTable).values({ id: "account-1", scope: "universe" });
@@ -66,7 +68,8 @@ test("store a space's own access beside its row in its account's home, refusing 
         Authorization.run(
             new Authorizer(policies, homeMappings, { partition: Scope.universe.id }),
             universe.database,
-            () => ({ ...universe.alice, now: Date.now() }),
+            () => ({ ...universe.alice, now: TEST_START }),
+            universe.environment,
             call,
         );
     await universe.database.insert(accountTable).values({ id: "account-1", scope: "universe" });
@@ -82,7 +85,7 @@ test("store a space's own access beside its row in its account's home, refusing 
     // bear the space in its partition below its replicated account
     const partition = await openFixture();
     onTestFinished(() => partition.close());
-    await new AccessFixture(partition.database).replicateScope(
+    await new AccessFixture(partition.database, partition.environment).replicateScope(
         account.reference("universe", "account-1"),
         account,
     );
@@ -91,7 +94,8 @@ test("store a space's own access beside its row in its account's home, refusing 
         Authorization.run(
             new Authorizer(policies, homeMappings, { partition: "personal" }),
             partition.database,
-            () => ({ ...partition.alice, now: Date.now() }),
+            () => ({ ...partition.alice, now: TEST_START }),
+            partition.environment,
             call,
         );
     await home((authorization) => authorization.receive(personal, ["account-1"]));
@@ -144,7 +148,8 @@ test("forget a removed scope's relationships, roles, invitations and row, and re
         Authorization.run(
             new Authorizer(policies, homeMappings, { partition: Scope.universe.id }),
             universe.database,
-            () => ({ ...universe.alice, now: Date.now() }),
+            () => ({ ...universe.alice, now: TEST_START }),
+            universe.environment,
             call,
         );
     const object = account.reference("universe", "account-1");

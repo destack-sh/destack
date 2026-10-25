@@ -1,3 +1,4 @@
+import { testSimulation } from "@destack/test/world";
 import { present } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { defineTable, integer, type DatabaseConnection, Snapshot, sql, text } from "@destack/db";
@@ -40,10 +41,15 @@ const carol = principal.user.reference("universe", "carol");
 
 test("decide a scope with no table here on its ancestry row, refusing terms that need its attributes", async () => {
     // store the access tables alone with the club's ancestry row, so clubs map onto the ancestry
-    const storage = await TestDatabase.create(accessTables, { isMigrated: true });
+    await using simulation = testSimulation();
+    const environment = simulation.environment("access");
+    const storage = await TestDatabase.create(accessTables, {
+        environment: environment,
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
     const authorizer = new Authorizer([club], []);
-    await new AccessFixture(storage.database).replicateScope(chess, club);
+    await new AccessFixture(storage.database, environment).replicateScope(chess, club);
 
     // decide for a caller with the signed set of the club's members, and for one without it
     expect({
@@ -60,7 +66,10 @@ test("decide a scope with no table here on its ancestry row, refusing terms that
 
 test("decide a scope whose object row lives elsewhere on its ancestry row, and refuse a scope with neither", async () => {
     // add the clubs' table, empty, beside the access tables
+    await using simulation = testSimulation();
+    const environment = simulation.environment("access");
     const storage = await TestDatabase.create([...accessTables, clubTable], {
+        environment: environment,
         isMigrated: true,
     });
     onTestFinished(() => storage.close());
@@ -80,7 +89,7 @@ test("decide a scope whose object row lives elsewhere on its ancestry row, and r
         join: [false, false],
         visit: [false, false],
     });
-    await new AccessFixture(storage.database).replicateScope(chess, club);
+    await new AccessFixture(storage.database, environment).replicateScope(chess, club);
 
     // decide for a caller with the signed set of the club's members, and for one without it
     expect({

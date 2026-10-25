@@ -1,3 +1,5 @@
+import { TEST_START } from "@destack/test/world";
+import { SimulatedClock } from "@destack/environment/simulation";
 import { ChainParameters } from "./authorizer.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { asc, eq, Snapshot, type DatabaseConnection } from "@destack/db";
@@ -40,9 +42,7 @@ import {
 } from "../test/fixture.ts";
 import { AccessFixture } from "../test/access.ts";
 import { openDatabase, openFixture, userSubject } from "../test/database.ts";
-import { Clock } from "@destack/environment";
-import { nth, schema, type JsonObject } from "@destack/schema";
-import { v7 } from "uuid";
+import { Identifier, type JsonObject, nth } from "@destack/schema";
 
 /** The seeds of the generated worlds the replica decides like their home. */
 const SEEDS = Array.from({ length: 12 }, (_, index) => index + 1);
@@ -71,7 +71,8 @@ test("replicate a space's chain up to the universe, with the policies each scope
         Authorization.run(
             authorizer,
             home.database,
-            () => ({ ...home.alice, now: Date.now() }),
+            () => ({ ...home.alice, now: TEST_START }),
+            app.environment,
             call,
         );
     await home.database.insert(accountTable).values({ id: "account-1", scope: "universe" });
@@ -88,14 +89,17 @@ test("replicate a space's chain up to the universe, with the policies each scope
     );
 
     // require a value everywhere and in the account's spaces, and set one for the account only
-    await home.database.insert(policyTable).values([
-        { id: "everywhere", scope: "universe", mode: "require", value: "on" },
-        { id: "required", scope: "account-1", mode: "require", value: "on" },
-        { id: "own", scope: "account-1", mode: "set", value: "off" },
-    ]);
+    await home.database.transaction(
+        async (transaction) =>
+            await transaction.insert(policyTable).values([
+                { id: "everywhere", scope: "universe", mode: "require", value: "on" },
+                { id: "required", scope: "account-1", mode: "require", value: "on" },
+                { id: "own", scope: "account-1", mode: "set", value: "off" },
+            ]),
+    );
 
     // follow each scope's access rows and handed down policies from the home database
-    const feed = new Feed(home.database, [...accessTables, policyTable], { clock: Clock.system });
+    const feed = new Feed(home.database, [...accessTables, policyTable], {});
     const chain = ["personal", "account-1", "universe"];
     for (const scope of chain) {
         await follow(
@@ -199,7 +203,8 @@ test("replicate the chains of the accounts a follower outside them replicates in
         Authorization.run(
             authorizer,
             home.database,
-            () => ({ ...home.alice, now: Date.now() }),
+            () => ({ ...home.alice, now: TEST_START }),
+            app.environment,
             call,
         );
     for (const [id, member] of [
@@ -218,7 +223,7 @@ test("replicate the chains of the accounts a follower outside them replicates in
             ),
         );
     }
-    const feed = new Feed(home.database, [...accessTables, policyTable], { clock: Clock.system });
+    const feed = new Feed(home.database, [...accessTables, policyTable], {});
 
     // replicate both accounts' access rows and the universe's in one stream, stored at each scope by the one record
     const via = (accounts: readonly string[]) =>
@@ -356,7 +361,11 @@ function chainOf(
 async function follow(database: DatabaseConnection, followed: Followed, feed: Feed): Promise<void> {
     // resume from the replica's position, reshaping from the outside scopes it reflects
     const { replica, source, subscription } = followed;
-    const options = { subscription, audience: "contained" as const, clock: Clock.system };
+    const options = {
+        subscription,
+        audience: "contained" as const,
+        clock: new SimulatedClock(TEST_START),
+    };
     await replica.register(database, options);
     const { after, previous } = await replica.resume(database, subscription);
     const reflected =
@@ -437,9 +446,12 @@ test("revoke a region's server from the account it resides in at once in the spa
     const before = await serves(world.app, ada);
 
     // remove her as the region's server at the home and follow the universe's chain again
-    await world.home.database
-        .delete(accessRelationship)
-        .where(eq(accessRelationship.subjectId, ada.id));
+    await world.home.database.transaction(
+        async (transaction) =>
+            await transaction
+                .delete(accessRelationship)
+                .where(eq(accessRelationship.subjectId, ada.id)),
+    );
     await world.follow(Scope.universe.id);
 
     // refuse her in the replica, which stores no relationship of hers
@@ -455,14 +467,14 @@ test("replicate the universe's relationships of a space's chain alone, beside th
     const world = await openWorld(
         () => 0,
         async (fixture) => {
-            const now = Date.now();
+            const now = TEST_START;
             const others = Array.from({ length: 2000 }, (_, index) => index);
             await fixture.database
                 .insert(regionTable)
                 .values(others.map((index) => ({ id: `other-${index}` })));
             const rows = others.flatMap((index) => [
                 Relationship.encode({
-                    id: schema.identifier("relationship").parse(`relationship-${v7()}`),
+                    id: Identifier.create("relationship", fixture.environment),
                     object: region.reference(Scope.universe.id, `other-${index}`),
                     relation: "machine",
                     subject: userSubject(`server-${index}`),
@@ -470,7 +482,7 @@ test("replicate the universe's relationships of a space's chain alone, beside th
                     expiresAt: null,
                 }),
                 Relationship.encode({
-                    id: schema.identifier("relationship").parse(`relationship-${v7()}`),
+                    id: Identifier.create("relationship", fixture.environment),
                     object: account.reference(Scope.universe.id, `account-other-${index}`),
                     relation: "member",
                     subject: userSubject(`member-${index}`),
@@ -495,7 +507,7 @@ test("replicate the universe's relationships of a space's chain alone, beside th
             rows.push(
                 ...unnamed.map((related) =>
                     Relationship.encode({
-                        id: schema.identifier("relationship").parse(`relationship-${v7()}`),
+                        id: Identifier.create("relationship", fixture.environment),
                         ...related,
                         createdAt: now,
                         expiresAt: null,
@@ -505,9 +517,12 @@ test("replicate the universe's relationships of a space's chain alone, beside th
 
             // insert them in batches below PostgreSQL's 65,535 bound parameters, 21 per row
             for (let start = 0; start < rows.length; start += 1000) {
-                await fixture.database
-                    .insert(accessRelationship)
-                    .values(rows.slice(start, start + 1000));
+                await fixture.database.transaction(
+                    async (transaction) =>
+                        await transaction
+                            .insert(accessRelationship)
+                            .values(rows.slice(start, start + 1000)),
+                );
             }
         },
     );
@@ -563,7 +578,7 @@ async function openWorld(
     onTestFinished(async () => {
         await Promise.all([home.close(), app.close()]);
     });
-    const access = new AccessFixture(home.database);
+    const access = new AccessFixture(home.database, app.environment);
     await populate(access);
 
     // store two regions, each person serving one as its machine or home with a generated chance
@@ -607,12 +622,12 @@ async function openWorld(
 
     // follow the space's chain above it, then record the space as its home
     const authorizer = new Authorizer(policies, homeMappings);
-    const feed = new Feed(home.database, [...accessTables, policyTable], { clock: Clock.system });
+    const feed = new Feed(home.database, [...accessTables, policyTable], {});
     const followScope = (scope: string) =>
         follow(app.database, chainOf(app.authorizer, authorizer, scope, SPACE, CHAIN), feed);
     await followScope("account-0");
     await followScope(Scope.universe.id);
-    await new AccessFixture(app.database).replicateScope(
+    await new AccessFixture(app.database, app.environment).replicateScope(
         space.reference("account-0", SPACE),
         space,
     );
@@ -630,7 +645,7 @@ async function serves(side: Side, person: Subject): Promise<boolean> {
     const resolved = await side.authorizer.resolve(
         snapshot,
         SPACE,
-        AccessContext.of(Caller.of(person), Date.now()),
+        AccessContext.of(Caller.of(person), TEST_START),
     );
     const decided = await side.authorizer.check(
         snapshot,
