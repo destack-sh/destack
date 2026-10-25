@@ -146,6 +146,8 @@ export const UniverseWorld = schema.object({
     ),
     /** The people signed in, by email. */
     people: schema.record(schema.string(), PersonSignIn),
+    /** The TOTP URI of each person's enrolled authenticator, by user. */
+    authenticators: schema.record(schema.string(), schema.string()),
 });
 /** A test universe's state beside its database: its keys and its people's sign-ins. */
 export type UniverseWorld = schema.Infer<typeof UniverseWorld>;
@@ -183,7 +185,7 @@ export class TestUniverse implements AsyncDisposable {
     /** The issuer people sign in with, as native clients reach it. */
     readonly #issuer: Issuer;
     /** The authenticator each stepped-up person enrolled, by person. */
-    readonly #authenticators = new Map<string, string>();
+    readonly #authenticators: Map<string, string>;
     /** The failures the universe reported to no one, which settling throws. */
     readonly #failures: unknown[];
     /** The universe keyring's secret. */
@@ -205,7 +207,7 @@ export class TestUniverse implements AsyncDisposable {
         machines: ReadonlyMap<ResidencyCode, DeclaredMachine>,
         failures: unknown[],
         disposables: AsyncDisposableStack,
-        world: Pick<UniverseWorld, "keyring" | "people">,
+        world: Pick<UniverseWorld, "keyring" | "people" | "authenticators">,
         simulation: Simulation,
     ) {
         // keep the universe and the adapters standing in for mail, storage and time
@@ -233,7 +235,8 @@ export class TestUniverse implements AsyncDisposable {
             ),
         );
 
-        // restore the people the world signed in
+        // restore the people the world signed in, and the authenticators they enrolled
+        this.#authenticators = new Map(Object.entries(world.authenticators));
         this.#people = new Map(
             Object.entries(world.people).map(([email, signedIn]) => [
                 email,
@@ -345,7 +348,11 @@ export class TestUniverse implements AsyncDisposable {
         opening.defer(() => listener.stop(true));
 
         // keep the keyring's secret and the people the world signed in
-        const world = { keyring: secret, people: options.world?.people ?? {} };
+        const world = {
+            keyring: secret,
+            people: options.world?.people ?? {},
+            authenticators: options.world?.authenticators ?? {},
+        };
 
         return new TestUniverse(
             universe,
@@ -434,7 +441,12 @@ export class TestUniverse implements AsyncDisposable {
             machines[code] = { id: declared.id, secrets, key: declared.key };
         }
 
-        return { keyring: this.#keyring, machines, people: Object.fromEntries(people) };
+        return {
+            keyring: this.#keyring,
+            machines,
+            people: Object.fromEntries(people),
+            authenticators: Object.fromEntries(this.#authenticators),
+        };
     }
 
     /** Describe where people sign in as native clients do: issuer, mail and residency. */
