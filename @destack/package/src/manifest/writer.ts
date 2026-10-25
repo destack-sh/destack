@@ -100,7 +100,7 @@ export class BuildWriter {
     file(path: string): PackageFile {
         const file = this.#files.get(path);
         if (file === undefined) {
-            throw PackageError.of("INVALID_FILE", `unwritten build file: ${path}`);
+            throw PackageError.of("FILE_INVALID", `unwritten build file: ${path}`);
         }
 
         return file;
@@ -113,7 +113,7 @@ export class BuildWriter {
         for (const module of contents.graph ?? []) {
             if (!this.#files.has(module.path)) {
                 throw PackageError.of(
-                    "INVALID_FILE",
+                    "FILE_INVALID",
                     `graph module without a build file: ${module.path}`,
                 );
             }
@@ -166,7 +166,7 @@ export class BuildWriter {
     #isWritten(file: PackageFile): boolean {
         const previous = this.#files.get(file.path);
         if (previous !== undefined && previous.digest !== file.digest) {
-            throw PackageError.of("INVALID_FILE", `conflicting build file: ${file.path}`);
+            throw PackageError.of("FILE_INVALID", `conflicting build file: ${file.path}`);
         }
 
         return previous !== undefined;

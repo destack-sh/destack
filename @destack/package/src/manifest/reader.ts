@@ -49,7 +49,7 @@ export class BuildReader {
         let size = 0;
         for await (const chunk of await this.stream(path, signal)) {
             if (size + chunk.byteLength > file.size) {
-                throw PackageError.of("INVALID_FILE", `file size mismatch: ${path}`);
+                throw PackageError.of("FILE_INVALID", `file size mismatch: ${path}`);
             }
             bytes.set(chunk, size);
             size += chunk.byteLength;
@@ -75,7 +75,7 @@ export class BuildReader {
         );
         const file = listed.get(path);
         if (file === undefined) {
-            throw PackageError.of("INVALID_FILE", `package file not listed: ${path}`);
+            throw PackageError.of("FILE_INVALID", `package file not listed: ${path}`);
         }
 
         return file;
@@ -139,7 +139,7 @@ export class BuildReader {
         const path = `graph/${digest}.json`;
         const bytes = new Uint8Array(await new Response(await this.stream(path)).arrayBuffer());
         if ((await Digest.of(bytes, this.#crypto)) !== digest) {
-            throw PackageError.of("INVALID_FILE", `file digest mismatch: ${path}`);
+            throw PackageError.of("FILE_INVALID", `file digest mismatch: ${path}`);
         }
 
         return Module.parse(decode(bytes));
@@ -224,7 +224,7 @@ export class BuildReader {
             base.search ||
             base.hash
         ) {
-            throw PackageError.of("INVALID_FILE", "invalid package URL");
+            throw PackageError.of("FILE_INVALID", "invalid package URL");
         }
         if (!base.pathname.endsWith("/")) {
             base.pathname += "/";
@@ -278,7 +278,7 @@ export class BuildReader {
         });
         if (!response.ok) {
             await response.body?.cancel();
-            throw PackageError.of("INVALID_FILE", `package read failed: HTTP ${response.status}`);
+            throw PackageError.of("FILE_INVALID", `package read failed: HTTP ${response.status}`);
         }
 
         return response;

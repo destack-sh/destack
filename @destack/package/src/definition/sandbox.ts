@@ -135,7 +135,7 @@ export const Sandbox = Object.assign(sandboxSchema, {
         const undeclared = names.filter((name) => declared[name] === undefined);
         if (undeclared.length > 0) {
             throw PackageError.of(
-                "INVALID_DEFINITION",
+                "DEFINITION_INVALID",
                 `the workload uses undeclared sandbox abilities: ${undeclared.join(", ")}`,
             );
         }

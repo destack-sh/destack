@@ -18,20 +18,20 @@ export const PackageError = defineErrorFamily(
     { name: DOMAIN },
     {
         // bad request
-        INVALID_BUILD: { code: "BAD_REQUEST" },
-        INVALID_DEFINITION: { code: "BAD_REQUEST" },
-        INVALID_DEPENDENCY: { code: "BAD_REQUEST" },
-        INVALID_EXPORT: { code: "BAD_REQUEST" },
-        INVALID_FILE: { code: "BAD_REQUEST" },
+        BUILD_INVALID: { code: "BAD_REQUEST" },
+        DEFINITION_INVALID: { code: "BAD_REQUEST" },
+        DEPENDENCY_INVALID: { code: "BAD_REQUEST" },
+        EXPORT_INVALID: { code: "BAD_REQUEST" },
+        FILE_INVALID: { code: "BAD_REQUEST" },
 
         // unprocessable content
         ABILITY_UNENFORCEABLE: { code: "UNPROCESSABLE_CONTENT", data: SandboxAbility },
         ABILITY_UNSUPPORTED: { code: "UNPROCESSABLE_CONTENT", data: SandboxAbility },
-        DUPLICATE_VIEW: { code: "UNPROCESSABLE_CONTENT" },
+        VIEW_DUPLICATE: { code: "UNPROCESSABLE_CONTENT" },
         HOST_MODULE_UNAVAILABLE: { code: "UNPROCESSABLE_CONTENT" },
-        INVALID_INSPECTION: { code: "UNPROCESSABLE_CONTENT" },
-        UNSUPPORTED_LANGUAGE: { code: "UNPROCESSABLE_CONTENT" },
-        UNSUPPORTED_TARGET: { code: "UNPROCESSABLE_CONTENT" },
+        INSPECTION_INVALID: { code: "UNPROCESSABLE_CONTENT" },
+        LANGUAGE_UNSUPPORTED: { code: "UNPROCESSABLE_CONTENT" },
+        TARGET_UNSUPPORTED: { code: "UNPROCESSABLE_CONTENT" },
     },
 );
 

@@ -54,7 +54,7 @@ test("encode a module whose declarations sit in it, at itself or its symbols, re
         atModule: "4cef01dbe758927b81ab590e962c369751b28e85b7c73ca675aec82bb2bc7a4e",
         refused: [
             "UNPROCESSABLE_CONTENT",
-            "INVALID_INSPECTION",
+            "INSPECTION_INVALID",
             `src/a.ts declares ${ELSEWHERE}:object:a, which belongs to another module`,
         ],
     });

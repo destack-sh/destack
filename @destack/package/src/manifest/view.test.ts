@@ -20,7 +20,7 @@ test("list the views every output compiles by name, refusing a name two outputs 
         listed: { home: VIEW, settings: { ...VIEW, entrypoint: "settings.js" } },
         refused: [
             "UNPROCESSABLE_CONTENT",
-            "DUPLICATE_VIEW",
+            "VIEW_DUPLICATE",
             "output panel compiles view home, which another output already compiles",
         ],
     });

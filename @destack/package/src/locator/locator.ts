@@ -188,7 +188,7 @@ export class PackageLocator {
             .catch(FileSystemError.absent);
         if (manifestText === undefined) {
             throw PackageError.of(
-                "INVALID_DEFINITION",
+                "DEFINITION_INVALID",
                 `${join(directory, "destack.json")} has no package.json beside it`,
             );
         }

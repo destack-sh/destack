@@ -62,7 +62,7 @@ export const ViewDescription = Object.assign(viewDescription, {
             for (const [name, view] of Object.entries(compiled.views)) {
                 if (Object.hasOwn(views, name)) {
                     throw PackageError.of(
-                        "DUPLICATE_VIEW",
+                        "VIEW_DUPLICATE",
                         `output ${output} compiles view ${name}, which another output already compiles`,
                     );
                 }

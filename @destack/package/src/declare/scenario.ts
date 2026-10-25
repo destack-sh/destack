@@ -111,7 +111,7 @@ export function defineScenario<Speaks extends Interaction, Instance>(
 function requireSteps(name: string, when: readonly unknown[], interaction: Interaction): void {
     // require a step
     if (when.length === 0) {
-        throw PackageError.of("INVALID_DEFINITION", `scenario ${name} has no steps`);
+        throw PackageError.of("DEFINITION_INVALID", `scenario ${name} has no steps`);
     }
 
     // parse each step as the shared set step or as one of the interaction's
@@ -133,7 +133,7 @@ function requireExpectations(name: string, steps: number, then: Then<unknown>): 
     const mismatch = records.find((record) => Object.keys(record).toSorted().join(", ") !== names);
     if (("each" in then && records.length !== steps) || mismatch !== undefined) {
         throw PackageError.of(
-            "INVALID_DEFINITION",
+            "DEFINITION_INVALID",
             `scenario ${name} expects ${names} after each of its ${steps} steps or once at the end`,
         );
     }
@@ -150,7 +150,7 @@ function requireExamples(name: string, when: readonly unknown[], given: Given): 
     );
     if (unnamed !== undefined) {
         throw PackageError.of(
-            "INVALID_DEFINITION",
+            "DEFINITION_INVALID",
             `scenario ${name} sets properties but does not pick one given example`,
         );
     }

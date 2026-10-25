@@ -36,12 +36,12 @@ export function definePackage<const Declarations extends PackageDeclarationMap>(
     for (const [key, declaration] of [...Object.entries(resources), ...Object.entries(secrets)]) {
         if (key !== declaration.name) {
             throw PackageError.of(
-                "INVALID_DEFINITION",
+                "DEFINITION_INVALID",
                 `declaration ${declaration.name} is listed under another name: ${key}`,
             );
         }
         if (names.has(key)) {
-            throw PackageError.of("INVALID_DEFINITION", `duplicate declaration: ${key}`);
+            throw PackageError.of("DEFINITION_INVALID", `duplicate declaration: ${key}`);
         }
         names.add(key);
     }
