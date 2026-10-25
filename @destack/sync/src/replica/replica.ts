@@ -54,13 +54,16 @@ import { Run } from "../dataflow/run.ts";
 import { Trace, type Group, type Upstream } from "../dataflow/upstream.ts";
 import { View } from "../dataflow/view.ts";
 import { scopeTable } from "../scope/table.ts";
-import { Clock } from "@destack/environment";
+import { RetryPolicy } from "@destack/environment";
 
 /** The staged pages a run's completion reads at once. */
 const STAGED_BATCH = 16;
 
 /** The retained keys a snapshot's completion reads at once. */
 const PRUNE_BATCH = 1000;
+
+/** How a follow retries a source lapsing fresh credentials before any page: 5 tries, about 15 s. */
+const LAPSE_RETRY = RetryPolicy.of({ maximumAttempts: 5 });
 
 /** A group's values as a retained group's canonical JSON text has them. */
 const GroupValues = schema.record(schema.string(), Scalar);
@@ -285,8 +288,8 @@ export class Replica {
     readonly reads: readonly string[];
     /** The replicated tables, by SQL name. */
     readonly #replicated: ReadonlyMap<string, Table>;
-    /** The layout digest of the replicated tables' logged columns. */
-    readonly #layout: Promise<string>;
+    /** The layout digest of the replicated tables' logged columns, absent before its first read. */
+    #layoutDigest: Promise<string> | undefined;
 
     /** Define a replica of a scope's rows in some tables. */
     constructor(definition: {
@@ -323,7 +326,6 @@ export class Replica {
         this.relations = definition.relations ?? new Map();
         this.isRelayed = definition.isRelayed ?? true;
         this.#replicated = new Map(this.tables.map((table) => [table[TABLE].sqlName, table]));
-        this.#layout = Log.layout(this.tables);
 
         // list the scopes the replica reads beyond its scope
         const reads = [...new Set([...this.scopes.values()].flat())]
@@ -859,7 +861,14 @@ export class Replica {
 
     /** Read the replica's source position, absent before a snapshot or after a layout change. */
     async position(database: DatabaseConnection): Promise<LogPosition | undefined> {
-        return this.#recordedPosition(await this.#record(database), await this.#layout);
+        return this.#recordedPosition(await this.#record(database), await this.#layout(database));
+    }
+
+    /** Digest the replicated tables' layout on first read, with a database's WebCrypto. */
+    #layout(database: DatabaseConnection): Promise<string> {
+        this.#layoutDigest ??= Log.layout(this.tables, database.state.environment.crypto);
+
+        return this.#layoutDigest;
     }
 
     /** Read the replica's record, absent before it registered. */
@@ -868,11 +877,12 @@ export class Replica {
     }
 
     /** Report whether a record registers what a page follows: subscription, layout and scopes. */
-    async #isRegistered(
+    #isRegistered(
         record: ReplicaRecord | undefined,
+        layout: string,
         page: Page,
         options: ApplyOptions,
-    ): Promise<boolean> {
+    ): boolean {
         // require a record, with the page's scopes and subjects when it moves them
         if (
             record === undefined ||
@@ -895,7 +905,7 @@ export class Replica {
 
         return (
             isSubscribed &&
-            record.layout === (await this.#layout) &&
+            record.layout === layout &&
             canonicalize(record.tables) === canonicalize([...this.#replicated.keys()])
         );
     }
@@ -935,7 +945,7 @@ export class Replica {
             name: this.name,
             scope: this.scope,
             ...(row === undefined ? {} : Replica.#positions(row)),
-            isLaidOut: row?.layout === (await this.#layout),
+            isLaidOut: row?.layout === (await this.#layout(database)),
             ...(subscription === undefined ? {} : { subscription }),
             ...(row === undefined ? {} : { confirmedAt: row.confirmedAt }),
             staged: staged.pages,
@@ -1112,7 +1122,7 @@ export class Replica {
         const key = { name: this.name, scope: this.scope };
         const registration = await transaction.read(replica).findFirst({ where: key });
         const position = await transaction.read(replicaPosition).findFirst({ where: key });
-        const layout = await this.#layout;
+        const layout = await this.#layout(transaction.database);
         if (
             registration === undefined ||
             position === undefined ||
@@ -1122,7 +1132,7 @@ export class Replica {
             throw SyncError.of("STALE", `replica of ${this.scope} has no position yet`);
         }
 
-        // drop the replica's records now, and its staged pages, groups and rows on commit
+        // drop the replica's records now
         const subscription = await transaction.read(replicaSubscription).findFirst({ where: key });
         await transaction.write({ table: replica, before: registration, after: null });
         if (subscription !== undefined) {
@@ -1134,23 +1144,32 @@ export class Replica {
         }
         await transaction.write({ table: replicaPosition, before: position, after: null });
 
-        // drop its keys of copied scope rows now too, so the promoted scopes are this database's own within the transaction
+        // drop its keys of copied scope rows in this transaction
+        const scopes = scopeTable[TABLE].sqlName;
         const copied = await transaction
             .read(replicaKey)
-            .findMany({ where: { ...key, table: scopeTable[TABLE].sqlName } });
+            .findMany({ where: { ...key, table: scopes } });
         for (const row of copied) {
             await transaction.write({ table: replicaKey, before: row, after: null });
         }
-        transaction.record(async (database) => {
-            await database.delete(replicaPage).where(this.#match(replicaPage));
-            await database.delete(replicaResult).where(this.#match(replicaResult));
-            await database.delete(replicaKey).where(this.#match(replicaKey));
-        });
+
+        // drop its other keys with its pages and results on commit
+        transaction.record(
+            async (database) =>
+                await database.transaction(async (dropping) => {
+                    await dropping.delete(replicaPage).where(this.#match(replicaPage));
+                    await dropping.delete(replicaResult).where(this.#match(replicaResult));
+                    await dropping
+                        .delete(replicaKey)
+                        .where(and(this.#match(replicaKey), not(eq(replicaKey.table, scopes))));
+                }),
+        );
     }
 
     /** Record the replica before its first snapshot, with the subscription it follows, if any. */
-    async register(database: DatabaseConnection, options: RegisterOptions): Promise<void> {
-        const { subscription, audience, clock } = options;
+    async register(database: DatabaseConnection, options: RegisterOptions = {}): Promise<void> {
+        const { subscription, audience } = options;
+        const { clock } = database.state;
         await database.transaction(async (transaction) => {
             // record the replica, and the subscription it follows if any
             const key = { name: this.name, scope: this.scope };
@@ -1183,27 +1202,34 @@ export class Replica {
         { name, scope, tables }: Pick<Replica, "name" | "scope" | "tables">,
     ): Promise<void> {
         const dropped = new Replica({ name, scope, tables });
-        await database.transaction(
-            async (transaction) => {
-                await transaction.log.asReplica(async () => {
-                    // take every included row out, those of recorded tables it stopped replicating first
-                    const record = await dropped.#record(transaction);
-                    await dropped.#excludeAll(transaction, dropped.#retired(transaction, record));
-                    await dropped.#excludeAll(transaction, tables);
+        await database.state.serialize(() =>
+            database.transaction(
+                async (transaction) => {
+                    await transaction.log.asReplica(async () => {
+                        // take every included row out, those of recorded tables it stopped replicating first
+                        const record = await dropped.#record(transaction);
+                        await dropped.#excludeAll(
+                            transaction,
+                            dropped.#retired(transaction, record),
+                        );
+                        await dropped.#excludeAll(transaction, tables);
 
-                    // forget the groups, staged pages and record
-                    await transaction.delete(replicaResult).where(dropped.#match(replicaResult));
-                    await transaction.delete(replicaPage).where(dropped.#match(replicaPage));
-                    await transaction
-                        .delete(replicaPosition)
-                        .where(dropped.#match(replicaPosition));
-                    await transaction
-                        .delete(replicaSubscription)
-                        .where(dropped.#match(replicaSubscription));
-                    await transaction.delete(replica).where(dropped.#match(replica));
-                });
-            },
-            { constraints: "deferred" },
+                        // forget the groups, staged pages and record
+                        await transaction
+                            .delete(replicaResult)
+                            .where(dropped.#match(replicaResult));
+                        await transaction.delete(replicaPage).where(dropped.#match(replicaPage));
+                        await transaction
+                            .delete(replicaPosition)
+                            .where(dropped.#match(replicaPosition));
+                        await transaction
+                            .delete(replicaSubscription)
+                            .where(dropped.#match(replicaSubscription));
+                        await transaction.delete(replica).where(dropped.#match(replica));
+                    });
+                },
+                { constraints: "deferred" },
+            ),
         );
     }
 
@@ -1218,16 +1244,22 @@ export class Replica {
     async *apply(
         database: DatabaseConnection,
         pages: AsyncIterable<Page> | Iterable<Page>,
-        options: ApplyOptions,
+        options: ApplyOptions = {},
     ): AsyncGenerator<Page> {
         // drop an earlier stream's staged pages
-        await database.delete(replicaPage).where(this.#match(replicaPage));
+        await database.transaction(
+            async (transaction) =>
+                await transaction.delete(replicaPage).where(this.#match(replicaPage)),
+        );
         let staged = 0;
         let isSnapshot = false;
         for await (const page of pages) {
             // drop staged pages a snapshot replaces
             if (page.reset && staged > 0) {
-                await database.delete(replicaPage).where(this.#match(replicaPage));
+                await database.transaction(
+                    async (transaction) =>
+                        await transaction.delete(replicaPage).where(this.#match(replicaPage)),
+                );
                 staged = 0;
             }
             if (staged === 0) {
@@ -1263,24 +1295,52 @@ export class Replica {
         // apply each stream from where the replica is until aborted
         await this.register(database, options);
         let isSynced = false;
+        let lapses = 0;
         while (!signal.aborted) {
             let isReceived = false;
+            let isLapsed = false;
             const pages = source(await this.resume(database, options.subscription), signal);
-            for await (const page of this.apply(database, pages, options)) {
-                // report the replica synced at its first complete page
-                isReceived = true;
-                if (page.complete && !isSynced) {
-                    isSynced = true;
-                    options.synced();
+            try {
+                for await (const page of this.apply(database, pages, options)) {
+                    // report the replica synced at its first complete page
+                    isReceived = true;
+                    if (page.complete && !isSynced) {
+                        isSynced = true;
+                        options.synced();
+                    }
+                }
+            } catch (error) {
+                // resume with a fresh credential once the source refused the lapsed one
+                isLapsed = SyncError.is(error, "CREDENTIAL_LAPSED");
+                if (!isLapsed) {
+                    throw error;
                 }
             }
 
-            // reject a stream that ends without a page
-            if (!isReceived && !signal.aborted) {
+            // reject a stream that ends without a page, other than one whose credential lapsed
+            if (!isReceived && !isLapsed && !signal.aborted) {
                 throw SyncError.of(
                     "INVALID_STREAM",
                     `the source of ${this.scope} ended a stream without a page`,
                 );
+            }
+            // fail once the source lapses every fresh credential
+            else if (!isReceived && isLapsed && !RetryPolicy.isRetried(LAPSE_RETRY, lapses + 1)) {
+                throw SyncError.of(
+                    "CREDENTIAL_LAPSED",
+                    `the source of ${this.scope} lapsed ${lapses + 1} fresh credentials before any page`,
+                );
+            }
+            // back off before resuming a stream whose fresh credential lapsed before any page
+            else if (!isReceived && isLapsed) {
+                lapses += 1;
+                const { clock } = database.state;
+                const drawn = RetryPolicy.draw(`${this.name} ${this.scope} ${lapses}`);
+                await RetryPolicy.pause(LAPSE_RETRY, lapses, clock, signal, () => drawn);
+            }
+            // resume at once after a stream that delivered pages
+            else {
+                lapses = 0;
             }
         }
     }
@@ -1292,10 +1352,11 @@ export class Replica {
         run: Stage,
         options: ApplyOptions,
     ): Promise<void> {
-        // apply and rebase in one transaction
-        await database.transaction(
-            (transaction) => this.#applyRun(transaction, page, run, options),
-            { constraints: "deferred" },
+        // apply and rebase in one transaction, after the database's earlier serialized work
+        await database.state.serialize(() =>
+            database.transaction((transaction) => this.#applyRun(transaction, page, run, options), {
+                constraints: "deferred",
+            }),
         );
     }
 
@@ -1311,7 +1372,7 @@ export class Replica {
 
         // require the recorded epoch outside a snapshot
         const record = await this.#record(transaction);
-        const recorded = this.#recordedPosition(record, await this.#layout);
+        const recorded = this.#recordedPosition(record, await this.#layout(transaction));
         const isContinued =
             recorded?.log === page.position.log && recorded.epoch === page.position.epoch;
         if (!run.isSnapshot && recorded !== undefined && !isContinued) {
@@ -1370,7 +1431,8 @@ export class Replica {
         options: ApplyOptions,
     ): Promise<void> {
         // take the home position the rows reflect, and what the replica replicates
-        const { subscription, audience, clock } = options;
+        const { subscription, audience } = options;
+        const { clock } = transaction.state;
         const key = { name: this.name, scope: this.scope };
         const isHome = relayed === undefined && (run.isSnapshot || record?.originLog === null);
         const position = {
@@ -1380,12 +1442,12 @@ export class Replica {
         const registration = {
             ...(page.scopes === undefined ? {} : { scopes: page.scopes }),
             ...(page.subjects === undefined ? {} : { subjects: page.subjects }),
-            layout: await this.#layout,
+            layout: await this.#layout(transaction),
             tables: [...this.#replicated.keys()],
         };
 
         // register what the run follows unless the record has it
-        const isRegistered = await this.#isRegistered(record, page, options);
+        const isRegistered = this.#isRegistered(record, registration.layout, page, options);
         if (!isRegistered) {
             await transaction
                 .insert(replica)
@@ -2266,10 +2328,7 @@ interface GroupWrite {
 }
 
 /** How a replica registers in a database. */
-export type RegisterOptions = {
-    /** The clock the replica confirms its position at. */
-    readonly clock: Clock;
-} & (
+export type RegisterOptions =
     | {
           /** The subscription the replica follows. */
           readonly subscription: Subscription;
@@ -2281,8 +2340,7 @@ export type RegisterOptions = {
           readonly subscription?: undefined;
           /** No audience, for a replica without a subscription. */
           readonly audience?: undefined;
-      }
-);
+      };
 
 /** How a replica applies its source's pages. */
 export type ApplyOptions = RegisterOptions & {

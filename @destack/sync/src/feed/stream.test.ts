@@ -1,24 +1,20 @@
-import { afterEach, beforeEach, expect, test, vi } from "@destack/test";
+import { expect, test } from "@destack/test";
 import { TABLE } from "@destack/db";
 import type { Page, RowChange } from "../query/page.ts";
 import { note } from "../test/fixture.ts";
 import { Stream } from "./stream.ts";
-import { Clock } from "@destack/environment";
+import { Simulation } from "@destack/environment/simulation";
 
 /** The interval between published pages, in milliseconds. */
 const EVERY = 1000;
 
-beforeEach(() => {
-    vi.useFakeTimers();
-});
-
-afterEach(() => {
-    vi.useRealTimers();
-});
+/** When every test's world starts: 1 October 2026, UTC. */
+const START = Date.UTC(2026, 9, 1);
 
 test("publish a page at once after a quiet interval, and merge the pages within it at its end", async () => {
+    const simulation = new Simulation({ seed: 1, start: START });
     const source = pages();
-    const published = Stream.coalesce(source.pages, EVERY, [note], Clock.system);
+    const published = Stream.coalesce(source.pages, EVERY, [note], simulation.clock);
 
     // publish the first page at once
     source.push(page(1, [change("update", "a")]));
@@ -33,11 +29,11 @@ test("publish a page at once after a quiet interval, and merge the pages within 
     source.push(page(3, [change("insert", "b")]));
     source.push(page(4, [change("delete", "b")]));
     source.push(page(5, [change("insert", "c")]));
-    await vi.advanceTimersByTimeAsync(EVERY - 1);
+    await simulation.run({ to: simulation.clock.now() + EVERY - 1 });
     expect(merged.value).toBeUndefined();
 
     // publish each row's net change at the interval's end
-    await vi.advanceTimersByTimeAsync(1);
+    await simulation.run({ to: simulation.clock.now() + 1 });
     expect(merged.value).toEqual({
         done: false,
         value: page(5, [change("update", "a", "Renamed"), change("insert", "c")]),
@@ -45,14 +41,15 @@ test("publish a page at once after a quiet interval, and merge the pages within 
 
     // publish at once again after a quiet interval
     const quiet = published.next();
-    await vi.advanceTimersByTimeAsync(EVERY);
+    await simulation.run({ to: simulation.clock.now() + EVERY });
     source.push(page(6, [change("delete", "a")]));
     expect(await quiet).toEqual({ done: false, value: page(6, [change("delete", "a")]) });
 });
 
 test("publish the buffered page once the pages end", async () => {
+    const simulation = new Simulation({ seed: 1, start: START });
     const source = pages();
-    const published = Stream.coalesce(source.pages, EVERY, [note], Clock.system);
+    const published = Stream.coalesce(source.pages, EVERY, [note], simulation.clock);
 
     // publish the first page and buffer the second within the interval
     source.push(page(1, [change("insert", "a")]));
@@ -69,8 +66,9 @@ test("publish the buffered page once the pages end", async () => {
 });
 
 test("stop the pages once the consumer stops, after the page read ahead", async () => {
+    const simulation = new Simulation({ seed: 1, start: START });
     const source = pages();
-    const published = Stream.coalesce(source.pages, EVERY, [note], Clock.system);
+    const published = Stream.coalesce(source.pages, EVERY, [note], simulation.clock);
 
     // publish the first page and stop while reading the second ahead
     source.push(page(1, [change("insert", "a")]));

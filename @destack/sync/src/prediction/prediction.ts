@@ -22,6 +22,8 @@ import {
     type DatabaseConnection,
     type SQL,
     type LogPosition,
+    type LogId,
+    type Write,
     Change,
     Table,
 } from "@destack/db";
@@ -30,9 +32,6 @@ import { RowChange } from "../query/page.ts";
 import { Replica } from "../replica/replica.ts";
 import { Failure } from "@destack/error";
 import { Call, type Mutation } from "../call/index.ts";
-
-/** The most changes one read of a prediction takes. */
-const RECORD_CHANGES = 1000;
 
 /** A layer's predicted changes, as its JSON text has them. */
 const LayerChanges = schema.array(RowChange);
@@ -185,7 +184,7 @@ export class Prediction {
                 changes: JSON.stringify(recorded.changes),
                 tables: this.#tables(recorded.calls, recorded.changes),
             });
-            await this.#apply(transaction, stack.slice(index), index + 2, recorded.sequence);
+            await this.#apply(transaction, stack.slice(index), index + 2, recorded.after);
 
             return recorded.value;
         });
@@ -284,7 +283,7 @@ export class Prediction {
         transaction: DatabaseConnection,
         layers: readonly Layer[],
         position: number,
-        after: number | undefined,
+        after: LogId | undefined,
     ): Promise<void> {
         let cursor = after;
         for (const [index, entry] of layers.entries()) {
@@ -305,7 +304,7 @@ export class Prediction {
                 },
                 cursor,
             );
-            cursor = recorded.sequence;
+            cursor = recorded.after;
 
             // store its changes and tables
             await transaction.insert(layer).values({
@@ -343,47 +342,29 @@ export class Prediction {
         return JSON.stringify([...tables].toSorted());
     }
 
-    /** Run a prediction and read the changes it logged, with the sequence they arrive at. */
+    /** Run a prediction and read the changes it wrote, with the log id they end at. */
     async #record<Value>(
         transaction: DatabaseConnection,
         predict: (
             transaction: DatabaseConnection,
         ) => Promise<{ readonly calls: readonly Call[]; readonly result: Value }>,
-        after?: number,
+        after?: LogId,
     ): Promise<{
         readonly calls: readonly Call[];
         readonly value: Value;
         readonly changes: RowChange[];
-        readonly sequence: number;
+        readonly after: LogId;
     }> {
-        // require SQLite, which sequences log changes within a transaction
-        if (transaction.dialect !== "sqlite") {
-            throw new TypeError(
-                "a prediction must run on SQLite, which orders log changes within a transaction",
-            );
-        }
-
-        // run the prediction after the latest change
+        // run the prediction after the transaction's earlier writes
         const tables = [...this.tables.values()];
-        let sequence = after ?? (await transaction.log.current()).sequence;
+        const before = after ?? (await transaction.log.readTransaction({ tables })).after;
         const { calls, result } = await predict(transaction);
 
-        // read every logged change
-        const changes: RowChange[] = [];
-        for (;;) {
-            const page = await transaction.log.read({
-                tables,
-                after: sequence,
-                limit: RECORD_CHANGES,
-            });
-            changes.push(...page.changes.map((change) => Prediction.#predictedChange(change)));
-            sequence = page.sequence;
-            if (page.changes.length < RECORD_CHANGES) {
-                break;
-            }
-        }
+        // read every change it wrote, in write order
+        const written = await transaction.log.readTransaction({ tables, after: before });
+        const changes = written.changes.map((change) => Prediction.#predictedChange(change));
 
-        return { calls, value: result, changes, sequence };
+        return { calls, value: result, changes, after: written.after };
     }
 
     /** Undo one predicted change. */
@@ -595,7 +576,7 @@ export class Prediction {
     }
 
     /** Record a logged change as its predicted row change. */
-    static #predictedChange(change: Change): RowChange {
+    static #predictedChange(change: Write): RowChange {
         // take the row after the change or before a deletion
         const definition = change.table[TABLE];
         const row = Change.image(change);

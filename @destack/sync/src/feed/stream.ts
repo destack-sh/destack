@@ -170,7 +170,7 @@ export class Stream {
             // publish the decided pages before waiting or moving on
             else {
                 const { pages, sequence } = await decided;
-                await Evaluation.nextTask();
+                await Evaluation.nextTask(this.#feed.clock);
                 for (const page of pages) {
                     published = page.position.sequence;
                     this.#heard = this.#feed.beats;
@@ -204,6 +204,11 @@ export class Stream {
                     yield { reset: false, complete: true, changes: [], position };
                 }
             }
+        }
+
+        // end a drained stream at a completed page of its position, unless it just sent that page
+        if (!signal.aborted && published < position.sequence) {
+            yield { reset: false, complete: true, changes: [], position };
         }
     }
 

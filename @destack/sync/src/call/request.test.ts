@@ -1,4 +1,7 @@
+import { testHost } from "@destack/test/host";
+import { Uuid } from "@destack/schema";
 import { expect, refusal, test } from "@destack/test";
+import { Simulation } from "@destack/environment/simulation";
 import { RequestId } from "./request.ts";
 
 /** A reading's time, 2026-10-06 in Unix milliseconds. */
@@ -6,10 +9,10 @@ const TIME = Date.UTC(2026, 9, 6);
 
 test("derive the same time-ordered UUIDv8 for a key however often, its retry period read from its time", async () => {
     // derive a key twice at one time, another key at the same time, and the key a millisecond later
-    const derived = await RequestId.derive(TIME, "stream-1 batch-1");
-    const repeated = await RequestId.derive(TIME, "stream-1 batch-1");
-    const other = await RequestId.derive(TIME, "stream-1 batch-2");
-    const later = await RequestId.derive(TIME + 1, "stream-1 batch-1");
+    const derived = await RequestId.derive(TIME, "stream-1 batch-1", testHost().crypto);
+    const repeated = await RequestId.derive(TIME, "stream-1 batch-1", testHost().crypto);
+    const other = await RequestId.derive(TIME, "stream-1 batch-2", testHost().crypto);
+    const later = await RequestId.derive(TIME + 1, "stream-1 batch-1", testHost().crypto);
 
     // place the time in the leading 48 bits and the key's digest in the rest
     expect({
@@ -30,11 +33,12 @@ test("derive the same time-ordered UUIDv8 for a key however often, its retry per
 });
 
 test("key derived identifiers of one key at different times as one request, and created ones whole", async () => {
-    // derive one key at two times and another key at the first time
-    const first = await RequestId.derive(TIME, "trigger-1 event-1");
-    const later = await RequestId.derive(TIME + 60_000, "trigger-1 event-1");
-    const other = await RequestId.derive(TIME, "trigger-1 event-2");
-    const created = RequestId.create(TIME);
+    // derive one key at two times and another key at the first time, and create one in a world
+    const world = new Simulation({ seed: 1, start: TIME }).environment("client");
+    const first = await RequestId.derive(TIME, "trigger-1 event-1", testHost().crypto);
+    const later = await RequestId.derive(TIME + 60_000, "trigger-1 event-1", testHost().crypto);
+    const other = await RequestId.derive(TIME, "trigger-1 event-2", testHost().crypto);
+    const created = RequestId.create(world);
 
     expect({
         first: RequestId.key(first),
@@ -51,11 +55,14 @@ test("key derived identifiers of one key at different times as one request, and 
 });
 
 test("accept created and derived identifiers, and refuse other UUID versions and expired ones", async () => {
-    const derived = await RequestId.derive(TIME, "reading");
+    // derive an identifier, and create one in a world
+    const world = new Simulation({ seed: 1, start: TIME }).environment("client");
+    const derived = await RequestId.derive(TIME, "reading", testHost().crypto);
+
     expect({
-        created: RequestId.schema.safeParse(RequestId.create(Date.now())).success,
+        created: RequestId.schema.safeParse(RequestId.create(world)).success,
         derived: RequestId.schema.safeParse(derived).success,
-        random: RequestId.schema.safeParse(crypto.randomUUID()).success,
+        random: RequestId.schema.safeParse(Uuid.v4(world.random)).success,
         expired: await refusal(
             Promise.resolve().then(() => RequestId.expiry(derived, TIME + 8 * 24 * 60 * 60 * 1000)),
         ),

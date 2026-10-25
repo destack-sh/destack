@@ -267,14 +267,14 @@ export class Patch {
         before: ReadonlyMap<string, Table>,
         after: Patch,
         nodes: readonly Node[],
-        isResent: (table: Table) => boolean,
+        isResent: (table: Table, key: string) => boolean,
     ): Patch {
         // send what only the new collection has or may read differently
         const patch = new Patch();
         for (const [key, decision] of after.rows) {
             if (!before.has(key)) {
                 patch.rows.set(key, decision);
-            } else if (isResent(decision.table)) {
+            } else if (isResent(decision.table, key)) {
                 patch.rows.set(key, { ...decision, operation: "update" });
             }
         }

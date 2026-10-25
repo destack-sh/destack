@@ -1,4 +1,4 @@
-import { schema, type JsonValue } from "@destack/schema";
+import { type JsonValue, schema, Uuid } from "@destack/schema";
 import {
     Change,
     Key,
@@ -8,7 +8,6 @@ import {
     typedChannel,
     Table,
 } from "@destack/db";
-import { Clock } from "@destack/environment";
 
 /** The heartbeat interval in milliseconds: three missed beats bound a crash to 45 s. */
 const HEARTBEAT_MILLISECONDS = 15_000;
@@ -80,8 +79,6 @@ export interface TrackerOptions {
     readonly instance?: string;
     /** The heartbeat interval, in milliseconds. */
     readonly heartbeat?: number;
-    /** The clock heartbeats are timed by. */
-    readonly clock: Clock;
 }
 
 /** Rows of tables stored in memory on every instance and removed with their owners. */
@@ -108,8 +105,6 @@ export class Tracker {
     readonly #listeners: Map<string, Set<(event: JsonValue) => void>>;
     /** The heartbeat interval, in milliseconds. */
     readonly #heartbeat: number;
-    /** The clock heartbeats are timed by. */
-    readonly #clock: Clock;
     /** Stops the heartbeat loop. */
     readonly #closing = new AbortController();
     /** Stop listening to the channel. */
@@ -147,12 +142,11 @@ export class Tracker {
         }
 
         // store the tables and announce this instance
-        this.instance = options.instance ?? crypto.randomUUID();
+        this.instance = options.instance ?? Uuid.v4(database.state.environment.random);
         this.database = database;
         this.#tables = new Map(tables.map((table) => [table[TABLE].sqlName, table]));
         this.#channel = typedChannel(channel, TrackerMessage);
         this.#heartbeat = options.heartbeat ?? HEARTBEAT_MILLISECONDS;
-        this.#clock = options.clock;
 
         // apply messages in order and ask for live rows on each start or resume
         this.#stop = this.#channel.listen(
@@ -173,7 +167,8 @@ export class Tracker {
     ): Promise<TrackerChange[]> {
         // record each row's last image
         const images = new Map<string, TrackerChange>();
-        for (const change of await transaction.log.written([...this.#tables.values()])) {
+        const tables = [...this.#tables.values()];
+        for (const change of (await transaction.log.readTransaction({ tables })).changes) {
             const key = Key.name(change.table, change.key);
             const after = Change.after(change);
             const row = after === null ? null : change.table[TABLE].encode(after);
@@ -262,14 +257,14 @@ export class Tracker {
     async #beat(channel: Channel<unknown>): Promise<void> {
         const { signal } = this.#closing;
         while (
-            await this.#clock.sleep(this.#heartbeat, signal).then(
+            await this.database.state.clock.sleep(this.#heartbeat, signal).then(
                 () => true,
                 () => false,
             )
         ) {
             // announce this instance, and drop the instances silent for too many heartbeats
             channel.notify({ kind: "heartbeat", instance: this.instance });
-            const deadline = this.#clock.now() - this.#heartbeat * MISSED_HEARTBEATS;
+            const deadline = this.database.state.clock.now() - this.#heartbeat * MISSED_HEARTBEATS;
             for (const [instance, seen] of this.#instances) {
                 if (seen < deadline) {
                     this.#applied = this.#applied.then(() => this.#drop(instance));
@@ -294,7 +289,7 @@ export class Tracker {
 
         // note the sender as alive
         if (message.kind !== "stop") {
-            this.#instances.set(message.instance, this.#clock.now());
+            this.#instances.set(message.instance, this.database.state.clock.now());
         }
 
         // apply the rows, ends and broadcasts

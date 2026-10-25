@@ -66,8 +66,6 @@ export class Feed implements Cache {
     readonly heartbeat: number;
     /** What a replica knows of its source. */
     readonly upstream: Upstream | undefined;
-    /** The clock the feed's streams and decisions run at. */
-    readonly clock: Clock;
     /** The signal ending every caught-up stream's wait for its next heartbeat at once. */
     #beating = new AbortController();
     /** The beats so far, which streams compare to repeat a beat they missed. */
@@ -113,8 +111,7 @@ export class Feed implements Cache {
             readonly upstream?: Upstream;
             readonly observe?: (cost: RunCost) => void;
             readonly heartbeat?: number;
-            readonly clock: Clock;
-        },
+        } = {},
     ) {
         // start with empty state
         this.#changes = [];
@@ -135,7 +132,6 @@ export class Feed implements Cache {
         // store the logged tables and the limits
         this.database = database;
         this.upstream = options.upstream;
-        this.clock = options.clock;
         this.tables = tables
             .flatMap((table) => [
                 table,
@@ -160,6 +156,11 @@ export class Feed implements Cache {
     /** The beats so far. */
     get beats(): number {
         return this.#beats;
+    }
+
+    /** The database's clock, which the feed's streams and decisions run at. */
+    get clock(): Clock {
+        return this.database.state.clock;
     }
 
     /** Beat at each heartbeat of the feed's clock until the reading stops. */

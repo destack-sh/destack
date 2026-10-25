@@ -1,22 +1,27 @@
+import { Simulation } from "@destack/environment/simulation";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { TestDatabase } from "@destack/db/test";
 import { eq, Snapshot, Transaction, Table } from "@destack/db";
 import { PackageId } from "@destack/package";
-import { open } from "../test/fixture.ts";
+import { open, START } from "../test/fixture.ts";
 import { Scope } from "./scope.ts";
 
 /** The package declaring the scope types of the scenarios. */
 const PACKAGE_ID = PackageId.parse("package-01996ab0-0000-7000-8000-000000000009");
 
 test("read chains up to the universe, refuse unknown scopes, and fence a scope for a transfer", async () => {
-    const database = await open([Scope.table]);
-    await database
-        .insert(Scope.table)
-        .values([
-            folder("account", Scope.universe.id, []),
-            folder("space", "account", ["account"]),
-            folder("orphan", "missing", ["missing"]),
-        ]);
+    const simulation = new Simulation({ seed: 1, start: START });
+    const database = await open({ simulation, tables: [Scope.table] });
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .insert(Scope.table)
+                .values([
+                    folder("account", Scope.universe.id, []),
+                    folder("space", "account", ["account"]),
+                    folder("orphan", "missing", ["missing"]),
+                ]),
+    );
     const chain = async (scope: string) =>
         (await Scope.chain(Snapshot.live(database), scope)).map((link) => link.object.id);
 
@@ -50,17 +55,21 @@ test("read chains up to the universe, refuse unknown scopes, and fence a scope f
 });
 
 test("read a scope and every scope below it, nearest first, leaving its siblings and parent out", async () => {
-    const database = await open([Scope.table]);
-    await database
-        .insert(Scope.table)
-        .values([
-            folder("account", Scope.universe.id, []),
-            folder("space", "account", ["account"]),
-            folder("sibling", "account", ["account"]),
-            folder("room", "space", ["space", "account"]),
-            folder("hall", "space", ["space", "account"]),
-            folder("desk", "room", ["room", "space", "account"]),
-        ]);
+    const simulation = new Simulation({ seed: 1, start: START });
+    const database = await open({ simulation, tables: [Scope.table] });
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .insert(Scope.table)
+                .values([
+                    folder("account", Scope.universe.id, []),
+                    folder("space", "account", ["account"]),
+                    folder("sibling", "account", ["account"]),
+                    folder("room", "space", ["space", "account"]),
+                    folder("hall", "space", ["space", "account"]),
+                    folder("desk", "room", ["room", "space", "account"]),
+                ]),
+    );
 
     // read the space's subtree and a leaf's
     expect([
@@ -82,15 +91,19 @@ test("lie within itself, a scope above it and the universe, apart from a sibling
 });
 
 test("read several scopes' chains at once, each as it reads alone", async () => {
-    const database = await open([Scope.table]);
-    await database
-        .insert(Scope.table)
-        .values([
-            folder("account", Scope.universe.id, []),
-            folder("space", "account", ["account"]),
-            folder("other", "account", ["account"]),
-            folder("orphan", "missing", ["missing"]),
-        ]);
+    const simulation = new Simulation({ seed: 1, start: START });
+    const database = await open({ simulation, tables: [Scope.table] });
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .insert(Scope.table)
+                .values([
+                    folder("account", Scope.universe.id, []),
+                    folder("space", "account", ["account"]),
+                    folder("other", "account", ["account"]),
+                    folder("orphan", "missing", ["missing"]),
+                ]),
+    );
 
     // read the chains of scopes sharing an ancestor, an unrooted one and an unknown one
     const chains = await Scope.chains(Snapshot.live(database), [
@@ -110,30 +123,39 @@ test("read several scopes' chains at once, each as it reads alone", async () => 
 });
 
 test("fail the commit of a transaction that read a chain before a fence, and show it the fence when it runs again", async () => {
-    const storage = await TestDatabase.create([Scope.table], { isMigrated: true });
+    const simulation = new Simulation({ seed: 1, start: START });
+    const storage = await TestDatabase.create([Scope.table], {
+        environment: simulation.environment("sync"),
+        isMigrated: true,
+    });
     onTestFinished(() => storage.close());
-    await storage.database
-        .insert(Scope.table)
-        .values([
-            folder("account", Scope.universe.id, []),
-            folder("space", "account", ["account"]),
-        ]);
+    await storage.database.transaction(
+        async (transaction) =>
+            await transaction
+                .insert(Scope.table)
+                .values([
+                    folder("account", Scope.universe.id, []),
+                    folder("space", "account", ["account"]),
+                ]),
+    );
 
     // write into the space, fencing the account after the first attempt read the chain
     let attempts = 0;
-    const written = await Transaction.run(storage.database, async (transaction) => {
-        attempts += 1;
-        const chain = await Scope.chain(transaction.view(), "space");
-        if (attempts === 1) {
-            await Transaction.run(storage.database, (fencing) =>
-                Scope.fence(fencing, "account", "machine-b", 1000),
-            );
-        }
-        const note = Table.complete(Scope.table, folder("note", "space", ["space", "account"]));
-        await transaction.write({ table: Scope.table, before: null, after: note });
+    const written = await simulation.drive(
+        Transaction.run(storage.database, async (transaction) => {
+            attempts += 1;
+            const chain = await Scope.chain(transaction.view(), "space");
+            if (attempts === 1) {
+                await Transaction.run(storage.database, (fencing) =>
+                    Scope.fence(fencing, "account", "machine-b", 1000),
+                );
+            }
+            const note = Table.complete(Scope.table, folder("note", "space", ["space", "account"]));
+            await transaction.write({ table: Scope.table, before: null, after: note });
 
-        return chain.map((link) => link.movedTo);
-    });
+            return chain.map((link) => link.movedTo);
+        }),
+    );
 
     // commit the second attempt, which reads the fence
     const notes = await storage.database

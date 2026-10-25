@@ -1,4 +1,4 @@
-import { v7 } from "uuid";
+import { Digest, type DigestCrypto, type UuidEnvironment, Uuid } from "@destack/schema";
 import { SyncError } from "../error/error.ts";
 import { Mutation } from "./call.ts";
 
@@ -30,19 +30,19 @@ export const RequestId = {
     /** The schema of a request identifier: a UUIDv7 a caller created, or a UUIDv8 it derived. */
     schema: Mutation.shape.id,
 
-    /** Create a request identifier stamped with a time, which starts its retry period. */
-    create(time: number): string {
-        return v7({ msecs: time });
+    /** Create a request identifier from an environment, its time starting the retry period. */
+    create(environment: UuidEnvironment): string {
+        return Uuid.v7(environment);
     },
 
     /** Derive the request identifier of a key at a time, the same for every repeat. */
-    async derive(time: number, key: string): Promise<string> {
+    async derive(time: number, key: string, crypto: DigestCrypto): Promise<string> {
         // lead with the 48-bit time and fill the rest from the key's SHA-256 digest
-        const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(key));
+        const digest = Uint8Array.fromHex(await Digest.of(key, crypto));
         const bytes = new Uint8Array(UUID_BYTES);
         const view = new DataView(bytes.buffer);
         view.setBigUint64(0, BigInt(time) << 16n);
-        bytes.set(new Uint8Array(digest, 0, UUID_BYTES - TIME_BYTES), TIME_BYTES);
+        bytes.set(digest.subarray(0, UUID_BYTES - TIME_BYTES), TIME_BYTES);
 
         // mark the version and the variant
         view.setUint8(6, (view.getUint8(6) & 0x0f) | VERSION_8);

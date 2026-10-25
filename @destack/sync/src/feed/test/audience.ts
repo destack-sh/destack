@@ -7,13 +7,14 @@ import {
     Predicate,
     type Match,
     type Row,
+    type Change,
 } from "@destack/db";
-import type { Audience } from "../audience.ts";
+import type { Audience, Watch } from "../audience.ts";
 
 /** An audience deciding by conditions per table, in SQL and in memory or only in memory. */
 export class ConditionAudience implements Audience {
     /** The tables whose changes decide visibility: none. */
-    readonly watches = [];
+    readonly watches: readonly Watch[] = [];
     /** The name of the conditions. */
     readonly key: string;
     /** The condition of each table's visible rows. */
@@ -86,7 +87,7 @@ export class ConditionAudience implements Audience {
     async refresh() {}
 
     /** Decide nothing beyond rows themselves. */
-    async decides() {
+    async decides(_change: Change): Promise<boolean> {
         return false;
     }
 

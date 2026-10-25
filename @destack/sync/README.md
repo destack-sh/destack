@@ -80,11 +80,11 @@ await publisher.confirm(subscription, watermark); // the same, through a publish
 
 ## Replicas
 
-A `Replica` keeps a copy of one scope's rows in another database.
+A `Replica` keeps a copy of one scope's rows in another database, resuming with a fresh credential when its source refuses a lapsed one.
 
 ```ts
 const board = new Replica({ name: "board", scope: spaceId, tables: [project, task] });
-await board.follow(local, stream, signal, { subscription, audience, clock, synced });
+await board.follow(local, stream, signal, { subscription, audience, synced });
 await Replica.isSynced(local, "board", spaceId); // true once the first copy is complete
 await Replica.drop(local, board);
 ```
@@ -121,8 +121,9 @@ await Scope.cap(database, spaceId, Date.now()); // refuse writes except deletes
 
 ## Requests
 
-`RequestId.create` stamps a UUIDv7, and `RequestId.derive` derives the same UUIDv8 on every repeat (RFC 9562).
+`RequestId.create` stamps a UUIDv7 from an environment, and `RequestId.derive` derives the same UUIDv8 on every repeat (RFC 9562).
 
 ```ts
-const requestId = await RequestId.derive(reading.measuredAt, `${source} ${eventId}`);
+const created = RequestId.create(environment);
+const requestId = await RequestId.derive(reading.measuredAt, `${source} ${eventId}`, crypto);
 ```

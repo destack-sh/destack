@@ -1,4 +1,4 @@
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, test } from "@destack/test";
 import { nth, present, schema } from "@destack/schema";
 import { DatabaseError, defineRelations, defineTable, eq, json, TABLE, text } from "@destack/db";
 import { Feed } from "./feed.ts";
@@ -15,10 +15,10 @@ import {
     take,
     task,
     until,
+    START,
 } from "../test/fixture.ts";
 import type { Item, Query } from "../query/query.ts";
-import { Clock } from "@destack/environment";
-import { VirtualClock } from "@destack/environment/simulation";
+import { Simulation } from "@destack/environment/simulation";
 
 /** The tasks a stream gets to publish after the feed read a commit: ten, far more than it takes. */
 const QUIET_TASKS = 10;
@@ -31,9 +31,10 @@ const STRESS_STREAMS = 50;
 
 test("repeat a caught-up stream's position at each heartbeat as the clock advances", async () => {
     // follow the notes of a scope to their snapshot on a stopped clock
-    const database = await open();
-    const clock = new VirtualClock(1000);
-    const feed = new Feed(database, [note], { clock, heartbeat: 60_000 });
+    const simulation = new Simulation({ seed: 1, start: 1000 });
+    const { clock } = simulation;
+    const database = await open({ simulation });
+    const feed = new Feed(database, [note], { heartbeat: 60_000 });
     const signal = AbortSignal.timeout(5000);
     const pages = feed.subscribe({ notes: { table: note, scopes: ["inbox"] } }, undefined, signal);
     let snapshot = await nextValue(pages);
@@ -54,9 +55,10 @@ test("repeat a caught-up stream's position at each heartbeat as the clock advanc
 });
 
 test("report a stream that ends by draining as closed, the same stream it opened", async () => {
+    const simulation = new Simulation({ seed: 1, start: START });
     // follow the inbox's notes, draining the stream before it starts
-    const database = await open();
-    const feed = new Feed(database, [note], { clock: Clock.system });
+    const database = await open({ simulation });
+    const feed = new Feed(database, [note]);
     const drain = new AbortController();
     drain.abort();
     const streams: [string, Stream][] = [];
@@ -85,9 +87,10 @@ test("report a stream that ends by draining as closed, the same stream it opened
 
 test("publish a caught-up stream's position past a commit outside its queries only once asked to confirm it, and at the next heartbeat", async () => {
     // follow the inbox's notes to their snapshot, taking the stream
-    const database = await open();
-    const clock = new VirtualClock(1000);
-    const feed = new Feed(database, [note], { clock, heartbeat: 60_000 });
+    const simulation = new Simulation({ seed: 1, start: 1000 });
+    const { clock } = simulation;
+    const database = await open({ simulation });
+    const feed = new Feed(database, [note], { heartbeat: 60_000 });
     const signal = AbortSignal.timeout(5000);
     let stream: Stream | undefined;
     const pages = feed.subscribe({ notes: { table: note, scopes: ["inbox"] } }, undefined, signal, {
@@ -101,7 +104,10 @@ test("publish a caught-up stream's position past a commit outside its queries on
     }
 
     // commit an archived note, and see the stream publish nothing once the feed read it
-    await database.insert(note).values({ ...first, id: "archived", scope: "archive" });
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(note).values({ ...first, id: "archived", scope: "archive" }),
+    );
     const archived = await database.log.position();
     const next = nextValue(pages);
     let isSettled = false;
@@ -110,14 +116,17 @@ test("publish a caught-up stream's position past a commit outside its queries on
     });
     await expect.poll(() => feed.sequence).toBe(archived.sequence);
     for (let turn = 0; turn < QUIET_TASKS; turn++) {
-        await Evaluation.nextTask();
+        await Evaluation.nextTask(clock);
     }
     const isQuiet = !isSettled;
     present(stream, "the stream").confirm(archived);
     const confirmed = await next;
 
     // commit another, and read the current position at the next heartbeat
-    await database.insert(note).values({ ...first, id: "later", scope: "archive" });
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(note).values({ ...first, id: "later", scope: "archive" }),
+    );
     const later = await database.log.position();
     await expect.poll(() => feed.sequence).toBe(later.sequence);
     const beat = nextValue(pages);
@@ -131,14 +140,18 @@ test("publish a caught-up stream's position past a commit outside its queries on
 });
 
 test("maintain a query of one scope's matching rows", async () => {
-    const database = await open();
-    const feed = new Feed(database, [note], { clock: Clock.system });
+    const simulation = new Simulation({ seed: 1, start: START });
+    const database = await open({ simulation });
+    const feed = new Feed(database, [note]);
     const query = { table: note, scopes: ["inbox"], where: { title: "Open" } };
-    await database.insert(note).values([
-        { ...first, id: "a", title: "Open" },
-        { ...first, id: "b", title: "Done" },
-        { ...first, id: "c", title: "Open", scope: "archive" },
-    ]);
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(note).values([
+                { ...first, id: "a", title: "Open" },
+                { ...first, id: "b", title: "Done" },
+                { ...first, id: "c", title: "Open", scope: "archive" },
+            ]),
+    );
 
     // snapshot the matching rows of the scope
     const signal = AbortSignal.timeout(5000);
@@ -169,10 +182,22 @@ test("maintain a query of one scope's matching rows", async () => {
     // enter, leave and move between scopes
     const following = feed.subscribe({ notes: query }, snapshot.position, signal);
     const next = take(following, (page) => page.changes.some((change) => change.row["id"] === "c"));
-    await database.update(note).set({ title: "Open" }).where(eq(note.id, "b"));
-    await database.update(note).set({ title: "Done" }).where(eq(note.id, "a"));
-    await database.update(note).set({ subtitle: "Unrelated" }).where(eq(note.id, "a"));
-    await database.update(note).set({ scope: "inbox" }).where(eq(note.id, "c"));
+    await database.transaction(
+        async (transaction) =>
+            await transaction.update(note).set({ title: "Open" }).where(eq(note.id, "b")),
+    );
+    await database.transaction(
+        async (transaction) =>
+            await transaction.update(note).set({ title: "Done" }).where(eq(note.id, "a")),
+    );
+    await database.transaction(
+        async (transaction) =>
+            await transaction.update(note).set({ subtitle: "Unrelated" }).where(eq(note.id, "a")),
+    );
+    await database.transaction(
+        async (transaction) =>
+            await transaction.update(note).set({ scope: "inbox" }).where(eq(note.id, "c")),
+    );
     const changes = (await next).flatMap((page) =>
         page.changes.map((change) => [change.operation, change.row["id"]]),
     );
@@ -184,10 +209,14 @@ test("maintain a query of one scope's matching rows", async () => {
 });
 
 test("page a snapshot of more rows than a page and continue after its first page", async () => {
-    const database = await open();
-    const feed = new Feed(database, [note], { clock: Clock.system, pageSize: 4 });
+    const simulation = new Simulation({ seed: 1, start: START });
+    const database = await open({ simulation });
+    const feed = new Feed(database, [note], { pageSize: 4 });
     const ids = Array.from({ length: 10 }, (_, index) => `n${String(index).padStart(2, "0")}`);
-    await database.insert(note).values(ids.map((id) => ({ ...first, id })));
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(note).values(ids.map((id) => ({ ...first, id }))),
+    );
 
     // read three key-ordered pages
     const signal = AbortSignal.timeout(5000);
@@ -205,8 +234,9 @@ test("page a snapshot of more rows than a page and continue after its first page
 });
 
 test("serve subscribers behind the feed from the log and current ones from memory", async () => {
-    const database = await open();
-    const feed = new Feed(database, [note], { clock: Clock.system });
+    const simulation = new Simulation({ seed: 1, start: START });
+    const database = await open({ simulation });
+    const feed = new Feed(database, [note]);
     const query = { notes: { table: note, scopes: ["inbox"] } };
     const signal = AbortSignal.timeout(5000);
     const start = await database.log.position();
@@ -214,10 +244,12 @@ test("serve subscribers behind the feed from the log and current ones from memor
     // commit while a second subscriber catches up
     const current = feed.subscribe(query, start, signal);
     const seen = take(current, (page) => page.changes.some((change) => change.row["id"] === "b"));
-    await database.insert(note).values(first);
+    await database.transaction(async (transaction) => await transaction.insert(note).values(first));
     const behind = feed.subscribe(query, start, signal);
     const caught = take(behind, (page) => page.changes.some((change) => change.row["id"] === "b"));
-    await database.insert(note).values({ ...first, id: "b" });
+    await database.transaction(
+        async (transaction) => await transaction.insert(note).values({ ...first, id: "b" }),
+    );
 
     // deliver the same changes to both
     expect([idsOf(await seen), idsOf(await caught)]).toEqual([
@@ -227,17 +259,20 @@ test("serve subscribers behind the feed from the log and current ones from memor
 });
 
 test("snapshot again when the source starts a new epoch", async () => {
-    const database = await open();
-    const feed = new Feed(database, [note], { clock: Clock.system });
+    const simulation = new Simulation({ seed: 1, start: START });
+    const database = await open({ simulation });
+    const feed = new Feed(database, [note]);
     const query = { notes: { table: note, scopes: ["inbox"] } };
-    await database.insert(note).values(first);
+    await database.transaction(async (transaction) => await transaction.insert(note).values(first));
     const signal = AbortSignal.timeout(5000);
 
     // continue within the epoch without a snapshot
     const before = await database.log.position();
     const resumed = feed.subscribe(query, before, signal);
     const continued = take(resumed, (page) => page.changes.length > 0);
-    await database.insert(note).values({ ...first, id: "b" });
+    await database.transaction(
+        async (transaction) => await transaction.insert(note).values({ ...first, id: "b" }),
+    );
     const changed = (await continued).filter((page) => page.reset || page.changes.length > 0);
     expect(changed.map((page) => [page.reset, page.changes.length])).toEqual([[false, 1]]);
 
@@ -255,9 +290,12 @@ test("snapshot again when the source starts a new epoch", async () => {
 });
 
 test("follow the head through pages merged within an interval", async () => {
-    const database = await open();
-    const feed = new Feed(database, [note], { clock: Clock.system });
-    await database.insert(note).values({ ...first, id: "a" });
+    const simulation = new Simulation({ seed: 1, start: START });
+    const database = await open({ simulation });
+    const feed = new Feed(database, [note]);
+    await database.transaction(
+        async (transaction) => await transaction.insert(note).values({ ...first, id: "a" }),
+    );
 
     // follow with merged pages
     const pages = feed.subscribe(
@@ -269,10 +307,19 @@ test("follow the head through pages merged within an interval", async () => {
     const snapshot = await until(pages, (page) => page.complete);
 
     // rename, add, remove and add notes
-    await database.update(note).set({ title: "Renamed" }).where(eq(note.id, "a"));
-    await database.insert(note).values({ ...first, id: "b" });
-    await database.delete(note).where(eq(note.id, "b"));
-    await database.insert(note).values({ ...first, id: "c" });
+    await database.transaction(
+        async (transaction) =>
+            await transaction.update(note).set({ title: "Renamed" }).where(eq(note.id, "a")),
+    );
+    await database.transaction(
+        async (transaction) => await transaction.insert(note).values({ ...first, id: "b" }),
+    );
+    await database.transaction(
+        async (transaction) => await transaction.delete(note).where(eq(note.id, "b")),
+    );
+    await database.transaction(
+        async (transaction) => await transaction.insert(note).values({ ...first, id: "c" }),
+    );
     const following = await until(pages, (page) =>
         page.changes.some((change) => change.row["id"] === "c"),
     );
@@ -296,8 +343,9 @@ test("follow the head through pages merged within an interval", async () => {
 });
 
 test("continue serving a subscriber while another stops reading", async () => {
-    const database = await open();
-    const feed = new Feed(database, [note], { clock: Clock.system });
+    const simulation = new Simulation({ seed: 1, start: START });
+    const database = await open({ simulation });
+    const feed = new Feed(database, [note]);
     const query = { table: note, scopes: ["inbox"] };
     const signal = AbortSignal.timeout(5000);
 
@@ -307,63 +355,67 @@ test("continue serving a subscriber while another stops reading", async () => {
     const busy = feed.subscribe({ query }, undefined, signal);
     await busy.next();
     for (let index = 0; index < 20; index += 1) {
-        await database.insert(note).values({ ...first, id: `n${index}` });
+        await database.transaction(
+            async (transaction) =>
+                await transaction.insert(note).values({ ...first, id: `n${index}` }),
+        );
         expect((await busy.next()).done).toBe(false);
     }
 });
 
 test("end every subscriber with the failure once the database closes", async () => {
-    const database = await open();
-    const feed = new Feed(database, [note], { clock: Clock.system });
+    const simulation = new Simulation({ seed: 1, start: START });
+    const { clock } = simulation;
+    const database = await open({ simulation });
+    const feed = new Feed(database, [note]);
     const query = { table: note, scopes: ["inbox"] };
     const signal = AbortSignal.timeout(5000);
     const closed = ["CONNECTION_CLOSED", "the connection is closing or closed"];
-
-    // count the rejections nothing handles during the test
-    const unhandled: unknown[] = [];
-    const count = (reason: unknown) => unhandled.push(reason);
-    process.on("unhandledRejection", count);
-    onTestFinished(() => {
-        process.off("unhandledRejection", count);
-    });
 
     // follow the head with one subscriber page by page and one through merged pages
     const plain = feed.subscribe({ query }, undefined, signal);
     await until(plain, (page) => page.complete);
     const merged = feed.subscribe({ query }, undefined, signal, { every: 10 });
     await until(merged, (page) => page.complete);
-    await database.insert(note).values(first);
+    await database.transaction(async (transaction) => await transaction.insert(note).values(first));
     await until(plain, (page) => page.changes.length > 0);
     await until(merged, (page) => page.changes.length > 0);
 
     // close the database under both, wait for the feed to fail, and let rejections propagate
     await database.close();
     const failure = await failureOf(feed.next(feed.sequence, signal));
-    await Evaluation.nextTask();
+    await Evaluation.nextTask(clock);
 
-    // end both subscribers with the closed connection, leaving no rejection unhandled
+    // end both subscribers with the closed connection, the run failing on any rejection left unhandled
     const ended = await Promise.all([plain, merged].map((pages) => failureOf(pages.next())));
-    expect([failure, ended, unhandled]).toEqual([closed, [closed, closed], []]);
+    expect([failure, ended]).toEqual([closed, [closed, closed]]);
 });
 
 test("watch an ordered query reusing unchanged rows and placing a changed row by its order", async () => {
-    const database = await open();
-    const feed = new Feed(database, [note], { clock: Clock.system });
+    const simulation = new Simulation({ seed: 1, start: START });
+    const database = await open({ simulation });
+    const feed = new Feed(database, [note]);
     const query = {
         table: note,
         scopes: ["inbox"],
         orderBy: { title: "asc" },
     } satisfies Query;
-    await database.insert(note).values([
-        { ...first, id: "a", title: "Apples" },
-        { ...first, id: "b", title: "Bread" },
-        { ...first, id: "c", title: "Cheese" },
-    ]);
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(note).values([
+                { ...first, id: "a", title: "Apples" },
+                { ...first, id: "b", title: "Bread" },
+                { ...first, id: "c", title: "Cheese" },
+            ]),
+    );
 
     // read the rows and rename the first one past the others
     const watching = feed.watch("notes", query, AbortSignal.timeout(5000));
     const initial = await nextValue(watching);
-    await database.update(note).set({ title: "Dates" }).where(eq(note.id, "a"));
+    await database.transaction(
+        async (transaction) =>
+            await transaction.update(note).set({ title: "Dates" }).where(eq(note.id, "a")),
+    );
     const renamed = await nextValue(watching);
     await watching.return(undefined);
 
@@ -386,8 +438,9 @@ test("watch an ordered query reusing unchanged rows and placing a changed row by
 });
 
 test("watch projects with their tasks, reordering one project's tasks and leaving the other project as it was", async () => {
-    const database = await open();
-    const feed = new Feed(database, [project, task], { clock: Clock.system });
+    const simulation = new Simulation({ seed: 1, start: START });
+    const database = await open({ simulation });
+    const feed = new Feed(database, [project, task]);
     const query = {
         table: project,
         scopes: ["inbox"],
@@ -395,22 +448,31 @@ test("watch projects with their tasks, reordering one project's tasks and leavin
         orderBy: { name: "asc" },
         with: { tasks: { orderBy: { rank: "asc" } } },
     } satisfies Query;
-    await database.insert(project).values([
-        { id: "home", scope: "inbox", name: "Home" },
-        { id: "work", scope: "inbox", name: "Work" },
-    ]);
-    await database
-        .insert(task)
-        .values([
-            taskOf("dishes", "home", 1),
-            taskOf("laundry", "home", 2),
-            taskOf("report", "work", 1),
-        ]);
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(project).values([
+                { id: "home", scope: "inbox", name: "Home" },
+                { id: "work", scope: "inbox", name: "Work" },
+            ]),
+    );
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .insert(task)
+                .values([
+                    taskOf("dishes", "home", 1),
+                    taskOf("laundry", "home", 2),
+                    taskOf("report", "work", 1),
+                ]),
+    );
 
     // read both projects and move the first home task last
     const watching = feed.watch("projects", query, AbortSignal.timeout(5000));
     const initial = await nextValue(watching);
-    await database.update(task).set({ rank: 3 }).where(eq(task.id, "dishes"));
+    await database.transaction(
+        async (transaction) =>
+            await transaction.update(task).set({ rank: 3 }).where(eq(task.id, "dishes")),
+    );
     const moved = await nextValue(watching);
     await watching.return(undefined);
 
@@ -424,24 +486,31 @@ test("watch projects with their tasks, reordering one project's tasks and leavin
 });
 
 test("watch a board whose JSON columns store an object and a list of objects apart from its included cards", async () => {
-    const database = await open([board, card]);
-    const feed = new Feed(database, [board, card], { clock: Clock.system });
+    const simulation = new Simulation({ seed: 1, start: START });
+    const database = await open({ simulation, tables: [board, card] });
+    const feed = new Feed(database, [board, card]);
     const query = {
         table: board,
         scopes: ["inbox"],
         relations: BOARD_RELATIONS,
         with: { cards: { orderBy: { id: "asc" } } },
     } satisfies Query;
-    await database.insert(board).values({
-        id: "plan",
-        scope: "inbox",
-        layout: { id: "grid", columns: 3 },
-        steps: [{ id: "draft" }, { id: "review" }],
-    });
-    await database.insert(card).values([
-        { id: "one", scope: "inbox", boardId: "plan" },
-        { id: "two", scope: "inbox", boardId: "plan" },
-    ]);
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(board).values({
+                id: "plan",
+                scope: "inbox",
+                layout: { id: "grid", columns: 3 },
+                steps: [{ id: "draft" }, { id: "review" }],
+            }),
+    );
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(card).values([
+                { id: "one", scope: "inbox", boardId: "plan" },
+                { id: "two", scope: "inbox", boardId: "plan" },
+            ]),
+    );
 
     // read the board with its cards
     const watching = feed.watch("boards", query, AbortSignal.timeout(5000));
@@ -466,10 +535,11 @@ test("watch a board whose JSON columns store an object and a list of objects apa
 });
 
 test("resume at once past commits of tables the feed leaves out", async () => {
-    const database = await open();
-    const feed = new Feed(database, [note], { clock: Clock.system });
+    const simulation = new Simulation({ seed: 1, start: START });
+    const database = await open({ simulation });
+    const feed = new Feed(database, [note]);
     const query = { table: note, scopes: ["inbox"] };
-    await database.insert(note).values(first);
+    await database.transaction(async (transaction) => await transaction.insert(note).values(first));
 
     // continue the feed reading from the snapshot's position
     const signal = AbortSignal.timeout(5000);
@@ -477,7 +547,10 @@ test("resume at once past commits of tables the feed leaves out", async () => {
     const snapshot = await nextValue(reading);
 
     // commit to another table and resume from the snapshot's position
-    await database.insert(project).values({ id: "p1", scope: "inbox", name: "Plan" });
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(project).values({ id: "p1", scope: "inbox", name: "Plan" }),
+    );
     const [resumed] = await take(
         feed.subscribe({ notes: query }, snapshot.position, signal),
         (page) => page.complete,
@@ -495,13 +568,14 @@ test("resume at once past commits of tables the feed leaves out", async () => {
 });
 
 test("serve many streams of one query from the one read of the log each commit takes", async () => {
+    const simulation = new Simulation({ seed: 1, start: START });
     // count a sole writer's statements, which knows each commit's head without reading it
-    const database = await open(undefined, { dialect: "sqlite" });
+    const database = await open({ simulation, dialect: "sqlite" });
     const query = { table: note, scopes: ["inbox"] };
 
     // snapshot the query in some streams, then count the source's statements per commit
     const cost = async (streams: number, prefix: string) => {
-        const feed = new Feed(database, [note], { clock: Clock.system });
+        const feed = new Feed(database, [note]);
         const controller = new AbortController();
         const received = Array.from({ length: streams }, () => new Set<unknown>());
         const snapshots = received.map(() => Promise.withResolvers<void>());
@@ -522,7 +596,10 @@ test("serve many streams of one query from the one read of the log each commit t
         await Promise.all(snapshots.map((snapshot) => snapshot.promise));
         const before = database.driver.state.statements;
         for (let index = 0; index < STRESS_COMMITS; index++) {
-            await database.insert(note).values({ ...first, id: `${prefix}-${index}` });
+            await database.transaction(
+                async (transaction) =>
+                    await transaction.insert(note).values({ ...first, id: `${prefix}-${index}` }),
+            );
         }
         await Promise.all(following);
         controller.abort();
@@ -532,8 +609,8 @@ test("serve many streams of one query from the one read of the log each commit t
     const single = await cost(1, "single");
     const many = await cost(STRESS_STREAMS, "many");
 
-    // spend one insert and one feed read per commit, and one to start, however many follow
-    expect([single, many]).toEqual([STRESS_COMMITS * 2 + 1, STRESS_COMMITS * 2 + 1]);
+    // spend one transaction, its insert and one feed read per commit, and one to start
+    expect([single, many]).toEqual([STRESS_COMMITS * 3 + 1, STRESS_COMMITS * 3 + 1]);
 });
 
 /** Boards with JSON columns of an object and a list of objects. */
@@ -605,3 +682,43 @@ function failureOf(read: Promise<unknown>): Promise<unknown> {
         (error: unknown) => (DatabaseError.is(error) ? [error.reason, error.message] : error),
     );
 }
+
+test("end a stream drained while it waits at a completed page of its position", async () => {
+    const simulation = new Simulation({ seed: 1, start: START });
+    const { clock } = simulation;
+    // follow the inbox's notes to their snapshot, then resume from its position with a drain
+    const database = await open({ simulation });
+    const feed = new Feed(database, [note]);
+    const { signal } = new AbortController();
+    const snapshots = feed.subscribe(
+        { notes: { table: note, scopes: ["inbox"] } },
+        undefined,
+        signal,
+    );
+    let snapshot = await nextValue(snapshots);
+    while (!snapshot.complete) {
+        snapshot = await nextValue(snapshots);
+    }
+    await snapshots.return(undefined);
+    const drain = new AbortController();
+    const pages = feed.subscribe(
+        { notes: { table: note, scopes: ["inbox"] } },
+        snapshot.position,
+        signal,
+        { drain: drain.signal },
+    );
+
+    // drain it while it waits, and read it to its end
+    const read: Page[] = [];
+    const reading = (async () => {
+        for await (const page of pages) {
+            read.push(page);
+        }
+    })();
+    await Evaluation.nextTask(clock);
+    drain.abort();
+    await reading;
+    expect(read).toEqual([
+        { reset: false, complete: true, changes: [], position: snapshot.position },
+    ]);
+});

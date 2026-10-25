@@ -18,6 +18,7 @@ export const SyncError = defineErrorFamily(import.meta.destack.package, {
 
     // bad gateway
     INVALID_STREAM: { code: "BAD_GATEWAY" },
+    CREDENTIAL_LAPSED: { code: "UNAUTHORIZED" },
 
     // service unavailable
     OVERLOADED: { code: "SERVICE_UNAVAILABLE" },

@@ -42,37 +42,46 @@ export class Workload {
     async seed(database: DatabaseConnection, count: number): Promise<void> {
         // insert projects followed by tasks and comments in batches
         const random = this.#random;
-        await database.insert(project).values(
-            this.#projects.map((id) => ({
-                id,
-                scope: "inbox",
-                name: random.pick(["a", "b"]),
-            })),
+        await database.transaction(
+            async (transaction) =>
+                await transaction.insert(project).values(
+                    this.#projects.map((id) => ({
+                        id,
+                        scope: "inbox",
+                        name: random.pick(["a", "b"]),
+                    })),
+                ),
         );
         for (let start = 0; start < count; start += SEED_BATCH) {
             const ids = Array.from(
                 { length: Math.min(SEED_BATCH, count - start) },
                 (_, index) => start + index,
             );
-            await database.insert(task).values(
-                ids.map((index) => ({
-                    id: `s${index}`,
-                    scope: random.pick(FOLDERS),
-                    projectId: random.pick(this.#projects),
-                    state: random.pick(["open", "doing", "done"]),
-                    rank: random.integer(10),
-                    points: random.chance(0.2) ? null : random.integer(5),
-                    title: null,
-                    isSecret: random.chance(0.15),
-                })),
+            await database.transaction(
+                async (transaction) =>
+                    await transaction.insert(task).values(
+                        ids.map((index) => ({
+                            id: `s${index}`,
+                            scope: random.pick(FOLDERS),
+                            projectId: random.pick(this.#projects),
+                            state: random.pick(["open", "doing", "done"]),
+                            rank: random.integer(10),
+                            points: random.chance(0.2) ? null : random.integer(5),
+                            title: null,
+                            isSecret: random.chance(0.15),
+                        })),
+                    ),
             );
-            await database.insert(comment).values(
-                ids.map((index) => ({
-                    id: `r${index}`,
-                    scope: random.pick(FOLDERS),
-                    taskId: `s${random.integer(count)}`,
-                    position: random.integer(6),
-                })),
+            await database.transaction(
+                async (transaction) =>
+                    await transaction.insert(comment).values(
+                        ids.map((index) => ({
+                            id: `r${index}`,
+                            scope: random.pick(FOLDERS),
+                            taskId: `s${random.integer(count)}`,
+                            position: random.integer(6),
+                        })),
+                    ),
             );
         }
     }
@@ -139,12 +148,17 @@ export class Workload {
         const id = random.pick(this.#projects);
         const values = { id, scope: folder, name: random.pick(["a", "b", "x"]) };
         if (isDeleted) {
-            await database.delete(project).where(eq(project.id, id));
+            await database.transaction(
+                async (transaction) => await transaction.delete(project).where(eq(project.id, id)),
+            );
         } else {
-            await database
-                .insert(project)
-                .values(values)
-                .onConflictDoUpdate({ target: project.id, set: values });
+            await database.transaction(
+                async (transaction) =>
+                    await transaction
+                        .insert(project)
+                        .values(values)
+                        .onConflictDoUpdate({ target: project.id, set: values }),
+            );
         }
     }
 
@@ -168,12 +182,17 @@ export class Workload {
             isSecret: random.chance(0.15),
         };
         if (isDeleted) {
-            await database.delete(task).where(eq(task.id, id));
+            await database.transaction(
+                async (transaction) => await transaction.delete(task).where(eq(task.id, id)),
+            );
         } else {
-            await database
-                .insert(task)
-                .values(values)
-                .onConflictDoUpdate({ target: task.id, set: values });
+            await database.transaction(
+                async (transaction) =>
+                    await transaction
+                        .insert(task)
+                        .values(values)
+                        .onConflictDoUpdate({ target: task.id, set: values }),
+            );
         }
     }
 
@@ -189,11 +208,16 @@ export class Workload {
         const scope = random.chance(0.4) ? random.pick(this.#projects) : folder;
         const values = { id, scope, name: random.pick(["a", "b", "hidden"]) };
         await (isDeleted
-            ? database.delete(tag).where(eq(tag.id, id))
-            : database
-                  .insert(tag)
-                  .values(values)
-                  .onConflictDoUpdate({ target: tag.id, set: values }));
+            ? database.transaction(
+                  async (transaction) => await transaction.delete(tag).where(eq(tag.id, id)),
+              )
+            : database.transaction(
+                  async (transaction) =>
+                      await transaction
+                          .insert(tag)
+                          .values(values)
+                          .onConflictDoUpdate({ target: tag.id, set: values }),
+              ));
     }
 
     /** Tag or untag a task. */
@@ -212,11 +236,17 @@ export class Workload {
             tagId: random.pick(this.#tags),
         };
         await (isDeleted
-            ? database.delete(taskTag).where(eq(taskTag.id, id))
-            : database
-                  .insert(taskTag)
-                  .values(values)
-                  .onConflictDoUpdate({ target: taskTag.id, set: values }));
+            ? database.transaction(
+                  async (transaction) =>
+                      await transaction.delete(taskTag).where(eq(taskTag.id, id)),
+              )
+            : database.transaction(
+                  async (transaction) =>
+                      await transaction
+                          .insert(taskTag)
+                          .values(values)
+                          .onConflictDoUpdate({ target: taskTag.id, set: values }),
+              ));
     }
 
     /** Write a page under a lower page of its folder or at the top, deleting only leaves. */
@@ -243,17 +273,25 @@ export class Workload {
                 .where(eq(page.parentId, id))
                 .limit(1);
             if (child === undefined) {
-                await database.delete(page).where(eq(page.id, id));
+                await database.transaction(
+                    async (transaction) => await transaction.delete(page).where(eq(page.id, id)),
+                );
             }
         } else if (existing !== undefined) {
-            await database
-                .update(page)
-                .set({ parentId, rank: random.integer(10) })
-                .where(eq(page.id, id));
+            await database.transaction(
+                async (transaction) =>
+                    await transaction
+                        .update(page)
+                        .set({ parentId, rank: random.integer(10) })
+                        .where(eq(page.id, id)),
+            );
         } else {
-            await database
-                .insert(page)
-                .values({ id, scope: home, parentId, rank: random.integer(10) });
+            await database.transaction(
+                async (transaction) =>
+                    await transaction
+                        .insert(page)
+                        .values({ id, scope: home, parentId, rank: random.integer(10) }),
+            );
         }
     }
 
@@ -273,12 +311,17 @@ export class Workload {
             position: random.integer(6),
         };
         if (isDeleted) {
-            await database.delete(comment).where(eq(comment.id, id));
+            await database.transaction(
+                async (transaction) => await transaction.delete(comment).where(eq(comment.id, id)),
+            );
         } else {
-            await database
-                .insert(comment)
-                .values(values)
-                .onConflictDoUpdate({ target: comment.id, set: values });
+            await database.transaction(
+                async (transaction) =>
+                    await transaction
+                        .insert(comment)
+                        .values(values)
+                        .onConflictDoUpdate({ target: comment.id, set: values }),
+            );
         }
     }
 }

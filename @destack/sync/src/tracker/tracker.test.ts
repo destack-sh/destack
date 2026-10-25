@@ -3,7 +3,7 @@ import { defineTable, eq, integer, text, type DatabaseConnection, type Channel }
 import { channelHub } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { Tracker, type TrackerMessage } from "./tracker.ts";
-import { VirtualClock } from "@destack/environment/simulation";
+import { Simulation } from "@destack/environment/simulation";
 
 /** The heartbeat interval of the test trackers, in milliseconds of their clocks. */
 const HEARTBEAT = 5;
@@ -26,31 +26,48 @@ const cursor = defineTable(
 );
 
 test("replicate rows between instances, and remove them with their owner", async () => {
+    const simulation = new Simulation({ seed: 1, start: 0 });
     const join = channelHub<TrackerMessage>();
-    const east = await open(join());
-    const west = await open(join());
+    const east = await open(join(), simulation);
+    const west = await open(join(), simulation);
 
     // write, move and remove a cursor and see each on the other instance
     await write(east, "alice", (database) =>
-        database.insert(cursor).values({ id: "a", scope: "space", position: 0 }),
+        database.transaction(
+            async (transaction) =>
+                await transaction.insert(cursor).values({ id: "a", scope: "space", position: 0 }),
+        ),
     );
     expect(await read(west)).toEqual([{ id: "a", scope: "space", position: 0 }]);
     await write(east, "alice", (database) =>
-        database.update(cursor).set({ position: 12 }).where(eq(cursor.id, "a")),
+        database.transaction(
+            async (transaction) =>
+                await transaction.update(cursor).set({ position: 12 }).where(eq(cursor.id, "a")),
+        ),
     );
     expect(await read(west)).toEqual([{ id: "a", scope: "space", position: 12 }]);
-    await write(east, "alice", (database) => database.delete(cursor).where(eq(cursor.id, "a")));
+    await write(east, "alice", (database) =>
+        database.transaction(
+            async (transaction) => await transaction.delete(cursor).where(eq(cursor.id, "a")),
+        ),
+    );
     expect([await read(east), await read(west)]).toEqual([[], []]);
 
     // remove an ended owner's rows everywhere
     await write(west, "bob", (database) =>
-        database.insert(cursor).values([
-            { id: "b", scope: "space", position: 1 },
-            { id: "c", scope: "space", position: 2 },
-        ]),
+        database.transaction(
+            async (transaction) =>
+                await transaction.insert(cursor).values([
+                    { id: "b", scope: "space", position: 1 },
+                    { id: "c", scope: "space", position: 2 },
+                ]),
+        ),
     );
     await write(east, "carol", (database) =>
-        database.insert(cursor).values({ id: "d", scope: "space", position: 3 }),
+        database.transaction(
+            async (transaction) =>
+                await transaction.insert(cursor).values({ id: "d", scope: "space", position: 3 }),
+        ),
     );
     await west.end("bob");
     await east.settled();
@@ -68,15 +85,19 @@ test("replicate rows between instances, and remove them with their owner", async
 });
 
 test("hand a late instance the rows, and drop those of stopped and silent instances", async () => {
-    const clock = new VirtualClock(0);
+    const simulation = new Simulation({ seed: 1, start: 0 });
+    const { clock } = simulation;
     const join = channelHub<TrackerMessage>();
-    const east = await open(join(), clock);
+    const east = await open(join(), simulation);
     await write(east, "alice", (database) =>
-        database.insert(cursor).values({ id: "a", scope: "space", position: 0 }),
+        database.transaction(
+            async (transaction) =>
+                await transaction.insert(cursor).values({ id: "a", scope: "space", position: 0 }),
+        ),
     );
 
     // answer a late instance with the earlier rows
-    const west = await open(join(), clock);
+    const west = await open(join(), simulation);
     await counted(west, 1);
 
     // drop a stopped instance's rows at once
@@ -93,10 +114,15 @@ test("hand a late instance the rows, and drop those of stopped and silent instan
             }
         },
         listen: (receive, resume) => channel.listen(receive, resume),
+        hear: (token) => channel.hear(token),
+        close: () => channel.close(),
     };
-    const crashing = await open(silenced, clock);
+    const crashing = await open(silenced, simulation);
     await write(crashing, "bob", (database) =>
-        database.insert(cursor).values({ id: "b", scope: "space", position: 1 }),
+        database.transaction(
+            async (transaction) =>
+                await transaction.insert(cursor).values({ id: "b", scope: "space", position: 1 }),
+        ),
     );
     await counted(west, 1);
     isCrashed = true;
@@ -105,9 +131,10 @@ test("hand a late instance the rows, and drop those of stopped and silent instan
 });
 
 test("replicate which instance tracks an owner, released everywhere once its instance stops", async () => {
+    const simulation = new Simulation({ seed: 1, start: 0 });
     const join = channelHub<TrackerMessage>();
-    const east = await open(join());
-    const west = await open(join());
+    const east = await open(join(), simulation);
+    const west = await open(join(), simulation);
     const changes: [string, boolean][] = [];
     west.watchTracked((owner, isTracked) => changes.push([owner, isTracked]));
 
@@ -131,11 +158,15 @@ test("replicate which instance tracks an owner, released everywhere once its ins
 });
 
 test("skip the messages a channel echoes back to their sender, as PostgreSQL's does", async () => {
+    const simulation = new Simulation({ seed: 1, start: 0 });
     const join = channelHub<TrackerMessage>();
-    const east = await open(join());
+    const east = await open(join(), simulation);
     const echo = join();
     await write(east, "alice", (database) =>
-        database.insert(cursor).values({ id: "a", scope: "space", position: 0 }),
+        database.transaction(
+            async (transaction) =>
+                await transaction.insert(cursor).values({ id: "a", scope: "space", position: 0 }),
+        ),
     );
 
     // echo the instance's hello between committing a deletion and publishing it
@@ -153,13 +184,11 @@ test("skip the messages a channel echoes back to their sender, as PostgreSQL's d
     expect(await read(east)).toEqual([]);
 });
 
-/** Track the cursors of an in-memory database on a channel, by a stopped clock unless given one. */
-async function open(channel: Channel<unknown>, clock = new VirtualClock(0)): Promise<Tracker> {
-    const storage = await TestDatabase.create([cursor], { isMigrated: true });
-    const tracker = new Tracker(storage.database, [cursor], channel, {
-        clock,
-        heartbeat: HEARTBEAT,
-    });
+/** Track the cursors of a database on a channel, in the test's world. */
+async function open(channel: Channel<unknown>, simulation: Simulation): Promise<Tracker> {
+    const environment = simulation.environment("database");
+    const storage = await TestDatabase.create([cursor], { environment, isMigrated: true });
+    const tracker = new Tracker(storage.database, [cursor], channel, { heartbeat: HEARTBEAT });
     onTestFinished(async () => {
         tracker.close();
         await storage.close();

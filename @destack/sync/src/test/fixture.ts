@@ -21,7 +21,10 @@ import { replicaTables, type Replica } from "../replica/replica.ts";
 import type { Prediction } from "../prediction/prediction.ts";
 import type { Page } from "../query/page.ts";
 import { schema } from "@destack/schema";
-import { Clock } from "@destack/environment";
+import type { Simulation } from "@destack/environment/simulation";
+
+/** When every test's clock starts: 1 October 2026, UTC. */
+export const START = Date.UTC(2026, 9, 1);
 
 /** Test notes. */
 export const note = defineTable(
@@ -253,22 +256,42 @@ export const relations = Relations.merge(
 /** The tables of each test database. */
 export const TABLES = [note, project, task, comment, tag, taskTag, page, ...replicaTables];
 
-/** Open a migrated test database, of the project's database unless given, closed after the test. */
+/** The node a test database runs as in its test's world. */
+const DATABASE_NODE = "database";
+
+/** Open a migrated test database in the test's world, closed after the test. */
 export async function open(
-    tables: readonly Table[] = TABLES,
-    options: Pick<TestDatabaseOptions, "dialect"> = {},
+    options: Pick<TestDatabaseOptions, "dialect"> & {
+        /** The test's world. */
+        readonly simulation: Simulation;
+        /** The tables, the project's by default. */
+        readonly tables?: readonly Table[];
+    },
 ): Promise<TestDatabase["database"]> {
-    const test = await TestDatabase.create(tables, { ...options, isMigrated: true });
+    // create it in the test's world, closing it after the test
+    const { simulation, tables = TABLES, ...rest } = options;
+    const environment = simulation.environment(DATABASE_NODE);
+    const test = await TestDatabase.create(tables, { ...rest, environment, isMigrated: true });
     onTestFinished(() => test.close());
 
     return test.database;
 }
 
-/** Open a migrated replica database without trees and references. */
-export async function openReplica(
-    tables: Database | readonly Table[] = TABLES,
-): Promise<DatabaseConnection> {
-    const test = await TestDatabase.create(tables, { isMigrated: true, isReplica: true });
+/** Open a migrated replica database in the test's world, without trees and references. */
+export async function openReplica(options: {
+    /** The test's world. */
+    readonly simulation: Simulation;
+    /** The tables, the project's by default. */
+    readonly tables?: Database | readonly Table[];
+}): Promise<DatabaseConnection> {
+    // create it in the test's world, closing it after the test
+    const { simulation, tables = TABLES } = options;
+    const environment = simulation.environment(DATABASE_NODE);
+    const test = await TestDatabase.create(tables, {
+        environment,
+        isMigrated: true,
+        isReplica: true,
+    });
     onTestFinished(() => test.close());
 
     return test.database;
@@ -319,10 +342,7 @@ export async function replicate(
     pages: readonly Page[],
     prediction?: Prediction,
 ): Promise<void> {
-    const applied = replica.apply(database, pages, {
-        clock: Clock.system,
-        ...(prediction === undefined ? {} : { prediction }),
-    });
+    const applied = replica.apply(database, pages, prediction === undefined ? {} : { prediction });
     while ((await applied.next()).done !== true) {
         // apply each page in order
     }

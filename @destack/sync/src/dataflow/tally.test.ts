@@ -1,32 +1,35 @@
+import { Simulation } from "@destack/environment/simulation";
 import { expect, test } from "@destack/test";
 import { eq } from "@destack/db";
 import { Feed } from "../feed/feed.ts";
 import type { Query } from "../query/query.ts";
 import type { RunCost } from "./run.ts";
-import { open, task, until } from "../test/fixture.ts";
-import { Clock } from "@destack/environment";
+import { open, task, until, START } from "../test/fixture.ts";
 
 /** The distinct ranks of the one measured group. */
 const RANKS = 40;
 
 test("measure a group of many distinct values as its extreme, and read its values once at its first lost extreme", async () => {
+    const simulation = new Simulation({ seed: 1, start: START });
     // store one group of tasks with distinct ranks, the highest measured
-    const database = await open();
-    await database.insert(task).values(
-        Array.from({ length: RANKS }, (_, rank) => ({
-            id: `t${rank}`,
-            scope: "inbox",
-            projectId: null,
-            state: "open",
-            rank,
-            points: null,
-            title: null,
-            isSecret: false,
-        })),
+    const database = await open({ simulation });
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(task).values(
+                Array.from({ length: RANKS }, (_, rank) => ({
+                    id: `t${rank}`,
+                    scope: "inbox",
+                    projectId: null,
+                    state: "open",
+                    rank,
+                    points: null,
+                    title: null,
+                    isSecret: false,
+                })),
+            ),
     );
     const costs: RunCost[] = [];
     const feed = new Feed(database, [task], {
-        clock: Clock.system,
         observe: (cost) => costs.push(cost),
     });
     const query: Query = {
@@ -43,7 +46,9 @@ test("measure a group of many distinct values as its extreme, and read its value
 
     // delete a task, listing each run's changes and operations until its page has the new extreme
     const remove = async (rank: number) => {
-        await database.delete(task).where(eq(task.id, `t${rank}`));
+        await database.transaction(
+            async (transaction) => await transaction.delete(task).where(eq(task.id, `t${rank}`)),
+        );
         const [page] = (await until(pages, (read) => read.complete)).slice(-1);
 
         return {

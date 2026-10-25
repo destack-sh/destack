@@ -476,8 +476,9 @@ export class Dataflow implements Arrangement {
     #measure(run: Run): () => void {
         // note the operations the run's reader submits, and the time
         const reader = run.view.database.driver;
+        const { clock } = run.view.database.state;
         const operations = reader.operations;
-        const started = performance.now();
+        const started = clock.now();
 
         return () => {
             // add up and report the cost
@@ -486,7 +487,7 @@ export class Dataflow implements Arrangement {
                 operations: reader.operations - operations,
                 decided: run.decided,
                 sent: run.patch.size,
-                milliseconds: performance.now() - started,
+                milliseconds: clock.now() - started,
             };
             const total = this.#total;
             this.#last = cost;

@@ -1,3 +1,4 @@
+import { Simulation } from "@destack/environment/simulation";
 import { expect, test } from "@destack/test";
 import { Key, TABLE, type DatabaseConnection, type Table } from "@destack/db";
 import { Feed } from "../feed.ts";
@@ -12,6 +13,7 @@ import {
     tag,
     task,
     taskTag,
+    START,
 } from "../../test/fixture.ts";
 import { Follower } from "./replica.ts";
 import { evaluate, type Contents } from "./oracle.ts";
@@ -19,7 +21,6 @@ import type { ConditionAudience } from "./audience.ts";
 import { AUDIENCE } from "./query.ts";
 import { Random } from "./random.ts";
 import { Workload } from "./workload.ts";
-import { Clock } from "@destack/environment";
 
 /** The tables the workload writes and subscribers replicate. */
 const TABLES: readonly Table[] = [project, task, comment, tag, taskTag, page];
@@ -87,19 +88,21 @@ export function seededRuns(
 
 /** Follow a run's queries through random writes and match exactly what an oracle selects. */
 async function matchExactly(run: Run): Promise<void> {
-    // open the source and seed its rows
-    const source = await open();
-    const feed = new Feed(source, TABLES, {
-        clock: Clock.system,
-        ...(run.pageSize === undefined ? {} : { pageSize: run.pageSize }),
-    });
+    // open the source and seed its rows on the run's one clock
+    const simulation = new Simulation({ seed: 1, start: START });
+    const source = await open({ simulation });
+    const feed = new Feed(
+        source,
+        TABLES,
+        run.pageSize === undefined ? {} : { pageSize: run.pageSize },
+    );
     const workload = new Workload(new Random(run.seed));
     if (run.seedRows !== undefined) {
         await workload.seed(source, run.seedRows);
     }
 
     // follow the queries
-    const client = run.isReplicated === true ? await openReplica() : undefined;
+    const client = run.isReplicated === true ? await openReplica({ simulation }) : undefined;
     const replica = new Replica({ name: "replica", scope: "inbox", tables: TABLES });
     const audience = run.audience ?? AUDIENCE;
     const follower = new Follower(feed, run.queries, TABLES, {

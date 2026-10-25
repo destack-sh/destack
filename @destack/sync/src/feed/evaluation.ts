@@ -1,4 +1,5 @@
-import { TABLE, DatabaseError, type Change, type LogPosition } from "@destack/db";
+import { TABLE, DatabaseError, Change, Key, type LogPosition } from "@destack/db";
+import { type Clock, yieldToEventLoop } from "@destack/environment";
 import { nth } from "@destack/schema";
 import type { Query } from "../query/query.ts";
 import type { Page } from "../query/page.ts";
@@ -12,6 +13,18 @@ import type { Feed } from "./feed.ts";
 /** The recent sequences whose decided pages an evaluation stores. */
 const DECIDED_RECENT = 4;
 
+/** The timer of a deadline the waiting streams of an evaluation share. */
+interface Expiry {
+    /** The time the decisions expire at. */
+    readonly until: number;
+    /** Aborts once the decisions expire, or another deadline replaces this one. */
+    readonly expired: AbortController;
+    /** Aborts the timer once no stream waits. */
+    readonly disarm: AbortController;
+    /** The streams waiting now. */
+    waiters: number;
+}
+
 /** One set of queries evaluated for one audience over a feed. */
 export class Evaluation {
     /** The feed the evaluation reads. */
@@ -24,6 +37,8 @@ export class Evaluation {
     readonly #idle: Map<number, number | undefined>;
     /** The queries' dataflow. */
     readonly #dataflow: Dataflow;
+    /** The expiry of the decisions the waiting streams share, absent while none waits. */
+    #expiry: Expiry | undefined;
 
     /** Compile queries for an audience over a feed. */
     constructor(feed: Feed, queries: Readonly<Record<string, Query>>, audience: Audience) {
@@ -116,17 +131,31 @@ export class Evaluation {
             return this.#feed.next(sequence, signal);
         }
 
-        // wake at the expiry on the feed's clock too
-        const expired = new AbortController();
-        const sleeping = new AbortController();
-        this.#feed.clock.sleep(until - this.#feed.clock.now(), sleeping.signal).then(
-            () => expired.abort(),
-            () => {},
-        );
+        // wake the waiters of an earlier deadline, and arm one timer for this one
+        if (this.#expiry?.until !== until) {
+            this.#expiry?.expired.abort();
+            this.#expiry?.disarm.abort();
+            const { clock } = this.#feed;
+            const expired = new AbortController();
+            const disarm = new AbortController();
+            void clock.sleep(until - clock.now(), disarm.signal).then(
+                () => expired.abort(),
+                () => undefined,
+            );
+            this.#expiry = { until, expired, disarm, waiters: 0 };
+        }
+
+        // wait beside the other streams, disarming the timer once the last one stops
+        const expiry = this.#expiry;
+        expiry.waiters += 1;
         try {
-            await this.#feed.next(sequence, AbortSignal.any([signal, expired.signal]));
+            await this.#feed.next(sequence, AbortSignal.any([signal, expiry.expired.signal]));
         } finally {
-            sleeping.abort();
+            expiry.waiters -= 1;
+            if (expiry.waiters === 0 && this.#expiry === expiry) {
+                expiry.disarm.abort();
+                this.#expiry = undefined;
+            }
         }
     }
 
@@ -142,19 +171,26 @@ export class Evaluation {
         return patch.page(position, this.#audience, this.#feed, { reset: false, complete: false });
     }
 
-    /** Decide the subscriber's rows again at a position, sending the difference to what it has. */
-    async redecide(position: LogPosition, isComplete: boolean): Promise<Page> {
+    /** Decide the subscriber's rows again, sending the difference and the changed rows. */
+    async redecide(
+        position: LogPosition,
+        isComplete: boolean,
+        changes: readonly Change[],
+    ): Promise<Page> {
         // read what the subscriber has, decide again, and collect what the new decisions allow
         const before = this.#dataflow.sink.rows();
         await this.#audience.refresh();
         const after = await this.collect(this.#view(position));
 
-        // send the difference and rows with possibly changed readable columns
+        // send the difference
+        const changed = new Set(
+            changes.map((change) => Key.name(change.table, Change.image(change))),
+        );
         const patch = Patch.difference(
             before,
             after,
             this.#dataflow.nodes,
-            (table) => this.#audience.concealable(table).length > 0,
+            (table, key) => changed.has(key) || this.#audience.concealable(table).length > 0,
         );
 
         return patch.page(position, this.#audience, this.#feed, {
@@ -186,11 +222,11 @@ export class Evaluation {
                 break;
             }
             const position = { ...after, sequence: nth(changes, -1).sequence };
-            await Evaluation.nextTask();
+            await Evaluation.nextTask(this.#feed.clock);
 
             // decide every row again across a change of access, sending the difference
             if (await this.#decides(changes)) {
-                yield await this.redecide(position, isComplete);
+                yield await this.redecide(position, isComplete, changes);
             }
             // step the changed rows
             else {
@@ -231,7 +267,7 @@ export class Evaluation {
         const batches = this.#dataflow.hydrate(run);
         while ((await batches.next()).done !== true) {
             if (walk === "snapshot" && run.patch.size >= this.#feed.pageSize) {
-                await Evaluation.nextTask();
+                await Evaluation.nextTask(this.#feed.clock);
                 yield await run.patch.page(view.position, this.#audience, this.#feed, {
                     reset: isFirst,
                     complete: false,
@@ -282,7 +318,7 @@ export class Evaluation {
         const until = await this.#audience.until();
         if (until !== undefined && until <= this.#feed.clock.now()) {
             const refreshed = { ...position, sequence: next.value };
-            pages.push(await this.redecide(refreshed, true));
+            pages.push(await this.redecide(refreshed, true, []));
         }
 
         return { pages, sequence: next.value, until: await this.#audience.until() };
@@ -304,11 +340,9 @@ export class Evaluation {
         return new View(this.#feed.database, position, this.#feed);
     }
 
-    /** Let other work run before deciding more. */
-    static nextTask(): Promise<void> {
-        return new Promise((resolve) => {
-            setTimeout(resolve, 0);
-        });
+    /** Let other work run before deciding more, tracked on a clock. */
+    static nextTask(clock: Clock): Promise<void> {
+        return clock.trackHost(yieldToEventLoop());
     }
 
     /** Split changes into runs of about a page that end with whole transactions. */

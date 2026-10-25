@@ -14,7 +14,6 @@ import type { Audience } from "../audience.ts";
 import type { Feed } from "../feed.ts";
 import type { Stream } from "../stream.ts";
 import { groupName, type Contents } from "./oracle.ts";
-import { Clock } from "@destack/environment";
 
 /** What a subscriber has after applying its pages. */
 export class MemoryReplica implements Contents {
@@ -180,9 +179,7 @@ export class Follower {
         const applied =
             this.#persisted === undefined
                 ? pages
-                : this.#persisted.replica.apply(this.#persisted.database, pages, {
-                      clock: Clock.system,
-                  });
+                : this.#persisted.replica.apply(this.#persisted.database, pages);
         this.#running = (async () => {
             try {
                 for await (const page of applied) {

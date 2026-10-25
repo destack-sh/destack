@@ -1,3 +1,4 @@
+import { Simulation } from "@destack/environment/simulation";
 import { expect, refusal, test } from "@destack/test";
 import { nth, schema } from "@destack/schema";
 import { eq, sql, type Table, Expression, type Change, type Row } from "@destack/db";
@@ -17,9 +18,9 @@ import {
     taskTag,
     take,
     until,
+    START,
 } from "../test/fixture.ts";
 import { AUDIENCE, MEMORY_AUDIENCE } from "./test/query.ts";
-import { Clock } from "@destack/environment";
 
 /** The tables the feed serves. */
 const TABLES: readonly Table[] = [project, task, comment, tag, taskTag, page];
@@ -56,7 +57,8 @@ async function first(
 }
 
 test("refuse queries reading what the audience or the feed hides", async () => {
-    const feed = new Feed(await open(), TABLES, { clock: Clock.system });
+    const simulation = new Simulation({ seed: 1, start: START });
+    const feed = new Feed(await open({ simulation }), TABLES);
     const reason = async (query: Query, audience: Audience = EVERYONE) => {
         const pages = feed.subscribe({ query }, undefined, AbortSignal.timeout(5000), {
             audience,
@@ -102,12 +104,16 @@ test("refuse queries reading what the audience or the feed hides", async () => {
 });
 
 test("conceal the columns an audience hides and list them", async () => {
-    const database = await open();
-    await database.insert(task).values([TASK, { ...TASK, id: "t2", rank: 9 }]);
+    const simulation = new Simulation({ seed: 1, start: START });
+    const database = await open({ simulation });
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(task).values([TASK, { ...TASK, id: "t2", rank: 9 }]),
+    );
 
     // send the low-ranked task whole and the high-ranked one without its title
     const sent = await first(
-        new Feed(database, TABLES, { clock: Clock.system }),
+        new Feed(database, TABLES),
         { tasks: { table: task, scopes: ["inbox"] } },
         AUDIENCE,
     );
@@ -120,9 +126,12 @@ test("conceal the columns an audience hides and list them", async () => {
 });
 
 test("follow rows whose visibility the audience changes", async () => {
-    const database = await open();
-    const feed = new Feed(database, [...TABLES, note], { clock: Clock.system });
-    await database.insert(task).values([TASK, { ...TASK, id: "t2" }]);
+    const simulation = new Simulation({ seed: 1, start: START });
+    const database = await open({ simulation });
+    const feed = new Feed(database, [...TABLES, note]);
+    await database.transaction(
+        async (transaction) => await transaction.insert(task).values([TASK, { ...TASK, id: "t2" }]),
+    );
 
     // see the tasks a note references
     const audience: Audience = {
@@ -168,10 +177,14 @@ test("follow rows whose visibility the audience changes", async () => {
     // select the granted task only while the grant lasts
     const snapshot = nth(await until(pages, (sent) => sent.complete), 0);
     const granted = until(pages, (sent) => sent.changes.length > 0);
-    await database.insert(note).values({ ...grant, id: "t1" });
+    await database.transaction(
+        async (transaction) => await transaction.insert(note).values({ ...grant, id: "t1" }),
+    );
     const entered = nth(await granted, 0);
     const revoked = until(pages, (sent) => sent.changes.length > 0);
-    await database.delete(note).where(eq(note.id, "t1"));
+    await database.transaction(
+        async (transaction) => await transaction.delete(note).where(eq(note.id, "t1")),
+    );
     const left = nth(await revoked, 0);
     // send each access change as the difference to what the subscriber has, never a reset
     expect([
@@ -182,15 +195,19 @@ test("follow rows whose visibility the audience changes", async () => {
 });
 
 test("send the rows each query selects under the query's permission, and a row once its permission comes", async () => {
-    const database = await open();
-    const feed = new Feed(database, TABLES, { clock: Clock.system });
-    await database
-        .insert(task)
-        .values([
-            TASK,
-            { ...TASK, id: "t2", rank: 9 },
-            { ...TASK, id: "t3", rank: 9, state: "done" },
-        ]);
+    const simulation = new Simulation({ seed: 1, start: START });
+    const database = await open({ simulation });
+    const feed = new Feed(database, TABLES);
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .insert(task)
+                .values([
+                    TASK,
+                    { ...TASK, id: "t2", rank: 9 },
+                    { ...TASK, id: "t3", rank: 9, state: "done" },
+                ]),
+    );
 
     // let the subscriber edit the tasks ranked below five, and list every task
     const audience: Audience = {
@@ -224,7 +241,10 @@ test("send the rows each query selects under the query's permission, and a row o
     );
     const snapshot = nth(await until(pages, (sent) => sent.complete), 0);
     const ranked = until(pages, (sent) => sent.changes.length > 0);
-    await database.update(task).set({ rank: 2 }).where(eq(task.id, "t2"));
+    await database.transaction(
+        async (transaction) =>
+            await transaction.update(task).set({ rank: 2 }).where(eq(task.id, "t2")),
+    );
     const entered = nth(await ranked, 0);
 
     // send the editable open task and the done one, then the open task once it becomes editable
@@ -237,22 +257,29 @@ test("send the rows each query selects under the query's permission, and a row o
 });
 
 test("refuse queries whose windows outgrow the feed's capacity", async () => {
-    const database = await open();
-    const feed = new Feed(database, TABLES, { clock: Clock.system, capacity: 3 });
-    await database
-        .insert(project)
-        .values(["a", "b"].map((id) => ({ id, scope: "inbox", name: id })));
-    await database.insert(task).values(
-        [0, 1, 2, 3].map((index) => ({
-            id: `t${index}`,
-            scope: "inbox",
-            projectId: index < 2 ? "a" : "b",
-            state: "open",
-            rank: index,
-            points: null,
-            title: null,
-            isSecret: false,
-        })),
+    const simulation = new Simulation({ seed: 1, start: START });
+    const database = await open({ simulation });
+    const feed = new Feed(database, TABLES, { capacity: 3 });
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .insert(project)
+                .values(["a", "b"].map((id) => ({ id, scope: "inbox", name: id }))),
+    );
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(task).values(
+                [0, 1, 2, 3].map((index) => ({
+                    id: `t${index}`,
+                    scope: "inbox",
+                    projectId: index < 2 ? "a" : "b",
+                    state: "open",
+                    rank: index,
+                    points: null,
+                    title: null,
+                    isSecret: false,
+                })),
+            ),
     );
 
     // exceed a capacity of three
@@ -282,7 +309,8 @@ test("refuse queries whose windows outgrow the feed's capacity", async () => {
 });
 
 test("refuse subscribers beyond a feed's limit", async () => {
-    const feed = new Feed(await open(), TABLES, { clock: Clock.system, subscribers: 1 });
+    const simulation = new Simulation({ seed: 1, start: START });
+    const feed = new Feed(await open({ simulation }), TABLES, { subscribers: 1 });
     const query = { tasks: { table: task, scopes: ["inbox"] } };
     const signal = AbortSignal.timeout(5000);
 
@@ -295,9 +323,13 @@ test("refuse subscribers beyond a feed's limit", async () => {
 });
 
 test("page catch-up changes between transactions", async () => {
-    const database = await open();
-    const feed = new Feed(database, TABLES, { clock: Clock.system, pageSize: 4 });
-    await database.insert(project).values({ id: "p1", scope: "inbox", name: "a" });
+    const simulation = new Simulation({ seed: 1, start: START });
+    const database = await open({ simulation });
+    const feed = new Feed(database, TABLES, { pageSize: 4 });
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(project).values({ id: "p1", scope: "inbox", name: "a" }),
+    );
     const start = await database.log.position();
     const signal = AbortSignal.timeout(5000);
     const tasks = (from: number, count: number) =>

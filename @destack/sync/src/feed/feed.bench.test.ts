@@ -1,3 +1,4 @@
+import { Simulation } from "@destack/environment/simulation";
 import { expect, test, type TestContext } from "@destack/test";
 import { nth } from "@destack/schema";
 import {
@@ -20,6 +21,7 @@ import {
     tag,
     task,
     taskTag,
+    START,
 } from "../test/fixture.ts";
 import { Follower } from "./test/replica.ts";
 import { ConditionAudience } from "./test/audience.ts";
@@ -35,7 +37,7 @@ import {
 } from "./test/query.ts";
 import { Random } from "./test/random.ts";
 import { Workload } from "./test/workload.ts";
-import { Clock } from "@destack/environment";
+import { testHost } from "@destack/test/host";
 
 /** The warmup writes before measuring. */
 const WARMUP_WRITES = 20;
@@ -101,8 +103,9 @@ test(
     "snapshot and replicate thousands of rows within an operation budget",
     { timeout: 30_000 },
     async ({ annotate }) => {
-        const source = await open();
-        const feed = new Feed(source, TABLES, { clock: Clock.system });
+        const simulation = new Simulation({ seed: 1, start: START });
+        const source = await open({ simulation });
+        const feed = new Feed(source, TABLES);
         await new Workload(new Random(3)).seed(source, 4000);
 
         // snapshot every query set into memory
@@ -125,7 +128,7 @@ test(
 
         // snapshot them through a replica
         const replicateOnce = async () => {
-            const client = await openReplica();
+            const client = await openReplica({ simulation });
             const replica = new Replica({ name: "replica", scope: "inbox", tables: TABLES });
             const start = cpuTime();
             const applied = client.driver.state.operations;
@@ -160,8 +163,9 @@ test(
     "decide writes for a hundred subscribers within an operation budget",
     { timeout: 30_000 },
     async ({ annotate }) => {
-        const source = await open();
-        const feed = new Feed(source, TABLES, { clock: Clock.system });
+        const simulation = new Simulation({ seed: 1, start: START });
+        const source = await open({ simulation });
+        const feed = new Feed(source, TABLES);
         const workload = new Workload(new Random(9));
         await workload.seed(source, 500);
 
@@ -207,8 +211,9 @@ test(
 );
 
 test("resume a stateful subscriber without sending selected rows again", async () => {
-    const source = await open();
-    const feed = new Feed(source, TABLES, { clock: Clock.system });
+    const simulation = new Simulation({ seed: 1, start: START });
+    const source = await open({ simulation });
+    const feed = new Feed(source, TABLES);
     await new Workload(new Random(13)).seed(source, 1500);
 
     // follow and reconnect from the position it arrived at
@@ -233,8 +238,9 @@ test(
     "send to a thousand subscribers of one row within an operation budget",
     { timeout: 30_000 },
     async ({ annotate }) => {
-        const source = await open();
-        const feed = new Feed(source, TABLES, { clock: Clock.system, subscribers: 1000 });
+        const simulation = new Simulation({ seed: 1, start: START });
+        const source = await open({ simulation });
+        const feed = new Feed(source, TABLES, { subscribers: 1000 });
         await new Workload(new Random(21)).seed(source, 200);
 
         // follow with a thousand subscribers
@@ -265,10 +271,13 @@ test(
             source,
             40,
             async (index) => {
-                await source
-                    .update(task)
-                    .set({ rank: index % 10 })
-                    .where(eq(task.id, "s1"));
+                await source.transaction(
+                    async (transaction) =>
+                        await transaction
+                            .update(task)
+                            .set({ rank: index % 10 })
+                            .where(eq(task.id, "s1")),
+                );
             },
             settle,
         );
@@ -285,22 +294,29 @@ test(
     "flip fifteen hundred rows through a lookup within an operation budget",
     { timeout: 60_000 },
     async ({ annotate }) => {
-        const source = await open();
-        const feed = new Feed(source, TABLES, { clock: Clock.system });
+        const simulation = new Simulation({ seed: 1, start: START });
+        const source = await open({ simulation });
+        const feed = new Feed(source, TABLES);
 
         // follow the tasks of a named project
-        await source.insert(project).values({ id: "p0", scope: "inbox", name: "a" });
-        await source.insert(task).values(
-            Array.from({ length: FLIPPED_ROWS }, (_, index) => ({
-                id: `t${index}`,
-                scope: "inbox",
-                projectId: "p0",
-                state: "open",
-                rank: index % 10,
-                points: 1,
-                title: "work",
-                isSecret: false,
-            })),
+        await source.transaction(
+            async (transaction) =>
+                await transaction.insert(project).values({ id: "p0", scope: "inbox", name: "a" }),
+        );
+        await source.transaction(
+            async (transaction) =>
+                await transaction.insert(task).values(
+                    Array.from({ length: FLIPPED_ROWS }, (_, index) => ({
+                        id: `t${index}`,
+                        scope: "inbox",
+                        projectId: "p0",
+                        state: "open",
+                        rank: index % 10,
+                        points: 1,
+                        title: "work",
+                        isSecret: false,
+                    })),
+                ),
         );
         const follower = new Follower(feed, LOOKUPS, TABLES, { audience: AUDIENCE });
         follower.start();
@@ -311,10 +327,13 @@ test(
             source,
             6,
             async (index) => {
-                await source
-                    .update(project)
-                    .set({ name: index % 2 === 0 ? "x" : "a" })
-                    .where(eq(project.id, "p0"));
+                await source.transaction(
+                    async (transaction) =>
+                        await transaction
+                            .update(project)
+                            .set({ name: index % 2 === 0 ? "x" : "a" })
+                            .where(eq(project.id, "p0")),
+                );
             },
             (position) => follower.wait(position),
         );
@@ -330,8 +349,9 @@ test(
     "follow every query set at scale within an operation budget",
     { timeout: 60_000 },
     async ({ annotate }) => {
-        const source = await open();
-        const feed = new Feed(source, TABLES, { clock: Clock.system });
+        const simulation = new Simulation({ seed: 1, start: START });
+        const source = await open({ simulation });
+        const feed = new Feed(source, TABLES);
         const workload = new Workload(new Random(31));
         await workload.seed(source, SCALE_ROWS);
 
@@ -359,9 +379,9 @@ test(
     "send to the subscribers of a space with distinct access within an operation budget",
     { timeout: 60_000 },
     async ({ annotate }) => {
-        const source = await open();
+        const simulation = new Simulation({ seed: 1, start: START });
+        const source = await open({ simulation });
         const feed = new Feed(source, TABLES, {
-            clock: Clock.system,
             subscribers: SPACE_SUBSCRIBERS,
         });
         const workload = new Workload(new Random(41));
@@ -409,19 +429,23 @@ test(
     "reorder ten thousand tasks by a rollup within an operation budget",
     { timeout: 60_000 },
     async ({ annotate }) => {
-        const source = await open();
-        const feed = new Feed(source, TABLES, { clock: Clock.system });
+        const simulation = new Simulation({ seed: 1, start: START });
+        const source = await open({ simulation });
+        const feed = new Feed(source, TABLES);
 
         // file ten thousand tasks and follow the ten most commented
         for (let start = 0; start < RANKED_ROWS; start += 500) {
-            await source.insert(task).values(
-                Array.from({ length: 500 }, (_, index) => ({
-                    id: `t${start + index}`,
-                    scope: "inbox",
-                    state: "open",
-                    rank: 0,
-                    isSecret: false,
-                })),
+            await source.transaction(
+                async (transaction) =>
+                    await transaction.insert(task).values(
+                        Array.from({ length: 500 }, (_, index) => ({
+                            id: `t${start + index}`,
+                            scope: "inbox",
+                            state: "open",
+                            rank: 0,
+                            isSecret: false,
+                        })),
+                    ),
             );
         }
         const follower = new Follower(feed, DISCUSSED, TABLES, { audience: AUDIENCE });
@@ -434,12 +458,15 @@ test(
             source,
             60,
             async (index) => {
-                await source.insert(comment).values({
-                    id: `c${index}`,
-                    scope: "inbox",
-                    taskId: `t${random.integer(40)}`,
-                    position: index,
-                });
+                await source.transaction(
+                    async (transaction) =>
+                        await transaction.insert(comment).values({
+                            id: `c${index}`,
+                            scope: "inbox",
+                            taskId: `t${random.integer(40)}`,
+                            position: index,
+                        }),
+                );
             },
             (position) => follower.wait(position),
         );
@@ -482,9 +509,9 @@ async function measure(
 
 /** Read the process CPU time, in milliseconds. */
 function cpuTime(): number {
-    const { user, system } = process.cpuUsage();
+    const { user, system } = testHost().process.usage();
 
-    return (user + system) / 1000;
+    return (user + system) * 1000;
 }
 
 /** Report a measured cost beside the test result. */

@@ -1,10 +1,10 @@
-import { TestDatabase } from "@destack/db/test";
+import { Simulation } from "@destack/environment/simulation";
 import { expect, test } from "@destack/test";
 import { asc, eq, TABLE, type DatabaseConnection, type Table } from "@destack/db";
 import { Replica, replicaTables } from "../replica/replica.ts";
 import type { Page } from "../query/page.ts";
 import type { Query } from "../query/query.ts";
-import { first, note, open, replicate, tag } from "../test/fixture.ts";
+import { first, note, open, replicate, tag, START } from "../test/fixture.ts";
 import { type Call, type Mutation } from "../call/index.ts";
 import { mutation, Prediction, predictionTables } from "./prediction.ts";
 import { schema, found, zip } from "@destack/schema";
@@ -94,7 +94,11 @@ async function pushed(
 }
 
 test("rebase predicted mutations onto source pages until the source executes or rejects them", async () => {
-    const client = await open([note, ...replicaTables, ...predictionTables], { dialect: "sqlite" });
+    const simulation = new Simulation({ seed: 1, start: START });
+    const client = await open({
+        simulation,
+        tables: [note, ...replicaTables, ...predictionTables],
+    });
     const prediction = predicting([note]);
     const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
     const titles = async () =>
@@ -164,8 +168,12 @@ test("rebase predicted mutations onto source pages until the source executes or 
 });
 
 test("drop a group every predicted row left, without a count measuring it", async () => {
+    const simulation = new Simulation({ seed: 1, start: START });
     // store one group of notes by title
-    const client = await open([note, ...replicaTables, ...predictionTables], { dialect: "sqlite" });
+    const client = await open({
+        simulation,
+        tables: [note, ...replicaTables, ...predictionTables],
+    });
     const prediction = predicting([note]);
     const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
     const titles: Omit<Query, "scopes"> = {
@@ -200,25 +208,13 @@ test("drop a group every predicted row left, without a count measuring it", asyn
     ]);
 });
 
-test.skipIf(TestDatabase.target() !== "postgresql")(
-    "refuse predicting on PostgreSQL, whose log sequences changes only at commit",
-    async () => {
-        const database = await open([note, ...replicaTables, ...predictionTables]);
-        const prediction = predicting([note]);
-        await expect(
-            prediction.add(database, IDS[0], "tab-1", async () => ({
-                calls: [],
-                result: undefined,
-            })),
-        ).rejects.toThrow(
-            "a prediction must run on SQLite, which orders log changes within a transaction",
-        );
-    },
-);
-
 test("push again on a snapshot the mutations of a log and epoch no replica follows, retaining the rest", async () => {
+    const simulation = new Simulation({ seed: 1, start: START });
     // predict three notes
-    const client = await open([note, ...replicaTables, ...predictionTables], { dialect: "sqlite" });
+    const client = await open({
+        simulation,
+        tables: [note, ...replicaTables, ...predictionTables],
+    });
     const prediction = predicting([note]);
     const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
     await replicate(notes, client, [page(1, [], { reset: true })], prediction);
@@ -257,8 +253,12 @@ test("push again on a snapshot the mutations of a log and epoch no replica follo
 });
 
 test("read pending mutations up to a limit, and count each state with branch edits pending", async () => {
+    const simulation = new Simulation({ seed: 1, start: START });
     // predict three notes and a fourth on a branch
-    const client = await open([note, ...replicaTables, ...predictionTables], { dialect: "sqlite" });
+    const client = await open({
+        simulation,
+        tables: [note, ...replicaTables, ...predictionTables],
+    });
     const prediction = predicting([note]);
     const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
     await replicate(notes, client, [page(1, [], { reset: true })], prediction);
@@ -299,9 +299,11 @@ test("read pending mutations up to a limit, and count each state with branch edi
 });
 
 test("predict a checked-out branch's rows under its edits, and push the edits to their branch", async () => {
+    const simulation = new Simulation({ seed: 1, start: START });
     // store a branch's rows in a list a page of tags announces
-    const client = await open([note, tag, ...replicaTables, ...predictionTables], {
-        dialect: "sqlite",
+    const client = await open({
+        simulation,
+        tables: [note, tag, ...replicaTables, ...predictionTables],
     });
     const server: Call[] = [];
     const prediction = new Prediction({

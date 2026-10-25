@@ -23,7 +23,7 @@ import type { Audience } from "../feed/audience.ts";
 import type { RowChange } from "../query/page.ts";
 import type { Run } from "./run.ts";
 import { Tally, type TallyReading } from "./tally.ts";
-import { Clock } from "@destack/environment";
+import type { Clock } from "@destack/environment";
 
 /** The most values in one batched read, bounded by the parameter budget. */
 const BATCH_VALUES = 500;
@@ -60,7 +60,12 @@ export class View {
 
     /** Show a database as its open transaction reads it now. */
     static async latest(database: DatabaseConnection): Promise<View> {
-        return new View(database, await database.log.current(), undefined, Snapshot.live(database));
+        return new View(
+            database,
+            await database.log.position(),
+            undefined,
+            Snapshot.live(database),
+        );
     }
 
     /** Show a database as a snapshot reads it, or as its open transaction reads it now. */
@@ -69,7 +74,7 @@ export class View {
             ? View.latest(database)
             : new View(
                   database,
-                  snapshot.position ?? (await database.log.current()),
+                  snapshot.position ?? (await database.log.position()),
                   undefined,
                   snapshot,
               );
@@ -600,7 +605,7 @@ class ViewCache implements Cache {
     readonly rows: Memo<Promise<readonly Row[]>>;
     /** The shared ordered windows. */
     readonly windows: Memo<Promise<Window>>;
-    /** The system clock deciding when windows expire. */
+    /** The database's clock deciding when windows expire. */
     readonly clock: Clock;
     /** The shared reads of single rows. */
     readonly row: Memo<Promise<Row | null>>;
@@ -614,7 +619,7 @@ class ViewCache implements Cache {
         // start with empty state
         this.rows = new Memo<Promise<readonly Row[]>>(1);
         this.windows = new Memo<Promise<Window>>(1);
-        this.clock = Clock.system;
+        this.clock = database.state.clock;
         this.row = new Memo<Promise<Row | null>>(1);
         this.encodings = new Memo<RowChange>(1);
 
