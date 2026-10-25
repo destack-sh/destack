@@ -15,6 +15,9 @@
         },
         "./browser/simulation": {
             "runtimes": ["bun"]
+        },
+        "./workerd": {
+            "runtimes": ["workerd"]
         }
     }
 }

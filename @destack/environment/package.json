@@ -11,6 +11,7 @@
         "./browser": "./src/browser/index.ts",
         "./simulation": "./src/simulation/index.ts",
         "./browser/simulation": "./src/browser/simulation.ts",
+        "./workerd": "./src/workerd/index.ts",
         "./destack.json": "./destack.json"
     },
     "scripts": {
