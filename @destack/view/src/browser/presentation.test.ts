@@ -1,6 +1,7 @@
+import { Simulation } from "@destack/environment/simulation";
 import { TestDatabase } from "@destack/db/test";
 import { Package } from "@destack/package";
-import { Identifier, type JsonValue } from "@destack/schema";
+import { type JsonValue, schema } from "@destack/schema";
 import { type Setting } from "@destack/setting";
 import { deviceSetting, setting } from "@destack/setting/object";
 import { DEFAULT_DISPLAY } from "@destack/theme";
@@ -12,8 +13,11 @@ import { keybindings, sources } from "../palette/index.ts";
 import { appearance } from "../setting/index.ts";
 import { Presentation, type Page } from "./presentation.ts";
 
+/** The start of the test's world: 2026-10-24 at midnight UTC. */
+const START = Date.UTC(2026, 9, 24);
+
 /** The person a page presents for. */
-const PERSON = Identifier.create("user");
+const PERSON = schema.identifier("user").parse("user-01996ab0-0000-7000-8000-0000000000e2");
 
 /** The notes package whose view the page shows. */
 const notes = Package.parse({
@@ -25,12 +29,14 @@ const notes = Package.parse({
 /** The notes home view's page, whose package declares two commands. */
 const page: Page = {
     context: {
-        installation: Identifier.create("installation"),
-        space: Identifier.create("space"),
-        account: Identifier.create("account"),
+        installation: schema
+            .identifier("installation")
+            .parse("installation-01996ab0-0000-7000-8000-0000000000e3"),
+        space: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000e4"),
+        account: schema.identifier("account").parse("account-01996ab0-0000-7000-8000-0000000000e5"),
         view: "home",
         user: principal.user.reference("universe", PERSON),
-        home: Identifier.create("space"),
+        home: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000e6"),
     },
     packageId: notes.id,
     theme: destackTheme,
@@ -41,27 +47,34 @@ const page: Page = {
 };
 
 test("present a page in its person's language, their display settings' style and their keybindings, offering none once they turn the package's commands off, and its device's own values over theirs", async () => {
-    // place the person's dark appearance and their keybinding of the archive command
+    // place the person's dark appearance and their keybinding of the archive command, each under its own id
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const environment = simulation.environment("page");
     const storage = await TestDatabase.create(
         [accessRelationship, setting.table, deviceSetting.table],
-        {
-            isMigrated: true,
-        },
+        { environment, isMigrated: true },
     );
     onTestFinished(() => storage.close());
+    let placed = 0;
     const place = async (declared: Pick<Setting, "reference" | "package">, value: JsonValue) => {
-        const now = Date.now();
-        await storage.database.insert(setting.table).values({
-            id: Identifier.create("setting"),
-            scope: PERSON,
-            packageId: declared.reference.packageId,
-            name: declared.reference.name,
-            mode: "set",
-            value,
-            release: declared.package.version,
-            createdAt: now,
-            updatedAt: now,
-        });
+        const now = environment.clock.now();
+        placed += 1;
+        await storage.database.transaction(
+            async (transaction) =>
+                await transaction.insert(setting.table).values({
+                    id: schema
+                        .identifier("setting")
+                        .parse(`setting-01996ab0-0000-7000-8000-0000000000e${placed}`),
+                    scope: PERSON,
+                    packageId: declared.reference.packageId,
+                    name: declared.reference.name,
+                    mode: "set",
+                    value,
+                    release: declared.package.version,
+                    createdAt: now,
+                    updatedAt: now,
+                }),
+        );
     };
     const archive = CommandReference.format({ packageId: notes.id, name: "archive" });
     await place(appearance, "dark");
@@ -75,17 +88,24 @@ test("present a page in its person's language, their display settings' style and
     const turnedOff = Presentation.resolve(page, person, await values(), []);
 
     // present it on a device keeping the light appearance for itself, over the person's dark one
-    const now = Date.now();
-    await storage.database.insert(deviceSetting.table).values({
-        id: Identifier.create("device-setting"),
-        scope: Identifier.create("device"),
-        packageId: appearance.reference.packageId,
-        name: appearance.reference.name,
-        value: "light",
-        release: appearance.package.version,
-        createdAt: now,
-        updatedAt: now,
-    });
+    const now = environment.clock.now();
+    await storage.database.transaction(
+        async (transaction) =>
+            await transaction.insert(deviceSetting.table).values({
+                id: schema
+                    .identifier("device-setting")
+                    .parse("device-setting-01996ab0-0000-7000-8000-0000000000e8"),
+                scope: schema
+                    .identifier("device")
+                    .parse("device-01996ab0-0000-7000-8000-0000000000e9"),
+                packageId: appearance.reference.packageId,
+                name: appearance.reference.name,
+                value: "light",
+                release: appearance.package.version,
+                createdAt: now,
+                updatedAt: now,
+            }),
+    );
     const kept = await storage.database.select().from(deviceSetting.table);
     const onDevice = Presentation.resolve(page, person, await values(), kept);
 

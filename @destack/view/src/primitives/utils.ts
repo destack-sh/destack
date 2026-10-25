@@ -114,3 +114,26 @@ export function onMount(callback: () => (() => void) | void): void {
         TRANSPARENT,
     );
 }
+
+/** Call back with what abortable work answers unless cancelled, rethrowing its failure. */
+export function callbackOf<Value>(
+    start: (signal: AbortSignal) => Promise<Value>,
+    callback: (value: Value) => void,
+): () => void {
+    // run the callback unless cancelled before the work answers
+    const work = new AbortController();
+    start(work.signal).then(
+        (value) => {
+            if (!work.signal.aborted) {
+                callback(value);
+            }
+        },
+        (error: unknown) => {
+            if (!work.signal.aborted) {
+                throw error;
+            }
+        },
+    );
+
+    return () => work.abort();
+}

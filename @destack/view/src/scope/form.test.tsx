@@ -1,4 +1,5 @@
 import { none } from "@destack/access";
+import { Simulation } from "@destack/environment/simulation";
 import { type MethodInput, defineObject, field } from "@destack/object";
 import type { Submission } from "@destack/object/client";
 import { schema } from "@destack/schema";
@@ -7,6 +8,9 @@ import { expect, test } from "@destack/test";
 import { flush } from "../solid/reactive.ts";
 import { render, wait } from "../test/index.ts";
 import { type Form, type FormMode, useForm, useSchemaForm } from "./form.ts";
+
+/** The world the form tests run in. */
+const world = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 24) }).environment("tab");
 
 /** The first strong isolate MessageFormat 2 places around a placeholder's value. */
 const OPEN = String.fromCodePoint(0x2068);
@@ -43,7 +47,7 @@ function renameForm(mode: FormMode): {
     let form: Form<Rename> | undefined;
     render(() => {
         form = useForm(note, "update", {
-            values: () => ({ id: note.generateId(), title: "Groceries" }),
+            values: () => ({ id: note.generateId(world), title: "Groceries" }),
             submit: (input): Submission<unknown> => {
                 submitted.push(input);
                 const confirmed = new Promise<void>((resolve, reject) => {

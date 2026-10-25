@@ -1,5 +1,8 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { render } from "@solidjs/web";
+import { BrowserSimulation } from "@destack/environment/browser/simulation";
+import { Simulation } from "@destack/environment/simulation";
+import type { BrowserEnvironment } from "@destack/environment/browser";
+import { render } from "../test/dom.ts";
 import { type Accessor, flush } from "../solid/reactive.ts";
 import {
     AppearanceScript,
@@ -9,36 +12,38 @@ import {
     type LocalAppearance,
 } from "./appearance.tsx";
 
-/** Run a component in a mounted root, removing it after the test. */
-async function mount(component: () => null): Promise<void> {
-    const host = document.createElement("main");
-    document.body.append(host);
-    const dispose = render(component, host);
-    onTestFinished(() => {
-        dispose();
-        host.remove();
-        localStorage.clear();
-        document.documentElement.removeAttribute("style");
-    });
-    await new Promise((resolve) => {
-        setTimeout(resolve, 0);
-    });
+/** The start of every test's world: 2026-10-24 at midnight UTC. */
+const START = Date.UTC(2026, 9, 24);
+
+/** Run a component in a root of a tab of its own, answering the tab. */
+async function mount(component: () => null): Promise<BrowserEnvironment> {
+    // render in a fresh tab, and reset the root's scheme after the test
+    const simulation = new Simulation({ seed: 1, start: START });
+    onTestFinished(() => simulation[Symbol.asyncDispose]());
+    const tab = new BrowserSimulation(simulation).environment("tab");
+    render(component, { environment: tab });
+    onTestFinished(() => document.documentElement.removeAttribute("style"));
+    flush();
+
+    return tab;
 }
 
 test("restore the stored appearance from a script naming its storage key", () => {
     const host = document.createElement("div");
-    const dispose = render(() => <AppearanceScript storageKey="site-appearance" />, host);
+    const { unmount } = render(() => <AppearanceScript storageKey="site-appearance" />, {
+        container: host,
+    });
 
     // read the stored scheme under the key, else the default, and set it on the root
     expect(host.querySelector("script")?.innerHTML).toBe(
         'try{const a=localStorage.getItem("site-appearance")??"system";if(a==="light"||a==="dark")document.documentElement.style.colorScheme=a}catch{}',
     );
-    dispose();
+    unmount();
 });
 
 test("store a chosen appearance and set it on the root, the system's leaving the scheme to the device", async () => {
     let local: LocalAppearance | undefined;
-    await mount(() => {
+    const tab = await mount(() => {
         local = createAppearance({ storageKey: "site-appearance" });
 
         return null;
@@ -50,14 +55,14 @@ test("store a chosen appearance and set it on the root, the system's leaving the
     const dark = [
         local?.appearance(),
         local?.resolvedAppearance(),
-        localStorage.getItem("site-appearance"),
+        tab.storage.getItem("site-appearance"),
         document.documentElement.style.colorScheme,
     ];
     local?.setAppearance("system");
     flush();
     const system = [
         local?.appearance(),
-        localStorage.getItem("site-appearance"),
+        tab.storage.getItem("site-appearance"),
         document.documentElement.style.colorScheme,
     ];
 

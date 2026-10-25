@@ -3,6 +3,9 @@ import { type Accessor, createEffect, createSignal, onCleanup, untrack } from "s
 import { makeEventListener } from "./event-listener.ts";
 import { access, type MaybeAccessor, TRANSPARENT } from "./utils.ts";
 import { ViewError } from "../error/error.ts";
+import type { Clock } from "@destack/environment";
+import type { Display } from "@destack/environment/browser";
+import { useEnvironment } from "../page/view.ts";
 
 /** The relation of a favicon link. */
 export type FaviconRel = "icon" | "shortcut icon" | "apple-touch-icon";
@@ -179,7 +182,8 @@ export function createFavicon(
 /** Cycle the favicon through frames every interval, until disposed. */
 export function makeFaviconAnimation(
     frames: readonly string[],
-    options: FaviconAnimationOptions = {},
+    options: FaviconAnimationOptions,
+    clock: Clock,
 ): FaviconAnimationController {
     // cycle nothing on the server
     const { interval = FRAME_INTERVAL, autoplay = true, loop = true, ...faviconOptions } = options;
@@ -198,9 +202,9 @@ export function makeFaviconAnimation(
     // show the next frame each interval, stopping after the last unless looping
     const favicon = makeFavicon(first, faviconOptions);
     let frame = 0;
-    let handle: ReturnType<typeof setInterval> | undefined;
+    let handle: number | undefined;
     const pause = (): void => {
-        clearInterval(handle);
+        clock.clearInterval(handle);
         handle = undefined;
     };
     const tick = (): void => {
@@ -214,7 +218,7 @@ export function makeFaviconAnimation(
     };
     const play = (): void => {
         if (handle === undefined && frames.length > 1) {
-            handle = setInterval(tick, interval);
+            handle = clock.setInterval(tick, interval);
         }
     };
     if (autoplay) {
@@ -250,17 +254,18 @@ export function createFaviconAnimation(
         return { frame: () => 0, playing: () => false, play: () => {}, pause: () => {} };
     }
     const { interval = FRAME_INTERVAL, autoplay = true, loop = true, ...faviconOptions } = options;
+    const { clock } = useEnvironment();
     const [frame, setFrame] = createSignal(0, { ownedWrite: true });
     const [playing, setPlaying] = createSignal(false, { ownedWrite: true });
 
     // show the next frame each interval, stopping after the last unless looping
     let list = untrack(() => access(frames));
     const favicon = makeFavicon(readFrame(list, 0), faviconOptions);
-    let handle: ReturnType<typeof setInterval> | undefined;
+    let handle: number | undefined;
     let current = 0;
     const pause = (): void => {
         setPlaying(false);
-        clearInterval(handle);
+        clock.clearInterval(handle);
         handle = undefined;
     };
     const tick = (): void => {
@@ -276,7 +281,7 @@ export function createFaviconAnimation(
     const play = (): void => {
         if (handle === undefined && list.length > 1) {
             setPlaying(true);
-            handle = setInterval(tick, interval);
+            handle = clock.setInterval(tick, interval);
         }
     };
 
@@ -348,7 +353,8 @@ export function createFaviconBadge(
 /** Show the favicon of the device's scheme, following it as it changes, until disposed. */
 export function makeFaviconScheme(
     icons: FaviconSchemeIcons,
-    options: FaviconOptions = {},
+    options: FaviconOptions,
+    display: Display,
 ): FaviconSchemeController {
     // show the light icon on the server
     if (isServer) {
@@ -360,8 +366,8 @@ export function makeFaviconScheme(
         };
     }
 
-    // show the scheme's icon, again whenever the scheme changes
-    const list = window.matchMedia(DARK_QUERY);
+    // show the scheme's icon, again whenever the display's scheme changes
+    const list = display.media(DARK_QUERY);
     let scheme: FaviconColorScheme = list.matches ? "dark" : "light";
     const favicon = makeFavicon(icons[scheme], options);
     const stop = makeEventListener(list, "change", (event) => {
@@ -394,8 +400,8 @@ export function createFaviconScheme(
         return { href: () => access(icons)[SERVER_SCHEME], scheme: () => SERVER_SCHEME };
     }
 
-    // follow the scheme, and show its icon now
-    const list = window.matchMedia(DARK_QUERY);
+    // follow the display's scheme, and show its icon now
+    const list = useEnvironment().display.media(DARK_QUERY);
     const [scheme, setScheme] = createSignal<FaviconColorScheme>(list.matches ? "dark" : "light", {
         ownedWrite: true,
     });

@@ -2,6 +2,7 @@ import { isServer } from "@solidjs/web";
 import { type Accessor, createEffect, onSettled } from "solid-js";
 import { createEventListener, makeEventListener } from "./event-listener.ts";
 import { access, createHydratableSignal, type FalsyValue, type MaybeAccessor } from "./utils.ts";
+import { useEnvironment } from "../page/view.ts";
 
 /** Call back as an element gains and loses the focus, until cleanup or the returned function. */
 export function makeFocusListener(
@@ -43,15 +44,16 @@ export function createFocusSignal(target: MaybeAccessor<Element>): Accessor<bool
 /** Focus the element the ref receives once rendered, when it has the `autofocus` attribute. */
 export function autofocus(): (element: HTMLElement) => void {
     // focus the element after the task that renders it, while it asks for focus
+    const { clock } = useEnvironment();
     let target: HTMLElement | undefined;
     onSettled(() => {
         if (target?.hasAttribute("autofocus") !== true) {
             return undefined;
         }
         const element = target;
-        const handle = setTimeout(() => element.focus());
+        const handle = clock.setTimeout(() => element.focus());
 
-        return () => clearTimeout(handle);
+        return () => clock.clearTimeout(handle);
     });
 
     return (element) => {
@@ -61,12 +63,14 @@ export function autofocus(): (element: HTMLElement) => void {
 
 /** Focus each element an accessor gives once rendered. */
 export function createAutofocus(target: Accessor<HTMLElement | FalsyValue>): void {
+    // focus each element after the task that renders it
+    const { clock } = useEnvironment();
     createEffect(target, (element) => {
         if (!(element instanceof HTMLElement)) {
             return undefined;
         }
-        const handle = setTimeout(() => element.focus());
+        const handle = clock.setTimeout(() => element.focus());
 
-        return () => clearTimeout(handle);
+        return () => clock.clearTimeout(handle);
     });
 }

@@ -1,18 +1,12 @@
-import { afterAll, afterEach, beforeAll, expect, test, vi } from "@destack/test";
-import { createRoot, createSignal, flush } from "solid-js";
+import { testWorld } from "../test/browser.ts";
+import { Simulation } from "@destack/environment/simulation";
+import { afterEach, expect, test } from "@destack/test";
+import { createSignal, flush } from "solid-js";
+import { createPageRoot } from "../test/dom.ts";
 import { autofocus, createAutofocus, createFocusSignal } from "./focus.ts";
 
-beforeAll(() => {
-    vi.useFakeTimers();
-});
-
 afterEach(() => {
-    vi.clearAllTimers();
     document.body.replaceChildren();
-});
-
-afterAll(() => {
-    vi.useRealTimers();
 });
 
 /** Add a button to the document. */
@@ -23,18 +17,19 @@ function button(): HTMLButtonElement {
     return element;
 }
 
-/** Run effects and timers. */
-function settle(): void {
+/** Run effects and the timers due now. */
+async function settle(simulation: Simulation): Promise<void> {
     flush();
-    vi.runAllTimers();
+    await simulation.run({ to: simulation.clock.now() });
 }
 
-test("follow whether an element, fixed or given by an accessor, holds the focus", () => {
+test("follow whether an element, fixed or given by an accessor, holds the focus", async () => {
+    const { tab } = testWorld();
     // focus one element before following, then move the focus
     const first = button();
     const second = button();
     first.focus();
-    const observed = createRoot((disposeRoot) => {
+    const observed = createPageRoot((disposeRoot) => {
         const isFirst = createFocusSignal(first);
         const isSecond = createFocusSignal(() => second);
         flush();
@@ -45,7 +40,7 @@ test("follow whether an element, fixed or given by an accessor, holds the focus"
         disposeRoot();
 
         return [before, after];
-    });
+    }, tab);
 
     expect(observed).toEqual([
         [true, false],
@@ -53,46 +48,48 @@ test("follow whether an element, fixed or given by an accessor, holds the focus"
     ]);
 });
 
-test("focus a ref's element once rendered only when it asks for it", () => {
+test("focus a ref's element once rendered only when it asks for it", async () => {
+    const { simulation, tab } = testWorld();
     const asking = button();
     asking.setAttribute("autofocus", "");
     const silent = button();
-    const focused = [silent, asking].map((target) => {
+    const focused: boolean[] = [];
+    for (const target of [silent, asking]) {
         document.body.focus();
-        const dispose = createRoot((disposeRoot) => {
+        const dispose = createPageRoot((disposeRoot) => {
             autofocus()(target);
 
             return disposeRoot;
-        });
-        settle();
+        }, tab);
+        await settle(simulation);
         dispose();
-
-        return document.activeElement === target;
-    });
+        focused.push(document.activeElement === target);
+    }
 
     expect(focused).toEqual([false, true]);
 });
 
-test("focus each element an accessor gives, and none after disposal", () => {
+test("focus each element an accessor gives, and none after disposal", async () => {
+    const { simulation, tab } = testWorld();
     const first = button();
     const second = button();
     const [ref, setRef] = createSignal<HTMLButtonElement>();
-    const dispose = createRoot((disposeRoot) => {
+    const dispose = createPageRoot((disposeRoot) => {
         createAutofocus(ref);
 
         return disposeRoot;
-    });
-    settle();
+    }, tab);
+    await settle(simulation);
     const before = document.activeElement;
     setRef(first);
-    settle();
+    await settle(simulation);
     const afterFirst = document.activeElement;
     setRef(second);
-    settle();
+    await settle(simulation);
     const afterSecond = document.activeElement;
     dispose();
     setRef(first);
-    settle();
+    await settle(simulation);
 
     expect([before, afterFirst, afterSecond, document.activeElement]).toEqual([
         document.body,

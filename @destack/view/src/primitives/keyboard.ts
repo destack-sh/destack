@@ -2,7 +2,7 @@ import { isServer } from "@solidjs/web";
 import { type Accessor, createEffect, createMemo, createSignal, untrack } from "solid-js";
 import { access, type MaybeAccessor, TRANSPARENT } from "./utils.ts";
 import { makeEventListener } from "./event-listener.ts";
-import { createSingletonRoot } from "./rootless.ts";
+import { Timeout } from "./timer.ts";
 
 /** A modifier key, as keyboard events name it. */
 export type ModifierKey = "Alt" | "Control" | "Meta" | "Shift";
@@ -34,22 +34,23 @@ export interface CreateKeyDownOptions {
 const MODIFIERS = new Set(["ALT", "CONTROL", "META", "SHIFT"]);
 
 /** Follow the latest key-down event, null again after the event's task. */
-export const useKeyDownEvent: () => Accessor<KeyboardEvent | null> = createSingletonRoot(() => {
+export function createKeyDownEvent(): Accessor<KeyboardEvent | null> {
     // follow nothing on the server
     if (isServer) {
         return () => null;
     }
     const [event, setEvent] = createSignal<KeyboardEvent | null>(null, { ownedWrite: true });
+    const clearing = new Timeout();
     makeEventListener(window, "keydown", (latest) => {
         setEvent(latest);
-        setTimeout(() => setEvent(null));
+        clearing.set(() => setEvent(null), 0);
     });
 
     return event;
-});
+}
 
-/** Follow the keys held down, in the order pressed, through one listener shared by every user. */
-export const useKeyDownList: () => Accessor<string[]> = createSingletonRoot(() => {
+/** Follow the keys held down, in the order pressed. */
+export function createKeyDownList(): Accessor<string[]> {
     // follow nothing on the server
     if (isServer) {
         return () => [];
@@ -92,15 +93,15 @@ export const useKeyDownList: () => Accessor<string[]> = createSingletonRoot(() =
     });
 
     return pressed;
-});
+}
 
 /** Follow the key pressed alone, while nothing else was pressed. */
-export const useCurrentlyHeldKey: () => Accessor<string | null> = createSingletonRoot(() => {
+export function createCurrentlyHeldKey(): Accessor<string | null> {
     // follow nothing on the server
     if (isServer) {
         return () => null;
     }
-    const keys = useKeyDownList();
+    const keys = createKeyDownList();
     let previous = untrack(keys);
 
     return createMemo(() => {
@@ -111,22 +112,22 @@ export const useCurrentlyHeldKey: () => Accessor<string | null> = createSingleto
 
         return before.length === 0 && current.length === 1 ? (current[0] ?? null) : null;
     }, TRANSPARENT);
-});
+}
 
 /** Follow the sequence of key sets pressed since all keys were last released. */
-export const useKeyDownSequence: () => Accessor<string[][]> = createSingletonRoot(() => {
+export function createKeyDownSequence(): Accessor<string[][]> {
     // follow nothing on the server
     if (isServer) {
         return () => [];
     }
-    const keys = useKeyDownList();
+    const keys = createKeyDownList();
 
     return createMemo(
         (previous: string[][] | undefined) =>
             keys().length === 0 ? [] : [...(previous ?? []), keys()],
         TRANSPARENT,
     );
-});
+}
 
 /** Follow whether a key is held alone, preventing its default by default. */
 export function createKeyHold(
@@ -138,7 +139,7 @@ export function createKeyHold(
         return () => false;
     }
     const wanted = key.toUpperCase();
-    const held = useCurrentlyHeldKey();
+    const held = createCurrentlyHeldKey();
 
     // prevent the key's default right in the event, which signals read only after the batch
     if (options.preventDefault ?? true) {

@@ -11,6 +11,7 @@ import {
     type UploadFile,
     type UploadProgress,
 } from "./upload.ts";
+import { wait } from "../test/dom.ts";
 
 afterEach(() => {
     vi.unstubAllGlobals();
@@ -83,9 +84,7 @@ function drag(target: EventTarget, type: string, files?: FileList): DragEvent {
 
 /** Wait for pending callbacks. */
 async function settle(): Promise<void> {
-    await new Promise((resolve) => {
-        setTimeout(resolve, 0);
-    });
+    await wait(0);
     flush();
 }
 

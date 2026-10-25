@@ -1,3 +1,5 @@
+import { BrowserSimulation } from "@destack/environment/browser/simulation";
+import { Simulation } from "@destack/environment/simulation";
 import { Localization, SOURCE_LOCALE } from "@destack/locale";
 import { none, principal, relation } from "@destack/access";
 import { TestDatabase } from "@destack/db/test";
@@ -12,7 +14,7 @@ import { useQuery, useSetting, useSpace } from "./index.ts";
 import { defineSetting } from "@destack/setting/declare";
 import { deviceSetting, setting } from "@destack/setting/object";
 import { changed } from "../test/dom.ts";
-import { Clock } from "@destack/environment";
+import type { Environment } from "@destack/environment";
 
 /** A page origin that calls nothing, as a test page has none. */
 function noOrigin(path: string): never {
@@ -52,6 +54,10 @@ const card = defineObject(
 const BOARD_ID = schema.identifier("board").parse("board-01996ab0-0000-7000-8000-000000000001");
 
 /** The view the cards open in, on the board's space. */
+/** The start of every test's world: 2026-10-24 at midnight UTC. */
+const START = Date.UTC(2026, 9, 24);
+
+/** The view context the tests mount. */
 const CONTEXT = {
     installation: "installation-cards",
     space: BOARD_ID,
@@ -61,12 +67,16 @@ const CONTEXT = {
 };
 
 /** Open a board's cards offline, as a view's page keeps them, predicting every change locally. */
-async function openClient(): Promise<ObjectClient<{ readonly card: typeof card }>> {
+async function openClient(
+    environment: Environment,
+): Promise<ObjectClient<{ readonly card: typeof card }>> {
     // keep the cards in a local database whose server never answers
-    const storage = await TestDatabase.create(ObjectClient.tables({ card }));
+    const storage = await TestDatabase.create(ObjectClient.tables({ card }), {
+        environment,
+    });
     const offline = { url: "https://cards.test", fetch: () => new Promise<Response>(() => {}) };
     const client = await ObjectClient.open({
-        clock: Clock.system,
+        environment,
         database: storage.database,
         objects: { card },
         scope: BOARD_ID,
@@ -112,7 +122,8 @@ function failureMessage(failure: unknown): string {
 
 test("show a query's rows after loading, and re-render only the row a predicted change renames", async () => {
     // render two predicted cards under a loading boundary
-    const client = await openClient();
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const client = await openClient(simulation.environment("view"));
     const created = client.mutation(async (mutation) => {
         await mutation.call(card).create({ title: "Apples" });
         await mutation.call(card).create({ title: "Bread" });
@@ -134,6 +145,7 @@ test("show a query's rows after loading, and re-render only the row a predicted 
                 origin: noOrigin,
             },
             Localization.of(SOURCE_LOCALE, []),
+            new BrowserSimulation(simulation).environment("view"),
         ),
     );
     await changed(element, () => element.textContent === "ApplesBread", RENDER_MILLISECONDS);
@@ -150,7 +162,8 @@ test("show a query's rows after loading, and re-render only the row a predicted 
 
 test("fail access to an object type the view's space does not hold into the error boundary", async () => {
     // render a query of boards, which live outside every scope of the view
-    const client = await openClient();
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const client = await openClient(simulation.environment("view"));
     const element = document.createElement("main");
     onTestFinished(
         renderView(
@@ -171,6 +184,7 @@ test("fail access to an object type the view's space does not hold into the erro
                 origin: noOrigin,
             },
             Localization.of(SOURCE_LOCALE, []),
+            new BrowserSimulation(simulation).environment("view"),
         ),
     );
     expect(element.textContent).toBe("the client has no object board");
@@ -200,10 +214,13 @@ function EditorMode() {
 
 test("show a setting's value for the page's person, and the device's value once it stores one", async () => {
     // keep the person's settings and the device's own offline
-    const storage = await TestDatabase.create(ObjectClient.tables({ setting, deviceSetting }));
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const storage = await TestDatabase.create(ObjectClient.tables({ setting, deviceSetting }), {
+        environment: simulation.environment("view"),
+    });
     const offline = { url: "https://settings.test", fetch: () => new Promise<Response>(() => {}) };
     const client = await ObjectClient.open({
-        clock: Clock.system,
+        environment: simulation.environment("view"),
         database: storage.database,
         objects: { setting, deviceSetting },
         scope: CONTEXT.user.id,
@@ -235,6 +252,7 @@ test("show a setting's value for the page's person, and the device's value once 
                 origin: noOrigin,
             },
             Localization.of(SOURCE_LOCALE, []),
+            new BrowserSimulation(simulation).environment("view"),
         ),
     );
     await changed(element, () => element.textContent === "standard", RENDER_MILLISECONDS);
@@ -261,7 +279,8 @@ const language = defineSetting({
 
 test("refuse following a space's setting as the page's person into the error boundary", async () => {
     // render a space setting through the person's settings
-    const client = await openClient();
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const client = await openClient(simulation.environment("view"));
     const element = document.createElement("main");
     onTestFinished(
         renderView(
@@ -282,6 +301,7 @@ test("refuse following a space's setting as the page's person into the error bou
                 origin: noOrigin,
             },
             Localization.of(SOURCE_LOCALE, []),
+            new BrowserSimulation(simulation).environment("view"),
         ),
     );
     expect(element.textContent).toBe(

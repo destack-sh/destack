@@ -3,6 +3,7 @@ import { COMMAND_PARAMETER, FOCUS_PARAMETER, OPEN_PATH } from "../declare/contex
 import { type Localization, t } from "@destack/locale";
 import * as style from "@destack/style";
 import { color, radius, shadow } from "@destack/theme/tokens.stylex";
+import type { Navigation } from "@destack/environment/browser";
 
 /** The key combination opening the command palette over a view. */
 const PALETTE_ACCELERATOR = "mod+k";
@@ -42,6 +43,7 @@ export function listenForCommands(
     signal: AbortSignal,
     localization: () => Localization,
     keybindings: () => readonly Keybinding[],
+    navigation: Pick<Navigation, "currentEntry">,
 ): void {
     // open the palette, at a command its keybinding runs
     const isCommand = isCommandPlatform();
@@ -51,19 +53,23 @@ export function listenForCommands(
         );
         if (bound !== undefined) {
             event.preventDefault();
-            openPalette(bound.command, localization());
+            openPalette(bound.command, localization(), navigation);
         } else if (Accelerator.matches(PALETTE_ACCELERATOR, event, isCommand)) {
             event.preventDefault();
-            openPalette(undefined, localization());
+            openPalette(undefined, localization(), navigation);
         }
     };
     window.addEventListener("keydown", listener, { signal });
 }
 
 /** Open the command palette over the page in a modal dialog that frames its space's origin. */
-function openPalette(command: string | undefined, localization: Localization): void {
+function openPalette(
+    command: string | undefined,
+    localization: Localization,
+    navigation: Pick<Navigation, "currentEntry">,
+): void {
     // open the palette over this page through the open path, at a command when one is asked for
-    const query = new URLSearchParams({ [FOCUS_PARAMETER]: location.href });
+    const query = new URLSearchParams({ [FOCUS_PARAMETER]: navigation.currentEntry.url });
     if (command !== undefined) {
         query.set(COMMAND_PARAMETER, command);
     }

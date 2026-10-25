@@ -1,14 +1,7 @@
-import {
-    afterAll,
-    afterEach,
-    beforeAll,
-    beforeEach,
-    expect,
-    refusal,
-    test,
-    vi,
-} from "@destack/test";
-import { createRoot, createSignal, flush } from "solid-js";
+import { testWorld } from "../test/browser.ts";
+import { afterAll, afterEach, beforeAll, expect, refusal, test, vi } from "@destack/test";
+import { createSignal, flush } from "solid-js";
+import { createPageRoot } from "../test/dom.ts";
 import {
     createFavicon,
     createFaviconAnimation,
@@ -21,6 +14,7 @@ import {
     makeFaviconProgress,
     makeFaviconScheme,
 } from "./favicon.ts";
+import { testBrowser } from "../test/browser.ts";
 
 /** The drawing operations of each canvas. */
 const drawings = new WeakMap<HTMLCanvasElement, string[]>();
@@ -37,11 +31,8 @@ function replace(target: object, name: string, descriptor: PropertyDescriptor): 
     Object.defineProperty(target, name, { configurable: true, ...descriptor });
 }
 
-/** Whether the device prefers a dark scheme. */
-let isDark = false;
-
-/** The scheme lists made, to tell of changes. */
-const schemeLists: EventTarget[] = [];
+/** The media query of a device preferring a dark scheme. */
+const DARK = "(prefers-color-scheme: dark)";
 
 beforeAll(() => {
     // load images on the next microtask, failing those whose address starts with error:
@@ -88,30 +79,9 @@ beforeAll(() => {
             return `data:drawn,${drawn.length - 1}`;
         },
     });
-
-    // answer the scheme query from the test's flag
-    replace(window, "matchMedia", {
-        value: (media: string) => {
-            const list = Object.assign(new EventTarget(), {
-                media,
-                onchange: null,
-                addListener: () => {},
-                removeListener: () => {},
-            });
-            Object.defineProperty(list, "matches", { get: () => isDark });
-            schemeLists.push(list);
-
-            return list;
-        },
-    });
-});
-
-beforeEach(() => {
-    isDark = false;
 });
 
 afterEach(() => {
-    vi.useRealTimers();
     for (const link of document.head.querySelectorAll("link")) {
         link.remove();
     }
@@ -145,14 +115,6 @@ async function settle(): Promise<void> {
         await Promise.resolve();
     }
     flush();
-}
-
-/** Tell every scheme list that the scheme changed. */
-function changeScheme(dark: boolean): void {
-    isDark = dark;
-    for (const list of schemeLists) {
-        list.dispatchEvent(Object.assign(new Event("change"), { matches: dark }));
-    }
 }
 
 test("make the favicon link when there is none, removing it on dispose", () => {
@@ -195,9 +157,10 @@ test("drive the link of another relation", () => {
     expect([shown, iconHref()]).toEqual(["/touch.png", null]);
 });
 
-test("follow a reactive favicon address, putting back the link on cleanup", () => {
+test("follow a reactive favicon address, putting back the link on cleanup", async () => {
+    const { tab } = testWorld();
     const [href, setHref] = createSignal("/first.svg", { ownedWrite: true });
-    const observed = createRoot((disposeRoot) => {
+    const observed = createPageRoot((disposeRoot) => {
         const current = createFavicon(href);
         const first = iconHref();
         setHref("/second.svg");
@@ -206,31 +169,39 @@ test("follow a reactive favicon address, putting back the link on cleanup", () =
         disposeRoot();
 
         return [first, second];
-    });
+    }, tab);
 
     expect([observed, iconHref()]).toEqual([["/first.svg", ["/second.svg", true]], null]);
 });
 
-test("cycle favicon frames every interval, pausing, resuming and stopping after the last unless looping", () => {
-    vi.useFakeTimers();
-    const looping = makeFaviconAnimation(["/1.png", "/2.png", "/3.png"], { interval: 100 });
+test("cycle favicon frames every interval, pausing, resuming and stopping after the last unless looping", async () => {
+    const { simulation, tab } = testWorld();
+    const looping = makeFaviconAnimation(
+        ["/1.png", "/2.png", "/3.png"],
+        { interval: 100 },
+        tab.clock,
+    );
     const frames = [looping.frame];
     for (let step = 0; step < 3; step++) {
-        vi.advanceTimersByTime(100);
+        await simulation.run({ to: simulation.clock.now() + 100 });
         frames.push(looping.frame);
     }
     looping.pause();
-    vi.advanceTimersByTime(300);
+    await simulation.run({ to: simulation.clock.now() + 300 });
     const paused = [looping.frame, looping.playing];
     looping.dispose();
 
     // cycle once without looping, and never with one frame or without autoplay
-    const once = makeFaviconAnimation(["/1.png", "/2.png"], { interval: 100, loop: false });
-    vi.advanceTimersByTime(500);
+    const once = makeFaviconAnimation(
+        ["/1.png", "/2.png"],
+        { interval: 100, loop: false },
+        tab.clock,
+    );
+    await simulation.run({ to: simulation.clock.now() + 500 });
     const ended = [once.frame, once.playing];
     once.dispose();
-    const single = makeFaviconAnimation(["/1.png"]);
-    const manual = makeFaviconAnimation(["/1.png", "/2.png"], { autoplay: false });
+    const single = makeFaviconAnimation(["/1.png"], {}, tab.clock);
+    const manual = makeFaviconAnimation(["/1.png", "/2.png"], { autoplay: false }, tab.clock);
 
     expect({ frames, paused, ended, single: single.playing, manual: manual.playing }).toEqual({
         frames: [0, 1, 2, 0],
@@ -241,43 +212,45 @@ test("cycle favicon frames every interval, pausing, resuming and stopping after 
     });
 });
 
-test("cycle reactive frames, starting over when they change and pausing while the page is hidden", () => {
-    vi.useFakeTimers();
+test("cycle reactive frames, starting over when they change and pausing while the page is hidden", async () => {
+    const { simulation, tab } = testWorld();
     const [frames, setFrames] = createSignal<readonly string[]>(["/1.png", "/2.png"], {
         ownedWrite: true,
     });
     let isHidden = false;
     Object.defineProperty(document, "hidden", { configurable: true, get: () => isHidden });
-    const observed = createRoot((disposeRoot) => {
-        const animation = createFaviconAnimation(frames, { interval: 100 });
-        vi.advanceTimersByTime(100);
-        flush();
-        const advanced = [animation.frame(), iconHref()];
+    const { animation, dispose } = createPageRoot(
+        (disposeRoot) => ({
+            animation: createFaviconAnimation(frames, { interval: 100 }),
+            dispose: disposeRoot,
+        }),
+        tab,
+    );
+    await simulation.run({ to: simulation.clock.now() + 100 });
+    flush();
+    const advanced = [animation.frame(), iconHref()];
 
-        // shrink to one frame, then grow again
-        setFrames(["/only.png"]);
-        flush();
-        const shrunk = [animation.frame(), animation.playing()];
-        setFrames(["/a.png", "/b.png"]);
-        flush();
-        const grown = animation.playing();
+    // shrink to one frame, then grow again
+    setFrames(["/only.png"]);
+    flush();
+    const shrunk = [animation.frame(), animation.playing()];
+    setFrames(["/a.png", "/b.png"]);
+    flush();
+    const grown = animation.playing();
 
-        // hide and show the page
-        isHidden = true;
-        document.dispatchEvent(new Event("visibilitychange"));
-        flush();
-        const whileHidden = animation.playing();
-        isHidden = false;
-        document.dispatchEvent(new Event("visibilitychange"));
-        flush();
-        const shownAgain = animation.playing();
-        disposeRoot();
-
-        return { advanced, shrunk, grown, whileHidden, shownAgain };
-    });
+    // hide and show the page
+    isHidden = true;
+    document.dispatchEvent(new Event("visibilitychange"));
+    flush();
+    const whileHidden = animation.playing();
+    isHidden = false;
+    document.dispatchEvent(new Event("visibilitychange"));
+    flush();
+    const shownAgain = animation.playing();
+    dispose();
     Reflect.deleteProperty(document, "hidden");
 
-    expect(observed).toEqual({
+    expect({ advanced, shrunk, grown, whileHidden, shownAgain }).toEqual({
         advanced: [1, "/2.png"],
         shrunk: [0, false],
         grown: true,
@@ -359,9 +332,10 @@ test("draw a progress ring's track, and its arc from the top for a positive shar
 });
 
 test("redraw a reactive badge and ring, applying only the latest drawing", async () => {
+    const { tab } = testWorld();
     const [count, setCount] = createSignal<number>(1, { ownedWrite: true });
     const [progress, setProgress] = createSignal<number | undefined>(10, { ownedWrite: true });
-    const observed = await createRoot(async (disposeRoot) => {
+    const observed = await createPageRoot(async (disposeRoot) => {
         const badge = createFaviconBadge("/base.png", count);
         const ring = createFaviconProgress("/ring.png", progress, { rel: "apple-touch-icon" });
         flush();
@@ -380,17 +354,18 @@ test("redraw a reactive badge and ring, applying only the latest drawing", async
         disposeRoot();
 
         return read;
-    });
+    }, tab);
 
-    expect(observed).toEqual(["text 3 #ffffff", true, `${location.origin}/ring.png`]);
+    expect(observed).toEqual(["text 3 #ffffff", true, new URL("/ring.png", document.baseURI).href]);
 });
 
-test("show the favicon of the device's scheme, following its changes and new icons", () => {
+test("show the favicon of the device's scheme, following its changes and new icons", async () => {
+    const { tab } = testWorld();
     // follow the scheme without an owner
-    isDark = true;
-    const fixed = makeFaviconScheme({ light: "/light.svg", dark: "/dark.svg" });
+    tab.display.emulate({ [DARK]: true });
+    const fixed = makeFaviconScheme({ light: "/light.svg", dark: "/dark.svg" }, {}, tab.display);
     const startedDark = [fixed.scheme, iconHref()];
-    changeScheme(false);
+    tab.display.emulate({ [DARK]: false });
     const turnedLight = [fixed.scheme, iconHref()];
     fixed.dispose();
 
@@ -399,9 +374,9 @@ test("show the favicon of the device's scheme, following its changes and new ico
         { light: "/light.svg", dark: "/dark.svg" },
         { ownedWrite: true },
     );
-    const reactive = createRoot((disposeRoot) => {
+    const reactive = createPageRoot((disposeRoot) => {
         const favicon = createFaviconScheme(icons);
-        changeScheme(true);
+        tab.display.emulate({ [DARK]: true });
         flush();
         const dark = [favicon.scheme(), iconHref()];
         setIcons({ light: "/light-2.svg", dark: "/dark-2.svg" });
@@ -410,7 +385,7 @@ test("show the favicon of the device's scheme, following its changes and new ico
         disposeRoot();
 
         return [dark, replaced];
-    });
+    }, tab);
 
     expect({ startedDark, turnedLight, reactive, after: iconHref() }).toEqual({
         startedDark: ["dark", "/dark.svg"],
@@ -421,7 +396,7 @@ test("show the favicon of the device's scheme, following its changes and new ico
 });
 
 test("refuse an animation without frames, which would point the favicon at the page", () => {
-    expect(() => makeFaviconAnimation([])).toThrow(
+    expect(() => makeFaviconAnimation([], {}, testBrowser().clock)).toThrow(
         new RangeError("the favicon animation has no frame 0"),
     );
 });

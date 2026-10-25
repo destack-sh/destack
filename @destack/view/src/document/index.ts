@@ -8,7 +8,13 @@ export {
     type MetadataProperties,
     Viewport,
 } from "./metadata.tsx";
-export { defineFont, Font, type FontDefinition, type FontProperties, type FontSource } from "./font.tsx";
+export {
+    defineFont,
+    Font,
+    type FontDefinition,
+    type FontProperties,
+    type FontSource,
+} from "./font.tsx";
 export { Script, type ScriptProperties, type ScriptStrategy } from "./script.tsx";
 export {
     AppearanceScript,

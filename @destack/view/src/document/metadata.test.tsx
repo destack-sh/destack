@@ -1,6 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { render } from "@solidjs/web";
 import { defineMetadata, defineViewport, Metadata, Viewport } from "./metadata.tsx";
+import { wait } from "../test/dom.ts";
 
 /** A site's metadata defaults, as its layout declares them. */
 const site = defineMetadata({
@@ -32,9 +33,7 @@ async function mount(page: () => ReturnType<typeof Metadata>): Promise<void> {
     });
 
     // wait for the head registry, which applies registered tags after the current task
-    await new Promise((resolve) => {
-        setTimeout(resolve, 0);
-    });
+    await wait(0);
 }
 
 /** Read the content of the head's named or property metadata. */

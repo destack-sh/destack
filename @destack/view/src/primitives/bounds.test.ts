@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, expect, test } from "@destack/test";
 import { createRoot, flush } from "solid-js";
 import { createElementBounds, getElementBounds } from "./bounds.ts";
+import { wait } from "../test/dom.ts";
 
 /** The callbacks of the stand-in resize observers, to report resizes to. */
 let resizes: (() => void)[] = [];
@@ -49,9 +50,7 @@ function movable(): { element: HTMLElement; move: (top: number) => void } {
 
 /** Wait for the observers to deliver their records. */
 async function settle(): Promise<void> {
-    await new Promise((resolve) => {
-        setTimeout(resolve, 0);
-    });
+    await wait(0);
 }
 
 test("read an element's rectangle, all null without an element", () => {

@@ -1,18 +1,24 @@
-import { afterEach, beforeEach, expect, test, vi } from "@destack/test";
-import { createRoot, createSignal, flush } from "solid-js";
+import { TEST_START } from "@destack/test/world";
+import { testWorld } from "../test/browser.ts";
+import { BrowserSimulation } from "@destack/environment/browser/simulation";
+import { Simulation } from "@destack/environment/simulation";
+import { afterEach, beforeEach, expect, test } from "@destack/test";
+import { createSignal, flush } from "solid-js";
+import { renderHook } from "../test/dom.ts";
 import {
     createPulse,
     createVibrate,
     frequencyToPattern,
     makePulse,
     makeVibrate,
+    type VibratePattern,
 } from "./vibrate.ts";
 
 /** The patterns the device was asked to vibrate. */
 let vibrations: VibratePattern[] = [];
 
 beforeEach(() => {
-    vi.useFakeTimers();
+    // stand in for the device's motor, recording each pattern
     vibrations = [];
     Object.defineProperty(navigator, "vibrate", {
         configurable: true,
@@ -25,40 +31,37 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-    vi.useRealTimers();
     Reflect.deleteProperty(navigator, "vibrate");
 });
 
-test("vibrate once, or every interval until stopped", () => {
-    const [once] = makeVibrate(200);
+test("vibrate once, or every interval until stopped", async () => {
+    // vibrate once, then every half second for a second
+    await using simulation = new Simulation({ seed: 1, start: TEST_START });
+    const [once] = makeVibrate(200, {}, simulation.clock);
     once();
-    const [start, stop] = makeVibrate([100, 50], { interval: 500 });
+    const [start, stop] = makeVibrate([100, 50], { interval: 500 }, simulation.clock);
     start();
-    vi.advanceTimersByTime(1000);
+    await simulation.run({ to: TEST_START + 1000 });
     stop();
-    vi.advanceTimersByTime(1000);
+    await simulation.run({ to: TEST_START + 2000 });
 
     expect(vibrations).toEqual([200, [100, 50], [100, 50], [100, 50], 0]);
 });
 
-test("follow a vibration, restarting with its pattern as it changes, and stop on cleanup", () => {
+test("follow a vibration, restarting with its pattern as it changes, and stop on cleanup", async () => {
+    // start a vibration in a tab, change its pattern and dispose it
+    const { tab } = testWorld();
     const [pattern, setPattern] = createSignal<VibratePattern>(200);
-    const { vibrator, dispose } = createRoot((disposeRoot) => ({
-        vibrator: createVibrate(pattern),
-        dispose: disposeRoot,
-    }));
+    const { result, cleanup } = renderHook(() => createVibrate(pattern), { environment: tab });
     flush();
-    vibrator.start();
+    result.start();
     flush();
-    const during = [vibrator.vibrating(), vibrator.supported];
+    const during = result.vibrating();
     setPattern(300);
     flush();
-    dispose();
+    cleanup();
 
-    expect([during, vibrations]).toEqual([
-        [true, true],
-        [200, 300, 0],
-    ]);
+    expect([during, vibrations]).toEqual([true, [200, 300, 0]]);
 });
 
 test("turn a frequency into one cycle of vibration and pause", () => {
@@ -68,25 +71,24 @@ test("turn a frequency into one cycle of vibration and pause", () => {
     ]);
 });
 
-test("pulse a number of times a second, restarting at a changed frequency", () => {
+test("pulse a number of times a second, restarting at a changed frequency", async () => {
     // pulse at a fixed frequency
-    const [start, stop] = makePulse(2);
+    await using simulation = new Simulation({ seed: 1, start: TEST_START });
+    const [start, stop] = makePulse(2, {}, simulation.clock);
     start();
     stop();
     const fixed = [...vibrations];
     vibrations = [];
 
-    // pulse at a frequency that doubles
+    // pulse in a tab at a frequency that doubles
+    const tab = new BrowserSimulation(simulation).environment("tab");
     const [hz, setHz] = createSignal(1);
-    const { pulse, dispose } = createRoot((disposeRoot) => ({
-        pulse: createPulse(hz),
-        dispose: disposeRoot,
-    }));
+    const { result, cleanup } = renderHook(() => createPulse(hz), { environment: tab });
     flush();
-    pulse.start();
+    result.start();
     setHz(2);
     flush();
-    dispose();
+    cleanup();
 
     expect([fixed, vibrations]).toEqual([
         [[250, 250, 250, 250], 0],
@@ -94,15 +96,12 @@ test("pulse a number of times a second, restarting at a changed frequency", () =
     ]);
 });
 
-test("do nothing where the device cannot vibrate, saying so", () => {
+test("stay still where the device cannot vibrate", async () => {
+    // start a vibration on a device without a motor
     Reflect.deleteProperty(navigator, "vibrate");
-    const observed = createRoot((disposeRoot) => {
-        const { supported, start, vibrating } = createVibrate(() => 200);
-        start();
-        disposeRoot();
+    const { tab } = testWorld();
+    const { result } = renderHook(() => createVibrate(200), { environment: tab });
+    result.start();
 
-        return [supported, vibrating()];
-    });
-
-    expect(observed).toEqual([false, false]);
+    expect(result.vibrating()).toBe(false);
 });

@@ -303,17 +303,13 @@ function makeThrottledListener<Type extends keyof WindowEventMap>(
     interval: number,
     handler: (event: WindowEventMap[Type]) => void,
 ): () => void {
-    // handle one event, then wait out the interval
-    let isThrottled = false;
+    // handle an event once the interval passed since the last one handled, by the events' own times
+    let handledAt = Number.NEGATIVE_INFINITY;
     const listener = (event: WindowEventMap[Type]): void => {
-        if (isThrottled) {
-            return;
+        if (event.timeStamp - handledAt >= interval) {
+            handledAt = event.timeStamp;
+            handler(event);
         }
-        isThrottled = true;
-        setTimeout(() => {
-            isThrottled = false;
-        }, interval);
-        handler(event);
     };
     window.addEventListener(type, listener);
 

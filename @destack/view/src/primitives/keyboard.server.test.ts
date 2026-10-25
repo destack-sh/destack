@@ -3,20 +3,20 @@ import { createRoot } from "solid-js";
 import {
     createKeyHold,
     createShortcut,
-    useCurrentlyHeldKey,
-    useKeyDownEvent,
-    useKeyDownList,
-    useKeyDownSequence,
+    createCurrentlyHeldKey,
+    createKeyDownEvent,
+    createKeyDownList,
+    createKeyDownSequence,
 } from "./keyboard.ts";
 
 test("follow no keys on the server", () => {
     const observed = createRoot((disposeRoot) => {
         createShortcut(["Control", "A"], () => {});
         const values = [
-            useKeyDownEvent()(),
-            useKeyDownList()(),
-            useCurrentlyHeldKey()(),
-            useKeyDownSequence()(),
+            createKeyDownEvent()(),
+            createKeyDownList()(),
+            createCurrentlyHeldKey()(),
+            createKeyDownSequence()(),
             createKeyHold("Alt")(),
         ];
         disposeRoot();

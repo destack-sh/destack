@@ -20,10 +20,6 @@ export const SolidApplication = schema.object({
     entryServer: schema.string().exactOptional(),
     /** The request middleware module. */
     middleware: schema.string().exactOptional(),
-    /** The module run once before the server handles requests. */
-    setup: schema.string().exactOptional(),
-    /** The render mode Start knows, or the path of the module choosing one. */
-    renderMode: schema.string().exactOptional(),
     /** The development CSS crawling options. */
     css: schema
         .object({

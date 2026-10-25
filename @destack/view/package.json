@@ -58,6 +58,7 @@
         "./primitives/selection": "./src/primitives/selection.ts",
         "./primitives/sensors": "./src/primitives/sensors.ts",
         "./primitives/share": "./src/primitives/share.ts",
+        "./primitives/storage": "./src/primitives/storage.ts",
         "./primitives/styles": "./src/primitives/styles.ts",
         "./primitives/timer": "./src/primitives/timer.ts",
         "./primitives/upload": "./src/primitives/upload.ts",

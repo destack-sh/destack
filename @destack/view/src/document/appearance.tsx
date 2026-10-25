@@ -4,6 +4,10 @@ import { createPrefersDark } from "../primitives/media.ts";
 import { createMutationObserver } from "../primitives/mutation-observer.ts";
 import { onMount } from "../primitives/utils.ts";
 import { type Accessor, createMemo, createSignal } from "../solid/reactive.ts";
+import { useEnvironment } from "../page/view.ts";
+import { StoredItem } from "../primitives/storage.ts";
+import { TelemetryScope } from "@destack/telemetry";
+import type {} from "@destack/package/import-meta";
 
 /** The browser storage key a page keeps a visitor's appearance under. */
 const STORAGE_KEY = "destack-appearance";
@@ -51,9 +55,12 @@ export function createAppearance(options: AppearanceOptions = {}): LocalAppearan
     const isDeviceDark = createPrefersDark();
     const systemAppearance = (): ColorScheme => (isDeviceDark() ? "dark" : "light");
 
-    // restore the stored choice once the page runs
+    // restore the stored choice from the page's storage once the page runs
+    const environment = useEnvironment();
+    const telemetry = TelemetryScope.of(import.meta.destack.package, environment.telemetry);
+    const item = new StoredItem(storageKey, environment, telemetry);
     onMount(() => {
-        const stored = localStorage.getItem(storageKey);
+        const stored = item.read();
         setStored(
             stored === "light" || stored === "dark" || stored === "system"
                 ? stored
@@ -65,7 +72,7 @@ export function createAppearance(options: AppearanceOptions = {}): LocalAppearan
         appearance,
         setAppearance(next) {
             // store the choice, then set the root's scheme, the system's leaving it to the device
-            localStorage.setItem(storageKey, next);
+            item.write(next);
             document.documentElement.style.colorScheme = next === "system" ? "light dark" : next;
             setStored(next);
         },

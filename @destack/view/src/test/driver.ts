@@ -1,7 +1,8 @@
+import { testBrowser } from "./browser.ts";
 import { onTestFinished } from "@destack/test";
 import type { Driver } from "@destack/test";
 import type { Given, SetStep } from "@destack/package/declare";
-import type { Environment } from "../scenario/interaction.ts";
+import type { Globals } from "../scenario/interaction.ts";
 import type { JsonObject, JsonValue } from "@destack/schema";
 import type { JSX } from "@solidjs/web";
 import { computeAccessibleName, getRole, isDisabled, isInaccessible } from "dom-accessibility-api";
@@ -52,7 +53,7 @@ export class ViewDriver implements Driver<typeof viewInteraction> {
     }
 
     /** Render a scenario's examples into the document for the test's duration. */
-    static start(given: Given<JSX.Element, Environment>): ViewDriver {
+    static start(given: Given<JSX.Element, Globals>): ViewDriver {
         // mount into the document until the test ends
         stubPopovers();
         const container = document.createElement("div");
@@ -74,9 +75,10 @@ export class ViewDriver implements Driver<typeof viewInteraction> {
             );
             const element = document.createElement("div");
             container.append(element);
-            const environment =
-                given.environment === undefined ? {} : { environment: given.environment };
-            onTestFinished(renderExample(element, { example, properties, ...environment }));
+            const globals = given.globals === undefined ? {} : { globals: given.globals };
+            onTestFinished(
+                renderExample(element, { example, properties, ...globals }, testBrowser()),
+            );
             examples.set(example.name, {
                 declared,
                 set: (changed) => setValues((current) => ({ ...current, ...changed })),

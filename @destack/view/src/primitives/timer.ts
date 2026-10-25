@@ -1,3 +1,4 @@
+import type { Clock } from "@destack/environment";
 import { isServer } from "@solidjs/web";
 import {
     type Accessor,
@@ -8,46 +9,86 @@ import {
     onCleanup,
     untrack,
 } from "solid-js";
+import { useEnvironment } from "../page/view.ts";
 import { TRANSPARENT } from "./utils.ts";
 
 /** A delay in milliseconds, or an accessor of one that pauses the timer while false. */
 export type TimeoutSource = number | Accessor<number | false>;
 
-/** The timer a timer primitive runs on: once after its delay, or every delay. */
-export type Timer = typeof setTimeout | typeof setInterval;
+/** How a timer primitive runs: once after its delay, or every delay. */
+export type TimerKind = "timeout" | "interval";
 
-/** Run a callback after a delay, or every delay, until the returned function is called. */
-export function makeTimer(callback: () => void, delay: number, timer: Timer): () => void {
+/** One pending timeout on the page's clock, replaced by each new one. */
+export class Timeout {
+    /** The page's clock. */
+    readonly #clock: Clock;
+    /** The pending timeout's handle, absent while none is pending. */
+    #handle: number | undefined;
+
+    /** Create a timeout of the component being set up, stopping as it disposes. */
+    constructor() {
+        this.#clock = useEnvironment().clock;
+        onCleanup(() => this.clear());
+    }
+
+    /** Run a function once some milliseconds pass, replacing the pending timeout. */
+    set(handler: () => void, delay: number): void {
+        // run nothing on the server, else stop the pending timeout and start the new one
+        if (isServer) {
+            return;
+        }
+        this.clear();
+        this.#handle = this.#clock.setTimeout(() => {
+            this.#handle = undefined;
+            handler();
+        }, delay);
+    }
+
+    /** Stop the pending timeout. */
+    clear(): void {
+        this.#clock.clearTimeout(this.#handle);
+        this.#handle = undefined;
+    }
+}
+
+/** Run a callback on a clock after a delay, or every delay, until stopped. */
+export function makeTimer(
+    callback: () => void,
+    delay: number,
+    kind: TimerKind,
+    clock: Clock,
+): () => void {
     // run nothing on the server
     if (isServer) {
         return () => {};
     }
-    const handle = timer(callback, delay);
+    const handle = start(callback, delay, kind, clock);
 
-    return () => clear(handle, timer);
+    return () => stop(handle, kind, clock);
 }
 
-/** Run a callback after a delay, or every delay, following a reactive delay. */
-export function createTimer(callback: () => void, delay: TimeoutSource, timer: Timer): void {
+/** Run a callback on the page's clock after a delay, or every delay, following a reactive delay. */
+export function createTimer(callback: () => void, delay: TimeoutSource, kind: TimerKind): void {
     // run nothing on the server, and a fixed delay until cleanup
     if (isServer) {
         return;
     }
+    const { clock } = useEnvironment();
     if (typeof delay === "number") {
-        onCleanup(makeTimer(callback, delay, timer));
+        onCleanup(makeTimer(callback, delay, kind, clock));
 
         return;
     }
 
     // track when the callback last ran, how much of a delay has passed, and whether a timeout is done
     let isDone = false;
-    let previousTime = performance.now();
+    let previousTime = clock.now();
     let fractionDone = 0;
     let shouldHandleFraction = false;
     const run = (): void => {
         untrack(callback);
-        previousTime = performance.now();
-        isDone = timer === setTimeout;
+        previousTime = clock.now();
+        isDone = kind === "timeout";
     };
 
     // restart the timer whenever the delay changes, keeping the share of the delay already waited
@@ -61,40 +102,40 @@ export function createTimer(callback: () => void, delay: TimeoutSource, timer: T
             // bank the waited share while paused
             if (current === false) {
                 if (typeof previous === "number") {
-                    fractionDone += (performance.now() - previousTime) / previous;
+                    fractionDone += (clock.now() - previousTime) / previous;
                 }
 
                 return undefined;
             }
             if (previous === false) {
-                previousTime = performance.now();
+                previousTime = clock.now();
             }
 
             // finish the banked share of the delay first, then go on at the new delay
             if (shouldHandleFraction) {
                 if (typeof previous === "number") {
-                    fractionDone += (performance.now() - previousTime) / previous;
+                    fractionDone += (clock.now() - previousTime) / previous;
                 }
-                previousTime = performance.now();
+                previousTime = clock.now();
                 if (fractionDone >= 1) {
                     fractionDone = 0;
                     run();
                 } else if (fractionDone > 0) {
                     const remaining = (1 - fractionDone) * current;
                     fractionDone = 0;
-                    let main: ReturnType<Timer> | undefined;
-                    const reconcile = setTimeout(() => {
+                    let main: number | undefined;
+                    const reconcile = clock.setTimeout(() => {
                         shouldHandleFraction = false;
                         run();
                         if (!isDone) {
-                            main = timer(run, current);
+                            main = start(run, current, kind, clock);
                         }
                     }, remaining);
 
                     return () => {
-                        clearTimeout(reconcile);
+                        clock.clearTimeout(reconcile);
                         if (main !== undefined) {
-                            clear(main, timer);
+                            stop(main, kind, clock);
                         }
                     };
                 }
@@ -106,9 +147,9 @@ export function createTimer(callback: () => void, delay: TimeoutSource, timer: T
             if (isDone) {
                 return undefined;
             }
-            const handle = timer(run, current);
+            const handle = start(run, current, kind, clock);
 
-            return () => clear(handle, timer);
+            return () => stop(handle, kind, clock);
         },
         TRANSPARENT,
     );
@@ -120,8 +161,9 @@ export function createTimeoutLoop(handler: () => void, timeout: TimeoutSource): 
     if (isServer) {
         return;
     }
+    const { clock } = useEnvironment();
     if (typeof timeout === "number") {
-        onCleanup(makeTimer(handler, timeout, setInterval));
+        onCleanup(makeTimer(handler, timeout, "interval", clock));
 
         return;
     }
@@ -139,12 +181,12 @@ export function createTimeoutLoop(handler: () => void, timeout: TimeoutSource): 
             if (delay === false) {
                 return undefined;
             }
-            const handle = setInterval(() => {
+            const handle = clock.setInterval(() => {
                 handler();
                 setCurrent(timeout());
             }, delay);
 
-            return () => clearInterval(handle);
+            return () => clock.clearInterval(handle);
         },
         TRANSPARENT,
     );
@@ -190,7 +232,7 @@ export function createPolled<Value>(
         },
         { ...options, ...TRANSPARENT },
     );
-    createTimer(() => setTick((count) => count + 1), timeout, setInterval);
+    createTimer(() => setTick((count) => count + 1), timeout, "interval");
 
     return polled;
 }
@@ -208,11 +250,18 @@ export function createIntervalCounter(
     return createPolled((previous) => previous + 1, timeout, -1, options);
 }
 
-/** Clear a timer with the clearing function of its kind. */
-function clear(handle: ReturnType<Timer>, timer: Timer): void {
-    if (timer === setTimeout) {
-        clearTimeout(handle);
+/** Start a timer of a kind on a clock. */
+function start(callback: () => void, delay: number, kind: TimerKind, clock: Clock): number {
+    return kind === "timeout"
+        ? clock.setTimeout(callback, delay)
+        : clock.setInterval(callback, delay);
+}
+
+/** Stop a timer of a kind on a clock. */
+function stop(handle: number, kind: TimerKind, clock: Clock): void {
+    if (kind === "timeout") {
+        clock.clearTimeout(handle);
     } else {
-        clearInterval(handle);
+        clock.clearInterval(handle);
     }
 }

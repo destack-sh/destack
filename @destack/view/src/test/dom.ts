@@ -1,9 +1,14 @@
+import type { BrowserEnvironment } from "@destack/environment/browser";
+import { setContext } from "@solidjs/signals";
+import { createComponent, createRoot } from "solid-js";
+import { EnvironmentContext } from "../page/view.ts";
 import { onTestFinished } from "@destack/test";
 import type { JSX } from "@solidjs/web";
 import * as web from "@solidjs/web";
 import type { Example } from "@destack/package/declare";
 import { present } from "@destack/schema";
 import { renderExample } from "../example/frame.ts";
+import { testBrowser, testWorld } from "./browser.ts";
 
 /** The class attributes StyleX writes, whose names hash the styles. */
 const CLASS_ATTRIBUTE = / class="[^"]*"/gu;
@@ -23,6 +28,8 @@ export interface RenderOptions {
     readonly container?: HTMLElement;
     /** Hydrate the server's HTML the container holds instead of rendering anew. */
     readonly hydrate?: boolean;
+    /** The environment an element renders in, the test's simulated tab by default. */
+    readonly environment?: BrowserEnvironment;
 }
 
 /** A rendered element: its container, and how to unmount it before the test ends. */
@@ -56,10 +63,23 @@ export function render<Properties extends object>(
         document.body.append(container);
     }
 
+    // render an element under the given environment, the test's simulated tab by default
+    const environment = options.environment ?? testBrowser();
+    const element =
+        typeof ui !== "function"
+            ? ui
+            : () =>
+                  createComponent(EnvironmentContext, {
+                      value: environment,
+                      get children() {
+                          return ui();
+                      },
+                  });
+
     // hydrate the server's HTML under the bootstrap its document installs, or render anew
     let dispose: () => void;
     if (options.hydrate === true) {
-        if (typeof ui !== "function") {
+        if (typeof element !== "function") {
             throw new TypeError("an example renders anew, so it cannot hydrate");
         }
         const bootstrap: HydrationBootstrap = {
@@ -69,15 +89,15 @@ export function render<Properties extends object>(
             fe() {},
         };
         Reflect.set(globalThis, "_$HY", bootstrap);
-        const disposeHydration = web.hydrate(ui, container);
+        const disposeHydration = web.hydrate(element, container);
         dispose = () => {
             disposeHydration();
             Reflect.deleteProperty(globalThis, "_$HY");
         };
-    } else if (typeof ui === "function") {
-        dispose = web.render(ui, container);
+    } else if (typeof element === "function") {
+        dispose = web.render(element, container);
     } else {
-        dispose = renderExample(container, { example: ui });
+        dispose = renderExample(container, { example: element }, environment);
     }
 
     // unmount and remove once, by hand or after the test
@@ -92,6 +112,50 @@ export function render<Properties extends object>(
     onTestFinished(unmount);
 
     return { container, unmount };
+}
+
+/** A hook run under an environment, as Solid Testing Library's `renderHook` answers it. */
+export interface HookResult<Result> {
+    /** What the hook returned. */
+    readonly result: Result;
+    /** Dispose the hook's owner, which happens after the test otherwise. */
+    readonly cleanup: () => void;
+}
+
+/** Run a hook under an environment, the DOM's browser by default, disposing it after the test. */
+export function renderHook<Result>(
+    hook: () => Result,
+    options: Pick<RenderOptions, "environment"> = {},
+): HookResult<Result> {
+    // run the hook in a page root of its own
+    const { result, dispose } = createPageRoot(
+        (disposeRoot) => ({ result: hook(), dispose: disposeRoot }),
+        options.environment,
+    );
+
+    // dispose once, by hand or after the test
+    let isRunning = true;
+    const cleanup = (): void => {
+        if (isRunning) {
+            isRunning = false;
+            dispose();
+        }
+    };
+    onTestFinished(cleanup);
+
+    return { result, cleanup };
+}
+
+/** Run a function in a root under an environment, as Solid's `createRoot` does. */
+export function createPageRoot<Result>(
+    run: (dispose: () => void) => Result,
+    environment: BrowserEnvironment = testBrowser(),
+): Result {
+    return createRoot((dispose) => {
+        setContext(EnvironmentContext, environment);
+
+        return run(dispose);
+    });
 }
 
 /** Press a key on the focused element, or on the body when nothing has the focus. */
@@ -226,22 +290,30 @@ export async function changed(
         characterData: true,
     });
 
-    // give up once the time passes
-    const timer = setTimeout(
+    // give up once the time passes on the test's clock, moving time until either happens
+    const { simulation, tab } = testWorld();
+    const { clock } = tab;
+    const timer = clock.setTimeout(
         () => reject(new TypeError(`the element never changed within ${milliseconds} ms`)),
         milliseconds,
     );
     try {
-        await promise;
+        await simulation.drive(promise);
     } finally {
         observer.disconnect();
-        clearTimeout(timer);
+        clock.clearTimeout(timer);
     }
 }
 
-/** Wait for timers to run, such as a popover's open delay. */
+/** Move the test's clock to the tab's next frame, running what the frame starts. */
+export async function frame(): Promise<void> {
+    const { simulation, tab } = testWorld();
+    await simulation.drive(tab.display.frame());
+}
+
+/** Move the test's clock on, running the timers due meanwhile, such as a popover's open delay. */
 export function wait(milliseconds: number): Promise<void> {
-    return new Promise((resolve) => {
-        setTimeout(resolve, milliseconds);
-    });
+    const { simulation } = testWorld();
+
+    return simulation.run({ to: simulation.clock.now() + milliseconds });
 }

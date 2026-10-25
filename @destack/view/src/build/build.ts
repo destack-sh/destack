@@ -27,8 +27,8 @@ export const viewExtension: BuildExtension = {
                 context.server,
                 application === undefined ? undefined : SolidApplication.parse(application),
             ),
-            imagePlugin(context.cache),
-            fontPlugin(),
+            imagePlugin(context.environment, context.cache),
+            fontPlugin(context.environment.files),
         ];
     },
     compile(compilation) {
@@ -166,9 +166,9 @@ function mountPlugin(views: readonly LocatedView[], compilation: Compilation): P
                 return (
                     view &&
                     [
-                        `import { mount } from "${VIEW_PACKAGE}/browser";`,
+                        `import { BrowserEnvironment, mount } from "${VIEW_PACKAGE}/browser";`,
                         `import { ${view.export} as view } from ${JSON.stringify(view.file)};`,
-                        `await mount(view, ${declared});`,
+                        `await mount(view, ${declared}, BrowserEnvironment.system);`,
                     ].join("\n")
                 );
             },

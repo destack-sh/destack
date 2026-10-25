@@ -1,12 +1,11 @@
 import { expect, test } from "@destack/test";
 import { createRoot } from "solid-js";
 import { createMutationObserver, mutationObserver } from "./mutation-observer.ts";
+import { wait } from "../test/dom.ts";
 
 /** Wait for the observers to deliver their records. */
 async function settle(): Promise<void> {
-    await new Promise((resolve) => {
-        setTimeout(resolve, 0);
-    });
+    await wait(0);
 }
 
 /** Append a child to each element. */

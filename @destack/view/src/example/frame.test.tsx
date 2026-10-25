@@ -1,3 +1,4 @@
+import { testBrowser } from "../test/browser.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import type { JSX } from "@solidjs/web";
 import { useLocale } from "../page/locale.ts";
@@ -39,7 +40,7 @@ function frames(...rendered: ExampleFrame[]): HTMLElement[] {
         // mount the example into its own element
         const element = document.createElement("main");
         document.body.append(element);
-        onTestFinished(renderExample(element, properties));
+        onTestFinished(renderExample(element, properties, testBrowser()));
         onTestFinished(() => element.remove());
 
         // read the frame the example renders in
@@ -52,11 +53,11 @@ function frames(...rendered: ExampleFrame[]): HTMLElement[] {
     });
 }
 
-test("render an example in its environment's locale, direction, width and theme settings, giving components the frame's direction", () => {
+test("render an example in its globals' locale, direction, width and theme settings, giving components the frame's direction", () => {
     const [arabic, plain, mirrored] = frames(
         {
             example: greetingLoud,
-            environment: {
+            globals: {
                 locale: "ar-EG",
                 direction: "rtl",
                 width: 320,
@@ -64,10 +65,10 @@ test("render an example in its environment's locale, direction, width and theme 
             },
         },
         { example: greetingLoud, properties: { tone: "quiet" } },
-        { example: greetingLoud, environment: { locale: "en", direction: "rtl" } },
+        { example: greetingLoud, globals: { locale: "en", direction: "rtl" } },
     );
 
-    // the frame passes the environment, and the example reads its locale, the frame's direction and its properties
+    // the frame passes the globals, and the example reads its locale, the frame's direction and its properties
     expect(
         [arabic, plain, mirrored].map((element) => [
             element?.textContent,

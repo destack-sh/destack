@@ -1,6 +1,16 @@
-import { createContext, useContext } from "solid-js";
+import {
+    type Accessor,
+    createContext,
+    createSignal,
+    onCleanup,
+    sharedConfig,
+    useContext,
+} from "solid-js";
+import { isServer } from "@solidjs/web";
+import type { BrowserEnvironment } from "@destack/environment/browser";
+import type { TelemetryScope } from "@destack/telemetry";
+import { Duration } from "@destack/schema";
 import type { ObjectClient } from "@destack/object/client";
-import type { ObjectReference } from "@destack/sync";
 import {
     type Client,
     type PackageHandle,
@@ -8,13 +18,7 @@ import {
     PackageMount,
 } from "@destack/object";
 import { type ClientOptions, createClient } from "@destack/object/client";
-import {
-    OBJECT_PARAMETER,
-    OPEN_PATH,
-    PLATFORM_PATH,
-    VIEW_PARAMETER,
-    type ViewContext,
-} from "../declare/context.ts";
+import { PLATFORM_PATH, type ViewContext } from "../declare/context.ts";
 import { ViewError } from "../error/error.ts";
 
 /** A mounted view. */
@@ -29,12 +33,54 @@ export interface ViewMount {
     readonly origin: (path: string) => ClientOptions;
 }
 
+/** How often the time a view reads moves on: each second, finer than any relative time it shows. */
+const NOW_INTERVAL: Duration = { seconds: 1 };
+
 /** The mounted view. */
 export const ViewMountContext = createContext<ViewMount>();
+
+/** The environment views and components run in, which every render provides. */
+export const EnvironmentContext = createContext<BrowserEnvironment>();
+
+/** Read the environment the rendering runs in. */
+export function useEnvironment(): BrowserEnvironment {
+    return useContext(EnvironmentContext);
+}
+
+/** The telemetry of the package rendering, on the server and in the browser alike. */
+export const TelemetryContext = createContext<TelemetryScope>();
+
+/** Read the telemetry of the package rendering. */
+export function useTelemetry(): TelemetryScope {
+    return useContext(TelemetryContext);
+}
 
 /** Read what the host gives the mounted view. */
 export function useView(): ViewContext {
     return useContext(ViewMountContext).context;
+}
+
+/** Read the time on the view's clock once mounted, absent before, moving on at each interval. */
+export function useNow(interval: Duration = NOW_INTERVAL): Accessor<number | undefined> {
+    // read no time on the server and while hydrating, so both render the same, else the clock's
+    const { clock } = useEnvironment();
+    const isDeferred = isServer || sharedConfig.hydrating;
+    const [now, setNow] = createSignal<number | undefined>(isDeferred ? undefined : clock.now(), {
+        ownedWrite: true,
+    });
+    if (isServer) {
+        return now;
+    }
+
+    // read a deferred time a task after mounting, once hydration completed, then at each interval
+    const first = isDeferred ? clock.setTimeout(() => setNow(clock.now()), 0) : undefined;
+    const handle = clock.setInterval(() => setNow(clock.now()), Duration.milliseconds(interval));
+    onCleanup(() => {
+        clock.clearTimeout(first);
+        clock.clearInterval(handle);
+    });
+
+    return now;
 }
 
 /** Read how the mounted view calls a path below its page's origin with the page's credential. */
@@ -57,7 +103,9 @@ export function usePackage<Definition extends ProcedureRouter>(
     handle: PackageHandle & { readonly router: Definition },
 ): Client<Definition> {
     // connect where the host mounted the declared package
-    const options = useContext(ViewMountContext).packages.get(handle.id);
+    const { packages } = useContext(ViewMountContext);
+    const environment = useEnvironment();
+    const options = packages.get(handle.id);
     if (options === undefined) {
         throw ViewError.of(
             "PACKAGE_NOT_DECLARED",
@@ -65,7 +113,7 @@ export function usePackage<Definition extends ProcedureRouter>(
         );
     }
 
-    return createClient(handle, options);
+    return createClient(handle, options, environment);
 }
 
 /** Mount the packages a view declares below the platform path of its origin. */
@@ -79,18 +127,4 @@ export function mountPackages(
             origin(`${PLATFORM_PATH}${PackageMount.path(handle.id)}`),
         ]),
     );
-}
-
-/** Write the same-origin address where the host opens an object. */
-export function objectUrl(
-    reference: ObjectReference,
-    options: { readonly view?: string } = {},
-): string {
-    // name the object, and the view when asked for
-    const query = new URLSearchParams({ [OBJECT_PARAMETER]: JSON.stringify(reference) });
-    if (options.view !== undefined) {
-        query.set(VIEW_PARAMETER, options.view);
-    }
-
-    return `${OPEN_PATH}?${query.toString()}`;
 }

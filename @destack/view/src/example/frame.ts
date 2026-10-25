@@ -1,10 +1,12 @@
+import type { BrowserEnvironment } from "@destack/environment/browser";
 import type { JSX } from "@solidjs/web";
 import { render } from "@solidjs/web";
 import { createComponent } from "solid-js";
 import { type Catalog, Localization, LocaleTag, SOURCE_LOCALE } from "@destack/locale";
 import { LocaleContext } from "../page/locale.ts";
+import { EnvironmentContext } from "../page/view.ts";
 import type { Example } from "@destack/package/declare";
-import type { Environment } from "../scenario/interaction.ts";
+import type { Globals } from "../scenario/interaction.ts";
 import { View } from "../declare/view.ts";
 import { ViewExample } from "./view.ts";
 import { schema } from "@destack/schema";
@@ -21,8 +23,8 @@ import {
 import { destackTheme } from "@destack/theme/declare";
 import { ViewError } from "../error/error.ts";
 
-/** The display an environment sets, each choice the person's default when absent. */
-const EnvironmentDisplay = schema.object({
+/** The display the globals set, each choice the person's default when absent. */
+const GlobalsDisplay = schema.object({
     /** The appearance. */
     appearance: Appearance.exactOptional(),
     /** The text size. */
@@ -41,8 +43,8 @@ const EnvironmentDisplay = schema.object({
 export interface ExampleFrame<Properties extends object = object> {
     /** The example. */
     readonly example: Example<Properties, JSX.Element>;
-    /** The environment, the host's own when absent. */
-    readonly environment?: Environment;
+    /** The globals, the host's own when absent. */
+    readonly globals?: Globals;
     /** The properties a control changed, the example's own when absent. */
     readonly properties?: Properties;
     /** The catalogs translating the messages of the example's package and its dependencies. */
@@ -51,20 +53,20 @@ export interface ExampleFrame<Properties extends object = object> {
     readonly theme?: Theme;
 }
 
-/** Render an example into an element in one environment. */
+/** Render an example into an element in a browser environment. */
 export function renderExample<Properties extends object>(
     element: HTMLElement,
     frame: ExampleFrame<Properties>,
+    environment: BrowserEnvironment,
 ): () => void {
-    // read the environment's locale and theme settings
-    const environment = frame.environment ?? {};
-    const locale = LocaleTag.parse(environment.locale ?? SOURCE_LOCALE);
-    const display = EnvironmentDisplay.parse(environment.theme ?? {});
+    // read the locale and theme settings the example is given
+    const given = frame.globals ?? {};
+    const locale = LocaleTag.parse(given.locale ?? SOURCE_LOCALE);
+    const display = GlobalsDisplay.parse(given.theme ?? {});
     const theme = frame.theme ?? destackTheme;
 
     // frame the example in the locale and the direction components read, styled with the theme's variables and the width
-    const direction =
-        environment.direction === undefined ? {} : { direction: environment.direction };
+    const direction = given.direction === undefined ? {} : { direction: given.direction };
     const localization = Localization.of(locale, frame.catalogs ?? [], direction);
     const container = document.createElement("div");
     container.dataset["slot"] = "example";
@@ -74,18 +76,23 @@ export function renderExample<Properties extends object>(
     for (const [name, value] of Object.entries(style)) {
         container.style.setProperty(name, value);
     }
-    if (environment.width !== undefined) {
-        container.style.width = `${environment.width}px`;
+    if (given.width !== undefined) {
+        container.style.width = `${given.width}px`;
     }
     element.append(container);
 
     // render the example under the localization, which gives components the frame's direction, removing the frame on unmount
     const dispose = render(
         () =>
-            createComponent(LocaleContext, {
-                value: localization,
+            createComponent(EnvironmentContext, {
+                value: environment,
                 get children() {
-                    return renderFrame(frame);
+                    return createComponent(LocaleContext, {
+                        value: localization,
+                        get children() {
+                            return renderFrame(frame);
+                        },
+                    });
                 },
             }),
         container,

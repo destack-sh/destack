@@ -2,6 +2,9 @@ import type { JSX } from "@solidjs/web";
 import { isServer } from "../solid/component.ts";
 import { onMount } from "../primitives/utils.ts";
 import * as head from "./head.ts";
+import type { Display } from "@destack/environment/browser";
+import { useEnvironment } from "../page/view.ts";
+import { requestIdle } from "../primitives/scheduled.ts";
 
 /** When a third-party script loads. */
 export type ScriptStrategy = "beforeInteractive" | "afterInteractive" | "lazyOnload";
@@ -30,11 +33,14 @@ export function Script(properties: ScriptProperties): JSX.Element {
 
     // add the others on the client once the page settles, or once it is idle after load
     if (!isServer) {
+        const { display } = useEnvironment();
         onMount(() => {
             if (strategy === "afterInteractive") {
                 add(properties);
+
+                return undefined;
             } else {
-                whenIdle(() => add(properties));
+                return whenIdle(() => add(properties), display);
             }
         });
     }
@@ -78,14 +84,21 @@ function add(properties: ScriptProperties): void {
     document.body.append(element);
 }
 
-/** Run once the page loaded and the browser is idle. */
-function whenIdle(run: () => void): void {
-    // wait for the load event when the page still loads
-    const idle = () =>
-        "requestIdleCallback" in window ? requestIdleCallback(run) : setTimeout(run);
+/** Run once the page loaded and its display is idle, returning a cancel function. */
+function whenIdle(run: () => void, display: Display): () => void {
+    // wait for the load event when the page still loads, then for an idle period
+    let cancelIdle: (() => void) | undefined;
+    const idle = () => {
+        cancelIdle = requestIdle(run, undefined, display);
+    };
     if (document.readyState === "complete") {
         idle();
     } else {
         window.addEventListener("load", idle, { once: true });
     }
+
+    return () => {
+        window.removeEventListener("load", idle);
+        cancelIdle?.();
+    };
 }

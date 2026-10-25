@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { readFile } from "node:fs/promises";
+import { testHost } from "@destack/test/host";
 import { fileURLToPath } from "node:url";
 import { readFont } from "./font.ts";
 
@@ -13,7 +13,7 @@ const PLEX_MONO = fileURLToPath(
 
 test("read a font file's family and adjust each local fallback to its metrics", async () => {
     // read IBM Plex Mono
-    const font = await readFont(new Uint8Array(await readFile(PLEX_MONO)));
+    const font = await readFont(await testHost().files.readFile(PLEX_MONO));
 
     // name its family, and size Arial and Times New Roman to its width with overrides as percentages
     expect({

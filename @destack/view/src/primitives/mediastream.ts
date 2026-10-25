@@ -1,4 +1,5 @@
 import { isServer } from "@solidjs/web";
+import { createRAF } from "./raf.ts";
 import {
     type Accessor,
     createEffect,
@@ -121,21 +122,19 @@ export function createAmplitudeFromStream(
 
     // read the root mean square of the frequencies every frame, scaled and capped
     const bins = new Uint8Array(analyser.frequencyBinCount);
-    let frame = 0;
-    const loop = (): void => {
+    const [, startFrames, stopFrames] = createRAF(() => {
         // read the frequencies each frame
-        frame = requestAnimationFrame(loop);
         analyser.getByteFrequencyData(bins);
         const rootMeanSquare = Math.sqrt(
             bins.reduce((sum, value) => sum + value * value, 0) / bins.length,
         );
         setAmplitude(Math.min(Math.floor(rootMeanSquare) * AMPLITUDE_GAIN, MAX_AMPLITUDE));
-    };
-    loop();
+    });
+    startFrames();
 
     // stop reading and close the context
     const stop = (): void => {
-        cancelAnimationFrame(frame);
+        stopFrames();
         source?.disconnect();
         if (context.state !== "closed") {
             context.close().catch(reportError);

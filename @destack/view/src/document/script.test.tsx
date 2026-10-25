@@ -1,14 +1,14 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { render } from "@solidjs/web";
+import { render, wait } from "../test/dom.ts";
 import { Script } from "./script.tsx";
 
 /** Render scripts into a page, removing what they added after the test. */
 async function mount(element: () => ReturnType<typeof Script>): Promise<void> {
     const host = document.createElement("main");
     document.body.append(host);
-    const dispose = render(element, host);
+    const { unmount } = render(element, { container: host });
     onTestFinished(() => {
-        dispose();
+        unmount();
         host.remove();
         document.head.replaceChildren();
         for (const script of document.body.querySelectorAll("script")) {
@@ -17,9 +17,7 @@ async function mount(element: () => ReturnType<typeof Script>): Promise<void> {
     });
 
     // wait for the head registry and the settled page
-    await new Promise((resolve) => {
-        setTimeout(resolve, 0);
-    });
+    await wait(0);
 }
 
 test("load a script once after the page hydrates, however many components ask for it", async () => {

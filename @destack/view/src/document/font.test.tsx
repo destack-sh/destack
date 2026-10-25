@@ -2,6 +2,7 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { render } from "@solidjs/web";
 import type { FontFile } from "../build/font.ts";
 import { defineFont, Font } from "./font.tsx";
+import { wait } from "../test/dom.ts";
 
 /** A variable sans file as a `?font` import reads it, with each local fallback's overrides. */
 const plexSans: FontFile = {
@@ -37,9 +38,7 @@ async function mount(font = plex): Promise<void> {
     });
 
     // wait for the head registry, which applies registered tags after the current task
-    await new Promise((resolve) => {
-        setTimeout(resolve, 0);
-    });
+    await wait(0);
 }
 
 test("name the files' family and stack its Arial fallback before the generic families", () => {

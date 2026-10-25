@@ -1,5 +1,6 @@
-import { isServer } from "@solidjs/web";
-import { type Accessor, createEffect, createSignal, onCleanup } from "solid-js";
+import type { Clock } from "@destack/environment";
+import { type Accessor, createEffect, createSignal, onCleanup, untrack } from "solid-js";
+import { useEnvironment } from "../page/view.ts";
 import { access, type MaybeAccessor } from "./utils.ts";
 
 /** A vibration in milliseconds, or alternating vibration and pause durations. */
@@ -17,6 +18,14 @@ export interface PulseOptions {
     readonly dutyCycle?: number;
 }
 
+/** A vibration and how often it repeats. */
+interface Vibration {
+    /** The pattern. */
+    readonly pattern: VibratePattern;
+    /** The milliseconds between repetitions, once without it. */
+    readonly interval?: number;
+}
+
 /** The length of one repeating stretch of a pulse, in milliseconds. */
 const PULSE_CHUNK = 1000;
 
@@ -32,89 +41,71 @@ const MIN_PULSE_HZ = 0.1;
 /** The fastest pulse, one cycle every ten milliseconds. */
 const MAX_PULSE_HZ = 100;
 
-/** Report whether the device can vibrate. */
-export function isVibrationSupported(): boolean {
-    return !isServer && "vibrate" in navigator;
-}
+/** The device's vibration motor repeating a vibration on a clock. */
+class Vibrator {
+    /** The clock repeats run on. */
+    readonly #clock: Clock;
+    /** The handle of the repeating vibration, absent while none repeats. */
+    #handle: number | undefined;
 
-/** Make functions that start and stop a vibration, repeating it every interval when given. */
-export function makeVibrate(
-    pattern: VibratePattern,
-    options: VibrateOptions = {},
-): [start: () => void, stop: () => void] {
-    // vibrate nothing where the device cannot
-    if (!isVibrationSupported()) {
-        return [() => {}, () => {}];
+    /** Drive the device's motor on a clock. */
+    constructor(clock: Clock) {
+        this.#clock = clock;
+        this.#handle = undefined;
     }
 
-    // vibrate, repeating every interval, and stop by vibrating for zero
-    let handle: ReturnType<typeof setInterval> | undefined;
-    const stop = (): void => {
-        clearInterval(handle);
-        handle = undefined;
-        navigator.vibrate(0);
-    };
-    const start = (): void => {
-        navigator.vibrate(pattern);
-        if (options.interval !== undefined) {
-            clearInterval(handle);
-            handle = setInterval(() => navigator.vibrate(pattern), options.interval);
+    /** Vibrate, repeating every interval when given, reporting whether the device vibrates. */
+    start(vibration: Vibration): boolean {
+        // vibrate once, and repeat where the device vibrated and an interval is given
+        this.#stopRepeating();
+        const isStarted = vibrate(vibration.pattern);
+        if (isStarted && vibration.interval !== undefined) {
+            this.#handle = this.#clock.setInterval(
+                () => vibrate(vibration.pattern),
+                vibration.interval,
+            );
         }
-    };
 
-    return [start, stop];
+        return isStarted;
+    }
+
+    /** Stop repeating and stop the device. */
+    stop(): void {
+        this.#stopRepeating();
+        vibrate(0);
+    }
+
+    /** Stop the repeating vibration. */
+    #stopRepeating(): void {
+        if (this.#handle !== undefined) {
+            this.#clock.clearInterval(this.#handle);
+            this.#handle = undefined;
+        }
+    }
+}
+
+/** Make functions that start and stop a vibration, repeating it on a clock at an interval. */
+export function makeVibrate(
+    pattern: VibratePattern,
+    options: VibrateOptions,
+    clock: Clock,
+): [start: () => void, stop: () => void] {
+    const vibrator = new Vibrator(clock);
+
+    return [() => vibrator.start({ pattern, ...options }), () => vibrator.stop()];
 }
 
 /** Vibrate in a pattern, restarting with a reactive pattern as it changes. */
 export function createVibrate(
     pattern: MaybeAccessor<VibratePattern>,
     options: VibrateOptions = {},
-): { vibrating: Accessor<boolean>; start: () => void; stop: () => void; supported: boolean } {
-    // follow the pattern on every side, keeping hydration keys aligned, and vibrate only where the device can
-    const supported = isVibrationSupported();
-    const [vibrating, setVibrating] = createSignal(false, { ownedWrite: true });
-    let isVibrating = false;
-    let handle: ReturnType<typeof setInterval> | undefined;
-    const vibrate = (current: VibratePattern): void => {
-        navigator.vibrate(current);
-        if (options.interval !== undefined) {
-            clearInterval(handle);
-            handle = setInterval(() => navigator.vibrate(current), options.interval);
-        }
-    };
+): { vibrating: Accessor<boolean>; start: () => void; stop: () => void } {
+    const { active, start, stop } = createVibration(() => ({
+        pattern: access(pattern),
+        ...options,
+    }));
 
-    // restart with a changed pattern while vibrating, skipping the first value
-    if (typeof pattern === "function") {
-        let isInitial = true;
-        createEffect(pattern, (current) => {
-            if (isInitial) {
-                isInitial = false;
-            } else if (supported && isVibrating) {
-                vibrate(current);
-            }
-        });
-    }
-    if (!supported) {
-        return { vibrating: () => false, start: () => {}, stop: () => {}, supported };
-    }
-
-    // start and stop, stopping on cleanup
-    const stop = (): void => {
-        // stop repeating and stop the device
-        clearInterval(handle);
-        handle = undefined;
-        navigator.vibrate(0);
-        isVibrating = false;
-        setVibrating(false);
-    };
-    const start = (): void => {
-        vibrate(access(pattern));
-        isVibrating = true;
-        setVibrating(true);
-    };
-    onCleanup(stop);
-
-    return { vibrating, start, stop, supported };
+    return { vibrating: active, start, stop };
 }
 
 /** Turn a frequency and a duty cycle into one cycle of vibration and pause, in milliseconds. */
@@ -125,75 +116,68 @@ export function frequencyToPattern(hz: number, dutyCycle = DUTY_CYCLE): [on: num
     return [Math.max(1, Math.round(period * share)), Math.max(1, Math.round(period * (1 - share)))];
 }
 
-/** Make functions that start and stop a vibration pulsing a number of times a second. */
+/** Make functions that start and stop a vibration pulsing a number of times a second on a clock. */
 export function makePulse(
     hz: number,
-    options: PulseOptions = {},
+    options: PulseOptions,
+    clock: Clock,
 ): [start: () => void, stop: () => void] {
-    // pulse nothing where the device cannot vibrate
-    if (!isVibrationSupported()) {
-        return [() => {}, () => {}];
-    }
-    const { pattern, duration } = pulseChunk(hz, options.dutyCycle ?? DUTY_CYCLE);
+    const vibrator = new Vibrator(clock);
+    const pulse = pulseOf(hz, options.dutyCycle ?? DUTY_CYCLE);
 
-    return makeVibrate(pattern, { interval: duration });
+    return [() => vibrator.start(pulse), () => vibrator.stop()];
 }
 
 /** Pulse a number of times a second, restarting with a reactive frequency as it changes. */
 export function createPulse(
     hz: MaybeAccessor<number>,
     options: PulseOptions = {},
-): { pulsing: Accessor<boolean>; start: () => void; stop: () => void; supported: boolean } {
-    // follow the frequency on every side, keeping hydration keys aligned, and pulse only where the device can
-    const supported = isVibrationSupported();
+): { pulsing: Accessor<boolean>; start: () => void; stop: () => void } {
     const dutyCycle = options.dutyCycle ?? DUTY_CYCLE;
-    const [pulsing, setPulsing] = createSignal(false, { ownedWrite: true });
-    let isPulsing = false;
-    let handle: ReturnType<typeof setInterval> | undefined;
-    const pulse = (current: number): void => {
-        // vibrate a stretch of cycles, repeating it
-        const { pattern, duration } = pulseChunk(current, dutyCycle);
-        navigator.vibrate(pattern);
-        clearInterval(handle);
-        handle = setInterval(() => navigator.vibrate(pattern), duration);
-    };
+    const { active, start, stop } = createVibration(() => pulseOf(access(hz), dutyCycle));
 
-    // restart at a changed frequency while pulsing, skipping the first value
-    if (typeof hz === "function") {
-        let isInitial = true;
-        createEffect(hz, (current) => {
-            if (isInitial) {
-                isInitial = false;
-            } else if (supported && isPulsing) {
-                pulse(current);
-            }
-        });
-    }
-    if (!supported) {
-        return { pulsing: () => false, start: () => {}, stop: () => {}, supported };
-    }
+    return { pulsing: active, start, stop };
+}
+
+/** Vibrate as a reactive vibration reads, restarting as it changes, stopping on cleanup. */
+function createVibration(read: () => Vibration): {
+    active: Accessor<boolean>;
+    start: () => void;
+    stop: () => void;
+} {
+    // vibrate on the page's motor, which the server never starts
+    const vibrator = new Vibrator(useEnvironment().clock);
+    const [active, setActive] = createSignal(false, { ownedWrite: true });
+
+    // restart with a changed vibration while active, skipping the first value
+    let isInitial = true;
+    createEffect(read, (current) => {
+        if (isInitial) {
+            isInitial = false;
+        } else if (untrack(active)) {
+            vibrator.start(current);
+        }
+    });
 
     // start and stop, stopping on cleanup
     const stop = (): void => {
-        // stop repeating and stop the device
-        clearInterval(handle);
-        handle = undefined;
-        navigator.vibrate(0);
-        isPulsing = false;
-        setPulsing(false);
+        vibrator.stop();
+        setActive(false);
     };
     const start = (): void => {
-        pulse(access(hz));
-        isPulsing = true;
-        setPulsing(true);
+        setActive(vibrator.start(untrack(read)));
     };
-    onCleanup(stop);
+    onCleanup(() => {
+        if (untrack(active)) {
+            stop();
+        }
+    });
 
-    return { pulsing, start, stop, supported };
+    return { active, start, stop };
 }
 
-/** Build a stretch of pulse cycles about a second long, with its exact length. */
-function pulseChunk(hz: number, dutyCycle: number): { pattern: number[]; duration: number } {
+/** Build a stretch of pulse cycles about a second long, repeating every stretch. */
+function pulseOf(hz: number, dutyCycle: number): Vibration {
     const [on, off] = frequencyToPattern(
         Math.min(Math.max(hz, MIN_PULSE_HZ), MAX_PULSE_HZ),
         dutyCycle,
@@ -202,6 +186,11 @@ function pulseChunk(hz: number, dutyCycle: number): { pattern: number[]; duratio
 
     return {
         pattern: Array.from({ length: cycles }, () => [on, off]).flat(),
-        duration: cycles * (on + off),
+        interval: cycles * (on + off),
     };
+}
+
+/** Vibrate the device in a pattern, reporting whether it started, false without a motor. */
+function vibrate(pattern: VibratePattern): boolean {
+    return typeof navigator.vibrate === "function" && navigator.vibrate(pattern);
 }

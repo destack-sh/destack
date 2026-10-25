@@ -1,13 +1,14 @@
 import { expect, test } from "@destack/test";
-import { createRoot, createSignal, flush } from "solid-js";
+import { createSignal, flush } from "solid-js";
+import { createPageRoot } from "../test/dom.ts";
 import {
     createKeyDown,
     createKeyHold,
     createShortcut,
-    useCurrentlyHeldKey,
-    useKeyDownEvent,
-    useKeyDownList,
-    useKeyDownSequence,
+    createCurrentlyHeldKey,
+    createKeyDownEvent,
+    createKeyDownList,
+    createKeyDownSequence,
 } from "./keyboard.ts";
 
 /** Dispatch a key event on a target, the window by default, flushing after. */
@@ -35,8 +36,8 @@ function press(...names: string[]): void {
 }
 
 test("follow the keys held down, in the order pressed", () => {
-    const observed = createRoot((disposeRoot) => {
-        const keys = useKeyDownList();
+    const observed = createPageRoot((disposeRoot) => {
+        const keys = createKeyDownList();
         const seen = [keys()];
         key("a", "keydown");
         seen.push(keys());
@@ -57,8 +58,8 @@ test("follow the keys held down, in the order pressed", () => {
 });
 
 test("forget every held key once Meta is released, as some platforms send no other key-up", () => {
-    const observed = createRoot((disposeRoot) => {
-        const keys = useKeyDownList();
+    const observed = createPageRoot((disposeRoot) => {
+        const keys = createKeyDownList();
         key("Meta", "keydown", { metaKey: true });
         key("k", "keydown", { metaKey: true });
         const held = keys();
@@ -73,8 +74,8 @@ test("forget every held key once Meta is released, as some platforms send no oth
 });
 
 test("follow the latest key-down event", () => {
-    const observed = createRoot((disposeRoot) => {
-        const event = useKeyDownEvent();
+    const observed = createPageRoot((disposeRoot) => {
+        const event = createKeyDownEvent();
         key("a", "keydown");
         const first = event()?.key;
         key("Alt", "keydown");
@@ -91,10 +92,10 @@ test("follow the latest key-down event", () => {
 });
 
 test("follow the key held alone, and the sequence of held sets", () => {
-    const observed = createRoot((disposeRoot) => {
+    const observed = createPageRoot((disposeRoot) => {
         // hold a alone, then Alt and q together
-        const held = useCurrentlyHeldKey();
-        const sequence = useKeyDownSequence();
+        const held = createCurrentlyHeldKey();
+        const sequence = createKeyDownSequence();
         const steps: [string | null, string[][]][] = [[held(), sequence()]];
         for (const [name, type] of [
             ["a", "keydown"],
@@ -124,7 +125,7 @@ test("follow the key held alone, and the sequence of held sets", () => {
 });
 
 test("follow whether a key is held alone, preventing its default", () => {
-    const observed = createRoot((disposeRoot) => {
+    const observed = createPageRoot((disposeRoot) => {
         const isHeld = createKeyHold("ALT");
         const before = isHeld();
         const event = key("Alt", "keydown");
@@ -142,7 +143,7 @@ test("follow whether a key is held alone, preventing its default", () => {
 test("call back for a key going down on the document while enabled, until disposed", () => {
     // listen to Escape, disabled at first
     const keys: string[] = [];
-    const dispose = createRoot((disposeRoot) => {
+    const dispose = createPageRoot((disposeRoot) => {
         const [isDisabled, setIsDisabled] = createSignal(true, { ownedWrite: true });
         createKeyDown("Escape", (event) => keys.push(event.key), { disabled: isDisabled });
         flush();
@@ -165,7 +166,7 @@ test("call back for a key going down on the document while enabled, until dispos
 
 test("fire a shortcut on its full combination only, preventing its default", () => {
     let fired = 0;
-    const prevented = createRoot((disposeRoot) => {
+    const prevented = createPageRoot((disposeRoot) => {
         createShortcut(["Control", "Shift", "A"], () => fired++);
         key("Control", "keydown");
         key("Shift", "keydown");
@@ -187,7 +188,7 @@ test("fire a shortcut on its full combination only, preventing its default", () 
 
 test("fire again on each press of the last key while the rest stay held", () => {
     let fired = 0;
-    createRoot((disposeRoot) => {
+    createPageRoot((disposeRoot) => {
         createShortcut(["Control", "A"], () => fired++);
         key("Control", "keydown");
         key("a", "keydown");
@@ -203,7 +204,7 @@ test("fire again on each press of the last key while the rest stay held", () => 
 
 test("fire a Meta shortcut on every press, though some platforms send no key-up for the rest", () => {
     let fired = 0;
-    const prevented = createRoot((disposeRoot) => {
+    const prevented = createPageRoot((disposeRoot) => {
         createShortcut(["Meta", "P"], () => fired++);
         const results: boolean[] = [];
         for (let round = 0; round < 2; round++) {
@@ -229,7 +230,7 @@ test("keep quiet in fields when told to, and fire anywhere else", () => {
     document.body.append(input, textarea, select, editable);
     let quiet = 0;
     let loud = 0;
-    createRoot((disposeRoot) => {
+    createPageRoot((disposeRoot) => {
         createShortcut(["S"], () => quiet++, { ignoreWithinInputs: true });
         createShortcut(["S"], () => loud++);
         for (const target of [input, textarea, select, editable, document.body]) {
@@ -249,7 +250,7 @@ test("fire a shortcut pressed in any order when told to, and only in order other
     // press Control, Shift, M in the other order
     let anyOrder = 0;
     let inOrder = 0;
-    createRoot((disposeRoot) => {
+    createPageRoot((disposeRoot) => {
         createShortcut(["Shift", "Control", "M"], () => anyOrder++, { anyOrder: true });
         createShortcut(["Shift", "Control", "M"], () => inOrder++);
         press("Control", "Shift", "m");
@@ -264,7 +265,7 @@ test("fire a shortcut pressed in any order when told to, and only in order other
 
 test("fire a shortcut once until its keys are released, in any order", () => {
     let fired = 0;
-    createRoot((disposeRoot) => {
+    createPageRoot((disposeRoot) => {
         createShortcut(["Control", "Shift", "M"], () => fired++, {
             anyOrder: true,
             requireReset: true,
@@ -285,7 +286,7 @@ test("fire a shortcut once until its keys are released, in any order", () => {
 
 test("read the letter Option types on Command platforms from its physical key", () => {
     let fired = 0;
-    createRoot((disposeRoot) => {
+    createPageRoot((disposeRoot) => {
         createShortcut(["Alt", "D"], () => fired++);
         key("Alt", "keydown", { altKey: true });
         key("∂", "keydown", { altKey: true, code: "KeyD" });

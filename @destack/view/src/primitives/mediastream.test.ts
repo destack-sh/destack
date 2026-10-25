@@ -1,3 +1,5 @@
+import { TEST_START } from "@destack/test/world";
+import { testWorld } from "../test/browser.ts";
 import { afterEach, beforeEach, expect, test, vi } from "@destack/test";
 import { createRoot, createSignal, flush } from "solid-js";
 import {
@@ -6,6 +8,7 @@ import {
     createScreen,
     createStream,
 } from "./mediastream.ts";
+import { createPageRoot, wait } from "../test/dom.ts";
 
 /** A stand-in track that records being stopped and muted. */
 class StubTrack {
@@ -72,9 +75,7 @@ afterEach(() => {
 
 /** Wait for the streams to open. */
 async function settle(): Promise<void> {
-    await new Promise((resolve) => {
-        setTimeout(resolve, 0);
-    });
+    await wait(0);
     flush();
 }
 
@@ -144,7 +145,7 @@ test("ask for both kinds of media by default, stopping the stream right away", a
     ]);
 });
 
-test("follow a stream's loudness each frame, capped at a hundred", () => {
+test("follow a stream's loudness each frame, capped at a hundred", async () => {
     // stand in for the audio context with an analyser of fixed levels
     let level = 10;
     const states: string[] = [];
@@ -175,22 +176,19 @@ test("follow a stream's loudness each frame, capped at a hundred", () => {
         }
     }
     vi.stubGlobal("AudioContext", StubContext);
-    const frames: FrameRequestCallback[] = [];
-    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) =>
-        frames.push(callback),
-    );
-    vi.stubGlobal("cancelAnimationFrame", () => {});
+    const { simulation, tab } = testWorld();
 
     // read a quiet frame and a loud one
-    const { amplitude, stop } = createRoot(() => {
+    const { amplitude, stop } = createPageRoot(() => {
         const [loudness, stopReading] = createAmplitudeFromStream(new MediaStream());
 
         return { amplitude: loudness, stop: stopReading };
-    });
+    }, tab);
+    await simulation.run({ to: TEST_START + 17 });
     flush();
     const quiet = amplitude();
     level = 200;
-    frames.at(-1)?.(0);
+    await simulation.run({ to: TEST_START + 34 });
     flush();
     const loud = amplitude();
     stop();

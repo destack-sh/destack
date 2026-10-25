@@ -1,8 +1,9 @@
 import { useNavigate } from "@solidjs/router";
 import type { JSX } from "@solidjs/web";
 import type { ObjectReference } from "@destack/sync";
-import { objectUrl } from "../page/view.ts";
+import { objectUrl } from "../declare/address.ts";
 import { omit } from "../solid/reactive.ts";
+import { useEnvironment } from "../page/view.ts";
 
 /** Where a link goes: a path or URL, or an object opened in the view presenting it. */
 export type LinkTarget = string | ObjectReference;
@@ -44,18 +45,20 @@ export function Link(properties: LinkProperties): JSX.Element {
     );
 
     // animate a plain navigation within the page after the caller's handler
+    const environment = useEnvironment();
     const click = (event: MouseEvent & { currentTarget: HTMLAnchorElement; target: Element }) => {
         // run the caller's handler first
         runHandler(properties.onClick, event);
 
         // leave modified clicks, objects and other origins to the router and the browser
-        const url = new URL(href(), location.href);
+        const page = new URL(environment.navigation.currentEntry.url);
+        const url = new URL(href(), page);
         if (
             event.defaultPrevented ||
             isObject() ||
             properties.viewTransition === false ||
             !isPlain(event) ||
-            url.origin !== location.origin ||
+            url.origin !== page.origin ||
             !("startViewTransition" in document)
         ) {
             return;
@@ -74,8 +77,8 @@ export function Link(properties: LinkProperties): JSX.Element {
             {...rest}
             href={href()}
             rel={isObject() ? "external" : properties.rel}
-            replace={properties.replace === true ? "" : undefined}
-            preload={properties.prefetch === false ? "false" : undefined}
+            {...(properties.replace === true ? { replace: "" } : {})}
+            {...(properties.prefetch === false ? { preload: "false" } : {})}
             onClick={click}
         />
     );

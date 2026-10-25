@@ -1,3 +1,6 @@
+import { TelemetryScope } from "@destack/telemetry";
+import type { Environment } from "@destack/environment";
+import type { BrowserCapability, BrowserEnvironment } from "@destack/environment/browser";
 import "../styles/styles.ts";
 import { Catalog, Locale, type LocaleTag, Localization, SOURCE_LOCALE } from "@destack/locale";
 import { PACKAGE_PATH } from "@destack/object";
@@ -23,7 +26,6 @@ import { CONTEXT_SCOPES } from "../declare/context.ts";
 import { renderView } from "../page/mount.ts";
 import { mountPackages } from "../page/view.ts";
 import { listenForCommands } from "../palette/overlay.ts";
-import { Clock } from "@destack/environment";
 import { ViewError } from "../error/error.ts";
 
 /** Mount a view with its package's theme and commands once its scopes' objects are open. */
@@ -33,6 +35,7 @@ export async function mount(
         readonly commands: readonly CommandDeclaration[];
         readonly theme?: ThemeDescription;
     },
+    environment: Environment<"workers" | BrowserCapability>,
 ): Promise<() => Promise<void>> {
     // read the view's context from the page, and the release its package's build serves
     const element = document.getElementById(CONTEXT_ELEMENT);
@@ -43,21 +46,29 @@ export async function mount(
     const release = view.package.version;
 
     // export the page's telemetry and uncaught failures to its origin, which stamps the build it serves
+    const { network, navigation } = environment;
     const exporter = OtlpExporter.http(
-        { endpoint: OTLP_ORIGIN_PATH, isKeepalive: true },
+        {
+            endpoint: OTLP_ORIGIN_PATH,
+            isKeepalive: true,
+            fetch: (request) => network.fetch(request),
+        },
         reportToDevtools,
     );
     const telemetry = await startTelemetry(
         exporter.options({ name: view.package.name, version: release }),
+        environment,
+        window,
     );
 
     // open the view's scopes and the person's own on this browser's device over the origin's package path
-    const device = await new BrowserClient({ path: CLIENT_PATH }).device();
-    const origin = pageOrigin();
-    const tabs = await openTabs(context, view, device, origin);
+    const origin = new URL(navigation.currentEntry.url).origin;
+    const device = await new BrowserClient({ path: CLIENT_PATH, origin, environment }).device();
+    const call = pageOrigin(origin);
+    const tabs = await openTabs(context, view, device, call, environment);
     const own = present(tabs.get(context.user.id), "the person's own scope");
     const clients = new Map([...tabs].map(([scope, tab]) => [scope, tab.client]));
-    const packages = mountPackages(view.packages, origin);
+    const packages = mountPackages(view.packages, call);
 
     // resolve what the page shows the person against the package's theme, else Destack's
     const stopping = new AbortController();
@@ -81,10 +92,17 @@ export async function mount(
             renderView(
                 Component,
                 document.body,
-                { context, clients, packages, origin },
+                { context, clients, packages, origin: call },
                 localization,
+                environment,
             ),
-        { owner: view.package.id, locale: first.locale, signal: stopping.signal },
+        {
+            owner: view.package.id,
+            locale: first.locale,
+            signal: stopping.signal,
+            environment,
+            origin,
+        },
     );
 
     // open the command palette over the view by the person's keybindings
@@ -93,6 +111,7 @@ export async function mount(
         stopping.signal,
         () => rendering.localization,
         () => bound,
+        navigation,
     );
 
     // restyle on each change, render again in a new language and follow the keybindings
@@ -108,19 +127,25 @@ export async function mount(
         }
     });
 
-    // record a visit of the view as it loads and after each navigation within it
-    const { visit } = telemetry.scope({ ...view.package, version: release });
-    const visited = (referrer?: string) =>
+    // record a visit of the view as it loads and each time it moves to another path
+    const { visit } = TelemetryScope.of({ ...view.package, version: release }, telemetry);
+    let visitedPath = "";
+    const visited = (referrer?: string) => {
+        visitedPath = new URL(navigation.currentEntry.url).pathname;
         visit(view.name, {
-            path: location.pathname,
+            path: visitedPath,
             title: document.title,
-            locale: navigator.language,
+            locale: environment.locale,
             ...(referrer === undefined ? {} : { referrer }),
         });
+    };
     visited(document.referrer === "" ? undefined : new URL(document.referrer).host);
-    window.navigation?.addEventListener("navigatesuccess", () => visited(), {
-        signal: stopping.signal,
+    const following = navigation.on((entry) => {
+        if (new URL(entry.url).pathname !== visitedPath) {
+            visited();
+        }
     });
+    stopping.signal.addEventListener("abort", () => following[Symbol.dispose](), { once: true });
 
     // release the page's rendering, tabs and telemetry on unmount
     const unmount = async () => {
@@ -147,6 +172,10 @@ interface RenderingOptions {
     readonly locale: LocaleTag;
     /** Abort its loads once the page goes. */
     readonly signal: AbortSignal;
+    /** The page's network its catalogs load through. */
+    readonly environment: Pick<BrowserEnvironment, "network">;
+    /** The page's origin, whose build serves the catalogs. */
+    readonly origin: string;
 }
 
 /** A view rendered in its person's language, loading each package's catalogs on first use. */
@@ -157,6 +186,8 @@ class LocalizedRendering {
     readonly #owner: PackageId;
     /** Abort the loads once the page goes. */
     readonly #signal: AbortSignal;
+    /** The page's network and origin its catalogs load through. */
+    readonly #source: Pick<RenderingOptions, "environment" | "origin">;
     /** The packages whose messages the page renders, whose catalogs each language loads. */
     readonly #packages: Set<PackageId>;
     /** The loaded catalogs by language and package, none for a package without a translation. */
@@ -177,6 +208,7 @@ class LocalizedRendering {
         // keep the renderer, the language and the own package's catalogs, and draw
         this.#render = render;
         this.#owner = options.owner;
+        this.#source = options;
         this.#signal = options.signal;
         this.#packages = new Set([options.owner]);
         this.#catalogs = new Map([[options.locale, new Map([[options.owner, own]])]]);
@@ -190,7 +222,7 @@ class LocalizedRendering {
         render: (locale: LocaleTag, localization: Localization) => () => void,
         options: RenderingOptions,
     ): Promise<LocalizedRendering> {
-        const own = await fetchCatalogs(options.owner, options.locale, options.owner);
+        const own = await fetchCatalogs(options.owner, options.locale, options.owner, options);
 
         return new LocalizedRendering(render, options, own);
     }
@@ -247,7 +279,10 @@ class LocalizedRendering {
         const missing = packages.filter((packageId) => !loaded.has(packageId));
         await Promise.all(
             missing.map(async (packageId) => {
-                loaded.set(packageId, await fetchCatalogs(packageId, locale, this.#owner));
+                loaded.set(
+                    packageId,
+                    await fetchCatalogs(packageId, locale, this.#owner, this.#source),
+                );
             }),
         );
     }
@@ -335,12 +370,14 @@ async function fetchCatalogs(
     packageId: PackageId,
     locale: LocaleTag,
     owner: PackageId,
+    options: Pick<RenderingOptions, "environment" | "origin">,
 ): Promise<Catalog[]> {
     const fetched = await Promise.all(
         Locale.fallback(locale, SOURCE_LOCALE).map(async (tag) => {
             // fetch the catalog at its build path, a package without one answering not found
             const path = `/${Catalog.path({ package: packageId, locale: tag }, owner)}`;
-            const response = await fetch(new URL(path, location.origin));
+            const request = new Request(new URL(path, options.origin));
+            const response = await options.environment.network.fetch(request);
             if (response.status === 404) {
                 await response.body?.cancel();
 
@@ -374,6 +411,7 @@ async function openTabs(
     view: View,
     device: Subject,
     origin: (path: string) => ClientOptions,
+    environment: Environment<"workers" | BrowserCapability>,
 ): Promise<Map<string, BrowserTab>> {
     // follow the person's own settings and profile, and group the view's types by the scope each lives in
     const byScope = new Map<string, Readonly<Record<string, ObjectType>>>([
@@ -389,13 +427,14 @@ async function openTabs(
     }
 
     // open each scope's tab at the origin's package path, calling other scopes' homes below its home path
-    const url = new URL(PACKAGE_PATH, location.origin).href;
+    const { url } = origin(PACKAGE_PATH);
 
     return new Map(
         await Promise.all(
             [...byScope].map(async ([scope, objects]) => {
                 const tab = await BrowserTab.open({
                     name: scope,
+                    worker: BrowserTab.worker(scope, environment),
                     objects,
                     scope,
                     caller: context.user,
@@ -404,7 +443,7 @@ async function openTabs(
                     // reopen the same endpoint
                     reconnect: () => ({ url }),
                     homes: (home: string) => origin(`${HOME_PATH}/${home}`),
-                    clock: Clock.system,
+                    environment,
                     report: reportError,
                 });
                 await tab.ready;
@@ -416,6 +455,6 @@ async function openTabs(
 }
 
 /** Call a path below the page's origin, which its session cookie authenticates. */
-function pageOrigin(): (path: string) => ClientOptions {
-    return (path) => ({ url: new URL(path, location.origin).href });
+function pageOrigin(origin: string): (path: string) => ClientOptions {
+    return (path) => ({ url: new URL(path, origin).href });
 }

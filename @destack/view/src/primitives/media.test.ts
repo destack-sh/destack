@@ -1,55 +1,33 @@
-import { afterEach, expect, test, vi } from "@destack/test";
-import { createRoot, flush } from "solid-js";
+import { TEST_START } from "@destack/test/world";
+import { testWorld } from "../test/browser.ts";
+import { BrowserSimulation } from "@destack/environment/browser/simulation";
+import { Simulation } from "@destack/environment/simulation";
+import { expect, test, vi } from "@destack/test";
+import { flush } from "solid-js";
+import { createPageRoot } from "../test/dom.ts";
 import { createBreakpoints, createMediaQuery, sortBreakpoints } from "./media.ts";
 
 /** The breakpoints of the tests. */
 const BREAKPOINTS = { sm: "640px", lg: "1024px", xl: "1280px" };
 
-/** The browser's media query function, restored after each test. */
-const original = window.matchMedia;
-
-afterEach(() => {
-    window.matchMedia = original;
-});
-
-/** Answer media queries as matching when they give one of the widths. */
-function stubMatchMedia(widths: readonly string[]): Map<string, MediaQueryList> {
-    const lists = new Map<string, MediaQueryList>();
-    window.matchMedia = (query: string) => {
-        const list = original.call(window, query);
-        Object.defineProperty(list, "matches", {
-            configurable: true,
-            value: widths.some((width) => query.includes(width)),
-        });
-        lists.set(query, list);
-
-        return list;
-    };
-
-    return lists;
-}
-
-/** Make a query list match or stop matching, telling its listeners. */
-function change(list: MediaQueryList | undefined, matches: boolean): void {
-    if (list === undefined) {
-        throw new Error("the query was never asked");
-    }
-    Object.defineProperty(list, "matches", { configurable: true, value: matches });
-    list.dispatchEvent(new MediaQueryListEvent("change", { matches, media: list.media }));
-}
-
-test("match each breakpoint whose minimum width the viewport reaches, keyed by the last", () => {
+test("match each breakpoint whose minimum width the viewport reaches, keyed by the last", async () => {
     // match nothing, then small, then small and large
-    const observed = [[], [BREAKPOINTS.sm], [BREAKPOINTS.sm, BREAKPOINTS.lg]].map((widths) => {
-        stubMatchMedia(widths);
+    await using simulation = new Simulation({ seed: 1, start: TEST_START });
+    const media = [
+        {},
+        { "(min-width: 640px)": true },
+        { "(min-width: 640px)": true, "(min-width: 1024px)": true },
+    ];
+    const observed = media.map((matching, index) => {
+        const tab = new BrowserSimulation(simulation, { media: matching }).environment(`${index}`);
 
-        return createRoot((disposeRoot) => {
+        return createPageRoot((disposeRoot) => {
             const matches = createBreakpoints(BREAKPOINTS);
             const result = { ...matches, key: matches.key };
             disposeRoot();
 
             return result;
-        });
+        }, tab);
     });
 
     expect(observed).toEqual([
@@ -59,15 +37,18 @@ test("match each breakpoint whose minimum width the viewport reaches, keyed by t
     ]);
 });
 
-test("query breakpoints as minimum widths by default, or as another feature", () => {
-    const queries = [undefined, "max-width"].map((mediaFeature) => {
-        const lists = stubMatchMedia([]);
-        createRoot((disposeRoot) => {
+test("query breakpoints as minimum widths by default, or as another feature", async () => {
+    // record the queries each feature asks the display
+    await using simulation = new Simulation({ seed: 1, start: TEST_START });
+    const queries = [undefined, "max-width"].map((mediaFeature, index) => {
+        const tab = new BrowserSimulation(simulation).environment(`${index}`);
+        const media = vi.spyOn(tab.display, "media");
+        createPageRoot((disposeRoot) => {
             createBreakpoints(BREAKPOINTS, mediaFeature === undefined ? {} : { mediaFeature });
             disposeRoot();
-        });
+        }, tab);
 
-        return [...lists.keys()];
+        return media.mock.calls.map(([query]) => query);
     });
 
     expect(queries).toEqual([
@@ -76,16 +57,17 @@ test("query breakpoints as minimum widths by default, or as another feature", ()
     ]);
 });
 
-test("follow a breakpoint as its query starts and stops matching", () => {
-    const lists = stubMatchMedia([]);
-    const { matches, dispose } = createRoot((disposeRoot) => ({
-        matches: createBreakpoints(BREAKPOINTS),
-        dispose: disposeRoot,
-    }));
-    change(lists.get("(min-width: 640px)"), true);
+test("follow a breakpoint as its query starts and stops matching", async () => {
+    // widen the viewport past the small breakpoint, then narrow it again
+    const { tab } = testWorld();
+    const { matches, dispose } = createPageRoot(
+        (disposeRoot) => ({ matches: createBreakpoints(BREAKPOINTS), dispose: disposeRoot }),
+        tab,
+    );
+    tab.display.emulate({ "(min-width: 640px)": true });
     flush();
     const widened = { ...matches, key: matches.key };
-    change(lists.get("(min-width: 640px)"), false);
+    tab.display.emulate({ "(min-width: 640px)": false });
     flush();
     const narrowed = matches.sm;
     dispose();
@@ -93,27 +75,40 @@ test("follow a breakpoint as its query starts and stops matching", () => {
     expect([widened, narrowed]).toEqual([{ sm: true, lg: false, xl: false, key: "sm" }, false]);
 });
 
-test("listen to no query when told not to watch changes", () => {
-    const lists = stubMatchMedia([]);
-    const listen = vi.spyOn(EventTarget.prototype, "addEventListener");
-    createRoot((disposeRoot) => {
-        createBreakpoints(BREAKPOINTS, { watchChange: false });
-        disposeRoot();
-    });
-    const calls = listen.mock.calls.length;
-    listen.mockRestore();
+test("keep the breakpoints read once when told not to watch changes", async () => {
+    // read the breakpoints narrow, then widen the display past the small breakpoint
+    const { tab } = testWorld();
+    const { breakpoints, dispose } = createPageRoot(
+        (disposeRoot) => ({
+            breakpoints: createBreakpoints(BREAKPOINTS, { watchChange: false }),
+            dispose: disposeRoot,
+        }),
+        tab,
+    );
+    const before = { ...breakpoints };
+    tab.display.emulate({ "(min-width: 640px)": true });
+    flush();
+    const after = { ...breakpoints };
+    dispose();
 
-    expect([lists.size, calls]).toEqual([3, 0]);
+    expect([before, after]).toEqual([
+        { sm: false, lg: false, xl: false, key: undefined },
+        { sm: false, lg: false, xl: false, key: undefined },
+    ]);
 });
 
-test("follow whether a media query matches", () => {
-    const lists = stubMatchMedia([]);
-    const { matches, dispose } = createRoot((disposeRoot) => ({
-        matches: createMediaQuery("(max-width: 767px)"),
-        dispose: disposeRoot,
-    }));
+test("follow whether a media query matches", async () => {
+    // start narrow, then match the query
+    const { tab } = testWorld();
+    const { matches, dispose } = createPageRoot(
+        (disposeRoot) => ({
+            matches: createMediaQuery("(max-width: 767px)"),
+            dispose: disposeRoot,
+        }),
+        tab,
+    );
     const before = matches();
-    change(lists.get("(max-width: 767px)"), true);
+    tab.display.emulate({ "(max-width: 767px)": true });
     flush();
     const after = matches();
     dispose();

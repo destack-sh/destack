@@ -1,6 +1,5 @@
-import { expect, onTestFinished, test } from "@destack/test";
-import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { Simulation } from "@destack/environment/simulation";
+import { expect, test } from "@destack/test";
 import { join } from "node:path";
 import sharp from "sharp";
 import { build } from "vite";
@@ -8,6 +7,9 @@ import { schema } from "@destack/schema";
 import { ImageMetadata } from "../media/asset.ts";
 import type { TransformCache } from "@destack/package/build";
 import { imagePlugin, imageFiles, transformImage } from "./image.ts";
+
+/** The start of every test's world: 2026-10-24 at midnight UTC. */
+const START = Date.UTC(2026, 9, 24);
 
 /** A 1200 by 600 PNG of one color. */
 async function hero(): Promise<Uint8Array<ArrayBuffer>> {
@@ -20,6 +22,8 @@ async function hero(): Promise<Uint8Array<ArrayBuffer>> {
 
 test("render each rendition of an image once, reading it from the build's cache by digest, width and format", async () => {
     // render a wide PNG twice through one cache, counting what each pass writes
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const { crypto } = simulation.environment("test");
     const kept = new Map<string, Uint8Array<ArrayBuffer>>();
     const written: string[] = [];
     const cache: TransformCache = {
@@ -30,9 +34,9 @@ test("render each rendition of an image once, reading it from the build's cache 
         },
     };
     const bytes = await hero();
-    const first = await transformImage(bytes, {}, cache);
+    const first = await transformImage(bytes, {}, crypto, cache);
     const firstWrites = written.length;
-    const second = await transformImage(bytes, {}, cache);
+    const second = await transformImage(bytes, {}, crypto, cache);
 
     // keep every rendition but the original once, and read the same bytes back
     expect({
@@ -44,8 +48,10 @@ test("render each rendition of an image once, reading it from the build's cache 
 
 test("render an image's source set up to its own width in AVIF, WebP and its format, with a blurred rendition", async () => {
     // transform a wide PNG
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const { crypto } = simulation.environment("test");
     const bytes = await hero();
-    const image = await transformImage(bytes);
+    const image = await transformImage(bytes, {}, crypto);
 
     // keep its size, render five widths in three formats, reuse the original's bytes, and inline a tiny WebP
     expect({
@@ -69,14 +75,19 @@ test("render an image's source set up to its own width in AVIF, WebP and its for
 
 test("build an imported image into metadata whose source set the build emits", async () => {
     // build a module importing a PNG
-    const directory = await mkdtemp(join(tmpdir(), "destack-image-"));
-    onTestFinished(() => rm(directory, { recursive: true }));
-    await writeFile(join(directory, "hero.png"), await hero());
-    await writeFile(join(directory, "index.js"), 'export { default } from "./hero.png";\n');
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await files.makeTemporaryDirectory("image-");
+    await files.writeFile(join(directory, "hero.png"), await hero());
+    await files.writeTextFile(
+        join(directory, "index.js"),
+        'export { default } from "./hero.png";\n',
+    );
     await build({
         root: directory,
         logLevel: "silent",
-        plugins: [imagePlugin()],
+        plugins: [imagePlugin(environment)],
         build: {
             outDir: "dist",
             lib: { entry: join(directory, "index.js"), formats: ["es"], fileName: "index" },
@@ -84,12 +95,12 @@ test("build an imported image into metadata whose source set the build emits", a
     });
 
     // emit the original and fourteen more files, the original serving its own width and format
-    const emitted = await readdir(join(directory, "dist"));
+    const emitted = await files.readDirectory(join(directory, "dist"));
     const built = schema
         .object({ default: ImageMetadata })
         .parse(await import(join(directory, "dist", "index.mjs")));
     expect({
-        files: emitted.filter((file) => file !== "index.mjs").length,
+        files: emitted.filter((file) => file.name !== "index.mjs").length,
         size: [built.default.width, built.default.height, built.default.format],
         srcSet: built.default.srcSet.length,
         original: built.default.srcSet.at(-1)?.src === built.default.src,

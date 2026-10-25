@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import type { FileSystem } from "@destack/environment";
 import { basename } from "node:path";
 import { createFontStack } from "@capsizecss/core";
 import arial from "@capsizecss/metrics/arial";
@@ -67,8 +67,8 @@ export async function readFont(bytes: Uint8Array): Promise<Omit<FontFile, "url">
     return { family: metrics.familyName, fallbacks };
 }
 
-/** Turn `?font` imports into font files. */
-export function fontPlugin(): Plugin {
+/** Turn `?font` imports into font files, read through a file system. */
+export function fontPlugin(files: FileSystem): Plugin {
     // remember whether the plugin builds or serves
     let isBuild = true;
 
@@ -86,7 +86,7 @@ export function fontPlugin(): Plugin {
 
             // read the file and its metrics, emitting it as a hashed asset when building
             const path = id.slice(0, -FONT_QUERY.length);
-            const bytes = new Uint8Array(await readFile(path));
+            const bytes = await files.readFile(path);
             const font = await readFont(bytes);
             const url = isBuild
                 ? `import.meta.ROLLUP_FILE_URL_${this.emitFile({ type: "asset", name: basename(path), source: bytes })}`

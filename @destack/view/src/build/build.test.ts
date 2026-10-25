@@ -1,10 +1,10 @@
 // @vitest-environment node
 import { expect, refusal, test } from "@destack/test";
-import { readdir, readFile } from "node:fs/promises";
+import { testHost } from "@destack/test/host";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Workspace, CompilerPool } from "@destack/build";
-import { testStore } from "@destack/build/test";
+import { testStore, testSimulation } from "@destack/build/test";
 import { Package, type DeclarationDescription } from "@destack/package";
 import type { Compilation, Plugin, PluginOption } from "@destack/package/build";
 import { destackTheme } from "@destack/theme/declare";
@@ -48,12 +48,13 @@ function flatten(options: readonly PluginOption[]): Plugin[] {
 
 /** Read the code of each JavaScript chunk of a build output. */
 async function readChunks(directory: string): Promise<string[]> {
-    const files = await readdir(directory);
+    const { files } = testHost();
+    const entries = await files.readDirectory(directory);
 
     return await Promise.all(
-        files
-            .filter((file) => file.endsWith(".js"))
-            .map(async (file) => await readFile(join(directory, file), "utf8")),
+        entries
+            .filter((entry) => entry.name.endsWith(".js"))
+            .map(async (entry) => await files.readTextFile(join(directory, entry.name))),
     );
 }
 
@@ -74,7 +75,8 @@ test(
     "mount each declared view from a separate browser chunk and describe it in the output",
     { timeout: NOTEBOOK_BUILD_MILLISECONDS },
     async () => {
-        // build the notebook package's browser output on its stored dependency builds
+        // build the notebook package's browser output on its stored dependency builds, in a world
+        await using simulation = testSimulation();
         await using store = await testStore();
         await using compilers = await CompilerPool.open(store);
         const workspace = await Workspace.open(NOTEBOOK, compilers);
@@ -203,9 +205,9 @@ test("generate the module mounting a view with its package's theme and commands,
     expect([[...entries.keys()], loaded.split("\n"), described]).toEqual([
         ["./view/main"],
         [
-            'import { mount } from "@destack/view/browser";',
+            'import { BrowserEnvironment, mount } from "@destack/view/browser";',
             'import { main as view } from "/package/src/view.ts";',
-            `await mount(view, ${JSON.stringify({ commands, theme: ocean })});`,
+            `await mount(view, ${JSON.stringify({ commands, theme: ocean })}, BrowserEnvironment.system);`,
         ],
         {
             views: {

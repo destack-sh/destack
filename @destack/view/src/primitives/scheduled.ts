@@ -1,10 +1,14 @@
+import type { Clock } from "@destack/environment";
+import type { Display } from "@destack/environment/browser";
 import { isServer } from "@solidjs/web";
 import { type Accessor, createSignal, getObserver, getOwner, onCleanup } from "solid-js";
+import { callbackOf } from "./utils.ts";
 
-/** Schedule a callback, debounced or throttled by a wait in milliseconds. */
+/** Schedule a callback on a clock, debounced or throttled by a wait in milliseconds. */
 export type ScheduleCallback = <Args extends unknown[]>(
     callback: (...args: Args) => void,
-    wait?: number,
+    wait: number | undefined,
+    clock: Clock,
 ) => Scheduled<Args>;
 
 /** A scheduled callback, cancellable before it runs. */
@@ -19,15 +23,15 @@ export interface Scheduled<Args extends unknown[]> {
 type Edge = "ready" | "leading" | "trailing";
 
 /** Debounce a callback to its trailing edge, cancelled on cleanup. */
-export const debounce: ScheduleCallback = (callback, wait) => {
+export const debounce: ScheduleCallback = (callback, wait, clock) => {
     // run nothing on the server
     if (isServer) {
         return Object.assign(() => {}, { clear: () => {} });
     }
 
     // cancel the wait on cleanup
-    let handle: ReturnType<typeof setTimeout> | undefined;
-    const clear = (): void => clearTimeout(handle);
+    let handle: number | undefined;
+    const clear = (): void => clock.clearTimeout(handle);
     if (getOwner() !== null) {
         onCleanup(clear);
     }
@@ -35,14 +39,14 @@ export const debounce: ScheduleCallback = (callback, wait) => {
     // restart the wait on each call
     const debounced: typeof callback = (...args) => {
         clear();
-        handle = setTimeout(() => callback(...args), wait);
+        handle = clock.setTimeout(() => callback(...args), wait);
     };
 
     return Object.assign(debounced, { clear });
 };
 
 /** Throttle a callback to its trailing edge with the latest arguments, cancelled on cleanup. */
-export const throttle: ScheduleCallback = (callback, wait) => {
+export const throttle: ScheduleCallback = (callback, wait, clock) => {
     // run nothing on the server
     if (isServer) {
         return Object.assign(() => {}, { clear: () => {} });
@@ -50,7 +54,7 @@ export const throttle: ScheduleCallback = (callback, wait) => {
 
     // run once per wait with the arguments of the latest call
     let isThrottled = false;
-    let handle: ReturnType<typeof setTimeout> | undefined;
+    let handle: number | undefined;
     let latest: Parameters<typeof callback> | undefined;
     const throttled: typeof callback = (...args) => {
         // keep the latest arguments, and start a wait unless one runs
@@ -59,7 +63,7 @@ export const throttle: ScheduleCallback = (callback, wait) => {
             return;
         }
         isThrottled = true;
-        handle = setTimeout(() => {
+        handle = clock.setTimeout(() => {
             isThrottled = false;
             if (latest !== undefined) {
                 callback(...latest);
@@ -67,7 +71,7 @@ export const throttle: ScheduleCallback = (callback, wait) => {
         }, wait);
     };
     const clear = (): void => {
-        clearTimeout(handle);
+        clock.clearTimeout(handle);
         isThrottled = false;
     };
     if (getOwner() !== null) {
@@ -77,53 +81,62 @@ export const throttle: ScheduleCallback = (callback, wait) => {
     return Object.assign(throttled, { clear });
 };
 
-/** Throttle a callback to the browser's idle time, waiting at most a while. */
-export const scheduleIdle: ScheduleCallback = (callback, maxWait) => {
-    // run nothing on the server, and throttle where the browser has no idle callbacks
+/** Call back in a display's next idle period, at most a timeout later, returning a cancel. */
+export function requestIdle(
+    callback: () => void,
+    timeout: number | undefined,
+    display: Display,
+): () => void {
+    return callbackOf((signal) => display.idle(timeout, signal), callback);
+}
+
+/** Throttle a callback to a display's idle periods, waiting at most a while. */
+export function scheduleIdle<Args extends unknown[]>(
+    callback: (...args: Args) => void,
+    maxWait: number | undefined,
+    display: Display,
+): Scheduled<Args> {
+    // run nothing on the server
     if (isServer) {
         return Object.assign(() => {}, { clear: () => {} });
     }
-    if (typeof requestIdleCallback === "undefined") {
-        return throttle(callback);
-    }
 
     // run once per idle period with the arguments of the latest call
-    let isDeferred = false;
-    let handle = 0;
-    let latest: Parameters<typeof callback> | undefined;
-    const deferred: typeof callback = (...args) => {
-        // keep the latest arguments, and request an idle period unless one is pending
+    let cancel: (() => void) | undefined;
+    let latest: Args | undefined;
+    const deferred = (...args: Args): void => {
+        // keep the latest arguments, and wait for an idle period unless one is pending
         latest = args;
-        if (isDeferred) {
-            return;
-        }
-        isDeferred = true;
-        handle = requestIdleCallback(
+        cancel ??= requestIdle(
             () => {
-                isDeferred = false;
+                cancel = undefined;
                 if (latest !== undefined) {
                     callback(...latest);
                 }
             },
-            maxWait === undefined ? {} : { timeout: maxWait },
+            maxWait,
+            display,
         );
     };
+
+    // cancel the pending period, by hand or on cleanup
     const clear = (): void => {
-        cancelIdleCallback(handle);
-        isDeferred = false;
+        cancel?.();
+        cancel = undefined;
     };
     if (getOwner() !== null) {
         onCleanup(clear);
     }
 
     return Object.assign(deferred, { clear });
-};
+}
 
 /** Run a callback on the leading edge of a debounce or throttle. */
 export function leading<Args extends unknown[]>(
     schedule: ScheduleCallback,
     callback: (...args: Args) => void,
-    wait?: number,
+    wait: number | undefined,
+    clock: Clock,
 ): Scheduled<Args> {
     // run only the first call on the server
     if (isServer) {
@@ -132,9 +145,13 @@ export function leading<Args extends unknown[]>(
 
     // run when no wait is in progress, and start one either way
     let isScheduled = false;
-    const scheduled = schedule(() => {
-        isScheduled = false;
-    }, wait);
+    const scheduled = schedule(
+        () => {
+            isScheduled = false;
+        },
+        wait,
+        clock,
+    );
     const run: typeof callback = (...args) => {
         if (!isScheduled) {
             callback(...args);
@@ -157,7 +174,8 @@ export function leading<Args extends unknown[]>(
 export function leadingAndTrailing<Args extends unknown[]>(
     schedule: ScheduleCallback,
     callback: (...args: Args) => void,
-    wait?: number,
+    wait: number | undefined,
+    clock: Clock,
 ): Scheduled<Args> {
     // run only the first call on the server
     if (isServer) {
@@ -166,12 +184,16 @@ export function leadingAndTrailing<Args extends unknown[]>(
 
     // run the trailing edge only when called again during the wait
     let edge: Edge = "ready";
-    const scheduled = schedule((values: Args) => {
-        if (edge === "trailing") {
-            callback(...values);
-        }
-        edge = "ready";
-    }, wait);
+    const scheduled = schedule(
+        (values: Args) => {
+            if (edge === "trailing") {
+                callback(...values);
+            }
+            edge = "ready";
+        },
+        wait,
+        clock,
+    );
     const run: typeof callback = (...args) => {
         if (edge === "ready") {
             callback(...args);

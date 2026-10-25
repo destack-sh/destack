@@ -1,5 +1,5 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { render } from "@solidjs/web";
+import { render } from "../test/dom.ts";
 import { ObjectReference } from "@destack/sync";
 import { createRouter, defineRoutes, memoryHistory } from "./index.ts";
 import { Link } from "./link.tsx";
@@ -36,9 +36,9 @@ function renderLinks(): HTMLElement {
     // mount the router and remove it after the test
     const element = document.createElement("main");
     document.body.append(element);
-    const dispose = render(() => <Router />, element);
+    const { unmount } = render(() => <Router />, { container: element });
     onTestFinished(() => {
-        dispose();
+        unmount();
         element.remove();
     });
 

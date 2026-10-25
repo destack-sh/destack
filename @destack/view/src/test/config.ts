@@ -1,5 +1,6 @@
 import * as test from "@destack/test/config";
 import { loadTransforms } from "@destack/build/local";
+import type { Environment } from "@destack/environment";
 import { builtinModules } from "node:module";
 import { fileURLToPath } from "node:url";
 
@@ -12,43 +13,48 @@ export interface ViewTestOptions {
 /** Define a test configuration that compiles modules as builds do and renders them into a DOM. */
 export function defineConfiguration(
     configuration: Parameters<typeof test.defineConfiguration>[0],
+    environment: Environment<"files" | "process">,
     options: ViewTestOptions = {},
 ): ReturnType<typeof test.defineConfiguration> {
     // transform modules as builds do, for the server outside the DOM and to hydrate when asked
-    const root = configuration.root ?? process.cwd();
+    const root = configuration.root ?? environment.process.workingDirectory;
     const isDom = configuration.test?.environment === undefined;
     const transforms = loadTransforms({
         directory: root,
         runtime: isDom ? "browser" : "bun",
         server: !isDom || options.isHydrated === true,
         options: {},
+        environment,
     });
 
     // play the package's scenarios through the DOM driver when the tests render into the DOM
     const include = configuration.test?.include ?? test.configDefaults.include;
 
     // render components in a DOM, loading the runtime's modules natively for test servers
-    return test.defineConfiguration({
-        ...configuration,
-        plugins: [
-            {
-                name: "destack-runtime-modules",
-                enforce: "pre",
-                resolveId: (id) =>
-                    /^(?:node|bun):/u.test(id) || builtinModules.includes(id)
-                        ? { id, external: true }
-                        : undefined,
+    return test.defineConfiguration(
+        {
+            ...configuration,
+            plugins: [
+                {
+                    name: "destack-runtime-modules",
+                    enforce: "pre",
+                    resolveId: (id) =>
+                        /^(?:node|bun):/u.test(id) || builtinModules.includes(id)
+                            ? { id, external: true }
+                            : undefined,
+                },
+                transforms,
+                ...(isDom
+                    ? [test.scenarioPlugin([{ module: "@destack/view/test", name: "ViewDriver" }])]
+                    : []),
+                ...(configuration.plugins ?? []),
+            ],
+            test: {
+                environment: fileURLToPath(new URL("environment.ts", import.meta.url)),
+                ...configuration.test,
+                include: isDom ? [...include, test.SCENARIO_MODULES] : include,
             },
-            transforms,
-            ...(isDom
-                ? [test.scenarioPlugin([{ module: "@destack/view/test", name: "ViewDriver" }])]
-                : []),
-            ...(configuration.plugins ?? []),
-        ],
-        test: {
-            environment: fileURLToPath(new URL("environment.ts", import.meta.url)),
-            ...configuration.test,
-            include: isDom ? [...include, test.SCENARIO_MODULES] : include,
         },
-    });
+        environment,
+    );
 }

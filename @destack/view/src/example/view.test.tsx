@@ -1,3 +1,4 @@
+import { testBrowser } from "../test/browser.ts";
 import { principal, relation } from "@destack/access";
 import { defineObject, field } from "@destack/object";
 import { defineExample } from "@destack/package/declare";
@@ -63,7 +64,7 @@ export const cardsTwoCards = defineExample({
 test("render a view's example over the objects its declared calls bring about", async () => {
     // render the example of the view holding two cards
     const element = document.createElement("main");
-    onTestFinished(renderExample(element, { example: cardsTwoCards }));
+    onTestFinished(renderExample(element, { example: cardsTwoCards }, testBrowser()));
 
     // list the cards in the view's order
     await changed(element, () => element.textContent === "ApplesBread", RENDER_MILLISECONDS);

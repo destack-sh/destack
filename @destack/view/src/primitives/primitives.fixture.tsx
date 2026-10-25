@@ -26,8 +26,8 @@ import {
     createViewportObserver,
     createVisibilityObserver,
 } from "./intersection-observer.ts";
-import { createKeyDown, createKeyHold, createShortcut, useKeyDownList } from "./keyboard.ts";
-import { createBreakpoints, createMediaQuery, createPrefersDark, usePrefersDark } from "./media.ts";
+import { createKeyDown, createKeyHold, createShortcut, createKeyDownList } from "./keyboard.ts";
+import { createBreakpoints, createMediaQuery, createPrefersDark } from "./media.ts";
 import { createMutationObserver } from "./mutation-observer.ts";
 import { createNotificationPermission } from "./notification.ts";
 import { createOrientation } from "./orientation.ts";
@@ -37,6 +37,7 @@ import { createPointerList, createPointerListeners, createPointerPosition } from
 import { createMs, createRAF } from "./raf.ts";
 import { createElementSize, createResizeObserver, createWindowSize } from "./resize-observer.ts";
 import { createScheduled, debounce } from "./scheduled.ts";
+import { useEnvironment } from "../page/view.ts";
 import { createPreventScroll, createScrollPosition, useWindowScrollPosition } from "./scroll.ts";
 import { createSelection } from "./selection.ts";
 import { createBattery } from "./sensors.ts";
@@ -211,7 +212,7 @@ export function Keyboard() {
     createKeyHold("Shift");
     createKeyDown("Enter", () => {});
     createShortcut(["Control", "K"], () => {});
-    useKeyDownList();
+    createKeyDownList();
 
     return <Probe name="keyboard" />;
 }
@@ -221,7 +222,6 @@ export function Media() {
     // run the primitives
     createMediaQuery("(min-width: 40rem)");
     createPrefersDark();
-    usePrefersDark();
     createBreakpoints({ small: "40rem", large: "80rem" });
 
     return <Probe name="media" />;
@@ -303,7 +303,8 @@ export function ResizeObserver() {
 /** Run the scheduled primitives before a probe. */
 export function Scheduled() {
     // run the primitives
-    createScheduled((callback) => debounce(callback, 10));
+    const { clock } = useEnvironment();
+    createScheduled((callback) => debounce(callback, 10, clock));
 
     return <Probe name="scheduled" />;
 }
@@ -356,7 +357,7 @@ export function Timer() {
     createTimer(
         () => {},
         () => false,
-        setTimeout,
+        "timeout",
     );
     createPolled(
         () => 1,

@@ -75,19 +75,24 @@ class RefusedSensor extends StubSensor {
 let sensors: StubSensor[] = [];
 
 beforeEach(() => {
-    vi.useFakeTimers();
     sensors = [];
 });
 
 afterEach(() => {
-    vi.useRealTimers();
     vi.unstubAllGlobals();
     Reflect.deleteProperty(navigator, "getBattery");
 });
 
-/** Dispatch a device motion event. */
-function move(x: number): void {
-    const event = new Event("devicemotion");
+/** Give an event the moment it happened, as the page's timeline stamps it. */
+function stamped(event: Event, at: number): Event {
+    Object.defineProperty(event, "timeStamp", { value: at });
+
+    return event;
+}
+
+/** Dispatch a device motion event at a moment in milliseconds. */
+function move(x: number, at = 0): void {
+    const event = stamped(new Event("devicemotion"), at);
     Object.assign(event, {
         acceleration: { x, y: 0, z: 0 },
         accelerationIncludingGravity: { x, y: 0, z: 9.8 },
@@ -95,9 +100,9 @@ function move(x: number): void {
     window.dispatchEvent(event);
 }
 
-/** Dispatch a device orientation event. */
-function orient(alpha: number | null, beta: number | null, gamma: number | null): void {
-    const event = new Event("deviceorientation");
+/** Dispatch a device orientation event at a moment in milliseconds. */
+function orient(alpha: number | null, beta: number | null, gamma: number | null, at = 0): void {
+    const event = stamped(new Event("deviceorientation"), at);
     Object.assign(event, { alpha, beta, gamma });
     window.dispatchEvent(event);
 }
@@ -109,13 +114,12 @@ test("call back with acceleration at most once an interval, with or without grav
         includeGravity: true,
         interval: 100,
     });
-    move(1);
-    move(2);
-    vi.advanceTimersByTime(100);
-    move(3);
+    move(1, 0);
+    move(2, 50);
+    move(3, 100);
     clear();
     clearGravity();
-    move(4);
+    move(4, 200);
 
     expect(seen).toEqual([
         { x: 1, y: 0, z: 0 },
@@ -143,9 +147,8 @@ test("follow acceleration from undefined", () => {
 test("call back with orientation angles, keeping unreported ones null", () => {
     const seen: GyroscopeReading[] = [];
     const clear = makeGyroscope((reading) => seen.push(reading));
-    orient(10, 20, 30);
-    vi.advanceTimersByTime(100);
-    orient(null, null, null);
+    orient(10, 20, 30, 0);
+    orient(null, null, null, 100);
     clear();
 
     expect(seen).toEqual([

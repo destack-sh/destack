@@ -1,8 +1,8 @@
-import { readFile } from "node:fs/promises";
+import type { Environment } from "@destack/environment";
 import { basename, extname } from "node:path";
 import sharp from "sharp";
 import type { Plugin, TransformCache } from "@destack/package/build";
-import { Digest } from "@destack/schema";
+import { Digest, type DigestCrypto } from "@destack/schema";
 import { ImageFormat } from "../media/asset.ts";
 import { ViewError } from "../error/error.ts";
 
@@ -69,7 +69,8 @@ export function imageFiles(
 /** Render an image's planned files, reading and keeping each rendition in a build's cache. */
 export async function transformImage(
     bytes: Uint8Array<ArrayBuffer>,
-    options: ImageOptions = {},
+    options: ImageOptions,
+    crypto: DigestCrypto,
     cache?: TransformCache,
 ): Promise<TransformedImage> {
     // read the intrinsic size and format
@@ -83,14 +84,14 @@ export async function transformImage(
     }
 
     // render each planned file once per image, keeping the original's own bytes at its own width and format
-    const digest = await Digest.of(bytes);
+    const digest = await Digest.of(bytes, crypto);
     const files = await Promise.all(
         imageFiles(metadata.width, format.data, options).map(async (file) => ({
             ...file,
             data:
                 file.width === metadata.width && file.format === format.data
                     ? bytes
-                    : await rendition(bytes, digest, file, cache),
+                    : await rendition(bytes, digest, file, crypto, cache),
         })),
     );
 
@@ -111,7 +112,7 @@ export async function transformImage(
 }
 
 /** Turn raster image imports into image metadata, keeping renditions in a build's cache. */
-export function imagePlugin(cache?: TransformCache): Plugin {
+export function imagePlugin(environment: Environment<"files">, cache?: TransformCache): Plugin {
     // remember whether the plugin builds or serves
     let isBuild = true;
 
@@ -128,10 +129,11 @@ export function imagePlugin(cache?: TransformCache): Plugin {
             }
 
             // describe the image, its source set emitted as hashed assets when building
-            const bytes = new Uint8Array(await readFile(id));
+            const bytes = await environment.files.readFile(id);
             const image = await transformImage(
                 bytes,
                 isBuild ? {} : { widths: [], formats: [] },
+                environment.crypto,
                 cache,
             );
             const stem = basename(id, extname(id));
@@ -164,10 +166,14 @@ async function rendition(
     bytes: Uint8Array<ArrayBuffer>,
     digest: Digest,
     file: ImageFile,
+    crypto: DigestCrypto,
     cache: TransformCache | undefined,
 ): Promise<Uint8Array<ArrayBuffer>> {
     // read the rendition a build kept before
-    const key = await Digest.of(`${RENDITION_VERSION} ${digest} ${file.width} ${file.format}`);
+    const key = await Digest.of(
+        `${RENDITION_VERSION} ${digest} ${file.width} ${file.format}`,
+        crypto,
+    );
     const kept = await cache?.read(key);
     if (kept !== undefined) {
         return kept;

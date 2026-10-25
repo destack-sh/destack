@@ -1,6 +1,7 @@
 import { afterEach, expect, test } from "@destack/test";
 import { createRoot, flush } from "solid-js";
 import { createPermission } from "./permission.ts";
+import { wait } from "../test/dom.ts";
 
 /** A stand-in permission status whose state the test changes. */
 class StubStatus extends EventTarget implements PermissionStatus {
@@ -48,9 +49,7 @@ function stubPermissions(statuses: Record<string, StubStatus>): void {
 
 /** Wait for the queries to answer. */
 async function settle(): Promise<void> {
-    await new Promise((resolve) => {
-        setTimeout(resolve, 0);
-    });
+    await wait(0);
     flush();
 }
 

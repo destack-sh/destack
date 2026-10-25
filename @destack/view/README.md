@@ -87,7 +87,11 @@ The origin's document carries the view's `ViewContext`, and the build's module m
 
 ```ts
 ViewContext.document(context, view.entrypoint); // <script id="destack-view">{"installation":…}</script>
-await mount(view, { commands: [{ packageId, name: "archive", keybinding: "mod+e" }], theme }); // generated
+await mount(
+    view,
+    { commands: [{ packageId, name: "archive", keybinding: "mod+e" }], theme },
+    BrowserEnvironment.system,
+); // generated
 // catalogs load by package from the build: /locale/de.json, /locale/<package>/de.json
 ```
 
@@ -141,6 +145,24 @@ import { useView } from "@destack/view";
 const { space, user, home, locale, target } = useView();
 ```
 
+## Routing
+
+`createRouter` from `@destack/view/router` routes each tab over its environment's session history through `navigationHistory`, as Solid Router's `browserHistory` routes over the window's, and leave guards hold steps from either side.
+
+```tsx
+const Router = createRouter({ routes: defineRoutes([{ path: "/notes/:id", component: Note }]) });
+<Router />; // follows useEnvironment().navigation; a config's own history wins
+```
+
+## Time
+
+`useNow` reads the view's clock once mounted, so the server and the hydrating page render alike, and moves on each second.
+
+```tsx
+const now = useNow();
+<Show when={now()}>{(time) => locale.relative(note.editedAt, time())}</Show>;
+```
+
 ## Controllable signals
 
 `createControllableSignal` is Kobalte's: it follows an owner's value while the owner controls it, else its own.
@@ -162,7 +184,7 @@ const [open, setOpen] = createControllableSignal({
 
 ```tsx
 const isStill = createReducedMotion(canvas);
-createTimer(turn, () => (isStill() ? false : 6000), setInterval);
+createTimer(turn, () => (isStill() ? false : 6000), "interval");
 isMotionReduced(element); // one read, for code outside tracking
 ```
 
@@ -256,14 +278,14 @@ const unread = useQuery(() => home.query.notification.aggregate(UNREAD));
 
 ## Opening objects
 
-`urlOf` returns the address that opens an object in the view presenting it.
+`objectUrl` returns the address that opens an object in the view presenting it.
 
 ```tsx
-import { urlOf, useView } from "@destack/view";
+import { objectUrl, useView } from "@destack/view";
 
 const { space } = useView();
-<a href={urlOf(note.reference(space, id))}>Open</a>;
-<a href={urlOf(note.reference(space, id), { view: "editor" })}>Edit</a>;
+<a href={objectUrl(note.reference(space, id))}>Open</a>;
+<a href={objectUrl(note.reference(space, id), { view: "editor" })}>Edit</a>;
 ```
 
 ## Language
@@ -305,32 +327,41 @@ import "@destack/view/styles";
 
 ## Examples
 
-`renderExample` renders an example into an element in a locale, direction, width and theme.
+`renderExample` renders an example into an element with its globals: a locale, direction, width and theme.
 
 ```ts
 import { renderExample } from "@destack/view/example";
 
-const unmount = renderExample(element, {
-    example: buttonGhost,
-    environment: { locale: "ar-EG", direction: "rtl", width: 320, theme: { appearance: "dark" } },
-    catalogs,
-});
+const unmount = renderExample(
+    element,
+    {
+        example: buttonGhost,
+        globals: { locale: "ar-EG", direction: "rtl", width: 320, theme: { appearance: "dark" } },
+        catalogs,
+    },
+    BrowserEnvironment.system,
+);
 ```
 
 ## Tests
 
-`renderView` from `@destack/view/test` renders a component as a mounted view.
+`renderView` from `@destack/view/test` renders a component as a mounted view, and `testBrowser()` is each test's simulated tab, which `wait` and `frame` move time in.
 
 ```tsx
-import { defineConfiguration, renderView } from "@destack/view/test";
+import { defineConfiguration, renderView, testBrowser, wait } from "@destack/view/test";
 
-export default defineConfiguration({ test: { include: ["tests/*.test.tsx"] } });
+export default defineConfiguration(
+    { test: { include: ["tests/*.test.tsx"] } },
+    BunEnvironment.system,
+);
 const unmount = renderView(
     Notes,
     element,
     { context, clients: new Map([[context.space, client]]), packages: new Map(), origin },
     Localization.of("de", catalogs),
+    testBrowser(),
 );
+await wait(300); // runs the timers due in the next 300 ms on the tab's clock
 ```
 
 ## Scenario interaction

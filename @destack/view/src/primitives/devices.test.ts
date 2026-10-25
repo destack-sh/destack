@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, test } from "@destack/test";
 import { createRoot, flush } from "solid-js";
 import { createCameras, createDevices, createMicrophones, createSpeakers } from "./devices.ts";
+import { wait } from "../test/dom.ts";
 
 /** Make a device of a kind. */
 function device(kind: MediaDeviceKind, label: string): MediaDeviceInfo {
@@ -43,9 +44,7 @@ afterEach(() => {
 
 /** Wait for the listing to answer. */
 async function settle(): Promise<void> {
-    await new Promise((resolve) => {
-        setTimeout(resolve, 0);
-    });
+    await wait(0);
     flush();
 }
 

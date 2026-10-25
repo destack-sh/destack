@@ -1,6 +1,8 @@
 import { isServer } from "@solidjs/web";
 import { type Accessor, createMemo, createSignal, onCleanup, untrack } from "solid-js";
-import { access, type MaybeAccessor, TRANSPARENT } from "./utils.ts";
+import { access, callbackOf, type MaybeAccessor, TRANSPARENT } from "./utils.ts";
+import { useEnvironment } from "../page/view.ts";
+import type { Display } from "@destack/environment/browser";
 
 /** The milliseconds since a frame counter started, with its controls. */
 export type MsCounter = Accessor<number> & {
@@ -26,22 +28,19 @@ export function createRAF(
         return [() => false, () => {}, () => {}];
     }
 
-    // request the next frame from each frame while running
+    // loop over the frames of the page's display while running
+    const { display } = useEnvironment();
     const [running, setRunning] = createSignal(false, { ownedWrite: true });
-    let request = 0;
-    const loop: FrameRequestCallback = (time) => {
-        request = requestAnimationFrame(loop);
-        callback(time);
-    };
+    let cancel: (() => void) | undefined;
     const start = (): void => {
         if (!untrack(running)) {
             setRunning(true);
-            request = requestAnimationFrame(loop);
+            cancel = loopFrames(callback, display);
         }
     };
     const stop = (): void => {
         setRunning(false);
-        cancelAnimationFrame(request);
+        cancel?.();
     };
     onCleanup(stop);
 
@@ -106,4 +105,30 @@ export function createMs(fps: MaybeAccessor<number>, limit?: MaybeAccessor<numbe
     start();
 
     return Object.assign(ms, { reset, running, start, stop });
+}
+
+/** Call back on a display's next frame, returning a cancel, as `requestAnimationFrame` does. */
+export function requestFrame(callback: (time: number) => void, display: Display): () => void {
+    return callbackOf((signal) => display.frame(signal), callback);
+}
+
+/** Call back on each frame of a display until cancelled, returning a cancel function. */
+export function loopFrames(callback: (time: number) => void, display: Display): () => void {
+    // run each frame's callback, then request the next unless the callback cancelled the loop
+    const loop = new AbortController();
+    let cancelFrame: (() => void) | undefined;
+    const next = (): void => {
+        cancelFrame = requestFrame((time) => {
+            callback(time);
+            if (!loop.signal.aborted) {
+                next();
+            }
+        }, display);
+    };
+    next();
+
+    return () => {
+        loop.abort();
+        cancelFrame?.();
+    };
 }

@@ -2,7 +2,7 @@ import { DeclarationName } from "@destack/package";
 import { schema } from "@destack/schema";
 import { SpaceAddress } from "@destack/account/address";
 import { ObjectReference } from "@destack/sync";
-import { TOKEN_PARAMETER } from "./context.ts";
+import { OBJECT_PARAMETER, OPEN_PATH, TOKEN_PARAMETER, VIEW_PARAMETER } from "./context.ts";
 
 /** A location within a view, with its query, excluding another origin. */
 export const ViewPath = schema.string().regex(/^\/(?:[^/\\\r\n][^\\\r\n]*)?$/u);
@@ -49,3 +49,17 @@ export type ObjectAddress = schema.Infer<typeof ObjectAddress>;
 
 /** What a launch opens: a view of an installation, or an object of a space. */
 export type Address = ViewAddress | ObjectAddress;
+
+/** Write the same-origin address where the host opens an object. */
+export function objectUrl(
+    reference: ObjectReference,
+    options: { readonly view?: string } = {},
+): string {
+    // name the object, and the view when asked for
+    const query = new URLSearchParams({ [OBJECT_PARAMETER]: JSON.stringify(reference) });
+    if (options.view !== undefined) {
+        query.set(VIEW_PARAMETER, options.view);
+    }
+
+    return `${OPEN_PATH}?${query.toString()}`;
+}

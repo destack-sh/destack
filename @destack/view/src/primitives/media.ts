@@ -1,7 +1,8 @@
 import { isServer } from "@solidjs/web";
 import type { Accessor } from "solid-js";
 import { makeEventListener } from "./event-listener.ts";
-import { createHydratableSingletonRoot } from "./rootless.ts";
+import type { Display } from "@destack/environment/browser";
+import { useEnvironment } from "../page/view.ts";
 import { createHydratableStaticStore } from "./static-store.ts";
 import { createHydratableSignal } from "./utils.ts";
 
@@ -30,12 +31,13 @@ export interface BreakpointOptions<Names extends Breakpoints> {
 export function makeMediaQueryListener(
     query: string | MediaQueryList,
     callback: (event: MediaQueryListEvent) => void,
+    display: Display,
 ): () => void {
     // listen nowhere on the server
     if (isServer) {
         return () => {};
     }
-    const list = typeof query === "string" ? window.matchMedia(query) : query;
+    const list = typeof query === "string" ? display.media(query) : query;
 
     return makeEventListener(list, "change", callback);
 }
@@ -47,8 +49,8 @@ export function createMediaQuery(query: string, serverFallback = false): Accesso
         return () => serverFallback;
     }
 
-    // follow the query from the server's answer through hydration
-    const list = window.matchMedia(query);
+    // follow the query on the page's display from the server's answer through hydration
+    const list = useEnvironment().display.media(query);
     const [matches, setMatches] = createHydratableSignal(serverFallback, () => list.matches);
     makeEventListener(list, "change", () => setMatches(list.matches));
 
@@ -59,11 +61,6 @@ export function createMediaQuery(query: string, serverFallback = false): Accesso
 export function createPrefersDark(serverFallback?: boolean): Accessor<boolean> {
     return createMediaQuery("(prefers-color-scheme: dark)", serverFallback);
 }
-
-/** Follow whether the device prefers a dark appearance, through one query shared by every user. */
-export const usePrefersDark: () => Accessor<boolean> = createHydratableSingletonRoot(() =>
-    createPrefersDark(false),
-);
 
 /** Follow which breakpoints a viewport reaches. */
 export function createBreakpoints<Names extends Breakpoints>(
@@ -87,10 +84,11 @@ export function createBreakpoints(
         return withKey({ ...fallback }, () => names.findLast((name) => fallback[name] === true));
     }
 
-    // read each query from the server's fallback through hydration
+    // read each query on the page's display from the server's fallback through hydration
     const { mediaFeature = "min-width", watchChange = true } = options;
+    const { display } = useEnvironment();
     const lists = Object.entries(breakpoints).map(
-        ([name, width]) => [name, window.matchMedia(`(${mediaFeature}: ${width})`)] as const,
+        ([name, width]) => [name, display.media(`(${mediaFeature}: ${width})`)] as const,
     );
     const [matches, setMatches] = createHydratableStaticStore<Record<string, boolean>>(
         fallback,

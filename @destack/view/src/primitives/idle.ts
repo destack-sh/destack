@@ -1,6 +1,7 @@
 import { isServer } from "@solidjs/web";
 import { type Accessor, createSignal, onCleanup } from "solid-js";
 import { onMount } from "./utils.ts";
+import { useEnvironment } from "../page/view.ts";
 
 /** An event that shows the person is active. */
 export type EventTypeName = keyof HTMLElementEventMap | keyof DocumentEventMap;
@@ -96,18 +97,19 @@ export function createIdleTimer({
         setIsPrompted(nextPrompted);
     };
 
-    // prompt after the idle timeout, then go idle after the prompt timeout
-    let idleHandle: ReturnType<typeof setTimeout> | undefined;
-    let promptHandle: ReturnType<typeof setTimeout> | undefined;
+    // prompt after the idle timeout on the page's clock, then go idle after the prompt timeout
+    const { clock } = useEnvironment();
+    let idleHandle: number | undefined;
+    let promptHandle: number | undefined;
     const clearTimers = (): void => {
-        clearTimeout(idleHandle);
-        clearTimeout(promptHandle);
+        clock.clearTimeout(idleHandle);
+        clock.clearTimeout(promptHandle);
     };
     const startTimers = (event: Event): void => {
-        idleHandle = setTimeout(() => {
+        idleHandle = clock.setTimeout(() => {
             phase(false, true);
             onPrompt?.(event);
-            promptHandle = setTimeout(() => {
+            promptHandle = clock.setTimeout(() => {
                 phase(true, false);
                 onIdle?.(event);
             }, promptTimeout);
@@ -126,7 +128,7 @@ export function createIdleTimer({
     };
     const handle = (event: Event): void => {
         // read activity at most once a throttle delay
-        const now = performance.now();
+        const now = clock.now();
         if (now - lastActivity < THROTTLE_DELAY) {
             return;
         }
