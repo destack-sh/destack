@@ -74,12 +74,12 @@ test("refuse to write a message without the module the transform passes", async 
     const strings = Object.assign(["Open"], { raw: ["Open"] });
     expect(await refusal(() => t(strings))).toEqual([
         "BAD_REQUEST",
-        "INVALID_DEFINITION",
+        "DEFINITION_INVALID",
         "the Destack module transform passed no module to: t",
     ]);
     expect(await refusal(() => Message.context("button", undefined))).toEqual([
         "BAD_REQUEST",
-        "INVALID_DEFINITION",
+        "DEFINITION_INVALID",
         "the Destack module transform passed no module to: Message.context",
     ]);
 });
