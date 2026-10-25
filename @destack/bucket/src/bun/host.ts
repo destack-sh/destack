@@ -1,5 +1,4 @@
 import { join } from "node:path";
-import { pathToFileURL } from "node:url";
 import { schema } from "@destack/schema";
 import { CatalogueBucketHost } from "../catalogue/host.ts";
 import type { BucketReference, S3Credentials } from "../s3/index.ts";
@@ -46,9 +45,9 @@ export class LocalBucketHost extends CatalogueBucketHost<LocalBucket> {
         return join(this.directory, bucket.bucketId);
     }
 
-    /** Name where a bucket lives: its directory's file URL. */
+    /** Read where a bucket lives below the host's directory: its identifier. */
     override reference(bucket: Pick<BucketReference, "bucketId">): string {
-        return pathToFileURL(this.path(bucket)).href;
+        return bucket.bucketId;
     }
 
     /** Open the bucket an S3 request addresses by its resource, absent when the host has none. */

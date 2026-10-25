@@ -49,6 +49,36 @@ test("provision a bucket once and destroy it with its files", async () => {
     expect((await world.files.readDirectory(directory)).map((entry) => entry.name)).toEqual([]);
 });
 
+test("refer to a bucket by its identifier, and open its files below the directory it moved to", async () => {
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const world = simulation.environment("host");
+    const host = (directory: string) =>
+        new LocalBucketHost({
+            environment: world,
+            directory,
+            endpoint: new URL("http://s3.localhost"),
+            region: "local",
+            credentials: async () => CREDENTIALS,
+        });
+
+    // provision a bucket below one directory and write a file into it
+    const before = await world.files.makeTemporaryDirectory("bucket-provider-");
+    const after = await world.files.makeTemporaryDirectory("bucket-provider-");
+    await using first = host(before);
+    const { reference } = await bucketProvider(first, null).provision.provision(record);
+    const bucketId = schema.identifier("bucket").parse(record.id);
+    await (await first.open({ bucketId })).put("notes/a.txt", "first");
+
+    // move the files, then read the file through a host below the new directory
+    await world.files.copy(before, after);
+    await using moved = host(after);
+    const read = await (await moved.open({ bucketId })).get("notes/a.txt");
+    expect({ reference, read: await read?.text() }).toEqual({
+        reference: record.id,
+        read: "first",
+    });
+});
+
 test("fence a bucket through its provider, reporting the one concurrent call that set the fence, and declare the sweep its host runs", async () => {
     await using simulation = new Simulation({ seed: 1, start: START });
     const world = simulation.environment("host");
