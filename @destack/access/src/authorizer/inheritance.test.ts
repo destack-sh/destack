@@ -20,7 +20,7 @@ import {
     union,
 } from "../index.ts";
 
-/** Organisations, with editors and viewers whose permissions apply everywhere below them. */
+/** Organizations, with editors and viewers whose permissions apply everywhere below them. */
 const org = new Policy(module1.package, {
     name: "org",
     relations: { editor: { subjects: [principal.user] }, viewer: { subjects: [principal.user] } },
@@ -31,7 +31,7 @@ const org = new Policy(module1.package, {
     scope: true,
 });
 
-/** Folders in an organisation, inheriting its permissions through their enclosing scope. */
+/** Folders in an organization, inheriting its permissions through their enclosing scope. */
 const folder = new Policy(module1.package, {
     name: "folder",
     relations: {
@@ -119,7 +119,7 @@ function documentRow(id: string) {
 }
 
 test("inherit a scope's relations onto the objects it encloses, through every scope above it", async () => {
-    // store a folder in an organisation, and three documents of someone else in it
+    // store a folder in an organization, and three documents of someone else in it
     await using simulation = testSimulation();
     const environment = simulation.environment("access");
     const storage = await TestDatabase.create(fixtureDatabase, {
@@ -138,7 +138,7 @@ test("inherit a scope's relations onto the objects it encloses, through every sc
             await transaction.insert(item).values(["a", "b", "c"].map((id) => documentRow(id))),
     );
 
-    // make carol an editor of the organisation, dave a viewer of the folder, and erin nothing
+    // make carol an editor of the organization, dave a viewer of the folder, and erin nothing
     await relate(database, acme, "editor", people.carol);
     await relate(database, plans, "viewer", people.dave);
     const authorizer = new Authorizer([org, folder, document], [mapping]);
@@ -284,7 +284,7 @@ test("share an object with everyone with a permission on another, as its relatio
 });
 
 test("share an object with a scope's readers, including those of the scopes enclosing it", async () => {
-    // store a document in a folder of an organisation, shared with the folder's readers
+    // store a document in a folder of an organization, shared with the folder's readers
     await using simulation = testSimulation();
     const environment = simulation.environment("access");
     const storage = await TestDatabase.create(fixtureDatabase, {
@@ -328,7 +328,7 @@ test("share an object with a scope's readers, including those of the scopes encl
         relation: "read",
     });
 
-    // let the organisation's editor and the folder's viewer read the document, and nobody else, in SQL and in memory alike
+    // let the organization's editor and the folder's viewer read the document, and nobody else, in SQL and in memory alike
     const reads = async (person: keyof typeof people) => {
         const context = AccessContext.of(Caller.of(people[person]), 1000);
         const access = await authorizer.resolve(Snapshot.live(database), "plans", context);
@@ -347,7 +347,7 @@ test("share an object with a scope's readers, including those of the scopes encl
             )
         ).isAllowed;
 
-        // decide the same row from the organisation, descending into the folder
+        // decide the same row from the organization, descending into the folder
         const above = await authorizer.resolve(Snapshot.live(database), "acme", context);
         const below = await above.descend(Snapshot.live(database), ["plans"]);
         const descended = await authorizer.checkRows(
