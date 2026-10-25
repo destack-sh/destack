@@ -4,6 +4,9 @@ import { Failure, FailureReason } from "./failure.ts";
 
 /** A domain failure whose code differs from the call error it converts to. */
 class NoteError extends Error implements DomainError {
+    /** The note's callers, who receive the failure. */
+    readonly audience = "caller";
+
     /** Convert the failure to the call error a caller receives. */
     toCallError(): Failure {
         return {

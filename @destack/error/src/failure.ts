@@ -74,10 +74,11 @@ export const Failure = Object.assign(failureSchema, {
         return { code, reason: code, domain: HTTP_DOMAIN, message };
     },
 
-    /** Raise a failure again as an error that converts back to it. */
+    /** Raise a failure a call answered again as an error for its caller, converting back to it. */
     error(failure: Failure, options?: ErrorOptions): DomainError {
         return Object.assign(new Error(failure.message, options), {
             name: "Failure",
+            audience: "caller" as const,
             code: failure.code,
             reason: failure.reason,
             domain: failure.domain,

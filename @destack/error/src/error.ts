@@ -1,3 +1,4 @@
+import type { ErrorAudience } from "./family.ts";
 import type { Failure } from "./failure.ts";
 
 /** The HTTP status of each call error code: oRPC's codes, and RFC 9110's names beyond them. */
@@ -50,6 +51,8 @@ export const CallErrorCode = {
 
 /** A package's failure that knows the call error its caller receives. */
 export interface DomainError extends Error {
+    /** Whether the failure is for callers or for the host alone. */
+    readonly audience: ErrorAudience;
     /** Convert the failure to the call error a caller receives. */
     readonly toCallError: () => Failure;
 }
@@ -61,7 +64,9 @@ export const DomainError = {
         return (
             value instanceof Error &&
             "toCallError" in value &&
-            typeof value.toCallError === "function"
+            typeof value.toCallError === "function" &&
+            "audience" in value &&
+            (value.audience === "caller" || value.audience === "host")
         );
     },
 };
