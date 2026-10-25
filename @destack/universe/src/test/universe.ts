@@ -16,6 +16,7 @@ import { MemoryBucket } from "@destack/bucket/test";
 import { TestDatabase } from "@destack/db/test";
 import type { Clock, Environment } from "@destack/environment";
 import { testSimulation } from "@destack/object/test";
+import type { Simulation } from "@destack/environment/simulation";
 import { LocalKeyring, MemoryKeychain, PublicKey } from "@destack/identity";
 import { MachineIdentity } from "@destack/account/client";
 import {
@@ -26,6 +27,7 @@ import {
     type EntitlementResource,
     type ResidencyCode,
     machine,
+    organisation,
     RESIDENCY_RELAY,
     Residency,
     space,
@@ -34,12 +36,12 @@ import {
 import { AccessContext, Caller, InstallationId, principal } from "@destack/access";
 import { Snapshot } from "@destack/db";
 import { CallKey, type FeatureReference, ObjectType, PackageMount } from "@destack/object";
-import { createClient } from "@destack/object/client";
+import objectPackage from "@destack/object/package";
 import type { Example } from "@destack/package/declare";
 import { Identifier, present, schema } from "@destack/schema";
 import { RequestId, Scope, type Subject } from "@destack/sync";
 import type { UniverseDefinition } from "../universe/definition.ts";
-import type { ReleaseRegistry } from "@destack/account/server";
+import { type ReleaseRegistry, UniverseRole } from "@destack/account/server";
 import {
     Universe,
     UNIVERSE_PACKAGES,
@@ -50,6 +52,12 @@ import { TestMachine } from "./machine.ts";
 
 /** The origin a test universe answers at, which no request leaves the process for. */
 const TEST_ORIGIN = "https://universe.test";
+
+/** The port the universe answers its HTTPS origin at on a simulated network. */
+const HTTPS_PORT = 443;
+
+/** The node the universe answers on in a simulated network. */
+export const UNIVERSE_NODE = "universe";
 
 /** The residency a test universe's people live in by default. */
 const TEST_RESIDENCY = "eu";
@@ -103,6 +111,8 @@ export interface TestUniverseOptions {
     readonly residencies?: readonly { readonly code: ResidencyCode; readonly name: string }[];
     /** The clock, network and randomness it runs in, refusing other origins by default. */
     readonly environment?: Environment;
+    /** The simulation it answers on at its origin, its machines sending from their nodes. */
+    readonly simulation?: Simulation;
     /** The registry it opens packages' releases from, refusing every release by default. */
     readonly releases?: ReleaseRegistry;
     /** The stacks its spaces are born with, the account test kit's by default. */
@@ -159,8 +169,10 @@ export class TestUniverse implements AsyncDisposable {
     readonly mail: TestMail;
     /** The clock, network and randomness it runs in. */
     readonly environment: Environment;
-    /** The origin the universe answers at, which no request leaves the process for. */
+    /** The origin the universe answers at, in process or on its simulation's network. */
     readonly origin = TEST_ORIGIN;
+    /** The simulation the universe answers on, absent for one answering in process. */
+    readonly #simulation: Simulation | undefined;
     /** The cloud machine of each residency, with the keychain keeping its key. */
     readonly #machines: ReadonlyMap<ResidencyCode, DeclaredMachine>;
     /** The machines opened as spaces' hosts, which disposal stops first. */
@@ -193,6 +205,7 @@ export class TestUniverse implements AsyncDisposable {
         failures: unknown[],
         disposables: AsyncDisposableStack,
         world: Pick<UniverseWorld, "keyring" | "people">,
+        simulation: Simulation | undefined,
     ) {
         // keep the universe and the adapters standing in for mail, storage and time
         this.universe = universe;
@@ -203,6 +216,7 @@ export class TestUniverse implements AsyncDisposable {
         this.#disposables = disposables;
         this.#failures = failures;
         this.#keyring = world.keyring;
+        this.#simulation = simulation;
 
         // reach the issuer through the universe, and index the object types it serves
         this.#issuer = new Issuer(
@@ -231,7 +245,10 @@ export class TestUniverse implements AsyncDisposable {
     static async open(options: TestUniverseOptions = {}): Promise<TestUniverse> {
         // take the given database or migrate one, closed again should the start fail, and keep its mail, keys and call events in memory
         await using opening = new AsyncDisposableStack();
-        const environment = options.environment ?? TestUniverse.#simulate(opening);
+        const environment =
+            options.environment ??
+            options.simulation?.environment(UNIVERSE_NODE) ??
+            TestUniverse.#simulate(opening);
         const { clock } = environment;
         const storage =
             options.storage ??
@@ -320,6 +337,17 @@ export class TestUniverse implements AsyncDisposable {
             failed.promise,
         ]);
 
+        // answer at the origin on the simulation's network
+        const { simulation } = options;
+        if (simulation !== undefined) {
+            const listener = simulation.network.server(UNIVERSE_NODE).http({
+                hostname: new URL(TEST_ORIGIN).hostname,
+                port: HTTPS_PORT,
+                fetch: (request) => universe.fetch(request),
+            });
+            opening.defer(() => listener.stop(true));
+        }
+
         // keep the keyring's secret and the people the world signed in
         const world = { keyring: secret, people: options.world?.people ?? {} };
 
@@ -332,7 +360,20 @@ export class TestUniverse implements AsyncDisposable {
             failures,
             opening.move(),
             world,
+            simulation,
         );
+    }
+
+    /** Send a machine's requests to the universe from its node on the network, else in process. */
+    #sender(machineId: Identifier<"machine">): (request: Request) => Promise<Response> {
+        // send over the network from the machine's own node
+        const simulation = this.#simulation;
+        if (simulation !== undefined) {
+            return (request) => simulation.network.of(machineId).fetch(request);
+        }
+
+        // count each in-process call in flight until its response head, a streamed body after it idle
+        return (request) => this.clock.track(this.universe.fetch(request));
     }
 
     /** The clock the universe runs at, its environment's. */
@@ -355,6 +396,32 @@ export class TestUniverse implements AsyncDisposable {
         this.#people.set(email, person);
 
         return person;
+    }
+
+    /** Sign the operator in as an owner of the platform organisation, accepting its invitation. */
+    async operator(): Promise<TestPerson> {
+        // sign the operator in, and find the invitation the platform stores for them
+        const operator = await this.signIn(OPERATOR_EMAIL);
+        const organisationId = present(
+            await UniverseRole.operating(Snapshot.live(this.storage.database)),
+            "the platform organisation",
+        );
+        const user = schema.identifier("user").parse(operator.subject.id);
+        const { items } = await operator.client(accountPackage).user.invited({ id: user });
+
+        // accept it once, joining the organisation as its owner
+        const [invited] = items;
+        if (invited !== undefined) {
+            await operator.client(objectPackage).invitation.accept({
+                scope: Scope.universe.id,
+                object: organisation.reference(Scope.universe.id, organisationId),
+                invitationId: invited.id,
+                requestId: RequestId.create(this.environment),
+            });
+            await this.settle();
+        }
+
+        return operator;
     }
 
     /** Restore a person the world signed in, on the client they signed in on. */
@@ -602,8 +669,7 @@ export class TestUniverse implements AsyncDisposable {
             id: declared.id,
             keychain: declared.keychain,
             origin: TEST_ORIGIN,
-            // count each in-process call in flight until its response head, a streamed body after it idle
-            send: (request) => this.clock.track(this.universe.fetch(request)),
+            send: this.#sender(declared.id),
             environment: this.environment,
         });
         this.#opened.use(opened);
@@ -672,8 +738,7 @@ export class TestUniverse implements AsyncDisposable {
             id,
             keychain,
             origin: TEST_ORIGIN,
-            // count each in-process call in flight until its response head, a streamed body after it idle
-            send: (request) => this.clock.track(this.universe.fetch(request)),
+            send: this.#sender(id),
             environment: this.environment,
         });
         this.#opened.use(opened);
@@ -681,17 +746,7 @@ export class TestUniverse implements AsyncDisposable {
         // publish where a cloud machine answers as the machine
         const now = this.clock.now();
         if ("url" in published) {
-            const accounts = createClient(
-                accountPackage,
-                { url: opened.universe.accounts, fetch: opened.fetch(accountPackage.id) },
-                this.environment,
-            );
-            await accounts.machine.publish({
-                scope: accountId,
-                id,
-                url: published.url,
-                requestId: RequestId.create(this.environment),
-            });
+            await opened.publish(published.url);
         }
         // publish a personal machine's tunnel as its account's residency's relay accepting it
         else {

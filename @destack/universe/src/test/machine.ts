@@ -2,7 +2,7 @@ import { principal } from "@destack/access";
 import { Directory } from "@destack/account/address";
 import { MachineIdentity } from "@destack/account/client";
 import { IdentityRegistry } from "@destack/account/identity";
-import { directoryShape, identityShape, machineShape } from "@destack/account/object";
+import { directoryShape, identityShape, machine, machineShape } from "@destack/account/object";
 import accountPackage, { OAUTH_PATH } from "@destack/account/package";
 import { defineDatabase, type LogPosition, Snapshot } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
@@ -21,8 +21,8 @@ import objectPackage from "@destack/object/package";
 import { implementPackage, ObjectStore } from "@destack/object/server";
 import { TestObjectStore } from "@destack/object/test";
 import { Package, type PackageId } from "@destack/package";
-import { Identifier, schema } from "@destack/schema";
-import { Scope } from "@destack/sync";
+import { Identifier, present, schema } from "@destack/schema";
+import { RequestId, Scope } from "@destack/sync";
 import universePackage from "../package.ts";
 
 /** A test machine's state beside its database: the keyring secrets of the spaces' keys. */
@@ -203,6 +203,30 @@ export class TestMachine implements AsyncDisposable {
     /** Send a request to another origin as it is, in process. */
     send(request: Request): Promise<Response> {
         return this.#send(request);
+    }
+
+    /** Publish where the machine answers, as a machine does once it listens there. */
+    async publish(url: string): Promise<void> {
+        // read the account the machine belongs to from the directory once it follows the universe
+        await this.settle();
+        const row = await Snapshot.live(this.#storage.database)
+            .read(machine.table)
+            .findFirst({ where: { id: this.id } });
+        const { scope } = present(row, `the directory's row of ${this.id}`);
+
+        // publish as the machine, then follow the directory past it
+        const accounts = createClient(
+            accountPackage,
+            { url: this.universe.accounts, fetch: this.fetch(accountPackage.id) },
+            this.environment,
+        );
+        await accounts.machine.publish({
+            scope,
+            id: this.id,
+            url,
+            requestId: RequestId.create(this.environment),
+        });
+        await this.settle();
     }
 
     /** Wait until the replica follows the universe up to a position of its log, then settle it. */

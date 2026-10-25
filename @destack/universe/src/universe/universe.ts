@@ -199,7 +199,7 @@ export class Universe implements AsyncDisposable {
             // follow no chain at the universe, the root of every chain
             chain: async () => undefined,
             principal: Scope.universe,
-            partition: Scope.universe.id,
+            partitions: [Scope.universe.id],
             policies: options.policies,
             database,
             claims: { object: claim },
