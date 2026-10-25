@@ -45,7 +45,7 @@ test("show an object's relationships to its readers, a concealed relation's only
             })
             .from(accessRelationship)
             .where(authorizer.where(relationship.permission("read"), access, accessRelationship))
-            .orderBy(asc(accessRelationship.id));
+            .orderBy(asc(accessRelationship.subjectId));
 
         return rows.map((row) => `${row.objectId}:${row.subjectId}`);
     };
@@ -57,7 +57,13 @@ test("show an object's relationships to its readers, a concealed relation's only
 
     // let carol read node b, and alice add dave as its concealed auditor
     const sharing = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
-        Authorization.run(authorizer, fixture.database, () => fixture.alice, call);
+        Authorization.run(
+            authorizer,
+            fixture.database,
+            () => fixture.alice,
+            fixture.environment,
+            call,
+        );
     const object = node.reference("personal", "b");
     await sharing((authorization) =>
         Relationship.grant(
@@ -109,6 +115,7 @@ test("show an invitation to its inviting principal, its addressee and whoever ma
         authorizer,
         fixture.database,
         () => as("carol"),
+        fixture.environment,
         (authorization) =>
             Invitation.create(
                 {
@@ -125,6 +132,7 @@ test("show an invitation to its inviting principal, its addressee and whoever ma
         authorizer,
         fixture.database,
         () => fixture.alice,
+        fixture.environment,
         (authorization) =>
             Invitation.create(
                 {
@@ -152,7 +160,7 @@ test("show an invitation to its inviting principal, its addressee and whoever ma
             })
             .from(accessInvitation)
             .where(authorizer.where(invitation.permission("read"), access, accessInvitation))
-            .orderBy(asc(accessInvitation.id));
+            .orderBy(asc(accessInvitation.subjectId));
 
         return rows.map((row) => `${row.inviter}>${row.addressee}`);
     };
@@ -175,6 +183,7 @@ test("read the invitations on an object to one addressee, leaving out other addr
         fixture.authorizer,
         fixture.database,
         () => fixture.alice,
+        fixture.environment,
         (authorization) =>
             Invitation.create(
                 {
@@ -211,6 +220,7 @@ test("relate a subject once however often touched, set a new expiry on the same 
             authorizer,
             fixture.database,
             () => context,
+            fixture.environment,
             (authorization) => Relationship.touch(request, authorization),
         );
     const viewer = (id: string): RelationshipRequest => ({
@@ -265,7 +275,7 @@ test("keep an object's last relationship of a required relation through revoking
         },
     };
     const asAlice = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
-        Authorization.run(authorizer, fixture.database, () => stepped, call);
+        Authorization.run(authorizer, fixture.database, () => stepped, fixture.environment, call);
     const root = (subject: Subject): RelationshipRequest => ({ object, relation: "root", subject });
     await fixture.database.insert(accountTable).values({ id: "account-1", scope: "universe" });
     const alice = await asAlice(async (authorization) => {
@@ -349,7 +359,13 @@ test("replace a subject's relationships through a relation with exactly the want
     const second = node.reference("personal", "b");
     const third = node.reference("personal", "c");
     const owner = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
-        Authorization.run(fixture.authorizer, fixture.database, () => fixture.alice, call);
+        Authorization.run(
+            fixture.authorizer,
+            fixture.database,
+            () => fixture.alice,
+            fixture.environment,
+            call,
+        );
     const wanting = (...objects: ObjectReference[]) =>
         objects.map((object) => ({ object, relation: "editor", subject: worker }));
     const related = async () =>
@@ -401,6 +417,7 @@ test("replace a subject's relationships through a relation with exactly the want
                 fixture.authorizer,
                 fixture.database,
                 () => fixture.bob,
+                fixture.environment,
                 (authorization) => Relationship.replace(selection, wanting(second), authorization),
             ),
         ),
@@ -412,7 +429,13 @@ test("store a declaration's relationships under stable identifiers, refuse revok
     const fixture = await openFixture();
     onTestFinished(() => fixture.close());
     const owner = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
-        Authorization.run(fixture.authorizer, fixture.database, () => fixture.alice, call);
+        Authorization.run(
+            fixture.authorizer,
+            fixture.database,
+            () => fixture.alice,
+            fixture.environment,
+            call,
+        );
     const manager = Manager.schema.parse({
         installationId: "installation-01996ab0-0000-7000-8000-000000000001",
         packageId: "package-01996ab0-0000-7000-8000-000000000002",
@@ -455,10 +478,13 @@ test("store a declaration's relationships under stable identifiers, refuse revok
 
     // release the grant as its stack does, then keep it through the declaration's next replace and let alice revoke it
     const [, released] = present(moved[0], "the moved grant");
-    await fixture.database
-        .update(accessRelationship)
-        .set({ detachedAt: 1 })
-        .where(eq(accessRelationship.id, released));
+    await fixture.database.transaction(
+        async (transaction) =>
+            await transaction
+                .update(accessRelationship)
+                .set({ detachedAt: 1 })
+                .where(eq(accessRelationship.id, released)),
+    );
     await declaring((authorization) => Relationship.replace(selection, [], authorization));
     const kept = await managed();
     const revoked = await refusal(

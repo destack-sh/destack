@@ -65,6 +65,12 @@ export type AccessExpression =
     | { readonly kind: "granters"; readonly reference: string }
     | { readonly kind: "readers"; readonly reference: string; readonly relation: string }
     | { readonly kind: "contained"; readonly principals?: readonly ObjectTypeReference[] }
+    | {
+          readonly kind: "subjectSet";
+          readonly object: ObjectTypeReference;
+          readonly id: string;
+          readonly relation: string;
+      }
     | { readonly kind: "self" };
 
 /** The relation of the subject set of the principals inside a scope. */
@@ -139,6 +145,11 @@ export function contained(...principals: readonly Policy[]): AccessExpression {
                   type: type.definition.name,
               })),
           };
+}
+
+/** Permit the members of one object's subject set in the row's scope, such as its installations. */
+export function subjectSet(type: Policy, id: string, set: string): AccessExpression {
+    return { kind: "subjectSet", object: type.typeReference, id, relation: AccessName.parse(set) };
 }
 
 /** Permit the principal the object represents, acting on its row. */

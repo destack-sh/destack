@@ -206,6 +206,11 @@ export const Caller = {
         return { subject, actors: [], groups: [], contacts: [], grants: [] };
     },
 
+    /** The caller of a principal that trusted code acts for, the code its one actor. */
+    acting(subject: Subject, actor: Subject): Caller {
+        return { ...Caller.of(subject), actors: [actor] };
+    },
+
     /** The caller who proves no identity. */
     anonymous(): Caller {
         return Caller.of(ANONYMOUS);

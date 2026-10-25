@@ -1,4 +1,3 @@
-import { v7 } from "uuid";
 import { Table } from "@destack/db";
 import * as policies from "../declare/principal.ts";
 import { Authorization } from "../authorizer/authorization.ts";
@@ -12,7 +11,7 @@ import {
     type Snapshot,
     type SQL,
 } from "@destack/db";
-import { type Identifier, Instant, schema } from "@destack/schema";
+import { Identifier, Instant, schema } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
 import { Contact, AccessContext, Caller } from "../context/context.ts";
 import { Relationship, relationshipBase } from "../relationship/relationship.ts";
@@ -282,7 +281,7 @@ export const Invitation = {
 
             // store the invitation apart from the relationships that apply
             const invitation: Invitation = {
-                id: schema.identifier("invitation").parse(`invitation-${v7()}`),
+                id: Identifier.create("invitation", authorization.environment),
                 relationship: {
                     object: invited.object,
                     ...Relationship.via(invited),
@@ -437,8 +436,11 @@ async function requireInviter(
 
     // decide the grant as the inviting principal, at its authentication when it sent the offer
     const inviter = invitation.inviter;
-    const inviting = new Authorization(authorization.authorizer, authorization.transaction, () =>
-        AccessContext.of(Caller.of(inviter), now),
+    const inviting = new Authorization(
+        authorization.authorizer,
+        authorization.transaction,
+        () => AccessContext.of(Caller.of(inviter), now),
+        authorization.environment,
     );
     await inviting.authorizeGrant(invitation.relationship);
 }

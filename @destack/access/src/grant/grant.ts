@@ -1,10 +1,9 @@
-import { v7 } from "uuid";
 import { Table } from "@destack/db";
 import { Caller } from "../context/context.ts";
 import { isPrincipal } from "../declare/principal.ts";
 import type { Authorization } from "../authorizer/authorization.ts";
 import type { Select, Snapshot } from "@destack/db";
-import { type Identifier, Instant, nth, schema } from "@destack/schema";
+import { Identifier, Instant, nth, schema } from "@destack/schema";
 import { ObjectReference, Subject } from "@destack/sync";
 import { AccessError } from "../error/index.ts";
 import type { AccessContext, GrantClaim } from "../context/context.ts";
@@ -147,7 +146,7 @@ export const Grant = {
         authorization: Authorization,
     ): Promise<Grant> {
         // write only the grants of a homed scope
-        await authorization.authorizer.requireHome(authorization.transaction, scope);
+        await authorization.authorizer.requireHome(authorization.transaction, scope, scope.id);
 
         // grant only a principal's authority, in its scope
         const context = authorization.context();
@@ -192,7 +191,7 @@ export const Grant = {
 
         // write the grant
         const grant = Table.complete(accessGrant, {
-            id: schema.identifier("grant").parse(`grant-${v7()}`),
+            id: Identifier.create("grant", authorization.environment),
             createdAt: context.now,
             scope: scope.id,
             ...ObjectReference.columns("delegator", delegator),
@@ -212,7 +211,7 @@ export const Grant = {
         authorization: Authorization,
     ): Promise<Grant> {
         // write only the grants of a homed scope
-        await authorization.authorizer.requireHome(authorization.transaction, scope);
+        await authorization.authorizer.requireHome(authorization.transaction, scope, scope.id);
 
         // require the grant in the scope and its delegator acting as itself
         const context = authorization.context();

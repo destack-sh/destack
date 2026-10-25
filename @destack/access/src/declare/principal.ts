@@ -1,7 +1,12 @@
 import type {} from "@destack/package/import-meta";
-import { Scope, SYNC_PACKAGE, type Subject } from "@destack/sync";
+import type { DeclarationName, PackageId } from "@destack/package";
+import { type DigestCrypto, Identifier, type Uuid } from "@destack/schema";
+import { type ObjectReference, Scope, SYNC_PACKAGE, type Subject } from "@destack/sync";
 import { grantersOf, none, relation, readersOf, union } from "./expression.ts";
 import { Policy } from "./policy.ts";
+
+/** Destack's installation namespace: the DNS namespace's UUIDv8 of installation.destack.app. */
+const INSTALLATION_NAMESPACE: Uuid = "f04d5c7d-9569-8bab-8a86-9074317ddc54";
 
 /** The package declaring access's types. */
 const OWNER = import.meta.destack.package;
@@ -14,15 +19,33 @@ export const principal = {
     /** A person, identified globally, and the scope with their objects. */
     user: new Policy(OWNER, { name: "user", permissions: {}, scope: true, isGlobal: true }),
     /** A machine running spaces, identified globally, and the scope of its local operations. */
-    machine: new Policy(OWNER, { name: "machine", permissions: {}, scope: true, isGlobal: true }),
+    machine: new Policy(OWNER, {
+        name: "machine",
+        permissions: {},
+        scope: true,
+        isGlobal: true,
+        partition: true,
+    }),
     /** A person's registration of a program acting for them, such as a browser or a token. */
     client: new Policy(OWNER, { name: "client", permissions: {}, isGlobal: true }),
     /** A program instance on a computer, the scope of its local objects for everyone using it. */
-    device: new Policy(OWNER, { name: "device", permissions: {}, scope: true, isGlobal: true }),
+    device: new Policy(OWNER, {
+        name: "device",
+        permissions: {},
+        scope: true,
+        isGlobal: true,
+        partition: true,
+    }),
     /** An application installed into a space: the principal of software. */
     installation: new Policy(OWNER, { name: "installation", permissions: {} }),
     /** A space, which signs with its key and stores replicas for itself. */
-    space: new Policy(OWNER, { name: "space", permissions: {}, isGlobal: true }),
+    space: new Policy(OWNER, {
+        name: "space",
+        permissions: {},
+        scope: true,
+        isGlobal: true,
+        partition: true,
+    }),
     /** A way to contact someone outside Destack with proven control, such as an email. */
     contact: new Policy(OWNER, { name: "contact", permissions: {} }),
     /** The principal of every caller who proves no identity, like Kubernetes' anonymous user. */
@@ -73,7 +96,16 @@ export const anyone = new Policy(OWNER, { name: "anyone", permissions: {} });
 export const role = new Policy(OWNER, {
     name: "role",
     relations: { includes: { subjects: ["role"] } },
-    permissions: { create: none(), read: none(), update: none(), delete: none(), share: none() },
+    permissions: {
+        create: none(),
+        read: none(),
+        update: none(),
+        delete: none(),
+        share: none(),
+        inherit: none(),
+    },
+    // let only the code that declares it write a code-owned role
+    reserved: ["inherit"],
 });
 
 /** A relation or role binding between a subject and an object. */
@@ -144,6 +176,37 @@ export const INTRINSIC_POLICIES: readonly Policy[] = [
     invitation,
     grant,
 ];
+
+/** The identifiers of installations, from the scope that has them. */
+export const InstallationId = {
+    /** Identify the base installation of a package in a scope, born with the scope. */
+    base(
+        scope: Pick<ObjectReference, "id">,
+        packageId: PackageId,
+        crypto: DigestCrypto,
+    ): Promise<Identifier<"installation">> {
+        return Identifier.hash(
+            "installation",
+            INSTALLATION_NAMESPACE,
+            `${scope.id}/base/${packageId}`,
+            crypto,
+        );
+    },
+
+    /** Identify the installation a scope's stack declares under a name. */
+    declared(
+        scope: Pick<ObjectReference, "id">,
+        name: DeclarationName,
+        crypto: DigestCrypto,
+    ): Promise<Identifier<"installation">> {
+        return Identifier.hash(
+            "installation",
+            INSTALLATION_NAMESPACE,
+            `${scope.id}/declared/${name}`,
+            crypto,
+        );
+    },
+};
 
 /** Determine whether a subject is one principal rather than a set or another object. */
 export function isPrincipal(subject: Subject): boolean {

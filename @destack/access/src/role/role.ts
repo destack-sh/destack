@@ -2,8 +2,7 @@ import * as policies from "../declare/principal.ts";
 import type { Authorization } from "../authorizer/authorization.ts";
 import { type ObjectReference, Subject } from "@destack/sync";
 import { type Select, type Transaction, Table } from "@destack/db";
-import { schema, type Identifier } from "@destack/schema";
-import { v7 } from "uuid";
+import { Identifier, type UuidEnvironment, schema } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
 import { Manager } from "../manager/manager.ts";
 import { PermissionReference } from "../declare/policy.ts";
@@ -87,6 +86,7 @@ export const Role = {
         request: RoleRequest,
         now: number,
         manager: Manager | null,
+        environment: UuidEnvironment,
     ): Promise<Identifier<"role"> | undefined> {
         // refuse a name another role of the scope has
         const holding = await transaction
@@ -97,7 +97,7 @@ export const Role = {
         }
 
         // write the role and its permissions
-        const id = schema.identifier("role").parse(`role-${v7()}`);
+        const id = Identifier.create("role", environment);
         await transaction.write({
             table: accessRole,
             before: null,
@@ -111,7 +111,7 @@ export const Role = {
                 ...Manager.values(manager),
             }),
         });
-        await Role.permit(transaction, id, scope, request.permissions);
+        await Role.permit(transaction, id, scope, request.permissions, environment);
 
         return id;
     },
@@ -122,13 +122,14 @@ export const Role = {
         roleId: Select<typeof accessRole>["id"],
         scope: string,
         granted: readonly PermissionReference[],
+        environment: UuidEnvironment,
     ): Promise<void> {
         await transaction.write(
             ...granted.map((permission) => ({
                 table: accessRolePermission,
                 before: null,
                 after: Table.complete(accessRolePermission, {
-                    id: schema.identifier("role-permission").parse(`role-permission-${v7()}`),
+                    id: Identifier.create("role-permission", environment),
                     roleId,
                     scope,
                     packageId: permission.packageId,
@@ -145,6 +146,7 @@ export const Role = {
         roleId: Select<typeof accessRole>["id"],
         scope: string,
         granted: readonly PermissionReference[],
+        environment: UuidEnvironment,
     ): Promise<void> {
         // read the permissions the role grants
         const existing = await transaction
@@ -166,7 +168,7 @@ export const Role = {
         const added = granted.filter(
             (permission) => !current.has(PermissionReference.key(permission)),
         );
-        await Role.permit(transaction, roleId, scope, added);
+        await Role.permit(transaction, roleId, scope, added, environment);
     },
 
     /** Describe a role row and its permissions. */
@@ -181,54 +183,74 @@ export const Role = {
         };
     },
 
-    /** Bind the owner role on a scope's object to an owner once. */
-    async bindOwner(
-        transaction: Transaction,
-        scope: ObjectReference,
-        owner: Subject,
-        now: number,
-    ): Promise<void> {
-        await Role.bindOnce(transaction, scope, Role.OWNER, owner, now);
-    },
-
-    /** Upsert a creation-defined role with exactly some permissions, bound to one scope subject. */
-    async upsertInherent(
-        transaction: Transaction,
+    /** Apply a creation-defined role: exact permissions bound to a subject, dropped for none. */
+    async applyInherent(
         scope: ObjectReference,
         request: RoleRequest,
         subject: Subject,
-        now: number,
-    ): Promise<string> {
-        // define the role, or replace the permissions of the one defined
+        authorization: Authorization,
+    ): Promise<void> {
+        // refuse a scope another database homes
+        const { transaction, environment } = authorization;
+        await authorization.authorizer.requireHome(transaction, scope, scope.id);
+
+        // drop the role and its bindings once its code owns nothing
         const defined = await transaction.read(accessRole).findFirst({
-            where: {
-                scope: scope.id,
-                name: request.name,
-            },
+            where: { scope: scope.id, name: request.name },
         });
-        const role = defined?.id ?? (await Role.define(transaction, scope.id, request, now, null));
+        if (request.permissions.length === 0) {
+            if (defined !== undefined) {
+                await Role.drop(defined, authorization);
+            }
+
+            return;
+        }
+
+        // define the role, or replace the permissions of the one defined
+        const now = authorization.context().now;
+        const role =
+            defined?.id ??
+            (await Role.define(transaction, scope.id, request, now, null, environment));
         if (role === undefined) {
             throw AccessError.of("ROLE_NAME_TAKEN", "role name is already in use");
         }
         if (defined !== undefined) {
-            await Role.replace(transaction, role, scope.id, request.permissions);
+            await Role.replace(transaction, role, scope.id, request.permissions, environment);
         }
 
-        // bind it to the subject unless bound already
-        await Role.bindOnce(transaction, scope, role, subject, now);
-
-        return role;
+        // bind it to the subject
+        await Role.bind(scope, role, subject, authorization);
     },
 
-    /** Bind a role on a scope's object to a subject unless bound already. */
-    async bindOnce(
-        transaction: Transaction,
+    /** Drop a code-owned role with its bindings and permissions. */
+    async drop(record: Select<typeof accessRole>, authorization: Authorization): Promise<void> {
+        // remove its bindings
+        const { transaction, environment } = authorization;
+        const bindings = await transaction
+            .read(accessRelationship)
+            .findMany({ where: { roleId: record.id } });
+        for (const binding of bindings) {
+            await transaction.write({ table: accessRelationship, before: binding, after: null });
+        }
+
+        // remove its permissions and the role
+        await Role.replace(transaction, record.id, record.scope, [], environment);
+        await transaction.write({ table: accessRole, before: record, after: null });
+    },
+
+    /** Bind a role on a scope's object to a subject once, at the home of the scope keeping it. */
+    async bind(
         scope: ObjectReference,
         role: Select<typeof accessRole>["id"],
         subject: Subject,
-        now: number,
+        authorization: Authorization,
     ): Promise<void> {
-        // read the subject's binding of the role on the scope's object
+        // refuse a binding whose scope another database homes
+        const { transaction, snapshot } = authorization;
+        const placed = await Relationship.scope(snapshot, { object: scope, role });
+        await authorization.authorizer.requireHome(transaction, scope, placed);
+
+        // leave a binding the subject has
         const bound = await transaction.read(accessRelationship).findMany({
             where: {
                 ...Relationship.objectColumns(scope),
@@ -238,31 +260,20 @@ export const Role = {
                 subjectScope: subject.scope,
                 subjectId: subject.id,
             },
+            limit: 1,
         });
-
-        // bind it on the scope's object when unbound
-        if (bound.length === 0) {
-            await Role.bind(transaction, scope, role, subject, now);
+        if (bound.length > 0) {
+            return;
         }
-    },
 
-    /** Bind a role on a scope's object to a subject, inside the scope for the scope's own role. */
-    async bind(
-        transaction: Transaction,
-        scope: ObjectReference,
-        role: Select<typeof accessRole>["id"],
-        subject: Subject,
-        now: number,
-    ): Promise<void> {
-        // keep a binding of the scope's own role inside it, and any other beside the scope's row
-        const placed = await Relationship.scope(transaction.view(), { object: scope, role });
+        // write the binding in its scope
         const relationship = Relationship.encode(
             {
-                id: schema.identifier("relationship").parse(`relationship-${v7()}`),
+                id: Identifier.create("relationship", authorization.environment),
                 object: scope,
                 role,
                 subject,
-                createdAt: now,
+                createdAt: authorization.context().now,
                 expiresAt: null,
             },
             placed,
@@ -293,13 +304,13 @@ export const Role = {
             ]);
 
             // define the role under a name free in the scope
-            const now = authorization.context().now;
             const id = await Role.define(
                 authorization.transaction,
                 scope.id,
                 request,
-                now,
+                authorization.context().now,
                 authorization.manager,
+                authorization.environment,
             );
             if (id === undefined) {
                 throw AccessError.of("ROLE_NAME_TAKEN", "role name is already in use");
@@ -322,7 +333,7 @@ export const Role = {
             const context = authorization.context();
             const record = await Role.read(authorization.transaction, scope.id, id);
             if (record.revision !== changes.revision) {
-                throw AccessError.of("STALE_REVISION", "role revision has changed");
+                throw AccessError.of("REVISION_STALE", "role revision has changed");
             }
             await authorization.authorizeRole(
                 scope,
@@ -351,6 +362,7 @@ export const Role = {
                     record.id,
                     scope.id,
                     changes.permissions,
+                    authorization.environment,
                 );
             }
 
@@ -373,7 +385,7 @@ export const Role = {
             // require an editable role at the revision and permission to delete roles
             const record = await Role.read(authorization.transaction, scope.id, id);
             if (record.revision !== revision) {
-                throw AccessError.of("STALE_REVISION", "role revision has changed");
+                throw AccessError.of("REVISION_STALE", "role revision has changed");
             }
             await authorization.authorizeRole(scope, [policies.role.permission("delete")], record);
 
@@ -397,7 +409,13 @@ export const Role = {
 
             // delete the role with its permissions
             const permissions = await Role.permissions(authorization.transaction, record.id);
-            await Role.replace(authorization.transaction, record.id, scope.id, []);
+            await Role.replace(
+                authorization.transaction,
+                record.id,
+                scope.id,
+                [],
+                authorization.environment,
+            );
             await authorization.transaction.write({
                 table: accessRole,
                 before: record,
@@ -463,6 +481,7 @@ export const Role = {
                     existing.id,
                     scope.id,
                     request.permissions,
+                    authorization.environment,
                 );
             }
 

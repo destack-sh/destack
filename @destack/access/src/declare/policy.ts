@@ -12,10 +12,19 @@ import { AccessError } from "../error/index.ts";
 import { PolicyDescription } from "./description.ts";
 import type { Elevation } from "../context/elevation.ts";
 
+/** The brand of a policy's partition flag, a type with no value at runtime. */
+declare const PARTITION: unique symbol;
+
 /** The policy of one type of object, with typed references to its permissions and relations. */
-export class Policy<Name extends string = string, Kind extends string = string> {
+export class Policy<
+    Name extends string = string,
+    Kind extends string = string,
+    Partition extends boolean = boolean,
+> {
     /** The declaring package, supplied by the module transform. */
     readonly package: Package;
+    /** Whether each of the type's objects is a partition, a brand the type checker alone reads. */
+    declare readonly [PARTITION]: Partition;
     /** The package-local object type name. */
     readonly name: Kind;
     /** The immutable serializable definition. */
@@ -35,7 +44,10 @@ export class Policy<Name extends string = string, Kind extends string = string> 
     }
 
     /** Qualify the declared subject types by package and freeze a copy of the rules. */
-    constructor(owner: Package, input: PolicyInput<Name, Kind>) {
+    constructor(
+        owner: Package,
+        input: PolicyInput<Name, Kind> & { readonly partition?: Partition },
+    ) {
         // qualify the relations and require each to accept a subject type
         const relations = Policy.#qualifyRelations(owner, input);
         Policy.#requireSubjectTypes(relations);
@@ -47,6 +59,7 @@ export class Policy<Name extends string = string, Kind extends string = string> 
                     .flatMap((relation) => relation.subjects)
                     .flatMap((subject) => Policy.#referencedPolicies(subject)),
                 ...(input.contributes ?? []).map((entry) => entry.policy),
+                ...(input.sets ?? []),
             ]),
         ];
 
@@ -69,6 +82,13 @@ export class Policy<Name extends string = string, Kind extends string = string> 
         return Condition.resolve(expression.condition, fields);
     }
 
+    /** List the subject sets the type's permissions grant to their members. */
+    memberSets(): PermissionReference[] {
+        return Object.values(this.definition.permissions).flatMap((expression) =>
+            memberSetsOf(expression),
+        );
+    }
+
     /** The package-qualified type of the objects. */
     get typeReference(): ObjectTypeReference {
         return { packageId: this.definition.packageId, type: this.definition.name };
@@ -88,7 +108,7 @@ export class Policy<Name extends string = string, Kind extends string = string> 
     permission(name: Name): Permission {
         // require a declared permission
         if (!Object.hasOwn(this.definition.permissions, name)) {
-            throw AccessError.of("INVALID_DECLARATION", `unknown permission: ${name}`);
+            throw AccessError.of("DECLARATION_INVALID", `unknown permission: ${name}`);
         }
 
         return Permission.parse({
@@ -135,7 +155,7 @@ export class Policy<Name extends string = string, Kind extends string = string> 
         // parse `type`, `type#relation` and `type:*`
         const match = /^([a-z][a-z0-9-]*)(?:#([a-z][a-z0-9-]*)|(:\*))?$/u.exec(subject);
         if (!match) {
-            throw AccessError.of("INVALID_DECLARATION", `invalid subject type: ${subject}`);
+            throw AccessError.of("DECLARATION_INVALID", `invalid subject type: ${subject}`);
         }
 
         return SubjectType.parse({
@@ -183,7 +203,7 @@ export class Policy<Name extends string = string, Kind extends string = string> 
                 relation.isScope !== true
             ) {
                 throw AccessError.of(
-                    "INVALID_DECLARATION",
+                    "DECLARATION_INVALID",
                     `relation ${name} has no subject type and is not open`,
                 );
             }
@@ -380,6 +400,32 @@ interface PolicyFields<Name extends string, Kind extends string> {
     readonly isGlobal?: boolean;
     /** The open relations of other types this type's objects join, as an attachment's parent. */
     readonly contributes?: readonly { readonly policy: Policy; readonly relation: string }[];
+    /** The types of the subject sets the permissions grant to their members. */
+    readonly sets?: readonly Policy[];
+}
+
+/** List the subject sets an expression grants to their members. */
+export function memberSetsOf(expression: AccessExpression): PermissionReference[] {
+    switch (expression.kind) {
+        case "subjectSet":
+            return [{ ...expression.object, name: expression.relation }];
+        case "union":
+        case "intersection":
+            return expression.expressions.flatMap(memberSetsOf);
+        case "exclusion":
+            return [...memberSetsOf(expression.include), ...memberSetsOf(expression.exclude)];
+        case "none":
+        case "relation":
+        case "permission":
+        case "resource":
+        case "context":
+        case "through":
+        case "granters":
+        case "readers":
+        case "contained":
+        case "self":
+            return [];
+    }
 }
 
 /** List the relations an expression reads, directly or through an arrow. */
@@ -401,6 +447,7 @@ export function relationsOf(expression: AccessExpression): string[] {
         case "granters":
         case "readers":
         case "contained":
+        case "subjectSet":
         case "self":
             return [];
     }

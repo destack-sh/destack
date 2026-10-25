@@ -1,4 +1,3 @@
-import { v7 } from "uuid";
 import { nth } from "@destack/schema";
 import { Table } from "@destack/db";
 import { anyone } from "../declare/principal.ts";
@@ -23,7 +22,7 @@ import {
     type SQL,
     Snapshot,
 } from "@destack/db";
-import { Digest, Instant, schema } from "@destack/schema";
+import { Digest, Identifier, type UuidEnvironment, Instant, schema } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
 import { Manager } from "../manager/manager.ts";
 import { accessRelationship, type RelationshipColumnMap, type RoleBinding } from "./table.ts";
@@ -150,10 +149,14 @@ export const Relationship = {
         };
     },
 
-    /** Insert a relationship as a row in the scope it lives in. */
+    /** Insert a relationship as a row in the scope it lives in, read in the same transaction. */
     async insert(database: DatabaseConnection, relationship: Relationship): Promise<void> {
-        const scope = await Relationship.scope(Snapshot.live(database), relationship);
-        await database.insert(accessRelationship).values(Relationship.encode(relationship, scope));
+        await database.transaction(async (transaction) => {
+            const scope = await Relationship.scope(Snapshot.live(transaction), relationship);
+            await transaction
+                .insert(accessRelationship)
+                .values(Relationship.encode(relationship, scope));
+        });
     },
 
     /** Write a relationship's object as its columns, which also match the rows on the object. */
@@ -186,7 +189,7 @@ export const Relationship = {
             subject: Relationship.subjectOf(row),
             createdAt: row.createdAt,
             expiresAt: row.expiresAt,
-            ...(row.linkSecret === null ? {} : { linkSecret: row.linkSecret }),
+            ...(row.linkSecret === null ? {} : { linkSecret: Digest.parse(row.linkSecret) }),
         };
     },
 
@@ -448,7 +451,10 @@ export const Relationship = {
 
             // read the same relationship, whatever its expiry
             const expiresAt = request.expiresAt ?? null;
-            const probe = Relationship.encode(Relationship.of(request, now), scope);
+            const probe = Relationship.encode(
+                Relationship.of(request, now, authorization.environment),
+                scope,
+            );
             const [existing] = await authorization.transaction
                 .read(accessRelationship)
                 .findMany({ where: Relationship.equal(probe), limit: 1 });
@@ -523,7 +529,7 @@ export const Relationship = {
         },
         authorization: Authorization,
     ): Promise<Link> {
-        const linkSecret = await LinkSecret.create();
+        const linkSecret = await LinkSecret.create(authorization.environment);
         const relationship = await Relationship.grant(
             {
                 ...request,
@@ -581,9 +587,9 @@ export const Relationship = {
     },
 
     /** Build a new relationship a request asks for, created at a time. */
-    of(request: RelationshipRequest, now: number): Relationship {
+    of(request: RelationshipRequest, now: number, environment: UuidEnvironment): Relationship {
         return {
-            id: schema.identifier("relationship").parse(`relationship-${v7()}`),
+            id: Identifier.create("relationship", environment),
             object: request.object,
             ...Relationship.via(request),
             subject: request.subject,
@@ -602,7 +608,7 @@ export const Relationship = {
         // build the relationship
         const context = authorization.context();
         authorization.authorizer.validate(request, context.now);
-        const relationship = Relationship.of(request, context.now);
+        const relationship = Relationship.of(request, context.now, authorization.environment);
 
         // insert it unless the same relationship exists
         const row = {

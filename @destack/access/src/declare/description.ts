@@ -39,6 +39,12 @@ export const AccessExpressionDescription: schema.Schema<AccessExpression> = sche
         }),
         schema.object({ kind: schema.literal("granters"), reference: AccessName }),
         schema.object({
+            kind: schema.literal("subjectSet"),
+            object: ObjectTypeReference,
+            id: schema.string().min(1),
+            relation: AccessName,
+        }),
+        schema.object({
             kind: schema.literal("readers"),
             reference: AccessName,
             relation: AccessName,

@@ -1,4 +1,5 @@
-import { Digest } from "@destack/schema";
+import type { Environment } from "@destack/environment";
+import { Digest, type DigestCrypto } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
 
 /** The form of a link secret: 32 bytes as lowercase hexadecimal. */
@@ -17,29 +18,29 @@ export class LinkSecret {
     /** The secret a request presents. */
     readonly secret: string;
     /** The digest relationships store. */
-    readonly digest: string;
+    readonly digest: Digest;
 
     /** Pair a secret with its digest. */
-    constructor(secret: string, digest: string) {
+    constructor(secret: string, digest: Digest) {
         this.secret = secret;
         this.digest = digest;
     }
 
     /** Create a new secret with its digest. */
-    static async create(): Promise<LinkSecret> {
-        const secret = crypto.getRandomValues(new Uint8Array(32)).toHex();
+    static async create(environment: Pick<Environment, "crypto" | "random">): Promise<LinkSecret> {
+        const secret = environment.random.bytes(32).toHex();
 
-        return new LinkSecret(secret, await LinkSecret.digest(secret));
+        return new LinkSecret(secret, await LinkSecret.digest(secret, environment.crypto));
     }
 
     /** Hash a presented secret into the digest requests send and refuse unknown secrets. */
-    static async digest(secret: string): Promise<string> {
+    static async digest(secret: string, crypto: DigestCrypto): Promise<Digest> {
         // reject secrets access never created
         if (!SECRET.test(secret)) {
-            throw AccessError.of("INVALID_LINK_SECRET", "invalid link secret");
+            throw AccessError.of("LINK_SECRET_INVALID", "invalid link secret");
         }
 
         // hash the secret
-        return Digest.of(secret);
+        return Digest.of(secret, crypto);
     }
 }
