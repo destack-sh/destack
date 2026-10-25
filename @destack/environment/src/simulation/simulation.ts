@@ -1,7 +1,6 @@
 import { BunCrypto } from "../crypto/bun.ts";
 import { mkdirSync, realpathSync } from "node:fs";
 import { rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Crypto } from "../crypto/crypto.ts";
 import type { Environment, HostCapability } from "../environment/environment.ts";
@@ -42,6 +41,12 @@ const HOST: Omit<Host, "home"> = {
     version: "6.8.0",
     hostname: "simulation",
 };
+
+/** The directory of simulation roots: a 48-byte root and 38-byte socket fit a 104-byte sun_path. */
+const ROOT_DIRECTORY = "/tmp";
+
+/** The random bytes of a simulation root's name: 64 bits, distinct across any run's simulations. */
+const ROOT_BYTES = 8;
 
 /** The locale every node of a simulation formats in unless it gives another. */
 const LOCALE = "en-US";
@@ -234,7 +239,8 @@ export class Simulation {
         this.network = new SimulatedNetwork(this.clock, this.random, (event) => this.record(event));
 
         // give the nodes their process, machine and a root for their files
-        this.root = join(realpathSync(tmpdir()), `destack-simulation-${crypto.randomUUID()}`);
+        const name = crypto.getRandomValues(new Uint8Array(ROOT_BYTES)).toHex();
+        this.root = join(realpathSync(ROOT_DIRECTORY), `destack-simulation-${name}`);
         const home = join(this.root, "home");
         mkdirSync(home, { recursive: true });
         this.#process = options.process ?? Simulation.#hostProcess(this.root, home);

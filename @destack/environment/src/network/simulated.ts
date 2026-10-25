@@ -1,3 +1,4 @@
+import { BunNetwork } from "./bun.ts";
 import type { Network } from "./network.ts";
 import type {
     Listener,
@@ -282,9 +283,9 @@ export class SimulatedNetwork {
     of(node: string): Network {
         return {
             fetch: async (request, options) => {
-                // refuse Unix sockets, which no simulated listener serves
+                // send through a Unix socket on the host, a host file a host process serves
                 if (options?.unix !== undefined) {
-                    throw new TypeError("a simulated request needs a host name and port");
+                    return this.#clock.trackHost(BunNetwork.fetch(request, options));
                 }
 
                 // decode the response's content encoding, as Bun's fetch does unless asked to keep it
