@@ -122,11 +122,11 @@ export const PackageHandle = {
         for (const [key, declaration] of named) {
             if (key !== declaration.name) {
                 throw PackageError.of(
-                    "INVALID_DEFINITION",
+                    "DEFINITION_INVALID",
                     `declaration ${declaration.name} is listed under another name: ${key}`,
                 );
             } else if (names.has(key)) {
-                throw PackageError.of("INVALID_DEFINITION", `duplicate declaration: ${key}`);
+                throw PackageError.of("DEFINITION_INVALID", `duplicate declaration: ${key}`);
             }
             names.add(key);
         }
@@ -135,7 +135,7 @@ export const PackageHandle = {
         const foreign = Object.values(objects).find((object) => object.package.name !== owner.name);
         if (foreign !== undefined) {
             throw PackageError.of(
-                "INVALID_DEFINITION",
+                "DEFINITION_INVALID",
                 `${owner.name} lists object ${foreign.name}, but only ${foreign.package.name} can serve it`,
             );
         }
@@ -148,7 +148,7 @@ export const PackageHandle = {
             ),
         );
         if (overlap !== undefined) {
-            throw PackageError.of("INVALID_DEFINITION", `adapter path ${overlap} overlaps another`);
+            throw PackageError.of("DEFINITION_INVALID", `adapter path ${overlap} overlaps another`);
         }
 
         // route the objects' procedures on first use, which spares a package's import the work
@@ -203,7 +203,7 @@ export function defineAdapter(
     const owner = Package.parse(ModuleMetadata.require(module, "defineAdapter").package);
     if (!AdapterPath.safeParse(declaration.path).success) {
         throw PackageError.of(
-            "INVALID_DEFINITION",
+            "DEFINITION_INVALID",
             `adapter ${name} has no path below the mount: ${declaration.path}`,
         );
     }

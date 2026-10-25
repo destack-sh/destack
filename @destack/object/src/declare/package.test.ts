@@ -71,7 +71,7 @@ test("refuse adapters at an empty path, and adapters at or below another's path"
     // refuse an adapter at the mount itself
     expect(await refusal(() => defineAdapter("root", { path: "/" }))).toEqual([
         "BAD_REQUEST",
-        "INVALID_DEFINITION",
+        "DEFINITION_INVALID",
         "adapter root has no path below the mount: /",
     ]);
 
@@ -81,12 +81,12 @@ test("refuse adapters at an empty path, and adapters at or below another's path"
     const nested = defineAdapter("nested", { path: "/npm/tarballs" });
     expect(await refusal(() => definePackage({ adapters: { npm, twin } }))).toEqual([
         "BAD_REQUEST",
-        "INVALID_DEFINITION",
+        "DEFINITION_INVALID",
         "adapter path /npm overlaps another",
     ]);
     expect(await refusal(() => definePackage({ adapters: { npm, nested } }))).toEqual([
         "BAD_REQUEST",
-        "INVALID_DEFINITION",
+        "DEFINITION_INVALID",
         "adapter path /npm/tarballs overlaps another",
     ]);
 });
@@ -96,12 +96,12 @@ test("refuse a declaration listed under another name, and a name taken twice", a
 
     expect(await refusal(() => definePackage({ adapters: { git: npm } }))).toEqual([
         "BAD_REQUEST",
-        "INVALID_DEFINITION",
+        "DEFINITION_INVALID",
         "declaration npm is listed under another name: git",
     ]);
     expect(await refusal(() => definePackage({ adapters: { npm }, views: { npm } }))).toEqual([
         "BAD_REQUEST",
-        "INVALID_DEFINITION",
+        "DEFINITION_INVALID",
         "duplicate declaration: npm",
     ]);
 });

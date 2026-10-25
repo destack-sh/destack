@@ -2565,7 +2565,7 @@ export class ObjectStore {
         // refuse a watermark of a history this store no longer has
         else if (history.kind === "stale") {
             throw DatabaseError.of(
-                "STALE_EPOCH",
+                "EPOCH_STALE",
                 `${watermark.scope} no longer has the watermark's history`,
             );
         }

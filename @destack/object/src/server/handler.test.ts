@@ -409,7 +409,7 @@ test("answer a lower package's failure with the call error it names, and an unkn
             "a record with the same unique key already exists",
             { data: null },
         ),
-        challenge: AccessError.of("INSUFFICIENT_AUTHENTICATION", "authenticate again", {
+        challenge: AccessError.of("AUTHENTICATION_INSUFFICIENT", "authenticate again", {
             data: { assurance: 2, maxAge: 300_000 },
         }),
         unknown: new Error("the disk is full"),

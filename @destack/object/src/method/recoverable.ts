@@ -123,7 +123,7 @@ export const RecoverableMethod = {
         const target = context.target;
         const requested = target.deletedAt;
         if (requested === null) {
-            throw ObjectError.of("NOT_DELETED", `${object.name} is not deleted`);
+            throw ObjectError.of("DELETION_REQUIRED", `${object.name} is not deleted`);
         } else if (RecoverableMethod.isPurged(target)) {
             throw ObjectError.of("PURGED", `${object.name} is purged`);
         } else if (
@@ -174,7 +174,7 @@ export const RecoverableMethod = {
         const { object } = context;
         const target = context.target;
         if (target.deletedAt === null) {
-            throw ObjectError.of("NOT_DELETED", `${object.name} is not deleted`);
+            throw ObjectError.of("DELETION_REQUIRED", `${object.name} is not deleted`);
         } else if (RecoverableMethod.isPurged(target)) {
             throw ObjectError.of("PURGED", `${object.name} is purged`);
         }

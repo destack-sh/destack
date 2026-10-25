@@ -124,7 +124,7 @@ test("report a create's conflicts only to callers the create permission allows, 
     // challenge bob before a conflict, and find nothing for alice's handle
     level = 1;
     await expect(create(users.bob, { holderId: users.bob, name: "notes" })).rejects.toMatchObject({
-        reason: "INSUFFICIENT_AUTHENTICATION",
+        reason: "AUTHENTICATION_INSUFFICIENT",
         data: RECENT,
     });
     await expect(create(users.bob, { holderId: users.alice, name: "notes" })).rejects.toMatchObject(

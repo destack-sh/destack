@@ -562,7 +562,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     bearer = "invalid";
     expect(await refusal(client.read({ id: "one" }))).toEqual([
         "UNAUTHORIZED",
-        "INVALID_TOKEN",
+        "TOKEN_INVALID",
         "invalid access token",
     ]);
 

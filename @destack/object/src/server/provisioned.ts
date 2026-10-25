@@ -420,10 +420,10 @@ export class ResourceController implements ObjectController<ResourceType<"space"
         } catch (error) {
             // plan without the states only draining consumers need
             const recreated =
-                ResourceError.is(error, "UNREACHABLE_PLAN") && row.drainingStates.length > 0
+                ResourceError.is(error, "PLAN_UNREACHABLE") && row.drainingStates.length > 0
                     ? await planDigests(row.states).catch((failure: unknown) => {
                           // block when the active consumers conflict by themselves too
-                          if (ResourceError.is(failure, "UNREACHABLE_PLAN")) {
+                          if (ResourceError.is(failure, "PLAN_UNREACHABLE")) {
                               return undefined;
                           }
                           throw failure;
@@ -432,7 +432,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
 
             // block on what the declarations must fix and retry another failure
             if (recreated === undefined) {
-                const isBlocked = ResourceError.is(error, "UNREACHABLE_PLAN");
+                const isBlocked = ResourceError.is(error, "PLAN_UNREACHABLE");
                 const message = error instanceof Error ? error.message : String(error);
                 const reason = isBlocked ? "Blocked" : "PlanFailed";
                 await ResourceController.#observe(

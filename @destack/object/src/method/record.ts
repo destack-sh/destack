@@ -1260,7 +1260,7 @@ export const RecordMethod = {
         const stepUp = await authorizer.challenge(snapshot, permission, access, allows);
         if (stepUp !== undefined) {
             throw AccessError.of(
-                "INSUFFICIENT_AUTHENTICATION",
+                "AUTHENTICATION_INSUFFICIENT",
                 "authentication assurance is too low: authenticate again",
                 { data: stepUp },
             );

@@ -60,7 +60,10 @@ export const finalize = controlledMethod
     .handle(async (context) => {
         // require a requested deletion
         if (context.target.deletedAt === null) {
-            throw ObjectError.of("NOT_DELETING", `${context.object.name} is not being deleted`);
+            throw ObjectError.of(
+                "DELETION_UNSTARTED",
+                `${context.object.name} is not being deleted`,
+            );
         }
 
         // delete at the loaded revision

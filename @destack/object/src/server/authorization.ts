@@ -320,7 +320,7 @@ export class Authorization extends access.Authorization {
         );
         if (stepUp !== undefined) {
             throw AccessError.of(
-                "INSUFFICIENT_AUTHENTICATION",
+                "AUTHENTICATION_INSUFFICIENT",
                 "authentication assurance is too low: authenticate again",
                 { data: stepUp },
             );
