@@ -50,6 +50,9 @@ export type FamilyFailure<
     readonly data: Data;
 };
 
+/** Who a family's failures are for: callers, or the host alone, which callers see as internal. */
+export type ErrorAudience = "caller" | "host";
+
 /** A failure of one reason a family declares, as a caller receives it. */
 export class FamilyError<
     Reason extends string = string,
@@ -66,6 +69,8 @@ export class FamilyError<
     readonly code: CallErrorCode;
     /** The structured details, checked against the reason's schema, absent without one. */
     readonly data: Data;
+    /** Who the failure is for, as its family declares. */
+    readonly audience: ErrorAudience;
 
     /** Create a failure of a family's reason. */
     constructor(
@@ -74,6 +79,7 @@ export class FamilyError<
             readonly reason: Reason;
             readonly code: CallErrorCode;
             readonly data: Data;
+            readonly audience: ErrorAudience;
         },
         message: string,
         options?: ErrorOptions,
@@ -85,6 +91,7 @@ export class FamilyError<
         this.reason = failure.reason;
         this.code = failure.code;
         this.data = failure.data;
+        this.audience = failure.audience;
     }
 
     /** Convert the failure to the call error a caller receives. */
@@ -108,11 +115,15 @@ export class ErrorFamily<Declared extends ReasonDeclarations> {
     readonly reasons: Declared;
     /** The schema of the family's reason names, such as for a column storing a reason. */
     readonly reason: schema.Schema<keyof Declared & string, keyof Declared & string>;
+    /** Who the family's failures are for. */
+    readonly audience: ErrorAudience;
 
-    /** Create a family of a package's declared reasons. */
-    constructor(domain: string, reasons: Declared) {
+    /** Create a family of a package's declared reasons, for an audience. */
+    constructor(domain: string, reasons: Declared, audience: ErrorAudience) {
+        // keep the domain, the reasons, the audience and the schema of the reasons' names
         this.domain = domain;
         this.reasons = reasons;
+        this.audience = audience;
         this.reason = schema.enum(
             Object.keys(reasons).filter((name): name is keyof Declared & string =>
                 Object.hasOwn(reasons, name),
@@ -131,7 +142,7 @@ export class ErrorFamily<Declared extends ReasonDeclarations> {
         const data = declared.data?.parse(options?.data);
 
         return new FamilyError(
-            { domain: this.domain, reason, code: declared.code, data },
+            { domain: this.domain, reason, code: declared.code, data, audience: this.audience },
             message,
             options?.cause === undefined ? undefined : { cause: options.cause },
         );
@@ -180,6 +191,11 @@ export type ReasonOf<Family> =
 export function defineErrorFamily<const Declared extends ReasonDeclarations>(
     owner: { readonly name: string },
     reasons: Declared,
+    options: {
+        /** Who the failures are for, callers by default. */
+        readonly audience?: ErrorAudience;
+    } = {},
 ): ErrorFamily<Declared> {
-    return new ErrorFamily(owner.name, reasons);
+    // declare the family for callers unless it describes the host
+    return new ErrorFamily(owner.name, reasons, options.audience ?? "caller");
 }

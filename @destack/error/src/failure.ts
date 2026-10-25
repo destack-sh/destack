@@ -35,7 +35,7 @@ export const FailureReason = schema
 const failureSchema = schema.object({
     /** The call error code, such as CONFLICT. */
     code: schema.enum(CALL_ERROR_CODES),
-    /** The failure's stable cause within its domain, such as STALE_REVISION. */
+    /** The failure's stable cause within its domain, such as REVISION_STALE. */
     reason: FailureReason,
     /** The package whose reason it is, such as @destack/object, or http. */
     domain: schema.string().min(1),

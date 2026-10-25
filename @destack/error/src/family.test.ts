@@ -99,3 +99,21 @@ test("refuse data that breaks a reason's schema", () => {
         },
     ]);
 });
+
+test("declare a family for callers by default, or for the host alone, carried by each failure", () => {
+    // declare one family of each audience and fail with each
+    const HostError = defineErrorFamily(
+        { name: "@destack/disk" },
+        { DISK_FULL: { code: "INTERNAL_SERVER_ERROR" } },
+        { audience: "host" },
+    );
+    const full = HostError.of("DISK_FULL", "the disk at /var/data is full");
+    const missing = NoteError.of("NOTE_NOT_FOUND", "note note-1 not found");
+
+    expect([NoteError.audience, missing.audience, HostError.audience, full.audience]).toEqual([
+        "caller",
+        "caller",
+        "host",
+        "host",
+    ]);
+});
