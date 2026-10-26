@@ -38,7 +38,7 @@ export const distribution = defineObject(
         },
     },
     (method) => ({
-        create: method.create("record", { isInternal: true }),
+        create: method.create("record", { visibility: "package" }),
         /** Download and verify the feed's latest release if newer than the installed one. */
         stage: method.mutation({ permission: "update", prepared: Staging }),
         /** Restart the distribution into the staged release. */
