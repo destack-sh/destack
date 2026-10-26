@@ -517,8 +517,8 @@ test("follow and wait for each commit of one row in a fixed count of statements,
     controller.abort();
     await following;
 
-    // spend nine statements on each commit, the wait's own read included
-    expect(new Set(costs)).toEqual(new Set([9]));
+    // spend eight statements on each commit, the wait's own read included
+    expect(new Set(costs)).toEqual(new Set([8]));
 });
 
 test("capture a space's few dozen rows across many tables as one page applied in one transaction, and a larger one in pages of rows staged before the last", async () => {

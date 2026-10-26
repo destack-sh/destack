@@ -609,8 +609,8 @@ test("serve many streams of one query from the one read of the log each commit t
     const single = await cost(1, "single");
     const many = await cost(STRESS_STREAMS, "many");
 
-    // spend one transaction, its insert and one feed read per commit, and one to start
-    expect([single, many]).toEqual([STRESS_COMMITS * 3 + 1, STRESS_COMMITS * 3 + 1]);
+    // spend one transaction, its insert and one feed read per commit, and two to start
+    expect([single, many]).toEqual([STRESS_COMMITS * 3 + 2, STRESS_COMMITS * 3 + 2]);
 });
 
 /** Boards with JSON columns of an object and a list of objects. */

@@ -27,7 +27,7 @@ export const scopeTable = defineTable(
         movedTo: text("moved_to"),
     },
     {
-        log: { retention: "history", isShared: true },
+        log: { retention: "history" },
         constraints: (scopes) => [
             index("scope_parent").on(scopes.parent),
             check("scope_fence", {

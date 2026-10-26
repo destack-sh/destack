@@ -113,7 +113,7 @@ test("hand a late instance the rows, and drop those of stopped and silent instan
                 channel.notify(message);
             }
         },
-        listen: (receive, resume) => channel.listen(receive, resume),
+        listen: (listener) => channel.listen(listener),
         hear: (token) => channel.hear(token),
         close: () => channel.close(),
     };

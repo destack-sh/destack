@@ -149,12 +149,12 @@ export class Tracker {
         this.#heartbeat = options.heartbeat ?? HEARTBEAT_MILLISECONDS;
 
         // apply messages in order and ask for live rows on each start or resume
-        this.#stop = this.#channel.listen(
-            (message) => {
+        this.#stop = this.#channel.listen({
+            receive: (message) => {
                 this.#applied = this.#applied.then(() => this.#receive(message));
             },
-            () => this.#channel.notify({ kind: "hello", instance: this.instance }),
-        );
+            resume: () => this.#channel.notify({ kind: "hello", instance: this.instance }),
+        });
 
         // announce this instance and drop silent ones each heartbeat
         void this.#beat(channel);

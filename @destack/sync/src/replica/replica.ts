@@ -97,7 +97,7 @@ export const replica = defineTable(
         tables: json("tables", schema.array(schema.string())).notNull(),
     },
     {
-        log: { isShared: true },
+        log: {},
     },
 );
 
