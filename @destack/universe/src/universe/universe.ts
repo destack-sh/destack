@@ -49,6 +49,9 @@ import type { Environment } from "@destack/environment";
 /** The packages a universe's store serves. */
 export const UNIVERSE_PACKAGES = [objectPackage, accountPackage, settingPackage, universePackage];
 
+/** The schema the universe's tables live in, PostgreSQL's default. */
+export const UNIVERSE_SCHEMA = "public";
+
 /** The universe's database: the packages its store serves. */
 export const universeDatabase = defineDatabase({
     name: "account",
