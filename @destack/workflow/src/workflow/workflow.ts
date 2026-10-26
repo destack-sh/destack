@@ -307,21 +307,21 @@ function declareRun(
                             from: ["pending", "waiting"],
                             to: "waiting",
                             permission: "advance",
-                            isInternal: true,
+                            visibility: "package",
                             fields: ["waitType", "wakeAt"],
                         },
                         complete: {
                             from: ["pending", "waiting"],
                             to: "completed",
                             permission: "advance",
-                            isInternal: true,
+                            visibility: "package",
                             fields: ["output"],
                         },
                         fail: {
                             from: ["pending", "waiting"],
                             to: "failed",
                             permission: "advance",
-                            isInternal: true,
+                            visibility: "package",
                             fields: ["failure"],
                         },
                         pause: {
@@ -339,14 +339,14 @@ function declareRun(
                             from: ["pending", "waiting"],
                             to: "pending",
                             permission: "advance",
-                            isInternal: true,
+                            visibility: "package",
                             fields: ["attempts", "wakeAt", "failure"],
                         },
                         restart: {
                             from: [...RUN_STATES],
                             to: "pending",
                             permission: "advance",
-                            isInternal: true,
+                            visibility: "package",
                             fields: ["attempts", "wakeAt", "failure", "output"],
                         },
                     },
@@ -408,14 +408,14 @@ function declareRun(
                     /** What a start of a live run's key does. */
                     mode: schema.enum(["dedupe", "replace"]).exactOptional(),
                 }),
-                isInternal: true,
+                visibility: "package",
             }),
             /** Mark the run's first advance. */
-            begin: method.update("advance", { fields: ["startedAt"], isInternal: true }),
+            begin: method.update("advance", { fields: ["startedAt"], visibility: "package" }),
             /** Replace a run's input and start time before it first advances. */
             replace: method.update("advance", {
                 fields: ["input", "wakeAt"],
-                isInternal: true,
+                visibility: "package",
             }),
             /** Run a run again from a step, forgetting that step and every later one. */
             reset: method.mutation({
@@ -467,12 +467,12 @@ function declareStep(
             constraints: { name: { kind: "unique", on: ["parentId", "name"] } },
         },
         () => ({
-            create: method.create("advance", { isInternal: true }),
+            create: method.create("advance", { visibility: "package" }),
             update: method.update("advance", {
                 fields: ["output", "failure", "wakeAt", "changeRequestId", "completedAt"],
-                isInternal: true,
+                visibility: "package",
             }),
-            delete: method.delete("advance", { isInternal: true }),
+            delete: method.delete("advance", { visibility: "package" }),
         }),
         module,
     );
@@ -513,7 +513,7 @@ function declareTrigger(
                             to: "stopped",
                             permission: "advance",
                             fields: ["failure"],
-                            isInternal: true,
+                            visibility: "package",
                         },
                         reset: { from: ["stopped"], to: "active", permission: "manage" },
                     },
@@ -540,16 +540,16 @@ function declareTrigger(
             /** Record a trigger the workflow's package declares. */
             declare: method.create("advance", {
                 fields: ["name", "origin", "kind", "schedule"],
-                isInternal: true,
+                visibility: "package",
             }),
             update: method.update("manage", { fields: ["schedule", "input"] }),
             delete: method.delete("manage"),
             /** Remove a trigger its package no longer declares. */
-            retire: method.delete("advance", { isInternal: true }),
+            retire: method.delete("advance", { visibility: "package" }),
             /** Record the occurrences fired and skipped, and a changed declared schedule. */
             record: method.update("advance", {
                 fields: ["lastScheduledAt", "skipped", "lastSkip", "schedule"],
-                isInternal: true,
+                visibility: "package",
             }),
         }),
         module,
