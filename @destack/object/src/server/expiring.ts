@@ -27,6 +27,9 @@ const EXPIRE_ROWS = 100;
 /** The component name the expiry runs and records its calls under. */
 const EXPIRY = "expiry";
 
+/** The tables of a database's replicas by scope. */
+type Replicas = Awaited<ReturnType<typeof Replica.tables>>;
+
 /** Remove expiring objects as their windows pass, scheduling the next window's end. */
 export class ExpiringController implements ReconcileController {
     /** The controller's name. */
@@ -71,32 +74,33 @@ export class ExpiringController implements ReconcileController {
 
     /** Expire what passed and schedule the earliest window end. */
     async reconcile(_key: string, _reconciliation: Reconciliation): Promise<number | undefined> {
-        // expire what passed and read each rule's earliest window end
+        // read the scopes the database replicates once for the pass
         const now = this.#store.clock.now();
         const { database } = this.#store;
-        await ExpiringController.expire(this.#store, now);
-        const passes = await Promise.all(
-            this.#types.map(async (object) => {
-                const owned = await ExpiringController.#owned(database, object.table);
+        const replicas = await Replica.tables(database);
 
-                return Promise.all(
-                    (object.lifecycle.expiring ?? []).map((rule) =>
-                        ExpiringController.#passing(database, object, rule, owned),
-                    ),
+        // expire what passed and read each rule's earliest window end
+        await this.#expire(now, replicas);
+        const passes = await Promise.all(
+            this.#types.flatMap((object) => {
+                const owned = ExpiringController.#owned(object.table, replicas);
+
+                return (object.lifecycle.expiring ?? []).map((rule) =>
+                    ExpiringController.#passing(database, object, rule, owned),
                 );
             }),
         );
-        const next = earliest(passes.flat());
+        const next = earliest(passes);
 
         return next === undefined ? undefined : Math.max(0, next - now);
     }
 
-    /** Remove expired objects as the code serving their type, returning the count. */
-    static async expire(store: ObjectStore, now: number): Promise<number> {
+    /** Remove expired objects as the code serving their type, outside the replicated scopes. */
+    async #expire(now: number, replicas: Replicas): Promise<void> {
         // remove each rule's rows in batches until one comes back short
-        let removed = 0;
-        for (const object of store.objects.filter((each) => !store.replicates(each))) {
-            const owned = await ExpiringController.#owned(store.database, object.table);
+        const store = this.#store;
+        for (const object of this.#types) {
+            const owned = ExpiringController.#owned(object.table, replicas);
             for (const rule of object.lifecycle.expiring ?? []) {
                 for (let batch = EXPIRE_ROWS; batch === EXPIRE_ROWS;) {
                     const rows = await ExpiringController.#expired(
@@ -121,12 +125,9 @@ export class ExpiringController implements ReconcileController {
                         );
                     }
                     batch = rows.length;
-                    removed += batch;
                 }
             }
         }
-
-        return removed;
     }
 
     /** Read a batch of a type's rows a rule's window released. */
@@ -185,8 +186,15 @@ export class ExpiringController implements ReconcileController {
     }
 
     /** Match a table's rows outside the scopes the database replicates, every row without any. */
-    static async #owned(database: DatabaseConnection, table: Table) {
-        const replicated = await Replica.scopes(database, table);
+    static #owned(table: Table, replicas: Replicas): SQL | undefined {
+        const sqlName = table[TABLE].sqlName;
+        const replicated = [
+            ...new Set(
+                replicas
+                    .filter((replica) => replica.tables.includes(sqlName))
+                    .map((replica) => replica.scope),
+            ),
+        ];
 
         return replicated.length === 0
             ? undefined
