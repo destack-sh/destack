@@ -48,13 +48,10 @@ export const login = defineObject({
         subject: { kind: "unique", on: ["scope", "issuer", "subjectId"] },
     },
 });
-/** A login as devices store it. */
-export type LoginRow = Select<typeof login.table>;
-
 /** A person signed in on a computer, acting through the session the keychain stores for them. */
 export class Login {
     /** The login's row. */
-    readonly row: LoginRow;
+    readonly row: Select<typeof login.table>;
     /** The issuer that signed the person in. */
     readonly issuer: Issuer;
     /** The keychain storing the client's refresh token, which each refresh replaces. */
@@ -65,7 +62,7 @@ export class Login {
     readonly #environment: Environment;
 
     /** Act as the person of a login through the refresh token a keychain stores for them. */
-    constructor(row: LoginRow, sessions: SessionStore, fetch: Fetch, environment: Environment) {
+    constructor(row: Login["row"], sessions: SessionStore, fetch: Fetch, environment: Environment) {
         // require a person still signed in
         if (row.status !== "authenticated") {
             throw AccountError.of("SIGN_IN_REQUIRED", "the person is not signed in");

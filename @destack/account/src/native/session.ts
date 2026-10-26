@@ -1,9 +1,9 @@
 import { Keychain } from "@destack/identity";
 import { TokenCache } from "@destack/access/token";
-import type { LoginRow } from "./login.ts";
+import type { Login } from "./login.ts";
 
 /** The person of a login at its issuer, keying their keychain entry. */
-type LoginKey = Pick<LoginRow, "issuer" | "subjectId">;
+type LoginKey = Pick<Login["row"], "issuer" | "subjectId">;
 
 /** The keychain service storing the refresh tokens of people signed in on a native device. */
 export const SESSIONS = "app.destack.login";

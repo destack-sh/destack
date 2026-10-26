@@ -515,33 +515,47 @@ export class Platform {
         await this.#mutate(await residentCalls(Snapshot.live(this.store.database), organizationId));
     }
 
+    /** Read whether the operator accepted an invitation to own the organization, or one waits. */
+    async isOperatorInvited(now: number): Promise<boolean> {
+        return await this.#isInvited(await this.#organization(), now);
+    }
+
     /** Invite the operator as an owner unless an invitation to them was accepted or still waits. */
     async inviteOperator(now: number): Promise<void> {
-        // read the invitations to the operator's email on the organization
-        const organizationId = await this.#organization();
-        const object = organization.reference(Scope.universe.id, organizationId);
-        const contact = Contact.subject(Contact.email(this.definition.operator));
-        const invitations = await Invitation.readOn(
-            Snapshot.live(this.store.database),
-            object,
-            contact,
-        );
-
         // stop at an accepted or pending invitation
-        const isInvited = invitations.some(
-            (row) => row.status === "accepted" || (row.status === "pending" && row.expiresAt > now),
-        );
-        if (isInvited) {
+        const organizationId = await this.#organization();
+        if (await this.#isInvited(organizationId, now)) {
             return;
         }
 
         // invite the operator as account's base installation
+        const relationship = this.#ownership(organizationId);
         await this.#authorize(organizationId, now, (authorization) =>
-            Invitation.create(
-                { relationship: { object, relation: "owner", subject: contact } },
-                authorization,
-            ),
+            Invitation.create({ relationship }, authorization),
         );
+    }
+
+    /** Read whether the operator accepted an invitation to own an organization, or one waits. */
+    async #isInvited(organizationId: Identifier<"organization">, now: number): Promise<boolean> {
+        const { object, subject } = this.#ownership(organizationId);
+        const invitations = await Invitation.readOn(
+            Snapshot.live(this.store.database),
+            object,
+            subject,
+        );
+
+        return invitations.some(
+            (row) => row.status === "accepted" || (row.status === "pending" && row.expiresAt > now),
+        );
+    }
+
+    /** Build the operator's ownership of an organization, which their invitation offers. */
+    #ownership(organizationId: Identifier<"organization">) {
+        return {
+            object: organization.reference(Scope.universe.id, organizationId),
+            relation: "owner",
+            subject: Contact.subject(Contact.email(this.definition.operator)),
+        } as const;
     }
 
     /** Read the operating organization, refusing a universe without one. */

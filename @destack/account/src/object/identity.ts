@@ -40,8 +40,6 @@ export const identity = defineObject(
         keys: method.query({ permission: "read", output: KeySet }),
     }),
 );
-/** An identity as its table stores it. */
-export type IdentityRow = Select<typeof identity.table>;
 
 /** A signed change of an identity's keys, in the identity's log. */
 export const operation = defineObject(

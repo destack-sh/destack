@@ -6,7 +6,7 @@ import { until } from "@destack/environment";
 import { client, type ClientRegistration } from "../object/client.ts";
 import type { DeviceAuthorization, DevicePoll, Issuer, SignedIn } from "./issuer.ts";
 import type { Residency } from "../object/residency.ts";
-import { type LoginRow, login } from "./login.ts";
+import { type Login, login } from "./login.ts";
 import type { ClientKey } from "./client-key.ts";
 import type { SessionStore } from "./session.ts";
 import type { SignUp } from "../better-auth/sign-up.ts";
@@ -54,7 +54,7 @@ export interface DeviceSignIn {
     /** The code the person enters there. */
     readonly userCode: string;
     /** Poll the issuer once, and return the delay before the next poll or the granted login. */
-    readonly poll: () => Promise<number | LoginRow>;
+    readonly poll: () => Promise<number | Login["row"]>;
 }
 
 /** An email sign-in in progress: a code mailed to the person. */
@@ -62,7 +62,7 @@ export interface EmailSignIn {
     /** The email the code was mailed to. */
     readonly email: string;
     /** Sign the person in with the mailed code. */
-    readonly verify: (code: string) => Promise<LoginRow>;
+    readonly verify: (code: string) => Promise<Login["row"]>;
 }
 
 /** Sign people in on a native device, each sign-in registering a new client for the person. */
@@ -80,7 +80,7 @@ export class NativeSignIn {
         open: (url: string) => Promise<void>,
         stepUp?: StepUp,
         signal?: AbortSignal,
-    ): Promise<LoginRow> {
+    ): Promise<Login["row"]> {
         // listen for the redirect on a free loopback port
         const { issuer, environment } = this.#options;
         const { clock } = environment;
@@ -139,7 +139,7 @@ export class NativeSignIn {
     async device(
         show: (started: Pick<DeviceSignIn, "url" | "userCode">) => Promise<void>,
         signal?: AbortSignal,
-    ): Promise<LoginRow> {
+    ): Promise<Login["row"]> {
         // show the code
         const deviceSignIn = await this.startDevice();
         await show(deviceSignIn);
@@ -168,7 +168,7 @@ export class NativeSignIn {
 
         // poll at the issuer's pace, slowing down when asked
         let interval = authorization.interval;
-        const poll = async (): Promise<number | LoginRow> => {
+        const poll = async (): Promise<number | Login["row"]> => {
             // sign the person in once granted
             const result = await this.#poll(clientId, authorization);
             if (result.status === "granted") {
@@ -198,7 +198,7 @@ export class NativeSignIn {
         email: string,
         ask: (started: EmailSignIn) => Promise<string>,
         signUp?: schema.Input<typeof SignUp>,
-    ): Promise<LoginRow> {
+    ): Promise<Login["row"]> {
         const started = await this.startEmail(email, signUp);
 
         return started.verify(await ask(started));
@@ -224,7 +224,7 @@ export class NativeSignIn {
     }
 
     /** Sign a person out: revoke and forget their refresh token, and remove their login. */
-    async signOut(current: LoginRow): Promise<void> {
+    async signOut(current: Login["row"]): Promise<void> {
         // revoke the refresh token at its issuer and forget it
         const { sessions, logins, issuer } = this.#options;
         const token = await sessions.load(current);
@@ -248,7 +248,7 @@ export class NativeSignIn {
     }
 
     /** Sign in the person a new client's tokens act for, replacing their earlier client here. */
-    async #complete(clientId: Identifier<"client">, signedIn: SignedIn): Promise<LoginRow> {
+    async #complete(clientId: Identifier<"client">, signedIn: SignedIn): Promise<Login["row"]> {
         // read the ID token's person, and their name as they read it
         const { issuer, sessions, logins } = this.#options;
         const { tokens, userId: sub } = signedIn;
@@ -321,9 +321,9 @@ export class NativeSignIn {
 
     /** Create the person's login, or update the one an earlier sign-in wrote. */
     async #upsert(
-        existing: LoginRow | undefined,
-        fields: Pick<LoginRow, "issuer" | "subjectId" | "name" | "status" | "clientId">,
-    ): Promise<LoginRow> {
+        existing: Login["row"] | undefined,
+        fields: Pick<Login["row"], "issuer" | "subjectId" | "name" | "status" | "clientId">,
+    ): Promise<Login["row"]> {
         // update it or create the first
         const { logins } = this.#options;
         const { issuer, subjectId, ...changed } = fields;
