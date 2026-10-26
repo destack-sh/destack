@@ -114,8 +114,8 @@ export interface TokenBinding {
     readonly subject?: Subject;
     /** The chain of grants the token acts under. */
     readonly grants?: readonly Identifier<"grant">[];
-    /** The person's session the token lives within, ending with it. */
-    readonly session?: Identifier<"session">;
+    /** The person's session or client the token lives within, refused once it ends. */
+    readonly credential?: Identifier<"session"> | Identifier<"client">;
 }
 
 /** The issuer a native device signs people in with, by redirect or device code. */
@@ -325,7 +325,7 @@ export class Issuer {
             ...(bound.partition === undefined ? {} : { partition: bound.partition }),
             ...(bound.subject === undefined ? {} : { subject: Subject.key(bound.subject) }),
             ...(bound.grants === undefined ? {} : { grants: bound.grants.join(" ") }),
-            ...(bound.session === undefined ? {} : { session: bound.session }),
+            ...(bound.credential === undefined ? {} : { credential: bound.credential }),
         });
         if (!response.ok) {
             throw await TokenResponse.refusal(response);

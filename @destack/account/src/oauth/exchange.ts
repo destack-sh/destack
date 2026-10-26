@@ -13,13 +13,13 @@ import {
 import { and, type DatabaseConnection, eq, isNull, Snapshot, Transaction } from "@destack/db";
 import { PackageId } from "@destack/package";
 import { type Identifier, nth, schema } from "@destack/schema";
-import { PartitionId, TOKEN_LIFETIME_MILLISECONDS, TokenVerifier } from "@destack/access/token";
+import { PartitionId, TokenVerifier } from "@destack/access/token";
 import { ObjectReference, Scope, Subject } from "@destack/sync";
 import { AccountAuthentication } from "../better-auth/authentication.ts";
 import { account, type Account } from "../object/account.ts";
 import { Identity } from "../object/identity.ts";
 import { session } from "../object/session.ts";
-import { client } from "../object/client.ts";
+import { type Client, client } from "../object/client.ts";
 import { Revocation } from "../credential/revocation.ts";
 import { user } from "../object/user.ts";
 import { Placement } from "../object/placement.ts";
@@ -68,8 +68,10 @@ const ExchangeRequest = schema.looseObject({
     partition: PartitionId.exactOptional(),
     /** The person to act as, or for under their grant to the caller, as a subject key. */
     subject: schema.string().min(1).exactOptional(),
-    /** The person's session the token lives within, refused once it ends. */
-    session: schema.identifier("session").exactOptional(),
+    /** The person's session or client the token lives within, refused once it ends. */
+    credential: schema
+        .union([schema.identifier("session"), schema.identifier("client")])
+        .exactOptional(),
     /** The chain of grants to act under, space-delimited. */
     grants: schema
         .string()
@@ -172,12 +174,12 @@ async function describe(
         );
         const expiries = granted.map((grant) => grant.expiresAt ?? Number.POSITIVE_INFINITY);
         const boundEnds =
-            asked.session === undefined
+            asked.credential === undefined
                 ? []
                 : [
-                      await sessionEnd(
+                      await credentialEnd(
                           transaction,
-                          asked.session,
+                          asked.credential,
                           subject ?? verified.caller.subject,
                           now,
                       ),
@@ -356,7 +358,7 @@ class PartitionVerification {
         // resolve the subject's memberships and groups in the account and the scopes enclosing it
         const sets = await this.#sets(authorizer, subject, accountId);
 
-        // bound the returned verification by both the credential and assertion lifetimes
+        // stamp the verification, which lapses with its credential
         const verifiedAt = this.now;
 
         // store what the acting caller proved and its actors only for itself, not for a person it acts as
@@ -377,7 +379,7 @@ class PartitionVerification {
                 audience: this.audience,
                 scope: this.partition,
                 verifiedAt,
-                expiresAt: Math.min(credential.expiresAt, verifiedAt + TOKEN_LIFETIME_MILLISECONDS),
+                expiresAt: credential.expiresAt,
                 ...(credential.assurance === undefined ? {} : { assurance: credential.assurance }),
                 ...(isSelf && credential.deployments !== undefined
                     ? { deployments: [...credential.deployments] }
@@ -599,11 +601,10 @@ function describeDelegation(
     audience: PackageId,
     now: number,
 ): Authentication {
-    // lapse at the earliest of the credential, the token lifetime and the grants
+    // lapse at the earliest of the credential and the grants
     const { credential } = verified;
     const lapse = Math.min(
         credential.expiresAt,
-        now + TOKEN_LIFETIME_MILLISECONDS,
         ...chain.map((grant) => grant.expiresAt ?? Number.POSITIVE_INFINITY),
     );
 
@@ -700,8 +701,9 @@ async function requireChain(
     return chain;
 }
 
-/** Refuse a device's client that was revoked or never registered. */
-async function requireClient(transaction: DatabaseConnection, clientId: string): Promise<void> {
+/** Read an unrevoked client, refusing a revoked or deleted one. */
+async function requireClient(transaction: DatabaseConnection, clientId: string): Promise<Client> {
+    // read the client, refusing a missing or revoked one
     const found = await Transaction.reading(transaction)
         .read(client.table)
         .findFirst({ where: { id: client.identifier(clientId) } });
@@ -709,6 +711,34 @@ async function requireClient(transaction: DatabaseConnection, clientId: string):
         throw AccountError.of("CREDENTIAL_REVOKED", "client is revoked");
     }
     Revocation.requireUnrevoked(found, "client");
+
+    return found;
+}
+
+/** Read when a person's session or client ends, refusing one that ended or is another person's. */
+async function credentialEnd(
+    transaction: DatabaseConnection,
+    credential: Identifier<"session"> | Identifier<"client">,
+    person: Subject,
+    now: number,
+): Promise<number> {
+    // end with the person's session
+    if (session.identifies(credential)) {
+        return sessionEnd(transaction, session.identifier(credential), person, now);
+    }
+    // refuse a client binding a token of anyone but a person
+    else if (!principal.user.is(person)) {
+        throw AccountError.of("CLIENT_FOREIGN", "a client binds only a person's token");
+    }
+    // end with the person's unrevoked client, refusing another person's
+    else {
+        const found = await requireClient(transaction, credential);
+        if (found.scope !== person.id) {
+            throw AccountError.of("CLIENT_FOREIGN", "the client is another person's");
+        }
+
+        return Number.POSITIVE_INFINITY;
+    }
 }
 
 /** Read when a person's session ends, refusing one that ended or is another person's. */

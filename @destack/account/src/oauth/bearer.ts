@@ -103,11 +103,13 @@ export function bearerGrant(options: BearerOptions): TokenGrant {
             throw OAuthError.of("INVALID_GRANT", `${asserted.subject.id} acts in its space alone`);
         }
 
-        // issue the token for the partition the call goes to, else the universe
+        // issue the token for the partition the call goes to, else the universe, lapsing with the token alone
+        //  as an assertion's expiry bounds only its presentation (RFC 7523)
         const { scope: _asserted, ...unscoped } = credential;
         const scoped = {
             ...unscoped,
             audience,
+            expiresAt: Number.POSITIVE_INFINITY,
             ...(partition === undefined ? {} : { scope: partition }),
         };
 

@@ -15,7 +15,7 @@ import {
     TestJwt,
     type TestPerson,
 } from "../src/test/index.ts";
-import { ANY_NUMBER, ANY_STRING, DeviceGrant, Tokens } from "./fixture.ts";
+import { ANY_STRING, DeviceGrant, Tokens } from "./fixture.ts";
 import { JWKS_PATH } from "../src/authentication/path.ts";
 import { EMAIL_CODE, JWT_BEARER, TOKEN_EXCHANGE } from "../src/oauth/index.ts";
 import { Pkce, TOKEN_LIFETIME_MILLISECONDS } from "@destack/access/token";
