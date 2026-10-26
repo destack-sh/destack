@@ -46,17 +46,18 @@ const EMAIL_ONLY = implementPackage(messagePackage, (context) =>
     }),
 );
 
-/** List each journaled call of messages and attempts with the component making it, in order. */
+/** List each journaled call of messages and attempts with the component making it, sorted. */
 async function listCalls(kit: TestMessage) {
-    const rows = await kit.served.database
-        .select()
-        .from(journal)
-        .orderBy(journal.startedAt, journal.position);
+    const rows = await kit.served.database.select().from(journal);
 
+    // sort by method and component, as calls in one millisecond have no order the journal records
     return rows
         .map(({ call: recorded }) => JournalEntry.parse(recorded))
         .filter((entry) => /^(message|attempt)\./u.test(entry.method))
-        .map((entry) => [entry.method, entry.execution.context.component]);
+        .map((entry) => [entry.method, entry.execution.context.component] as const)
+        .toSorted((left, right) =>
+            `${left[0]} ${left[1]}`.localeCompare(`${right[0]} ${right[1]}`),
+        );
 }
 
 /** List the message tables whose rows have the content's text or ciphertext. */
@@ -106,10 +107,10 @@ test("send a message through its channel's provider, retrying a temporary refusa
         },
         texts: [TEXT, TEXT],
         calls: [
+            ["attempt.create", "message"],
+            ["attempt.create", "message"],
             ["message.create", undefined],
-            ["attempt.create", "message"],
             ["message.observe", "message"],
-            ["attempt.create", "message"],
             ["message.observe", "message"],
         ],
     });
