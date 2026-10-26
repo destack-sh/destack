@@ -9,6 +9,11 @@ author: "Florian"
 > Destack is an open-source software engine for general purpose application software, just like Unity and Unreal are engines for games.
 > Think GitHub + NPM + Convex + Vercel + Sentry with all the boring decisions already made: auth, schemas, migrations, multiplayer, permissions, workflows, telemetry.
 > 
+> To destack is to take back control over your software, step by step:
+> 1. Build high quality custom software, easily, in a standardised pipeline.
+> 2. Grow _your_ own suite of custom software, in one unified platform.
+> 3. Own your data and context, and take your software wherever you want.
+> 
 > The Destack comprises both the platform core for building malleable software _and_ standardised apps representing classic SaaS (think Notion, Linear, Miro).
 > Everything built on Destack is fully standardised and integrated by default, and thus fully hackable and programmable by your agents.
 >
