@@ -749,6 +749,149 @@ test("report a follow its source refuses, and drop its replica once a change of 
     expect(failures).toEqual([refused]);
 });
 
+test("finish a wait through the replicas a store still follows once its sink drops another replica of the scope", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    // follow the other space's activity at a fixed key
+    const activity = Follow.of(ACTIVITY, { keys: [{ key: { scope: otherSpaceId } }] });
+
+    // store an account and its two spaces at home, and a document of the first space on a machine
+    const home = await TestDatabase.create(
+        tablesOf({
+            packages: [{ objects: { space, document }, tables: [] }],
+            follows: [],
+            tables: [],
+        }).tables,
+        { environment: world, isMigrated: true },
+    );
+    const machine = await TestDatabase.create(
+        tablesOf({
+            packages: [objectPackage, { objects: { document }, tables: [] }],
+            follows: [activity],
+            tables: [lease],
+        }).tables,
+        { environment: world, isMigrated: true },
+    );
+    onTestFinished(async () => {
+        await Promise.all([home.close(), machine.close()]);
+    });
+    const access = new AccessFixture(home.database, world);
+    await access.replicateScope(account.reference(Scope.universe.id, accountId), account.policy);
+    await access.replicateScope(space.reference(accountId, spaceId), space.policy);
+    await access.replicateScope(space.reference(accountId, otherSpaceId), space.policy);
+    const requesting = Identifier.create("document", world);
+    await machine.database.transaction(
+        async (transaction) =>
+            await transaction.insert(document.table).values({
+                id: requesting,
+                scope: spaceId,
+                title: "Notes",
+                createdAt: 1,
+                updatedAt: 1,
+            }),
+    );
+
+    // publish the feed, confirming positions to every replica except the documents one
+    const feed = new Feed(home.database, [...accessTables, space.table, ...document.tables]);
+    const published = FeedPublisher.of(
+        feed,
+        (subscription) => store.source.buildReplica(subscription).queries,
+    );
+    const documents = documentShape.replicaName({ scope: otherSpaceId });
+    const publisher: sync.Publisher = {
+        stream: published.stream,
+        confirm: async (subscription, watermark) => {
+            if (subscription.name !== documents) {
+                await published.confirm(subscription, watermark);
+            }
+        },
+    };
+
+    // follow the other space's activity, and its documents while the document asks for them
+    const store: ObjectStore = await TestObjectStore.at(space.reference(accountId, spaceId), {
+        chain: async () => ({ kind: "follower", parent: accountId }),
+        environment: world,
+        principal: spacePrincipal(spaceId),
+        servers: serversOf([document], {
+            follows: [
+                activity,
+                document.follow(documentShape, {
+                    key: async (row) =>
+                        row.title === "Notes" ? { key: { scope: otherSpaceId } } : undefined,
+                }),
+            ],
+        }),
+        database: machine.database,
+        publisher: () => publisher,
+        callKey: testCallKey,
+        events: await testEvents(machine.database, world),
+        origin: { package: document.package },
+    });
+
+    // follow the replicas to the home's head
+    const controller = new AbortController();
+    const loop = new ControlLoop(
+        machine.database,
+        store.controllers().filter((each) => each.name === "replica"),
+        { clock: world.clock, report: failing },
+    );
+    const running = loop.run(controller.signal);
+    onTestFinished(async () => {
+        controller.abort();
+        await running;
+    });
+    const followed = await home.database.log.position();
+    for (const scope of [spaceId, otherSpaceId, accountId, Scope.universe.id]) {
+        await Replica.wait(machine.database, scope, followed, controller.signal);
+    }
+
+    // commit a document of the first space at home, outside both replicas of the other space
+    await home.database.transaction(
+        async (transaction) =>
+            await transaction.insert(document.table).values({
+                id: Identifier.create("document", world),
+                scope: spaceId,
+                title: "Elsewhere",
+                createdAt: 1,
+                updatedAt: 1,
+            }),
+    );
+    const head = await home.database.log.position();
+
+    // wait for the head at the other space, held back by its unconfirmed documents replica
+    const waiting = store.wait(
+        { scope: otherSpaceId, ...head },
+        world.clock.timeout(REPLICA_MILLISECONDS),
+    );
+
+    // stop asking for the other space's documents, which drops their replica
+    await machine.database.transaction(
+        async (transaction) =>
+            await transaction
+                .update(document.table)
+                .set({ title: "Archived" })
+                .where(eq(document.table.id, requesting)),
+    );
+
+    // reach the head through the activity replica the store still follows
+    expect({
+        isReached: await waiting,
+        followed: (await store.sink.followed()).map(({ subscription }) => [
+            subscription.name,
+            subscription.scope,
+        ]),
+    }).toEqual({
+        isReached: true,
+        followed: [
+            [ObjectSink.chainName(spaceId), spaceId],
+            [ObjectSink.chainName(spaceId), accountId],
+            [ObjectSink.chainName(spaceId), Scope.universe.id],
+            [ACTIVITY.replicaName({ scope: otherSpaceId }), otherSpaceId],
+        ],
+    });
+});
+
 test("replicate a person's grant to an installation of the space from the universe into the space", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
