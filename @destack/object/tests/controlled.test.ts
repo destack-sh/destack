@@ -41,7 +41,7 @@ const machine = defineObject(
     },
     (method) => ({
         create: method.create("write", { fields: ["size"] }),
-        provision: method.create("provision", { isInternal: true }),
+        provision: method.create("provision", { visibility: "package" }),
         update: method.update("write", { fields: ["size"] }),
         delete: method.delete("write"),
     }),

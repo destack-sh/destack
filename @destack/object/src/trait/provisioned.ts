@@ -233,7 +233,7 @@ export const Provisioned = {
 function resourceMethods() {
     return {
         create: method.create("declare", {
-            isInternal: true,
+            visibility: "installation",
             fields: [
                 "name",
                 "definitionPackageId",
@@ -253,10 +253,10 @@ function resourceMethods() {
             ],
         }),
         update: method.update("declare", {
-            isInternal: true,
+            visibility: "installation",
             fields: ["definitionVersion", "spec", "retention"],
         }),
-        delete: method.delete("declare", { isInternal: true }),
+        delete: method.delete("declare", { visibility: "installation" }),
         adopt,
         specify,
     };

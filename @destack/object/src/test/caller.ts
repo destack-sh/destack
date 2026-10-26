@@ -1,6 +1,6 @@
 import type { Environment } from "@destack/environment";
 import type { Example } from "@destack/package/declare";
-import { type Call, RequestId, type Subject } from "@destack/sync";
+import { type Call, type ObjectTypeReference, RequestId, type Subject } from "@destack/sync";
 import { type ClientOptions, type ClientTarget, createClient } from "../client/package.ts";
 import type { PackageHandle } from "../declare/package.ts";
 import type { ObjectType } from "../object/object.ts";
@@ -22,6 +22,10 @@ export interface TestServed {
     readonly server: (handle: PackageHandle) => Pick<Server, "fetch">;
     /** Read a served object type with its package, absent for a type served nowhere. */
     readonly type: (
+        reference: ObjectTypeReference,
+    ) => { readonly type: ObjectType; readonly handle: PackageHandle } | undefined;
+    /** Read the one served object type of a name with its package, absent if served nowhere. */
+    readonly named: (
         name: string,
     ) => { readonly type: ObjectType; readonly handle: PackageHandle } | undefined;
     /** Sign a request as a caller of a package. */
@@ -51,7 +55,8 @@ export class TestCaller {
         const driving: TestServed = {
             scope: served.scope,
             environment: served.environment,
-            type: (name) => served.type(name),
+            type: (reference) => served.type(reference),
+            named: (name) => served.named(name),
             server: (handle) => {
                 const server = served.server(handle);
 
@@ -101,7 +106,7 @@ export class TestCaller {
         options: { readonly writerId?: string } = {},
     ): Promise<Result> {
         // find the called procedure on the client of the type's package
-        const served = this.#served.type(called.type.type);
+        const served = this.#served.type(called.type);
         if (served === undefined) {
             throw new TypeError(`the test store serves no object type ${called.type.type}`);
         }
@@ -140,7 +145,7 @@ export class TestCaller {
 
             // call each method in the served scope through the package's client
             for (const { object, method, input } of calls) {
-                const served = this.#served.type(object.name);
+                const served = this.#served.named(object.name);
                 if (served === undefined) {
                     throw new TypeError(`the test store serves no object type ${object.name}`);
                 }

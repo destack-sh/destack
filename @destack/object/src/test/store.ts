@@ -24,7 +24,13 @@ import { Simulation } from "@destack/environment/simulation";
 import { Package, type PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
 import { Identifier, schema } from "@destack/schema";
-import { type ObjectReference, type Publisher, Scope, Subject } from "@destack/sync";
+import {
+    type ObjectReference,
+    ObjectTypeReference,
+    type Publisher,
+    Scope,
+    Subject,
+} from "@destack/sync";
 import { ObjectType } from "../object/object.ts";
 import type { PackageHandle } from "../declare/package.ts";
 import { Health } from "../server/health.ts";
@@ -122,7 +128,7 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
     readonly #failed: Promise<never>;
     /** Run work under the store's world, such as its simulation, moving time while it waits. */
     readonly #drive: Drive;
-    /** The object types the store serves by name, each with its package. */
+    /** The object types the store serves by their reference's key, each with its package. */
     readonly #types: ReadonlyMap<
         string,
         { readonly type: ObjectType; readonly handle: PackageHandle }
@@ -153,23 +159,15 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
         this.#failed = failed;
         this.#drive = drive;
 
-        // index the served object types by name, refusing a name two packages share
+        // index the served object types by their reference, each with its package
         const served = store.packages.flatMap((handler) =>
             Object.values(handler.package.objects)
                 .filter((declared): declared is ObjectType => declared instanceof ObjectType)
                 .map((type) => ({ type, handle: handler.package })),
         );
-        const types = new Map<
-            string,
-            { readonly type: ObjectType; readonly handle: PackageHandle }
-        >();
-        for (const each of served) {
-            if (types.has(each.type.name)) {
-                throw new TypeError(`two packages the test store serves declare ${each.type.name}`);
-            }
-            types.set(each.type.name, each);
-        }
-        this.#types = types;
+        this.#types = new Map(
+            served.map((each) => [ObjectTypeReference.key(each.type.typeReference), each]),
+        );
     }
 
     /** Serve packages at their base installations in a scope, as its home and its followers do. */
@@ -523,8 +521,20 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
     }
 
     /** Read a served object type with its package, absent for a type served nowhere. */
-    type(name: string): { readonly type: ObjectType; readonly handle: PackageHandle } | undefined {
-        return this.#types.get(name);
+    type(
+        reference: ObjectTypeReference,
+    ): { readonly type: ObjectType; readonly handle: PackageHandle } | undefined {
+        return this.#types.get(ObjectTypeReference.key(reference));
+    }
+
+    /** Read the one served object type of a name with its package, refusing a shared name. */
+    named(name: string): { readonly type: ObjectType; readonly handle: PackageHandle } | undefined {
+        const found = [...this.#types.values()].filter((each) => each.type.name === name);
+        if (found.length > 1) {
+            throw new TypeError(`two packages the test store serves declare ${name}`);
+        }
+
+        return found[0];
     }
 
     /** Wait until every server serves, its readiness met, failing on the first reported failure. */

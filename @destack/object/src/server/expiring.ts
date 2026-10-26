@@ -10,6 +10,7 @@ import {
     min,
     type Row,
     type Select,
+    type SQL,
     TABLE,
     type Table,
     Condition,
@@ -42,8 +43,7 @@ export class ExpiringController implements ReconcileController {
         this.#store = store;
         // leave the replicated rows to the deletes their home sends
         this.#types = store.objects.filter(
-            (object) =>
-                object.lifecycle.expiring !== undefined && !store.database.replicates(object.table),
+            (object) => object.lifecycle.expiring !== undefined && !store.replicates(object),
         );
         this.watches = this.#types.map((object) => object.table);
     }
@@ -73,15 +73,20 @@ export class ExpiringController implements ReconcileController {
     async reconcile(_key: string, _reconciliation: Reconciliation): Promise<number | undefined> {
         // expire what passed and read each rule's earliest window end
         const now = this.#store.clock.now();
+        const { database } = this.#store;
         await ExpiringController.expire(this.#store, now);
         const passes = await Promise.all(
-            this.#types.flatMap((object) =>
-                (object.lifecycle.expiring ?? []).map((rule) =>
-                    ExpiringController.#passing(this.#store.database, object, rule),
-                ),
-            ),
+            this.#types.map(async (object) => {
+                const owned = await ExpiringController.#owned(database, object.table);
+
+                return Promise.all(
+                    (object.lifecycle.expiring ?? []).map((rule) =>
+                        ExpiringController.#passing(database, object, rule, owned),
+                    ),
+                );
+            }),
         );
-        const next = earliest(passes);
+        const next = earliest(passes.flat());
 
         return next === undefined ? undefined : Math.max(0, next - now);
     }
@@ -90,9 +95,8 @@ export class ExpiringController implements ReconcileController {
     static async expire(store: ObjectStore, now: number): Promise<number> {
         // remove each rule's rows in batches until one comes back short
         let removed = 0;
-        for (const object of store.objects.filter(
-            (each) => !store.database.replicates(each.table),
-        )) {
+        for (const object of store.objects.filter((each) => !store.replicates(each))) {
+            const owned = await ExpiringController.#owned(store.database, object.table);
             for (const rule of object.lifecycle.expiring ?? []) {
                 for (let batch = EXPIRE_ROWS; batch === EXPIRE_ROWS;) {
                     const rows = await ExpiringController.#expired(
@@ -100,6 +104,7 @@ export class ExpiringController implements ReconcileController {
                         object,
                         rule,
                         now,
+                        owned,
                     );
                     // remove each scope's rows in a mutation of its own, as a mutation acts in one scope
                     const keys = rows.map((row) => ObjectKey.parse(row));
@@ -130,14 +135,10 @@ export class ExpiringController implements ReconcileController {
         object: ObjectType,
         rule: ExpiryRule,
         now: number,
+        owned: SQL | undefined,
     ): Promise<Select<Table>[]> {
-        // leave the rows of scopes the database replicates to the deletes their home sends
+        // read the expired rows of the scopes the database keeps, leaving replicas to their home's deletes
         const table = object.table;
-        const replicated = await Replica.scopes(database, table);
-        const unreplicated =
-            replicated.length === 0
-                ? undefined
-                : notInArray(table[TABLE].column("scope"), replicated);
 
         return database
             .select()
@@ -146,7 +147,7 @@ export class ExpiringController implements ReconcileController {
                 and(
                     lte(table[TABLE].column(rule.from), now - Duration.milliseconds(rule.after)),
                     ExpiringController.#matching(table, rule),
-                    unreplicated,
+                    owned,
                 ),
             )
             .limit(EXPIRE_ROWS);
@@ -157,14 +158,15 @@ export class ExpiringController implements ReconcileController {
         database: DatabaseConnection,
         object: ObjectType,
         rule: ExpiryRule,
+        owned: SQL | undefined,
     ): Promise<number | undefined> {
-        // read the earliest time
+        // read the earliest time among the rows of the scopes the database keeps
         const table = object.table;
         const column = table[TABLE].column(rule.from);
         const [row] = await database
             .select({ from: min(column) })
             .from(table)
-            .where(and(isNotNull(column), ExpiringController.#matching(table, rule)));
+            .where(and(isNotNull(column), ExpiringController.#matching(table, rule), owned));
         if (row === undefined) {
             throw new TypeError(
                 `reading the earliest ${rule.from} of ${object.name} returned no row`,
@@ -180,6 +182,15 @@ export class ExpiringController implements ReconcileController {
         }
 
         return from + Duration.milliseconds(rule.after);
+    }
+
+    /** Match a table's rows outside the scopes the database replicates, every row without any. */
+    static async #owned(database: DatabaseConnection, table: Table) {
+        const replicated = await Replica.scopes(database, table);
+
+        return replicated.length === 0
+            ? undefined
+            : notInArray(table[TABLE].column("scope"), replicated);
     }
 
     /** Render a rule's condition on its table. */

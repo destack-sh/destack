@@ -21,7 +21,7 @@ type FenceScopeMethod<Fence extends string> = Method<{
     prepared: never;
     mutates: true;
     table: Table;
-    internal: true;
+    visibility: "installation";
     target: "object";
 }>;
 
@@ -34,7 +34,7 @@ type UnfenceScopeMethod<Fence extends string> = Method<{
     prepared: never;
     mutates: true;
     table: Table;
-    internal: true;
+    visibility: "installation";
     target: "object";
 }>;
 
@@ -77,7 +77,7 @@ export const fencing: Trait<Gated> & {
             method.mutation({
                 permission,
                 input: FenceInput,
-                isInternal: true,
+                visibility: "installation",
                 isPredicted: false,
             }),
             async (call, execution) => {
@@ -91,7 +91,7 @@ export const fencing: Trait<Gated> & {
         ),
     unfenceScope: (permission) =>
         Execution.handle(
-            method.mutation({ permission, isInternal: true, isPredicted: false }),
+            method.mutation({ permission, visibility: "installation", isPredicted: false }),
             async (call, execution) => {
                 // lift the fence of the scope the object lives in
                 const { authorization } = Execution.store(execution, call);

@@ -116,7 +116,7 @@ export class HookSandbox {
 
     /** Answer a hook's request in its session. */
     async #answer(session: Session, asked: SessionRequest["request"]): Promise<JsonValue> {
-        // run a call as the hook's caller or as the installation, allowing the package's internal methods
+        // run a call as the hook's caller or as the installation, allowing the package's own methods
         const { context } = session;
         if (asked.kind === "call") {
             const caller =

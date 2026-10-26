@@ -42,6 +42,7 @@ import {
     type MethodConfiguration,
     type MethodDefinition,
     type MethodSource,
+    type MethodVisibility,
 } from "./method.ts";
 import {
     Empty,
@@ -108,12 +109,12 @@ export interface CreateOptions<
     Fields extends string,
     Input extends InputObject,
     Prepared extends schema.Schema,
-    Internal extends boolean,
+    Visibility extends MethodVisibility,
     Sum extends Variants = Variants,
     Filled extends string = string,
 > {
-    /** Whether the creation stays off public routes, setting the caller fields itself. */
-    readonly isInternal?: Internal;
+    /** Who may call the creation; server-only creations take the caller fields as input. */
+    readonly visibility?: Visibility;
     /** The fields the caller writes, every written field when absent. */
     readonly fields?: readonly Fields[];
     /** The written fields the handler fills where the caller leaves them out. */
@@ -133,9 +134,9 @@ export interface CreateOptions<
 }
 
 /** How a bulk creation creates: its written fields and creator. */
-export interface CreateManyOptions<Fields extends string, Internal extends boolean> {
-    /** Whether the creation stays off public routes, setting the caller fields itself. */
-    readonly isInternal?: Internal;
+export interface CreateManyOptions<Fields extends string, Visibility extends MethodVisibility> {
+    /** Who may call the creation; server-only creations take the caller fields as input. */
+    readonly visibility?: Visibility;
     /** The fields the caller writes on each item. */
     readonly fields: readonly Fields[];
     /** The relation the calling principal takes to each new object. */
@@ -148,8 +149,8 @@ export interface UpdateOptions<
     Input extends InputObject,
     Prepared extends schema.Schema,
 > {
-    /** Whether the update stays off public routes. */
-    readonly isInternal?: boolean;
+    /** Who may call the update. */
+    readonly visibility?: MethodVisibility;
     /** The fields the caller writes, every written field when absent. */
     readonly fields?: readonly Fields[];
     /** The caller-supplied values beyond fields. */
@@ -164,8 +165,8 @@ export interface UpdateOptions<
 
 /** How a bulk update matches and writes objects. */
 export interface UpdateManyOptions<Fields extends string, Match extends string> {
-    /** Whether the update stays off public routes. */
-    readonly isInternal?: boolean;
+    /** Who may call the update. */
+    readonly visibility?: MethodVisibility;
     /** The fields the call writes on each matched object. */
     readonly fields: readonly Fields[];
     /** The fields the call matches objects by. */
@@ -182,8 +183,8 @@ export interface DeleteManyOptions<Match extends string> {
 
 /** How a deletion method deletes. */
 export interface RemoveOptions<Prepared extends schema.Schema> {
-    /** Whether the deletion stays off public routes. */
-    readonly isInternal?: boolean;
+    /** Who may call the deletion. */
+    readonly visibility?: MethodVisibility;
     /** The external work the deletion prepares before its transaction. */
     readonly prepared?: Prepared;
     /** Whether clients predict the deletion. */
@@ -218,7 +219,7 @@ function bulkUpdate<
         permission,
         output: BatchPayload,
         mutates: true,
-        ...(options.isInternal === undefined ? {} : { isInternal: options.isInternal }),
+        ...(options.visibility === undefined ? {} : { visibility: options.visibility }),
         ...(isItemized ? { isItemized } : {}),
         ...(options.convert === undefined ? {} : { convert: options.convert }),
         target: "scope",
@@ -267,13 +268,13 @@ export interface CustomDefinition<
     Input extends InputSchema,
     Output extends schema.Schema,
     Prepared extends schema.Schema,
-    Internal extends boolean = false,
+    Visibility extends MethodVisibility = "client",
     Target extends MethodTarget = "object",
 > {
     /** The permission the caller needs on the target. */
     readonly permission: Permission;
     /** Whether the method stays off public routes, run only by the principals' code. */
-    readonly isInternal?: Internal;
+    readonly visibility?: Visibility;
     /** The caller-supplied fields. */
     readonly input?: Input;
     /** The result, the updated object when absent. */
@@ -433,8 +434,8 @@ export const RecordMethod = {
         name: string,
         schemas: ObjectSchema,
         options: Pick<
-            CreateOptions<string, InputObject, schema.Schema, boolean>,
-            "fields" | "isInternal" | "input" | "variants" | "filled"
+            CreateOptions<string, InputObject, schema.Schema, MethodVisibility>,
+            "fields" | "visibility" | "input" | "variants" | "filled"
         >,
     ): MethodProcedure {
         // take the shared fields, the caller leaving out those the handler fills
@@ -452,7 +453,7 @@ export const RecordMethod = {
             ...written,
             ...TagFields,
             ...filled,
-            ...(options.isInternal === true ? schemas.callers : {}),
+            ...(options.visibility !== undefined && options.visibility !== "client" ? schemas.callers : {}),
             ...RecordMethod.fields(options.input),
         });
 
@@ -1058,11 +1059,11 @@ export const RecordMethod = {
         // fill caller fields with a calling principal of the declared kinds, a reference by its identifier column
         const { object } = context;
         const caller = context.caller.subject;
-        const isInternal = context.method.isInternal === true;
+        const isServerOnly = !Method.isRouted(context.method);
         const callers: Record<string, string | null> = {};
         for (const [name, declared] of Object.entries(object.fields)) {
             const kinds = declared.principals;
-            if (!declared.isCallerFilled || isInternal || declared.reference === "none") {
+            if (!declared.isCallerFilled || isServerOnly || declared.reference === "none") {
                 continue;
             } else if (
                 caller === undefined ||
@@ -1535,13 +1536,13 @@ export class MethodBuilder<
         const Fields extends Written = Written,
         Input extends InputObject = never,
         Prepared extends schema.Schema = never,
-        const Internal extends boolean = false,
+        const Visibility extends MethodVisibility = "client",
         const Sum extends Variants = never,
         const Filled extends Fields = never,
     >(
         this: MethodBuilder<Definition>,
         permission: Permission,
-        options: CreateOptions<Fields, Input, Prepared, Internal, Sum, Filled> = {},
+        options: CreateOptions<Fields, Input, Prepared, Visibility, Sum, Filled> = {},
     ) {
         // relate the creation's creator
         const { creator, ...declared } = options;
@@ -1556,7 +1557,7 @@ export class MethodBuilder<
             filled: NoInfer<Filled>;
             variants: NoInfer<Sum>;
             table: Definition;
-            internal: NoInfer<Internal>;
+            visibility: NoInfer<Visibility>;
             target: "scope";
         }>({
             kind: "create",
@@ -1615,8 +1616,8 @@ export class MethodBuilder<
     createMany<
         const Permission extends Granted,
         const Fields extends Written = Written,
-        const Internal extends boolean = false,
-    >(permission: Permission, options: CreateManyOptions<Fields, Internal>) {
+        const Visibility extends MethodVisibility = "client",
+    >(permission: Permission, options: CreateManyOptions<Fields, Visibility>) {
         // relate the creation's creator
         const { creator, ...declared } = options;
 
@@ -1627,7 +1628,7 @@ export class MethodBuilder<
             mutates: true;
             fields: NoInfer<Fields>;
             table: Definition;
-            internal: NoInfer<Internal>;
+            visibility: NoInfer<Visibility>;
             target: "scope";
         }>({
             kind: "createMany",
@@ -1648,7 +1649,7 @@ export class MethodBuilder<
                                 ...schemas.created,
                                 ...schemas.parent,
                                 ...schemas.written(options.fields, false),
-                                ...(options.isInternal === true ? schemas.callers : {}),
+                                ...(options.visibility !== undefined && options.visibility !== "client" ? schemas.callers : {}),
                             }),
                         )
                         .max(BATCH_LIMIT),
@@ -1850,9 +1851,9 @@ export class MethodBuilder<
         Input extends InputSchema = never,
         Output extends schema.Schema = never,
         Prepared extends schema.Schema = never,
-        const Internal extends boolean = false,
+        const Visibility extends MethodVisibility = "client",
         const Target extends MethodTarget = "object",
-    >(definition: CustomDefinition<Permission, Input, Output, Prepared, Internal, Target>) {
+    >(definition: CustomDefinition<Permission, Input, Output, Prepared, Visibility, Target>) {
         return defineMethod<{
             kind: "custom";
             permission: Permission;
@@ -1861,7 +1862,7 @@ export class MethodBuilder<
             prepared: NoInfer<Prepared>;
             mutates: false;
             table: Definition;
-            internal: NoInfer<Internal>;
+            visibility: NoInfer<Visibility>;
             target: NoInfer<Target>;
         }>(this.#custom(definition, false));
     }
@@ -1872,9 +1873,9 @@ export class MethodBuilder<
         Input extends InputSchema = never,
         Output extends schema.Schema = never,
         Prepared extends schema.Schema = never,
-        const Internal extends boolean = false,
+        const Visibility extends MethodVisibility = "client",
         const Target extends MethodTarget = "object",
-    >(definition: CustomDefinition<Permission, Input, Output, Prepared, Internal, Target>) {
+    >(definition: CustomDefinition<Permission, Input, Output, Prepared, Visibility, Target>) {
         return defineMethod<{
             kind: "custom";
             permission: Permission;
@@ -1883,7 +1884,7 @@ export class MethodBuilder<
             prepared: NoInfer<Prepared>;
             mutates: true;
             table: Definition;
-            internal: NoInfer<Internal>;
+            visibility: NoInfer<Visibility>;
             target: NoInfer<Target>;
         }>(this.#custom(definition, true));
     }
@@ -1895,10 +1896,10 @@ export class MethodBuilder<
         Output extends schema.Schema,
         Prepared extends schema.Schema,
         const Mutates extends boolean,
-        const Internal extends boolean,
+        const Visibility extends MethodVisibility,
         const Target extends MethodTarget,
     >(
-        definition: CustomDefinition<Permission, Input, Output, Prepared, Internal, Target>,
+        definition: CustomDefinition<Permission, Input, Output, Prepared, Visibility, Target>,
         mutates: Mutates,
     ): MethodDefinition<{
         kind: "custom";
@@ -1908,7 +1909,7 @@ export class MethodBuilder<
         prepared: Prepared;
         mutates: Mutates;
         table: Definition;
-        internal: Internal;
+        visibility: Visibility;
         target: Target;
     }> {
         // act in the scope for a method without a target

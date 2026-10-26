@@ -5,7 +5,7 @@ import { schema } from "@destack/schema";
 import { Step } from "../method/step.ts";
 import { Casing } from "../object/name.ts";
 import type { StateField, StateMachine } from "../field/field.ts";
-import { defineMethod, Method } from "../method/method.ts";
+import { defineMethod, Method, type MethodVisibility } from "../method/method.ts";
 import {
     type Procedure,
     type ReplayFields,
@@ -44,10 +44,12 @@ type TransitionFields<Transition> = Transition extends {
     ? Field
     : never;
 
-/** Whether a transition stays off public routes. */
-type TransitionInternal<Transition> = Transition extends { readonly isInternal: true }
-    ? true
-    : false;
+/** Who may call a transition, clients too when it declares none. */
+type TransitionVisibility<Transition> = Transition extends {
+    readonly visibility: infer Visibility extends MethodVisibility;
+}
+    ? Visibility
+    : "client";
 
 /** The methods the transitions of an object's state fields derive. */
 export type TransitionMethodMap<Fields> = {
@@ -56,7 +58,7 @@ export type TransitionMethodMap<Fields> = {
         permission: string;
         mutates: true;
         fields: TransitionFields<TransitionOf<Fields, Name>>;
-        internal: TransitionInternal<TransitionOf<Fields, Name>>;
+        visibility: TransitionVisibility<TransitionOf<Fields, Name>>;
     }>;
 };
 
@@ -101,7 +103,7 @@ export const transitions: Trait<StateFields> & {
             permission: transition.permission,
             mutates: true,
             ...(transition.fields === undefined ? {} : { fields: transition.fields }),
-            ...(transition.isInternal === true ? { isInternal: true } : {}),
+            ...(transition.visibility === undefined ? {} : { visibility: transition.visibility }),
             transition: { field, from: transition.from, to: transition.to },
             inverse: (step) => {
                 // find the transition leading back

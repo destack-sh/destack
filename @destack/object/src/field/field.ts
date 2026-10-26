@@ -28,6 +28,7 @@ import type { IdentityOf, ObjectStorage, ObjectType } from "../object/object.ts"
 import { Policy } from "@destack/access";
 import { FractionalIndex } from "./fractional-index.ts";
 import { type FileBucket, ObjectFile } from "./file.ts";
+import type { MethodVisibility } from "../method/method.ts";
 
 /** The meanings of fields beyond their stored values. */
 export const FIELD_TYPES = [
@@ -103,8 +104,8 @@ export interface StateMachine {
                 readonly permission: string;
                 /** The fields the transition writes beside the state, from its call's input. */
                 readonly fields?: readonly string[];
-                /** Whether the transition stays off public routes, run only by the store's code. */
-                readonly isInternal?: boolean;
+                /** Who may call the transition, clients too when it declares none. */
+                readonly visibility?: MethodVisibility;
             }
         >
     >;
@@ -190,7 +191,7 @@ export interface FieldConfiguration {
     readonly written: boolean | "create";
     /** Whether the value is sensitive. */
     readonly sensitive: boolean;
-    /** Whether creation fills the value with the calling principal, outside internal creations. */
+    /** Whether creation fills the value with the caller, outside server-only creations. */
     readonly caller: boolean;
     /** How the value refers to another object: not, by identifier, or by object reference. */
     readonly reference: ReferenceKind;

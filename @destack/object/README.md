@@ -103,11 +103,21 @@ A type should only add its own method to change its object in a way `update` can
 (method) => ({
     cancel: method.mutation({ permission: "cancel" }), // change the object
     token: method.mutation({ permission: "token", output: Token }), // follow OAuth 2.0
-    follow: method.mutation({ permission: "follow", isInternal: true }), // run the controller's step
+    follow: method.mutation({ permission: "follow", visibility: "package" }), // run the controller's step
 }),
 // read and write everything else through the standard methods of the type keeping the state
 // sign up through user.create, invite through invitation.create
 // compute derived values where they are read
+```
+
+## Visibility
+
+A method's `visibility` says who may call it: clients by default, any installation's code with `"installation"`, or only its own package's code with `"package"`; creations clients cannot call take caller fields as input.
+
+```ts
+remark: method.mutation({ permission: "read" }), // clients, on its public route
+notify: method.mutation({ permission: "post", visibility: "installation" }), // any app's server code
+post: method.create("post", { visibility: "package" }), // only this package's code
 ```
 
 ## References
@@ -345,7 +355,7 @@ export const call = defineObject(
     },
     (method) => ({
         record: method.createMany("record", {
-            isInternal: true,
+            visibility: "package",
             fields: ["data", "actor", "method"],
         }),
     }),

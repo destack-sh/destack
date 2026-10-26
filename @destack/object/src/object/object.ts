@@ -2034,8 +2034,8 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     #requireRoutes(): void {
         const routes = new Map<string, string>();
         for (const [name, declared] of Object.entries(this.methods)) {
-            // leave internal methods off, which no route answers
-            if (declared.isInternal === true) {
+            // leave off the methods clients cannot call, which no route answers
+            if (!Method.isRouted(declared)) {
                 continue;
             }
 
@@ -2115,7 +2115,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         // refuse client method names functions have
         const shadowed = Object.entries(ObjectType.#methodsOf(this)).find(
             ([name, declared]) =>
-                declared.isInternal !== true &&
+                Method.isRouted(declared) &&
                 Object.getOwnPropertyNames(Function.prototype).includes(name),
         )?.[0];
         if (shadowed !== undefined) {
@@ -2347,13 +2347,15 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             throw new TypeError(`events object ${this.name} has no storage settings`);
         }
 
-        // refuse declarations the storage takes none of, and public writes but an events type's appends
+        // refuse declarations the storage takes none of, and writes but the package's own and an events type's appends
         if (this.storage === "external" || this.storage === "events") {
             const isAppend = (kind: MethodKind) =>
                 this.storage === "events" && (kind === "create" || kind === "createMany");
             const writing = Object.entries(ObjectType.#methodsOf(this)).find(
                 ([, declared]) =>
-                    declared.mutates && declared.isInternal !== true && !isAppend(declared.kind),
+                    declared.mutates &&
+                    declared.visibility !== "package" &&
+                    !isAppend(declared.kind),
             );
             if (refused.length > 0) {
                 throw new TypeError(
@@ -3026,7 +3028,7 @@ export type SensitiveField<Fields extends Readonly<Record<string, Field>>> = {
         : never;
 }[keyof Fields & string];
 
-/** The field a creation fills with the calling principal, written only internally. */
+/** The field a creation fills with the caller, set directly only by server-only creations. */
 export type CallerField<Fields extends Readonly<Record<string, Field>>> = {
     [Name in keyof Fields & string]: Fields[Name] extends { readonly isCallerFilled: true }
         ? Name

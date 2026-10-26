@@ -107,7 +107,7 @@ export const installation = defineObject(
     (method) => ({
         list: method.list("list"),
         install: method.create("install", {
-            isInternal: true,
+            visibility: "installation",
             fields: [
                 "origin",
                 "packageId",
@@ -119,10 +119,10 @@ export const installation = defineObject(
             ],
         }),
         update: method.update("update", {
-            isInternal: true,
+            visibility: "installation",
             fields: ["status", "compute", "capabilities", "directories"],
         }),
-        delete: method.delete("delete", { isInternal: true }),
+        delete: method.delete("delete", { visibility: "installation" }),
 
         /** Allow one of the package's optional capabilities, as the installation asked for it. */
         allow: method.mutation({

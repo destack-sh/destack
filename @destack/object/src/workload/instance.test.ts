@@ -15,7 +15,7 @@ import { Package } from "@destack/package";
 import { PackageHandle } from "../declare/index.ts";
 import { hosting, authenticateByName } from "../test/fixture.ts";
 import { testCallKey } from "../test/context.ts";
-import { Environment } from "@destack/environment";
+import { Environment, until } from "@destack/environment";
 import { tablesOf } from "../index.ts";
 import { testSimulation } from "../test/world.ts";
 
@@ -594,7 +594,7 @@ test("close a server whose controllers were never activated, running none of the
             database: storage.database,
             environment: world,
         },
-        activation: new Promise<void>(() => {}),
+        activation: (signal) => until(signal),
     });
 
     // close it at once, as a retired start's server closes

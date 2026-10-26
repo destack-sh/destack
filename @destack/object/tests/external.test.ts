@@ -12,7 +12,7 @@ import { testEvents, serversOf } from "../src/test/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { implementPackage } from "../src/server/index.ts";
 import { ObjectClient } from "../src/client/index.ts";
-import { definePackage } from "@destack/object";
+import { definePackage, type MethodVisibility } from "@destack/object";
 import { notebook, notesPackage } from "./fixture/note.ts";
 import objectPackage from "../src/package.ts";
 import { openSpace, space, unmoved, spacePrincipal } from "./fixture/space.ts";
@@ -221,8 +221,8 @@ test("read external objects named by their key from the database their files ope
     ]);
 });
 
-/** Declare an external type whose one write is internal or public. */
-function declareMark(isInternal: boolean) {
+/** Declare an external type whose one write its package's code or clients call. */
+function declareMark(visibility: MethodVisibility) {
     return defineObject(
         {
             name: "mark",
@@ -233,15 +233,15 @@ function declareMark(isInternal: boolean) {
             permissions: { receive: none() },
         },
         (method) => ({
-            receive: method.mutation({ permission: "receive", target: "scope", isInternal }),
+            receive: method.mutation({ permission: "receive", target: "scope", visibility }),
         }),
     );
 }
 
-test("refuse public writes on external objects, taking internal writes their store code runs", () => {
-    // declare an external type with an internal write, and one with a public write
-    expect(declareMark(true).storage).toBe("external");
-    expect(() => ObjectDescription.of(declareMark(false))).toThrow(
+test("refuse client writes on external objects, taking the writes their package's code runs", () => {
+    // declare an external type with a package write, and one with a client write
+    expect(declareMark("package").storage).toBe("external");
+    expect(() => ObjectDescription.of(declareMark("client"))).toThrow(
         new TypeError("external object mark cannot write in method receive"),
     );
 });

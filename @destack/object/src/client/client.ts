@@ -2508,7 +2508,7 @@ export class ObjectClient<
 
         return Object.fromEntries(
             Object.entries(object.methods).filter(
-                ([, method]) => method.mutates === mutates && method.isInternal !== true,
+                ([, method]) => method.mutates === mutates && Method.isRouted(method),
             ),
         );
     }

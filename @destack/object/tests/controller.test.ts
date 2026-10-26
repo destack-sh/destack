@@ -44,7 +44,7 @@ const reminder = defineObject(
     },
     (method) => ({
         create: method.create("write", { fields: ["topic", "dueAt"] }),
-        send: method.mutation({ permission: "send", isInternal: true }),
+        send: method.mutation({ permission: "send", visibility: "package" }),
     }),
 ).implement({
     methods: { send: (call) => call.update({ sentAt: call.now }) },

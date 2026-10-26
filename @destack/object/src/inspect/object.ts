@@ -3,6 +3,7 @@ import { graph } from "@destack/package";
 import { schema, type JsonValue } from "@destack/schema";
 import { ObjectDescription } from "../object/description.ts";
 import { ObjectType } from "../object/object.ts";
+import { Method } from "../method/method.ts";
 
 /** Describe an object type for the manifest, as the data it is declared from. */
 export function describeObject(object: ObjectType): ObjectDescription {
@@ -22,7 +23,7 @@ export function objectVocabulary(object: ObjectType): Record<string, JsonValue> 
         terms[`${name}/permission/${permission}`] = {};
     }
     for (const [method, declared] of Object.entries(object.methods)) {
-        if (declared.isInternal !== true) {
+        if (Method.isRouted(declared)) {
             terms[`${name}/method/${method}`] = { kind: declared.kind };
         }
     }

@@ -93,13 +93,13 @@ test("describe the methods callers call: kind, permission, route, and input with
                 output: schema.object({ value: schema.number() }),
             }),
             reset: method.mutation({ permission: "reset", output: schema.object({}) }),
-            tidy: method.mutation({ permission: "reset", isInternal: true }),
+            tidy: method.mutation({ permission: "reset", visibility: "package" }),
         }),
     );
     const described = gauge.describeMethods();
     const { $schema: _schema, ...identifier } = toJsonSchema(gauge.idSchema);
 
-    // describe each method but the internal one, a mutation's input without its request
+    // describe each method but the package one, a mutation's input without its request
     expect({
         names: Object.keys(described),
         measure: described["measure"],

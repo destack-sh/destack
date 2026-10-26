@@ -58,7 +58,8 @@ const card = defineObject(
             permission: "write",
             input: schema.object({ text: schema.string() }),
         }),
-        stamp: method.update("write", { fields: ["name"], isInternal: true }),
+        stamp: method.update("write", { fields: ["name"], visibility: "package" }),
+        mark: method.update("write", { fields: ["name"], visibility: "installation" }),
     }),
 );
 
@@ -528,7 +529,7 @@ test("read every card of the package in a hook, and read as the caller through a
     });
 });
 
-/** Cards whose remark stamps the card through its internal method. */
+/** Cards whose remark stamps the card through its package method. */
 const stamping = definePackage({
     objects: {
         card: card.implement({
@@ -545,11 +546,11 @@ const stamping = definePackage({
     },
 });
 
-test("call an internal method of the hook's package in its session", async () => {
+test("call a package method of the hook's package in its session", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
 
-    // remark by stamping the card through its internal method
+    // remark by stamping the card through its package method
     const { store } = await serveCards(world, stamping);
     const created = await run(store, card.call("create", { spaceId, name: "Plan" }));
     const remarked = await run(
@@ -637,25 +638,25 @@ test("serve the installation's package from its sandbox, never a bundled depende
     expect(store.packages.map((served) => served.package.id)).toEqual([card.package.id]);
 });
 
-test("call internal methods from the store's code and its package's sandboxes alone", () => {
-    // run in a world of its own
-
-    // ask each code for the internal stamp and the public get
-    const codes: readonly CallSite[] = [
+test("call package methods from the store and the package's code, installation methods from any installation, client methods from anyone", () => {
+    // ask each site for the package stamp, the installation mark and the client get
+    const sites: readonly CallSite[] = [
         CallSite.store,
+        CallSite.package(card.package.id),
+        CallSite.package(OTHER_PACKAGE),
+        { kind: "installation" },
         CallSite.client,
-        { kind: "sandbox", packageId: card.package.id },
-        { kind: "sandbox", packageId: OTHER_PACKAGE },
     ];
-    const covered = codes.map((code) =>
-        ["stamp", "get"].map((name) => CallSite.covers(code, card, card.method(name))),
+    const covered = sites.map((site) =>
+        ["stamp", "mark", "get"].map((name) => CallSite.covers(site, card, card.method(name))),
     );
 
     expect(covered).toEqual([
-        [true, true],
-        [false, true],
-        [true, true],
-        [false, true],
+        [true, true, true],
+        [true, true, true],
+        [false, true, true],
+        [false, true, true],
+        [false, false, true],
     ]);
 });
 

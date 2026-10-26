@@ -19,19 +19,19 @@ export const bind: Method<{
     kind: "bind";
     permission: "bind";
     mutates: true;
-    internal: true;
+    visibility: "installation";
     target: "scope";
 }> = defineMethod<{
     kind: "bind";
     permission: "bind";
     mutates: true;
-    internal: true;
+    visibility: "installation";
     target: "scope";
 }>({
     kind: "bind",
     permission: "bind",
     mutates: true,
-    isInternal: true,
+    visibility: "installation",
     target: "scope",
     result: "value",
     procedure: (_name, schemas) => ({

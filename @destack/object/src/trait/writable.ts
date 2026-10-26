@@ -32,7 +32,7 @@ type WriteMethod<Verb, Defined extends Table, Written extends string> = Verb ext
           filled: never;
           variants: never;
           table: Defined;
-          internal: false;
+          visibility: "client";
           target: "scope";
       }>
     : Verb extends "update"

@@ -76,7 +76,7 @@ export const finalize = controlledMethod
 export const approvePlan = approvalMethod
     .mutation({
         permission: "approve",
-        isInternal: true,
+        visibility: "package",
         input: schema.object({
             /** The digest of the approved plan. */
             plan: Digest,

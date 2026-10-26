@@ -128,8 +128,8 @@ export interface InstalledServerContext {
     readonly url: string;
     /** The clock, network and randomness the installation runs in. */
     readonly environment: Environment;
-    /** Run the installation's controllers once this settles, at once when absent. */
-    readonly activation?: Promise<void>;
+    /** Activate the installation before its controllers run, stopping once the signal aborts. */
+    readonly activation?: (signal: AbortSignal) => Promise<void>;
 }
 
 /** The packages of one workload and what it does with its host's deliveries. */

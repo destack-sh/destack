@@ -92,7 +92,7 @@ export const RecoverableMethod = {
     /** Remove a purged record at the loaded revision, by holders of the purge permission. */
     discard<const Permission extends string>(permission: Permission) {
         return retainedMethod
-            .mutation({ permission, isInternal: true, output: Empty })
+            .mutation({ permission, visibility: "package", output: Empty })
             .handle(async (context) => {
                 // require a purged record
                 if (!RecoverableMethod.isPurged(context.target)) {

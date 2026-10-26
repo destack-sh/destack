@@ -196,11 +196,11 @@ test("apply declared objects in dependency order, wait, leave detached and retir
         await refusal(apply({ notes: {}, labels: { stray: { note: "missing", text: "stray" } } })),
     ).toEqual(["INTERNAL_SERVER_ERROR", "DECLARATION_INVALID", "unknown note: missing"]);
 
-    // stop at a waiting declaration and retain the earlier writes
+    // defer a waiting declaration, writing the others of its type and retiring nothing
     expect(
         await apply({
             notes: { one: { title: "renamed" }, two: { title: "second" } },
-            labels: { soon: { note: "one", text: "later" } },
+            labels: { soon: { note: "one", text: "later" }, now: { note: "two", text: "now" } },
         }),
     ).toEqual({
         steps: [
@@ -211,6 +211,7 @@ test("apply declared objects in dependency order, wait, leave detached and retir
                 detail: "change declared fields",
                 fields: { title: { before: "first", after: "renamed" } },
             },
+            { action: "create", target: "label/now", risk: "safe", detail: "declare" },
         ],
         deferred: "label soon is not ready yet",
     });
@@ -219,6 +220,7 @@ test("apply declared objects in dependency order, wait, leave detached and retir
     expect(await apply({ released: ["notes/two"] })).toEqual({
         steps: [
             { action: "delete", target: "label/urgent", risk: "destructive", detail: "retire" },
+            { action: "delete", target: "label/now", risk: "destructive", detail: "retire" },
             { action: "delete", target: "note/one", risk: "destructive", detail: "retire" },
         ],
     });

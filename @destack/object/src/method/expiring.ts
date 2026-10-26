@@ -6,7 +6,7 @@ export const expiry: Method = defineMethod<{ kind: "delete"; permission: "expire
     {
         kind: "delete",
         permission: "expire",
-        isInternal: true,
+        visibility: "package",
         mutates: true,
         target: "object",
         result: "value",

@@ -142,7 +142,7 @@ export class Server implements AsyncDisposable {
         server.#running = (async () => {
             // run the controllers once activated, as a workload's next start once it is current, unless stopped before
             const signal = server.#reconciling.signal;
-            await Promise.race([options.activation, until(signal)]);
+            await options.activation?.(signal);
             if (!signal.aborted) {
                 await Promise.all([server.#syncing?.run(signal), server.#runOnceSynced(signal)]);
             }
@@ -660,8 +660,8 @@ export interface PackageHandler extends Omit<
     readonly verify?: (request: Request) => Promise<Authentication | undefined>;
     /** Wait until the package can answer before it serves. */
     readonly ready?: (signal: AbortSignal) => Promise<void>;
-    /** Start the controllers once this settles, at once when absent. */
-    readonly activation?: Promise<void>;
+    /** Activate the package before its controllers run, stopping once the signal aborts. */
+    readonly activation?: (signal: AbortSignal) => Promise<void>;
 }
 
 /** Attach the request's watermarks to its response. */

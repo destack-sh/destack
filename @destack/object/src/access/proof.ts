@@ -22,7 +22,7 @@ export const proof = defineObject(
     <Definition extends Table>(method: MethodBuilder<Definition, "expiresAt", "spend">) => ({
         create: method.create("spend", {
             fields: ["expiresAt"],
-            isInternal: true,
+            visibility: "installation",
             isPredicted: false,
         }),
     }),

@@ -143,7 +143,7 @@ const sample = defineObject(
         }),
         update: method.update("write", { fields: ["title"], isPredicted: false }),
         updateMany: method.updateMany("write", { fields: ["title"], match: ["kind"] }),
-        delete: method.delete("write", { isInternal: true }),
+        delete: method.delete("write", { visibility: "package" }),
         count: method.query({
             permission: "read",
             input: schema.discriminatedUnion("by", [
@@ -158,7 +158,7 @@ const sample = defineObject(
             audit: { details: schema.object({ reason: schema.string() }) },
             inverse: "restore",
         }),
-        tidy: method.mutation({ permission: "tidy", target: "scope", isInternal: true }),
+        tidy: method.mutation({ permission: "tidy", target: "scope", visibility: "package" }),
     }),
 );
 
@@ -311,7 +311,7 @@ test("describe fields and methods as the calls written, types by reference, kind
             $method: [
                 {
                     builder: "mutation",
-                    arguments: [{ permission: "tidy", target: "scope", isInternal: true }],
+                    arguments: [{ permission: "tidy", target: "scope", visibility: "package" }],
                 },
             ],
         },

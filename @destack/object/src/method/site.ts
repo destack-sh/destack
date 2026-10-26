@@ -1,33 +1,56 @@
-import { AccessContext } from "@destack/access";
+import { AccessContext, principal } from "@destack/access";
 import type { PackageId } from "@destack/package";
 import type { ObjectType } from "../object/object.ts";
-import type { Method } from "./method.ts";
+import { Method } from "./method.ts";
 
-/** Where a call is made: the store's code, a client, or a package's sandboxed hook. */
+/** Where a call is made: the store, a package's own code, another installation, or a client. */
 export type CallSite =
     | { readonly kind: "store" }
-    | { readonly kind: "client" }
-    | { readonly kind: "sandbox"; readonly packageId: PackageId };
+    | { readonly kind: "package"; readonly packageId: PackageId }
+    | { readonly kind: "installation" }
+    | { readonly kind: "client" };
 
 /** The sites calls are made from, and the methods each can call. */
 export const CallSite = {
-    /** The store's code, which can call every method. */
+    /** The store's own code, which can call every method. */
     store: { kind: "store" } as const satisfies CallSite,
 
-    /** A client, which can call public methods. */
+    /** A client, which can call client methods. */
     client: { kind: "client" } as const satisfies CallSite,
 
-    /** Read the site of a caller: a client for a remote caller, else the store. */
-    of(caller: AccessContext): CallSite {
-        return AccessContext.isRemote(caller) ? CallSite.client : CallSite.store;
+    /** Read the site of a package's own code, in its store or its sandbox. */
+    package(packageId: PackageId): CallSite {
+        return { kind: "package", packageId };
     },
 
-    /** Decide whether a site can call a method: an internal one only from its store or package. */
+    /** Read the site of a caller: another installation or a client when remote, else the store. */
+    of(caller: AccessContext): CallSite {
+        // take a remote installation by its token, any other remote caller as a client
+        if (!AccessContext.isRemote(caller)) {
+            return CallSite.store;
+        } else if (caller.subject !== undefined && principal.installation.is(caller.subject)) {
+            return { kind: "installation" };
+        }
+
+        return CallSite.client;
+    },
+
+    /** Decide whether a site can call a method, by who the method lets call it. */
     covers(site: CallSite, object: ObjectType, method: Method): boolean {
-        return (
-            method.isInternal !== true ||
-            site.kind === "store" ||
-            (site.kind === "sandbox" && site.packageId === object.package.id)
-        );
+        // let anyone call a client method
+        if (Method.isRouted(method)) {
+            return true;
+        }
+        // let any installation's code call an installation method
+        else if (method.visibility === "installation") {
+            return site.kind !== "client";
+        }
+        // let the store and the declaring package's code call a package method
+        else {
+            return (
+                site.kind === "store" ||
+                (site.kind === "package" && site.packageId === object.package.id)
+            );
+        }
     },
 };

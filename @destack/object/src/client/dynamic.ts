@@ -19,6 +19,7 @@ import {
 import type { Environment } from "@destack/environment";
 
 import type {} from "@destack/package/import-meta";
+import { Method } from "../method/method.ts";
 
 /** The hex digest digits of a watched query's identity: 64 bits, safe among watches. */
 const QUERY_NAME_LENGTH = 16;
@@ -91,11 +92,11 @@ export class DynamicObjectClient {
 
     /** Call a method by name with input validated by its JSON Schema, in the scope it acts in. */
     async call(type: string, method: string, input: JsonObject): Promise<JsonValue> {
-        // find the method, refusing one the type does not declare or marks internal
+        // find the method, refusing one the type does not declare or keeps from clients
         const object = this.object(type);
         const declared = object.methods[method];
         const procedure = object.procedures[method]?.["~orpc"];
-        if (declared === undefined || declared.isInternal === true || procedure === undefined) {
+        if (declared === undefined || !Method.isRouted(declared) || procedure === undefined) {
             throw ObjectError.of("METHOD_UNKNOWN", `${type} has no method ${method}`);
         }
 
@@ -172,7 +173,7 @@ export class DynamicObjectClient {
     ): Promise<readonly JsonObject[]> {
         // find the type's list method
         const method = Object.entries(this.object(type).methods).find(
-            ([, declared]) => declared.kind === "list" && declared.isInternal !== true,
+            ([, declared]) => declared.kind === "list" && Method.isRouted(declared),
         )?.[0];
         if (method === undefined) {
             throw ObjectError.of("LIST_METHOD_MISSING", `${type} has no list method`);

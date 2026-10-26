@@ -198,7 +198,7 @@ const tick = defineObject(
         permissions: { read: none(), record: none() },
     },
     (method) => ({
-        record: method.createMany("record", { isInternal: true, fields: ["count", "data"] }),
+        record: method.createMany("record", { visibility: "package", fields: ["count", "data"] }),
     }),
 );
 

@@ -182,9 +182,11 @@ export class MethodContext<
         caller: AccessContext,
         calls: Calls,
     ): Promise<ResultsOf<Calls>> {
+        // run each call as the code of the package implementing the method
+        const site = this.#site();
         const results: unknown[] = [];
         for (const entry of calls) {
-            results.push(await this.#run(caller, entry, true, CallSite.store));
+            results.push(await this.#run(caller, entry, true, site));
         }
 
         return MethodContext.results([...this.objects, ...this.replicas], calls, results);
@@ -263,10 +265,21 @@ export class MethodContext<
         const [result] = MethodContext.results(
             [...this.objects, ...this.replicas],
             [call],
-            [await this.#run(caller, call, false, CallSite.store)],
+            [await this.#run(caller, call, false, this.#site())],
         );
 
         return result;
+    }
+
+    /** Read the site of the call's code: the package implementing its type. */
+    #site(): CallSite {
+        const location = this.#location;
+
+        return CallSite.package(
+            location.kind === "store"
+                ? location.store.implementer(this.object)
+                : this.object.package.id,
+        );
     }
 
     /** Run a call a package's sandboxed hook sent in this call's transaction. */
@@ -276,7 +289,7 @@ export class MethodContext<
         mutates: boolean,
         packageId: PackageId,
     ): Promise<unknown> {
-        return this.#run(caller, entry, mutates, { kind: "sandbox", packageId });
+        return this.#run(caller, entry, mutates, CallSite.package(packageId));
     }
 
     /** Run one platform call in this call's transaction and scope, refusing it without a runner. */
@@ -568,7 +581,11 @@ export class MethodContext<
         }
         const { authorizer, snapshot } = location.authorization;
         const context = AccessContext.of(Caller.of(subject), this.now);
-        const access = await authorizer.resolve(snapshot, authorizer.governingScope(target), context);
+        const access = await authorizer.resolve(
+            snapshot,
+            authorizer.governingScope(target),
+            context,
+        );
 
         return (await authorizer.check(snapshot, permission, target, access)).isAllowed;
     }

@@ -17,7 +17,7 @@ import type {
 import type { MethodKind } from "./kind.ts";
 import { Casing } from "../object/name.ts";
 import { WriterId } from "../replica/replica.ts";
-import type { Method } from "./method.ts";
+import { Method } from "./method.ts";
 import type { InputObject, InputSchema } from "./input.ts";
 import type { RecordProcedures } from "./record.ts";
 import type { RecoverableProcedures } from "../trait/recoverable.ts";
@@ -44,7 +44,7 @@ export interface ObjectSchema {
     readonly destination: InputObject["shape"];
     /** The field identifying a mutation: its request identifier or client. */
     readonly replay: InputObject["shape"];
-    /** The columns an internal creation writes for the calling principal it records. */
+    /** The columns a server-only creation writes for the calling principal it records. */
     readonly callers: InputObject["shape"];
     /** Read the columns a write takes. */
     readonly written: (
@@ -143,7 +143,7 @@ export function callableProcedures(
     // derive each method's procedure below its collection, in its scope's route
     const procedures: Record<string, Procedure<InputSchema, ProcedureOutput>> = {};
     for (const [name, method] of Object.entries(object.methods)) {
-        if (method.isInternal === true) {
+        if (!Method.isRouted(method)) {
             continue;
         }
         const collection: `/${string}` = `${object.route.prefix}/${Casing.kebab(object.plural)}`;
@@ -174,7 +174,7 @@ export function objectSchema(object: ObjectType): ObjectSchema {
         scopeField === undefined ? {} : { [scopeField]: schema.string().min(1) },
     );
 
-    // read the written columns, and the caller columns an internal creation writes
+    // read the written columns, and the caller columns a server-only creation writes
     const written = ObjectProcedure.writtenSchema(object);
     const callers = Object.entries(object.fields)
         .filter(([, declared]) => declared.isCallerFilled)
@@ -268,8 +268,8 @@ export type MethodName<Object extends ObjectType> = keyof Object["methods"] & st
 /** The names of an object type's routed methods. */
 export type CallableName<Object extends ObjectType> = {
     [Name in keyof Object["methods"] & string]: [
-        NonNullable<Object["methods"][Name]["isInternal"]>,
-    ] extends [true]
+        NonNullable<Object["methods"][Name]["visibility"]>,
+    ] extends ["package" | "installation"]
         ? never
         : Name;
 }[keyof Object["methods"] & string];
@@ -452,9 +452,9 @@ type WrittenName<Object extends ObjectType, Declared extends Method> =
               : UpdatedField<Object["fields"]>
           : NonNullable<Declared["fields"]>[number])
     | (Declared extends { readonly kind: "create" | "createMany" }
-          ? true extends NonNullable<Declared["isInternal"]>
-              ? CallerField<Object["fields"]>
-              : never
+          ? [Exclude<NonNullable<Declared["visibility"]>, "client">] extends [never]
+              ? never
+              : CallerField<Object["fields"]>
           : never);
 
 /** The JSON validators of the columns a creation or update writes. */

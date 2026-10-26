@@ -75,11 +75,14 @@ export interface MethodConfiguration {
     readonly variants?: object;
     /** The table of the method's object type. */
     readonly table?: Table;
-    /** Whether the method stays off public routes, run only by the principals' code. */
-    readonly internal?: boolean;
+    /** Who may call the method: the package's code, any installation's code, or clients too. */
+    readonly visibility?: MethodVisibility;
     /** Whether a bulk update takes items, each an object's identifier and revision. */
     readonly items?: boolean;
 }
+
+/** Who may call a method: the declaring package's code, any installation's code, or clients too. */
+export type MethodVisibility = "package" | "installation" | "client";
 
 /** One type a method declares: its type, or the default when it declares none. */
 export type OptionOf<
@@ -101,14 +104,14 @@ export type MethodSource =
           readonly builder: "create";
           readonly arguments: readonly [
               permission: string,
-              options: CreateOptions<string, InputObject, schema.Schema, boolean>,
+              options: CreateOptions<string, InputObject, schema.Schema, MethodVisibility>,
           ];
       }
     | {
           readonly builder: "createMany";
           readonly arguments: readonly [
               permission: string,
-              options: CreateManyOptions<string, boolean>,
+              options: CreateManyOptions<string, MethodVisibility>,
           ];
       }
     | {
@@ -148,7 +151,7 @@ export type MethodSource =
                   InputSchema,
                   schema.Schema,
                   schema.Schema,
-                  boolean,
+                  MethodVisibility,
                   MethodTarget
               >,
           ];
@@ -221,8 +224,8 @@ export interface Method<Configuration extends MethodConfiguration = MethodConfig
     readonly source?: MethodSource;
     /** Settle the prepared work once the transaction committed or failed, at least once. */
     readonly settle?: (context: SettlementContext, settled: Settled) => Promise<void>;
-    /** Whether the method stays off public routes, run only by the principals' code. */
-    readonly isInternal?: OptionOf<Configuration, "internal", boolean>;
+    /** Who may call the method: its package's code, any installation's, or clients when absent. */
+    readonly visibility?: OptionOf<Configuration, "visibility", MethodVisibility>;
     /** Whether a bulk update takes items, each an object's identifier and revision. */
     readonly isItemized?: OptionOf<Configuration, "items", boolean>;
     /** Refuse an object type the method cannot serve. */
@@ -313,6 +316,11 @@ export const Method = {
         const { hooks: _hooks, ...declared } = method;
 
         return Method.declaration(declared);
+    },
+
+    /** Report whether clients may call a method, which public routes then answer. */
+    isRouted(method: Pick<Method, "visibility">): boolean {
+        return method.visibility === undefined || method.visibility === "client";
     },
 
     /** Let a method take an object's handler or phases. */

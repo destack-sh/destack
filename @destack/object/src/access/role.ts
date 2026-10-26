@@ -164,7 +164,7 @@ export const role = defineObject(
             target: "scope",
             result: "value",
             isPredicted: false,
-            isInternal: true,
+            visibility: "installation",
             procedure: (_name, schemas) => ({
                 route: { method: "POST", path: "/apply-inherent" },
                 input: schemas.scope.extend({ ...schemas.replay, ...InherentRole.shape }),

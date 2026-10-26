@@ -36,7 +36,7 @@ const holder = defineObject(
         }),
         /** Create a holder as the space. */
         provision: method.create("provision", {
-            isInternal: true,
+            visibility: "package",
             fields: ["label"],
             input: schema.object({ key: ApiKey }),
         }),

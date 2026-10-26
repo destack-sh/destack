@@ -8,7 +8,7 @@ import { none, principal, relation, universe } from "@destack/access";
 
 import { eq, defineDatabase } from "@destack/db";
 import { schema, Uuid } from "@destack/schema";
-import { Scope, RequestId } from "@destack/sync";
+import { Replica, Scope, RequestId } from "@destack/sync";
 
 import { defineObject, definePackage, defineShape, field, Follow } from "../src/index.ts";
 import { ExpiringController } from "../src/server/index.ts";
@@ -138,7 +138,7 @@ test("leave the expired rows a database replicates to the deletes their home sen
     // run in a world of its own
     const world = testSimulation().environment("test");
 
-    // store the alerts as replicas a follow brings, one long expired
+    // follow the alerts, replicating their table
     const follow = Follow.of(
         defineShape({
             name: "alerts",
@@ -169,28 +169,42 @@ test("leave the expired rows a database replicates to the deletes their home sen
         events: await testEvents(database, world),
         origin: { package: alert.package },
     });
+    // replicate another space's alerts, and keep a long expired alert in each space
+    const other = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000005");
+    await new Replica({ name: "alerts", scope: other, tables: [alert.table] }).register(database);
     const now = world.clock.now();
     await database.transaction(
         async (transaction) =>
-            await transaction.insert(alert.table).values({
-                id: alert.identifier(`alert-${Uuid.v7(world)}`),
-                scope: spaceId,
-                ownerId: users.frank,
-                title: "Replicated",
-                createdAt: now - 400 * DAY,
-                updatedAt: now - 400 * DAY,
-                readAt: null,
-            }),
+            await transaction.insert(alert.table).values(
+                (
+                    [
+                        [spaceId, "Owned"],
+                        [other, "Replicated"],
+                    ] as const
+                ).map(([scope, title]) => ({
+                    id: alert.identifier(`alert-${Uuid.v7(world)}`),
+                    scope,
+                    ownerId: users.frank,
+                    title,
+                    createdAt: now - 400 * DAY,
+                    updatedAt: now - 400 * DAY,
+                    readAt: null,
+                })),
+            ),
     );
 
-    // expire nothing and schedule nothing
+    // expire the owned alert alone, leaving the replicated one to its home
     const controller = new ExpiringController(store);
     const delay = await controller.reconcile(
         "expiry",
         reconciliation(new AbortController().signal),
     );
     const left = await database.select({ title: alert.table.title }).from(alert.table);
-    expect([left, delay, controller.watches]).toEqual([[{ title: "Replicated" }], undefined, []]);
+    expect([left, delay, controller.watches]).toEqual([
+        [{ title: "Replicated" }],
+        undefined,
+        [alert.table],
+    ]);
 });
 
 test("grant expiry of a space type and a universe type to no one, leaving it to the serving installation's role", () => {

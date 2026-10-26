@@ -52,7 +52,7 @@ const visit = defineObject(
         list: method.list("read"),
         get: method.get("read"),
         record: method.createMany("record", {
-            isInternal: true,
+            visibility: "package",
             fields: ["visitorId", "page", "duration", "data"],
         }),
         visit: method.create("visit", { fields: ["visitorId", "page", "duration", "data"] }),

@@ -6,6 +6,7 @@ export {
     type MethodDefinition,
     type MethodKind,
     type MethodSource,
+    type MethodVisibility,
     type Phase,
     PHASES,
 } from "./method.ts";

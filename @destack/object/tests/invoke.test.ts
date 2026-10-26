@@ -59,8 +59,8 @@ const slip = defineObject(
         permissions: { read: relation("borrower"), issue: none() },
     },
     (method) => ({
-        issue: method.create("issue", { isInternal: true }),
-        close: method.update("issue", { isInternal: true }),
+        issue: method.create("issue", { visibility: "package" }),
+        close: method.update("issue", { visibility: "package" }),
     }),
 );
 

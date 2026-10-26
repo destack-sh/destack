@@ -13,7 +13,7 @@ export const provisionedMethod = new MethodBuilder<ResourceTable<unknown>>();
 export const adopt = provisionedMethod
     .mutation({
         permission: "declare",
-        isInternal: true,
+        visibility: "installation",
         input: schema.object({
             /** The owner installation of the resource, absent to release it. */
             owner: ObjectReference.nullable(),
@@ -30,7 +30,7 @@ export const adopt = provisionedMethod
 export const specify = Execution.handle(
     provisionedMethod.mutation({
         permission: "declare",
-        isInternal: true,
+        visibility: "installation",
         input: schema.object({
             /** The digests of the states the active consumers need. */
             states: schema.array(Digest),

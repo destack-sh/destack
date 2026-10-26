@@ -424,8 +424,8 @@ interface StoreComposition {
     readonly origin: Omit<AuditOrigin, "scope">;
     /** The claim type recording the names of unique indexes, and the store serving it. */
     readonly claims?: ClaimPrimary;
-    /** The installations serving objects and their projections, by type reference key. */
-    readonly installed?: ReadonlyMap<string, ServerContext>;
+    /** The installations serving objects and their implementing packages, by type key. */
+    readonly installed?: ReadonlyMap<string, ServedType>;
     /** The memory store with the served ephemeral objects. */
     readonly ephemeral?: EphemeralStorage;
     /** The files with the served external objects, each storing some of their types. */
@@ -456,6 +456,14 @@ interface StoreComposition {
 export type ObjectRouter = Readonly<Record<string, Router<ProcedureRouter, RequestContext>>> & {
     readonly store: Router<StoreProcedures, RequestContext>;
 };
+
+/** A served type's installation and the package whose code implements it. */
+interface ServedType {
+    /** The installation serving the type. */
+    readonly server: ServerContext;
+    /** The package implementing the type. */
+    readonly packageId: PackageId;
+}
 
 /** A store serving object types' methods over one database. */
 export class ObjectStore {
@@ -497,8 +505,8 @@ export class ObjectStore {
     readonly durable: readonly ObjectType[];
     /** The publications the store serves and follows beside its objects' and policies' ones. */
     readonly publications: readonly sync.Publication[];
-    /** The installations serving objects and their projections, by type reference key. */
-    readonly #installed: ReadonlyMap<string, ServerContext>;
+    /** The installations serving objects and their implementing packages, by type key. */
+    readonly #installed: ReadonlyMap<string, ServedType>;
     /** The served or authorized durable types whose rows the database replicates from home. */
     readonly replicated: readonly ObjectType[];
     /** Stream served row replicas to an in-process follower, running its changes as principal. */
@@ -1643,7 +1651,7 @@ export class ObjectStore {
         return results;
     }
 
-    /** Run one platform call inside a running mutation, remote code's without internal methods. */
+    /** Run one platform call inside a running mutation, a client's only on client methods. */
     async #runInside(
         transaction: Transaction,
         entry: sync.Call,
@@ -2046,11 +2054,16 @@ export class ObjectStore {
         return found;
     }
 
+    /** Decide whether the store keeps a type's rows only as replicas, serving it nowhere here. */
+    replicates(object: ObjectType): boolean {
+        return (
+            this.database.replicates(object.table) &&
+            !this.#installed.has(ObjectTypeReference.key(object.typeReference))
+        );
+    }
+
     /** Decide whether a scope's rows of a type are replicas here, written only by their home. */
     async isReplica(object: ObjectType, snapshot: Snapshot, scope: string): Promise<boolean> {
-        // serve the rows of a type an installation serves here, even with a replicated table
-        const isInstalled = this.#installed.has(ObjectTypeReference.key(object.typeReference));
-
         // originate the inherited rows of a scope the store serves, such as a home's account's
         const isOriginated =
             object.inherited !== undefined && this.partitions.slice(1).includes(scope);
@@ -2058,7 +2071,7 @@ export class ObjectStore {
         return (
             !isOriginated &&
             object.storage === "durable" &&
-            ((snapshot.database.replicates(object.table) && !isInstalled) ||
+            (this.replicates(object) ||
                 (await sync.Replica.isReplicated(snapshot, scope, object.table)))
         );
     }
@@ -2589,7 +2602,17 @@ export class ObjectStore {
 
     /** Read the server context serving a type inside the store, absent for a type it serves. */
     readServer(object: ObjectType): ServerContext | undefined {
-        return this.#installed.get(ObjectTypeReference.key(object.typeReference));
+        return this.#installed.get(ObjectTypeReference.key(object.typeReference))?.server;
+    }
+
+    /** Read the package whose code implements a served type, refusing an unserved one. */
+    implementer(object: ObjectType): PackageId {
+        const served = this.#installed.get(ObjectTypeReference.key(object.typeReference));
+        if (served === undefined) {
+            throw new TypeError(`no installation serves ${object.name} in this store`);
+        }
+
+        return served.packageId;
     }
 
     /** Read the memory store with the ephemeral objects, failing without one. */
@@ -2807,12 +2830,12 @@ export class ObjectStore {
             throw ObjectError.of("REVISION_STALE", `${object.name} revision has changed`);
         }
 
-        // refuse callers' other methods on a trashed object
+        // refuse other methods on a trashed object, but the package's own
         const isTrashed =
             object.lifecycle.recoverable !== undefined &&
             target !== undefined &&
             target["deletedAt"] !== null;
-        if (isTrashed && !TRASH_METHODS.has(method.kind) && method.isInternal !== true) {
+        if (isTrashed && !TRASH_METHODS.has(method.kind) && method.visibility !== "package") {
             throw ObjectError.of("OBJECT_TRASHED", `${object.name} is in the trash`);
         }
 
@@ -3582,7 +3605,7 @@ export class ObjectStore {
                     throw new TypeError(`${type.name} is served at no installation`);
                 }
 
-                return [key, context] as const;
+                return [key, { server: context, packageId: entry.package.id }] as const;
             }),
         );
 

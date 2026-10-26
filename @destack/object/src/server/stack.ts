@@ -413,6 +413,8 @@ export class StackPlan {
     #plan: Plan = { steps: [] };
     /** The scope enclosing the stack's scope, read on first use. */
     #enclosing: Promise<string> | undefined;
+    /** The declarations this plan deferred, by type, which a reference to them waits on. */
+    readonly #deferred = new Map<ObjectType, Set<string>>();
 
     /** Store a plan's stack, time and transaction. */
     private constructor(stack: Stack, now: number, transaction: Transaction) {
@@ -645,10 +647,12 @@ export class StackPlan {
         return row === undefined ? await this.#missing(type, id, scope, named) : id;
     }
 
-    /** Wait for a missing record's replica to arrive in a scope, or refuse the declaration. */
+    /** Wait for a missing record's deferred declaration or replica, or refuse the declaration. */
     async #missing(type: ObjectType, key: string, scope: string, named: string): Promise<never> {
-        // wait for a replica's record, and refuse a record its home lacks
-        if (await this.stack.options.store.isReplica(type, this.transaction.view(), scope)) {
+        // wait for a deferred declaration or a replica's record, refusing a record its home lacks
+        if (this.#deferred.get(type)?.has(key) === true) {
+            return this.wait(`${named} ${key} waits for its declaration`);
+        } else if (await this.stack.options.store.isReplica(type, this.transaction.view(), scope)) {
             return this.wait(`${named} ${key} waits for its replica`);
         } else {
             throw ObjectError.of("DECLARATION_INVALID", `unknown ${named}: ${key}`);
@@ -703,33 +707,47 @@ export class StackPlan {
 
     /** Write each object type's declarations and retire undeclared records. */
     async #apply(): Promise<Plan> {
-        // write each type in order, resolving before writing the difference
+        // write each type's resolved declarations in order, deferring each one that waits
         const steps: Step[] = [];
         const resolved = new Map<TypeDeclaration, ReadonlyMap<string, unknown>>();
+        let waiting: string | undefined;
         for (const declaration of this.stack.ordered) {
             try {
+                // resolve each declaration, deferring the ones that wait
                 const desired = new Map<string, unknown>();
                 for (const [name, declared] of Object.entries(
                     StackPlan.#declarations(declaration, this.stack.document),
                 )) {
-                    const created = await this.resolveInput(declaration.object, name, declared);
-                    desired.set(
-                        name,
-                        declaration.resolve
-                            ? await declaration.resolve(name, created, this)
-                            : created,
-                    );
+                    const created = await StackPlan.#unlessWaiting(async () => {
+                        const input = await this.resolveInput(declaration.object, name, declared);
+
+                        return declaration.resolve
+                            ? await declaration.resolve(name, input, this)
+                            : input;
+                    });
+                    if (created.kind === "waiting") {
+                        waiting ??= created.message;
+                        const deferred = this.#deferred.get(declaration.object) ?? new Set();
+                        this.#deferred.set(declaration.object, deferred.add(name));
+                    } else {
+                        desired.set(name, created.value);
+                    }
                 }
+
+                // write them
                 resolved.set(declaration, desired);
                 await this.#manage(declaration);
                 steps.push(...(await this.#write(declaration, desired)));
             } catch (error) {
-                // stop at a wait
+                // stop at a wait of the type itself
                 if (error instanceof DependencyWait) {
                     return { steps, deferred: error.message };
                 }
                 throw error;
             }
+        }
+        if (waiting !== undefined) {
+            return { steps, deferred: waiting };
         }
 
         // plan the declarations of the types the stack installs and wait until the store serves them
@@ -808,6 +826,23 @@ export class StackPlan {
         }
 
         return steps;
+    }
+
+    /** Run a resolution, answering the wait it stops at instead of its value. */
+    static async #unlessWaiting<Value>(
+        resolve: () => Promise<Value>,
+    ): Promise<
+        | { readonly kind: "resolved"; readonly value: Value }
+        | { readonly kind: "waiting"; readonly message: string }
+    > {
+        try {
+            return { kind: "resolved", value: await resolve() };
+        } catch (error) {
+            if (error instanceof DependencyWait) {
+                return { kind: "waiting", message: error.message };
+            }
+            throw error;
+        }
     }
 
     /** Select an object type's declaration by type or name. */

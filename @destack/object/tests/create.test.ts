@@ -601,11 +601,11 @@ const watch = defineObject(
     },
     (method) => ({
         create: method.create("read"),
-        add: method.create("add", { isInternal: true }),
+        add: method.create("add", { visibility: "package" }),
     }),
 );
 
-test("fill a subject field from the caller, and write all its columns in an internal creation", async () => {
+test("fill a subject field from the caller, and write all its columns in a server-only creation", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
 
@@ -646,7 +646,7 @@ test("fill a subject field from the caller, and write all its columns in an inte
         ],
     });
 
-    // the creation records the caller, and the internal one records ada with every column
+    // the creation records the caller, and the server-only one records ada with every column
     expect([ObjectReference.at("watcher", watched), ObjectReference.at("watcher", added)]).toEqual([
         spacePrincipal(spaceId),
         ada,
