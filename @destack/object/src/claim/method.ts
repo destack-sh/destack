@@ -1,17 +1,10 @@
+import type { RowImage } from "@destack/db";
 import { schema } from "@destack/schema";
 
 import { MethodBuilder } from "../method/record.ts";
 import type { ObjectOf } from "../object/object.ts";
 import { Execution } from "../method/execution.ts";
-import {
-    Claim,
-    Claimant,
-    ClaimOwner,
-    ClaimRefusal,
-    type ClaimRow,
-    claimTable,
-    Expiry,
-} from "./claim.ts";
+import { Claim, Claimant, ClaimOwner, ClaimRefusal, claimTable, Expiry } from "./claim.ts";
 
 /** The request whose write reserved an object's names. */
 const ReservedBy = schema.object({
@@ -124,7 +117,7 @@ export const claimMethods = {
         async (call, execution) => {
             // filter the reservations the caller may claim names in
             const { authorization } = Execution.store(execution, call);
-            const filter = async (rows: readonly ClaimRow[]) =>
+            const filter = async (rows: readonly RowImage<typeof claimTable>[]) =>
                 (await authorization.filter(call.object, call.object.permission("claim"), rows))
                     .rows;
 

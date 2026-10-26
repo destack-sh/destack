@@ -7,7 +7,7 @@ export {
     Provisioned,
     type ProvisionedDefinition,
     type ResourceType,
-    type ResourceRow,
+    type Resource,
 } from "./provisioned.ts";
 export { DesiredState, desiredState } from "./desired.ts";
 export { tracked, type TrackedDefinition } from "./tracked.ts";

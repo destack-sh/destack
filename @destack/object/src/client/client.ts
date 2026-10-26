@@ -1295,7 +1295,7 @@ export class ObjectClient<
         object: ObjectType,
         query: Omit<ObjectQuery, "object">,
         options: SubscribeOptions,
-    ): LiveQuery<readonly sync.AggregateRow[]> {
+    ): LiveQuery<readonly sync.AggregateGroup[]> {
         // read local groups here, and other groups through their replica
         const followed = this.#followed(object, query, options);
         const { compiled, named } = followed;
@@ -1832,7 +1832,7 @@ export class ObjectClient<
         named: Promise<string>,
         query: sync.Query,
         signal: AbortSignal,
-    ): AsyncGenerator<readonly sync.AggregateRow[]> {
+    ): AsyncGenerator<readonly sync.AggregateGroup[]> {
         return this.#rescoped(named, query, signal, (name, read, stop) =>
             this.#local.watchResults(name, read, stop),
         );

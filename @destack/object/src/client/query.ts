@@ -2,7 +2,7 @@ import * as db from "@destack/db";
 import type { Extras } from "@destack/db";
 import { type Duration, mapValues } from "@destack/schema";
 import * as sync from "@destack/sync";
-import type { AggregateRow } from "@destack/sync";
+import type { AggregateGroup } from "@destack/sync";
 import type { ObjectType } from "../object/object.ts";
 import type { ObjectQuery } from "../replica/replica.ts";
 import type { AggregateOptions, FindOptions, FindResult } from "../query/item.ts";
@@ -34,7 +34,7 @@ export interface Subscriber {
         object: ObjectType,
         query: Omit<ObjectQuery, "object">,
         options: SubscribeOptions,
-    ) => LiveQuery<readonly sync.AggregateRow[]>;
+    ) => LiveQuery<readonly sync.AggregateGroup[]>;
 }
 
 /** The relational queries of one object type. */
@@ -98,7 +98,7 @@ export class RelationalQueryBuilder<Object extends ObjectType, Objects extends O
     /** Measure the rows per group. */
     aggregate<const Options extends AggregateOptions<Object, Objects>>(
         options: Options,
-    ): RelationalQuery<readonly AggregateRow<Options>[]> {
+    ): RelationalQuery<readonly AggregateGroup<Options>[]> {
         // measure the groups the options ask for
         const opened: AggregateOptions<ObjectType, ObjectType> = options;
         const { where, ...aggregate } = opened;
@@ -107,7 +107,7 @@ export class RelationalQueryBuilder<Object extends ObjectType, Objects extends O
         return new RelationalQuery(this.#object, asked, (ttl) =>
             RelationalQuery.presented(this.#subscriber.results(this.#object, asked, ttl), (rows) =>
                 rows.map((row) =>
-                    mapValues<sync.AggregateRow, AggregateRow<Options>>(row, (value) => value),
+                    mapValues<sync.AggregateGroup, AggregateGroup<Options>>(row, (value) => value),
                 ),
             ),
         );

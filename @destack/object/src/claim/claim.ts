@@ -328,7 +328,9 @@ export const Claim = Object.assign(claim, {
         claims: RelationalQueryBuilder<typeof claimTable>,
         indexes: readonly string[],
         now: number,
-        filter: (rows: readonly ClaimRow[]) => Promise<readonly ClaimRow[]> = async (rows) => rows,
+        filter: (
+            rows: readonly RowImage<typeof claimTable>[],
+        ) => Promise<readonly RowImage<typeof claimTable>[]> = async (rows) => rows,
     ): Promise<Expiry> {
         // read the expired reservations of the indexes a chain's worth at a time, filtered for the reader
         const reserved: ClaimCondition = { state: "pending", index: { in: [...indexes] } };
@@ -473,9 +475,6 @@ export const Claim = Object.assign(claim, {
 
 /** A condition over the claims a database has. */
 export type ClaimCondition = Condition<RowImage<typeof claimTable>>;
-
-/** A claim row as a database stores it. */
-export type ClaimRow = RowImage<typeof claimTable>;
 
 /** A name an object claims in a unique index across databases. */
 export type Claim = schema.Infer<typeof claim>;

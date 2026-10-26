@@ -134,7 +134,7 @@ export type ResourceType<Scope> =
         : never;
 
 /** The row of a kind's resource in its space, as code generic over kinds reads it. */
-export type ResourceRow = Select<ResourceTable<"space">>;
+export type Resource = Select<ResourceTable<"space">>;
 
 /** The permission every resource takes, none for other objects. */
 export type ProvisionedPermissionOf<Provisioning> = [Provisioning] extends [undefined]

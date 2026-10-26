@@ -903,6 +903,13 @@ export class StackPlan {
         const released = RELEASED.parse(this.stack.document["released"] ?? []).filter((address) =>
             address.startsWith(prefix),
         );
+
+        // leave a type with nothing adopted or released
+        if (adopted.length === 0 && released.length === 0) {
+            return;
+        }
+
+        // read the type's records and its declared names
         const existing = await this.#records(declaration);
         const declared = new Set(
             Object.keys(DECLARED.parse(this.stack.document[Stack.collection(object)] ?? {})),
@@ -998,6 +1005,11 @@ export class StackPlan {
         declaration: TypeDeclaration,
         desired: ReadonlyMap<string, unknown>,
     ): Promise<Step[]> {
+        // write nothing for a type the stack declares nothing of
+        if (desired.size === 0) {
+            return [];
+        }
+
         // create a missing record, or update a changed attached record against what the stack applied last
         const existing = await this.#records(declaration);
         const applied = StackPlan.#declarations(declaration, this.stack.options.applied);

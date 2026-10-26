@@ -20,13 +20,7 @@ import { unreachablePlan } from "@destack/resource/error";
 import { canonicalize, Digest, present, schema } from "@destack/schema";
 import { Scope, RequestId } from "@destack/sync";
 
-import {
-    CONSUMER,
-    defineObject,
-    DesiredState,
-    desiredState,
-    type ResourceRow,
-} from "../src/index.ts";
+import { CONSUMER, defineObject, DesiredState, desiredState, type Resource } from "../src/index.ts";
 import { DRAINING } from "../src/server/index.ts";
 import { claim, serveClaims } from "./fixture/claim.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
@@ -615,6 +609,6 @@ test("set a resource's name after another kind's resource in its space, refusing
 });
 
 /** Read a box's ready reason and draining status. */
-function conditions(row: { readonly conditions: ResourceRow["conditions"] }) {
+function conditions(row: { readonly conditions: Resource["conditions"] }) {
     return [row.conditions["Ready"]?.reason, row.conditions[DRAINING]?.status] as const;
 }

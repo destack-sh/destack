@@ -20,7 +20,7 @@ import {
 import { type Condition, Observation, type ObservationReport } from "../object/condition.ts";
 import { type ObjectType } from "../object/object.ts";
 import { CONSUMER } from "../trait/bindable.ts";
-import { type ResourceType, type ResourceRow } from "../trait/provisioned.ts";
+import { type ResourceType, type Resource } from "../trait/provisioned.ts";
 import { DesiredState } from "../trait/desired.ts";
 
 /** The condition of a resource waiting for draining consumers to stop before recreation. */
@@ -44,7 +44,7 @@ export interface ResourceControllerOptions {
 interface ReconcileOptions extends ResourceControllerOptions {
     /** Read the desired states of some digests a resource lists. */
     readonly states: (
-        row: ResourceRow,
+        row: Resource,
         digests: readonly Digest[],
     ) => Promise<KindState<ResourceKind>[]>;
 }
@@ -124,7 +124,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
     /** Read the desired states of some digests a resource lists, each parsed once by the kind. */
     async #read(
         database: DatabaseConnection,
-        row: ResourceRow,
+        row: Resource,
         digests: readonly Digest[],
     ): Promise<KindState<ResourceKind>[]> {
         // read and parse the states not stored
@@ -154,7 +154,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
     /** Select the provider a resource requests, or the first of its kind. */
     static select<Selected extends Pick<ResourceControllerOptions["providers"][number], "code">>(
         providers: readonly Selected[],
-        row: Pick<ResourceRow, "provider" | "placement">,
+        row: Pick<Resource, "provider" | "placement">,
     ): Selected | undefined {
         const requested = row.provider ?? row.placement?.provider ?? null;
 
@@ -167,7 +167,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
     static async #reconcile(
         object: ResourceType<"space">,
         kind: ResourceKind,
-        row: ResourceRow,
+        row: Resource,
         reconciliation: ObjectReconciliation<ResourceType<"space">>,
         options: ReconcileOptions,
     ): Promise<number | undefined> {
@@ -243,10 +243,10 @@ export class ResourceController implements ObjectController<ResourceType<"space"
     /** Provision a resource through its provider, recording the outcome and returning the row. */
     static async #provision(
         object: ResourceType<"space">,
-        row: ResourceRow,
+        row: Resource,
         reconciliation: ObjectReconciliation<ResourceType<"space">>,
         options: ResourceControllerOptions,
-    ): Promise<ResourceRow | undefined> {
+    ): Promise<Resource | undefined> {
         // select the requested provider or the first one providing the kind
         const provider = ResourceController.select(options.providers, row);
         if (provider === undefined) {
@@ -308,7 +308,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
     /** Plan a resource toward its desired states, applying what its approvals allow. */
     static async #apply(
         object: ResourceType<"space">,
-        row: ResourceRow,
+        row: Resource,
         approval: Risk,
         reconciliation: ObjectReconciliation<ResourceType<"space">>,
         options: ReconcileOptions,
@@ -399,7 +399,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
     /** Plan a resource's desired states, or a recreation without draining-only states. */
     static async #planRecreation(
         object: ResourceType<"space">,
-        row: ResourceRow,
+        row: Resource,
         provider: ResourceControllerOptions["providers"][number],
         reconciliation: ObjectReconciliation<ResourceType<"space">>,
         options: ReconcileOptions,
@@ -464,7 +464,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
     /** Apply a plan through the resource's provider and record the desired states it applied. */
     static async #applyPlan(
         object: ResourceType<"space">,
-        row: ResourceRow,
+        row: Resource,
         provider: ResourceControllerOptions["providers"][number],
         plan: Plan,
         digests: { readonly plan: Digest; readonly states: readonly Digest[] },
@@ -517,7 +517,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
     /** Remove an unused resource, destroying its content and returning when its retention ends. */
     static async #retire(
         object: ResourceType<"space">,
-        row: ResourceRow,
+        row: Resource,
         requestedAt: number,
         reconciliation: ObjectReconciliation<ResourceType<"space">>,
         options: ResourceControllerOptions,
@@ -589,7 +589,7 @@ export class ResourceController implements ObjectController<ResourceType<"space"
     /** Read one consumer of a resource from its consumer relationships, if any. */
     static async #consumerOf(
         object: ResourceType<"space">,
-        row: ResourceRow,
+        row: Resource,
         database: DatabaseConnection,
     ): Promise<string | undefined> {
         const [related] = await database
@@ -612,11 +612,11 @@ export class ResourceController implements ObjectController<ResourceType<"space"
     /** Observe provider fields and conditions for the current generation, returning the row. */
     static async #observe(
         object: ResourceType<"space">,
-        row: ResourceRow,
+        row: Resource,
         reconciliation: ObjectReconciliation<ResourceType<"space">>,
         fields: NonNullable<ObservationReport["fields"]>,
         conditions: Readonly<Record<string, Condition>>,
-    ): Promise<ResourceRow> {
+    ): Promise<Resource> {
         // observe the generation, the conditions and the fields once
         const observed = await reconciliation.observe(object, row, { conditions, fields });
 
