@@ -30,14 +30,6 @@ const PLAIN_KINDS: ReadonlySet<ColumnKind> = new Set<ColumnKind>(["text", "integ
 /** Driver text, such as SQLite's JSON. */
 const TEXT = schema.string();
 
-/** A SQLite boolean, stored as zero or one, read as a number or an exact integer. */
-const BIT = schema.union([
-    schema.literal(0),
-    schema.literal(1),
-    schema.literal(0n),
-    schema.literal(1n),
-]);
-
 /** The JavaScript type each scalar column kind stores. */
 const SCALAR_TYPES = {
     text: "string",
@@ -392,7 +384,9 @@ export function boolean(name: string): ColumnBuilder<ColumnDefinitionOf<boolean,
         decode(value, dialect) {
             // read zero or one from SQLite
             if (dialect === "sqlite") {
-                return Number(BIT.parse(value)) === 1;
+                const bit = typeof value === "bigint" ? Number(value) : value;
+
+                return stored(bit, "number") === 1;
             }
             // read native PostgreSQL booleans
             else if (dialect === "postgresql") {
@@ -467,7 +461,17 @@ export function identifier<const Prefix extends string>(
         toJson: (value) => value,
         fromJson: (value) => validator.parse(value),
         encode: (value) => stored(value, "string"),
-        decode: (value) => validator.parse(value),
+        decode: (value) => {
+            // read the stored text as its write validated it, refusing another type's identifier
+            const read = stored(value, "string");
+            const expected = typeof prefix === "function" ? prefix() : prefix;
+            if (!read.startsWith(`${expected}-`)) {
+                throw new TypeError(`the database returned ${read} for a ${expected} identifier`);
+            }
+
+            // oxlint-disable-next-line typescript/consistent-type-assertions, typescript/no-unsafe-type-assertion -- stored values passed their write's validator
+            return read as Identifier<Prefix>;
+        },
     });
 }
 
@@ -563,7 +567,13 @@ function scalarColumn<
         toJson: (value) => value,
         fromJson: (value) => validator.parse(value),
         encode: (value) => stored(value, SCALAR_TYPES[kind]),
-        decode: (value) => validator.parse(read(value)),
+        decode: (value) => {
+            // read the stored value as its write validated it
+            const checked: unknown = stored(read(value), SCALAR_TYPES[kind]);
+
+            // oxlint-disable-next-line typescript/consistent-type-assertions, typescript/no-unsafe-type-assertion -- stored values passed their write's validator
+            return checked as Value;
+        },
     });
 }
 

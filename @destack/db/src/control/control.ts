@@ -174,6 +174,8 @@ export class ControlLoop {
     readonly #clock: Clock;
     /** How long a key may fail transiently before its failures are reported. */
     readonly #transientFor: number;
+    /** Wait until the loop may act, absent when it acts at once. */
+    readonly #ready: ((signal: AbortSignal) => Promise<void>) | undefined;
     /** The earliest due time the alarm is set to, absent for none. */
     #alarmed: number | undefined;
     /** The due time of the key that began the running reconciliations. */
@@ -216,6 +218,8 @@ export class ControlLoop {
             readonly clock: Clock;
             /** How long a key may fail transiently before reporting. */
             readonly transientFor?: number;
+            /** Wait until the loop may act, such as once a store's access is confirmed. */
+            readonly ready?: (signal: AbortSignal) => Promise<void>;
         },
     ) {
         // start with no key due and no failure
@@ -238,6 +242,7 @@ export class ControlLoop {
         this.#retry = { ...RETRY, ...options.retry };
         this.#clock = options.clock;
         this.#transientFor = options.transientFor ?? TRANSIENT_REPORT_MILLISECONDS;
+        this.#ready = options.ready;
         if (options.alarm !== undefined) {
             this.#alarm = options.alarm;
         }
@@ -595,14 +600,28 @@ export class ControlLoop {
         }
     }
 
+    /** Wait until the loop may act, traced while it waits. */
+    async #awaitReady(signal: AbortSignal): Promise<void> {
+        const ready = this.#ready;
+        if (ready !== undefined) {
+            await this.#instruments.span("controller.ready", {}, () => ready(signal));
+        }
+    }
+
     /** Start due keys and sleep until more are due. */
     async #work(signal: AbortSignal): Promise<void> {
         while (!signal.aborted) {
-            // start the earliest runnable key
+            // take the earliest runnable key
             this.#woken = new AbortController();
             const now = this.#clock.now();
             const { runnable, due, skipped } = this.#take(now);
+
+            // start it once the loop may act, holding no lease or slot meanwhile
             if (runnable !== undefined) {
+                await this.#awaitReady(signal);
+                if (signal.aborted) {
+                    break;
+                }
                 this.#start(runnable);
 
                 // set the wake-up due while the key runs

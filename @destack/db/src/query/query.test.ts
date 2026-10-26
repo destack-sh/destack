@@ -91,6 +91,24 @@ test("read back every column kind as written", async () => {
     expect(await database.select().from(sample)).toEqual([row]);
 });
 
+test("refuse a stored identifier of another type, which no database check catches", async () => {
+    // store a row, then rewrite its identifier past the column's validation
+    const database = await open();
+    await database.insert(sample).values(row);
+    const other = "tag-01996ab0-0000-7000-8000-000000000001";
+    await database.execute(sql`UPDATE ${sample} SET id = ${other}`, schemas.schema.unknown());
+
+    // refuse reading it back as a sample identifier
+    const refused = await database
+        .select()
+        .from(sample)
+        .then(
+            () => "read",
+            (error: unknown) => (error instanceof Error ? error.message : "unknown"),
+        );
+    expect(refused).toBe(`the database returned ${other} for a sample identifier`);
+});
+
 test("key joined rows by their table names", async () => {
     const database = await open();
     const second = SampleId.parse("sample-01996ab0-0000-7000-8000-000000000002");
