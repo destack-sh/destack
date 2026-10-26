@@ -16,9 +16,10 @@ Think GitHub + NPM + Convex + Vercel + Sentry in one, with all the boring decisi
 
 <img alt="Every app on its own stack, then every app in one stack" src=".github/readme/stack.webp">
 
-To destack is to take back control over your software, step by step.
-First, Destack makes it simple to build high quality custom software with a standardised production pipeline.
-Then, progressively build your own suite of customised and custom software, all in one stack.
+To destack is to take back control over your software, step by step:
+ 1. Build high quality custom software, easily, in a standardised pipeline.
+ 2. Grow _your_ own suite of custom software, in one unified platform.
+ 3. Own your data and context, and take your software wherever you want.
 
 <img alt="An app you made, glued across eight services, then the same app on Destack" src=".github/readme/engine.webp">
 
