@@ -240,7 +240,14 @@ test("locate each of many spaces placed on a machine in one statement for its pl
                 placed.map(({ machine: machineId, ...rest }) => ({
                     ...rest,
                     machineId,
-                    schedule: { kind: "unrequested" } as const,
+                    schedule: {
+                        kind: "stay",
+                        condition: {
+                            status: "true",
+                            reason: "Unset",
+                            message: "placed by the test",
+                        },
+                    } as const,
                     createdAt: NOW,
                     updatedAt: NOW,
                 })),

@@ -7,7 +7,7 @@ import {
     type SQLWrapper,
     type Snapshot,
 } from "@destack/db";
-import { placement } from "./placement.ts";
+import { placement, TENANCIES } from "./placement.ts";
 import { defineObject, field, type KeyFields, ObjectWatch } from "@destack/object";
 import { RISKS } from "@destack/resource";
 import { type Identifier, present, schema } from "@destack/schema";
@@ -52,6 +52,8 @@ export const space = defineObject(
             approval: field.enum(RISKS).default("backward-incompatible"),
             /** The stack applied to the space. */
             stack: field.json(StackSource),
+            /** Where a person chose the space's work runs, absent to keep it on its machine. */
+            tenancy: field.enum(TENANCIES).optional(),
         },
         indexes: { name: { on: ["name"], across: () => account } },
         relations: {
@@ -106,7 +108,7 @@ export const space = defineObject(
                 machine: schema.identifier("machine").exactOptional(),
             }),
         }),
-        update: method.update("update", { fields: ["title", "approval"] }),
+        update: method.update("update", { fields: ["title", "approval", "tenancy"] }),
 
         /** Move the space to another stack, which its machine applies. */
         upgrade: method.update("upgrade", { fields: ["stack"], visibility: "package" }),

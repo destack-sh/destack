@@ -7,6 +7,7 @@ import { serversOf, testCallKey, testEvents, TestObjectStore } from "@destack/ob
 import { Scope, type Uplink } from "@destack/sync";
 import { account } from "../object/account.ts";
 import { residency } from "../object/residency.ts";
+import { space } from "../object/space.ts";
 import { claim } from "../object/claim.ts";
 import { machine } from "../object/machine.ts";
 import { implementPlacement } from "../server/placement.ts";
@@ -88,23 +89,46 @@ export const TestDirectory = {
             readonly transferId: Identifier<"transfer">;
         } | null = null,
     ): Promise<void> {
-        // write the placement, or replace the one the space has
+        // write the space and the machines a placement names once, then the placement or a replacement of it
         const now = clock.now();
+        const stored = {
+            id: placed.id,
+            scope: placed.scope,
+            name: `placed-${placed.id.slice(-12)}`,
+            stack: STACKS.space,
+            createdAt: now,
+            updatedAt: now,
+        };
         const fields = {
             scope: placed.scope,
             machineId: placed.machine,
             epoch: placed.epoch,
             targetId: move?.target ?? null,
             transferId: move?.transferId ?? null,
-            schedule: { kind: "unrequested" } as const,
+            schedule: {
+                kind: "stay",
+                condition: { status: "true", reason: "Unset", message: "placed by the test" },
+            } as const,
         };
-        await database.transaction(
-            async (transaction) =>
-                await transaction
-                    .insert(placement.table)
-                    .values({ id: placed.id, ...fields, createdAt: now, updatedAt: now })
-                    .onConflictDoUpdate({ target: placement.table.id, set: fields }),
-        );
+        const machines = [placed.machine, ...(move === null ? [] : [move.target])].map((id) => ({
+            id,
+            scope: placed.scope,
+            name: id.slice(-8),
+            kind: "personal" as const,
+            platform: "macOS" as const,
+            architecture: "arm64" as const,
+            model: "Mac",
+            createdAt: now,
+            updatedAt: now,
+        }));
+        await database.transaction(async (transaction) => {
+            await transaction.insert(space.table).values(stored).onConflictDoNothing();
+            await transaction.insert(machine.table).values(machines).onConflictDoNothing();
+            await transaction
+                .insert(placement.table)
+                .values({ id: placed.id, ...fields, createdAt: now, updatedAt: now })
+                .onConflictDoUpdate({ target: placement.table.id, set: fields });
+        });
     },
 
     /** Store a machine answering at a URL, or answering nowhere. */

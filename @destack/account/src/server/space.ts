@@ -5,6 +5,7 @@ import { SpaceAddress } from "../address/address.ts";
 import { account } from "../object/account.ts";
 import { machine } from "../object/machine.ts";
 import { Placement, placement } from "../object/placement.ts";
+import { decideSchedule } from "./placement.ts";
 import { Space, space } from "../object/space.ts";
 import type { SpaceKind, StackSource } from "../object/stack-source.ts";
 import type {} from "@destack/package/import-meta";
@@ -20,6 +21,7 @@ export function implementSpace(stacks: Readonly<Record<SpaceKind, StackSource>>)
                     Space.creation({ id: schema.identifier("space").parse(created.id) }),
                 handle: (context, next) => create(context, next, stacks),
             },
+            update: { handle: update },
             address,
         },
     });
@@ -53,18 +55,38 @@ async function create(
     const stack = context.input.stack ?? stacks.space;
     const created = await next(context.with({ input: { ...context.input, stack } }));
 
-    // place it at the first epoch in the same transaction
+    // place it at the first epoch in the same transaction, decided for its machine
+    const placed = { id: spaceId, scope: accountId, machineId: target };
+    const decided = await decideSchedule(context, placed, context.environment.crypto);
     await context.mutate(context.self, [
         placement.call("create", {
             ...placement.in(accountId),
             id: context.id,
             machineId: target,
             epoch: 1,
-            schedule: { kind: "unrequested" } as const,
+            schedule: decided,
         }),
     ]);
 
     return created;
+}
+
+/** Update a space, deciding its placement again when its tenancy changes. */
+async function update(
+    context: MethodContextOf<typeof space, "update">,
+    next: NextOf<typeof space, "update">,
+): Promise<ResultOf<typeof space, "update">> {
+    // update the space
+    const updated = await next(context);
+    if (updated.tenancy === context.target.tenancy) {
+        return updated;
+    }
+
+    // decide its placement again for the new tenancy
+    const { scope, id } = context.target;
+    await context.mutate(context.self, [placement.call("decide", placement.target({ scope, id }))]);
+
+    return updated;
 }
 
 /** Read the machine a new space of an account runs on. */

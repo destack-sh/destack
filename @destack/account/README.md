@@ -41,6 +41,7 @@ await accounts.account.create({
     residencyId: "eu",
 });
 await accounts.space.create({ accountId, requestId, name: "work" });
+await accounts.space.update({ accountId, id, requestId, revision, tenancy: "dedicated" }); // the placement decided anew in the same call
 await accounts.domain.verify({ scope: organizationId, id, requestId }); // after the TXT record _destack.acme.com
 await accounts.residency.locate({ account: accountId }); // the space serving the account's residency
 await accounts.user.suspend({ id: userId, requestId }); // the platform's operators alone

@@ -1,6 +1,5 @@
 import { Caller, principal, Relationship } from "@destack/access";
 import {
-    type Condition,
     type KeyFields,
     type MethodContext,
     type MethodContextOf,
@@ -19,7 +18,6 @@ import {
     placement,
     type Schedule,
     type Tenancy,
-    type TenancySource,
 } from "../object/placement.ts";
 import { ObjectReference, Scope } from "@destack/sync";
 import { space } from "../object/space.ts";
@@ -30,18 +28,10 @@ import { StoreRelationship } from "./relationship.ts";
 /** Implement placements. */
 export function implementPlacement(): typeof placement {
     return placement.implement({
-        methods: { place, move, request, schedule, withdraw, assign, unassign },
+        methods: { place, move, decide, withdraw, assign, unassign },
         controller: {
-            // decide the placements whose space asked for a tenancy, listing at a start only the undecided ones
-            pending: { tenancy: { isNotNull: true } },
-            list: async (view) =>
-                (
-                    await view
-                        .read(placement.table)
-                        .findMany({ where: { tenancy: { isNotNull: true } } })
-                )
-                    .filter((row) => !Placement.isDecided(row))
-                    .map((row) => ({ id: row.id })),
+            // decide every placement again once a machine, plan or residency it depends on changes
+            pending: {},
             watches: [
                 // decide again once a machine's standing changes, for its account or its residency's
                 ObjectWatch.of(machine.table, async (_row, database, change) => {
@@ -103,10 +93,18 @@ async function place(
         );
     }
 
-    // serve the space at the epoch, ending any move and its receiver's access
+    // serve the space at the epoch, ending any move and its receiver's access, decided again for its machine
     await releaseReceivers(context, current);
+    const placed = { ...current, machineId: caller };
+    const decided = await decideSchedule(context, placed, context.environment.crypto);
 
-    return context.update({ machineId: caller, epoch, targetId: null, transferId: null });
+    return context.update({
+        machineId: caller,
+        epoch,
+        targetId: null,
+        transferId: null,
+        schedule: decided,
+    });
 }
 
 /** Mark a space as moving to a target machine, as the machine serving it at its epoch. */
@@ -142,119 +140,79 @@ async function releaseReceivers(
     }
 }
 
-/** Record the tenancy a space asks for, as the space or its machine at its epoch. */
-async function request(
-    context: MethodContextOf<typeof placement, "request">,
-): Promise<ResultOf<typeof placement, "request">> {
-    // record a changed request at the space's epoch, which the universe then decides
+/** Decide where a space's tenancy places it, recording a changed decision. */
+async function decide(
+    context: MethodContextOf<typeof placement, "decide">,
+): Promise<ResultOf<typeof placement, "decide">> {
     const { target } = context;
-    const { epoch, tenancy, source } = context.input;
-    Placement.requireServed(target, epoch);
-    const isAsked = target.tenancy === tenancy && target.tenancySource === source;
+    const decided = await decideSchedule(context, target, context.environment.crypto);
 
-    return isAsked ? target : context.update({ tenancy, tenancySource: source });
-}
-
-/** Record a decision answering a placement's current request, leaving an outdated one out. */
-async function schedule(
-    context: MethodContextOf<typeof placement, "schedule">,
-): Promise<ResultOf<typeof placement, "schedule">> {
-    // leave a decision a newer request or epoch outdated, which the controller's next pass replaces
-    const { target } = context;
-    const decided = context.input.schedule;
-
-    return Placement.isDecided({ ...target, schedule: decided })
-        ? context.update({ schedule: decided })
-        : target;
+    return canonicalize(target.schedule) === canonicalize(decided)
+        ? target
+        : context.update({ schedule: decided });
 }
 
 /** Decide where each pending placement's tenancy places its space, recording changed decisions. */
 async function reconcile(
     reconciliation: ObjectReconciliation<typeof placement>,
 ): Promise<undefined> {
-    // decide each placement at its epoch
+    // find the placements whose decision changed, as the latest commits read
     const reader = Snapshot.live(reconciliation.database);
     const crypto = reconciliation.store.environment.crypto;
     const decided = await Promise.all(
         reconciliation.rows.map(async (row) => ({
             row,
-            schedule: await decide(reader, row, crypto),
+            isChanged:
+                canonicalize(row.schedule) !==
+                canonicalize(await decideSchedule(reader, row, crypto)),
         })),
     );
+    const changed = decided.filter(({ isChanged }) => isChanged);
 
-    // record the decisions that changed
-    const changed = decided.filter(
-        ({ row, schedule: decision }) => canonicalize(row.schedule) !== canonicalize(decision),
-    );
+    // decide them again in one transaction, which reads what it decides on
     if (changed.length > 0) {
         await reconciliation.mutate(
-            changed.map(({ row, schedule: decision }) =>
-                placement.call("schedule", { ...placement.target(row), schedule: decision }),
-            ),
+            changed.map(({ row }) => placement.call("decide", placement.target(row))),
         );
     }
 
     return undefined;
 }
 
-/** Decide where a space's tenancy places it, stamped with the request and epoch it answers. */
-async function decide(
-    reader: Pick<Snapshot, "read">,
-    row: Pick<
-        Select<typeof placement.table>,
-        "id" | "scope" | "epoch" | "machineId" | "tenancy" | "tenancySource"
-    >,
-    crypto: DigestCrypto,
-): Promise<Schedule> {
-    // stay until the space asks for a tenancy
-    const { epoch, tenancy, tenancySource: source } = row;
-    if (tenancy === null || source === null) {
-        return { kind: "unrequested" };
-    }
-
-    // stamp the rules' decision with the request
-    const decided = await choose(reader, row, { tenancy, source }, crypto);
-
-    return { ...decided, request: { epoch, tenancy, source } };
-}
-
-/** A decision before its stamp: stay with a reason, or move to a machine. */
-type Placing =
-    | { readonly kind: "stay"; readonly condition: Condition }
-    | { readonly kind: "move"; readonly machine: Identifier<"machine"> };
-
-/** Choose where an asked tenancy places a space, by its plan and the machines it may use. */
-async function choose(
+/** Decide where a space's tenancy places it, by its plan and the machines it may use. */
+export async function decideSchedule(
     reader: Pick<Snapshot, "read">,
     row: Pick<Select<typeof placement.table>, "id" | "scope" | "machineId">,
-    asked: { readonly tenancy: Tenancy; readonly source: TenancySource },
     crypto: DigestCrypto,
-): Promise<Placing> {
-    // read the account's entitlement of the tenancy and the tenancy of the machine serving the space
+): Promise<Schedule> {
+    // read the space's tenancy, its account's entitlement and the tenancy of the machine serving it
+    const placed = await reader.read(space.table).findFirst({ where: { id: row.id } });
+    const { tenancy } = present(placed, `space ${row.id}`);
     const entitled = await reader.read(entitlement.table).findMany({ where: { scope: row.scope } });
     const serving = await reader.read(machine.table).findFirst({ where: { id: row.machineId } });
     const local = Machine.tenancy(present(serving, `machine ${row.machineId}`));
-    const allowed = Entitlement.decide(entitled, { tenancy: asked.tenancy });
+
+    // keep a space on its machine until a person sets its tenancy
+    if (tenancy === null) {
+        const message = `the space stays ${local} on ${row.machineId} until a person sets its tenancy`;
+
+        return { kind: "stay", condition: { status: "true", reason: "Unset", message } };
+    }
 
     // refuse a tenancy the account's plan does not unlock
+    const allowed = Entitlement.decide(entitled, { tenancy });
     if (allowed.status !== "true") {
         return { kind: "stay", condition: allowed };
     }
     // leave a space on its machine when its tenancy matches
-    else if (asked.tenancy === local) {
+    else if (tenancy === local) {
         const message = `placed ${local} on ${row.machineId}`;
 
         return { kind: "stay", condition: { status: "true", reason: "Placed", message } };
     }
-    // leave a space on its own machine until a person sets its tenancy
-    else if (asked.source === "default" && local === "local") {
-        const message = `the space keeps the default tenancy ${asked.tenancy} on its machine until tenancy is set`;
-
-        return { kind: "stay", condition: { status: "false", reason: "Unset", message } };
-    }
     // move it to its tenancy's machine, or leave it where no machine runs the tenancy
     else {
-        return await tenancyMachine(reader, row, asked.tenancy, crypto);
+        return await tenancyMachine(reader, row, tenancy, crypto);
     }
 }
 
@@ -264,7 +222,7 @@ async function tenancyMachine(
     row: Pick<Select<typeof placement.table>, "id" | "scope">,
     asked: Tenancy,
     crypto: DigestCrypto,
-): Promise<Placing> {
+): Promise<Schedule> {
     // read the residency's cloud machines for a shared space, else the account's machines of the tenancy's kind
     const kind = asked === "dedicated" ? "cloud" : "personal";
     const owner = await reader.read(account.table).findFirst({ where: { id: row.scope } });
