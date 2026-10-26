@@ -148,9 +148,10 @@ export interface UpdateOptions<
     Fields extends string,
     Input extends InputObject,
     Prepared extends schema.Schema,
+    Visibility extends MethodVisibility = MethodVisibility,
 > {
     /** Who may call the update. */
-    readonly visibility?: MethodVisibility;
+    readonly visibility?: Visibility;
     /** The fields the caller writes, every written field when absent. */
     readonly fields?: readonly Fields[];
     /** The caller-supplied values beyond fields. */
@@ -164,9 +165,13 @@ export interface UpdateOptions<
 }
 
 /** How a bulk update matches and writes objects. */
-export interface UpdateManyOptions<Fields extends string, Match extends string> {
+export interface UpdateManyOptions<
+    Fields extends string,
+    Match extends string,
+    Visibility extends MethodVisibility = MethodVisibility,
+> {
     /** Who may call the update. */
-    readonly visibility?: MethodVisibility;
+    readonly visibility?: Visibility;
     /** The fields the call writes on each matched object. */
     readonly fields: readonly Fields[];
     /** The fields the call matches objects by. */
@@ -182,9 +187,12 @@ export interface DeleteManyOptions<Match extends string> {
 }
 
 /** How a deletion method deletes. */
-export interface RemoveOptions<Prepared extends schema.Schema> {
+export interface RemoveOptions<
+    Prepared extends schema.Schema,
+    Visibility extends MethodVisibility = MethodVisibility,
+> {
     /** Who may call the deletion. */
-    readonly visibility?: MethodVisibility;
+    readonly visibility?: Visibility;
     /** The external work the deletion prepares before its transaction. */
     readonly prepared?: Prepared;
     /** Whether clients predict the deletion. */
@@ -197,9 +205,10 @@ function bulkUpdate<
     Fields extends string,
     Match extends string,
     Itemized extends boolean,
+    Visibility extends MethodVisibility,
 >(
     permission: Permission,
-    options: Omit<UpdateManyOptions<Fields, Match>, "match">,
+    options: Omit<UpdateManyOptions<Fields, Match, Visibility>, "match">,
     match: readonly Match[] | undefined,
     isItemized: Itemized,
     source: MethodSource,
@@ -212,6 +221,7 @@ function bulkUpdate<
     fields: Fields;
     items: Itemized;
     target: "scope";
+    visibility: Visibility;
 }> {
     return {
         kind: "updateMany",
@@ -453,7 +463,9 @@ export const RecordMethod = {
             ...written,
             ...TagFields,
             ...filled,
-            ...(options.visibility !== undefined && options.visibility !== "client" ? schemas.callers : {}),
+            ...(options.visibility !== undefined && options.visibility !== "client"
+                ? schemas.callers
+                : {}),
             ...RecordMethod.fields(options.input),
         });
 
@@ -1649,7 +1661,10 @@ export class MethodBuilder<
                                 ...schemas.created,
                                 ...schemas.parent,
                                 ...schemas.written(options.fields, false),
-                                ...(options.visibility !== undefined && options.visibility !== "client" ? schemas.callers : {}),
+                                ...(options.visibility !== undefined &&
+                                options.visibility !== "client"
+                                    ? schemas.callers
+                                    : {}),
                             }),
                         )
                         .max(BATCH_LIMIT),
@@ -1670,7 +1685,8 @@ export class MethodBuilder<
         const Fields extends Written = Written,
         Input extends InputObject = never,
         Prepared extends schema.Schema = never,
-    >(permission: Permission, options: UpdateOptions<Fields, Input, Prepared> = {}) {
+        const Visibility extends MethodVisibility = "client",
+    >(permission: Permission, options: UpdateOptions<Fields, Input, Prepared, Visibility> = {}) {
         return defineMethod<{
             kind: "update";
             target: "object";
@@ -1680,6 +1696,7 @@ export class MethodBuilder<
             mutates: true;
             fields: NoInfer<Fields>;
             table: Definition;
+            visibility: NoInfer<Visibility>;
         }>({
             kind: "update",
             source: { builder: "update", arguments: [permission, options] },
@@ -1721,7 +1738,8 @@ export class MethodBuilder<
         const Permission extends Granted,
         const Fields extends Written = Written,
         const Match extends string = string,
-    >(permission: Permission, options: UpdateManyOptions<Fields, Match>) {
+        const Visibility extends MethodVisibility = "client",
+    >(permission: Permission, options: UpdateManyOptions<Fields, Match, Visibility>) {
         return defineMethod<{
             kind: "updateMany";
             permission: Permission;
@@ -1732,6 +1750,7 @@ export class MethodBuilder<
             items: false;
             table: Definition;
             target: "scope";
+            visibility: NoInfer<Visibility>;
         }>(
             bulkUpdate(permission, options, options.match, false, {
                 builder: "updateMany",
@@ -1741,9 +1760,13 @@ export class MethodBuilder<
     }
 
     /** Update each listed object at its revision, all or none, returning the count. */
-    updateItems<const Permission extends Granted, const Fields extends Written = Written>(
+    updateItems<
+        const Permission extends Granted,
+        const Fields extends Written = Written,
+        const Visibility extends MethodVisibility = "client",
+    >(
         permission: Permission,
-        options: Omit<UpdateManyOptions<Fields, never>, "match">,
+        options: Omit<UpdateManyOptions<Fields, never, Visibility>, "match">,
     ) {
         return defineMethod<{
             kind: "updateMany";
@@ -1755,6 +1778,7 @@ export class MethodBuilder<
             fields: NoInfer<Fields>;
             table: Definition;
             target: "scope";
+            visibility: NoInfer<Visibility>;
         }>(
             bulkUpdate(permission, options, undefined, true, {
                 builder: "updateItems",
@@ -1763,10 +1787,11 @@ export class MethodBuilder<
         );
     }
     /** Delete an object. */
-    delete<const Permission extends Granted, Prepared extends schema.Schema = never>(
-        permission: Permission,
-        options: RemoveOptions<Prepared> = {},
-    ) {
+    delete<
+        const Permission extends Granted,
+        Prepared extends schema.Schema = never,
+        const Visibility extends MethodVisibility = "client",
+    >(permission: Permission, options: RemoveOptions<Prepared, Visibility> = {}) {
         return defineMethod<{
             kind: "delete";
             target: "object";
@@ -1775,6 +1800,7 @@ export class MethodBuilder<
             prepared: NoInfer<Prepared>;
             mutates: true;
             table: Definition;
+            visibility: NoInfer<Visibility>;
         }>({
             kind: "delete",
             source: { builder: "delete", arguments: [permission, options] },

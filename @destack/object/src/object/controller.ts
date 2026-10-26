@@ -26,6 +26,7 @@ import {
 } from "./condition.ts";
 import { type ResultsOf } from "../method/context.ts";
 import type { MutateOptions, ObjectStore } from "../server/store.ts";
+import { CallSite } from "../method/site.ts";
 
 /** The condition of a controlled object's last reconcile succeeding, as Crossplane's Synced. */
 const SYNCED = "Synced";
@@ -202,14 +203,15 @@ export const ObjectController = {
             return undefined;
         }
 
-        // reconcile them, running methods as the type's serving principal at one time
+        // reconcile them as the type's serving principal and implementing package, at one time
         const now = store.clock.now();
         const caller = store.as(object, now);
+        const site = CallSite.package(store.implementer(object));
         const mutate: ObjectReconciliation["mutate"] = (calls, options) =>
             store.mutate(
                 caller,
                 { id: RequestId.create(store.environment), calls: [...calls] },
-                { ...options, component: object.name },
+                { ...options, component: object.name, site },
             );
         const observe: ObjectReconciliation["observe"] = async (observed, row, observation) => {
             // skip an observation the row has
