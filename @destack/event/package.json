@@ -25,8 +25,8 @@
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/telemetry": "workspace:*",
-        "hyparquet": "1.31.2",
-        "hyparquet-writer": "0.16.10"
+        "hyparquet": "1.31.5",
+        "hyparquet-writer": "0.17.0"
     },
     "devDependencies": {
         "@destack/check": "workspace:*",
