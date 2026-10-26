@@ -4,11 +4,19 @@ import { expect, refusal, test } from "@destack/test";
 import type { Environment, FileSystem } from "@destack/environment";
 import { join } from "node:path";
 import { LocalBucket } from "@destack/bucket/bun";
+import { PackageId } from "@destack/package";
 import { PackageFile } from "@destack/package/file";
 import { BuildReader, PackageManifest } from "@destack/package/manifest";
 import { CallError } from "@destack/object";
 import { Digest, found, present } from "@destack/schema";
-import { type PackageAccess, PackageClient, PackageStore, Retention } from "./index.ts";
+import {
+    MAPS_REFERRER,
+    type PackageAccess,
+    PackageClient,
+    PackageStore,
+    Retention,
+    RUNTIME_REFERRER,
+} from "./index.ts";
 
 /** The mount the tests serve stores below. */
 const MOUNT = new URL("https://packages.test/packages/");
@@ -39,6 +47,7 @@ async function temporary(files: FileSystem): Promise<string> {
 async function written(
     sources: Readonly<Record<string, string>>,
     crypto: Crypto,
+    outputs: PackageManifest["outputs"] = {},
 ): Promise<BuildReader> {
     // describe each source file
     const encoder = new TextEncoder();
@@ -72,7 +81,7 @@ async function written(
             sourceMaps: await index("manifest/sourceMaps.json", []),
             graph: await index("manifest/graph.json", { modules: {} }),
         },
-        outputs: {},
+        outputs,
     });
 
     return new BuildReader(
@@ -80,6 +89,71 @@ async function written(
         async (path) => new Blob([found(bytes, path)]).stream(),
         crypto,
     );
+}
+
+/** Describe a build's Bun output: its exports' imports, its dependencies and its workloads. */
+function bunOutputs(
+    imports: Readonly<Record<string, readonly string[]>>,
+    dependencies: PackageManifest["outputs"][string]["dependencies"],
+    entries: readonly string[] = [],
+): PackageManifest["outputs"] {
+    // export each subpath at a file of its own, and run each entry as a workload
+    const exports = Object.fromEntries(
+        Object.entries(imports).map(([subpath, specifiers]) => [
+            subpath,
+            { path: `bun/${subpath.slice(2) || "index"}.js`, imports: [...specifiers] },
+        ]),
+    );
+    const workloads = Object.fromEntries(
+        entries.map((entrypoint) => [
+            entrypoint.slice(2),
+            {
+                entrypoint,
+                packages: [],
+                triggers: [],
+                resources: [],
+                secrets: [],
+                compute: {},
+                sandbox: {},
+            },
+        ]),
+    );
+
+    return {
+        bun: {
+            runtime: "bun",
+            emit: true,
+            workloads,
+            views: {},
+            directory: "bun",
+            exports,
+            dependencies,
+        },
+    };
+}
+
+/** Describe a dependency on the tiny npm release, built as a unit at a manifest. */
+function npmRelease(manifest: Digest) {
+    return {
+        kind: "npm" as const,
+        package: { name: "tiny", version: "1.0.0" },
+        registry: "https://registry.npmjs.org",
+        integrity: "sha512-dGlueQ==",
+        manifest,
+    };
+}
+
+/** Describe a dependency on a Destack library's build at a manifest. */
+function library(name: string, manifest: Digest) {
+    return {
+        kind: "destack" as const,
+        package: {
+            id: PackageId.parse("package-00000000-0000-7000-8000-00000000a002"),
+            name,
+            version: "2026.9.0",
+        },
+        manifest,
+    };
 }
 
 /** Read a stream's bytes. */
@@ -751,6 +825,172 @@ test("retain the union of every root's builds, and forget a root that retains no
         both: [first, second].toSorted(),
         after: [second],
     });
+});
+
+test("retain a rooted build with the builds its workloads import, leaving exports no workload imports", async () => {
+    // store a library whose client export imports an npm unit and whose heavy export imports another library
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const directory = await temporary(environment.files);
+    await using bucket = await LocalBucket.open(
+        join(directory, "bucket"),
+        "space-test",
+        environment,
+    );
+    const store = new PackageStore(bucket, environment);
+    const { crypto } = environment;
+    const unit = await store.put(await written({ "src/unit.ts": "export {};\n" }, crypto));
+    const heavy = await store.put(await written({ "src/heavy.ts": "export {};\n" }, crypto));
+    const middle = await store.put(
+        await written(
+            { "src/middle.ts": "export {};\n" },
+            crypto,
+            bunOutputs(
+                { "./client": ["tiny"], "./heavy": ["@example/heavy"] },
+                { "@example/heavy": library("@example/heavy", heavy), tiny: npmRelease(unit) },
+            ),
+        ),
+    );
+
+    // root an application whose workload imports the library's client export alone
+    const root = await store.put(
+        await written(
+            SOURCES,
+            crypto,
+            bunOutputs(
+                { "./serve": ["@example/middle/client"] },
+                { "@example/middle": library("@example/middle", middle) },
+                ["./serve"],
+            ),
+        ),
+    );
+    await store.root("space-a", new Set([root]));
+
+    // retain the application, the library and the unit its client imports, but not the heavy library
+    expect({
+        retained: [...(await store.retained())].toSorted(),
+        units: await store.units(
+            middle,
+            PackageId.parse("package-00000000-0000-7000-8000-00000000a002"),
+        ),
+    }).toEqual({ retained: [root, middle, unit].toSorted(), units: [unit] });
+});
+
+/** Open a store over a temporary bucket of a world. */
+async function openStore(simulation: ReturnType<typeof testSimulation>) {
+    const environment = simulation.environment("test");
+    const directory = await temporary(environment.files);
+    const bucket = await LocalBucket.open(join(directory, "bucket"), "space-test", environment);
+
+    return { store: new PackageStore(bucket, environment), bucket, crypto: environment.crypto };
+}
+
+/** The files of a stored build beside its manifest's lists, by path. */
+async function filesOf(store: PackageStore, manifest: Digest): Promise<string[]> {
+    const files = await (await store.contents(manifest)).distributed();
+
+    return files
+        .map((file) => file.path)
+        .filter((path) => !path.startsWith("manifest/"))
+        .toSorted();
+}
+
+test("derive a build's runtime build once: the output's loaded files, its maps attached to it apart", async () => {
+    // store a build whose Bun output has a module, a native addon and a source map
+    await using simulation = testSimulation();
+    const { store, bucket, crypto } = await openStore(simulation);
+    await using _bucket = bucket;
+    const built = await store.put(
+        await written(
+            {
+                "package.json": "{}\n",
+                "bun/serve.js": "export {};\n",
+                "bun/addon.node": "addon\n",
+                "bun/serve.d.ts": "export {};\n",
+                "bun/serve.js.map": "{}\n",
+            },
+            crypto,
+            bunOutputs({ "./serve": [] }, {}, ["./serve"]),
+        ),
+    );
+
+    // derive it twice at once, and read the runtime build, its maps and its attachment
+    const [first, again] = await Promise.all([
+        store.attachRuntime(built, "bun"),
+        store.attachRuntime(built, "bun"),
+    ]);
+    const maps = present(await store.referrer(first, MAPS_REFERRER), "the maps build");
+    expect({
+        again,
+        attached: (await store.referrer(built, `${RUNTIME_REFERRER}/bun`))?.digest,
+        runtime: await filesOf(store, first),
+        maps: await filesOf(store, maps.digest),
+    }).toEqual({
+        again: first,
+        attached: first,
+        runtime: ["bun/addon.node", "bun/serve.js", "package.json"],
+        maps: ["bun/serve.js.map"],
+    });
+});
+
+test("list a build that is its own runtime build once among its attached builds", async () => {
+    // derive the runtime build of a runtime build, which is itself
+    await using simulation = testSimulation();
+    const { store, bucket, crypto } = await openStore(simulation);
+    await using _bucket = bucket;
+    const built = await store.put(
+        await written(
+            { "bun/serve.js": "export {};\n" },
+            crypto,
+            bunOutputs({ "./serve": [] }, {}, ["./serve"]),
+        ),
+    );
+    const runtime = await store.attachRuntime(built, "bun");
+    const again = await store.attachRuntime(runtime, "bun");
+
+    // list the runtime build's attachment to itself once
+    const attached = await store.attached(runtime);
+    expect({
+        again,
+        attached: attached.map(({ subject, file }) => [subject, file.digest]),
+    }).toEqual({
+        again: runtime,
+        attached: [[runtime, runtime]],
+    });
+});
+
+test("retain a rooted build's runtime build and its maps, and pass over a dependency the store lacks", async () => {
+    // root a served build with its runtime build attached, and a build importing a library the store lacks
+    await using simulation = testSimulation();
+    const { store, bucket, crypto } = await openStore(simulation);
+    await using _bucket = bucket;
+    const served = await store.put(
+        await written(
+            { "bun/serve.js": "export {};\n", "bun/serve.js.map": "{}\n" },
+            crypto,
+            bunOutputs({ "./serve": [] }, {}, ["./serve"]),
+        ),
+    );
+    const lacking = Digest.parse("f".repeat(64));
+    const importing = await store.put(
+        await written(
+            { "bun/import.js": "export {};\n" },
+            crypto,
+            bunOutputs(
+                { "./import": ["@example/lacking"] },
+                { "@example/lacking": library("@example/lacking", lacking) },
+                ["./import"],
+            ),
+        ),
+    );
+    await store.root("space-a", new Set([served, importing]));
+    const runtime = await store.attachRuntime(served, "bun");
+    const maps = present(await store.referrer(runtime, MAPS_REFERRER), "the maps build");
+
+    // retain both builds, the runtime build and its maps, and the lacking library's manifest the import lists
+    expect([...(await store.retained())].toSorted()).toEqual(
+        [served, runtime, maps.digest, importing, lacking].toSorted(),
+    );
 });
 
 test("sweep a store at most once per interval, once among concurrent sweeps, and again after a failed one", async () => {

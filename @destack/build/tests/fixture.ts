@@ -100,10 +100,10 @@ export interface NoteModule {
 
 /** Read the file a build output exports at a path, refusing an output or export the build lacks. */
 export function exported(
-    output: { readonly exports: Readonly<Record<string, string>> } | undefined,
+    output: { readonly exports: Readonly<Record<string, { readonly path: string }>> } | undefined,
     path: string,
 ): string {
-    const file = output?.exports[path];
+    const file = output?.exports[path]?.path;
     if (file === undefined) {
         throw new TypeError(`the build output exports no ${path}`);
     }

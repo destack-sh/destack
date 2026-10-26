@@ -199,7 +199,7 @@ function exportedPaths(
     output: PackageManifest["outputs"][string],
 ): string[] {
     // refuse exports outside the output's directory
-    const exported = Object.values(output.exports);
+    const exported = Object.values(output.exports).map((entry) => entry.path);
     for (const path of exported) {
         if (!path.startsWith(`${output.directory}/`)) {
             throw PackageError.of("FILE_INVALID", `export is outside its output: ${path}`);

@@ -626,7 +626,7 @@ test("check every output's entries with the package's ambient declarations", asy
 
 /** Read the file an output exports at its root, failing when the manifest lacks it. */
 function rootExport(manifest: PackageManifest, output: string): string {
-    const path = manifest.outputs[output]?.exports["."];
+    const path = manifest.outputs[output]?.exports["."]?.path;
     if (path === undefined) {
         throw new Error(`the manifest has no root export of ${output}`);
     }

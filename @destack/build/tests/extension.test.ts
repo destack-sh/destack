@@ -97,7 +97,10 @@ async function link(
 
 /** Run an entry of a build's Bun output, reading its exports. */
 async function readEntry(build: PackageBuild, name: string): Promise<Record<string, unknown>> {
-    const path = present(build.reader.manifest.outputs["bun"]?.exports[name], `entry ${name}`);
+    const path = present(
+        build.reader.manifest.outputs["bun"]?.exports[name]?.path,
+        `entry ${name}`,
+    );
 
     return schema
         .record(schema.string(), schema.unknown())
@@ -417,6 +420,9 @@ test("refuse what a module an extension generates imports until the package decl
     await PackageBuild.write(build.reader, destination, files);
     const tree = await DependencyTree.materialize(store, [leaf], join(root, "builds"));
     await tree.link(join(destination, "node_modules"), files);
-    const barrel = present(build.manifest.outputs["bun"]?.exports["barrel"], "the barrel entry");
+    const barrel = present(
+        build.manifest.outputs["bun"]?.exports["barrel"]?.path,
+        "the barrel entry",
+    );
     expect({ ...(await import(join(destination, barrel))) }).toEqual({ exported: "exported" });
 });

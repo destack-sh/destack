@@ -102,7 +102,7 @@ test("build an npm unit as installed for Bun and as ESM for workerd, on its depe
         .looseObject({ default: schema.string() })
         .parse(await import(join(placed, "node_modules", "greeting", "index.js")));
 
-    // store Bun's copy byte for byte, record the release with its build, and reuse the stored build
+    // store Bun's copy minified, record the release with its build, and reuse the stored build
     expect({
         package: reader.manifest.package,
         outputs: Object.keys(reader.manifest.outputs),
@@ -113,7 +113,7 @@ test("build an npm unit as installed for Bun and as ESM for workerd, on its depe
     }).toEqual({
         package: { name: "greeting", version: "1.0.0", integrity: "sha512-greeting" },
         outputs: ["bun", "workerd"],
-        bun: 'module.exports = require("word") + ", world";\n',
+        bun: 'module.exports=require("word")+`, world`;',
         greeting: "hello, world",
         stored: { kind: "npm", ...locked["greeting@1.0.0"], manifest: "" },
         isReused: true,

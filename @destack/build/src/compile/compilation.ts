@@ -54,6 +54,8 @@ export interface CompiledFiles {
     inspection: BuildDescription;
     /** The target output description. */
     output: PackageOutput;
+    /** The emitted file of each package export, recorded with its imports at the end. */
+    exported: Record<string, string>;
     /** Generated files and captured source assets. */
     files: Map<string, Uint8Array<ArrayBuffer>>;
     /** Generated output paths written by Vite. */
@@ -205,11 +207,9 @@ export class OutputCompilation implements Compilation {
         // export each stylesheet as the source file the build ships, compiling the modules alone
         const exported = Object.entries(project.exports);
         for (const [name, entry] of exported.filter(([, path]) => path.endsWith(".css"))) {
-            compiled.output.exports[name] = PackagePath.parse(
-                relativePath(project.directory, entry),
-            );
+            compiled.exported[name] = PackagePath.parse(relativePath(project.directory, entry));
             compiled.files.set(
-                compiled.output.exports[name],
+                compiled.exported[name],
                 await project.environment.files.readFile(entry),
             );
         }
@@ -217,6 +217,8 @@ export class OutputCompilation implements Compilation {
             .map(([, entry]) => entry)
             .filter((entry) => !entry.endsWith(".css"));
         if (!entries.length && !this.#entries.size) {
+            this.#recordExports(compiled, new Map());
+
             return compiled;
         }
         if (entries.some((entry) => entry.endsWith(".html")) && project.runtime !== "browser") {
@@ -238,10 +240,11 @@ export class OutputCompilation implements Compilation {
 
         // map authored and emitted entries to generated files
         this.#collect(generated, compiled, facades);
-        this.#exportEntries(generated, compiled.output.exports, facades);
+        this.#exportEntries(generated, compiled.exported, facades);
 
-        // let each extension describe the compiled output's workloads and views
+        // let each extension describe the compiled output's workloads and views, then record the exports' imports
         this.#describeOutput(compiled, facades);
+        this.#recordExports(compiled, facades);
 
         return compiled;
     }
@@ -261,6 +264,7 @@ export class OutputCompilation implements Compilation {
         return {
             inspection: { packages: {}, inputs: {}, outputs: {} },
             output,
+            exported: {},
             files: new Map(),
             paths: [],
             sourceMaps: [],
@@ -270,17 +274,23 @@ export class OutputCompilation implements Compilation {
     /** Let each extension describe the compiled output's workloads and views. */
     #describeOutput(compiled: CompiledFiles, facades: ReadonlyMap<string, string>): void {
         // expose the exports and the declarations of each entrypoint
-        const { inspection, output } = compiled;
-        const exports = output.exports;
         const described: CompiledOutput = {
-            exports,
-            declarations: (entrypoint) =>
-                this.#declarationsOf(entrypoint, output, facades, inspection),
+            exports: compiled.exported,
+            declarations: (entrypoint) => this.#declarationsOf(entrypoint, compiled, facades),
         };
 
         // merge each extension's description into the output
         for (const extension of this.extensions) {
-            merge(output, describe(extension, this, described));
+            merge(compiled.output, describe(extension, this, described));
+        }
+    }
+
+    /** Record each export's emitted file with the dependency specifiers its chunks import. */
+    #recordExports(compiled: CompiledFiles, facades: ReadonlyMap<string, string>): void {
+        // walk a module entry's chunks, and record no imports of a stylesheet or a page
+        for (const [name, path] of Object.entries(compiled.exported)) {
+            const imports = facades.has(name) ? this.#importsOf(name, path, compiled) : [];
+            compiled.output.exports[name] = { path, imports };
         }
     }
 
@@ -350,7 +360,8 @@ export class OutputCompilation implements Compilation {
                 ssr: project.runtime !== "browser",
                 // emit current syntax for the server runtimes Destack ships, and baseline syntax for browsers
                 target: project.runtime === "browser" ? "baseline-widely-available" : "esnext",
-                minify: options.minify ?? false,
+                // minify the server runtimes' modules, which machines load, and the browser's as asked
+                minify: options.minify ?? project.runtime !== "browser",
                 sourcemap: true,
                 copyPublicDir: false,
                 rolldownOptions: this.#rolldownOptions(compiled, input, destination, locations),
@@ -412,6 +423,7 @@ export class OutputCompilation implements Compilation {
         const { project } = this;
         const directory = compiled.output.directory;
         const isBun = project.runtime === "bun";
+        const isBrowser = project.runtime === "browser";
 
         return {
             platform: isBun ? "node" : "browser",
@@ -430,6 +442,8 @@ export class OutputCompilation implements Compilation {
                 this.#isExternal(specifier, importer, input.dependencies, compiled.output),
             output: {
                 format: "esm",
+                // preserve function and class names in minified server modules, as error families and telemetry read them
+                keepNames: !isBrowser,
                 entryFileNames: "[name]-[hash].js",
                 chunkFileNames: "[name]-[hash].js",
                 assetFileNames: "asset/[name]-[hash][extname]",
@@ -458,7 +472,7 @@ export class OutputCompilation implements Compilation {
             // export a module entry's chunk and an HTML entry's page
             for (const [name, source] of Object.entries(project.exports)) {
                 if (entry.type === "chunk" && entry.facadeModuleId === source) {
-                    compiled.output.exports[name] = path;
+                    compiled.exported[name] = path;
                     facades.set(name, source);
                 }
                 if (
@@ -466,7 +480,7 @@ export class OutputCompilation implements Compilation {
                     source.endsWith(".html") &&
                     entry.fileName === relativePath(project.directory, source)
                 ) {
-                    compiled.output.exports[name] = path;
+                    compiled.exported[name] = path;
                 }
             }
 
@@ -636,17 +650,16 @@ export class OutputCompilation implements Compilation {
     /** Select an entrypoint's module declarations, including ones shaken out of its chunks. */
     #declarationsOf(
         entrypoint: string,
-        output: PackageOutput,
+        compiled: CompiledFiles,
         facades: ReadonlyMap<string, string>,
-        inspection: BuildDescription,
     ): DeclarationDescription[] {
-        // require an emitted entrypoint, then check its chunks' imports
-        const emitted = output.exports[entrypoint];
+        // require an emitted entrypoint, whose chunks' imports recording its export checked
+        const { inspection } = compiled;
+        const emitted = compiled.exported[entrypoint];
         const facade = facades.get(entrypoint);
         if (emitted === undefined || facade === undefined) {
             throw BuildError.of("INVARIANT_VIOLATED", `no emitted entrypoint: ${entrypoint}`);
         }
-        this.#checkChunks(entrypoint, emitted, output, inspection);
 
         // start from the entry's module as the dependency plugin records it
         const root = isAbsolute(facade)
@@ -671,15 +684,13 @@ export class OutputCompilation implements Compilation {
         });
     }
 
-    /** Refuse external imports of an entry's chunks that the runtime and dependencies lack. */
-    #checkChunks(
-        entrypoint: string,
-        emitted: string,
-        output: PackageOutput,
-        inspection: BuildDescription,
-    ): void {
+    /** List the dependency specifiers an entry's chunks import, refusing ones nothing provides. */
+    #importsOf(entrypoint: string, emitted: string, compiled: CompiledFiles): string[] {
+        // walk the entry's chunks from its emitted file
+        const { inspection, output } = compiled;
         const chunks = [emitted];
         const visited = new Set<string>();
+        const imports = new Set<string>();
         for (const path of chunks) {
             // visit each chunk once
             if (visited.has(path)) {
@@ -699,7 +710,9 @@ export class OutputCompilation implements Compilation {
                 );
                 if (!imported.external) {
                     chunks.push(imported.path);
-                } else if (!isRuntimeModule(imported.path, this.runtime) && !isDependency) {
+                } else if (isDependency) {
+                    imports.add(imported.path);
+                } else if (!isRuntimeModule(imported.path, this.runtime)) {
                     throw BuildError.of(
                         "RUNTIME_MODULE_UNSUPPORTED",
                         `unsupported external import of ${entrypoint} on ${this.runtime}: ${imported.path}`,
@@ -707,6 +720,8 @@ export class OutputCompilation implements Compilation {
                 }
             }
         }
+
+        return [...imports].toSorted();
     }
 
     /** Index the source files each package's modules read, following imports from some inputs. */

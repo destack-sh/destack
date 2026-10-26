@@ -80,7 +80,7 @@ export class DependencyTree {
         );
         const workspace = await DependencyTree.#workspace(directory, store.environment.files);
 
-        return await DependencyTree.materialize(store, builds, store.trees, workspace);
+        return await DependencyTree.materialize(store, builds, store.trees, { workspace });
     }
 
     /** Write builds and theirs once each under a directory by manifest, with their npm packages. */
@@ -88,10 +88,16 @@ export class DependencyTree {
         store: LocalPackageStore,
         dependencies: readonly DependencyRelease[],
         directory: string,
-        workspace?: string,
+        options: {
+            /** The workspace whose Bun store links the npm packages, else the store places them. */
+            readonly workspace?: string | undefined;
+            /** The builds to place, such as a workload's closure, else every one found. */
+            readonly closure?: ReadonlySet<string>;
+        } = {},
     ): Promise<DependencyTree> {
         // link npm packages to a workspace's Bun store, else place the npm units the builds record
         const { files } = store.environment;
+        const { workspace, closure } = options;
         const installation =
             workspace === undefined
                 ? undefined
@@ -140,7 +146,8 @@ export class DependencyTree {
             }
             pending.push(
                 ...Object.values(recorded).filter(
-                    (each): each is DependencyBuild => each.kind === "destack",
+                    (each): each is DependencyBuild =>
+                        each.kind === "destack" && (closure?.has(each.manifest) ?? true),
                 ),
             );
 
@@ -155,6 +162,7 @@ export class DependencyTree {
                 await DependencyTree.#place(store, dependency, recorded, directory, {
                     installation,
                     named,
+                    closure,
                 });
             }
         }
@@ -174,6 +182,7 @@ export class DependencyTree {
         workspace: {
             readonly installation: NpmInstalled | undefined;
             readonly named: ReadonlySet<string>;
+            readonly closure: ReadonlySet<string> | undefined;
         },
     ): Promise<void> {
         // stage the build beside its place, linking its Destack dependencies as siblings
@@ -203,10 +212,10 @@ export class DependencyTree {
         const authored = AuthoredPackage.parse(
             JSON.parse(new TextDecoder().decode(await reader.load("package.json"))),
         );
-        const { installation, named } = workspace;
+        const { installation, named, closure } = workspace;
         const linked =
             installation === undefined
-                ? await DependencyTree.#placeRecorded(store, recorded, directory)
+                ? await DependencyTree.#placeRecorded(store, recorded, directory, closure)
                 : await DependencyTree.#installed(
                       installation,
                       dependency,
@@ -235,10 +244,12 @@ export class DependencyTree {
         store: LocalPackageStore,
         recorded: Readonly<Record<string, DependencyRelease>>,
         directory: string,
+        closure: ReadonlySet<string> | undefined,
     ): Promise<Map<string, string>> {
         // place each recorded unit with the others beside it
         const units = Object.entries(recorded).filter(
-            (entry): entry is [string, NpmDependency] => entry[1].kind === "npm",
+            (entry): entry is [string, NpmDependency] =>
+                entry[1].kind === "npm" && (closure?.has(entry[1].manifest) ?? true),
         );
         const beside = new Map(units);
         const placed = new Map<string, string>();
@@ -567,7 +578,7 @@ export class DependencyTree {
             for (const [subpath, module] of subpaths) {
                 const conditions = (exports[subpath] ??= {});
                 for (const condition of DependencyTree.#conditions(output.runtime)) {
-                    conditions[condition] = `./${module}`;
+                    conditions[condition] = `./${module.path}`;
                 }
             }
         }

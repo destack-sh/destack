@@ -87,7 +87,7 @@ test("build a workspace's units on their dependencies' builds, restore every uni
             store,
             [dependency],
             join(directory, "builds"),
-            workspace,
+            { workspace },
         );
         await tree.link(join(destination, "node_modules"), files);
         const module = await importBuilt(destination, exported(each.manifest.outputs["bun"], "."));
@@ -105,12 +105,9 @@ test("build a workspace's units on their dependencies' builds, restore every uni
     if (edited?.kind !== "destack") {
         throw new TypeError("the rebuilt application records no library build");
     }
-    const conflict = DependencyTree.materialize(
-        store,
-        [edited, first],
-        join(directory, "builds"),
+    const conflict = DependencyTree.materialize(store, [edited, first], join(directory, "builds"), {
         workspace,
-    ).catch((error: unknown) => (error instanceof Error ? error.message : error));
+    }).catch((error: unknown) => (error instanceof Error ? error.message : error));
     const previous = built.manifest.outputs["bun"]?.dependencies?.[LIBRARY];
     const before = previous?.kind === "destack" ? previous.manifest : "";
     const refused = `${LIBRARY} is required as two different builds: ${before} and ${edited.manifest}`;
@@ -123,6 +120,7 @@ test("build a workspace's units on their dependencies' builds, restore every uni
         written: unchanged - stored,
         greetings,
         conflict: await conflict,
+        imports: built.manifest.outputs["bun"]?.exports["."]?.imports,
     }).toEqual({
         units: [LIBRARY, "@destack/build-unit-application-fixture"],
         restored: built.manifest,
@@ -133,6 +131,7 @@ test("build a workspace's units on their dependencies' builds, restore every uni
             { name: "world", text: "hello world" },
             { name: "world", text: "hi world" },
         ],
+        imports: [LIBRARY],
         conflict: refused,
     });
 });

@@ -1,5 +1,5 @@
 import { Digest } from "@destack/schema";
-import { PackagePath, type PackageFile } from "@destack/package/file";
+import { type PackageFile, PackagePath } from "@destack/package/file";
 import { CallError } from "@destack/object";
 import { BuildError } from "../error/index.ts";
 import { PackageStore } from "./store.ts";
@@ -145,6 +145,10 @@ async function read(
     if (selected === "archive") {
         return archive(store, request, digest);
     }
+    // describe a referrer of the build, as OCI's referrers API lists a subject's artifacts
+    else if (selected.startsWith("referrers/")) {
+        return referrer(store, digest, selected.slice("referrers/".length));
+    }
 
     // resolve the selected path among the build's manifest and the files it lists
     const file = await select(store, digest, selected);
@@ -182,6 +186,16 @@ async function select(
     const listed = direct ?? (await contents.distributed()).find((entry) => entry.path === name);
 
     return listed ?? new Response(null, { status: 404 });
+}
+
+/** Describe a referrer of a build by its encoded path, answering an unknown one as missing. */
+async function referrer(store: PackageStore, digest: Digest, encoded: string): Promise<Response> {
+    const path = decodePath(encoded);
+    const described = path === undefined ? undefined : await store.referrer(digest, path);
+
+    return described === undefined
+        ? new Response(null, { status: 404 })
+        : Response.json(described, { headers: { "cache-control": "private, no-cache" } });
 }
 
 /** Serve a manifest or a file under HTTP cache conditions and byte ranges. */

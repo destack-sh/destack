@@ -10,8 +10,18 @@ import { PackageLocator } from "@destack/package/locator";
 import { BuildReader, BuildWriter, type PackageOutput } from "@destack/package/manifest";
 import { NATIVE_ADDON_RUNTIMES, type Runtime, SERVER_RUNTIMES } from "@destack/package/runtime";
 import { Digest, found, nth, schema } from "@destack/schema";
+import { minifySync } from "rolldown/utils";
 import { BuildError } from "../error/index.ts";
 import type { PackageStore } from "../store/index.ts";
+
+/** The modules a unit's minification rewrites. */
+const MODULE_FILE = /\.[cm]?js$/u;
+
+/** The CommonJS bindings minification leaves unmangled, for runtimes to detect named exports. */
+const COMMONJS_NAMES = ["exports", "module", "require"];
+
+/** The part of a package.json that decides how its modules load. */
+const PackageType = schema.looseObject({ type: schema.string().exactOptional() });
 
 /** The files read at once, 64: well under macOS's default limit of 256 open files. */
 const CONCURRENT_READS = 64;
@@ -183,7 +193,11 @@ export class NpmInstallation {
                 loadable.set(name, new Set(Object.values(outputs).map((output) => output.runtime)));
             }
 
-            return await this.#store.put(await unit.build(dependencies, loadable, convert));
+            // store the unit with the runtime build of each of its outputs
+            const stored = await this.#store.put(await unit.build(dependencies, loadable, convert));
+            await this.#store.attachRuntimes(stored);
+
+            return stored;
         });
 
         return { kind: "npm", ...unit.release, manifest };
@@ -278,11 +292,10 @@ export class NpmUnit {
                     return [];
                 }
 
-                // write its files and describe it by the dependencies it imports
+                // write its files with its modules minified, and describe it by the dependencies it imports
+                const minified = this.#minify(converted.files, runtime === "workerd");
                 await Promise.all(
-                    [...converted.files].map(([path, bytes]) =>
-                        writer.write(`${runtime}/${path}`, bytes),
-                    ),
+                    [...minified].map(([path, bytes]) => writer.write(`${runtime}/${path}`, bytes)),
                 );
                 const output: PackageOutput = {
                     runtime,
@@ -312,6 +325,63 @@ export class NpmUnit {
             async (path) => new Blob([found(written, path)]).stream(),
             this.#environment.crypto,
         );
+    }
+
+    /** Minify a unit's modules with their names intact, each beside a map to its installed file. */
+    #minify(
+        files: ReadonlyMap<string, Uint8Array<ArrayBuffer>>,
+        isConverted: boolean,
+    ): Map<string, Uint8Array<ArrayBuffer>> {
+        // copy every other file, replacing the maps of the modules this minifies
+        const minified = new Map(files);
+        const decoder = new TextDecoder();
+        const encoder = new TextEncoder();
+        for (const [path, bytes] of files) {
+            if (MODULE_FILE.test(path)) {
+                // minify the module as an ES module or a script, CommonJS exports still detectable
+                const isModule = isConverted || NpmUnit.#isModule(path, files);
+                const result = minifySync(path, decoder.decode(bytes), {
+                    module: isModule,
+                    compress: { keepNames: { function: true, class: true } },
+                    mangle: { keepNames: true, reserved: COMMONJS_NAMES },
+                    sourcemap: true,
+                });
+                if (result.errors.length > 0) {
+                    const messages = result.errors.map((error) => error.message).join("; ");
+                    throw BuildError.of(
+                        "BUNDLE_FAILED",
+                        `cannot minify ${this.release.package.name}/${path}: ${messages}`,
+                    );
+                }
+
+                // write the minified module and its map
+                minified.set(path, encoder.encode(result.code));
+                minified.set(`${path}.map`, encoder.encode(JSON.stringify(result.map)));
+            }
+        }
+
+        return minified;
+    }
+
+    /** Decide whether an installed module is an ES module by its extension or package.json. */
+    static #isModule(path: string, files: ReadonlyMap<string, Uint8Array<ArrayBuffer>>): boolean {
+        // decide by the extension, else by the nearest package.json's type
+        if (path.endsWith(".mjs")) {
+            return true;
+        } else if (path.endsWith(".cjs")) {
+            return false;
+        }
+        const segments = path.split("/").slice(0, -1);
+        for (let depth = segments.length; depth >= 0; depth -= 1) {
+            const declared = files.get([...segments.slice(0, depth), "package.json"].join("/"));
+            if (declared !== undefined) {
+                const parsed = PackageType.parse(JSON.parse(new TextDecoder().decode(declared)));
+
+                return parsed.type === "module";
+            }
+        }
+
+        return false;
     }
 
     /** Read every file of an installed copy by its path, leaving the copy's node_modules out. */

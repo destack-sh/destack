@@ -9,8 +9,16 @@ import {
     type BucketRange,
     MAX_BATCH_FILES,
 } from "@destack/bucket";
+import { DependencyName, type PackageId } from "@destack/package";
 import { PackageFile } from "@destack/package/file";
-import { BuildReader, type PackageLocation, PackageManifest } from "@destack/package/manifest";
+import {
+    type BuildContents,
+    BuildReader,
+    BuildWriter,
+    type PackageLocation,
+    PackageManifest,
+} from "@destack/package/manifest";
+import type { Runtime } from "@destack/package/runtime";
 import { BuildError } from "../error/index.ts";
 import { Tarball } from "@destack/package/archive";
 import { comparePath } from "../build/serialization.ts";
@@ -38,6 +46,15 @@ const SWEPT_KEY = "swept";
 /** The marks of the objects a sweep drops, by key. */
 const Marks = schema.record(schema.string(), Instant);
 
+/** The prefix of a build's runtime builds among its referrers, one per server runtime. */
+export const RUNTIME_REFERRER = "runtime";
+
+/** The referrer path of a runtime build's source maps. */
+export const MAPS_REFERRER = "maps";
+
+/** The type declaration files a runtime never loads, beside the modules they describe. */
+const TYPE_DECLARATION = /\.d\.[cm]?ts$/u;
+
 /** The prefix of the keys of the roots, each retaining manifests under its name. */
 const ROOTS_PREFIX = "roots/";
 
@@ -60,6 +77,12 @@ export const Retention = {
     none: (async () => new Set<string>()) satisfies Retention,
 };
 
+/** Read a build's manifest at a package's registry, absent where none is stored. */
+export type ManifestRead = (
+    manifest: Digest,
+    packageId: PackageId,
+) => Promise<PackageManifest | undefined>;
+
 /** Immutable package builds in a bucket: files by digest, and manifests by digest. */
 export class PackageStore<
     StoreEnvironment extends Pick<Environment, "compression" | "crypto"> = Pick<
@@ -75,6 +98,8 @@ export class PackageStore<
     readonly #readers = new Map<string, Promise<BuildReader>>();
     /** The builds of cache keys in flight, so callers asking at once build each key once. */
     readonly #building = new Map<string, Promise<Digest>>();
+    /** The runtime builds being derived, by build and runtime. */
+    readonly #attaching = new Map<string, Promise<Digest>>();
 
     /** Store builds in a bucket, streaming archives and digesting files in an environment. */
     constructor(bucket: Bucket, environment: StoreEnvironment) {
@@ -241,6 +266,47 @@ export class PackageStore<
             });
     }
 
+    /** List a manifest's referrer builds and theirs in turn, each after its subject. */
+    async attached(
+        subject: Digest,
+    ): Promise<{ readonly subject: Digest; readonly file: PackageFile }[]> {
+        // visit each subject's referrers, then theirs in turn, each build once, as a unit may be its own runtime build
+        const attached: { readonly subject: Digest; readonly file: PackageFile }[] = [];
+        const visited = new Set<Digest>([subject]);
+        const pending = [subject];
+        for (let next = pending.shift(); next !== undefined; next = pending.shift()) {
+            const builds = (await this.referrers(next)).filter(
+                (file) =>
+                    file.path.startsWith(`${RUNTIME_REFERRER}/`) || file.path === MAPS_REFERRER,
+            );
+            for (const file of builds) {
+                attached.push({ subject: next, file });
+                if (!visited.has(file.digest)) {
+                    visited.add(file.digest);
+                    pending.push(file.digest);
+                }
+            }
+        }
+
+        return attached;
+    }
+
+    /** List a stored manifest's referrers, as OCI's referrers API lists a subject's artifacts. */
+    async referrers(subject: Digest): Promise<PackageFile[]> {
+        // list the subject's referrers, then read their descriptions at once
+        const keys: string[] = [];
+        for await (const entry of this.#list(`${REFERRERS_PREFIX}${subject}/`)) {
+            keys.push(entry.key);
+        }
+        const read = await Promise.all(keys.map((key) => this.bucket.get(key)));
+
+        return Promise.all(
+            read.flatMap((object) =>
+                object === null ? [] : [object.json().then((json) => PackageFile.parse(json))],
+            ),
+        );
+    }
+
     /** Read the file attached to a manifest at a path, absent for a manifest without one. */
     async referrer(subject: Digest, path: string): Promise<PackageFile | undefined> {
         const object = await this.bucket.get(PackageStore.#referrerKey(subject, path));
@@ -405,11 +471,257 @@ export class PackageStore<
         return roots;
     }
 
-    /** Read the manifests every root retains. */
+    /** Read the manifests every root retains: with its attached builds and what they run with. */
     async retained(): Promise<ReadonlySet<string>> {
+        // read the manifests the roots list, and each stored manifest once across them
         const roots = await this.roots();
+        const listed = new Set([...roots.values()].flatMap((manifests) => [...manifests]));
+        const manifests = new Map<Digest, Promise<PackageManifest | undefined>>();
+        const stored = (digest: Digest) => {
+            const reading =
+                manifests.get(digest) ??
+                this.contains(digest).then((isHere) => (isHere ? this.get(digest) : undefined));
+            manifests.set(digest, reading);
 
-        return new Set([...roots.values()].flatMap((manifests) => [...manifests]));
+            return reading;
+        };
+        const read: ManifestRead = (digest) => stored(digest);
+
+        // retain each listed build, the builds attached to it, and the closures of all of them among the stored builds
+        const retained = new Set<string>(listed);
+        const pending = [...listed].map((listing) => Digest.parse(listing));
+        for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+            const found = await stored(next);
+            if (found !== undefined) {
+                const packageId = PackageManifest.package(found).id;
+                const closure = await this.closure(next, packageId, read);
+                const attached = await this.attached(next);
+                for (const needed of [...closure, ...attached.map(({ file }) => file.digest)]) {
+                    if (!retained.has(needed)) {
+                        retained.add(needed);
+                        pending.push(needed);
+                    }
+                }
+            }
+        }
+
+        return retained;
+    }
+
+    /** Attach the runtime build of each emitted server output of a stored build. */
+    async attachRuntimes(digest: Digest): Promise<void> {
+        const { outputs } = await this.get(digest);
+        await Promise.all(
+            Object.values(outputs)
+                .filter((output) => output.emit && output.runtime !== "browser")
+                .map((output) => this.attachRuntime(digest, output.runtime)),
+        );
+    }
+
+    /** Read the runtime build of a stored build, deriving and attaching it once with its maps. */
+    attachRuntime(digest: Digest, runtime: Runtime): Promise<Digest> {
+        // share a derivation in flight, retrying one that failed
+        const key = `${digest} ${runtime}`;
+        const known = this.#attaching.get(key);
+        if (known !== undefined) {
+            return known;
+        }
+        const attaching = this.#deriveRuntime(digest, runtime);
+        this.#attaching.set(key, attaching);
+        attaching.catch(() => this.#attaching.delete(key));
+
+        return attaching;
+    }
+
+    /** Derive a build's runtime build: its output's loaded files, its maps attached to it apart. */
+    async #deriveRuntime(digest: Digest, runtime: Runtime): Promise<Digest> {
+        // answer the runtime build attached before
+        const path = `${RUNTIME_REFERRER}/${runtime}`;
+        const attached = await this.referrer(digest, path);
+        if (attached !== undefined) {
+            return attached.digest;
+        }
+
+        // read the build's output for the runtime, refusing a build without one
+        const reader = await this.contents(digest);
+        const { manifest } = reader;
+        const [name, output] = present(
+            Object.entries(manifest.outputs).find(([, each]) => each.runtime === runtime),
+            `the ${runtime} output of ${manifest.package.name}`,
+        );
+
+        // point each dependency at its runtime build, attaching it first
+        const dependencies = Object.fromEntries(
+            await Promise.all(
+                Object.entries(output.dependencies).map(
+                    async ([dependency, release]) =>
+                        [
+                            dependency,
+                            {
+                                ...release,
+                                manifest: await this.attachRuntime(release.manifest, runtime),
+                            },
+                        ] as const,
+                ),
+            ),
+        );
+
+        // write the output's files a runtime loads with the package.json, native addons and assets included
+        const files = await reader.distributed();
+        const inside = files.filter((file) => file.path.startsWith(`${output.directory}/`));
+        const maps = inside.filter((file) => file.path.endsWith(".map"));
+        const loaded = inside.filter(
+            (file) => !file.path.endsWith(".map") && !TYPE_DECLARATION.test(file.path),
+        );
+        const declared = files.filter((file) => file.path === "package.json");
+        const { commit } = manifest;
+        const built = await this.#write(reader, [...declared, ...loaded], {
+            package: manifest.package,
+            ...(commit === undefined ? {} : { commit }),
+            outputs: { [name]: { ...output, dependencies } },
+        });
+
+        // attach the maps to the runtime build when the output has any, then the runtime build to the build
+        if (maps.length > 0) {
+            const mapped = await this.#write(reader, maps, {
+                package: manifest.package,
+                ...(commit === undefined ? {} : { commit }),
+            });
+            await this.attachBuild(built, mapped, MAPS_REFERRER);
+        }
+        await this.attachBuild(digest, built, path);
+
+        return built;
+    }
+
+    /** Store a build of some files of another build, answering its manifest's digest. */
+    async #write(
+        source: BuildReader,
+        files: readonly PackageFile[],
+        contents: BuildContents,
+    ): Promise<Digest> {
+        // write the files in memory, then the manifest listing them
+        const written = new Map<string, Uint8Array<ArrayBuffer>>();
+        const writer = new BuildWriter(
+            { write: async (path, bytes) => void written.set(path, bytes) },
+            this.environment.crypto,
+        );
+        for (const file of files) {
+            await writer.write(file.path, await source.load(file.path));
+        }
+        const manifest = await writer.finish(contents);
+
+        return this.put(
+            new BuildReader(
+                manifest,
+                async (path) => new Blob([present(written.get(path), path)]).stream(),
+                this.environment.crypto,
+            ),
+        );
+    }
+
+    /** Attach a stored build to another at a path, storing its manifest as the referrer's file. */
+    async attachBuild(subject: Digest, referrer: Digest, path: string): Promise<void> {
+        const described = await this.head(referrer);
+        await this.putFile(described, async () => (await this.manifest(referrer)).body);
+        await this.attach(subject, { ...described, path });
+    }
+
+    /** List the npm units a build depends on, directly or through other units, as far as found. */
+    async units(
+        manifest: Digest,
+        packageId: PackageId,
+        read: ManifestRead = (digest) => this.get(digest),
+    ): Promise<Digest[]> {
+        // visit each unit once, from the build's outputs through each found unit's outputs, at the build's registry
+        const units = new Set<Digest>();
+        const pending = [manifest];
+        for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+            const found = await read(next, packageId);
+            const recorded = Object.values(found?.outputs ?? {}).flatMap((output) =>
+                Object.values(output.dependencies),
+            );
+            for (const dependency of recorded) {
+                if (dependency.kind === "npm" && !units.has(dependency.manifest)) {
+                    units.add(dependency.manifest);
+                    pending.push(dependency.manifest);
+                }
+            }
+        }
+
+        return [...units];
+    }
+
+    /** Read the manifests a build runs with, as far as found: itself and its workloads' imports. */
+    async closure(
+        manifest: Digest,
+        packageId: PackageId,
+        read: ManifestRead = (digest) => this.get(digest),
+    ): Promise<ReadonlySet<Digest>> {
+        // start at each workload's entry of each output, reading each manifest once
+        const manifests = new Map<Digest, Promise<PackageManifest | undefined>>();
+        const once: ManifestRead = (digest, located) => {
+            const reading = manifests.get(digest) ?? read(digest, located);
+            manifests.set(digest, reading);
+
+            return reading;
+        };
+        const root = await once(manifest, packageId);
+        const pending = Object.values(root?.outputs ?? {}).flatMap((output) =>
+            Object.values(output.workloads).map((workload) => ({
+                manifest,
+                packageId,
+                runtime: output.runtime,
+                subpath: workload.entrypoint,
+            })),
+        );
+
+        // follow each export once to the dependency exports its chunks import
+        const units = new Map<Digest, PackageId>();
+        const closure = new Set<Digest>([manifest]);
+        const visited = new Set<string>();
+        for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+            const key = `${next.manifest} ${next.runtime} ${next.subpath}`;
+            const found = visited.has(key) ? undefined : await once(next.manifest, next.packageId);
+            visited.add(key);
+            if (found !== undefined) {
+                const { outputs } = found;
+                const output = present(
+                    Object.values(outputs).find((each) => each.runtime === next.runtime),
+                    `the ${next.runtime} output of ${next.manifest}`,
+                );
+                const { imports } = present(
+                    output.exports[next.subpath],
+                    `the export ${next.subpath} of ${next.manifest}`,
+                );
+                for (const specifier of imports) {
+                    const dependency = present(
+                        output.dependencies[DependencyName.of(specifier)],
+                        `the dependency of ${specifier} in ${next.manifest}`,
+                    );
+                    closure.add(dependency.manifest);
+                    if (dependency.kind === "npm") {
+                        units.set(dependency.manifest, next.packageId);
+                    } else {
+                        pending.push({
+                            manifest: dependency.manifest,
+                            packageId: dependency.package.id,
+                            runtime: next.runtime,
+                            subpath: DependencyName.subpath(specifier),
+                        });
+                    }
+                }
+            }
+        }
+
+        // add the npm units each imported unit depends on, found at its dependent's registry
+        for (const [unit, located] of units) {
+            for (const needed of await this.units(unit, located, once)) {
+                closure.add(needed);
+            }
+        }
+
+        return closure;
     }
 
     /** Report whether a lease covers a manifest or file at a moment. */

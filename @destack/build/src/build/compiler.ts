@@ -407,9 +407,10 @@ export class Compiler implements AsyncDisposable {
         );
         const build = new PackageBuild(reader, destination, "temporary", files, reused);
 
-        // refuse an unloadable build, then store it and key each compiled output
+        // refuse an unloadable build, then store it with its runtime builds and key each compiled output
         await Compiler.#requireLoadable(build.manifest, store);
-        await store.put(build.reader, signal);
+        const digest = await store.put(build.reader, signal);
+        await store.attachRuntimes(digest);
         for (const [name, output] of Object.entries(response.outputs)) {
             const key = present(keys[name], `the key of output ${name}`);
             await store.cache(key, { kind: "output", output });
