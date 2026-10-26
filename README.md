@@ -14,14 +14,13 @@
 Destack is an open-source software engine for general purpose application software, just like Unity and Unreal are engines for games.
 Think GitHub + NPM + Convex + Vercel + Sentry in one, with all the boring decisions already made: auth, schemas, migrations, multiplayer, permissions, workflows, telemetry and hosting.
 
+<img alt="Every app on its own stack, then every app in one stack" src=".github/readme/stack.webp">
+
 To destack is to take back control over your software, step by step.
 First, Destack makes it simple to build high quality custom software with a standardised production pipeline.
 Then, progressively build your own suite of customised and custom software, all in one stack.
 
-<picture>
-    <source media="(prefers-color-scheme: dark)" srcset=".github/readme/engine-dark.webp">
-    <img alt="An app you made, glued across eight services, then the same app on Destack" src=".github/readme/engine-light.webp">
-</picture>
+<img alt="An app you made, glued across eight services, then the same app on Destack" src=".github/readme/engine.webp">
 
 ---
 
@@ -32,10 +31,7 @@ _Your_ entire Destack - your own personal superapp, with your complete personal 
 Or you can let us host it for you.
 Or any combination!
 
-<picture>
-    <source media="(prefers-color-scheme: dark)" srcset=".github/readme/space-dark.webp">
-    <img alt="Twelve apps on twelve silos, then the same twelve apps in one space" src=".github/readme/space-light.webp">
-</picture>
+<img alt="Twelve apps on twelve silos, then the same twelve apps in one space" src=".github/readme/space.webp">
 
 ---
 
@@ -63,11 +59,6 @@ The actual "stack" is carefully composed with [incremental granularity](https://
  4. **[Persistence](ARCHITECTURE.md#04-persistence)**: one database, synced everywhere
  5. **[Source](ARCHITECTURE.md#05-source)**: every app's code, open to read and fork
  6. **[Infrastructure](ARCHITECTURE.md#06-infrastructure)**: runs anywhere, from your laptop to the edge
-
-<picture>
-    <source media="(prefers-color-scheme: dark)" srcset=".github/readme/stack-dark.webp">
-    <img alt="Every app on its own stack, then every app in one stack" src=".github/readme/stack-light.webp">
-</picture>
 
 The packages of each layer, with what they do and the prior art they follow, are in [ARCHITECTURE.md](ARCHITECTURE.md).
 
